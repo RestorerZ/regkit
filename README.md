@@ -4,7 +4,7 @@ RegKit is a native Windows Registry editor written in C++ using the Win32 API an
 
 ## Differences to Default RegEdit
 
-RegKit adds functionality that standard regedit doesn't support/expose:
+RegKit adds functionality that standard regedit doesn't support:
 
 - A real REGISTRY root view in addition to standard hives
 - [Theme modes](https://github.com/nohuto/regkit#theme-presets) (System/Light/Dark) and custom theme presets (edit colors, import/export `.rktheme`)
