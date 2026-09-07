@@ -36,6 +36,34 @@ RegKit adds functionality that standard regedit doesn't support/expose:
 - Read only mode
 - Miscellaneous common functionalities
 
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl+N` | Open local registry tab |
+| `Ctrl+R` | Connect to remote registry |
+| `Ctrl+O` | Open offline registry |
+| `Ctrl+S` | Save current editable tab |
+| `Ctrl+E` | Export |
+| `Ctrl+F` | Find |
+| `Ctrl+H` | Replace |
+| `Ctrl+G` | Go to a registry path |
+| `Ctrl+Z` / `Ctrl+Y` | Undo / redo |
+| `Ctrl+C` / `Ctrl+V` | Copy / paste registry items |
+| `Ctrl+X` / `Delete` | Delete selected registry items |
+| `Ctrl+A` | Select all in the focused list or text field |
+| `Ctrl+Shift+C` | Copy the current key name |
+| `F2` | Rename the selected key or value |
+| `F5` | Refresh |
+| `Alt+Left` / `Alt+Right` | Navigate back / forward |
+| `Alt+Up` | Navigate to the parent key |
+| `Ctrl+L` / `Alt+D` | Focus the address bar |
+| `Ctrl+Shift+V` | Paste into the address bar and navigate |
+| `Tab` | Switch between key tree & value list |
+| `Shift+F10` / `Menu` | Open context menu for the focused item |
+| `F10` | Activate menu bar |
+| `Alt+F4` | Close RegKit |
+
 ## Command Line
 
 ### regedit
@@ -183,7 +211,7 @@ Default presets are `.reg` exports that fill the value list's `Default` column w
 These are the exact builds for each file:
 
 | Release | Edition | Architecture | Build |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- | --- |
 | [Windows XP SP1]() | Pro x64 Edition | x64 | `5.2.3790.1830` |
 | [Windows Vista RTM](https://github.com/nohuto/regkit/tree/main/assets/defaults/WVista%20Business%20x64%20-%206.0.6000.16386) | Business | x64 | `6.0.6000.16386` |
 | [Windows 7 RTM](https://github.com/nohuto/regkit/tree/main/assets/defaults/W7%20Professional%20x64%20-%206.1.7600.16385) | Pro | x64 | `6.1.7600.16385` |
