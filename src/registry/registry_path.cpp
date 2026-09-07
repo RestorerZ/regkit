@@ -173,9 +173,7 @@ std::wstring BuildNative(const RegistryNode& node) {
     root = L"\\REGISTRY\\USER\\" + sid;
   } else if (node.root == HKEY_CURRENT_CONFIG) {
     root =
-        L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Hardware\\Profiles\\Current";
-  } else if (node.root == HKEY_CLASSES_ROOT) {
-    root = L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes";
+        L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Hardware Profiles\\Current";
   } else {
     return {};
   }

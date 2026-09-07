@@ -10,6 +10,7 @@
 #include "win32/registry_view.h"
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdio>
 #include <cwctype>
 
@@ -188,6 +189,7 @@ const ValueType kTypes[] = {
     {L"REG_BINARY", REG_BINARY},
     {L"REG_NONE", REG_NONE},
     {L"REG_LINK", REG_LINK},
+    {L"REG_FULL_RESOURCE_DESCRIPTOR", REG_FULL_RESOURCE_DESCRIPTOR},
 };
 
 bool ParseType(const std::wstring& text, DWORD* type) {
@@ -237,10 +239,16 @@ bool BuildData(DWORD type, const std::wstring& text,
   case REG_DWORD:
   case REG_DWORD_BIG_ENDIAN:
   case REG_QWORD: {
+    if (text.empty() || iswspace(text.front()) || text.front() == L'-' ||
+        text.front() == L'+') {
+      PrintError(L"Invalid numeric data: " + text);
+      return false;
+    }
     wchar_t* stop = nullptr;
     const int base = (text.rfind(L"0x", 0) == 0 || text.rfind(L"0X", 0) == 0) ? 16 : 10;
+    errno = 0;
     const unsigned long long value = wcstoull(text.c_str(), &stop, base);
-    if (stop == text.c_str()) {
+    if (stop == text.c_str() || !stop || *stop != L'\0' || errno == ERANGE) {
       PrintError(L"Invalid numeric data: " + text);
       return false;
     }
@@ -248,6 +256,10 @@ bool BuildData(DWORD type, const std::wstring& text,
       data->resize(sizeof(unsigned long long));
       memcpy(data->data(), &value, sizeof(value));
       return true;
+    }
+    if (value > 0xFFFFFFFFull) {
+      PrintError(L"Numeric data out of range for a DWORD: " + text);
+      return false;
     }
     DWORD narrow = static_cast<DWORD>(value);
     if (type == REG_DWORD_BIG_ENDIAN) {
@@ -391,7 +403,8 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first,
     } else if (IsSwitch(arg, L"reg:64")) {
       options->view = KEY_WOW64_64KEY;
     } else if (!arg.empty() && (arg[0] == L'/' || arg[0] == L'-')) {
-      continue;
+      PrintError(L"Invalid option: " + arg);
+      return false;
     } else {
       positional->push_back(arg);
     }
@@ -399,12 +412,34 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first,
   return true;
 }
 
-void CollectValues(HKEY root, const std::wstring& subkey, REGSAM view,
+bool CollectSubkeyNames(HKEY root, const std::wstring& subkey, REGSAM view,
+                        std::vector<std::wstring>* names) {
+  HKEY handle = nullptr;
+  if (RegOpenKeyExW(root, subkey.c_str(), 0, KEY_READ | view, &handle) !=
+      ERROR_SUCCESS) {
+    return false;
+  }
+  wchar_t name[512] = {};
+  DWORD index = 0;
+  while (true) {
+    DWORD length = static_cast<DWORD>(std::size(name));
+    if (RegEnumKeyExW(handle, index, name, &length, nullptr, nullptr, nullptr,
+                      nullptr) != ERROR_SUCCESS) {
+      break;
+    }
+    ++index;
+    names->emplace_back(name, length);
+  }
+  RegCloseKey(handle);
+  return true;
+}
+
+bool CollectValues(HKEY root, const std::wstring& subkey, REGSAM view,
                    std::vector<RegistryValue>* values) {
   HKEY handle = nullptr;
   if (RegOpenKeyExW(root, subkey.c_str(), 0, KEY_READ | view, &handle) !=
       ERROR_SUCCESS) {
-    return;
+    return false;
   }
   wchar_t name[16384] = {};
   std::vector<BYTE> data(4096);
@@ -430,6 +465,7 @@ void CollectValues(HKEY root, const std::wstring& subkey, REGSAM view,
     values->push_back(std::move(value));
   }
   RegCloseKey(handle);
+  return true;
 }
 
 LONG OpenKey(const KeyRef& key, REGSAM access, REGSAM view, HKEY* handle) {
@@ -579,6 +615,20 @@ int CmdAdd(const std::vector<std::wstring>& args) {
     return kFailed;
   }
 
+  DWORD value_type = REG_SZ;
+  std::vector<BYTE> value_data;
+  if (options.has_value) {
+    if (!options.type_text.empty() &&
+        !ParseType(options.type_text, &value_type)) {
+      return kFailed;
+    }
+    if (!BuildData(value_type,
+                   options.has_data ? options.data : std::wstring(),
+                   options.separator, &value_data)) {
+      return kFailed;
+    }
+  }
+
   HKEY handle = nullptr;
   DWORD disposition = 0;
   LONG status = RegCreateKeyExW(key.root, key.subkey.c_str(), 0, nullptr,
@@ -592,11 +642,7 @@ int CmdAdd(const std::vector<std::wstring>& args) {
   int result = kOk;
   if (options.has_value) {
     const std::wstring name = options.default_value ? std::wstring() : options.value_name;
-    DWORD type = REG_SZ;
-    if (!options.type_text.empty() && !ParseType(options.type_text, &type)) {
-      RegCloseKey(handle);
-      return kFailed;
-    }
+    const DWORD type = value_type;
     if (!options.force) {
       DWORD existing = 0;
       if (RegQueryValueExW(handle, name.c_str(), nullptr, &existing, nullptr,
@@ -607,12 +653,7 @@ int CmdAdd(const std::vector<std::wstring>& args) {
         return kFailed;
       }
     }
-    std::vector<BYTE> data;
-    if (!BuildData(type, options.has_data ? options.data : std::wstring(),
-                   options.separator, &data)) {
-      RegCloseKey(handle);
-      return kFailed;
-    }
+    const std::vector<BYTE>& data = value_data;
     status = RegSetValueExW(handle, name.c_str(), 0, type, data.data(),
                             static_cast<DWORD>(data.size()));
     if (status != ERROR_SUCCESS) {
@@ -671,6 +712,12 @@ int CmdDelete(const std::vector<std::wstring>& args) {
     return kFailed;
   }
 
+  if (!options.force) {
+    PrintError(
+        L"This operation deletes registry data. Rerun with /f to confirm.");
+    return kFailed;
+  }
+
   if (options.has_value || options.all_values) {
     HKEY handle = nullptr;
     LONG status = OpenKey(key, KEY_WRITE, options.view, &handle);
@@ -685,8 +732,10 @@ int CmdDelete(const std::vector<std::wstring>& args) {
                           nullptr) != ERROR_SUCCESS) {
           break;
         }
-        if (RegDeleteValueW(handle, name) != ERROR_SUCCESS) {
-          break;
+        const LONG removed = RegDeleteValueW(handle, name);
+        if (removed != ERROR_SUCCESS) {
+          RegCloseKey(handle);
+          return Fail(removed);
         }
       }
     } else {
@@ -748,7 +797,13 @@ LONG CopyTree(const KeyRef& from, const KeyRef& to, REGSAM view, bool recurse) {
       break;
     }
     ++index;
-    RegSetValueExW(target, name, 0, type, data.data(), size);
+    const LONG written =
+        RegSetValueExW(target, name, 0, type, data.data(), size);
+    if (written != ERROR_SUCCESS) {
+      RegCloseKey(source);
+      RegCloseKey(target);
+      return written;
+    }
   }
 
   std::vector<std::wstring> children;
@@ -770,7 +825,10 @@ LONG CopyTree(const KeyRef& from, const KeyRef& to, REGSAM view, bool recurse) {
     KeyRef child_to = to;
     child_from.subkey = from.subkey + L'\\' + child;
     child_to.subkey = to.subkey + L'\\' + child;
-    CopyTree(child_from, child_to, view, true);
+    const LONG copied = CopyTree(child_from, child_to, view, true);
+    if (copied != ERROR_SUCCESS) {
+      return copied;
+    }
   }
   return ERROR_SUCCESS;
 }
@@ -945,11 +1003,28 @@ int CmdSave(const std::vector<std::wstring>& args) {
   if (status != ERROR_SUCCESS) {
     return Fail(status);
   }
-  DeleteFileW(positional[1].c_str());
-  status = RegSaveKeyW(handle, positional[1].c_str(), nullptr);
+  std::wstring staged = positional[1];
+  const bool existed =
+      GetFileAttributesW(positional[1].c_str()) != INVALID_FILE_ATTRIBUTES;
+  if (existed) {
+    wchar_t stamp[32] = {};
+    swprintf_s(stamp, L".%08x.part", GetCurrentProcessId());
+    staged = positional[1] + stamp;
+    DeleteFileW(staged.c_str());
+  }
+  status = RegSaveKeyW(handle, staged.c_str(), nullptr);
   RegCloseKey(handle);
   if (status != ERROR_SUCCESS) {
+    if (existed) {
+      DeleteFileW(staged.c_str());
+    }
     return Fail(status);
+  }
+  if (existed && !MoveFileExW(staged.c_str(), positional[1].c_str(),
+                              MOVEFILE_REPLACE_EXISTING)) {
+    const LONG move_error = static_cast<LONG>(GetLastError());
+    DeleteFileW(staged.c_str());
+    return Fail(move_error);
   }
   Print(L"The operation completed successfully.");
   return kOk;
@@ -1025,7 +1100,10 @@ int CmdUnload(const std::vector<std::wstring>& args) {
   return kOk;
 }
 
+int CmdCompare(const std::vector<std::wstring>& args);
+
 int CmdCompare(const std::vector<std::wstring>& args) {
+  bool subtree_differs = false;
   Options options;
   std::vector<std::wstring> positional;
   if (!ParseOptions(args, 1, &options, &positional)) {
@@ -1043,8 +1121,56 @@ int CmdCompare(const std::vector<std::wstring>& args) {
 
   std::vector<RegistryValue> left_values;
   std::vector<RegistryValue> right_values;
-  CollectValues(left.root, left.subkey, options.view, &left_values);
-  CollectValues(right.root, right.subkey, options.view, &right_values);
+  const bool left_ok =
+      CollectValues(left.root, left.subkey, options.view, &left_values);
+  const bool right_ok =
+      CollectValues(right.root, right.subkey, options.view, &right_values);
+  if (!left_ok || !right_ok) {
+    PrintError(L"The system was unable to open " +
+               (left_ok ? right.display : left.display) + L".");
+    return kFailed;
+  }
+  if (options.has_value) {
+    const std::wstring wanted =
+        options.default_value ? std::wstring() : options.value_name;
+    auto keep_only = [&](std::vector<RegistryValue>* list) {
+      list->erase(std::remove_if(list->begin(), list->end(),
+                                 [&](const RegistryValue& value) {
+                                   return _wcsicmp(value.name.c_str(),
+                                                   wanted.c_str()) != 0;
+                                 }),
+                  list->end());
+    };
+    keep_only(&left_values);
+    keep_only(&right_values);
+  }
+  if (options.recurse) {
+    std::vector<std::wstring> children;
+    CollectSubkeyNames(left.root, left.subkey, options.view, &children);
+    CollectSubkeyNames(right.root, right.subkey, options.view, &children);
+    std::sort(children.begin(), children.end(),
+              [](const std::wstring& a, const std::wstring& b) {
+                return _wcsicmp(a.c_str(), b.c_str()) < 0;
+              });
+    children.erase(std::unique(children.begin(), children.end(),
+                               [](const std::wstring& a,
+                                  const std::wstring& b) {
+                                 return _wcsicmp(a.c_str(), b.c_str()) == 0;
+                               }),
+                   children.end());
+    for (const std::wstring& child : children) {
+      std::vector<std::wstring> child_args = args;
+      child_args[1] = positional[0] + L"\\" + child;
+      child_args[2] = positional[1] + L"\\" + child;
+      const int child_result = CmdCompare(child_args);
+      if (child_result == kFailed) {
+        return kFailed;
+      }
+      if (child_result != kOk) {
+        subtree_differs = true;
+      }
+    }
+  }
 
   auto find = [](const std::vector<RegistryValue>& list,
                  const std::wstring& name) -> const RegistryValue* {
@@ -1078,6 +1204,7 @@ int CmdCompare(const std::vector<std::wstring>& args) {
       identical = false;
     }
   }
+  identical = identical && !subtree_differs;
   Print(identical ? L"Result Compared: Identical"
                   : L"Result Compared: Different");
   return identical ? kOk : 2;

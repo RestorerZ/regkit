@@ -6,6 +6,7 @@
 #include "registry/registry_value.h"
 
 #include <memory>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 
@@ -23,6 +24,8 @@ struct VirtualRegistryKey {
 struct VirtualRegistryData {
   std::wstring root_name;
   std::unique_ptr<VirtualRegistryKey> root;
+  std::shared_ptr<std::shared_mutex> mutex =
+      std::make_shared<std::shared_mutex>();
 };
 
 } // namespace regkit

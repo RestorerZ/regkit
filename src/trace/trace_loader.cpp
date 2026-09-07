@@ -5,21 +5,20 @@
 
 #include "win32/file_text.h"
 
-#include <limits>
 #include <string_view>
 
 namespace regkit::trace {
 
 namespace {
 
+constexpr uint64_t kMaxTraceFileBytes = 128ull * 1024 * 1024;
+
 bool Read(const std::wstring& path, std::vector<BYTE>* bytes,
           std::wstring* error, const std::atomic_bool* cancel) {
   if (cancel && cancel->load()) {
     return false;
   }
-  if (!util::ReadFileBytes(
-          path, bytes,
-          static_cast<uint64_t>(std::numeric_limits<int>::max()))) {
+  if (!util::ReadFileBytes(path, bytes, kMaxTraceFileBytes)) {
     if (error) {
       *error = L"Failed to read trace file.";
     }

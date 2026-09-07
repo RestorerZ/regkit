@@ -4,6 +4,7 @@
 #include "trace/trace_parser.h"
 
 #include "registry/registry_path.h"
+#include "win32/text_transform.h"
 #include "win32/file_text.h"
 
 #include <algorithm>
@@ -19,12 +20,8 @@ bool Cancelled(const std::atomic_bool* cancel) {
   return cancel && cancel->load();
 }
 
-std::wstring Lower(std::wstring text) {
-  std::transform(text.begin(), text.end(), text.begin(),
-                 [](wchar_t ch) {
-                   return static_cast<wchar_t>(towlower(ch));
-                 });
-  return text;
+std::wstring Lower(const std::wstring& text) {
+  return util::ToLower(text);
 }
 
 std::wstring Trim(std::wstring text) {
@@ -75,11 +72,7 @@ void Finalize(Data* data) {
   std::sort(data->display_key_paths.begin(),
             data->display_key_paths.end(), less);
 
-  std::unordered_map<
-      std::wstring,
-      std::unordered_map<std::wstring, std::wstring>>
-      children;
-  children.reserve(data->key_paths.size());
+  data->children_by_key.reserve(data->key_paths.size());
   for (const auto& path : data->key_paths) {
     const auto parts = registry_path::Split(path);
     if (parts.size() < 2) {
@@ -87,21 +80,10 @@ void Finalize(Data* data) {
     }
     std::wstring parent = parts.front();
     for (size_t index = 1; index < parts.size(); ++index) {
-      children[Lower(parent)].try_emplace(Lower(parts[index]),
-                                          parts[index]);
+      data->children_by_key[Lower(parent)].try_emplace(Lower(parts[index]),
+                                                       parts[index]);
       parent += L"\\" + parts[index];
     }
-  }
-  data->children_by_key.reserve(children.size());
-  for (auto& pair : children) {
-    std::vector<std::wstring> names;
-    names.reserve(pair.second.size());
-    for (auto& child : pair.second) {
-      names.push_back(std::move(child.second));
-    }
-    std::sort(names.begin(), names.end(), less);
-    data->children_by_key.emplace(std::move(pair.first),
-                                  std::move(names));
   }
 }
 

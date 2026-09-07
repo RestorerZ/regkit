@@ -394,6 +394,10 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam) {
       browse_.tree().OnItemExpanding(reinterpret_cast<NMTREEVIEWW*>(lparam));
       return 0;
     }
+    if (header->code == TVN_GETDISPINFOW) {
+      browse_.tree().OnGetDispInfo(reinterpret_cast<NMTVDISPINFOW*>(lparam));
+      return 0;
+    }
     if (header->code == TVN_ITEMEXPANDEDW) {
       if (!jump_ui_batch_active_) {
         MarkTreeStateDirty();
@@ -768,6 +772,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam) 
         updated->name = new_name;
         updated->extra = new_name;
         browse_.values().InvalidateFilterCache(updated);
+        browse_.values().RefreshFilter();
         ListView_RedrawItems(browse_.values().hwnd(), disp->item.iItem,
                              disp->item.iItem);
         browse_.SelectValue(new_name);
@@ -1563,11 +1568,12 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state) {
             util::ReadTextFile(
                 comments_path, &comments_content, nullptr,
                 static_cast<uint64_t>(std::numeric_limits<int>::max()))) {
-          changes::CommentDocument comments =
-              changes::ParseComments(comments_content);
-          payload->value_comments = std::move(comments.value_entries);
-          payload->name_comments = std::move(comments.name_entries);
-          payload->comments_loaded = true;
+          changes::CommentDocument comments;
+          if (changes::ParseComments(comments_content, &comments)) {
+            payload->value_comments = std::move(comments.value_entries);
+            payload->name_comments = std::move(comments.name_entries);
+            payload->comments_loaded = true;
+          }
         }
         if (cancel.load()) {
           return;
@@ -1775,7 +1781,11 @@ void MainWindow::Impl::DiscardWorkerMessages() {
       frame::message_id::kStartupCacheReady, frame::message_id::kRegFileLoadReady,
       frame::message_id::kTraceParseBatch, frame::message_id::kDefaultParseBatch,
       frame::message_id::kValueListReady, frame::message_id::kReplaceReady,
-      frame::message_id::kValuePreviewReady};
+      frame::message_id::kValuePreviewReady,
+      frame::message_id::kSearchPreviewReady,
+      frame::message_id::kSearchSortReady,
+      frame::message_id::kSearchTabLoadReady,
+      frame::message_id::kUpdateCheckReady};
   for (const UINT id : payload_messages) {
     while (PeekMessageW(&message, hwnd_, id, id, PM_REMOVE)) {
       switch (id) {
@@ -1805,6 +1815,18 @@ void MainWindow::Impl::DiscardWorkerMessages() {
         break;
       case frame::message_id::kReplaceReady:
         delete reinterpret_cast<ReplacePayload*>(message.lParam);
+        break;
+      case frame::message_id::kSearchPreviewReady:
+        delete reinterpret_cast<SearchPreviewPayload*>(message.lParam);
+        break;
+      case frame::message_id::kSearchSortReady:
+        delete reinterpret_cast<SearchSortPayload*>(message.lParam);
+        break;
+      case frame::message_id::kSearchTabLoadReady:
+        delete reinterpret_cast<SearchTabLoadPayload*>(message.lParam);
+        break;
+      case frame::message_id::kUpdateCheckReady:
+        delete reinterpret_cast<UpdateCheckPayload*>(message.lParam);
         break;
       default:
         break;

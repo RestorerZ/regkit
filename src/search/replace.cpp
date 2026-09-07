@@ -37,10 +37,15 @@ bool Replacer::Replace(const std::wstring& text,
     return false;
   }
   if (use_regex_) {
-    const bool matched =
-        match_whole_ ? std::regex_match(text, regex_)
-                     : std::regex_search(text, regex_);
-    if (!matched) {
+    if (match_whole_) {
+      std::wsmatch match;
+      if (!std::regex_match(text, match, regex_)) {
+        return false;
+      }
+      *result = match.format(replacement_);
+      return true;
+    }
+    if (!std::regex_search(text, regex_)) {
       return false;
     }
     *result = std::regex_replace(text, regex_, replacement_);

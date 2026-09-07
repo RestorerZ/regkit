@@ -1076,13 +1076,7 @@ void appearance::ShowThemePresetEditor(HWND owner,
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
 
-  MSG msg = {};
-  while (IsWindow(hwnd) && GetMessageW(&msg, nullptr, 0, 0)) {
-    if (!IsDialogMessageW(hwnd, &msg)) {
-      TranslateMessage(&msg);
-      DispatchMessageW(&msg);
-    }
-  }
+  appearance::RunModalLoop(hwnd);
   appearance::RestoreDialogOwner(owner, &state->owner_restored);
   delete state;
 }

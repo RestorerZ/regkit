@@ -174,11 +174,20 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
     SelectTextMode(dialog, id);
     UpdatePreview(dialog, state);
     return TRUE;
-  case IDOK:
-    state->text = dialog_support::ReadText(dialog, IDC_EDIT);
+  case IDOK: {
+    std::wstring text = dialog_support::ReadText(dialog, IDC_EDIT);
+    std::vector<BYTE> parsed;
+    if (!value_format::ParseHex(text, &parsed)) {
+      ui::ShowError(dialog, L"Invalid hex input.");
+      SetFocus(GetDlgItem(dialog, IDC_EDIT));
+      return TRUE;
+    }
+    state->text = std::move(text);
+    state->value.data = std::move(parsed);
     state->accepted = true;
     EndDialog(dialog, IDOK);
     return TRUE;
+  }
   case IDCANCEL:
     EndDialog(dialog, IDCANCEL);
     return TRUE;
@@ -200,10 +209,6 @@ bool EditBinary(HWND owner, const BinaryRequest& request,
       GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_BINARY), owner,
       DialogProc, reinterpret_cast<LPARAM>(&state));
   if (dialog_result != IDOK || !state.accepted) {
-    return false;
-  }
-  if (!value_format::ParseHex(state.text, &state.value.data)) {
-    ui::ShowError(owner, L"Invalid hex input.");
     return false;
   }
   *result = std::move(state.value);

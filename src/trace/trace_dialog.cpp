@@ -117,9 +117,11 @@ void UpdateStatus(TraceDialogState* state) {
     text.append(std::to_wstring(state->value_count));
     text.append(L" values");
   }
-  if (!state->loading_done) {
+  const bool ready = state->loading_done && !state->processing_entries;
+  if (!ready) {
     text.append(L" (loading...)");
   }
+  EnableWindow(state->ok_button, ready);
   SetWindowTextW(state->status, text.c_str());
 }
 
@@ -299,6 +301,14 @@ void AppendCheckedNodes(HWND tree, HTREEITEM item,
         if (seen_keys && seen_keys->insert(key_lower).second) {
           selection->key_paths.push_back(data->key_path);
         }
+        for (HTREEITEM child = TreeView_GetChild(tree, item); child;
+             child = TreeView_GetNextSibling(tree, child)) {
+          TraceNodeData* child_data = GetNodeData(tree, child);
+          if (child_data && child_data->is_value) {
+            selection->values_by_key[key_lower];
+            break;
+          }
+        }
       }
     }
     HTREEITEM child = TreeView_GetChild(tree, item);
@@ -354,7 +364,6 @@ void ProcessPendingEntries(HWND hwnd, TraceDialogState* state) {
       break;
     }
   }
-  UpdateStatus(state);
   if (state->pending_index >= state->pending_entries.size()) {
     state->pending_entries.clear();
     state->pending_index = 0;
@@ -362,6 +371,7 @@ void ProcessPendingEntries(HWND hwnd, TraceDialogState* state) {
   } else {
     PostMessageW(hwnd, kDialogProcessEntriesMessage, 0, 0);
   }
+  UpdateStatus(state);
 }
 
 void AcceptSelection(HWND hwnd, TraceDialogState* state, bool select_all) {
@@ -692,13 +702,7 @@ bool ShowTraceDialog(HWND owner, const TraceDialogOptions& options,
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
 
-  MSG msg = {};
-  while (IsWindow(hwnd) && GetMessageW(&msg, nullptr, 0, 0)) {
-    if (!IsDialogMessageW(hwnd, &msg)) {
-      TranslateMessage(&msg);
-      DispatchMessageW(&msg);
-    }
-  }
+  appearance::RunModalLoop(hwnd);
 
   appearance::RestoreDialogOwner(owner, &state.owner_restored);
   return state.accepted;

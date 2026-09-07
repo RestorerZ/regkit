@@ -88,7 +88,8 @@ void AppendKeys(const Map& source, std::unordered_set<std::wstring>* seen,
 
 bool CaptureRegistry(const std::wstring& base_path,
                      const RegistryNode& base_node, bool recursive,
-                     Snapshot* snapshot, std::atomic_bool* cancel) {
+                     Snapshot* snapshot, std::wstring* error,
+                     std::atomic_bool* cancel) {
   if (!snapshot) {
     return false;
   }
@@ -110,8 +111,9 @@ bool CaptureRegistry(const std::wstring& base_path,
     key.relative_path = relative;
     RegistryStore::KeyEnumResult enumeration;
     bool reserved = false;
-    RegistryStore::EnumKeyStreaming(
-        node, true, true, false, &enumeration,
+    std::vector<std::wstring> children;
+    const bool enumerated = RegistryStore::EnumKeyStreaming(
+        node, true, true, recursive, &enumeration,
         [&](const ValueInfo& value, const BYTE* data, DWORD size) {
           if (Cancelled(cancel)) {
             return false;
@@ -131,17 +133,25 @@ bool CaptureRegistry(const std::wstring& base_path,
           key.values[Lower(captured.name)] = std::move(captured);
           return true;
         },
-        {});
+        recursive ? RegistryStore::SubkeyStreamCallback(
+                        [&](const std::wstring& name) {
+                          children.push_back(name);
+                          return true;
+                        })
+                  : RegistryStore::SubkeyStreamCallback());
     if (Cancelled(cancel)) {
+      return false;
+    }
+    if (!enumerated) {
+      if (error) {
+        *error = L"Could not read the registry key: " +
+                 (relative.empty() ? base_path : base_path + L"\\" + relative);
+      }
       return false;
     }
     snapshot->keys[Lower(relative)] = std::move(key);
 
-    if (!recursive) {
-      continue;
-    }
-    for (const auto& name :
-         RegistryStore::EnumSubKeyNames(node, false)) {
+    for (const auto& name : children) {
       RegistryNode child = node;
       child.subkey =
           node.subkey.empty() ? name : node.subkey + L"\\" + name;

@@ -233,6 +233,22 @@ bool RegistryStore::ReadKeyLink(const RegistryNode& node,
       [&] { return registry_backend::live::ReadKeyLink(node, target); });
 }
 
+bool RegistryStore::ReadKeySecurity(const RegistryNode& node,
+                                   std::vector<BYTE>* descriptor) {
+  return Dispatch(
+      node, [&](VirtualRegistryData&) { return false; }, [&] { return false; },
+      [&] { return registry_backend::live::ReadKeySecurity(node, descriptor); });
+}
+
+bool RegistryStore::WriteKeySecurity(const RegistryNode& node,
+                                     const std::vector<BYTE>& descriptor) {
+  return Dispatch(
+      node, [&](VirtualRegistryData&) { return false; }, [&] { return false; },
+      [&] {
+        return registry_backend::live::WriteKeySecurity(node, descriptor);
+      });
+}
+
 bool RegistryStore::DeleteKey(const RegistryNode& node) {
   if (node.subkey.empty()) {
     return false;

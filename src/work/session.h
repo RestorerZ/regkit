@@ -11,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <system_error>
 #include <thread>
 #include <utility>
 
@@ -72,12 +73,23 @@ public:
       std::lock_guard<std::mutex> lock(mutex_);
       processor_ = std::move(processor);
       stopping_.store(false);
+      superseded_.store(false);
     }
-    thread_ = std::thread([this]() { Run(); });
+    try {
+      thread_ = std::thread([this]() { Run(); });
+    } catch (const std::system_error&) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      stopping_.store(true);
+      processor_ = {};
+    }
   }
 
 
-  std::unique_ptr<Task> Submit(std::unique_ptr<Task> task) {
+  std::unique_ptr<Task> Submit(std::unique_ptr<Task> task,
+                               bool* accepted = nullptr) {
+    if (accepted) {
+      *accepted = false;
+    }
     if (!task) {
       return nullptr;
     }
@@ -85,10 +97,14 @@ public:
     {
       std::lock_guard<std::mutex> lock(mutex_);
       if (stopping_.load()) {
-        return nullptr;
+        return task;
       }
       displaced = std::move(pending_);
       pending_ = std::move(task);
+      superseded_.store(true);
+    }
+    if (accepted) {
+      *accepted = true;
     }
     ready_.notify_one();
     return displaced;
@@ -96,6 +112,7 @@ public:
 
   void Stop() noexcept {
     stopping_.store(true);
+    superseded_.store(true);
     ready_.notify_one();
     if (thread_.joinable()) {
       thread_.join();
@@ -124,9 +141,13 @@ private:
         }
         task = std::move(pending_);
         processor = processor_;
+        superseded_.store(false);
       }
       if (processor && task) {
-        processor(std::move(task), stopping_);
+        try {
+          processor(std::move(task), superseded_);
+        } catch (...) {
+        }
       }
     }
   }
@@ -135,6 +156,7 @@ private:
   std::condition_variable ready_;
   std::thread thread_;
   std::atomic_bool stopping_{true};
+  std::atomic_bool superseded_{false};
   std::unique_ptr<Task> pending_;
   Processor processor_;
 };
@@ -160,7 +182,13 @@ public:
       stopping_ = false;
       revision_ = 0;
     }
-    thread_ = std::thread([this]() { Run(); });
+    try {
+      thread_ = std::thread([this]() { Run(); });
+    } catch (const std::system_error&) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      stopping_ = true;
+      handler_ = {};
+    }
   }
 
   void Submit(Task task) {
@@ -223,8 +251,11 @@ private:
       pending_.reset();
       Handler handler = handler_;
       lock.unlock();
-      if (handler) {
-        handler(std::move(task));
+      try {
+        if (handler) {
+          handler(std::move(task));
+        }
+      } catch (...) {
       }
       lock.lock();
     }

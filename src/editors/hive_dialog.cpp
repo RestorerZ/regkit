@@ -132,6 +132,7 @@ namespace {
 struct SymbolicLinkDialogState {
   SymbolicLinkResult* result = nullptr;
   const BrowseKeyCallback* browse = nullptr;
+  HFONT font = nullptr;
 };
 
 INT_PTR CALLBACK SymbolicLinkDialogProc(HWND dlg, UINT msg, WPARAM wparam,
@@ -153,24 +154,28 @@ INT_PTR CALLBACK SymbolicLinkDialogProc(HWND dlg, UINT msg, WPARAM wparam,
       SetDlgItemTextW(dlg, IDC_SYMLINK_NAME, state->name.c_str());
       SetDlgItemTextW(dlg, IDC_SYMLINK_TARGET, state->target.c_str());
     }
-    dialog_support::Initialize(dlg, nullptr,
+    dialog_support::Initialize(dlg, dialog ? &dialog->font : nullptr,
                                {IDC_SYMLINK_NAME, IDC_SYMLINK_TARGET});
+    return TRUE;
+  }
+  case WM_DESTROY: {
+    if (dialog) {
+      dialog_support::ReleaseFont(&dialog->font);
+    }
     return TRUE;
   }
   case WM_COMMAND:
     switch (LOWORD(wparam)) {
     case IDOK: {
       if (state) {
-        wchar_t name_buffer[256] = {};
-        wchar_t target_buffer[1024] = {};
-        GetDlgItemTextW(dlg, IDC_SYMLINK_NAME, name_buffer,
-                        static_cast<int>(_countof(name_buffer)));
-        GetDlgItemTextW(dlg, IDC_SYMLINK_TARGET, target_buffer,
-                        static_cast<int>(_countof(target_buffer)));
-        state->name = name_buffer;
-        state->target = target_buffer;
+        state->name = dialog_support::ReadText(dlg, IDC_SYMLINK_NAME);
+        state->target = dialog_support::ReadText(dlg, IDC_SYMLINK_TARGET);
         if (state->name.empty() || state->target.empty()) {
           ui::ShowWarning(dlg, L"Enter a link name and a target key.");
+          return TRUE;
+        }
+        if (state->name.find(L'\\') != std::wstring::npos) {
+          ui::ShowWarning(dlg, L"The link name cannot contain a backslash.");
           return TRUE;
         }
       }

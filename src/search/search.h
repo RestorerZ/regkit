@@ -110,6 +110,8 @@ struct Result {
   DataState data_state = DataState::kNotApplicable;
 };
 
+bool IsExcludedPath(const std::wstring& path,
+                    const std::vector<std::wstring>& excludes);
 bool IsKeyRow(const Result& result) noexcept;
 std::wstring_view DisplayName(const Result& result) noexcept;
 std::wstring TypeText(const Result& result);

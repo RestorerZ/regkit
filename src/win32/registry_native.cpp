@@ -5,6 +5,8 @@
 
 #include <winternl.h>
 
+#include <limits>
+
 namespace util {
 namespace {
 
@@ -12,11 +14,9 @@ namespace {
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 #endif
 
-#ifndef OBJ_OPENLINK
-#define OBJ_OPENLINK 0x00000008L
-#endif
-
 using NtOpenKey = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES);
+using NtOpenKeyEx = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES,
+                                     ULONG);
 using NtDeleteKey = NTSTATUS(NTAPI*)(HANDLE);
 
 NtOpenKey ResolveNtOpenKey() {
@@ -24,6 +24,13 @@ NtOpenKey ResolveNtOpenKey() {
   return module
              ? reinterpret_cast<NtOpenKey>(GetProcAddress(module, "NtOpenKey"))
              : nullptr;
+}
+
+NtOpenKeyEx ResolveNtOpenKeyEx() {
+  HMODULE module = GetModuleHandleW(L"ntdll.dll");
+  return module ? reinterpret_cast<NtOpenKeyEx>(
+                      GetProcAddress(module, "NtOpenKeyEx"))
+                : nullptr;
 }
 
 NtDeleteKey ResolveNtDeleteKey() {
@@ -38,7 +45,15 @@ NtDeleteKey ResolveNtDeleteKey() {
 UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access,
                                  bool open_link) {
   static const NtOpenKey open_key = ResolveNtOpenKey();
-  if (!open_key || path.empty()) {
+  static const NtOpenKeyEx open_key_ex = ResolveNtOpenKeyEx();
+  if (path.empty() ||
+      path.size() * sizeof(wchar_t) > (std::numeric_limits<USHORT>::max)()) {
+    return {};
+  }
+  if (open_link && !open_key_ex) {
+    return {};
+  }
+  if (!open_link && !open_key) {
     return {};
   }
   UNICODE_STRING name = {};
@@ -46,12 +61,14 @@ UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access,
   name.Length = static_cast<USHORT>(path.size() * sizeof(wchar_t));
   name.MaximumLength = name.Length;
   OBJECT_ATTRIBUTES attributes = {};
-  InitializeObjectAttributes(
-      &attributes, &name,
-      OBJ_CASE_INSENSITIVE | (open_link ? OBJ_OPENLINK : 0), nullptr,
-      nullptr);
+  InitializeObjectAttributes(&attributes, &name, OBJ_CASE_INSENSITIVE, nullptr,
+                             nullptr);
   HANDLE handle = nullptr;
-  if (!NT_SUCCESS(open_key(&handle, access, &attributes)) || !handle) {
+  const NTSTATUS status =
+      open_link ? open_key_ex(&handle, access, &attributes,
+                              REG_OPTION_OPEN_LINK)
+                : open_key(&handle, access, &attributes);
+  if (!NT_SUCCESS(status) || !handle) {
     return {};
   }
   return UniqueHKey(reinterpret_cast<HKEY>(handle));

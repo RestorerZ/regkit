@@ -13,12 +13,18 @@ UINT DpiForWindow(HWND window) {
     auto get_window_dpi = reinterpret_cast<UINT(WINAPI*)(HWND)>(
         GetProcAddress(user32, "GetDpiForWindow"));
     if (get_window_dpi && window) {
-      return get_window_dpi(window);
+      const UINT dpi = get_window_dpi(window);
+      if (dpi != 0) {
+        return dpi;
+      }
     }
     auto get_system_dpi = reinterpret_cast<UINT(WINAPI*)()>(
         GetProcAddress(user32, "GetDpiForSystem"));
     if (get_system_dpi) {
-      return get_system_dpi();
+      const UINT dpi = get_system_dpi();
+      if (dpi != 0) {
+        return dpi;
+      }
     }
   }
 

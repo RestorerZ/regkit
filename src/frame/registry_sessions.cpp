@@ -6,6 +6,30 @@
 namespace regkit {
 using namespace window_detail;
 
+namespace {
+
+bool SaveHiveAtomically(HKEY root, const std::wstring& path,
+                        std::wstring* error) {
+  const std::wstring temp =
+      path + L"." + std::to_wstring(GetCurrentProcessId()) + L".part";
+  DeleteFileW(temp.c_str());
+  if (!RegistryStore::SaveOfflineHive(root, temp, error)) {
+    DeleteFileW(temp.c_str());
+    return false;
+  }
+  if (!MoveFileExW(temp.c_str(), path.c_str(),
+                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+    if (error) {
+      *error = FormatWin32Error(GetLastError());
+    }
+    DeleteFileW(temp.c_str());
+    return false;
+  }
+  return true;
+}
+
+} // namespace
+
 void MainWindow::Impl::ReleaseRemoteRegistry() {
   if (remote_hklm_) {
     RegCloseKey(remote_hklm_);
@@ -25,12 +49,34 @@ bool MainWindow::Impl::UnloadOfflineRegistry(std::wstring* error) {
   if (offline_roots_.empty()) {
     return true;
   }
-  ClearOfflineDirty();
-  for (HKEY root : offline_roots_) {
-    if (!RegistryStore::CloseOfflineHive(root, error)) {
-      return false;
+  std::vector<HKEY> remaining_roots;
+  std::vector<std::wstring> remaining_labels;
+  std::vector<std::wstring> remaining_paths;
+  for (size_t i = 0; i < offline_roots_.size(); ++i) {
+    std::wstring close_error;
+    if (RegistryStore::CloseOfflineHive(offline_roots_[i], &close_error)) {
+      continue;
+    }
+    remaining_roots.push_back(offline_roots_[i]);
+    if (i < offline_root_labels_.size()) {
+      remaining_labels.push_back(offline_root_labels_[i]);
+    }
+    if (i < offline_root_paths_.size()) {
+      remaining_paths.push_back(offline_root_paths_[i]);
+    }
+    if (error && error->empty()) {
+      *error = close_error;
     }
   }
+  if (!remaining_roots.empty()) {
+    offline_roots_ = std::move(remaining_roots);
+    offline_root_labels_ = std::move(remaining_labels);
+    offline_root_paths_ = std::move(remaining_paths);
+    offline_root_ = offline_roots_.size() == 1 ? offline_roots_.front() : nullptr;
+    RegistryStore::SetOfflineRoots(offline_roots_);
+    return false;
+  }
+  ClearOfflineDirty();
   RegistryStore::SetOfflineRoots({});
   offline_roots_.clear();
   offline_root_labels_.clear();
@@ -349,6 +395,10 @@ bool MainWindow::Impl::SwitchToLocalRegistry() {
   if (!needs_reload) {
     return true;
   }
+  if (!ConfirmOfflineChanges(L"The offline registry has unsaved changes.\n"
+                             L"Save before switching?")) {
+    return false;
+  }
   if (registry_mode_ == RegistryMode::kOffline) {
     std::wstring error;
     if (!UnloadOfflineRegistry(&error)) {
@@ -396,6 +446,14 @@ bool MainWindow::Impl::SwitchToRemoteRegistry() {
   LONG hku_result = RegConnectRegistryW(machine.c_str(), HKEY_USERS, &hku);
 
   if (registry_mode_ == RegistryMode::kOffline) {
+    if (!ConfirmOfflineChanges(L"The offline registry has unsaved changes.\n"
+                             L"Save before switching?")) {
+      if (hku) {
+        RegCloseKey(hku);
+      }
+      RegCloseKey(hklm);
+      return false;
+    }
     std::wstring error;
     if (!UnloadOfflineRegistry(&error)) {
       if (!error.empty()) {
@@ -456,6 +514,10 @@ bool MainWindow::Impl::SwitchToOfflineRegistry() {
 
 bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, bool open_new_tab) {
   if (registry_mode_ == RegistryMode::kOffline && !offline_roots_.empty()) {
+    if (!ConfirmOfflineChanges(L"The offline registry has unsaved changes.\n"
+                             L"Save before switching?")) {
+      return false;
+    }
     std::wstring error;
     if (!UnloadOfflineRegistry(&error)) {
       if (!error.empty()) {
@@ -595,15 +657,8 @@ bool MainWindow::Impl::SaveOfflineRegistry() {
         ui::ShowError(hwnd_, L"Failed to resolve offline hive path for saving.");
         return false;
       }
-      DWORD attrs = GetFileAttributesW(path.c_str());
-      if (attrs != INVALID_FILE_ATTRIBUTES) {
-        if (!DeleteFileW(path.c_str())) {
-          ui::ShowError(hwnd_, FormatWin32Error(GetLastError()));
-          return false;
-        }
-      }
       std::wstring error;
-      if (!RegistryStore::SaveOfflineHive(offline_roots_[i], path, &error)) {
+      if (!SaveHiveAtomically(offline_roots_[i], path, &error)) {
         ui::ShowError(hwnd_, error.empty() ? L"Failed to save offline hive." : error);
         return false;
       }
@@ -625,16 +680,8 @@ bool MainWindow::Impl::SaveOfflineRegistry() {
     return false;
   }
 
-  DWORD attrs = GetFileAttributesW(path.c_str());
-  if (attrs != INVALID_FILE_ATTRIBUTES) {
-    if (!DeleteFileW(path.c_str())) {
-      ui::ShowError(hwnd_, FormatWin32Error(GetLastError()));
-      return false;
-    }
-  }
-
   std::wstring error;
-  if (!RegistryStore::SaveOfflineHive(offline_root_, path, &error)) {
+  if (!SaveHiveAtomically(offline_root_, path, &error)) {
     ui::ShowError(hwnd_, error.empty() ? L"Failed to save offline hive." : error);
     return false;
   }

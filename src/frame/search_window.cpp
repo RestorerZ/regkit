@@ -622,18 +622,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
         };
 
         auto is_excluded = [&](const std::wstring& path) {
-          if (exclude_paths.empty()) {
-            return false;
-          }
-          for (const auto& exclude : exclude_paths) {
-            if (exclude.empty()) {
-              continue;
-            }
-            if (FindStringOrdinal(FIND_FROMSTART, path.c_str(), static_cast<int>(path.size()), exclude.c_str(), static_cast<int>(exclude.size()), TRUE) >= 0) {
-              return true;
-            }
-          }
-          return false;
+          return search::IsExcludedPath(path, exclude_paths);
         };
 
         auto key_in_scope = [&](const std::wstring& key_lower) {

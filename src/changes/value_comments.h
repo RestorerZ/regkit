@@ -52,7 +52,7 @@ private:
   std::unordered_map<std::wstring, CommentEntry> name_entries_;
 };
 
-CommentDocument ParseComments(const std::wstring& content);
+bool ParseComments(const std::wstring& content, CommentDocument* out);
 std::wstring SerializeComments(const ValueComments& comments);
 
 } // namespace regkit::changes

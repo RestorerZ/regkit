@@ -236,8 +236,53 @@ bool ResolveExternalJumpTarget(const std::vector<std::wstring>& args, std::wstri
   return ReadRegeditLastKey(out);
 }
 
+std::wstring ProcessImagePath(DWORD process_id) {
+  HANDLE process =
+      OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id);
+  if (!process) {
+    return {};
+  }
+  wchar_t buffer[MAX_PATH * 2] = {};
+  DWORD length = static_cast<DWORD>(std::size(buffer));
+  const BOOL ok = QueryFullProcessImageNameW(process, 0, buffer, &length);
+  CloseHandle(process);
+  if (!ok) {
+    return {};
+  }
+  return std::wstring(buffer, length);
+}
+
+bool IsOwnRegKitWindow(HWND hwnd) {
+  DWORD process_id = 0;
+  if (!GetWindowThreadProcessId(hwnd, &process_id) || process_id == 0 ||
+      process_id == GetCurrentProcessId()) {
+    return false;
+  }
+  DWORD our_session = 0;
+  DWORD their_session = 0;
+  if (!ProcessIdToSessionId(GetCurrentProcessId(), &our_session) ||
+      !ProcessIdToSessionId(process_id, &their_session) ||
+      our_session != their_session) {
+    return false;
+  }
+  const std::wstring theirs = ProcessImagePath(process_id);
+  if (theirs.empty()) {
+    return false;
+  }
+  wchar_t ours[MAX_PATH * 2] = {};
+  const DWORD length =
+      GetModuleFileNameW(nullptr, ours, static_cast<DWORD>(std::size(ours)));
+  if (length == 0 || length >= std::size(ours)) {
+    return false;
+  }
+  return _wcsicmp(theirs.c_str(), ours) == 0;
+}
+
 BOOL CALLBACK FindRegKitWindowProc(HWND hwnd, LPARAM lparam) {
   if (!GetPropW(hwnd, kRegKitWindowProperty)) {
+    return TRUE;
+  }
+  if (!IsOwnRegKitWindow(hwnd)) {
     return TRUE;
   }
   auto* found = reinterpret_cast<HWND*>(lparam);
@@ -275,7 +320,9 @@ bool ReadSettingsFileContent(std::wstring* content) {
     return false;
   }
   LARGE_INTEGER size = {};
-  if (!GetFileSizeEx(file, &size) || size.QuadPart <= 0 || size.QuadPart > static_cast<LONGLONG>(std::numeric_limits<int>::max())) {
+  constexpr LONGLONG kMaxSettingsBytes = 1 * 1024 * 1024;
+  if (!GetFileSizeEx(file, &size) || size.QuadPart <= 0 ||
+      size.QuadPart > kMaxSettingsBytes) {
     CloseHandle(file);
     return false;
   }
@@ -367,16 +414,20 @@ void ApplyStartupTheme(const StartupSettings& settings) {
   regkit::Theme::SetMode(settings.theme_mode);
 }
 
-bool RelaunchAsAdmin(DWORD parent_pid) {
+bool RelaunchAsAdmin(DWORD parent_pid,
+                     const std::vector<std::wstring>& original_args) {
   const std::wstring exe_path = util::GetModulePath();
   if (exe_path.empty()) {
     return false;
   }
   return SUCCEEDED(regkit::win32::LaunchElevated(
-      nullptr, exe_path, regkit::win32::RestartArguments(nullptr, parent_pid)));
+      nullptr, exe_path,
+      regkit::win32::RestartArguments(nullptr, parent_pid, original_args)));
 }
 
-bool RestartAsSystem(DWORD parent_pid, std::wstring* error_message, bool* launched) {
+bool RestartAsSystem(DWORD parent_pid, std::wstring* error_message,
+                     bool* launched,
+                     const std::vector<std::wstring>& original_args) {
   if (error_message) {
     error_message->clear();
   }
@@ -395,7 +446,7 @@ bool RestartAsSystem(DWORD parent_pid, std::wstring* error_message, bool* launch
   }
   if (!util::IsProcessElevated()) {
     const HRESULT hr = regkit::win32::LaunchElevated(
-        nullptr, exe_path, regkit::win32::RestartArguments(kRestartSystemArg, parent_pid));
+        nullptr, exe_path, regkit::win32::RestartArguments(kRestartSystemArg, parent_pid, original_args));
     if (FAILED(hr)) {
       if (error_message) {
         *error_message = L"Failed to request SYSTEM restart.";
@@ -411,7 +462,7 @@ bool RestartAsSystem(DWORD parent_pid, std::wstring* error_message, bool* launch
   std::wstring command_line = L"\"";
   command_line += exe_path;
   command_line += L"\" ";
-  command_line += regkit::win32::RestartArguments(kRestartSystemArg, parent_pid);
+  command_line += regkit::win32::RestartArguments(kRestartSystemArg, parent_pid, original_args);
   DWORD error = 0;
   if (!util::LaunchProcessAsSystem(command_line, L"", &error)) {
     if (error_message) {
@@ -431,7 +482,9 @@ bool RestartAsSystem(DWORD parent_pid, std::wstring* error_message, bool* launch
   return true;
 }
 
-bool RestartAsTrustedInstaller(DWORD parent_pid, std::wstring* error_message, bool* launched) {
+bool RestartAsTrustedInstaller(DWORD parent_pid,
+                               std::wstring* error_message, bool* launched,
+                               const std::vector<std::wstring>& original_args) {
   if (error_message) {
     error_message->clear();
   }
@@ -450,7 +503,7 @@ bool RestartAsTrustedInstaller(DWORD parent_pid, std::wstring* error_message, bo
   }
   if (!util::IsProcessElevated()) {
     const HRESULT hr = regkit::win32::LaunchElevated(
-        nullptr, exe_path, regkit::win32::RestartArguments(kRestartTiArg, parent_pid));
+        nullptr, exe_path, regkit::win32::RestartArguments(kRestartTiArg, parent_pid, original_args));
     if (FAILED(hr)) {
       if (error_message) {
         *error_message = L"Failed to request TrustedInstaller restart.";
@@ -466,7 +519,7 @@ bool RestartAsTrustedInstaller(DWORD parent_pid, std::wstring* error_message, bo
   std::wstring command_line = L"\"";
   command_line += exe_path;
   command_line += L"\" ";
-  command_line += regkit::win32::RestartArguments(kRestartTiArg, parent_pid);
+  command_line += regkit::win32::RestartArguments(kRestartTiArg, parent_pid, original_args);
   DWORD error = 0;
   if (!util::LaunchProcessAsTrustedInstaller(command_line, L"", &error)) {
     if (error_message) {
@@ -523,7 +576,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
   if (restart_ti) {
     std::wstring error;
     bool launched = false;
-    if (RestartAsTrustedInstaller(handoff_pid, &error, &launched)) {
+    if (RestartAsTrustedInstaller(handoff_pid, &error, &launched, args)) {
       if (launched) {
         return 0;
       }
@@ -533,7 +586,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
   } else if (restart_system) {
     std::wstring error;
     bool launched = false;
-    if (RestartAsSystem(handoff_pid, &error, &launched)) {
+    if (RestartAsSystem(handoff_pid, &error, &launched, args)) {
       if (launched) {
         return 0;
       }
@@ -544,7 +597,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
              !util::IsProcessTrustedInstaller()) {
     std::wstring error;
     bool launched = false;
-    if (RestartAsTrustedInstaller(handoff_pid, &error, &launched)) {
+    if (RestartAsTrustedInstaller(handoff_pid, &error, &launched, args)) {
       if (launched) {
         return 0;
       }
@@ -555,7 +608,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
              !util::IsProcessSystem()) {
     std::wstring error;
     bool launched = false;
-    if (RestartAsSystem(handoff_pid, &error, &launched)) {
+    if (RestartAsSystem(handoff_pid, &error, &launched, args)) {
       if (launched) {
         return 0;
       }
@@ -564,7 +617,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
     }
   } else if (startup_settings.always_run_as_admin &&
              !util::IsProcessElevated()) {
-    if (RelaunchAsAdmin(handoff_pid)) {
+    if (RelaunchAsAdmin(handoff_pid, args)) {
       return 0;
     }
     regkit::ui::ShowError(nullptr, L"Administrator restart was cancelled.");
@@ -593,21 +646,27 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
       HWND existing = FindRunningRegKitWindow();
       if (existing) {
+        bool handed_off = true;
         if (external_jump_requested && !startup_jump_target.empty()) {
           COPYDATASTRUCT data = {};
           data.dwData = kExternalJumpCopyDataId;
           data.cbData = static_cast<DWORD>((startup_jump_target.size() + 1) * sizeof(wchar_t));
           data.lpData = const_cast<wchar_t*>(startup_jump_target.c_str());
           DWORD_PTR ignored = 0;
-          SendMessageTimeoutW(existing, WM_COPYDATA, 0, reinterpret_cast<LPARAM>(&data), SMTO_ABORTIFHUNG, 1500, &ignored);
+          handed_off =
+              SendMessageTimeoutW(existing, WM_COPYDATA, 0,
+                                  reinterpret_cast<LPARAM>(&data),
+                                  SMTO_ABORTIFHUNG, 1500, &ignored) != 0;
         }
-        ShowWindow(existing, SW_RESTORE);
-        SetForegroundWindow(existing);
+        if (handed_off) {
+          ShowWindow(existing, SW_RESTORE);
+          SetForegroundWindow(existing);
+          if (instance_mutex) {
+            CloseHandle(instance_mutex);
+          }
+          return 0;
+        }
       }
-      if (instance_mutex) {
-        CloseHandle(instance_mutex);
-      }
-      return 0;
     }
   }
 
@@ -625,7 +684,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
   window.Show(cmd_show);
 
   MSG msg = {};
-  while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
+  while (true) {
+    const BOOL available = GetMessageW(&msg, nullptr, 0, 0);
+    if (available == 0) {
+      break;
+    }
+    if (available == -1) {
+      regkit::ui::ShowError(nullptr, L"The message loop failed unexpectedly.");
+      break;
+    }
     if (window.TranslateAccelerator(msg)) {
       continue;
     }

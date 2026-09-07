@@ -423,7 +423,7 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node) {
   task->show_keys_in_list = show_keys_in_list;
   task->include_details = include_details;
   task->show_simulated_keys = show_simulated_keys;
-  task->include_all_value_data = sort_column == kValueColData || browse_.values().HasFilter();
+  task->include_all_value_data = sort_column == kValueColData;
   task->hwnd = hwnd_;
   task->trace_data_list = std::move(trace_data_list);
   task->default_data_list = std::move(default_data_list);

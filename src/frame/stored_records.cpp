@@ -306,6 +306,11 @@ void MainWindow::Impl::LoadTraceSettings() {
       selection.recursive = parse_bool(value);
     } else if (EqualsInsensitive(key, L"key_path") || EqualsInsensitive(key, L"key")) {
       selection.key_paths.push_back(value);
+    } else if (EqualsInsensitive(key, L"values")) {
+      std::wstring key_part = TrimWhitespace(value);
+      if (!key_part.empty()) {
+        selection.values_by_key[ToLower(key_part)];
+      }
     } else if (EqualsInsensitive(key, L"value")) {
       size_t bar = value.find(L'|');
       if (bar == std::wstring::npos) {
@@ -362,6 +367,12 @@ void MainWindow::Impl::SaveTraceSettings() const {
     }
     for (const auto& entry : trace.selection->values_by_key) {
       if (entry.first.empty()) {
+        continue;
+      }
+      if (entry.second.empty()) {
+        content.append(L"values=");
+        content.append(entry.first);
+        content.push_back(L'\n');
         continue;
       }
       for (const auto& value_name : entry.second) {

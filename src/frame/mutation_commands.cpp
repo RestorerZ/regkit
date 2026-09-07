@@ -672,6 +672,14 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id) {
       size_t pos = parent.subkey.rfind(L'\\');
       parent.subkey = (pos == std::wstring::npos) ? L"" : parent.subkey.substr(0, pos);
       changes::KeySnapshot snapshot = changes::CaptureKey(target);
+      if (!snapshot.complete &&
+          !ui::ConfirmDelete(
+              hwnd_,
+              L"Part of this key could not be read, so Undo will not be able "
+              L"to restore all of it. Delete anyway?",
+              name)) {
+        return true;
+      }
       if (!RegistryStore::DeleteKey(target)) {
         ui::ShowError(hwnd_, L"Failed to delete key.");
       } else {
@@ -761,6 +769,14 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id) {
       }
       RegistryNode child = MakeChildNode(*browse_.current_node(), row->extra);
       changes::KeySnapshot snapshot = changes::CaptureKey(child);
+      if (!snapshot.complete &&
+          !ui::ConfirmDelete(
+              hwnd_,
+              L"Part of this key could not be read, so Undo will not be able "
+              L"to restore all of it. Delete anyway?",
+              row->extra)) {
+        return true;
+      }
       if (!RegistryStore::DeleteKey(child)) {
         ui::ShowError(hwnd_, L"Failed to delete key.");
       } else {

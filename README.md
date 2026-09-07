@@ -52,15 +52,15 @@ RegKit adds functionality that standard regedit doesn't support/expose:
 | `Ctrl+C` / `Ctrl+V` | Copy / paste registry items |
 | `Ctrl+X` / `Delete` | Delete selected registry items |
 | `Ctrl+A` | Select all in the focused list or text field |
-| `Ctrl+Shift+C` | Copy the current key name |
-| `F2` | Rename the selected key or value |
+| `Ctrl+Shift+C` | Copy current key name |
+| `F2` | Rename selected key or value |
 | `F5` | Refresh |
 | `Alt+Left` / `Alt+Right` | Navigate back / forward |
-| `Alt+Up` | Navigate to the parent key |
-| `Ctrl+L` / `Alt+D` | Focus the address bar |
-| `Ctrl+Shift+V` | Paste into the address bar and navigate |
+| `Alt+Up` | Navigate to parent key |
+| `Ctrl+L` / `Alt+D` | Focus address bar |
+| `Ctrl+Shift+V` | Paste into address bar and navigate |
 | `Tab` | Switch between key tree & value list |
-| `Shift+F10` / `Menu` | Open context menu for the focused item |
+| `Shift+F10` / `Menu` | Open context menu for focused item |
 | `F10` | Activate menu bar |
 | `Alt+F4` | Close RegKit |
 

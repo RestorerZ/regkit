@@ -62,6 +62,7 @@ public:
   void SetFilter(const std::wstring& text);
   void RebuildFilter();
   void InvalidateFilterCache();
+  void RefreshFilter();
   void InvalidateFilterCache(const ListRow* row);
   bool HasFilter() const;
   size_t RowCount() const;

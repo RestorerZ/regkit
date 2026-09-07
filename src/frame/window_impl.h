@@ -295,6 +295,7 @@ private:
   void UpdateTabWidth();
   void CloseTab(int tab_index);
   bool ConfirmCloseTab(int tab_index);
+  bool ConfirmOfflineChanges(const wchar_t* message);
   void MarkOfflineDirty();
   void ClearOfflineDirty();
   void OpenLocalRegistryTab();
@@ -907,6 +908,7 @@ private:
   std::vector<ActiveDefault> active_defaults_;
   workspace::RecentItems recent_default_paths_{10};
   work::LatestTask<ValueListTask> value_loader_;
+  work::Session update_session_;
   work::Session trace_load_session_;
   std::unordered_map<std::wstring, std::unique_ptr<TraceParseSession>> trace_parse_sessions_;
   work::Session default_load_session_;

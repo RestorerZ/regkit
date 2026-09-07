@@ -41,12 +41,16 @@ std::wstring ValueComments::NameKey(const std::wstring& name, DWORD type) {
 }
 
 bool ValueComments::Load(const std::wstring& path) {
-  Clear();
   std::wstring content;
   if (!util::ReadTextFile(path, &content)) {
     return false;
   }
-  Merge(ParseComments(content));
+  CommentDocument document;
+  if (!ParseComments(content, &document)) {
+    return false;
+  }
+  Clear();
+  Merge(document);
   return true;
 }
 
@@ -97,7 +101,10 @@ ValueComments::name_entries() noexcept {
   return name_entries_;
 }
 
-CommentDocument ParseComments(const std::wstring& content) {
+bool ParseComments(const std::wstring& content, CommentDocument* out) {
+  if (!out) {
+    return false;
+  }
   CommentDocument document;
   for (const std::wstring& line : record_fields::Lines(content)) {
     if (line.empty()) {
@@ -105,15 +112,24 @@ CommentDocument ParseComments(const std::wstring& content) {
     }
     const auto fields = record_fields::Split(line);
     if (fields.size() < 5) {
-      continue;
+      return false;
+    }
+    if (_wcsicmp(fields[0].c_str(), L"value") != 0 &&
+        _wcsicmp(fields[0].c_str(), L"name") != 0) {
+      return false;
     }
     CommentEntry entry;
     entry.path = record_fields::Unescape(fields[1]);
     entry.name = record_fields::Unescape(fields[2]);
     try {
-      entry.type = static_cast<DWORD>(std::stoul(fields[3]));
+      size_t consumed = 0;
+      const unsigned long parsed = std::stoul(fields[3], &consumed);
+      if (consumed != fields[3].size()) {
+        return false;
+      }
+      entry.type = static_cast<DWORD>(parsed);
     } catch (...) {
-      continue;
+      return false;
     }
     entry.text = record_fields::Unescape(fields[4]);
     if (!HasText(entry.text)) {
@@ -121,11 +137,12 @@ CommentDocument ParseComments(const std::wstring& content) {
     }
     if (_wcsicmp(fields[0].c_str(), L"value") == 0) {
       document.value_entries.push_back(std::move(entry));
-    } else if (_wcsicmp(fields[0].c_str(), L"name") == 0) {
+    } else {
       document.name_entries.push_back(std::move(entry));
     }
   }
-  return document;
+  *out = std::move(document);
+  return true;
 }
 
 std::wstring SerializeComments(const ValueComments& comments) {

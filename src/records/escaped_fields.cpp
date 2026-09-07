@@ -80,16 +80,17 @@ std::vector<std::wstring> Lines(const std::wstring& content) {
   std::vector<std::wstring> lines;
   size_t start = 0;
   while (start < content.size()) {
-    size_t end = content.find(L'\n', start);
+    size_t end = content.find_first_of(L"\r\n", start);
     if (end == std::wstring::npos) {
-      end = content.size();
+      lines.push_back(content.substr(start));
+      break;
     }
-    std::wstring line = content.substr(start, end - start);
-    if (!line.empty() && line.back() == L'\r') {
-      line.pop_back();
-    }
-    lines.push_back(std::move(line));
+    lines.push_back(content.substr(start, end - start));
     start = end + 1;
+    if (content[end] == L'\r' && start < content.size() &&
+        content[start] == L'\n') {
+      ++start;
+    }
   }
   return lines;
 }

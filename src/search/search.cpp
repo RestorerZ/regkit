@@ -106,6 +106,24 @@ Match Matcher::Find(std::wstring_view text) const {
   return location;
 }
 
+bool IsExcludedPath(const std::wstring& path, const std::vector<std::wstring>& excludes) {
+  if (excludes.empty()) {
+    return false;
+  }
+  for (const auto& exclude : excludes) {
+    if (exclude.empty() || path.size() < exclude.size()) {
+      continue;
+    }
+    if (CompareStringOrdinal(path.c_str(), static_cast<int>(exclude.size()), exclude.c_str(), static_cast<int>(exclude.size()), TRUE) != CSTR_EQUAL) {
+      continue;
+    }
+    if (path.size() == exclude.size() || path[exclude.size()] == L'\\') {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool IsKeyRow(const Result& result) noexcept {
   return result.kind == ResultKind::kKey || result.kind == ResultKind::kTraceKey;
 }
@@ -226,6 +244,7 @@ struct RootContext {
   std::wstring base_subkey;
   std::wstring mirror_root;
   std::wstring mirror_prefix;
+  bool machine_classes = false;
 };
 
 struct NodeTask {
@@ -289,6 +308,27 @@ std::wstring BuildMirrorPath(const NodeTask& task) {
   return path;
 }
 
+bool UserClassesOverrides(const std::wstring& relative,
+                          const std::wstring* value_name) {
+  std::wstring path = L"SOFTWARE\\Classes";
+  if (!relative.empty()) {
+    path.push_back(L'\\');
+    path.append(relative);
+  }
+  HKEY key = nullptr;
+  if (RegOpenKeyExW(HKEY_CURRENT_USER, path.c_str(), 0, KEY_QUERY_VALUE,
+                    &key) != ERROR_SUCCESS) {
+    return false;
+  }
+  bool overrides = true;
+  if (value_name) {
+    overrides = RegQueryValueExW(key, value_name->c_str(), nullptr, nullptr,
+                                 nullptr, nullptr) == ERROR_SUCCESS;
+  }
+  RegCloseKey(key);
+  return overrides;
+}
+
 RegistryNode TaskNode(const NodeTask& task) {
   RegistryNode node;
   if (task.context) {
@@ -309,17 +349,6 @@ RegistryNode TaskNode(const NodeTask& task) {
   return node;
 }
 
-bool IsExcludedPath(const std::wstring& path, const std::vector<std::wstring>& excludes) {
-  if (excludes.empty()) {
-    return false;
-  }
-  for (const auto& exclude : excludes) {
-    if (!exclude.empty() && FindStringOrdinal(FIND_FROMSTART, path.c_str(), static_cast<int>(path.size()), exclude.c_str(), static_cast<int>(exclude.size()), TRUE) >= 0) {
-      return true;
-    }
-  }
-  return false;
-}
 
 struct HexQuery {
   bool hex_only = false;
@@ -327,7 +356,6 @@ struct HexQuery {
   bool digits_only = false;
   std::vector<BYTE> bytes;
 };
-
 HexQuery ParseHexQuery(const std::wstring& query) {
   HexQuery result;
   std::wstring digits;
@@ -406,7 +434,7 @@ bool BuildStringView(const BYTE* data, DWORD size, std::wstring_view* view) {
 }
 
 bool IsBinaryType(DWORD base_type) {
-  return base_type == REG_BINARY || base_type == REG_RESOURCE_LIST || base_type == REG_FULL_RESOURCE_DESCRIPTOR || base_type == REG_RESOURCE_REQUIREMENTS_LIST || base_type == REG_NONE || base_type == REG_DWORD_BIG_ENDIAN;
+  return base_type == REG_BINARY || base_type == REG_RESOURCE_LIST || base_type == REG_FULL_RESOURCE_DESCRIPTOR || base_type == REG_RESOURCE_REQUIREMENTS_LIST || base_type == REG_NONE;
 }
 
 struct DataMatch {
@@ -519,14 +547,7 @@ bool IsTypeAllowed(const Criteria& criteria, DWORD type) {
     return true;
   }
   for (DWORD allowed : criteria.allowed_types) {
-    DWORD allowed_base = value_format::NormalizeType(allowed);
-    if (allowed_base != allowed) {
-      if (allowed == type) {
-        return true;
-      }
-      continue;
-    }
-    if (value_format::NormalizeType(type) == allowed_base) {
+    if (allowed == type) {
       return true;
     }
   }
@@ -693,12 +714,14 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
       context->display_root = display_root;
       if (stores[i].base) {
         context->base_subkey = stores[i].base;
+        context->machine_classes = stores[i].root == HKEY_LOCAL_MACHINE;
       } else {
         context->root_name = node.root_name;
         if (mirror_classes && whole_root &&
             (node.root == HKEY_LOCAL_MACHINE || node.root == HKEY_CURRENT_USER)) {
           context->mirror_root = merged_classes_root;
           context->mirror_prefix = kClassesSubkey;
+          context->machine_classes = node.root == HKEY_LOCAL_MACHINE;
         }
       }
       NodeTask task;
@@ -841,6 +864,24 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
 
 
 
+        const bool classes_direct =
+            entry.context && entry.context->machine_classes &&
+            !entry.context->base_subkey.empty();
+        auto classes_shadowed = [&](const std::wstring* value_name) -> bool {
+          if (!entry.context || !entry.context->machine_classes) {
+            return false;
+          }
+          if (classes_direct) {
+            return UserClassesOverrides(entry.subkey, value_name);
+          }
+          const size_t prefix = entry.context->mirror_prefix.size();
+          return UserClassesOverrides(
+              entry.subkey.size() > prefix
+                  ? entry.subkey.substr(prefix + 1)
+                  : std::wstring(),
+              value_name);
+        };
+
         std::wstring mirror_path;
         bool mirror_built = false;
         auto mirror_text = [&]() -> const std::wstring& {
@@ -931,7 +972,13 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
           }
 
 
-          if (!mirror_text().empty()) {
+          const bool shadowed =
+              (classes_direct || !mirror_text().empty()) &&
+              classes_shadowed(&value.name);
+          if (shadowed && classes_direct) {
+            return true;
+          }
+          if (!shadowed && !mirror_text().empty()) {
             Result merged = result;
             merged.key_path = mirror_text();
             batch.push_back(std::move(merged));
@@ -988,7 +1035,10 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
             result.match_length = static_cast<uint32_t>(key_match.length);
 
 
-            if (!mirror_text().empty()) {
+            const bool shadowed =
+                (classes_direct || !mirror_text().empty()) &&
+                classes_shadowed(nullptr);
+            if (!shadowed && !mirror_text().empty()) {
               Result merged = result;
               merged.key_path = mirror_text();
               const size_t merged_start =
@@ -999,7 +1049,9 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
                   static_cast<uint32_t>(merged_start + key_match.start);
               batch.push_back(std::move(merged));
             }
-            batch.push_back(std::move(result));
+            if (!shadowed || !classes_direct) {
+              batch.push_back(std::move(result));
+            }
             if (batch.size() >= kResultBatchSize && !publish_batch(batch)) {
               break;
             }

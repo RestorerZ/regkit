@@ -91,6 +91,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message,
     }
     break;
   case WM_CLOSE: {
+    for (int index = static_cast<int>(tabs_.size()) - 1; index >= 0; --index) {
+      if (!ConfirmCloseTab(index)) {
+        return 0;
+      }
+    }
     SaveSettings();
     DestroyWindow(hwnd_);
     return 0;
@@ -822,6 +827,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message,
       first = first < 0 ? index : std::min(first, index);
       last = std::max(last, index);
     }
+    browse_.values().RefreshFilter();
     if (first >= 0 && browse_.values().hwnd()) {
       ListView_RedrawItems(browse_.values().hwnd(), first, last);
     }

@@ -6,7 +6,6 @@
 #include "records/escaped_fields.h"
 #include "win32/file_text.h"
 
-#include <limits>
 #include <string_view>
 #include <utility>
 
@@ -15,6 +14,7 @@ namespace regkit::search {
 namespace {
 
 constexpr wchar_t kRecordVersionTag[] = L"#regkit-search-2";
+constexpr uint64_t kMaxResultFileBytes = 256ull * 1024 * 1024;
 
 FILETIME FileTimeFromString(const std::wstring& text) {
   const unsigned long long value =
@@ -90,7 +90,11 @@ Result ParseVersionedRecord(const std::vector<std::wstring>& fields) {
 
 } // namespace
 
-std::vector<Result> ParseResults(const std::wstring& content) {
+bool ParseResults(const std::wstring& content,
+                  std::vector<Result>* out) {
+  if (!out) {
+    return false;
+  }
   std::vector<Result> results;
   bool versioned = false;
   size_t start = 0;
@@ -113,9 +117,10 @@ std::vector<Result> ParseResults(const std::wstring& content) {
     }
     const auto fields = record_fields::Split(line);
     if (versioned) {
-      if (fields.size() >= 11) {
-        results.push_back(ParseVersionedRecord(fields));
+      if (fields.size() < 11) {
+        return false;
       }
+      results.push_back(ParseVersionedRecord(fields));
       continue;
     }
     if (fields.size() < 13) {
@@ -123,7 +128,8 @@ std::vector<Result> ParseResults(const std::wstring& content) {
     }
     results.push_back(ParseLegacyRecord(fields));
   }
-  return results;
+  *out = std::move(results);
+  return true;
 }
 
 std::wstring SerializeResults(const std::vector<Result>& results) {
@@ -151,9 +157,7 @@ bool LoadResults(const std::wstring& path,
     return false;
   }
   std::vector<BYTE> bytes;
-  if (!util::ReadFileBytes(
-          path, &bytes,
-          static_cast<uint64_t>(std::numeric_limits<int>::max()))) {
+  if (!util::ReadFileBytes(path, &bytes, kMaxResultFileBytes)) {
     return false;
   }
   size_t offset = 0;
@@ -164,8 +168,7 @@ bool LoadResults(const std::wstring& path,
   const std::wstring content = util::Utf8ToWide(std::string_view(
       reinterpret_cast<const char*>(bytes.data() + offset),
       bytes.size() - offset));
-  *results = ParseResults(content);
-  return true;
+  return ParseResults(content, results);
 }
 
 bool SaveResults(const std::wstring& path,

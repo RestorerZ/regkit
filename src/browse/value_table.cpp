@@ -141,6 +141,12 @@ void ValueList::RebuildFilter() {
   RedrawWindow(hwnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
 }
 
+void ValueList::RefreshFilter() {
+  if (HasFilter()) {
+    RebuildFilter();
+  }
+}
+
 void ValueList::InvalidateFilterCache() {
   std::fill(filter_cache_valid_.begin(), filter_cache_valid_.end(), false);
 }

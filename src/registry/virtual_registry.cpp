@@ -132,12 +132,14 @@ FindRoot(HKEY root, std::wstring* root_name) {
 }
 
 bool HasSubKeys(const VirtualRegistryData& data, const RegistryNode& node) {
+  std::shared_lock<std::shared_mutex> lock(*data.mutex);
   const VirtualRegistryKey* key = FindKey(data.root.get(), node.subkey);
   return key && !key->children.empty();
 }
 
 bool QueryKeyInfo(const VirtualRegistryData& data, const RegistryNode& node,
                   KeyInfo* info) {
+  std::shared_lock<std::shared_mutex> lock(*data.mutex);
   if (!info) {
     return false;
   }
@@ -154,6 +156,7 @@ bool QueryKeyInfo(const VirtualRegistryData& data, const RegistryNode& node,
 std::vector<std::wstring> EnumSubKeyNames(const VirtualRegistryData& data,
                                           const RegistryNode& node,
                                           bool sorted) {
+  std::shared_lock<std::shared_mutex> lock(*data.mutex);
   const VirtualRegistryKey* key = FindKey(data.root.get(), node.subkey);
   if (!key) {
     return {};
@@ -169,6 +172,7 @@ bool EnumKeyStreaming(
     const RegistryStore::SubkeyStreamCallback& subkey_callback,
     DWORD max_data_size, EnumerationScratch* scratch, bool ordered) {
   (void)scratch;
+  std::shared_lock<std::shared_mutex> lock(*data.mutex);
   const VirtualRegistryKey* key = FindKey(data.root.get(), node.subkey);
   if (!key) {
     return false;
@@ -218,6 +222,7 @@ bool EnumKeyStreaming(
 
 bool QueryValue(const VirtualRegistryData& data, const RegistryNode& node,
                 const std::wstring& value_name, ValueEntry* out) {
+  std::shared_lock<std::shared_mutex> lock(*data.mutex);
   if (!out) {
     return false;
   }
@@ -235,13 +240,14 @@ bool QueryValue(const VirtualRegistryData& data, const RegistryNode& node,
 
 bool CreateKey(VirtualRegistryData& data, const RegistryNode& node,
                const std::wstring& name) {
+  std::unique_lock<std::shared_mutex> lock(*data.mutex);
   VirtualRegistryKey* parent = FindKey(data.root.get(), node.subkey);
   if (!parent) {
     return false;
   }
   const std::wstring lower_name = util::ToLower(name);
   if (parent->children.find(lower_name) != parent->children.end()) {
-    return true;
+    return false;
   }
   auto child = std::make_unique<VirtualRegistryKey>();
   child->name = name;
@@ -250,6 +256,7 @@ bool CreateKey(VirtualRegistryData& data, const RegistryNode& node,
 }
 
 bool DeleteKey(VirtualRegistryData& data, const RegistryNode& node) {
+  std::unique_lock<std::shared_mutex> lock(*data.mutex);
   std::wstring parent_path;
   std::wstring name;
   if (!SplitNode(node, &parent_path, &name)) {
@@ -262,6 +269,7 @@ bool DeleteKey(VirtualRegistryData& data, const RegistryNode& node) {
 
 bool RenameKey(VirtualRegistryData& data, const RegistryNode& node,
                const std::wstring& new_name) {
+  std::unique_lock<std::shared_mutex> lock(*data.mutex);
   std::wstring parent_path;
   std::wstring old_name;
   if (!SplitNode(node, &parent_path, &old_name)) {
@@ -289,6 +297,7 @@ bool RenameKey(VirtualRegistryData& data, const RegistryNode& node,
 
 bool DeleteValue(VirtualRegistryData& data, const RegistryNode& node,
                  const std::wstring& value_name) {
+  std::unique_lock<std::shared_mutex> lock(*data.mutex);
   VirtualRegistryKey* key = FindKey(data.root.get(), node.subkey);
   return key && key->values.erase(util::ToLower(value_name)) != 0;
 }
@@ -296,6 +305,7 @@ bool DeleteValue(VirtualRegistryData& data, const RegistryNode& node,
 bool SetValue(VirtualRegistryData& data, const RegistryNode& node,
               const std::wstring& value_name, DWORD type,
               const std::vector<BYTE>& value_data) {
+  std::unique_lock<std::shared_mutex> lock(*data.mutex);
   VirtualRegistryKey* key = FindKey(data.root.get(), node.subkey);
   if (!key) {
     return false;
@@ -310,6 +320,7 @@ bool SetValue(VirtualRegistryData& data, const RegistryNode& node,
 bool RenameValue(VirtualRegistryData& data, const RegistryNode& node,
                  const std::wstring& old_name,
                  const std::wstring& new_name) {
+  std::unique_lock<std::shared_mutex> lock(*data.mutex);
   VirtualRegistryKey* key = FindKey(data.root.get(), node.subkey);
   if (!key) {
     return false;

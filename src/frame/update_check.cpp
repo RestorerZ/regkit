@@ -26,6 +26,7 @@ std::string HttpGet(const wchar_t* host, const wchar_t* path) {
   if (!session) {
     return body;
   }
+  WinHttpSetTimeouts(session, 3000, 3000, 5000, 5000);
   HINTERNET connect =
       WinHttpConnect(session, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
   if (connect) {
@@ -191,8 +192,11 @@ void MainWindow::Impl::CheckForUpdates(bool silent) {
   }
   update_check_running_ = true;
   HWND owner = hwnd_;
-  std::thread([owner, silent] {
+  update_session_.Start([owner, silent](uint64_t, std::atomic_bool& cancel) {
     const std::string json = HttpGet(kApiHost, kApiPath);
+    if (cancel.load()) {
+      return;
+    }
     auto payload = std::make_unique<UpdateCheckPayload>();
     payload->silent = silent;
     if (json.empty()) {
@@ -205,7 +209,7 @@ void MainWindow::Impl::CheckForUpdates(bool silent) {
                      reinterpret_cast<LPARAM>(payload.get()))) {
       ReleasePostedPayload(payload);
     }
-  }).detach();
+  });
 }
 
 void MainWindow::Impl::ApplyUpdateCheckResult(UpdateCheckPayload* payload) {

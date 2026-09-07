@@ -84,14 +84,23 @@ void DecodeRevert(const std::vector<std::wstring>& fields,
     return;
   }
   try {
-    const int kind = std::stoi(fields[7]);
+    size_t kind_consumed = 0;
+    const int kind = std::stoi(fields[7], &kind_consumed);
+    if (kind_consumed != fields[7].size()) {
+      return;
+    }
     if (kind < static_cast<int>(HistoryEntry::RevertKind::kNone) ||
         kind > static_cast<int>(HistoryEntry::RevertKind::kDeleteKey)) {
       return;
     }
     entry->revert_kind = static_cast<HistoryEntry::RevertKind>(kind);
     entry->revert_value.name = record_fields::Unescape(fields[8]);
-    const unsigned long type = std::stoul(fields[9]);
+    size_t type_consumed = 0;
+    const unsigned long type = std::stoul(fields[9], &type_consumed);
+    if (type_consumed != fields[9].size()) {
+      entry->revert_kind = HistoryEntry::RevertKind::kNone;
+      return;
+    }
     if (type > std::numeric_limits<DWORD>::max()) {
       entry->revert_kind = HistoryEntry::RevertKind::kNone;
       return;
@@ -159,7 +168,11 @@ HistoryDocument ParseHistory(const std::wstring& content) {
     }
     HistoryEntry entry;
     try {
-      entry.timestamp = std::stoull(fields[0]);
+      size_t consumed = 0;
+      entry.timestamp = std::stoull(fields[0], &consumed);
+      if (consumed != fields[0].size()) {
+        continue;
+      }
     } catch (...) {
       continue;
     }
@@ -216,19 +229,36 @@ bool WriteHistoryFile(const std::wstring& path,
     return DeleteFileW(path.c_str()) != 0 ||
            GetLastError() == ERROR_FILE_NOT_FOUND;
   }
+  wchar_t stamp[32] = {};
+  swprintf_s(stamp, L".%08x.tmp", GetCurrentProcessId());
+  const std::wstring temp_path = path + stamp;
   HANDLE file =
-      CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr,
+      CreateFileW(temp_path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr,
                   CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (file == INVALID_HANDLE_VALUE) {
     return false;
   }
   DWORD written = 0;
-  const bool success =
+  bool success =
       WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written,
                 nullptr) != 0 &&
       written == static_cast<DWORD>(bytes.size());
-  CloseHandle(file);
-  return success;
+  if (success) {
+    success = FlushFileBuffers(file) != 0;
+  }
+  if (CloseHandle(file) == 0) {
+    success = false;
+  }
+  if (!success) {
+    DeleteFileW(temp_path.c_str());
+    return false;
+  }
+  if (!MoveFileExW(temp_path.c_str(), path.c_str(),
+                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+    DeleteFileW(temp_path.c_str());
+    return false;
+  }
+  return true;
 }
 
 bool AppendHistoryFile(const std::wstring& path, const HistoryEntry& entry) {

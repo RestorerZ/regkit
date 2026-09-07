@@ -36,7 +36,7 @@ bool Pane::Create(const CreateRequest& request) {
     return false;
   }
   address_ = CreateWindowExW(
-      0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
+      0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
       0, 0, 0, 0, request.parent,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.address_id)),
       request.instance, nullptr);
@@ -46,36 +46,40 @@ bool Pane::Create(const CreateRequest& request) {
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.go_id)),
       request.instance, nullptr);
   filter_ = CreateWindowExW(
-      0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
+      0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
       0, 0, 0, 0, request.parent,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.filter_id)),
       request.instance, nullptr);
-  tree_.Create(request.parent, request.instance, request.tree_id, false);
+  tree_.Create(request.parent, request.instance, request.tree_id, false, true);
   values_.Create(request.parent, request.instance, request.values_id);
   if (!address_ || !go_button_ || !filter_ || !tree_.hwnd() ||
       !values_.hwnd()) {
     return false;
   }
 
-  if (request.address_proc) {
-    SetWindowSubclass(address_, request.address_proc,
-                      request.address_subclass_id,
-                      request.callback_context);
+  if (request.address_proc &&
+      !SetWindowSubclass(address_, request.address_proc,
+                         request.address_subclass_id,
+                         request.callback_context)) {
+    return false;
   }
-  if (request.filter_proc) {
-    SetWindowSubclass(filter_, request.filter_proc,
-                      request.filter_subclass_id,
-                      request.callback_context);
+  if (request.filter_proc &&
+      !SetWindowSubclass(filter_, request.filter_proc,
+                         request.filter_subclass_id,
+                         request.callback_context)) {
+    return false;
   }
-  if (request.tree_proc) {
-    SetWindowSubclass(tree_.hwnd(), request.tree_proc,
-                      request.tree_subclass_id,
-                      request.callback_context);
+  if (request.tree_proc &&
+      !SetWindowSubclass(tree_.hwnd(), request.tree_proc,
+                         request.tree_subclass_id,
+                         request.callback_context)) {
+    return false;
   }
-  if (request.values_proc) {
-    SetWindowSubclass(values_.hwnd(), request.values_proc,
-                      request.values_subclass_id,
-                      request.callback_context);
+  if (request.values_proc &&
+      !SetWindowSubclass(values_.hwnd(), request.values_proc,
+                         request.values_subclass_id,
+                         request.callback_context)) {
+    return false;
   }
   SendMessageW(address_, EM_SETCUEBANNER, TRUE,
                reinterpret_cast<LPARAM>(L"Registry path"));
@@ -154,6 +158,14 @@ std::optional<std::wstring> Pane::Up() {
   }
   programmatic_navigation_ = true;
   return path.substr(0, separator);
+}
+
+void Pane::UndoNavigation(int delta) {
+  navigation_index_ += delta;
+  if (navigation_index_ < -1) {
+    navigation_index_ = -1;
+  }
+  programmatic_navigation_ = false;
 }
 
 NavigationAvailability Pane::navigation() const noexcept {

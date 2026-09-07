@@ -10,7 +10,8 @@
 
 namespace regkit::search {
 
-std::vector<Result> ParseResults(const std::wstring& content);
+bool ParseResults(const std::wstring& content,
+                  std::vector<Result>* out);
 std::wstring SerializeResults(const std::vector<Result>& results);
 bool LoadResults(const std::wstring& path,
                  std::vector<Result>* results);

@@ -24,9 +24,10 @@ KeySnapshot CaptureKey(const RegistryNode& node) {
   if (RegistryStore::ReadKeyLink(node, &snapshot.link_target)) {
     return snapshot;
   }
+  RegistryStore::ReadKeySecurity(node, &snapshot.security);
   RegistryStore::KeyEnumResult result;
   bool reserved = false;
-  RegistryStore::EnumKeyStreaming(
+  snapshot.complete = RegistryStore::EnumKeyStreaming(
       node, true, true, false, &result,
       [&](const ValueInfo& info, const BYTE* data, DWORD size) {
         if (!reserved) {
@@ -50,6 +51,12 @@ KeySnapshot CaptureKey(const RegistryNode& node) {
   snapshot.children.reserve(children.size());
   for (const std::wstring& name : children) {
     snapshot.children.push_back(CaptureKey(ChildNode(node, name)));
+    if (!snapshot.children.back().complete) {
+      snapshot.complete = false;
+    }
+  }
+  if (result.info_valid && result.info.subkey_count != children.size()) {
+    snapshot.complete = false;
   }
   return snapshot;
 }
@@ -66,6 +73,9 @@ bool RestoreKey(const RegistryNode& parent, const KeySnapshot& snapshot) {
     return false;
   }
   const RegistryNode node = ChildNode(parent, snapshot.name);
+  if (!snapshot.security.empty()) {
+    RegistryStore::WriteKeySecurity(node, snapshot.security);
+  }
   for (const ValueEntry& value : snapshot.values) {
     if (!RegistryStore::SetValue(node, value.name, value.type,
                                  value.data)) {

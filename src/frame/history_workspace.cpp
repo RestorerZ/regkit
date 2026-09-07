@@ -503,7 +503,9 @@ bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path) {
   if (!value_comments_.Import(path)) {
     return false;
   }
-  value_comments_.Save(CommentsPath());
+  if (!value_comments_.Save(CommentsPath())) {
+    ui::ShowError(hwnd_, L"Comments were imported but could not be saved.");
+  }
   RefreshValueListComments();
   return true;
 }

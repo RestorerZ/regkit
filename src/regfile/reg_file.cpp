@@ -8,6 +8,7 @@
 #include "win32/file_text.h"
 
 #include <algorithm>
+#include <cerrno>
 #include <cstring>
 #include <cwctype>
 
@@ -34,7 +35,8 @@ std::wstring Lower(std::wstring_view text) {
   return result;
 }
 
-bool ParseQuoted(std::wstring_view text, std::wstring* output) {
+bool ParseQuoted(std::wstring_view text, std::wstring* output,
+                 size_t* closing = nullptr) {
   if (!output || text.empty() || text.front() != L'"') {
     return false;
   }
@@ -64,6 +66,15 @@ bool ParseQuoted(std::wstring_view text, std::wstring* output) {
     } else if (character == L'\\') {
       escaped = true;
     } else if (character == L'"') {
+      if (closing) {
+        *closing = index;
+        return true;
+      }
+      for (size_t rest = index + 1; rest < text.size(); ++rest) {
+        if (text[rest] != L' ' && text[rest] != L'	') {
+          return false;
+        }
+      }
       return true;
     } else {
       output->push_back(character);
@@ -117,7 +128,7 @@ DWORD TypeFromCode(unsigned long code) {
   case 0xB:
     return REG_QWORD;
   default:
-    return REG_BINARY;
+    return static_cast<DWORD>(code);
   }
 }
 
@@ -196,15 +207,34 @@ void AppendWrapped(std::wstring* output, const std::wstring& line) {
   }
 }
 
+bool IsCanonicalString(const std::vector<BYTE>& data) {
+  if (data.size() < sizeof(wchar_t) || data.size() % sizeof(wchar_t) != 0) {
+    return false;
+  }
+  const wchar_t* text = reinterpret_cast<const wchar_t*>(data.data());
+  const size_t count = data.size() / sizeof(wchar_t);
+  if (text[count - 1] != L'\0') {
+    return false;
+  }
+  for (size_t i = 0; i + 1 < count; ++i) {
+    if (text[i] == L'\0') {
+      return false;
+    }
+  }
+  return true;
+}
+
 std::wstring SerializeValue(const Value& value) {
   const DWORD type = value_format::NormalizeType(value.type);
-  if (type == REG_SZ) {
+  if (type == REG_SZ && value.type == REG_SZ &&
+      IsCanonicalString(value.data)) {
     std::wstring text;
     if (value_format::DecodeString(value.data, &text)) {
       return L"\"" + Escape(text) + L"\"";
     }
   }
-  if (type == REG_DWORD && value.data.size() >= sizeof(DWORD)) {
+  if (type == REG_DWORD && value.type == REG_DWORD &&
+      value.data.size() == sizeof(DWORD)) {
     DWORD number = 0;
     std::memcpy(&number, value.data.data(), sizeof(number));
     wchar_t output[16] = {};
@@ -220,6 +250,31 @@ std::wstring SerializeValue(const Value& value) {
 }
 
 } // namespace
+
+void Writer::AppendRemovedKey(std::wstring_view path) {
+  if (output_.size() >
+      std::wstring_view(L"Windows Registry Editor Version 5.00\r\n\r\n")
+          .size()) {
+    output_ += L"\r\n";
+  }
+  output_ += L"[-";
+  output_.append(path);
+  output_ += L"]\r\n";
+}
+
+void Writer::AppendRemovedValues(const std::vector<std::wstring>& names) {
+  for (const std::wstring& name : names) {
+    std::wstring line;
+    if (name.empty()) {
+      line = L"@=-";
+    } else {
+      line.push_back(L'"');
+      line += Escape(name);
+      line += L"\"=-";
+    }
+    AppendWrapped(&output_, line);
+  }
+}
 
 Writer::Writer()
     : output_(L"Windows Registry Editor Version 5.00\r\n\r\n") {}
@@ -262,7 +317,8 @@ std::wstring Writer::Finish() && {
 }
 
 bool Parse(std::wstring_view content, Document* output,
-           const std::atomic_bool* cancel, bool* cancelled) {
+           const std::atomic_bool* cancel, bool* cancelled,
+           std::wstring* error) {
   if (!output) {
     return false;
   }
@@ -311,6 +367,14 @@ bool Parse(std::wstring_view content, Document* output,
     lines.push_back(std::move(continued));
   }
 
+  auto fail = [&](const std::wstring& line) {
+    if (error) {
+      std::wstring shown = line.size() > 80 ? line.substr(0, 80) + L"..." : line;
+      *error = L"The file contains an entry RegKit cannot parse: " + shown;
+    }
+    return false;
+  };
+
   Key* current_key = nullptr;
   for (const auto& raw : lines) {
     if (stopped()) {
@@ -325,9 +389,13 @@ bool Parse(std::wstring_view content, Document* output,
     if (line.front() == L'[' && line.back() == L']') {
       std::wstring path = Trim(
           std::wstring_view(line).substr(1, line.size() - 2));
+      bool removed = false;
       if (!path.empty() && path.front() == L'-') {
-        current_key = nullptr;
-        continue;
+        removed = true;
+        path = Trim(std::wstring_view(path).substr(1));
+      }
+      if (path.empty()) {
+        return fail(line);
       }
       const std::wstring lower = Lower(path);
       auto [iterator, inserted] =
@@ -335,35 +403,42 @@ bool Parse(std::wstring_view content, Document* output,
       if (inserted) {
         output->key_order.push_back(path);
       }
-      current_key = &iterator->second;
+      iterator->second.removed = removed;
+      current_key = removed ? nullptr : &iterator->second;
       continue;
     }
     if (!current_key) {
-      continue;
+      return fail(line);
     }
     const size_t equals = FindAssignment(line);
     if (equals == std::wstring::npos) {
-      continue;
+      return fail(line);
     }
     const std::wstring name_text = Trim(
         std::wstring_view(line).substr(0, equals));
     const std::wstring data_text = Trim(
         std::wstring_view(line).substr(equals + 1));
-    if (name_text.empty() || data_text.empty() || data_text == L"-") {
-      continue;
+    if (name_text.empty() || data_text.empty()) {
+      return fail(line);
     }
 
     Value value;
     if (name_text == L"@") {
       value.name.clear();
     } else if (!ParseQuoted(name_text, &value.name)) {
+      return fail(line);
+    }
+
+    if (data_text == L"-") {
+      current_key->values.erase(Lower(value.name));
+      current_key->removed_values.push_back(value.name);
       continue;
     }
 
     if (data_text.front() == L'"') {
       std::wstring text;
       if (!ParseQuoted(data_text, &text)) {
-        continue;
+        return fail(line);
       }
       value.type = REG_SZ;
       value.data = value_format::StringData(text);
@@ -371,32 +446,47 @@ bool Parse(std::wstring_view content, Document* output,
       const std::wstring number_text = Trim(
           std::wstring_view(data_text).substr(6));
       if (number_text.empty()) {
-        continue;
+        return fail(line);
       }
-      const DWORD number =
-          static_cast<DWORD>(wcstoul(number_text.c_str(), nullptr, 16));
+      wchar_t* stop = nullptr;
+      errno = 0;
+      const unsigned long parsed = wcstoul(number_text.c_str(), &stop, 16);
+      if (!stop || *stop != L'\0' || errno == ERANGE ||
+          parsed > 0xFFFFFFFFul) {
+        return fail(line);
+      }
+      const DWORD number = static_cast<DWORD>(parsed);
       value.type = REG_DWORD;
       value.data.resize(sizeof(number));
       std::memcpy(value.data.data(), &number, sizeof(number));
     } else if (registry_path::StartsWith(data_text, L"hex")) {
       const size_t colon = data_text.find(L':');
       if (colon == std::wstring::npos) {
-        continue;
+        return fail(line);
       }
       value.type = REG_BINARY;
       const size_t open = data_text.find(L'(');
       const size_t close = data_text.find(L')');
-      if (open != std::wstring::npos && close > open) {
+      if (open != std::wstring::npos && close != std::wstring::npos &&
+          close > open && close < colon) {
         const std::wstring code =
             data_text.substr(open + 1, close - open - 1);
-        value.type = TypeFromCode(wcstoul(code.c_str(), nullptr, 16));
+        wchar_t* stop = nullptr;
+        errno = 0;
+        const unsigned long parsed = wcstoul(code.c_str(), &stop, 16);
+        if (code.empty() || !stop || *stop != L'\0' || errno == ERANGE) {
+          return fail(line);
+        }
+        value.type = TypeFromCode(parsed);
+      } else if (colon != 3) {
+        return fail(line);
       }
       if (!value_format::ParseHex(
               std::wstring_view(data_text).substr(colon + 1), &value.data)) {
-        continue;
+        return fail(line);
       }
     } else {
-      continue;
+      return fail(line);
     }
     current_key->values[Lower(value.name)] = std::move(value);
   }
@@ -412,7 +502,7 @@ bool Load(const std::wstring& path, Document* output, std::wstring* error,
     }
     return false;
   }
-  return Parse(content, output, cancel, cancelled);
+  return Parse(content, output, cancel, cancelled, error);
 }
 
 std::wstring Serialize(const Document& document) {
@@ -422,12 +512,17 @@ std::wstring Serialize(const Document& document) {
     if (key == document.keys.end()) {
       continue;
     }
+    if (key->second.removed) {
+      writer.AppendRemovedKey(key->second.path);
+      continue;
+    }
     std::vector<const Value*> values;
     values.reserve(key->second.values.size());
     for (const auto& entry : key->second.values) {
       values.push_back(&entry.second);
     }
     writer.AppendKey(key->second.path, std::move(values));
+    writer.AppendRemovedValues(key->second.removed_values);
   }
   return std::move(writer).Finish();
 }

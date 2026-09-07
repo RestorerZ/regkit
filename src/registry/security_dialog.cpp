@@ -18,7 +18,8 @@ namespace regkit {
 
 namespace {
 
-bool SetPrivilege(const wchar_t* name, bool enable) {
+bool SetPrivilege(const wchar_t* name, bool enable,
+                  TOKEN_PRIVILEGES* previous = nullptr) {
   HANDLE token = nullptr;
   if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
     return false;
@@ -32,8 +33,24 @@ bool SetPrivilege(const wchar_t* name, bool enable) {
   tp.PrivilegeCount = 1;
   tp.Privileges[0].Luid = luid;
   tp.Privileges[0].Attributes = enable ? SE_PRIVILEGE_ENABLED : 0;
-  AdjustTokenPrivileges(token, FALSE, &tp, sizeof(tp), nullptr, nullptr);
+  DWORD previous_size = previous ? sizeof(TOKEN_PRIVILEGES) : 0;
+  AdjustTokenPrivileges(token, FALSE, &tp, previous_size, previous,
+                        previous ? &previous_size : nullptr);
   DWORD last_error = GetLastError();
+  CloseHandle(token);
+  return last_error == ERROR_SUCCESS;
+}
+
+bool RestorePrivilege(const TOKEN_PRIVILEGES& previous) {
+  HANDLE token = nullptr;
+  if (!OpenProcessToken(GetCurrentProcess(),
+                        TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
+    return false;
+  }
+  TOKEN_PRIVILEGES restore = previous;
+  AdjustTokenPrivileges(token, FALSE, &restore, sizeof(restore), nullptr,
+                        nullptr);
+  const DWORD last_error = GetLastError();
   CloseHandle(token);
   return last_error == ERROR_SUCCESS;
 }
@@ -49,14 +66,20 @@ public:
     *ppv = nullptr;
     if (riid == IID_IUnknown || riid == IID_ISecurityInformation) {
       *ppv = static_cast<ISecurityInformation*>(this);
+      AddRef();
       return S_OK;
     }
     return E_NOINTERFACE;
   }
 
-  ULONG STDMETHODCALLTYPE AddRef() override { return 2; }
+  ULONG STDMETHODCALLTYPE AddRef() override {
+    return static_cast<ULONG>(InterlockedIncrement(&references_));
+  }
 
-  ULONG STDMETHODCALLTYPE Release() override { return 1; }
+  ULONG STDMETHODCALLTYPE Release() override {
+    const LONG remaining = InterlockedDecrement(&references_);
+    return static_cast<ULONG>(remaining < 0 ? 0 : remaining);
+  }
 
   HRESULT STDMETHODCALLTYPE GetObjectInformation(PSI_OBJECT_INFO info) override {
     if (!info) {
@@ -87,7 +110,9 @@ public:
     if (!sd) {
       return E_POINTER;
     }
-    return SetKernelObjectSecurity(key_, security_info, sd) ? S_OK : HRESULT_FROM_WIN32(GetLastError());
+    return RegSetKeySecurity(key_, security_info, sd) == ERROR_SUCCESS
+               ? S_OK
+               : HRESULT_FROM_WIN32(GetLastError());
   }
 
   HRESULT STDMETHODCALLTYPE GetAccessRights(const GUID*, DWORD, PSI_ACCESS* access, ULONG* count, ULONG* default_access) override {
@@ -111,7 +136,19 @@ public:
     return S_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE MapGeneric(const GUID*, UCHAR*, ACCESS_MASK*) override { return S_OK; }
+  HRESULT STDMETHODCALLTYPE MapGeneric(const GUID*, UCHAR*,
+                                       ACCESS_MASK* mask) override {
+    if (!mask) {
+      return E_POINTER;
+    }
+    GENERIC_MAPPING mapping = {};
+    mapping.GenericRead = KEY_READ;
+    mapping.GenericWrite = KEY_WRITE;
+    mapping.GenericExecute = KEY_EXECUTE;
+    mapping.GenericAll = KEY_ALL_ACCESS;
+    MapGenericMask(mask, &mapping);
+    return S_OK;
+  }
 
   HRESULT STDMETHODCALLTYPE GetInheritTypes(PSI_INHERIT_TYPE* types, ULONG* count) override {
     static SI_INHERIT_TYPE inherit_types[] = {
@@ -133,6 +170,7 @@ private:
   HKEY key_ = nullptr;
   std::wstring object_name_;
   bool read_only_ = false;
+  LONG references_ = 1;
 };
 
 } // namespace
@@ -143,7 +181,9 @@ bool ShowRegistryPermissions(HWND owner, const RegistryNode& node) {
     return false;
   }
 
-  bool privilege_enabled = SetPrivilege(SE_TAKE_OWNERSHIP_NAME, true);
+  TOKEN_PRIVILEGES previous_privilege = {};
+  const bool privilege_enabled =
+      SetPrivilege(SE_TAKE_OWNERSHIP_NAME, true, &previous_privilege);
   const wchar_t* subkey = node.subkey.empty() ? nullptr : node.subkey.c_str();
   bool read_only = false;
   HKEY key = nullptr;
@@ -164,7 +204,7 @@ bool ShowRegistryPermissions(HWND owner, const RegistryNode& node) {
   }
 
   if (privilege_enabled) {
-    SetPrivilege(SE_TAKE_OWNERSHIP_NAME, false);
+    RestorePrivilege(previous_privilege);
   }
   return ok;
 }

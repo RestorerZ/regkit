@@ -75,6 +75,10 @@ private:
 };
 
 DWORD GetActiveSessionId() {
+  DWORD current = 0;
+  if (ProcessIdToSessionId(GetCurrentProcessId(), &current)) {
+    return current;
+  }
   DWORD count = 0;
   PWTS_SESSION_INFOW sessions = nullptr;
   if (!WTSEnumerateSessionsW(WTS_CURRENT_SERVER_HANDLE, 0, 1, &sessions, &count)) {
@@ -214,8 +218,25 @@ bool StartServiceAndGetProcessId(const wchar_t* service_name, DWORD* process_id)
     return false;
   }
 
-  if (status.dwCurrentState == SERVICE_STOPPED || status.dwCurrentState == SERVICE_STOP_PENDING) {
-    StartServiceW(service, 0, nullptr);
+  for (int attempt = 0;
+       status.dwCurrentState == SERVICE_STOP_PENDING && attempt < 50;
+       ++attempt) {
+    Sleep(100);
+    if (!QueryServiceProcess(service, &status)) {
+      CloseServiceHandle(service);
+      CloseServiceHandle(scm);
+      return false;
+    }
+  }
+  if (status.dwCurrentState == SERVICE_STOPPED) {
+    if (!StartServiceW(service, 0, nullptr) &&
+        GetLastError() != ERROR_SERVICE_ALREADY_RUNNING) {
+      const DWORD error = GetLastError();
+      CloseServiceHandle(service);
+      CloseServiceHandle(scm);
+      SetLastError(error);
+      return false;
+    }
   }
 
   for (int attempt = 0; attempt < 50; ++attempt) {
@@ -406,12 +427,15 @@ bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring&
   ScopedHandle system_token;
   ScopedHandle system_impersonation;
   ScopedHandle target_token;
+  ScopedHandle previous_thread_token;
   ScopedEnvBlock env;
   DWORD session_id = static_cast<DWORD>(-1);
   STARTUPINFOW startup = {};
   PROCESS_INFORMATION process = {};
   std::wstring mutable_command;
 
+  OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE,
+                  previous_thread_token.put());
   if (!OpenProcessToken(GetCurrentProcess(), MAXIMUM_ALLOWED, current_token.put())) {
     error = GetLastError();
     goto Cleanup;
@@ -461,12 +485,13 @@ bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring&
     error = GetLastError();
     goto Cleanup;
   }
-  if (!CreateEnvironmentBlock(env.put(), current_token.get(), TRUE)) {
+  if (!CreateEnvironmentBlock(env.put(), current_token.get(), FALSE)) {
     error = GetLastError();
     goto Cleanup;
   }
 
   startup.cb = sizeof(startup);
+  startup.lpDesktop = const_cast<LPWSTR>(L"winsta0\\default");
   mutable_command = command_line;
   result = CreateProcessAsUserW(target_token.get(), nullptr, mutable_command.data(), nullptr, nullptr, FALSE, CREATE_UNICODE_ENVIRONMENT, env.get(), work_dir.empty() ? nullptr : work_dir.c_str(), &startup, &process);
   if (!result) {
@@ -477,7 +502,7 @@ bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring&
   CloseHandle(process.hProcess);
 
 Cleanup:
-  SetThreadToken(nullptr, nullptr);
+  SetThreadToken(nullptr, previous_thread_token.get());
   if (!result) {
     if (error_code) {
       *error_code = error;
@@ -508,12 +533,15 @@ bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std
   ScopedHandle system_impersonation;
   ScopedHandle ti_token;
   ScopedHandle target_token;
+  ScopedHandle previous_thread_token;
   ScopedEnvBlock env;
   DWORD session_id = static_cast<DWORD>(-1);
   STARTUPINFOW startup = {};
   PROCESS_INFORMATION process = {};
   std::wstring mutable_command;
 
+  OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE,
+                  previous_thread_token.put());
   if (!OpenProcessToken(GetCurrentProcess(), MAXIMUM_ALLOWED, current_token.put())) {
     error = GetLastError();
     goto Cleanup;
@@ -567,12 +595,13 @@ bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std
     error = GetLastError();
     goto Cleanup;
   }
-  if (!CreateEnvironmentBlock(env.put(), current_token.get(), TRUE)) {
+  if (!CreateEnvironmentBlock(env.put(), current_token.get(), FALSE)) {
     error = GetLastError();
     goto Cleanup;
   }
 
   startup.cb = sizeof(startup);
+  startup.lpDesktop = const_cast<LPWSTR>(L"winsta0\\default");
   mutable_command = command_line;
   result = CreateProcessAsUserW(target_token.get(), nullptr, mutable_command.data(), nullptr, nullptr, FALSE, CREATE_UNICODE_ENVIRONMENT, env.get(), work_dir.empty() ? nullptr : work_dir.c_str(), &startup, &process);
   if (!result) {
@@ -583,7 +612,7 @@ bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std
   CloseHandle(process.hProcess);
 
 Cleanup:
-  SetThreadToken(nullptr, nullptr);
+  SetThreadToken(nullptr, previous_thread_token.get());
   if (!result) {
     if (error_code) {
       *error_code = error;

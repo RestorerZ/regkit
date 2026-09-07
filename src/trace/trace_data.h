@@ -36,7 +36,8 @@ struct Data {
   std::wstring label;
   std::wstring source_path;
   std::unordered_map<std::wstring, KeyValues> values_by_key;
-  std::unordered_map<std::wstring, std::vector<std::wstring>>
+  std::unordered_map<std::wstring,
+                     std::unordered_map<std::wstring, std::wstring>>
       children_by_key;
   std::vector<std::wstring> key_paths;
   std::vector<std::wstring> display_key_paths;

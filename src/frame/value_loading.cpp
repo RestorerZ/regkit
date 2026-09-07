@@ -104,18 +104,13 @@ void MainWindow::Impl::StartValueListWorker() {
             if (it == trace.data->children_by_key.end()) {
               continue;
             }
-            for (const auto& name : it->second) {
-              if (name.empty()) {
+            for (const auto& child : it->second) {
+              if (child.second.empty() ||
+                  existing_lower.find(child.first) != existing_lower.end() ||
+                  !seen.insert(child.first).second) {
                 continue;
               }
-              std::wstring name_lower = ToLower(name);
-              if (existing_lower.find(name_lower) != existing_lower.end()) {
-                continue;
-              }
-              if (!seen.insert(name_lower).second) {
-                continue;
-              }
-              out->push_back(name);
+              out->push_back(child.second);
             }
           }
           std::sort(out->begin(), out->end(), [](const std::wstring& left, const std::wstring& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
@@ -519,6 +514,7 @@ void MainWindow::Impl::QueueValuePreviews(int first, int last) {
     task->indices.push_back(i);
     task->names.push_back(row->extra);
   }
+  browse_.values().RefreshFilter();
   if (task->indices.empty()) {
     return;
   }

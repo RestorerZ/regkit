@@ -37,13 +37,19 @@ std::wstring GetRegExePath() {
   wchar_t system_dir[MAX_PATH] = {};
   UINT len = GetSystemDirectoryW(system_dir, _countof(system_dir));
   if (len == 0 || len >= _countof(system_dir)) {
-    return L"reg.exe";
+    return {};
   }
   return util::JoinPath(system_dir, L"reg.exe");
 }
 
 bool RunRegCommand(const std::wstring& args, DWORD* exit_code, std::wstring* error) {
   std::wstring reg = GetRegExePath();
+  if (reg.empty()) {
+    if (error) {
+      *error = L"The system directory could not be resolved.";
+    }
+    return false;
+  }
   std::wstring cmdline = L"\"" + reg + L"\" " + args;
   SECURITY_ATTRIBUTES security = {};
   security.nLength = sizeof(security);
@@ -66,7 +72,41 @@ bool RunRegCommand(const std::wstring& args, DWORD* exit_code, std::wstring* err
   }
   PROCESS_INFORMATION pi = {};
   DWORD flags = CREATE_NO_WINDOW;
-  if (!CreateProcessW(nullptr, cmdline.data(), nullptr, nullptr, capture_output ? TRUE : FALSE, flags, nullptr, nullptr, &si, &pi)) {
+  STARTUPINFOEXW six = {};
+  six.StartupInfo = si;
+  std::vector<BYTE> attribute_storage;
+  HANDLE inherited[1] = {write_pipe};
+  if (capture_output) {
+    SIZE_T attribute_size = 0;
+    InitializeProcThreadAttributeList(nullptr, 1, 0, &attribute_size);
+    if (attribute_size > 0) {
+      attribute_storage.resize(attribute_size);
+      auto* attributes =
+          reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attribute_storage.data());
+      if (InitializeProcThreadAttributeList(attributes, 1, 0, &attribute_size) &&
+          UpdateProcThreadAttribute(attributes, 0,
+                                    PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                    inherited, sizeof(inherited), nullptr,
+                                    nullptr)) {
+        six.lpAttributeList = attributes;
+        six.StartupInfo.cb = sizeof(six);
+        flags |= EXTENDED_STARTUPINFO_PRESENT;
+      } else {
+        attribute_storage.clear();
+      }
+    }
+  }
+  const bool extended = (flags & EXTENDED_STARTUPINFO_PRESENT) != 0;
+  const BOOL created = CreateProcessW(
+      reg.c_str(), cmdline.data(), nullptr, nullptr,
+      capture_output ? TRUE : FALSE, flags, nullptr, nullptr,
+      extended ? &six.StartupInfo : &si, &pi);
+  if (extended) {
+    DeleteProcThreadAttributeList(
+        reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
+            attribute_storage.data()));
+  }
+  if (!created) {
     if (read_pipe) {
       CloseHandle(read_pipe);
     }
@@ -347,13 +387,15 @@ bool ExportKeyToContent(const std::wstring& key_path, bool include_subkeys, std:
     return false;
   }
   wchar_t temp_file[MAX_PATH] = {};
-  if (!GetTempFileNameW(temp_dir, L"reg", 0, temp_file)) {
+  if (!GetTempFileNameW(temp_dir, L"rkx", 0, temp_file)) {
     if (error) {
       *error = L"Failed to create temp file.";
     }
     return false;
   }
-  std::wstring temp_path = temp_file;
+  std::wstring temp_path = std::wstring(temp_file) + L".reg";
+  DeleteFileW(temp_file);
+  DeleteFileW(temp_path.c_str());
 
   std::wstring args = L"export \"" + normalized + L"\" \"" + temp_path + L"\" /y ";
   args += win32::RegExeViewSwitch(win32::kDefaultRegistryView);
@@ -366,14 +408,16 @@ bool ExportKeyToContent(const std::wstring& key_path, bool include_subkeys, std:
   std::wstring filtered_path;
   if (!include_subkeys) {
     wchar_t filtered_file[MAX_PATH] = {};
-    if (!GetTempFileNameW(temp_dir, L"reg", 0, filtered_file)) {
+    if (!GetTempFileNameW(temp_dir, L"rkf", 0, filtered_file)) {
       DeleteFileW(temp_path.c_str());
       if (error) {
         *error = L"Failed to create temp file.";
       }
       return false;
     }
-    filtered_path = filtered_file;
+    filtered_path = std::wstring(filtered_file) + L".reg";
+    DeleteFileW(filtered_file);
+    DeleteFileW(filtered_path.c_str());
     if (!FilterExportedRegFile(temp_path, filtered_path, error)) {
       DeleteFileW(temp_path.c_str());
       DeleteFileW(filtered_path.c_str());
@@ -412,11 +456,16 @@ std::wstring EnsureRegExtension(std::wstring path) {
   size_t dot = path.find_last_of(L'.');
   if (dot == std::wstring::npos || (slash != std::wstring::npos && dot < slash)) {
     path.append(L".reg");
+    return path;
+  }
+  if (_wcsicmp(path.c_str() + dot, L".reg") != 0) {
+    path.append(L".reg");
   }
   return path;
 }
 
-bool AdjustHivePrivilege(const wchar_t* name, bool enable) {
+bool AdjustHivePrivilege(const wchar_t* name, bool enable,
+                         TOKEN_PRIVILEGES* previous) {
   HANDLE token = nullptr;
   if (!OpenProcessToken(GetCurrentProcess(),
                         TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
@@ -428,21 +477,51 @@ bool AdjustHivePrivilege(const wchar_t* name, bool enable) {
   bool ok = LookupPrivilegeValueW(nullptr, name,
                                   &privileges.Privileges[0].Luid) != FALSE;
   if (ok) {
-    ok = AdjustTokenPrivileges(token, FALSE, &privileges, 0, nullptr, nullptr) &&
+    DWORD previous_size = previous ? sizeof(TOKEN_PRIVILEGES) : 0;
+    ok = AdjustTokenPrivileges(token, FALSE, &privileges, previous_size,
+                               previous,
+                               previous ? &previous_size : nullptr) &&
          GetLastError() == ERROR_SUCCESS;
   }
   CloseHandle(token);
   return ok;
 }
 
-void ReleaseHivePrivileges() {
-  AdjustHivePrivilege(SE_RESTORE_NAME, false);
-  AdjustHivePrivilege(SE_BACKUP_NAME, false);
-}
+class HivePrivilegeScope {
+public:
+  bool Acquire() {
+    restore_held_ =
+        AdjustHivePrivilege(SE_RESTORE_NAME, true, &previous_restore_);
+    if (!restore_held_) {
+      return false;
+    }
+    backup_held_ = AdjustHivePrivilege(SE_BACKUP_NAME, true, &previous_backup_);
+    return backup_held_;
+  }
 
-bool EnableHivePrivilege(const wchar_t* name) {
-  return AdjustHivePrivilege(name, true);
-}
+  ~HivePrivilegeScope() {
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(),
+                          TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
+      return;
+    }
+    if (backup_held_) {
+      AdjustTokenPrivileges(token, FALSE, &previous_backup_,
+                            sizeof(previous_backup_), nullptr, nullptr);
+    }
+    if (restore_held_) {
+      AdjustTokenPrivileges(token, FALSE, &previous_restore_,
+                            sizeof(previous_restore_), nullptr, nullptr);
+    }
+    CloseHandle(token);
+  }
+
+private:
+  TOKEN_PRIVILEGES previous_restore_ = {};
+  TOKEN_PRIVILEGES previous_backup_ = {};
+  bool restore_held_ = false;
+  bool backup_held_ = false;
+};
 
 } // namespace
 
@@ -480,13 +559,15 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error
       return false;
     }
     wchar_t temp_file[MAX_PATH] = {};
-    if (!GetTempFileNameW(temp_dir, L"reg", 0, temp_file)) {
+    if (!GetTempFileNameW(temp_dir, L"rkx", 0, temp_file)) {
       if (error) {
         *error = L"Failed to create temp file.";
       }
       return false;
     }
-    temp_path = temp_file;
+    temp_path = std::wstring(temp_file) + L".reg";
+    DeleteFileW(temp_file);
+    DeleteFileW(temp_path.c_str());
     target_path = temp_path;
   }
 
@@ -586,7 +667,9 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
     if (!ExportKeyToContent(key_path, true, &content, &utf16, error)) {
       return false;
     }
-    append_content(content, utf16);
+    if (!append_content(content, utf16)) {
+      return false;
+    }
   }
 
   if (output_document.key_order.empty()) {
@@ -650,7 +733,8 @@ bool LoadHive(HWND owner, HKEY* root, std::wstring* error) {
     return false;
   }
   *root = choice.root;
-  if (!EnableHivePrivilege(SE_RESTORE_NAME) || !EnableHivePrivilege(SE_BACKUP_NAME)) {
+  HivePrivilegeScope privileges;
+  if (!privileges.Acquire()) {
     if (error) {
       *error = L"Loading a hive needs the backup and restore privileges. Run RegKit elevated.";
     }
@@ -658,7 +742,6 @@ bool LoadHive(HWND owner, HKEY* root, std::wstring* error) {
   }
   const LONG result =
       RegLoadKeyW(*root, choice.key_name.c_str(), choice.file.c_str());
-  ReleaseHivePrivileges();
   if (result != ERROR_SUCCESS) {
     if (error) {
       *error = FormatWin32Error(result);
@@ -687,14 +770,14 @@ bool UnloadHive(HWND owner, HKEY root, const std::wstring& subkey, std::wstring*
     }
     return false;
   }
-  if (!EnableHivePrivilege(SE_RESTORE_NAME) || !EnableHivePrivilege(SE_BACKUP_NAME)) {
+  HivePrivilegeScope privileges;
+  if (!privileges.Acquire()) {
     if (error) {
       *error = L"Unloading a hive needs the backup and restore privileges. Run RegKit elevated.";
     }
     return false;
   }
   const LONG result = RegUnLoadKeyW(root, target.c_str());
-  ReleaseHivePrivileges();
   if (result != ERROR_SUCCESS) {
     if (error) {
       *error = FormatWin32Error(result);

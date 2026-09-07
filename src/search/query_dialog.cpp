@@ -5,6 +5,7 @@
 #include "search/query_prompts.h"
 
 #include <algorithm>
+#include <cerrno>
 #include <limits>
 #include <vector>
 
@@ -319,9 +320,13 @@ bool ParseUint64(const std::wstring& text, uint64_t* out) {
   if (text.empty()) {
     return false;
   }
+  if (text.find_first_not_of(L"0123456789") != std::wstring::npos) {
+    return false;
+  }
+  errno = 0;
   wchar_t* end = nullptr;
   unsigned long long value = wcstoull(text.c_str(), &end, 10);
-  if (!end || end == text.c_str() || *end != L'\0') {
+  if (!end || end == text.c_str() || *end != L'\0' || errno == ERANGE) {
     return false;
   }
   *out = static_cast<uint64_t>(value);
@@ -904,8 +909,8 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
       result.criteria.match_case = SendMessageW(state->match_case, BM_GETCHECK, 0, 0) == BST_CHECKED;
       result.criteria.match_whole = SendMessageW(state->match_whole, BM_GETCHECK, 0, 0) == BST_CHECKED;
       result.criteria.use_regex = SendMessageW(state->use_regex, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      result.criteria.allowed_types = state->data_types;
       if (data) {
+        result.criteria.allowed_types = state->data_types;
         if (state->min_size && SendMessageW(state->min_size, BM_GETCHECK, 0, 0) == BST_CHECKED) {
           wchar_t buffer[64] = {};
           GetWindowTextW(state->min_size_edit, buffer, static_cast<int>(_countof(buffer)));
@@ -962,8 +967,12 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
       if (SendMessageW(state->result_limit_enable, BM_GETCHECK, 0, 0) == BST_CHECKED) {
         wchar_t limit_text[32] = {};
         GetWindowTextW(state->result_limit_edit, limit_text, static_cast<int>(_countof(limit_text)));
-        const unsigned long long limit = wcstoull(limit_text, nullptr, 10);
-        result.criteria.max_results = limit > 0 ? limit : 1000;
+        uint64_t limit = 0;
+        if (!ParseUint64(limit_text, &limit) || limit == 0) {
+          ui::ShowWarning(hwnd, L"Enter a valid result limit.");
+          return 0;
+        }
+        result.criteria.max_results = limit;
       } else {
         result.criteria.max_results = 0;
       }
@@ -1071,13 +1080,7 @@ bool ShowSearchDialog(HWND owner, SearchDialogResult* result, bool trace_availab
   UpdateWindow(hwnd);
   FocusFindCombo(&state);
 
-  MSG msg = {};
-  while (IsWindow(hwnd) && GetMessageW(&msg, nullptr, 0, 0)) {
-    if (!IsDialogMessageW(hwnd, &msg)) {
-      TranslateMessage(&msg);
-      DispatchMessageW(&msg);
-    }
-  }
+  appearance::RunModalLoop(hwnd);
 
   appearance::RestoreDialogOwner(owner, &state.owner_restored);
   return state.accepted;

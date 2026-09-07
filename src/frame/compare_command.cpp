@@ -115,10 +115,10 @@ void MainWindow::Impl::StartCompareRegistries() {
       hive_node.subkey = base;
       const bool ok = search::compare::CaptureRegistry(
           base.empty() ? hive_node.root_name : base, hive_node,
-          source.recursive, snapshot);
+          source.recursive, snapshot, error);
       RegistryStore::RemoveOfflineRoot(hive);
       RegistryStore::CloseOfflineHive(hive, nullptr);
-      if (!ok && error) {
+      if (!ok && error && error->empty()) {
         *error = L"Failed to read the hive file: " + source.file_path;
       }
       return ok;
@@ -134,7 +134,7 @@ void MainWindow::Impl::StartCompareRegistries() {
       return false;
     }
     return search::compare::CaptureRegistry(
-        base, node, source.recursive, snapshot);
+        base, node, source.recursive, snapshot, error);
   };
 
   search::compare::Snapshot left_snapshot;

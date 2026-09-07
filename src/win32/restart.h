@@ -17,6 +17,8 @@ inline constexpr wchar_t kRestartTiArg[] = L"--restart-ti";
 inline constexpr wchar_t kRestartParentArg[] = L"--restart-from-pid";
 
 std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid);
+std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid,
+                              const std::vector<std::wstring>& original_args);
 
 HRESULT LaunchElevated(HWND owner, const std::wstring& exe, const std::wstring& arguments);
 

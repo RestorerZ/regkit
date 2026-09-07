@@ -20,10 +20,13 @@ constexpr wchar_t kRealGroupLabel[] = L"REGISTRY";
 using util::ToLower;
 } // namespace
 
-void RegistryTree::Create(HWND parent, HINSTANCE instance, int control_id, bool show_border) {
-  DWORD style = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_EDITLABELS;
+void RegistryTree::Create(HWND parent, HINSTANCE instance, int control_id, bool show_border, bool allow_label_edit) {
+  DWORD style = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS;
   if (show_border) {
     style |= WS_BORDER;
+  }
+  if (allow_label_edit) {
+    style |= TVS_EDITLABELS;
   }
   hwnd_ = CreateWindowExW(0, WC_TREEVIEWW, L"", style, 0, 0, 100, 100, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(control_id)), instance, nullptr);
   if (hwnd_) {
@@ -131,13 +134,13 @@ void RegistryTree::PopulateRoots(const std::vector<RegistryRootEntry>& roots) {
 
     if (!regedit_layout_ && root_entry.group == RegistryRootGroup::kReal && real_group_item_ && _wcsicmp(root_entry.display_name.c_str(), kRealGroupLabel) == 0 && root_entry.subkey_prefix.empty()) {
       TVITEMW item = {};
-      item.mask = TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+      item.mask = TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
       item.hItem = real_group_item_;
       item.lParam = reinterpret_cast<LPARAM>(stored);
       item.iImage = icon_index;
       item.iSelectedImage = icon_index;
+      item.cChildren = I_CHILDRENCALLBACK;
       TreeView_SetItem(hwnd_, &item);
-      AddDummyChildIfNeeded(real_group_item_, stored);
       continue;
     }
 
@@ -150,13 +153,13 @@ void RegistryTree::PopulateRoots(const std::vector<RegistryRootEntry>& roots) {
       root_item.hParent = standard_group_item_ ? standard_group_item_ : root_item_;
     }
     root_item.hInsertAfter = TVI_LAST;
-    root_item.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+    root_item.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
     root_item.item.pszText = const_cast<wchar_t*>(root_entry.display_name.c_str());
     root_item.item.lParam = reinterpret_cast<LPARAM>(stored);
     root_item.item.iImage = icon_index;
     root_item.item.iSelectedImage = icon_index;
-    HTREEITEM item = TreeView_InsertItem(hwnd_, &root_item);
-    AddDummyChildIfNeeded(item, stored);
+    root_item.item.cChildren = I_CHILDRENCALLBACK;
+    TreeView_InsertItem(hwnd_, &root_item);
   }
 
   TreeView_Expand(hwnd_, root_item_, TVE_EXPAND);
@@ -190,12 +193,7 @@ void RegistryTree::OnItemExpanding(const NMTREEVIEWW* info) {
     return;
   }
 
-  HTREEITEM child = TreeView_GetChild(hwnd_, info->itemNew.hItem);
-  if (child) {
-    TreeView_DeleteItem(hwnd_, child);
-  }
-  AddChildren(info->itemNew.hItem, node);
-  node->children_loaded = true;
+  node->children_loaded = AddChildren(info->itemNew.hItem, node);
 }
 
 RegistryNode* RegistryTree::OnSelectionChanged(const NMTREEVIEWW* info) {
@@ -206,15 +204,46 @@ RegistryNode* RegistryTree::OnSelectionChanged(const NMTREEVIEWW* info) {
 }
 
 RegistryNode* RegistryTree::StoreNode(std::unique_ptr<RegistryNode> node) {
-  nodes_.push_back(std::move(node));
-  return nodes_.back().get();
+  RegistryNode* stored = node.get();
+  nodes_.emplace(stored, std::move(node));
+  return stored;
 }
 
-void RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node) {
-  if (!node) {
+void RegistryTree::ReleaseSubtree(HTREEITEM item) {
+  for (HTREEITEM child = TreeView_GetChild(hwnd_, item); child;
+       child = TreeView_GetNextSibling(hwnd_, child)) {
+    ReleaseSubtree(child);
+  }
+  if (RegistryNode* node = NodeFromItem(item)) {
+    nodes_.erase(node);
+  }
+}
+
+void RegistryTree::DeleteChildren(HTREEITEM parent) {
+  if (!hwnd_ || !parent) {
     return;
   }
-  auto children = RegistryStore::EnumSubKeyNames(*node);
+  HTREEITEM child = TreeView_GetChild(hwnd_, parent);
+  while (child) {
+    HTREEITEM next = TreeView_GetNextSibling(hwnd_, child);
+    ReleaseSubtree(child);
+    TreeView_DeleteItem(hwnd_, child);
+    child = next;
+  }
+}
+
+bool RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node) {
+  if (!node) {
+    return false;
+  }
+  std::vector<std::wstring> children;
+  const bool enumerated = RegistryStore::EnumKeyStreaming(
+      *node, false, false, true, nullptr, RegistryStore::ValueStreamCallback(),
+      [&](const std::wstring& name) {
+        children.push_back(name);
+        return true;
+      },
+      MAXDWORD, nullptr, false);
   std::unordered_set<std::wstring> existing_lower;
   existing_lower.reserve(children.size());
   for (const auto& name : children) {
@@ -263,37 +292,43 @@ void RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node) {
     TVINSERTSTRUCTW insert = {};
     insert.hParent = parent;
     insert.hInsertAfter = TVI_LAST;
-    insert.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+    insert.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
     insert.item.pszText = const_cast<wchar_t*>(name.c_str());
     insert.item.lParam = reinterpret_cast<LPARAM>(stored);
     insert.item.iImage = icon_index;
     insert.item.iSelectedImage = icon_index;
-    HTREEITEM item = TreeView_InsertItem(hwnd_, &insert);
-    AddDummyChildIfNeeded(item, stored);
+    insert.item.cChildren = I_CHILDRENCALLBACK;
+    TreeView_InsertItem(hwnd_, &insert);
   }
+  if (entries.empty()) {
+    TVITEMW empty = {};
+    empty.mask = TVIF_CHILDREN;
+    empty.hItem = parent;
+    empty.cChildren = 0;
+    TreeView_SetItem(hwnd_, &empty);
+  }
+  return enumerated;
 }
 
-void RegistryTree::AddDummyChildIfNeeded(HTREEITEM parent, RegistryNode* node) {
-  if (!node) {
+void RegistryTree::OnGetDispInfo(NMTVDISPINFOW* info) {
+  if (!info || !(info->item.mask & TVIF_CHILDREN)) {
     return;
   }
-  bool has_children = RegistryStore::HasSubKeys(*node);
-  if (!has_children && virtual_child_provider_) {
-    std::unordered_set<std::wstring> existing_lower;
-    std::vector<std::wstring> virtual_children;
-    virtual_child_provider_(*node, existing_lower, &virtual_children);
-    has_children = !virtual_children.empty();
+  auto* node = reinterpret_cast<RegistryNode*>(info->item.lParam);
+  info->item.cChildren = node && HasChildren(*node) ? 1 : 0;
+}
+
+bool RegistryTree::HasChildren(const RegistryNode& node) {
+  if (RegistryStore::HasSubKeys(node)) {
+    return true;
   }
-  if (!has_children) {
-    return;
+  if (!virtual_child_provider_) {
+    return false;
   }
-  TVINSERTSTRUCTW insert = {};
-  insert.hParent = parent;
-  insert.hInsertAfter = TVI_LAST;
-  insert.item.mask = TVIF_TEXT | TVIF_PARAM;
-  insert.item.pszText = const_cast<wchar_t*>(L"");
-  insert.item.lParam = 0;
-  TreeView_InsertItem(hwnd_, &insert);
+  std::unordered_set<std::wstring> existing_lower;
+  std::vector<std::wstring> virtual_children;
+  virtual_child_provider_(node, existing_lower, &virtual_children);
+  return !virtual_children.empty();
 }
 
 } // namespace regkit

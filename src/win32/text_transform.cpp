@@ -20,8 +20,8 @@ std::wstring WindowText(HWND window) {
 
 std::wstring ToLower(const std::wstring& text) {
   std::wstring result = text;
-  for (wchar_t& character : result) {
-    character = towlower(character);
+  if (!result.empty()) {
+    CharLowerBuffW(result.data(), static_cast<DWORD>(result.size()));
   }
   return result;
 }

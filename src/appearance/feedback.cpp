@@ -739,13 +739,7 @@ bool ShowErrorDialog(HWND owner, const std::wstring& message) {
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
 
-  MSG msg = {};
-  while (IsWindow(hwnd) && GetMessageW(&msg, nullptr, 0, 0)) {
-    if (!IsDialogMessageW(hwnd, &msg)) {
-      TranslateMessage(&msg);
-      DispatchMessageW(&msg);
-    }
-  }
+  appearance::RunModalLoop(hwnd);
 
   appearance::RestoreDialogOwner(owner, &state.owner_restored);
   return state.accepted;
@@ -772,13 +766,7 @@ bool ShowAboutDialog(HWND owner) {
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
 
-  MSG msg = {};
-  while (IsWindow(hwnd) && GetMessageW(&msg, nullptr, 0, 0)) {
-    if (!IsDialogMessageW(hwnd, &msg)) {
-      TranslateMessage(&msg);
-      DispatchMessageW(&msg);
-    }
-  }
+  appearance::RunModalLoop(hwnd);
 
   appearance::RestoreDialogOwner(owner, &state.owner_restored);
   return state.accepted;
@@ -815,13 +803,7 @@ bool ShowChoiceDialog(HWND owner, const std::wstring& title, const std::wstring&
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
 
-  MSG msg = {};
-  while (IsWindow(hwnd) && GetMessageW(&msg, nullptr, 0, 0)) {
-    if (!IsDialogMessageW(hwnd, &msg)) {
-      TranslateMessage(&msg);
-      DispatchMessageW(&msg);
-    }
-  }
+  appearance::RunModalLoop(hwnd);
 
   appearance::RestoreDialogOwner(owner, &state.owner_restored);
   if (!state.accepted) {

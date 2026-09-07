@@ -15,6 +15,7 @@ namespace regkit::appearance {
 void SetControlFont(HWND control, HFONT font);
 void RestoreDialogOwner(HWND owner, bool* restored);
 void PositionDialog(HWND dialog, HWND owner, int width, int height);
+void RunModalLoop(HWND dialog);
 
 enum AnchorFlags : unsigned {
   kAnchorLeft = 1u,

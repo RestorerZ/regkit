@@ -1,8 +1,11 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+#define _CRT_RAND_S
+
 #include "win32/file_text.h"
 
+#include <cstdlib>
 #include <limits>
 
 namespace util {
@@ -28,13 +31,14 @@ std::wstring Utf8ToWide(std::string_view text) {
     return {};
   }
   const int size = MultiByteToWideChar(
-      CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+      CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+      static_cast<int>(text.size()), nullptr, 0);
   if (size <= 0) {
     return {};
   }
   std::wstring output(static_cast<size_t>(size), L'\0');
-  MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()),
-                      output.data(), size);
+  MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                      static_cast<int>(text.size()), output.data(), size);
   return output;
 }
 
@@ -85,6 +89,9 @@ bool ReadTextFile(const std::wstring& path, std::wstring* output, bool* utf16,
     return false;
   }
   if (bytes.size() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
+    if ((bytes.size() - 2) % sizeof(wchar_t) != 0) {
+      return false;
+    }
     output->assign(reinterpret_cast<const wchar_t*>(bytes.data() + 2),
                    (bytes.size() - 2) / sizeof(wchar_t));
     if (utf16) {
@@ -105,9 +112,10 @@ bool ReadTextFile(const std::wstring& path, std::wstring* output, bool* utf16,
 
 namespace {
 
-bool WriteWholeFile(const std::wstring& path, const std::wstring& text, bool utf16) {
+bool WriteWholeFile(const std::wstring& path, const std::wstring& text,
+                    bool utf16, DWORD disposition = CREATE_ALWAYS) {
   HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ,
-                            nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+                            nullptr, disposition, FILE_ATTRIBUTE_NORMAL,
                             nullptr);
   if (file == INVALID_HANDLE_VALUE) {
     return false;
@@ -142,17 +150,29 @@ bool WriteWholeFile(const std::wstring& path, const std::wstring& text, bool utf
 
 bool WriteTextFile(const std::wstring& path, const std::wstring& text,
                    bool utf16) {
-  const std::wstring temp_path = path + L".tmp";
-  if (!WriteWholeFile(temp_path, text, utf16)) {
+  for (int attempt = 0; attempt < 16; ++attempt) {
+    unsigned int suffix = 0;
+    if (rand_s(&suffix) != 0) {
+      suffix = GetTickCount();
+    }
+    wchar_t stamp[32] = {};
+    swprintf_s(stamp, L".%08x.tmp", suffix);
+    const std::wstring temp_path = path + stamp;
+    if (!WriteWholeFile(temp_path, text, utf16, CREATE_NEW)) {
+      if (GetLastError() == ERROR_FILE_EXISTS) {
+        continue;
+      }
+      DeleteFileW(temp_path.c_str());
+      return false;
+    }
+    if (MoveFileExW(temp_path.c_str(), path.c_str(),
+                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+      return true;
+    }
     DeleteFileW(temp_path.c_str());
     return false;
   }
-  if (MoveFileExW(temp_path.c_str(), path.c_str(),
-                  MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
-    return true;
-  }
-  DeleteFileW(temp_path.c_str());
-  return WriteWholeFile(path, text, utf16);
+  return false;
 }
 
 } // namespace util

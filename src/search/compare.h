@@ -44,7 +44,8 @@ using NormalizePath =
 
 bool CaptureRegistry(const std::wstring& base_path,
                      const RegistryNode& base_node, bool recursive,
-                     Snapshot* snapshot, std::atomic_bool* cancel = nullptr);
+                     Snapshot* snapshot, std::wstring* error = nullptr,
+                     std::atomic_bool* cancel = nullptr);
 
 bool LoadRegFile(const std::wstring& file_path,
                  const std::wstring& base_path, bool recursive,

@@ -96,9 +96,7 @@ void CenterWindowToOwner(HWND hwnd, HWND owner) {
     int x = owner_rect.left + std::max(0, (owner_w - width) / 2);
     int y = owner_rect.top + std::max(0, (owner_h - height) / 2);
     SetWindowPos(hwnd, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
-    return;
   }
-  SetWindowPos(hwnd, nullptr, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
 }
 
 void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
@@ -370,13 +368,7 @@ bool ShowReplaceDialog(HWND owner, ReplaceDialogResult* result) {
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
 
-  MSG msg = {};
-  while (IsWindow(hwnd) && GetMessageW(&msg, nullptr, 0, 0)) {
-    if (!IsDialogMessageW(hwnd, &msg)) {
-      TranslateMessage(&msg);
-      DispatchMessageW(&msg);
-    }
-  }
+  appearance::RunModalLoop(hwnd);
 
   appearance::RestoreDialogOwner(owner, &state.owner_restored);
   return state.accepted;

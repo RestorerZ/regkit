@@ -416,7 +416,7 @@ bool QuerySymbolicLinkTarget(const RegistryNode& node,
   DWORD result = api->get_value(key.get(), nullptr, L"SymbolicLinkValue",
                                 &type, nullptr, &size);
   if ((result != ERROR_SUCCESS && result != ERROR_MORE_DATA) ||
-      (type != REG_LINK && type != REG_SZ && type != REG_EXPAND_SZ) ||
+      type != REG_LINK ||
       size == 0) {
     return false;
   }

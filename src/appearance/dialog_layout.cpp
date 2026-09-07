@@ -103,8 +103,26 @@ void PositionDialog(HWND dialog, HWND owner, int width, int height) {
                  SWP_NOZORDER | SWP_NOACTIVATE);
     return;
   }
-  SetWindowPos(dialog, nullptr, CW_USEDEFAULT, CW_USEDEFAULT, width, height,
-               SWP_NOZORDER | SWP_NOACTIVATE);
+  SetWindowPos(dialog, nullptr, 0, 0, width, height,
+               SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
+void RunModalLoop(HWND dialog) {
+  MSG msg = {};
+  while (IsWindow(dialog)) {
+    const BOOL available = GetMessageW(&msg, nullptr, 0, 0);
+    if (available == -1) {
+      break;
+    }
+    if (available == 0) {
+      PostQuitMessage(static_cast<int>(msg.wParam));
+      break;
+    }
+    if (!IsDialogMessageW(dialog, &msg)) {
+      TranslateMessage(&msg);
+      DispatchMessageW(&msg);
+    }
+  }
 }
 
 void DialogResizer::Attach(HWND dialog, std::initializer_list<AnchorRule> rules) {

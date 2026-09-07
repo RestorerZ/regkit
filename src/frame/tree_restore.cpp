@@ -84,12 +84,7 @@ void MainWindow::Impl::RefreshTreeItem(HTREEITEM item) {
   if (!node) {
     return;
   }
-  HTREEITEM child = TreeView_GetChild(browse_.tree().hwnd(), item);
-  while (child) {
-    HTREEITEM next = TreeView_GetNextSibling(browse_.tree().hwnd(), child);
-    TreeView_DeleteItem(browse_.tree().hwnd(), child);
-    child = next;
-  }
+  browse_.tree().DeleteChildren(item);
   node->children_loaded = false;
   NMTREEVIEWW info = {};
   info.action = TVE_EXPAND;

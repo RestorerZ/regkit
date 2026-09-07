@@ -4,6 +4,7 @@
 #include "trace/trace_data.h"
 
 #include "registry/registry_path.h"
+#include "win32/text_transform.h"
 
 #include <algorithm>
 #include <cwctype>
@@ -14,12 +15,8 @@ namespace regkit::trace {
 
 namespace {
 
-std::wstring Lower(std::wstring text) {
-  std::transform(text.begin(), text.end(), text.begin(),
-                 [](wchar_t ch) {
-                   return static_cast<wchar_t>(towlower(ch));
-                 });
-  return text;
+std::wstring Lower(const std::wstring& text) {
+  return util::ToLower(text);
 }
 
 bool IsChild(const std::wstring& path, const std::wstring& parent) {
@@ -62,7 +59,7 @@ bool IncludesValue(const Selection& selection,
     return true;
   }
   const auto key = selection.values_by_key.find(key_lower);
-  return key == selection.values_by_key.end() || key->second.empty() ||
+  return key == selection.values_by_key.end() ||
          key->second.find(value_lower) != key->second.end();
 }
 
@@ -130,7 +127,14 @@ void Merge(Data* data, const std::vector<Entry>& entries,
       if (parts.size() > 1) {
         std::wstring parent = parts.front();
         for (size_t index = 1; index < parts.size(); ++index) {
-          data->children_by_key[Lower(parent)].push_back(parts[index]);
+          std::wstring parent_lower = Lower(parent);
+          const bool added =
+              data->children_by_key[parent_lower]
+                  .try_emplace(Lower(parts[index]), parts[index])
+                  .second;
+          if (added && affected_keys) {
+            affected_keys->insert(std::move(parent_lower));
+          }
           parent += L"\\" + parts[index];
         }
       }

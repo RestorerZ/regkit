@@ -23,6 +23,62 @@ std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid) {
   return arguments;
 }
 
+namespace {
+
+bool IsInternalRestartArg(const std::wstring& arg) {
+  return _wcsicmp(arg.c_str(), kRestartSystemArg) == 0 ||
+         _wcsicmp(arg.c_str(), kRestartTiArg) == 0 ||
+         _wcsicmp(arg.c_str(), kRestartParentArg) == 0;
+}
+
+std::wstring QuoteArgument(const std::wstring& arg) {
+  if (!arg.empty() &&
+      arg.find_first_of(L" \t\"") == std::wstring::npos) {
+    return arg;
+  }
+  std::wstring quoted = L"\"";
+  size_t backslashes = 0;
+  for (wchar_t character : arg) {
+    if (character == L'\\') {
+      ++backslashes;
+      quoted.push_back(character);
+      continue;
+    }
+    if (character == L'"') {
+      quoted.append(backslashes + 1, L'\\');
+      backslashes = 0;
+      quoted.push_back(L'"');
+      continue;
+    }
+    backslashes = 0;
+    quoted.push_back(character);
+  }
+  quoted.append(backslashes, L'\\');
+  quoted.push_back(L'"');
+  return quoted;
+}
+
+} // namespace
+
+std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid,
+                              const std::vector<std::wstring>& original_args) {
+  std::wstring arguments = RestartArguments(target_arg, parent_pid);
+  for (size_t i = 1; i < original_args.size(); ++i) {
+    const std::wstring& arg = original_args[i];
+    if (IsInternalRestartArg(arg)) {
+      if (_wcsicmp(arg.c_str(), kRestartParentArg) == 0) {
+        ++i;
+      }
+      continue;
+    }
+    if (!arguments.empty()) {
+      arguments.push_back(L' ');
+    }
+    arguments += QuoteArgument(arg);
+  }
+  return arguments;
+}
+
 HRESULT LaunchElevated(HWND owner, const std::wstring& exe, const std::wstring& arguments) {
   if (exe.empty()) {
     return E_INVALIDARG;
@@ -66,7 +122,7 @@ void WaitForParentExit(DWORD parent_pid) {
   if (!parent) {
     return;
   }
-  WaitForSingleObject(parent, INFINITE);
+  WaitForSingleObject(parent, 30000);
   CloseHandle(parent);
 }
 

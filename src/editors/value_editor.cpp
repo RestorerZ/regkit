@@ -632,6 +632,95 @@ void PopulateTraceValueEditors(HWND dlg, TraceValueDialogState* state) {
   }
 }
 
+bool SerializeTraceEditor(HWND dlg, TraceValueDialogState* state, DWORD type,
+                          std::vector<BYTE>* out) {
+  if (!state || !out) {
+    return false;
+  }
+  std::vector<BYTE> data;
+  bool ok = true;
+  switch (type) {
+  case REG_SZ: {
+    std::wstring text = ReadDialogText(dlg, IDC_REG_SZ_EDIT);
+    data = value_format::StringData(text);
+    break;
+  }
+  case REG_EXPAND_SZ: {
+    std::wstring text = ReadDialogText(dlg, IDC_REG_EXPAND_EDIT);
+    data = value_format::StringData(text);
+    break;
+  }
+  case REG_LINK: {
+    std::wstring text = ReadDialogText(dlg, IDC_REG_SZ_EDIT);
+    data = value_format::StringData(text);
+    break;
+  }
+  case REG_MULTI_SZ: {
+    std::wstring text = ReadDialogText(dlg, IDC_REG_MULTI_EDIT);
+    data = value_format::MultiStringData(text);
+    break;
+  }
+  case REG_DWORD: {
+    std::wstring text = ReadDialogText(dlg, IDC_REG_DWORD_EDIT);
+    unsigned long long value = 0;
+    if (!ParseNumberValue(text, state->dword_base, &value) || value > std::numeric_limits<DWORD>::max()) {
+      ok = false;
+    } else {
+      data.resize(sizeof(DWORD));
+      DWORD v32 = static_cast<DWORD>(value);
+      memcpy(data.data(), &v32, sizeof(DWORD));
+    }
+    break;
+  }
+  case REG_DWORD_BIG_ENDIAN: {
+    std::wstring text = ReadDialogText(dlg, IDC_REG_DWORD_EDIT);
+    unsigned long long value = 0;
+    if (!ParseNumberValue(text, state->dword_base, &value) || value > std::numeric_limits<DWORD>::max()) {
+      ok = false;
+    } else {
+      WriteUnsignedToBytesBigEndian(value, sizeof(DWORD), &data);
+    }
+    break;
+  }
+  case REG_QWORD: {
+    std::wstring text = ReadDialogText(dlg, IDC_REG_QWORD_EDIT);
+    unsigned long long value = 0;
+    if (!ParseNumberValue(text, state->qword_base, &value)) {
+      ok = false;
+    } else {
+      data.resize(sizeof(unsigned long long));
+      memcpy(data.data(), &value, sizeof(unsigned long long));
+    }
+    break;
+  }
+  case REG_BINARY: {
+    std::wstring text = ReadDialogText(dlg, IDC_REG_BINARY_EDIT);
+    ok = value_format::ParseHex(text, &data);
+    break;
+  }
+  case REG_RESOURCE_LIST:
+  case REG_FULL_RESOURCE_DESCRIPTOR:
+  case REG_RESOURCE_REQUIREMENTS_LIST: {
+    std::wstring text = ReadDialogText(dlg, IDC_REG_BINARY_EDIT);
+    ok = value_format::ParseHex(text, &data);
+    break;
+  }
+  case REG_NONE: {
+    std::wstring text = ReadDialogText(dlg, IDC_REG_NONE_EDIT);
+    ok = value_format::ParseHex(text, &data);
+    break;
+  }
+  default:
+    ok = false;
+    break;
+  }
+  if (!ok) {
+    return false;
+  }
+  *out = std::move(data);
+  return true;
+}
+
 INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam) {
   auto* state = reinterpret_cast<TraceValueDialogState*>(GetWindowLongPtrW(dlg, DWLP_USER));
   if (msg != WM_INITDIALOG && msg != WM_DESTROY) {
@@ -770,14 +859,39 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
     if (code == CBN_SELCHANGE && id == IDC_TYPE_COMBO) {
       const DWORD previous = state->type;
       const DWORD type = ReadTraceType(dlg, state);
-      std::vector<BYTE> carried;
-      const bool convertible =
-          ConvertValueData(previous, state->data, type, &carried);
-      SelectTraceType(dlg, state, type);
-      if (convertible) {
-        state->data = std::move(carried);
-        PopulateTraceValueEditors(dlg, state);
+      if (type == previous) {
+        return TRUE;
       }
+      std::vector<BYTE> current;
+      if (!SerializeTraceEditor(dlg, state, previous, &current)) {
+        ui::ShowError(
+            dlg,
+            L"The current data is not valid, so the type cannot be changed.");
+        SelectTraceType(dlg, state, previous);
+        return TRUE;
+      }
+      std::vector<BYTE> carried;
+      if (ConvertValueData(previous, current, type, &carried)) {
+        state->type = type;
+        state->data = std::move(carried);
+        SelectTraceType(dlg, state, type);
+        PopulateTraceValueEditors(dlg, state);
+        return TRUE;
+      }
+      const int choice = ui::PromptChoice(
+          dlg,
+          L"The current data cannot be represented as " +
+              value_format::TypeName(type) +
+              L". Continue and start with an empty value?",
+          L"Change Data Type", L"Continue", L"Cancel", L"");
+      if (choice != IDYES) {
+        SelectTraceType(dlg, state, previous);
+        return TRUE;
+      }
+      state->type = type;
+      state->data.clear();
+      SelectTraceType(dlg, state, type);
+      PopulateTraceValueEditors(dlg, state);
       return TRUE;
     }
 
@@ -787,7 +901,10 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
       case IDC_REG_DWORD_DEC:
       case IDC_REG_DWORD_BIN:
         if (state) {
-          unsigned long long fallback = ReadUnsignedFromBytes(state->data, sizeof(DWORD));
+          unsigned long long fallback =
+              state->type == REG_DWORD_BIG_ENDIAN
+                  ? ReadUnsignedFromBytesBigEndian(state->data, sizeof(DWORD))
+                  : ReadUnsignedFromBytes(state->data, sizeof(DWORD));
           unsigned long long value = ReadNumberWithFallback(dlg, IDC_REG_DWORD_EDIT, state->dword_base, fallback);
           if (id == IDC_REG_DWORD_HEX) {
             state->dword_base = 16;
@@ -905,82 +1022,7 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
     if (id == IDOK) {
       DWORD type = ReadTraceType(dlg, state);
       std::vector<BYTE> data;
-      bool ok = true;
-      switch (type) {
-      case REG_SZ: {
-        std::wstring text = ReadDialogText(dlg, IDC_REG_SZ_EDIT);
-        data = value_format::StringData(text);
-        break;
-      }
-      case REG_EXPAND_SZ: {
-        std::wstring text = ReadDialogText(dlg, IDC_REG_EXPAND_EDIT);
-        data = value_format::StringData(text);
-        break;
-      }
-      case REG_LINK: {
-        std::wstring text = ReadDialogText(dlg, IDC_REG_SZ_EDIT);
-        data = value_format::StringData(text);
-        break;
-      }
-      case REG_MULTI_SZ: {
-        std::wstring text = ReadDialogText(dlg, IDC_REG_MULTI_EDIT);
-        data = value_format::MultiStringData(text);
-        break;
-      }
-      case REG_DWORD: {
-        std::wstring text = ReadDialogText(dlg, IDC_REG_DWORD_EDIT);
-        unsigned long long value = 0;
-        if (!ParseNumberValue(text, state->dword_base, &value) || value > std::numeric_limits<DWORD>::max()) {
-          ok = false;
-        } else {
-          data.resize(sizeof(DWORD));
-          DWORD v32 = static_cast<DWORD>(value);
-          memcpy(data.data(), &v32, sizeof(DWORD));
-        }
-        break;
-      }
-      case REG_DWORD_BIG_ENDIAN: {
-        std::wstring text = ReadDialogText(dlg, IDC_REG_DWORD_EDIT);
-        unsigned long long value = 0;
-        if (!ParseNumberValue(text, state->dword_base, &value) || value > std::numeric_limits<DWORD>::max()) {
-          ok = false;
-        } else {
-          WriteUnsignedToBytesBigEndian(value, sizeof(DWORD), &data);
-        }
-        break;
-      }
-      case REG_QWORD: {
-        std::wstring text = ReadDialogText(dlg, IDC_REG_QWORD_EDIT);
-        unsigned long long value = 0;
-        if (!ParseNumberValue(text, state->qword_base, &value)) {
-          ok = false;
-        } else {
-          data.resize(sizeof(unsigned long long));
-          memcpy(data.data(), &value, sizeof(unsigned long long));
-        }
-        break;
-      }
-      case REG_BINARY: {
-        std::wstring text = ReadDialogText(dlg, IDC_REG_BINARY_EDIT);
-        ok = value_format::ParseHex(text, &data);
-        break;
-      }
-      case REG_RESOURCE_LIST:
-      case REG_FULL_RESOURCE_DESCRIPTOR:
-      case REG_RESOURCE_REQUIREMENTS_LIST: {
-        std::wstring text = ReadDialogText(dlg, IDC_REG_BINARY_EDIT);
-        ok = value_format::ParseHex(text, &data);
-        break;
-      }
-      case REG_NONE: {
-        std::wstring text = ReadDialogText(dlg, IDC_REG_NONE_EDIT);
-        ok = value_format::ParseHex(text, &data);
-        break;
-      }
-      default:
-        ok = false;
-        break;
-      }
+      const bool ok = SerializeTraceEditor(dlg, state, type, &data);
       if (!ok) {
         ui::ShowError(dlg, L"Invalid value data.");
         return TRUE;

@@ -75,6 +75,7 @@ public:
   std::optional<std::wstring> Back();
   std::optional<std::wstring> Forward();
   std::optional<std::wstring> Up();
+  void UndoNavigation(int delta);
   NavigationAvailability navigation() const noexcept;
   void ResetNavigation();
 

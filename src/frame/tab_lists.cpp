@@ -404,8 +404,20 @@ bool MainWindow::Impl::ConfirmCloseTab(int tab_index) {
   if (tab_index != CurrentRegistryTabIndex()) {
     return true;
   }
-  std::wstring message = L"The offline registry has unsaved changes.\nSave "
-                         L"before closing the tab?";
+  return ConfirmOfflineChanges(L"The offline registry has unsaved changes.\n"
+                               L"Save before closing the tab?");
+}
+
+bool MainWindow::Impl::ConfirmOfflineChanges(const wchar_t* message) {
+  const int index = CurrentRegistryTabIndex();
+  if (index < 0 || static_cast<size_t>(index) >= tabs_.size()) {
+    return true;
+  }
+  TabEntry& entry = tabs_[static_cast<size_t>(index)];
+  if (entry.kind != TabEntry::Kind::kRegistry ||
+      entry.registry_mode != RegistryMode::kOffline || !entry.offline_dirty) {
+    return true;
+  }
   int result = ui::PromptChoice(hwnd_, message, L"Unsaved changes", L"Save", L"Don't Save", L"Cancel");
   if (result == IDCANCEL) {
     return false;

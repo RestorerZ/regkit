@@ -14,21 +14,27 @@ void MainWindow::Impl::RecordNavigation(const std::wstring& path) {
 
 void MainWindow::Impl::NavigateBack() {
   if (const auto target = browse_.Back()) {
-    SelectTreePath(*target);
+    if (!SelectTreePath(*target)) {
+      browse_.UndoNavigation(1);
+    }
     UpdateNavigationButtons();
   }
 }
 
 void MainWindow::Impl::NavigateForward() {
   if (const auto target = browse_.Forward()) {
-    SelectTreePath(*target);
+    if (!SelectTreePath(*target)) {
+      browse_.UndoNavigation(-1);
+    }
     UpdateNavigationButtons();
   }
 }
 
 void MainWindow::Impl::NavigateUp() {
   if (const auto target = browse_.Up()) {
-    SelectTreePath(*target);
+    if (!SelectTreePath(*target)) {
+      browse_.UndoNavigation(0);
+    }
     UpdateNavigationButtons();
   }
 }

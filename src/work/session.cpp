@@ -3,6 +3,8 @@
 
 #include "work/session.h"
 
+#include <system_error>
+
 namespace regkit::work {
 
 Session::~Session() {
@@ -59,15 +61,23 @@ uint64_t Session::StartPrepared(Task task) {
   cancel_.store(false);
   const uint64_t generation = generation_.fetch_add(1) + 1;
   running_.store(true);
-  thread_ = std::thread(
-      [this, generation, task = std::move(task)]() mutable {
-        if (task) {
-          task(generation, cancel_);
-        }
-        if (generation_.load() == generation) {
-          running_.store(false);
-        }
-      });
+  try {
+    thread_ = std::thread(
+        [this, generation, task = std::move(task)]() mutable {
+          try {
+            if (task) {
+              task(generation, cancel_);
+            }
+          } catch (...) {
+          }
+          if (generation_.load() == generation) {
+            running_.store(false);
+          }
+        });
+  } catch (const std::system_error&) {
+    running_.store(false);
+    cancel_.store(true);
+  }
   return generation;
 }
 

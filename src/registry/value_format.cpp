@@ -131,6 +131,17 @@ std::wstring Data(DWORD type, const BYTE* data, DWORD size) {
       return buffer;
     }
     break;
+  case REG_DWORD_BIG_ENDIAN:
+    if (size >= sizeof(DWORD)) {
+      DWORD value = 0;
+      for (size_t i = 0; i < sizeof(DWORD); ++i) {
+        value = (value << 8) | data[i];
+      }
+      wchar_t buffer[32] = {};
+      swprintf_s(buffer, L"0x%08X (%u)", value, value);
+      return buffer;
+    }
+    break;
   case REG_QWORD:
     if (size >= sizeof(unsigned long long)) {
       unsigned long long value = 0;
@@ -187,9 +198,20 @@ bool ParseHex(std::wstring_view text, std::vector<BYTE>* output) {
   }
   output->clear();
   int high = -1;
-  for (wchar_t character : text) {
+  for (size_t index = 0; index < text.size(); ++index) {
+    const wchar_t character = text[index];
     if (!iswxdigit(character)) {
-      continue;
+      if (character == L' ' || character == L'\t' || character == L'\r' ||
+          character == L'\n' || character == L',' || character == L';' ||
+          character == L'-') {
+        continue;
+      }
+      if ((character == L'x' || character == L'X') && high == 0 &&
+          index > 0 && text[index - 1] == L'0') {
+        high = -1;
+        continue;
+      }
+      return false;
     }
     int value = character <= L'9'
                     ? character - L'0'

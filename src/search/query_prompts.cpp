@@ -293,13 +293,7 @@ bool ShowDataTypes(HWND owner, std::vector<DWORD>* types) {
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
 
-  MSG msg = {};
-  while (IsWindow(hwnd) && GetMessageW(&msg, nullptr, 0, 0)) {
-    if (!IsDialogMessageW(hwnd, &msg)) {
-      TranslateMessage(&msg);
-      DispatchMessageW(&msg);
-    }
-  }
+  appearance::RunModalLoop(hwnd);
   appearance::RestoreDialogOwner(owner, &state.owner_restored);
 
   if (state.accepted) {
@@ -311,7 +305,6 @@ bool ShowDataTypes(HWND owner, std::vector<DWORD>* types) {
 
 struct BrowseDialogState {
   HWND hwnd = nullptr;
-  HWND tree_hwnd = nullptr;
   HWND ok_button = nullptr;
   HWND cancel_button = nullptr;
   HWND owner = nullptr;
@@ -338,14 +331,13 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     state->hwnd = hwnd;
     state->font = CreateDialogFont();
     HFONT font = state->font;
-    state->tree_hwnd = CreateWindowExW(0, WC_TREEVIEWW, L"", WS_CHILD | WS_VISIBLE | WS_BORDER | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(1), nullptr, nullptr);
     state->ok_button = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
     state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
-    appearance::SetControlFont(state->tree_hwnd, font);
     appearance::SetControlFont(state->ok_button, font);
     appearance::SetControlFont(state->cancel_button, font);
 
     state->tree.Create(hwnd, GetModuleHandleW(nullptr), 1);
+    appearance::SetControlFont(state->tree.hwnd(), font);
     std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots();
     state->tree.PopulateRoots(roots);
 
@@ -402,6 +394,10 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     if (hdr && hdr->hwndFrom == state->tree.hwnd()) {
       if (hdr->code == TVN_ITEMEXPANDINGW) {
         state->tree.OnItemExpanding(reinterpret_cast<NMTREEVIEWW*>(lparam));
+        return 0;
+      }
+      if (hdr->code == TVN_GETDISPINFOW) {
+        state->tree.OnGetDispInfo(reinterpret_cast<NMTVDISPINFOW*>(lparam));
         return 0;
       }
       if (hdr->code == TVN_SELCHANGEDW) {
@@ -491,13 +487,7 @@ bool ShowRegistryKey(HWND owner, std::wstring* selected_path) {
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
 
-  MSG msg = {};
-  while (IsWindow(hwnd) && GetMessageW(&msg, nullptr, 0, 0)) {
-    if (!IsDialogMessageW(hwnd, &msg)) {
-      TranslateMessage(&msg);
-      DispatchMessageW(&msg);
-    }
-  }
+  appearance::RunModalLoop(hwnd);
   appearance::RestoreDialogOwner(owner, &state.owner_restored);
 
   if (state.accepted) {

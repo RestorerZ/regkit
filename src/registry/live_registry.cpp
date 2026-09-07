@@ -115,7 +115,7 @@ bool QuerySymbolicLinkTarget(const RegistryNode& node,
       RegQueryValueExW(key.get(), L"SymbolicLinkValue", nullptr, &type,
                        nullptr, &size);
   if (result != ERROR_SUCCESS ||
-      (type != REG_LINK && type != REG_SZ && type != REG_EXPAND_SZ) ||
+      type != REG_LINK ||
       size == 0) {
     return false;
   }
@@ -289,9 +289,14 @@ bool QueryValue(const RegistryNode& node, const std::wstring& value_name,
     return false;
   }
   std::vector<BYTE> data(size);
-  if (RegQueryValueExW(key.get(), name, nullptr, &type,
-                       data.empty() ? nullptr : data.data(),
-                       &size) != ERROR_SUCCESS) {
+  LONG read = RegQueryValueExW(key.get(), name, nullptr, &type,
+                               data.empty() ? nullptr : data.data(), &size);
+  for (int attempt = 0; read == ERROR_MORE_DATA && attempt < 4; ++attempt) {
+    data.resize(size);
+    read = RegQueryValueExW(key.get(), name, nullptr, &type,
+                            data.empty() ? nullptr : data.data(), &size);
+  }
+  if (read != ERROR_SUCCESS) {
     return false;
   }
   data.resize(size);
@@ -308,10 +313,12 @@ bool CreateKey(const RegistryNode& node, const std::wstring& name) {
   }
   util::UniqueHKey created;
   DWORD disposition = 0;
-  return RegCreateKeyExW(parent.get(), name.c_str(), 0, nullptr,
-                         REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE,
-                         nullptr, created.put(), &disposition) ==
-         ERROR_SUCCESS;
+  if (RegCreateKeyExW(parent.get(), name.c_str(), 0, nullptr,
+                      REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, nullptr,
+                      created.put(), &disposition) != ERROR_SUCCESS) {
+    return false;
+  }
+  return disposition == REG_CREATED_NEW_KEY;
 }
 
 bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name,
@@ -390,6 +397,53 @@ bool ReadKeyLink(const RegistryNode& node, std::wstring* target) {
   return true;
 }
 
+bool ReadKeySecurity(const RegistryNode& node,
+                     std::vector<BYTE>* descriptor) {
+  if (!descriptor) {
+    return false;
+  }
+  descriptor->clear();
+  const SECURITY_INFORMATION wanted = OWNER_SECURITY_INFORMATION |
+                                      GROUP_SECURITY_INFORMATION |
+                                      DACL_SECURITY_INFORMATION;
+  util::UniqueHKey key = OpenKey(node, READ_CONTROL);
+  if (!key.get()) {
+    return false;
+  }
+  DWORD size = 0;
+  LONG status = RegGetKeySecurity(key.get(), wanted, nullptr, &size);
+  if (status != ERROR_INSUFFICIENT_BUFFER || size == 0) {
+    return false;
+  }
+  descriptor->resize(size);
+  status = RegGetKeySecurity(
+      key.get(), wanted,
+      reinterpret_cast<PSECURITY_DESCRIPTOR>(descriptor->data()), &size);
+  if (status != ERROR_SUCCESS) {
+    descriptor->clear();
+    return false;
+  }
+  descriptor->resize(size);
+  return true;
+}
+
+bool WriteKeySecurity(const RegistryNode& node,
+                      const std::vector<BYTE>& descriptor) {
+  if (descriptor.empty()) {
+    return false;
+  }
+  util::UniqueHKey key = OpenKey(node, WRITE_DAC | WRITE_OWNER);
+  if (!key.get()) {
+    return false;
+  }
+  auto* sd = reinterpret_cast<PSECURITY_DESCRIPTOR>(
+      const_cast<BYTE*>(descriptor.data()));
+  const SECURITY_INFORMATION wanted =
+      OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION |
+      DACL_SECURITY_INFORMATION;
+  return RegSetKeySecurity(key.get(), wanted, sd) == ERROR_SUCCESS;
+}
+
 bool DeleteKey(const RegistryNode& node) {
   RegistryNode parent;
   std::wstring name;
@@ -455,13 +509,23 @@ bool RenameValue(const RegistryNode& node, const std::wstring& old_name,
   std::vector<BYTE> data(size);
   if (RegQueryValueExW(key.get(), old_name.c_str(), nullptr, &type,
                        data.empty() ? nullptr : data.data(),
-                       &size) != ERROR_SUCCESS ||
-      RegSetValueExW(key.get(), new_name.c_str(), 0, type,
+                       &size) != ERROR_SUCCESS) {
+    return false;
+  }
+  if (RegQueryValueExW(key.get(), new_name.c_str(), nullptr, nullptr, nullptr,
+                       nullptr) == ERROR_SUCCESS) {
+    return false;
+  }
+  if (RegSetValueExW(key.get(), new_name.c_str(), 0, type,
                      data.empty() ? nullptr : data.data(),
                      size) != ERROR_SUCCESS) {
     return false;
   }
-  return RegDeleteValueW(key.get(), old_name.c_str()) == ERROR_SUCCESS;
+  if (RegDeleteValueW(key.get(), old_name.c_str()) != ERROR_SUCCESS) {
+    RegDeleteValueW(key.get(), new_name.c_str());
+    return false;
+  }
+  return true;
 }
 
 } // namespace regkit::registry_backend::live

@@ -64,7 +64,7 @@ bool MainWindow::Impl::BuildRegFileContent(const TabEntry& entry, std::wstring* 
       append_key;
   append_key = [&](const VirtualRegistryKey& key,
                    const std::wstring& full_path) {
-    if (!key.values.empty()) {
+    if (!full_path.empty()) {
       std::vector<const VirtualRegistryValue*> values;
       values.reserve(key.values.size());
       for (const auto& source : key.values) {
