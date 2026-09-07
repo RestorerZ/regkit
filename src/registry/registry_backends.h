@@ -36,7 +36,7 @@ bool DeleteValue(const RegistryNode& node, const std::wstring& value_name);
 bool SetValue(const RegistryNode& node, const std::wstring& value_name,
               DWORD type, const std::vector<BYTE>& data);
 bool RenameValue(const RegistryNode& node, const std::wstring& old_name,
-                 const std::wstring& new_name);
+                 const std::wstring& new_name, bool* both_names_left);
 
 } // namespace live
 
@@ -70,7 +70,10 @@ bool DeleteValue(const RegistryNode& node, const std::wstring& value_name);
 bool SetValue(const RegistryNode& node, const std::wstring& value_name,
               DWORD type, const std::vector<BYTE>& data);
 bool RenameValue(const RegistryNode& node, const std::wstring& old_name,
-                 const std::wstring& new_name);
+                 const std::wstring& new_name, bool* both_names_left);
+bool ReadKeySecurity(const RegistryNode& node, std::vector<BYTE>* descriptor);
+bool WriteKeySecurity(const RegistryNode& node,
+                      const std::vector<BYTE>& descriptor);
 
 } // namespace offline
 
@@ -108,8 +111,8 @@ bool SetValue(VirtualRegistryData& data, const RegistryNode& node,
               const std::wstring& value_name, DWORD type,
               const std::vector<BYTE>& value_data);
 bool RenameValue(VirtualRegistryData& data, const RegistryNode& node,
-                 const std::wstring& old_name,
-                 const std::wstring& new_name);
+                 const std::wstring& old_name, const std::wstring& new_name,
+                 bool* both_names_left);
 
 } // namespace virtual_store
 } // namespace regkit::registry_backend

@@ -672,11 +672,12 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id) {
       size_t pos = parent.subkey.rfind(L'\\');
       parent.subkey = (pos == std::wstring::npos) ? L"" : parent.subkey.substr(0, pos);
       changes::KeySnapshot snapshot = changes::CaptureKey(target);
-      if (!snapshot.complete &&
+      const bool restorable = snapshot.complete;
+      if (!restorable &&
           !ui::ConfirmDelete(
               hwnd_,
-              L"Part of this key could not be read, so Undo will not be able "
-              L"to restore all of it. Delete anyway?",
+              L"Part of this key could not be read, so this delete cannot be "
+              L"undone. Delete anyway?",
               name)) {
         return true;
       }
@@ -685,12 +686,14 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id) {
       } else {
         AppendHistoryEntry(L"Delete key " + name, name, L"");
         MarkOfflineDirty();
-        changes::UndoOperation op;
-        op.type = changes::UndoOperation::Type::kDeleteKey;
-        op.node = parent;
-        op.name = name;
-        op.key_snapshot = std::move(snapshot);
-        PushUndo(std::move(op));
+        if (restorable) {
+          changes::UndoOperation op;
+          op.type = changes::UndoOperation::Type::kDeleteKey;
+          op.node = parent;
+          op.name = name;
+          op.key_snapshot = std::move(snapshot);
+          PushUndo(std::move(op));
+        }
         std::wstring parent_path = registry_path::Build(parent);
         bool selected_parent = false;
         if (!parent_path.empty()) {
@@ -769,11 +772,12 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id) {
       }
       RegistryNode child = MakeChildNode(*browse_.current_node(), row->extra);
       changes::KeySnapshot snapshot = changes::CaptureKey(child);
-      if (!snapshot.complete &&
+      const bool restorable = snapshot.complete;
+      if (!restorable &&
           !ui::ConfirmDelete(
               hwnd_,
-              L"Part of this key could not be read, so Undo will not be able "
-              L"to restore all of it. Delete anyway?",
+              L"Part of this key could not be read, so this delete cannot be "
+              L"undone. Delete anyway?",
               row->extra)) {
         return true;
       }
@@ -782,12 +786,14 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id) {
       } else {
         AppendHistoryEntry(L"Delete key " + row->extra, row->extra, L"");
         MarkOfflineDirty();
-        changes::UndoOperation op;
-        op.type = changes::UndoOperation::Type::kDeleteKey;
-        op.node = *browse_.current_node();
-        op.name = row->extra;
-        op.key_snapshot = std::move(snapshot);
-        PushUndo(std::move(op));
+        if (restorable) {
+          changes::UndoOperation op;
+          op.type = changes::UndoOperation::Type::kDeleteKey;
+          op.node = *browse_.current_node();
+          op.name = row->extra;
+          op.key_snapshot = std::move(snapshot);
+          PushUndo(std::move(op));
+        }
         RefreshTreeSelection();
         RefreshMatchingTreeNodes();
         UpdateValueListForNode(browse_.current_node());

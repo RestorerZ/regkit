@@ -46,32 +46,21 @@ void UpdateSamplePreview(HWND hwnd, FontDialogHookState* state) {
     return;
   }
 
-  HWND face_combo = GetDlgItem(hwnd, cmb1);
-  HWND style_combo = GetDlgItem(hwnd, cmb2);
   HWND size_combo = GetDlgItem(hwnd, cmb3);
   HWND sample_text = GetDlgItem(hwnd, stc5);
-  if (!face_combo || !style_combo || !size_combo || !sample_text) {
+  if (!size_combo || !sample_text) {
     return;
   }
 
   LOGFONTW preview_font = state->preview_base_font;
 
-  wchar_t face_name[LF_FACESIZE] = {};
-  GetWindowTextW(face_combo, face_name, static_cast<int>(_countof(face_name)));
-  if (face_name[0] != L'\0') {
-    wcsncpy_s(preview_font.lfFaceName, face_name, _TRUNCATE);
-  }
-
-  preview_font.lfWeight = FW_NORMAL;
-  preview_font.lfItalic = FALSE;
-  wchar_t style_text[128] = {};
-  GetWindowTextW(style_combo, style_text, static_cast<int>(_countof(style_text)));
-  if (_wcsicmp(style_text, L"Bold") == 0 || wcsstr(style_text, L"Bold") != nullptr) {
-    preview_font.lfWeight = FW_BOLD;
-  }
-  if (_wcsicmp(style_text, L"Italic") == 0 || _wcsicmp(style_text, L"Oblique") == 0 ||
-      wcsstr(style_text, L"Italic") != nullptr || wcsstr(style_text, L"Oblique") != nullptr) {
-    preview_font.lfItalic = TRUE;
+  LOGFONTW selected = {};
+  SendMessageW(hwnd, WM_CHOOSEFONT_GETLOGFONT, 0,
+               reinterpret_cast<LPARAM>(&selected));
+  if (selected.lfFaceName[0] != L'\0') {
+    wcsncpy_s(preview_font.lfFaceName, selected.lfFaceName, _TRUNCATE);
+    preview_font.lfWeight = selected.lfWeight;
+    preview_font.lfItalic = selected.lfItalic;
   }
 
   wchar_t size_text[32] = {};

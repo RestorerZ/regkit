@@ -17,9 +17,11 @@ bool IsProcessSystem();
 bool IsProcessTrustedInstaller();
 bool LaunchProcessAsSystem(const std::wstring& command_line,
                            const std::wstring& work_dir,
-                           DWORD* error_code = nullptr);
+                           DWORD* error_code = nullptr,
+                           bool* impersonation_lost = nullptr);
 bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line,
                                      const std::wstring& work_dir,
-                                     DWORD* error_code = nullptr);
+                                     DWORD* error_code = nullptr,
+                                     bool* impersonation_lost = nullptr);
 
 } // namespace util

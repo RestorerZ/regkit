@@ -18,8 +18,8 @@ std::wstring WindowText(HWND window) {
   return text;
 }
 
-std::wstring ToLower(const std::wstring& text) {
-  std::wstring result = text;
+std::wstring ToLower(std::wstring_view text) {
+  std::wstring result(text);
   if (!result.empty()) {
     CharLowerBuffW(result.data(), static_cast<DWORD>(result.size()));
   }

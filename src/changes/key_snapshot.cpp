@@ -21,14 +21,18 @@ RegistryNode ChildNode(const RegistryNode& parent, const std::wstring& name) {
 KeySnapshot CaptureKey(const RegistryNode& node) {
   KeySnapshot snapshot;
   snapshot.name = registry_path::Leaf(node.subkey);
+  if (!RegistryStore::ReadKeySecurity(node, &snapshot.security) &&
+      !RegistryStore::IsVirtualRoot(node.root)) {
+    snapshot.complete = false;
+  }
   if (RegistryStore::ReadKeyLink(node, &snapshot.link_target)) {
     return snapshot;
   }
-  RegistryStore::ReadKeySecurity(node, &snapshot.security);
   RegistryStore::KeyEnumResult result;
   bool reserved = false;
+  std::vector<std::wstring> children;
   snapshot.complete = RegistryStore::EnumKeyStreaming(
-      node, true, true, false, &result,
+      node, true, true, true, &result,
       [&](const ValueInfo& info, const BYTE* data, DWORD size) {
         if (!reserved) {
           if (result.info_valid) {
@@ -45,9 +49,12 @@ KeySnapshot CaptureKey(const RegistryNode& node) {
         snapshot.values.push_back(std::move(value));
         return true;
       },
-      {});
+      [&](const std::wstring& name) {
+        children.push_back(name);
+        return true;
+      }) &&
+      snapshot.complete;
 
-  const auto children = RegistryStore::EnumSubKeyNames(node, false);
   snapshot.children.reserve(children.size());
   for (const std::wstring& name : children) {
     snapshot.children.push_back(CaptureKey(ChildNode(node, name)));
@@ -66,15 +73,23 @@ bool RestoreKey(const RegistryNode& parent, const KeySnapshot& snapshot) {
     return false;
   }
   if (!snapshot.link_target.empty()) {
-    return RegistryStore::CreateKeyLink(parent, snapshot.name,
-                                        snapshot.link_target);
+    if (!RegistryStore::CreateKeyLink(parent, snapshot.name,
+                                      snapshot.link_target)) {
+      return false;
+    }
+    if (snapshot.security.empty()) {
+      return true;
+    }
+    return RegistryStore::WriteKeySecurity(ChildNode(parent, snapshot.name),
+                                           snapshot.security);
   }
   if (!RegistryStore::CreateKey(parent, snapshot.name)) {
     return false;
   }
   const RegistryNode node = ChildNode(parent, snapshot.name);
-  if (!snapshot.security.empty()) {
-    RegistryStore::WriteKeySecurity(node, snapshot.security);
+  if (!snapshot.security.empty() &&
+      !RegistryStore::WriteKeySecurity(node, snapshot.security)) {
+    return false;
   }
   for (const ValueEntry& value : snapshot.values) {
     if (!RegistryStore::SetValue(node, value.name, value.type,

@@ -236,14 +236,18 @@ bool RegistryStore::ReadKeyLink(const RegistryNode& node,
 bool RegistryStore::ReadKeySecurity(const RegistryNode& node,
                                    std::vector<BYTE>* descriptor) {
   return Dispatch(
-      node, [&](VirtualRegistryData&) { return false; }, [&] { return false; },
+      node, [&](VirtualRegistryData&) { return false; },
+      [&] { return registry_backend::offline::ReadKeySecurity(node, descriptor); },
       [&] { return registry_backend::live::ReadKeySecurity(node, descriptor); });
 }
 
 bool RegistryStore::WriteKeySecurity(const RegistryNode& node,
                                      const std::vector<BYTE>& descriptor) {
   return Dispatch(
-      node, [&](VirtualRegistryData&) { return false; }, [&] { return false; },
+      node, [&](VirtualRegistryData&) { return false; },
+      [&] {
+        return registry_backend::offline::WriteKeySecurity(node, descriptor);
+      },
       [&] {
         return registry_backend::live::WriteKeySecurity(node, descriptor);
       });
@@ -311,7 +315,11 @@ bool RegistryStore::SetValue(const RegistryNode& node,
 
 bool RegistryStore::RenameValue(const RegistryNode& node,
                                 const std::wstring& old_name,
-                                const std::wstring& new_name) {
+                                const std::wstring& new_name,
+                                bool* both_names_left) {
+  if (both_names_left) {
+    *both_names_left = false;
+  }
   if (new_name.empty()) {
     return false;
   }
@@ -319,14 +327,15 @@ bool RegistryStore::RenameValue(const RegistryNode& node,
       node,
       [&](VirtualRegistryData& data) {
         return registry_backend::virtual_store::RenameValue(
-            data, node, old_name, new_name);
+            data, node, old_name, new_name, both_names_left);
       },
       [&] {
-        return registry_backend::offline::RenameValue(node, old_name,
-                                                      new_name);
+        return registry_backend::offline::RenameValue(node, old_name, new_name,
+                                                      both_names_left);
       },
       [&] {
-        return registry_backend::live::RenameValue(node, old_name, new_name);
+        return registry_backend::live::RenameValue(node, old_name, new_name,
+                                                   both_names_left);
       });
 }
 

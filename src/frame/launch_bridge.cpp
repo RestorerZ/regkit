@@ -36,7 +36,8 @@ bool BeginRestart(HWND owner, const wchar_t* target_arg, const wchar_t* failure)
 }
 
 bool BrokerRestart(HWND owner, const wchar_t* target_arg, const wchar_t* failure,
-                   bool (*launch)(const std::wstring&, const std::wstring&, DWORD*)) {
+                   bool (*launch)(const std::wstring&, const std::wstring&,
+                                  DWORD*, bool*)) {
   const std::wstring exe_path = util::GetModulePath();
   if (exe_path.empty()) {
     ui::ShowError(owner, L"Failed to locate the executable path.");
@@ -47,7 +48,21 @@ bool BrokerRestart(HWND owner, const wchar_t* target_arg, const wchar_t* failure
   command_line += L"\" ";
   command_line += win32::RestartArguments(target_arg, GetCurrentProcessId());
   DWORD error = 0;
-  if (!launch(command_line, L"", &error)) {
+  bool impersonation_lost = false;
+  const bool launched = launch(command_line, L"", &error, &impersonation_lost);
+  if (impersonation_lost) {
+    std::wstring message =
+        L"RegKit could not restore its own security context and must close "
+        L"now.";
+    const std::wstring detail = FormatWin32Error(error);
+    if (!detail.empty()) {
+      message += L"\n";
+      message += detail;
+    }
+    ui::ShowError(owner, message);
+    ExitProcess(launched ? 0u : 1u);
+  }
+  if (!launched) {
     std::wstring message = failure;
     const std::wstring detail = FormatWin32Error(error);
     if (!detail.empty()) {

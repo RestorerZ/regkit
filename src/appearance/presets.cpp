@@ -561,50 +561,59 @@ void WritePreset(std::wofstream& file, const ThemePreset& preset) {
   file << L"\n";
 }
 
-void ApplyField(ThemePreset* preset, const std::wstring& key, const std::wstring& value) {
+struct ColorKey {
+  const wchar_t* key;
+  COLORREF ThemeColors::* member;
+};
+
+constexpr ColorKey kColorKeys[] = {
+    {L"background", &ThemeColors::background},
+    {L"panel", &ThemeColors::panel},
+    {L"surface", &ThemeColors::surface},
+    {L"field", &ThemeColors::field},
+    {L"header", &ThemeColors::header},
+    {L"border", &ThemeColors::border},
+    {L"text", &ThemeColors::text},
+    {L"muted_text", &ThemeColors::muted_text},
+    {L"accent", &ThemeColors::accent},
+    {L"selection", &ThemeColors::selection},
+    {L"selection_text", &ThemeColors::selection_text},
+    {L"hover", &ThemeColors::hover},
+    {L"focus", &ThemeColors::focus},
+};
+
+bool ApplyField(ThemePreset* preset, const std::wstring& key, const std::wstring& value) {
   if (!preset) {
-    return;
+    return false;
   }
-  std::wstring key_lower = ToLower(key);
+  const std::wstring key_lower = ToLower(key);
   if (key_lower == L"name") {
     preset->name = value;
-    return;
+    return true;
   }
   if (key_lower == L"dark") {
-    preset->is_dark = (_wcsicmp(value.c_str(), L"1") == 0 || _wcsicmp(value.c_str(), L"true") == 0);
-    return;
+    if (value == L"1" || _wcsicmp(value.c_str(), L"true") == 0) {
+      preset->is_dark = true;
+      return true;
+    }
+    if (value == L"0" || _wcsicmp(value.c_str(), L"false") == 0) {
+      preset->is_dark = false;
+      return true;
+    }
+    return false;
   }
-  COLORREF color = RGB(0, 0, 0);
-  if (!ParseColorHex(value, &color)) {
-    return;
+  for (const ColorKey& field : kColorKeys) {
+    if (key_lower != field.key) {
+      continue;
+    }
+    COLORREF color = RGB(0, 0, 0);
+    if (!ParseColorHex(value, &color)) {
+      return false;
+    }
+    preset->colors.*field.member = color;
+    return true;
   }
-  if (key_lower == L"background") {
-    preset->colors.background = color;
-  } else if (key_lower == L"panel") {
-    preset->colors.panel = color;
-  } else if (key_lower == L"surface") {
-    preset->colors.surface = color;
-  } else if (key_lower == L"field") {
-    preset->colors.field = color;
-  } else if (key_lower == L"header") {
-    preset->colors.header = color;
-  } else if (key_lower == L"border") {
-    preset->colors.border = color;
-  } else if (key_lower == L"text") {
-    preset->colors.text = color;
-  } else if (key_lower == L"muted_text") {
-    preset->colors.muted_text = color;
-  } else if (key_lower == L"accent") {
-    preset->colors.accent = color;
-  } else if (key_lower == L"selection") {
-    preset->colors.selection = color;
-  } else if (key_lower == L"selection_text") {
-    preset->colors.selection_text = color;
-  } else if (key_lower == L"hover") {
-    preset->colors.hover = color;
-  } else if (key_lower == L"focus") {
-    preset->colors.focus = color;
-  }
+  return true;
 }
 
 void ResolveLegacyField(ThemePreset* preset) {
@@ -613,21 +622,37 @@ void ResolveLegacyField(ThemePreset* preset) {
   }
 }
 
-std::vector<ThemePreset> LoadFromStream(std::wistream& file) {
-  std::vector<ThemePreset> presets;
+bool LoadFromStream(std::wistream& file, std::vector<ThemePreset>* presets,
+                    std::wstring* error) {
+  if (!presets) {
+    return false;
+  }
+  presets->clear();
   ThemePreset current;
   current.colors.field = CLR_INVALID;
   bool in_preset = false;
   std::wstring line;
+  auto fail = [&](const std::wstring& text) {
+    if (error) {
+      *error = L"The theme preset file contains an entry RegKit cannot "
+               L"parse: " +
+               text;
+    }
+    presets->clear();
+    return false;
+  };
   while (std::getline(file, line)) {
     line = Trim(line);
     if (line.empty()) {
       continue;
     }
     if (line == kPresetSection) {
-      if (in_preset && !current.name.empty()) {
+      if (in_preset) {
+        if (current.name.empty()) {
+          return fail(kPresetSection);
+        }
         ResolveLegacyField(&current);
-        presets.push_back(current);
+        presets->push_back(current);
       }
       current = ThemePreset{};
       current.colors.field = CLR_INVALID;
@@ -639,15 +664,21 @@ std::vector<ThemePreset> LoadFromStream(std::wistream& file) {
     }
     size_t sep = line.find(L'=');
     if (sep == std::wstring::npos) {
-      continue;
+      return fail(line);
     }
-    ApplyField(&current, Trim(line.substr(0, sep)), Trim(line.substr(sep + 1)));
+    if (!ApplyField(&current, Trim(line.substr(0, sep)),
+                    Trim(line.substr(sep + 1)))) {
+      return fail(line);
+    }
   }
-  if (in_preset && !current.name.empty()) {
+  if (in_preset) {
+    if (current.name.empty()) {
+      return fail(kPresetSection);
+    }
     ResolveLegacyField(&current);
-    presets.push_back(current);
+    presets->push_back(current);
   }
-  return presets;
+  return true;
 }
 
 } // namespace
@@ -711,7 +742,10 @@ bool ThemePresetStore::Load(std::vector<ThemePreset>* presets, std::wstring* err
   if (!file.is_open()) {
     return false;
   }
-  std::vector<ThemePreset> loaded = LoadFromStream(file);
+  std::vector<ThemePreset> loaded;
+  if (!LoadFromStream(file, &loaded, error)) {
+    return false;
+  }
   if (presets) {
     *presets = std::move(loaded);
   }
@@ -765,7 +799,16 @@ bool ThemePresetStore::ImportFromFile(const std::wstring& path, std::vector<Them
     }
     return false;
   }
-  std::vector<ThemePreset> loaded = LoadFromStream(file);
+  std::vector<ThemePreset> loaded;
+  if (!LoadFromStream(file, &loaded, error)) {
+    return false;
+  }
+  if (loaded.empty()) {
+    if (error) {
+      *error = L"No theme presets were found in the file.";
+    }
+    return false;
+  }
   if (presets) {
     *presets = std::move(loaded);
   }

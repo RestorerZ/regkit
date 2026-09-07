@@ -6,6 +6,7 @@
 
 #include "appearance/gdi_cache.h"
 
+#include <memory>
 #include <string>
 #include <commctrl.h>
 #include <dwmapi.h>
@@ -745,19 +746,12 @@ LRESULT CALLBACK ComboBoxThemeSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, L
     HDC hdc = BeginPaint(hwnd, &ps);
     LONG_PTR dropdown_style = style & CBS_DROPDOWNLIST;
     if (dropdown_style != CBS_DROPDOWN) {
-      RECT rect = {};
-      GetClientRect(hwnd, &rect);
-      int width = rect.right - rect.left;
-      int height = rect.bottom - rect.top;
-      if (width > 0 && height > 0) {
-        HDC mem_dc = CreateCompatibleDC(hdc);
-        HBITMAP mem_bmp = CreateCompatibleBitmap(hdc, width, height);
-        HGDIOBJ old_bmp = SelectObject(mem_dc, mem_bmp);
-        PaintComboBox(hwnd, mem_dc, state);
-        BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, SRCCOPY);
-        SelectObject(mem_dc, old_bmp);
-        DeleteObject(mem_bmp);
-        DeleteDC(mem_dc);
+      HDC buffered = nullptr;
+      HPAINTBUFFER buffer = BeginBufferedPaint(
+          hdc, &ps.rcPaint, BPBF_COMPATIBLEBITMAP, nullptr, &buffered);
+      PaintComboBox(hwnd, buffered ? buffered : hdc, state);
+      if (buffer) {
+        EndBufferedPaint(buffer, TRUE);
       }
     } else {
       PaintComboBox(hwnd, hdc, state);
@@ -1029,8 +1023,11 @@ void Theme::ApplyToComboBox(HWND hwnd) const {
     return;
   }
   if (!GetWindowSubclass(hwnd, ComboBoxThemeSubclassProc, 1, nullptr)) {
-    auto* state = new ComboBoxThemeState();
-    SetWindowSubclass(hwnd, ComboBoxThemeSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+    auto state = std::make_unique<ComboBoxThemeState>();
+    if (SetWindowSubclass(hwnd, ComboBoxThemeSubclassProc, 1,
+                          reinterpret_cast<DWORD_PTR>(state.get()))) {
+      state.release();
+    }
   }
   COMBOBOXINFO info = {sizeof(COMBOBOXINFO)};
   if (GetComboBoxInfo(hwnd, &info) && info.hwndList) {
@@ -1171,7 +1168,6 @@ void AllowDarkModeForWindow(HWND hwnd, bool enabled) {
   if (!hwnd) {
     return;
   }
-  ConfigureDarkModeSupport(enabled ? PreferredAppMode::kForceDark : PreferredAppMode::kForceLight);
   if (auto allow = GetAllowDarkModeForWindow()) {
     allow(hwnd, enabled ? TRUE : FALSE);
   }

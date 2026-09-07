@@ -436,7 +436,7 @@ void MainWindow::Impl::BuildMenus() {
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(research_menu), L"Research");
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(help_menu), L"Help");
 
-  PrepareMenusForOwnerDraw(menu, true);
+  PrepareMenusForOwnerDraw(menu);
 
   HMENU old_menu = GetMenu(hwnd_);
   SetMenu(hwnd_, menu);

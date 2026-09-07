@@ -32,6 +32,20 @@ util::UniqueHKey OpenLinkKey(HKEY parent, const std::wstring& name,
   return link;
 }
 
+util::UniqueHKey OpenKeyNoFollow(const RegistryNode& node, REGSAM access) {
+  util::UniqueHKey key;
+  if (!node.root) {
+    return key;
+  }
+  const wchar_t* subkey = node.subkey.empty() ? nullptr : node.subkey.c_str();
+  if (RegOpenKeyExW(node.root, subkey, REG_OPTION_OPEN_LINK,
+                    access | win32::kDefaultRegistryView,
+                    key.put()) != ERROR_SUCCESS) {
+    key.reset();
+  }
+  return key;
+}
+
 util::UniqueHKey OpenKey(const RegistryNode& node, REGSAM access) {
   util::UniqueHKey key;
   if (!node.root) {
@@ -406,7 +420,7 @@ bool ReadKeySecurity(const RegistryNode& node,
   const SECURITY_INFORMATION wanted = OWNER_SECURITY_INFORMATION |
                                       GROUP_SECURITY_INFORMATION |
                                       DACL_SECURITY_INFORMATION;
-  util::UniqueHKey key = OpenKey(node, READ_CONTROL);
+  util::UniqueHKey key = OpenKeyNoFollow(node, READ_CONTROL);
   if (!key.get()) {
     return false;
   }
@@ -432,7 +446,7 @@ bool WriteKeySecurity(const RegistryNode& node,
   if (descriptor.empty()) {
     return false;
   }
-  util::UniqueHKey key = OpenKey(node, WRITE_DAC | WRITE_OWNER);
+  util::UniqueHKey key = OpenKeyNoFollow(node, WRITE_DAC | WRITE_OWNER);
   if (!key.get()) {
     return false;
   }
@@ -494,7 +508,10 @@ bool SetValue(const RegistryNode& node, const std::wstring& value_name,
 }
 
 bool RenameValue(const RegistryNode& node, const std::wstring& old_name,
-                 const std::wstring& new_name) {
+                 const std::wstring& new_name, bool* both_names_left) {
+  if (both_names_left) {
+    *both_names_left = false;
+  }
   util::UniqueHKey key =
       OpenKey(node, KEY_QUERY_VALUE | KEY_SET_VALUE);
   if (!key.get()) {
@@ -522,7 +539,10 @@ bool RenameValue(const RegistryNode& node, const std::wstring& old_name,
     return false;
   }
   if (RegDeleteValueW(key.get(), old_name.c_str()) != ERROR_SUCCESS) {
-    RegDeleteValueW(key.get(), new_name.c_str());
+    if (RegDeleteValueW(key.get(), new_name.c_str()) != ERROR_SUCCESS &&
+        both_names_left) {
+      *both_names_left = true;
+    }
     return false;
   }
   return true;

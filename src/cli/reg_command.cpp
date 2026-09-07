@@ -1100,34 +1100,56 @@ int CmdUnload(const std::vector<std::wstring>& args) {
   return kOk;
 }
 
-int CmdCompare(const std::vector<std::wstring>& args);
+bool OpenKeyStatus(const KeyRef& key, REGSAM view, LONG* status) {
+  HKEY handle = nullptr;
+  *status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_READ | view,
+                          &handle);
+  if (*status != ERROR_SUCCESS) {
+    return false;
+  }
+  RegCloseKey(handle);
+  return true;
+}
 
-int CmdCompare(const std::vector<std::wstring>& args) {
-  bool subtree_differs = false;
-  Options options;
-  std::vector<std::wstring> positional;
-  if (!ParseOptions(args, 1, &options, &positional)) {
+KeyRef ChildRef(const KeyRef& parent, const std::wstring& name) {
+  KeyRef child = parent;
+  child.subkey = parent.subkey.empty() ? name : parent.subkey + L"\\" + name;
+  child.display = parent.display + L"\\" + name;
+  return child;
+}
+
+int CompareKeys(const KeyRef& left, const KeyRef& right,
+                const Options& options, bool* differs) {
+  LONG left_status = ERROR_SUCCESS;
+  LONG right_status = ERROR_SUCCESS;
+  const bool left_exists = OpenKeyStatus(left, options.view, &left_status);
+  const bool right_exists = OpenKeyStatus(right, options.view, &right_status);
+  if (!left_exists && left_status != ERROR_FILE_NOT_FOUND) {
+    PrintError(L"The system was unable to open " + left.display + L".");
     return kFailed;
   }
-  if (positional.size() < 2) {
-    PrintError(L"reg compare requires two key names.");
+  if (!right_exists && right_status != ERROR_FILE_NOT_FOUND) {
+    PrintError(L"The system was unable to open " + right.display + L".");
     return kFailed;
   }
-  KeyRef left;
-  KeyRef right;
-  if (!ParseKey(positional[0], &left) || !ParseKey(positional[1], &right)) {
-    return kFailed;
+  if (!left_exists && !right_exists) {
+    return kOk;
+  }
+  if (left_exists != right_exists) {
+    Print((left_exists ? L"< " + left.display : L"> " + right.display));
+    *differs = true;
   }
 
   std::vector<RegistryValue> left_values;
   std::vector<RegistryValue> right_values;
-  const bool left_ok =
-      CollectValues(left.root, left.subkey, options.view, &left_values);
-  const bool right_ok =
-      CollectValues(right.root, right.subkey, options.view, &right_values);
-  if (!left_ok || !right_ok) {
-    PrintError(L"The system was unable to open " +
-               (left_ok ? right.display : left.display) + L".");
+  if (left_exists &&
+      !CollectValues(left.root, left.subkey, options.view, &left_values)) {
+    PrintError(L"The system was unable to open " + left.display + L".");
+    return kFailed;
+  }
+  if (right_exists &&
+      !CollectValues(right.root, right.subkey, options.view, &right_values)) {
+    PrintError(L"The system was unable to open " + right.display + L".");
     return kFailed;
   }
   if (options.has_value) {
@@ -1144,33 +1166,6 @@ int CmdCompare(const std::vector<std::wstring>& args) {
     keep_only(&left_values);
     keep_only(&right_values);
   }
-  if (options.recurse) {
-    std::vector<std::wstring> children;
-    CollectSubkeyNames(left.root, left.subkey, options.view, &children);
-    CollectSubkeyNames(right.root, right.subkey, options.view, &children);
-    std::sort(children.begin(), children.end(),
-              [](const std::wstring& a, const std::wstring& b) {
-                return _wcsicmp(a.c_str(), b.c_str()) < 0;
-              });
-    children.erase(std::unique(children.begin(), children.end(),
-                               [](const std::wstring& a,
-                                  const std::wstring& b) {
-                                 return _wcsicmp(a.c_str(), b.c_str()) == 0;
-                               }),
-                   children.end());
-    for (const std::wstring& child : children) {
-      std::vector<std::wstring> child_args = args;
-      child_args[1] = positional[0] + L"\\" + child;
-      child_args[2] = positional[1] + L"\\" + child;
-      const int child_result = CmdCompare(child_args);
-      if (child_result == kFailed) {
-        return kFailed;
-      }
-      if (child_result != kOk) {
-        subtree_differs = true;
-      }
-    }
-  }
 
   auto find = [](const std::vector<RegistryValue>& list,
                  const std::wstring& name) -> const RegistryValue* {
@@ -1182,12 +1177,11 @@ int CmdCompare(const std::vector<std::wstring>& args) {
     return nullptr;
   };
 
-  bool identical = true;
   for (const RegistryValue& value : left_values) {
     const RegistryValue* other = find(right_values, value.name);
     if (!other) {
       Print(L"< " + left.display + L"    " + value.name);
-      identical = false;
+      *differs = true;
     } else if (other->type != value.type || other->data != value.data) {
       Print(L"< " + left.display + L"    " + value.name + L"    " +
             FormatData(value.type, value.data.data(),
@@ -1195,19 +1189,81 @@ int CmdCompare(const std::vector<std::wstring>& args) {
       Print(L"> " + right.display + L"    " + other->name + L"    " +
             FormatData(other->type, other->data.data(),
                        static_cast<DWORD>(other->data.size())));
-      identical = false;
+      *differs = true;
     }
   }
   for (const RegistryValue& value : right_values) {
     if (!find(left_values, value.name)) {
       Print(L"> " + right.display + L"    " + value.name);
-      identical = false;
+      *differs = true;
     }
   }
-  identical = identical && !subtree_differs;
-  Print(identical ? L"Result Compared: Identical"
-                  : L"Result Compared: Different");
-  return identical ? kOk : 2;
+
+  if (!options.recurse) {
+    return kOk;
+  }
+
+  std::vector<std::wstring> children;
+  if (left_exists &&
+      !CollectSubkeyNames(left.root, left.subkey, options.view, &children)) {
+    PrintError(L"The system was unable to open " + left.display + L".");
+    return kFailed;
+  }
+  if (right_exists &&
+      !CollectSubkeyNames(right.root, right.subkey, options.view, &children)) {
+    PrintError(L"The system was unable to open " + right.display + L".");
+    return kFailed;
+  }
+  std::sort(children.begin(), children.end(),
+            [](const std::wstring& a, const std::wstring& b) {
+              return _wcsicmp(a.c_str(), b.c_str()) < 0;
+            });
+  children.erase(std::unique(children.begin(), children.end(),
+                             [](const std::wstring& a, const std::wstring& b) {
+                               return _wcsicmp(a.c_str(), b.c_str()) == 0;
+                             }),
+                 children.end());
+  for (const std::wstring& child : children) {
+    const int result = CompareKeys(ChildRef(left, child), ChildRef(right, child),
+                                   options, differs);
+    if (result == kFailed) {
+      return kFailed;
+    }
+  }
+  return kOk;
+}
+
+int CmdCompare(const std::vector<std::wstring>& args) {
+  Options options;
+  std::vector<std::wstring> positional;
+  if (!ParseOptions(args, 1, &options, &positional)) {
+    return kFailed;
+  }
+  if (positional.size() < 2) {
+    PrintError(L"reg compare requires two key names.");
+    return kFailed;
+  }
+  KeyRef left;
+  KeyRef right;
+  if (!ParseKey(positional[0], &left) || !ParseKey(positional[1], &right)) {
+    return kFailed;
+  }
+
+  LONG left_status = ERROR_SUCCESS;
+  LONG right_status = ERROR_SUCCESS;
+  if (!OpenKeyStatus(left, options.view, &left_status) &&
+      !OpenKeyStatus(right, options.view, &right_status)) {
+    PrintError(L"The system was unable to open " + left.display + L".");
+    return kFailed;
+  }
+
+  bool differs = false;
+  if (CompareKeys(left, right, options, &differs) == kFailed) {
+    return kFailed;
+  }
+  Print(differs ? L"Result Compared: Different"
+                : L"Result Compared: Identical");
+  return differs ? 2 : kOk;
 }
 
 void PrintUsage() {

@@ -56,55 +56,92 @@ bool RunRegCommand(const std::wstring& args, DWORD* exit_code, std::wstring* err
   security.bInheritHandle = TRUE;
   HANDLE read_pipe = nullptr;
   HANDLE write_pipe = nullptr;
+  HANDLE null_input = INVALID_HANDLE_VALUE;
+  std::vector<BYTE> attribute_storage;
+  bool attribute_list_ready = false;
+  HANDLE inherited[2] = {};
   bool capture_output = CreatePipe(&read_pipe, &write_pipe, &security, 0) != FALSE;
+  auto attribute_list = [&]() {
+    return reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
+        attribute_storage.data());
+  };
+  auto drop_capture = [&]() {
+    if (attribute_list_ready) {
+      DeleteProcThreadAttributeList(attribute_list());
+      attribute_list_ready = false;
+    }
+    if (read_pipe) {
+      CloseHandle(read_pipe);
+      read_pipe = nullptr;
+    }
+    if (write_pipe) {
+      CloseHandle(write_pipe);
+      write_pipe = nullptr;
+    }
+    if (null_input != INVALID_HANDLE_VALUE) {
+      CloseHandle(null_input);
+      null_input = INVALID_HANDLE_VALUE;
+    }
+    attribute_storage.clear();
+    capture_output = false;
+  };
+
+  STARTUPINFOEXW six = {};
+  DWORD flags = CREATE_NO_WINDOW;
   if (capture_output) {
     SetHandleInformation(read_pipe, HANDLE_FLAG_INHERIT, 0);
+    null_input = CreateFileW(L"NUL", GENERIC_READ,
+                             FILE_SHARE_READ | FILE_SHARE_WRITE, &security,
+                             OPEN_EXISTING, 0, nullptr);
+    SIZE_T attribute_size = 0;
+    InitializeProcThreadAttributeList(nullptr, 1, 0, &attribute_size);
+    if (null_input == INVALID_HANDLE_VALUE || attribute_size == 0) {
+      drop_capture();
+    } else {
+      attribute_storage.resize(attribute_size);
+      inherited[0] = write_pipe;
+      inherited[1] = null_input;
+      attribute_list_ready =
+          InitializeProcThreadAttributeList(attribute_list(), 1, 0,
+                                            &attribute_size) != FALSE;
+      if (attribute_list_ready &&
+          UpdateProcThreadAttribute(attribute_list(), 0,
+                                    PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                    inherited, sizeof(inherited), nullptr,
+                                    nullptr)) {
+        six.lpAttributeList = attribute_list();
+        flags |= EXTENDED_STARTUPINFO_PRESENT;
+      } else {
+        drop_capture();
+      }
+    }
   }
+
   STARTUPINFOW si = {};
   si.cb = sizeof(si);
   si.dwFlags = STARTF_USESHOWWINDOW;
   si.wShowWindow = SW_HIDE;
   if (capture_output) {
     si.dwFlags |= STARTF_USESTDHANDLES;
-    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    si.hStdInput = null_input;
     si.hStdOutput = write_pipe;
     si.hStdError = write_pipe;
   }
   PROCESS_INFORMATION pi = {};
-  DWORD flags = CREATE_NO_WINDOW;
-  STARTUPINFOEXW six = {};
   six.StartupInfo = si;
-  std::vector<BYTE> attribute_storage;
-  HANDLE inherited[1] = {write_pipe};
-  if (capture_output) {
-    SIZE_T attribute_size = 0;
-    InitializeProcThreadAttributeList(nullptr, 1, 0, &attribute_size);
-    if (attribute_size > 0) {
-      attribute_storage.resize(attribute_size);
-      auto* attributes =
-          reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attribute_storage.data());
-      if (InitializeProcThreadAttributeList(attributes, 1, 0, &attribute_size) &&
-          UpdateProcThreadAttribute(attributes, 0,
-                                    PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                    inherited, sizeof(inherited), nullptr,
-                                    nullptr)) {
-        six.lpAttributeList = attributes;
-        six.StartupInfo.cb = sizeof(six);
-        flags |= EXTENDED_STARTUPINFO_PRESENT;
-      } else {
-        attribute_storage.clear();
-      }
-    }
-  }
+  six.StartupInfo.cb = sizeof(six);
   const bool extended = (flags & EXTENDED_STARTUPINFO_PRESENT) != 0;
   const BOOL created = CreateProcessW(
       reg.c_str(), cmdline.data(), nullptr, nullptr,
       capture_output ? TRUE : FALSE, flags, nullptr, nullptr,
       extended ? &six.StartupInfo : &si, &pi);
-  if (extended) {
-    DeleteProcThreadAttributeList(
-        reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
-            attribute_storage.data()));
+  if (attribute_list_ready) {
+    DeleteProcThreadAttributeList(attribute_list());
+    attribute_list_ready = false;
+  }
+  if (null_input != INVALID_HANDLE_VALUE) {
+    CloseHandle(null_input);
+    null_input = INVALID_HANDLE_VALUE;
   }
   if (!created) {
     if (read_pipe) {

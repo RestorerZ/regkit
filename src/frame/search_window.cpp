@@ -858,8 +858,13 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
               }
               std::wstring unique =
                   MakeUniqueValueName(node, replaced_name);
-              if (!RegistryStore::RenameValue(node, current_name, unique)) {
+              bool both_names_left = false;
+              if (!RegistryStore::RenameValue(node, current_name, unique,
+                                              &both_names_left)) {
                 ++payload->failures;
+                if (both_names_left) {
+                  ++payload->partial_renames;
+                }
               } else {
                 ReplacePayload::Change change;
                 change.undo.type =
@@ -984,17 +989,22 @@ void MainWindow::Impl::CommitReplacePayload(
     PushUndo(std::move(change.undo));
     AppendHistoryEntry(std::move(change.history));
   }
-  if (!payload->changes.empty()) {
+  if (!payload->changes.empty() || payload->partial_renames > 0) {
     MarkOfflineDirty();
   }
   if (browse_.current_node()) {
     UpdateValueListForNode(browse_.current_node());
   }
   if (show_failures && payload->failures > 0) {
-    const std::wstring message =
+    std::wstring message =
         L"Replace finished with some failures.\nReplaced: " +
         std::to_wstring(payload->changes.size()) + L"\nFailed: " +
         std::to_wstring(payload->failures);
+    if (payload->partial_renames > 0) {
+      message += L"\n" + std::to_wstring(payload->partial_renames) +
+                 L" value(s) were copied to the new name but the old name "
+                 L"could not be removed. Both names now exist.";
+    }
     ui::ShowError(hwnd_, message);
   }
 }

@@ -10,7 +10,6 @@
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 
-#include <limits>
 #include <string>
 #include <vector>
 
@@ -41,29 +40,10 @@ bool LoadFontSettings(FontSettings* out) {
   if (folder.empty()) {
     return false;
   }
-  std::wstring path = util::JoinPath(folder, L"settings.ini");
-  HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (file == INVALID_HANDLE_VALUE) {
-    return false;
-  }
-  LARGE_INTEGER size = {};
-  if (!GetFileSizeEx(file, &size) || size.QuadPart <= 0 || size.QuadPart > static_cast<LONGLONG>(std::numeric_limits<int>::max())) {
-    CloseHandle(file);
-    return false;
-  }
-  std::string buffer(static_cast<size_t>(size.QuadPart), '\0');
-  DWORD read = 0;
-  bool ok = ReadFile(file, buffer.data(), static_cast<DWORD>(buffer.size()), &read, nullptr) != 0;
-  CloseHandle(file);
-  if (!ok || read == 0) {
-    return false;
-  }
-  buffer.resize(read);
-  if (buffer.size() >= 3 && static_cast<unsigned char>(buffer[0]) == 0xEF && static_cast<unsigned char>(buffer[1]) == 0xBB && static_cast<unsigned char>(buffer[2]) == 0xBF) {
-    buffer.erase(0, 3);
-  }
-  std::wstring content = util::Utf8ToWide(buffer);
-  if (content.empty()) {
+  std::wstring content;
+  if (!util::ReadTextFile(util::JoinPath(folder, L"settings.ini"), &content,
+                          nullptr, 1024ull * 1024ull) ||
+      content.empty()) {
     return false;
   }
 

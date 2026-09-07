@@ -8,6 +8,43 @@
 namespace regkit {
 using namespace window_detail;
 
+namespace {
+
+std::wstring ProcessImagePathOf(DWORD pid) {
+  std::wstring path;
+  HANDLE process =
+      OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+  if (!process) {
+    return path;
+  }
+  path.assign(1024, L'\0');
+  DWORD size = static_cast<DWORD>(path.size());
+  if (QueryFullProcessImageNameW(process, 0, path.data(), &size)) {
+    path.resize(size);
+  } else {
+    path.clear();
+  }
+  CloseHandle(process);
+  return path;
+}
+
+bool IsSiblingRegKitWindow(HWND sender) {
+  DWORD sender_pid = 0;
+  if (!sender || !IsWindow(sender) ||
+      !GetWindowThreadProcessId(sender, &sender_pid) || sender_pid == 0) {
+    return false;
+  }
+  if (sender_pid == GetCurrentProcessId()) {
+    return true;
+  }
+  const std::wstring sender_image = ProcessImagePathOf(sender_pid);
+  const std::wstring own_image = ProcessImagePathOf(GetCurrentProcessId());
+  return !sender_image.empty() && !own_image.empty() &&
+         _wcsicmp(sender_image.c_str(), own_image.c_str()) == 0;
+}
+
+} // namespace
+
 LRESULT MainWindow::Impl::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam) {
   std::optional<LRESULT> result;
   switch (frame::ClassifyMessage(message)) {
@@ -930,7 +967,12 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message,
     if (!data) {
       return 0;
     }
-    if (data->dwData != kExternalJumpCopyDataId || !data->lpData || data->cbData < sizeof(wchar_t)) {
+    if (data->dwData != kExternalJumpCopyDataId || !data->lpData ||
+        data->cbData < sizeof(wchar_t) ||
+        data->cbData > kExternalJumpMaxBytes) {
+      return 0;
+    }
+    if (!IsSiblingRegKitWindow(reinterpret_cast<HWND>(wparam))) {
       return 0;
     }
     size_t length = data->cbData / sizeof(wchar_t);

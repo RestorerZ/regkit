@@ -194,6 +194,38 @@ bool QueryServiceProcess(SC_HANDLE service, SERVICE_STATUS_PROCESS* status) {
   return QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, reinterpret_cast<LPBYTE>(status), sizeof(SERVICE_STATUS_PROCESS), &bytes) != FALSE;
 }
 
+bool WaitWhileServicePending(SC_HANDLE service, DWORD pending_state,
+                            SERVICE_STATUS_PROCESS* status) {
+  constexpr ULONGLONG kMaxWaitMs = 60000;
+  const ULONGLONG start = GetTickCount64();
+  DWORD checkpoint = status->dwCheckPoint;
+  ULONGLONG progress = start;
+  while (status->dwCurrentState == pending_state) {
+    DWORD wait = status->dwWaitHint / 10;
+    if (wait < 100) {
+      wait = 100;
+    } else if (wait > 2000) {
+      wait = 2000;
+    }
+    Sleep(wait);
+    if (!QueryServiceProcess(service, status)) {
+      return false;
+    }
+    const ULONGLONG now = GetTickCount64();
+    if (status->dwCheckPoint > checkpoint) {
+      checkpoint = status->dwCheckPoint;
+      progress = now;
+      continue;
+    }
+    const ULONGLONG budget = status->dwWaitHint > 5000 ? status->dwWaitHint : 5000;
+    if (now - progress > budget || now - start > kMaxWaitMs) {
+      SetLastError(ERROR_SERVICE_REQUEST_TIMEOUT);
+      return false;
+    }
+  }
+  return true;
+}
+
 bool StartServiceAndGetProcessId(const wchar_t* service_name, DWORD* process_id) {
   if (!service_name || !process_id) {
     SetLastError(ERROR_INVALID_PARAMETER);
@@ -218,46 +250,40 @@ bool StartServiceAndGetProcessId(const wchar_t* service_name, DWORD* process_id)
     return false;
   }
 
-  for (int attempt = 0;
-       status.dwCurrentState == SERVICE_STOP_PENDING && attempt < 50;
-       ++attempt) {
-    Sleep(100);
-    if (!QueryServiceProcess(service, &status)) {
-      CloseServiceHandle(service);
-      CloseServiceHandle(scm);
-      return false;
-    }
+  auto fail = [&](DWORD error) {
+    CloseServiceHandle(service);
+    CloseServiceHandle(scm);
+    SetLastError(error);
+    return false;
+  };
+
+  if (!WaitWhileServicePending(service, SERVICE_STOP_PENDING, &status)) {
+    return fail(GetLastError());
   }
   if (status.dwCurrentState == SERVICE_STOPPED) {
     if (!StartServiceW(service, 0, nullptr) &&
         GetLastError() != ERROR_SERVICE_ALREADY_RUNNING) {
-      const DWORD error = GetLastError();
-      CloseServiceHandle(service);
-      CloseServiceHandle(scm);
-      SetLastError(error);
-      return false;
+      return fail(GetLastError());
     }
-  }
-
-  for (int attempt = 0; attempt < 50; ++attempt) {
     if (!QueryServiceProcess(service, &status)) {
-      CloseServiceHandle(service);
-      CloseServiceHandle(scm);
-      return false;
+      return fail(GetLastError());
     }
-    if (status.dwCurrentState == SERVICE_RUNNING && status.dwProcessId != 0) {
-      *process_id = status.dwProcessId;
-      CloseServiceHandle(service);
-      CloseServiceHandle(scm);
-      return true;
+  }
+  if (!WaitWhileServicePending(service, SERVICE_START_PENDING, &status)) {
+    return fail(GetLastError());
+  }
+  if (status.dwCurrentState != SERVICE_RUNNING || status.dwProcessId == 0) {
+    DWORD error = status.dwWin32ExitCode;
+    if (error == ERROR_SERVICE_SPECIFIC_ERROR) {
+      error = status.dwServiceSpecificExitCode;
     }
-    Sleep(100);
+    return fail(error != ERROR_SUCCESS ? error : ERROR_SERVICE_NOT_ACTIVE);
   }
 
+  *process_id = status.dwProcessId;
   CloseServiceHandle(service);
   CloseServiceHandle(scm);
-  SetLastError(ERROR_SERVICE_REQUEST_TIMEOUT);
-  return false;
+  return true;
 }
 
 bool OpenServiceProcessToken(const wchar_t* service_name, DWORD desired_access, HANDLE* token_handle) {
@@ -407,9 +433,12 @@ bool IsProcessTrustedInstaller() {
   return false;
 }
 
-bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code) {
+bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code, bool* impersonation_lost) {
   if (error_code) {
     *error_code = ERROR_SUCCESS;
+  }
+  if (impersonation_lost) {
+    *impersonation_lost = false;
   }
   if (command_line.empty()) {
     if (error_code) {
@@ -429,13 +458,19 @@ bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring&
   ScopedHandle target_token;
   ScopedHandle previous_thread_token;
   ScopedEnvBlock env;
+  bool had_thread_token = false;
   DWORD session_id = static_cast<DWORD>(-1);
   STARTUPINFOW startup = {};
   PROCESS_INFORMATION process = {};
   std::wstring mutable_command;
 
-  OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE,
-                  previous_thread_token.put());
+  if (OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE,
+                      previous_thread_token.put())) {
+    had_thread_token = true;
+  } else if (GetLastError() != ERROR_NO_TOKEN) {
+    error = GetLastError();
+    goto Cleanup;
+  }
   if (!OpenProcessToken(GetCurrentProcess(), MAXIMUM_ALLOWED, current_token.put())) {
     error = GetLastError();
     goto Cleanup;
@@ -485,7 +520,7 @@ bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring&
     error = GetLastError();
     goto Cleanup;
   }
-  if (!CreateEnvironmentBlock(env.put(), current_token.get(), FALSE)) {
+  if (!CreateEnvironmentBlock(env.put(), target_token.get(), FALSE)) {
     error = GetLastError();
     goto Cleanup;
   }
@@ -502,8 +537,20 @@ bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring&
   CloseHandle(process.hProcess);
 
 Cleanup:
-  SetThreadToken(nullptr, previous_thread_token.get());
-  if (!result) {
+  {
+    const bool restored = had_thread_token
+                              ? SetThreadToken(nullptr,
+                                               previous_thread_token.get()) != 0
+                              : RevertToSelf() != 0;
+    if (!restored) {
+      const DWORD restore_error = GetLastError();
+      if (impersonation_lost) {
+        *impersonation_lost = true;
+      }
+      error = restore_error;
+    }
+  }
+  if (!result || (impersonation_lost && *impersonation_lost)) {
     if (error_code) {
       *error_code = error;
     }
@@ -512,9 +559,12 @@ Cleanup:
   return result;
 }
 
-bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code) {
+bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code, bool* impersonation_lost) {
   if (error_code) {
     *error_code = ERROR_SUCCESS;
+  }
+  if (impersonation_lost) {
+    *impersonation_lost = false;
   }
   if (command_line.empty()) {
     if (error_code) {
@@ -535,13 +585,19 @@ bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std
   ScopedHandle target_token;
   ScopedHandle previous_thread_token;
   ScopedEnvBlock env;
+  bool had_thread_token = false;
   DWORD session_id = static_cast<DWORD>(-1);
   STARTUPINFOW startup = {};
   PROCESS_INFORMATION process = {};
   std::wstring mutable_command;
 
-  OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE,
-                  previous_thread_token.put());
+  if (OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE,
+                      previous_thread_token.put())) {
+    had_thread_token = true;
+  } else if (GetLastError() != ERROR_NO_TOKEN) {
+    error = GetLastError();
+    goto Cleanup;
+  }
   if (!OpenProcessToken(GetCurrentProcess(), MAXIMUM_ALLOWED, current_token.put())) {
     error = GetLastError();
     goto Cleanup;
@@ -595,7 +651,7 @@ bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std
     error = GetLastError();
     goto Cleanup;
   }
-  if (!CreateEnvironmentBlock(env.put(), current_token.get(), FALSE)) {
+  if (!CreateEnvironmentBlock(env.put(), target_token.get(), FALSE)) {
     error = GetLastError();
     goto Cleanup;
   }
@@ -612,8 +668,20 @@ bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std
   CloseHandle(process.hProcess);
 
 Cleanup:
-  SetThreadToken(nullptr, previous_thread_token.get());
-  if (!result) {
+  {
+    const bool restored = had_thread_token
+                              ? SetThreadToken(nullptr,
+                                               previous_thread_token.get()) != 0
+                              : RevertToSelf() != 0;
+    if (!restored) {
+      const DWORD restore_error = GetLastError();
+      if (impersonation_lost) {
+        *impersonation_lost = true;
+      }
+      error = restore_error;
+    }
+  }
+  if (!result || (impersonation_lost && *impersonation_lost)) {
     if (error_code) {
       *error_code = error;
     }

@@ -99,7 +99,7 @@ public:
   static bool RenameKey(const RegistryNode& node, const std::wstring& new_name);
   static bool DeleteValue(const RegistryNode& node, const std::wstring& value_name);
   static bool SetValue(const RegistryNode& node, const std::wstring& value_name, DWORD type, const std::vector<BYTE>& data);
-  static bool RenameValue(const RegistryNode& node, const std::wstring& old_name, const std::wstring& new_name);
+  static bool RenameValue(const RegistryNode& node, const std::wstring& old_name, const std::wstring& new_name, bool* both_names_left = nullptr);
 };
 
 } // namespace regkit

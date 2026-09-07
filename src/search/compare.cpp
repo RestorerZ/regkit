@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "search/compare.h"
+#include "win32/text_transform.h"
 
 #include "regfile/reg_file.h"
 #include "registry/value_format.h"
 
 #include <algorithm>
-#include <cwctype>
 #include <filesystem>
 #include <unordered_set>
 #include <utility>
@@ -18,14 +18,6 @@ namespace {
 
 bool Cancelled(const std::atomic_bool* cancel) {
   return cancel && cancel->load();
-}
-
-std::wstring Lower(std::wstring text) {
-  std::transform(text.begin(), text.end(), text.begin(),
-                 [](wchar_t ch) {
-                   return static_cast<wchar_t>(towlower(ch));
-                 });
-  return text;
 }
 
 bool EqualsInsensitive(const std::wstring& left,
@@ -130,7 +122,7 @@ bool CaptureRegistry(const std::wstring& base_path,
           if (data && size > 0) {
             captured.data.assign(data, data + size);
           }
-          key.values[Lower(captured.name)] = std::move(captured);
+          key.values[util::ToLower(captured.name)] = std::move(captured);
           return true;
         },
         recursive ? RegistryStore::SubkeyStreamCallback(
@@ -149,7 +141,7 @@ bool CaptureRegistry(const std::wstring& base_path,
       }
       return false;
     }
-    snapshot->keys[Lower(relative)] = std::move(key);
+    snapshot->keys[util::ToLower(relative)] = std::move(key);
 
     for (const auto& name : children) {
       RegistryNode child = node;
@@ -205,9 +197,9 @@ bool LoadRegFile(const std::wstring& file_path,
     if (normalized.size() > base_path.size()) {
       relative = normalized.substr(base_path.size() + 1);
     }
-    auto source = document.keys.find(Lower(original_path));
+    auto source = document.keys.find(util::ToLower(original_path));
     if (source == document.keys.end()) {
-      source = document.keys.find(Lower(normalized));
+      source = document.keys.find(util::ToLower(normalized));
     }
 
     Key key;
@@ -219,10 +211,10 @@ bool LoadRegFile(const std::wstring& file_path,
         value.name = pair.second.name;
         value.type = pair.second.type;
         value.data = pair.second.data;
-        key.values[Lower(value.name)] = std::move(value);
+        key.values[util::ToLower(value.name)] = std::move(value);
       }
     }
-    snapshot->keys[Lower(relative)] = std::move(key);
+    snapshot->keys[util::ToLower(relative)] = std::move(key);
   }
 
   if (!matched) {

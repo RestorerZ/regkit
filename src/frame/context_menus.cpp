@@ -182,16 +182,6 @@ void MainWindow::Impl::ShowTreeContextMenu(POINT screen_pt) {
     }
   }
 
-  HMENU new_value = CreatePopupMenu();
-  AppendMenuW(new_value, MF_STRING, cmd::kNewString, L"String Value");
-  AppendMenuW(new_value, MF_STRING, cmd::kNewBinary, L"Binary Value");
-  AppendMenuW(new_value, MF_STRING, cmd::kNewDword, L"DWORD (32-bit) Value");
-  AppendMenuW(new_value, MF_STRING, cmd::kNewQword, L"QWORD (64-bit) Value");
-  AppendMenuW(new_value, MF_STRING, cmd::kNewMultiString, L"Multi-String Value");
-    AppendMenuW(new_value, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(new_value, MF_STRING, cmd::kNewSymbolicLink, L"Symbolic Link");
-  AppendMenuW(new_value, MF_STRING, cmd::kNewExpandString, L"Expandable String Value");
-
   AppendMenuW(menu, edit_flags, cmd::kEditCopyKey, L"Copy Key Name");
   AppendMenuW(menu, edit_flags, cmd::kEditCopyKeyPath, L"Copy Key Path");
   AppendMenuW(menu, MF_POPUP | (has_node ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), L"Copy Key Path As");
@@ -208,6 +198,15 @@ void MainWindow::Impl::ShowTreeContextMenu(POINT screen_pt) {
   if (is_simulated) {
     AppendMenuW(menu, modify_flags, cmd::kCreateSimulatedKey, L"Create Key");
   } else {
+    HMENU new_value = CreatePopupMenu();
+    AppendMenuW(new_value, MF_STRING, cmd::kNewString, L"String Value");
+    AppendMenuW(new_value, MF_STRING, cmd::kNewBinary, L"Binary Value");
+    AppendMenuW(new_value, MF_STRING, cmd::kNewDword, L"DWORD (32-bit) Value");
+    AppendMenuW(new_value, MF_STRING, cmd::kNewQword, L"QWORD (64-bit) Value");
+    AppendMenuW(new_value, MF_STRING, cmd::kNewMultiString, L"Multi-String Value");
+    AppendMenuW(new_value, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(new_value, MF_STRING, cmd::kNewSymbolicLink, L"Symbolic Link");
+    AppendMenuW(new_value, MF_STRING, cmd::kNewExpandString, L"Expandable String Value");
     AppendMenuW(menu, modify_flags, cmd::kNewKey, L"New Key");
     AppendMenuW(menu, MF_POPUP | ((has_node && can_modify) ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(new_value), L"New Value");
   }
@@ -280,16 +279,6 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt) {
       }
     }
 
-    HMENU new_value = CreatePopupMenu();
-    AppendMenuW(new_value, MF_STRING, cmd::kNewString, L"String Value");
-    AppendMenuW(new_value, MF_STRING, cmd::kNewBinary, L"Binary Value");
-    AppendMenuW(new_value, MF_STRING, cmd::kNewDword, L"DWORD (32-bit) Value");
-    AppendMenuW(new_value, MF_STRING, cmd::kNewQword, L"QWORD (64-bit) Value");
-    AppendMenuW(new_value, MF_STRING, cmd::kNewMultiString, L"Multi-String Value");
-    AppendMenuW(new_value, MF_STRING, cmd::kNewExpandString, L"Expandable String Value");
-    AppendMenuW(new_value, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(new_value, MF_STRING, cmd::kNewSymbolicLink, L"Symbolic Link");
-
     AppendMenuW(menu, edit_flags, cmd::kEditCopyKey, L"Copy Key Name");
     AppendMenuW(menu, edit_flags, cmd::kEditCopyKeyPath, L"Copy Key Path");
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), L"Copy Key Path As");
@@ -306,6 +295,15 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt) {
     if (is_simulated) {
       AppendMenuW(menu, modify_flags, cmd::kCreateSimulatedKey, L"Create Key");
     } else {
+      HMENU new_value = CreatePopupMenu();
+      AppendMenuW(new_value, MF_STRING, cmd::kNewString, L"String Value");
+      AppendMenuW(new_value, MF_STRING, cmd::kNewBinary, L"Binary Value");
+      AppendMenuW(new_value, MF_STRING, cmd::kNewDword, L"DWORD (32-bit) Value");
+      AppendMenuW(new_value, MF_STRING, cmd::kNewQword, L"QWORD (64-bit) Value");
+      AppendMenuW(new_value, MF_STRING, cmd::kNewMultiString, L"Multi-String Value");
+      AppendMenuW(new_value, MF_STRING, cmd::kNewExpandString, L"Expandable String Value");
+      AppendMenuW(new_value, MF_SEPARATOR, 0, nullptr);
+      AppendMenuW(new_value, MF_STRING, cmd::kNewSymbolicLink, L"Symbolic Link");
       AppendMenuW(menu, modify_flags, cmd::kNewKey, L"New Key");
       AppendMenuW(menu, MF_POPUP | (can_modify ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(new_value), L"New Value");
     }
@@ -353,16 +351,6 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt) {
     bool can_modify = !read_only_;
     UINT edit_flags = MF_STRING | (browse_.current_node() ? 0 : MF_GRAYED);
     UINT modify_flags = MF_STRING | ((browse_.current_node() && can_modify) ? 0 : MF_GRAYED);
-    HMENU new_value = CreatePopupMenu();
-    AppendMenuW(new_value, MF_STRING, cmd::kNewString, L"String Value");
-    AppendMenuW(new_value, MF_STRING, cmd::kNewBinary, L"Binary Value");
-    AppendMenuW(new_value, MF_STRING, cmd::kNewDword, L"DWORD (32-bit) Value");
-    AppendMenuW(new_value, MF_STRING, cmd::kNewQword, L"QWORD (64-bit) Value");
-    AppendMenuW(new_value, MF_STRING, cmd::kNewMultiString, L"Multi-String Value");
-    AppendMenuW(new_value, MF_STRING, cmd::kNewExpandString, L"Expandable String Value");
-    AppendMenuW(new_value, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(new_value, MF_STRING, cmd::kNewSymbolicLink, L"Symbolic Link");
-
     AppendMenuW(menu, edit_flags, cmd::kEditCopyKey, L"Copy Key Name");
     AppendMenuW(menu, edit_flags, cmd::kEditCopyKeyPath, L"Copy Key Path");
     AppendMenuW(menu, MF_POPUP | (browse_.current_node() ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), L"Copy Key Path As");
@@ -370,6 +358,15 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt) {
     if (is_simulated) {
       AppendMenuW(menu, modify_flags, cmd::kCreateSimulatedKey, L"Create Key");
     } else {
+      HMENU new_value = CreatePopupMenu();
+      AppendMenuW(new_value, MF_STRING, cmd::kNewString, L"String Value");
+      AppendMenuW(new_value, MF_STRING, cmd::kNewBinary, L"Binary Value");
+      AppendMenuW(new_value, MF_STRING, cmd::kNewDword, L"DWORD (32-bit) Value");
+      AppendMenuW(new_value, MF_STRING, cmd::kNewQword, L"QWORD (64-bit) Value");
+      AppendMenuW(new_value, MF_STRING, cmd::kNewMultiString, L"Multi-String Value");
+      AppendMenuW(new_value, MF_STRING, cmd::kNewExpandString, L"Expandable String Value");
+      AppendMenuW(new_value, MF_SEPARATOR, 0, nullptr);
+      AppendMenuW(new_value, MF_STRING, cmd::kNewSymbolicLink, L"Symbolic Link");
       AppendMenuW(menu, modify_flags, cmd::kNewKey, L"New Key");
       AppendMenuW(menu, MF_POPUP | ((browse_.current_node() && can_modify) ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(new_value), L"New Value");
     }

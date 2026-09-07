@@ -84,11 +84,64 @@ std::string JsonString(const std::string& json, const char* key,
   if (pos == std::string::npos) {
     return {};
   }
-  const size_t end = json.find('"', pos + 1);
-  if (end == std::string::npos) {
-    return {};
+  std::string value;
+  for (size_t i = pos + 1; i < json.size(); ++i) {
+    const char ch = json[i];
+    if (ch == '"') {
+      return value;
+    }
+    if (ch != '\\') {
+      value.push_back(ch);
+      continue;
+    }
+    if (++i >= json.size()) {
+      break;
+    }
+    switch (json[i]) {
+    case 'n':
+      value.push_back('\n');
+      break;
+    case 'r':
+      value.push_back('\r');
+      break;
+    case 't':
+      value.push_back('\t');
+      break;
+    case 'b':
+      value.push_back('\b');
+      break;
+    case 'f':
+      value.push_back('\f');
+      break;
+    case 'u': {
+      if (i + 4 >= json.size()) {
+        return {};
+      }
+      const std::string digits = json.substr(i + 1, 4);
+      wchar_t code = 0;
+      for (char digit : digits) {
+        int nibble = 0;
+        if (digit >= '0' && digit <= '9') {
+          nibble = digit - '0';
+        } else if (digit >= 'a' && digit <= 'f') {
+          nibble = 10 + (digit - 'a');
+        } else if (digit >= 'A' && digit <= 'F') {
+          nibble = 10 + (digit - 'A');
+        } else {
+          return {};
+        }
+        code = static_cast<wchar_t>((code << 4) | nibble);
+      }
+      value += util::WideToUtf8(std::wstring(1, code));
+      i += 4;
+      break;
+    }
+    default:
+      value.push_back(json[i]);
+      break;
+    }
   }
-  return json.substr(pos + 1, end - pos - 1);
+  return {};
 }
 
 std::vector<int> VersionParts(const std::wstring& text) {

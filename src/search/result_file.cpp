@@ -6,6 +6,8 @@
 #include "records/escaped_fields.h"
 #include "win32/file_text.h"
 
+#include <cerrno>
+#include <cstdint>
 #include <string_view>
 #include <utility>
 
@@ -16,20 +18,27 @@ namespace {
 constexpr wchar_t kRecordVersionTag[] = L"#regkit-search-2";
 constexpr uint64_t kMaxResultFileBytes = 256ull * 1024 * 1024;
 
-FILETIME FileTimeFromString(const std::wstring& text) {
-  const unsigned long long value =
-      text.empty() ? 0ull : _wcstoui64(text.c_str(), nullptr, 10);
-  FILETIME time = {};
-  time.dwLowDateTime = static_cast<DWORD>(value & 0xFFFFFFFFull);
-  time.dwHighDateTime = static_cast<DWORD>(value >> 32);
-  return time;
-}
-
 std::wstring FileTimeToString(const FILETIME& time) {
   const unsigned long long value =
       (static_cast<unsigned long long>(time.dwHighDateTime) << 32) |
       static_cast<unsigned long long>(time.dwLowDateTime);
   return std::to_wstring(value);
+}
+
+bool ParseNumber(const std::wstring& text, unsigned long long limit,
+                 unsigned long long* out) {
+  if (!out || text.empty() ||
+      text.find_first_not_of(L"0123456789") != std::wstring::npos) {
+    return false;
+  }
+  errno = 0;
+  wchar_t* end = nullptr;
+  const unsigned long long value = wcstoull(text.c_str(), &end, 10);
+  if (!end || *end != L'\0' || errno == ERANGE || value > limit) {
+    return false;
+  }
+  *out = value;
+  return true;
 }
 
 MatchField ToMatchField(int value) {
@@ -63,29 +72,50 @@ Result ParseLegacyRecord(const std::vector<std::wstring>& fields) {
   return result;
 }
 
-Result ParseVersionedRecord(const std::vector<std::wstring>& fields) {
+bool ParseVersionedRecord(const std::vector<std::wstring>& fields,
+                          Result* out) {
+  if (!out) {
+    return false;
+  }
   Result result;
   result.key_path = record_fields::Unescape(fields[0]);
   result.value_name = record_fields::Unescape(fields[1]);
   result.data_text = record_fields::Unescape(fields[2]);
-  result.type = static_cast<DWORD>(_wcstoui64(fields[3].c_str(), nullptr, 10));
-  result.data_size =
-      static_cast<DWORD>(_wcstoui64(fields[4].c_str(), nullptr, 10));
-  result.modified = FileTimeFromString(fields[5]);
-  result.match_field = ToMatchField(_wtoi(fields[6].c_str()));
-  result.match_start =
-      static_cast<uint32_t>(_wcstoui64(fields[7].c_str(), nullptr, 10));
-  result.match_length =
-      static_cast<uint32_t>(_wcstoui64(fields[8].c_str(), nullptr, 10));
-  const int kind = _wtoi(fields[9].c_str());
-  result.kind = kind < 0 || kind > static_cast<int>(ResultKind::kTraceValue)
-                    ? ResultKind::kValue
-                    : static_cast<ResultKind>(kind);
-  const int state = _wtoi(fields[10].c_str());
-  result.data_state = state < 0 || state > static_cast<int>(DataState::kLoaded)
-                          ? DataState::kNotApplicable
-                          : static_cast<DataState>(state);
-  return result;
+
+  unsigned long long type = 0;
+  unsigned long long data_size = 0;
+  unsigned long long modified = 0;
+  unsigned long long match_field = 0;
+  unsigned long long match_start = 0;
+  unsigned long long match_length = 0;
+  unsigned long long kind = 0;
+  unsigned long long state = 0;
+  if (!ParseNumber(fields[3], MAXDWORD, &type) ||
+      !ParseNumber(fields[4], MAXDWORD, &data_size) ||
+      !ParseNumber(fields[5], MAXULONGLONG, &modified) ||
+      !ParseNumber(fields[6], static_cast<unsigned long long>(MatchField::kData),
+                  &match_field) ||
+      !ParseNumber(fields[7], UINT32_MAX, &match_start) ||
+      !ParseNumber(fields[8], UINT32_MAX, &match_length) ||
+      !ParseNumber(fields[9],
+                  static_cast<unsigned long long>(ResultKind::kTraceValue),
+                  &kind) ||
+      !ParseNumber(fields[10], static_cast<unsigned long long>(DataState::kLoaded),
+                  &state)) {
+    return false;
+  }
+
+  result.type = static_cast<DWORD>(type);
+  result.data_size = static_cast<DWORD>(data_size);
+  result.modified.dwLowDateTime = static_cast<DWORD>(modified & 0xFFFFFFFFull);
+  result.modified.dwHighDateTime = static_cast<DWORD>(modified >> 32);
+  result.match_field = static_cast<MatchField>(match_field);
+  result.match_start = static_cast<uint32_t>(match_start);
+  result.match_length = static_cast<uint32_t>(match_length);
+  result.kind = static_cast<ResultKind>(kind);
+  result.data_state = static_cast<DataState>(state);
+  *out = std::move(result);
+  return true;
 }
 
 } // namespace
@@ -117,10 +147,11 @@ bool ParseResults(const std::wstring& content,
     }
     const auto fields = record_fields::Split(line);
     if (versioned) {
-      if (fields.size() < 11) {
+      Result record;
+      if (fields.size() != 11 || !ParseVersionedRecord(fields, &record)) {
         return false;
       }
-      results.push_back(ParseVersionedRecord(fields));
+      results.push_back(std::move(record));
       continue;
     }
     if (fields.size() < 13) {
@@ -165,9 +196,13 @@ bool LoadResults(const std::wstring& path,
       bytes[2] == 0xBF) {
     offset = 3;
   }
-  const std::wstring content = util::Utf8ToWide(std::string_view(
+  const std::string_view payload(
       reinterpret_cast<const char*>(bytes.data() + offset),
-      bytes.size() - offset));
+      bytes.size() - offset);
+  const std::wstring content = util::Utf8ToWide(payload);
+  if (content.empty() && !payload.empty()) {
+    return false;
+  }
   return ParseResults(content, results);
 }
 

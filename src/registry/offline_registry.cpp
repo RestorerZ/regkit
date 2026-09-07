@@ -38,6 +38,10 @@ using ORDeleteValueFn = DWORD(WINAPI*)(ORHKEY, PCWSTR);
 using OREnumValueFn =
     DWORD(WINAPI*)(ORHKEY, DWORD, PWSTR, DWORD*, DWORD*, BYTE*, DWORD*);
 using ORRenameKeyFn = DWORD(WINAPI*)(ORHKEY, PCWSTR);
+using ORGetKeySecurityFn =
+    DWORD(WINAPI*)(ORHKEY, SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, DWORD*);
+using ORSetKeySecurityFn =
+    DWORD(WINAPI*)(ORHKEY, SECURITY_INFORMATION, PSECURITY_DESCRIPTOR);
 
 template <typename Function>
 Function LoadFunction(HMODULE module, const char* name) {
@@ -69,6 +73,10 @@ public:
     delete_value = LoadFunction<ORDeleteValueFn>(module_, "ORDeleteValue");
     enum_value = LoadFunction<OREnumValueFn>(module_, "OREnumValue");
     rename_key = LoadFunction<ORRenameKeyFn>(module_, "ORRenameKey");
+    get_key_security =
+        LoadFunction<ORGetKeySecurityFn>(module_, "ORGetKeySecurity");
+    set_key_security =
+        LoadFunction<ORSetKeySecurityFn>(module_, "ORSetKeySecurity");
     if (!valid()) {
       load_error_ = ERROR_PROC_NOT_FOUND;
       FreeLibrary(module_);
@@ -105,6 +113,8 @@ public:
   ORDeleteValueFn delete_value = nullptr;
   OREnumValueFn enum_value = nullptr;
   ORRenameKeyFn rename_key = nullptr;
+  ORGetKeySecurityFn get_key_security = nullptr;
+  ORSetKeySecurityFn set_key_security = nullptr;
 
   DWORD load_error() const noexcept { return load_error_; }
 
@@ -608,7 +618,64 @@ bool CreateKey(const RegistryNode& node, const std::wstring& name) {
       api->create_key(parent.get(), name.c_str(), nullptr, 0, nullptr,
                       &created_handle, &disposition);
   OfflineKey created(created_handle, api->close_key);
-  return result == ERROR_SUCCESS;
+  return result == ERROR_SUCCESS && disposition == REG_CREATED_NEW_KEY;
+}
+
+bool ReadKeySecurity(const RegistryNode& node,
+                     std::vector<BYTE>* descriptor) {
+  if (!descriptor) {
+    return false;
+  }
+  descriptor->clear();
+  OffregApi* api = Api();
+  if (!api || !api->get_key_security) {
+    return false;
+  }
+  OfflineKey key = OpenKey(node, api);
+  if (!key.get()) {
+    return false;
+  }
+  const SECURITY_INFORMATION wanted = OWNER_SECURITY_INFORMATION |
+                                      GROUP_SECURITY_INFORMATION |
+                                      DACL_SECURITY_INFORMATION;
+  DWORD size = 0;
+  DWORD result = api->get_key_security(key.get(), wanted, nullptr, &size);
+  if ((result != ERROR_MORE_DATA && result != ERROR_INSUFFICIENT_BUFFER) ||
+      size == 0) {
+    return false;
+  }
+  descriptor->resize(size);
+  result = api->get_key_security(
+      key.get(), wanted,
+      reinterpret_cast<PSECURITY_DESCRIPTOR>(descriptor->data()), &size);
+  if (result != ERROR_SUCCESS) {
+    descriptor->clear();
+    return false;
+  }
+  descriptor->resize(size);
+  return true;
+}
+
+bool WriteKeySecurity(const RegistryNode& node,
+                      const std::vector<BYTE>& descriptor) {
+  if (descriptor.empty()) {
+    return false;
+  }
+  OffregApi* api = Api();
+  if (!api || !api->set_key_security) {
+    return false;
+  }
+  OfflineKey key = OpenKey(node, api);
+  if (!key.get()) {
+    return false;
+  }
+  const SECURITY_INFORMATION wanted = OWNER_SECURITY_INFORMATION |
+                                      GROUP_SECURITY_INFORMATION |
+                                      DACL_SECURITY_INFORMATION;
+  return api->set_key_security(
+             key.get(), wanted,
+             reinterpret_cast<PSECURITY_DESCRIPTOR>(
+                 const_cast<BYTE*>(descriptor.data()))) == ERROR_SUCCESS;
 }
 
 bool DeleteKey(const RegistryNode& node) {
@@ -652,7 +719,10 @@ bool SetValue(const RegistryNode& node, const std::wstring& value_name,
 }
 
 bool RenameValue(const RegistryNode& node, const std::wstring& old_name,
-                 const std::wstring& new_name) {
+                 const std::wstring& new_name, bool* both_names_left) {
+  if (both_names_left) {
+    *both_names_left = false;
+  }
   OffregApi* api = Api();
   OfflineKey key = OpenKey(node, api);
   if (!api || !key.get()) {
@@ -668,13 +738,28 @@ bool RenameValue(const RegistryNode& node, const std::wstring& old_name,
   std::vector<BYTE> data(size);
   result = api->get_value(key.get(), nullptr, old_name.c_str(), &type,
                           data.empty() ? nullptr : data.data(), &size);
-  if (result != ERROR_SUCCESS ||
-      api->set_value(key.get(), new_name.c_str(), type,
+  if (result != ERROR_SUCCESS) {
+    return false;
+  }
+  DWORD existing_type = 0;
+  DWORD existing_size = 0;
+  if (api->get_value(key.get(), nullptr, new_name.c_str(), &existing_type,
+                     nullptr, &existing_size) != ERROR_FILE_NOT_FOUND) {
+    return false;
+  }
+  if (api->set_value(key.get(), new_name.c_str(), type,
                      data.empty() ? nullptr : data.data(),
                      size) != ERROR_SUCCESS) {
     return false;
   }
-  return api->delete_value(key.get(), old_name.c_str()) == ERROR_SUCCESS;
+  if (api->delete_value(key.get(), old_name.c_str()) != ERROR_SUCCESS) {
+    if (api->delete_value(key.get(), new_name.c_str()) != ERROR_SUCCESS &&
+        both_names_left) {
+      *both_names_left = true;
+    }
+    return false;
+  }
+  return true;
 }
 
 } // namespace regkit::registry_backend::offline

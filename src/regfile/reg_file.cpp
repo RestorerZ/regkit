@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "regfile/reg_file.h"
+#include "win32/text_transform.h"
 
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
@@ -25,14 +26,6 @@ std::wstring Trim(std::wstring_view text) {
     --last;
   }
   return std::wstring(text.substr(first, last - first));
-}
-
-std::wstring Lower(std::wstring_view text) {
-  std::wstring result(text);
-  for (wchar_t& character : result) {
-    character = towlower(character);
-  }
-  return result;
 }
 
 bool ParseQuoted(std::wstring_view text, std::wstring* output,
@@ -397,7 +390,7 @@ bool Parse(std::wstring_view content, Document* output,
       if (path.empty()) {
         return fail(line);
       }
-      const std::wstring lower = Lower(path);
+      const std::wstring lower = util::ToLower(path);
       auto [iterator, inserted] =
           output->keys.try_emplace(lower, Key{path, {}});
       if (inserted) {
@@ -430,7 +423,7 @@ bool Parse(std::wstring_view content, Document* output,
     }
 
     if (data_text == L"-") {
-      current_key->values.erase(Lower(value.name));
+      current_key->values.erase(util::ToLower(value.name));
       current_key->removed_values.push_back(value.name);
       continue;
     }
@@ -488,7 +481,7 @@ bool Parse(std::wstring_view content, Document* output,
     } else {
       return fail(line);
     }
-    current_key->values[Lower(value.name)] = std::move(value);
+    current_key->values[util::ToLower(value.name)] = std::move(value);
   }
   return true;
 }
@@ -508,7 +501,7 @@ bool Load(const std::wstring& path, Document* output, std::wstring* error,
 std::wstring Serialize(const Document& document) {
   Writer writer;
   for (const auto& ordered_path : document.key_order) {
-    auto key = document.keys.find(Lower(ordered_path));
+    auto key = document.keys.find(util::ToLower(ordered_path));
     if (key == document.keys.end()) {
       continue;
     }

@@ -117,9 +117,6 @@ void ApplyConfirmFonts(HWND hwnd, HFONT font) {
   if (!font) {
     return;
   }
-  if (!font) {
-    return;
-  }
   SendMessageW(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
   EnumChildWindows(
       hwnd,
@@ -151,6 +148,9 @@ int TextWidth(HWND window, HFONT font, const std::wstring& text) {
 
 int TextBlockHeight(HWND window, HFONT font, const std::wstring& text, int width) {
   HDC dc = GetDC(window);
+  if (!dc) {
+    return 0;
+  }
   HFONT old_font = font ? reinterpret_cast<HFONT>(SelectObject(dc, font)) : nullptr;
   RECT rect = {0, 0, width, 0};
   DrawTextW(dc, text.c_str(), -1, &rect, DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
@@ -899,9 +899,12 @@ bool CopyTextToClipboard(HWND owner, const std::wstring& text) {
   }
   memcpy(data, text.c_str(), bytes);
   GlobalUnlock(memory);
-  SetClipboardData(CF_UNICODETEXT, memory);
+  const bool copied = SetClipboardData(CF_UNICODETEXT, memory) != nullptr;
+  if (!copied) {
+    GlobalFree(memory);
+  }
   CloseClipboard();
-  return true;
+  return copied;
 }
 
 void ShowError(HWND owner, const std::wstring& message) {

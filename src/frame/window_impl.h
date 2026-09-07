@@ -106,6 +106,7 @@ private:
     uint64_t generation = 0;
     std::vector<Change> changes;
     int failures = 0;
+    int partial_renames = 0;
     bool cancelled = false;
   };
 
@@ -360,7 +361,7 @@ private:
   bool HandleRenameCommand(int command_id);
   bool HandleDeleteCommand(int command_id);
   bool EnsureWritable();
-  void PrepareMenusForOwnerDraw(HMENU menu, bool is_menu_bar);
+  void PrepareMenusForOwnerDraw(HMENU menu);
   void OnMeasureMenuItem(MEASUREITEMSTRUCT* info);
   void OnDrawMenuItem(const DRAWITEMSTRUCT* info);
   void PaintMenuBarSeparator();
@@ -412,7 +413,7 @@ private:
   bool InvertSelectionInFocusedList();
   bool IsCompareTabSelected() const;
   void StartCompareRegistries();
-  void AppendHistoryCache(const HistoryEntry& entry);
+  bool AppendHistoryCache(const HistoryEntry& entry);
   std::wstring CacheFolderPath() const;
   std::wstring HistoryCachePath() const;
   std::wstring TabsCachePath() const;
@@ -424,7 +425,7 @@ private:
   void StartStartupCacheLoad(bool include_tree_state);
   void StopStartupCacheLoad();
   void ApplyStartupCachePayload(StartupCachePayload* payload);
-  void SaveComments() const;
+  bool SaveComments() const;
   bool ImportCommentsFromFile(const std::wstring& path);
   bool ExportCommentsToFile(const std::wstring& path) const;
   void RefreshValueListComments();
@@ -508,7 +509,12 @@ private:
 
   void PushUndo(changes::UndoOperation operation);
   void ClearRedo();
-  bool ApplyUndoOperation(const changes::UndoOperation& operation, bool redo);
+  enum class ReplayResult {
+    kSuccess,
+    kUnchanged,
+    kPartial,
+  };
+  ReplayResult ApplyUndoOperation(const changes::UndoOperation& operation, bool redo);
   bool SameNode(const RegistryNode& left, const RegistryNode& right) const;
   std::wstring MakeUniqueValueName(const RegistryNode& node, const std::wstring& base) const;
   std::wstring MakeUniqueKeyName(const RegistryNode& node, const std::wstring& base) const;
@@ -631,6 +637,7 @@ private:
   std::atomic<uint64_t> value_list_generation_{0};
   bool applying_theme_ = false;
   bool history_loaded_ = false;
+  bool history_cache_failed_ = false;
   bool is_replaying_ = false;
   bool clear_history_on_exit_ = false;
   bool save_tabs_ = true;
@@ -930,11 +937,7 @@ private:
   bool bundled_defaults_loaded_ = false;
   struct MenuItemData {
     std::wstring text;
-    std::wstring left_text;
-    std::wstring right_text;
     bool separator = false;
-    bool has_submenu = false;
-    bool is_menu_bar = false;
     int width = 0;
     int height = 0;
   };

@@ -110,9 +110,9 @@ public:
     if (!sd) {
       return E_POINTER;
     }
-    return RegSetKeySecurity(key_, security_info, sd) == ERROR_SUCCESS
-               ? S_OK
-               : HRESULT_FROM_WIN32(GetLastError());
+    const LSTATUS status = RegSetKeySecurity(key_, security_info, sd);
+    return status == ERROR_SUCCESS ? S_OK
+                                   : HRESULT_FROM_WIN32(status);
   }
 
   HRESULT STDMETHODCALLTYPE GetAccessRights(const GUID*, DWORD, PSI_ACCESS* access, ULONG* count, ULONG* default_access) override {

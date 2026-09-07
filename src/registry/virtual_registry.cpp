@@ -318,8 +318,11 @@ bool SetValue(VirtualRegistryData& data, const RegistryNode& node,
 }
 
 bool RenameValue(VirtualRegistryData& data, const RegistryNode& node,
-                 const std::wstring& old_name,
-                 const std::wstring& new_name) {
+                 const std::wstring& old_name, const std::wstring& new_name,
+                 bool* both_names_left) {
+  if (both_names_left) {
+    *both_names_left = false;
+  }
   std::unique_lock<std::shared_mutex> lock(*data.mutex);
   VirtualRegistryKey* key = FindKey(data.root.get(), node.subkey);
   if (!key) {

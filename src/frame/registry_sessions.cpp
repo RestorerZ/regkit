@@ -73,7 +73,20 @@ bool MainWindow::Impl::UnloadOfflineRegistry(std::wstring* error) {
     offline_root_labels_ = std::move(remaining_labels);
     offline_root_paths_ = std::move(remaining_paths);
     offline_root_ = offline_roots_.size() == 1 ? offline_roots_.front() : nullptr;
+    offline_mount_ = offline_roots_.size() == 1 && !offline_root_labels_.empty()
+                         ? offline_root_labels_.front()
+                         : std::wstring();
     RegistryStore::SetOfflineRoots(offline_roots_);
+    std::vector<RegistryRootEntry> roots;
+    roots.reserve(offline_roots_.size());
+    for (size_t i = 0; i < offline_roots_.size(); ++i) {
+      const std::wstring label =
+          i < offline_root_labels_.size() ? offline_root_labels_[i]
+                                          : std::wstring(L"OfflineHive");
+      roots.push_back({offline_roots_[i], label,
+                       offline_root_name_ + L"\\" + label, L""});
+    }
+    ApplyRegistryRoots(roots);
     return false;
   }
   ClearOfflineDirty();

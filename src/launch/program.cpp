@@ -425,9 +425,13 @@ bool RelaunchAsAdmin(DWORD parent_pid,
       regkit::win32::RestartArguments(nullptr, parent_pid, original_args)));
 }
 
+constexpr wchar_t kImpersonationLostMessage[] =
+    L"RegKit couldn't restore its own security context and must close now.";
+
 bool RestartAsSystem(DWORD parent_pid, std::wstring* error_message,
                      bool* launched,
-                     const std::vector<std::wstring>& original_args) {
+                     const std::vector<std::wstring>& original_args,
+                     bool* impersonation_lost = nullptr) {
   if (error_message) {
     error_message->clear();
   }
@@ -464,7 +468,8 @@ bool RestartAsSystem(DWORD parent_pid, std::wstring* error_message,
   command_line += L"\" ";
   command_line += regkit::win32::RestartArguments(kRestartSystemArg, parent_pid, original_args);
   DWORD error = 0;
-  if (!util::LaunchProcessAsSystem(command_line, L"", &error)) {
+  if (!util::LaunchProcessAsSystem(command_line, L"", &error,
+                                   impersonation_lost)) {
     if (error_message) {
       std::wstring message = L"Failed to restart with SYSTEM rights.";
       std::wstring detail = FormatWin32Error(error);
@@ -484,7 +489,8 @@ bool RestartAsSystem(DWORD parent_pid, std::wstring* error_message,
 
 bool RestartAsTrustedInstaller(DWORD parent_pid,
                                std::wstring* error_message, bool* launched,
-                               const std::vector<std::wstring>& original_args) {
+                               const std::vector<std::wstring>& original_args,
+                               bool* impersonation_lost = nullptr) {
   if (error_message) {
     error_message->clear();
   }
@@ -521,7 +527,8 @@ bool RestartAsTrustedInstaller(DWORD parent_pid,
   command_line += L"\" ";
   command_line += regkit::win32::RestartArguments(kRestartTiArg, parent_pid, original_args);
   DWORD error = 0;
-  if (!util::LaunchProcessAsTrustedInstaller(command_line, L"", &error)) {
+  if (!util::LaunchProcessAsTrustedInstaller(command_line, L"", &error,
+                                             impersonation_lost)) {
     if (error_message) {
       std::wstring message = L"Failed to restart with TrustedInstaller rights.";
       std::wstring detail = FormatWin32Error(error);
@@ -573,10 +580,17 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
   const DWORD restart_parent_pid = regkit::win32::RestartParentPid(args);
   const DWORD handoff_pid =
       restart_parent_pid != 0 ? restart_parent_pid : GetCurrentProcessId();
+  bool impersonation_lost = false;
   if (restart_ti) {
     std::wstring error;
     bool launched = false;
-    if (RestartAsTrustedInstaller(handoff_pid, &error, &launched, args)) {
+    const bool ok = RestartAsTrustedInstaller(handoff_pid, &error, &launched,
+                                              args, &impersonation_lost);
+    if (impersonation_lost) {
+      regkit::ui::ShowError(nullptr, kImpersonationLostMessage);
+      return launched ? 0 : 1;
+    }
+    if (ok) {
       if (launched) {
         return 0;
       }
@@ -586,7 +600,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
   } else if (restart_system) {
     std::wstring error;
     bool launched = false;
-    if (RestartAsSystem(handoff_pid, &error, &launched, args)) {
+    const bool ok = RestartAsSystem(handoff_pid, &error, &launched, args,
+                                    &impersonation_lost);
+    if (impersonation_lost) {
+      regkit::ui::ShowError(nullptr, kImpersonationLostMessage);
+      return launched ? 0 : 1;
+    }
+    if (ok) {
       if (launched) {
         return 0;
       }
@@ -597,7 +617,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
              !util::IsProcessTrustedInstaller()) {
     std::wstring error;
     bool launched = false;
-    if (RestartAsTrustedInstaller(handoff_pid, &error, &launched, args)) {
+    const bool ok = RestartAsTrustedInstaller(handoff_pid, &error, &launched,
+                                              args, &impersonation_lost);
+    if (impersonation_lost) {
+      regkit::ui::ShowError(nullptr, kImpersonationLostMessage);
+      return launched ? 0 : 1;
+    }
+    if (ok) {
       if (launched) {
         return 0;
       }
@@ -608,7 +634,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
              !util::IsProcessSystem()) {
     std::wstring error;
     bool launched = false;
-    if (RestartAsSystem(handoff_pid, &error, &launched, args)) {
+    const bool ok = RestartAsSystem(handoff_pid, &error, &launched, args,
+                                    &impersonation_lost);
+    if (impersonation_lost) {
+      regkit::ui::ShowError(nullptr, kImpersonationLostMessage);
+      return launched ? 0 : 1;
+    }
+    if (ok) {
       if (launched) {
         return 0;
       }
@@ -652,11 +684,19 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
           data.dwData = kExternalJumpCopyDataId;
           data.cbData = static_cast<DWORD>((startup_jump_target.size() + 1) * sizeof(wchar_t));
           data.lpData = const_cast<wchar_t*>(startup_jump_target.c_str());
-          DWORD_PTR ignored = 0;
+          HWND sender = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0,
+                                        HWND_MESSAGE, nullptr, instance,
+                                        nullptr);
+          DWORD_PTR accepted = 0;
           handed_off =
-              SendMessageTimeoutW(existing, WM_COPYDATA, 0,
+              SendMessageTimeoutW(existing, WM_COPYDATA,
+                                  reinterpret_cast<WPARAM>(sender),
                                   reinterpret_cast<LPARAM>(&data),
-                                  SMTO_ABORTIFHUNG, 1500, &ignored) != 0;
+                                  SMTO_ABORTIFHUNG, 1500, &accepted) != 0 &&
+              accepted != 0;
+          if (sender) {
+            DestroyWindow(sender);
+          }
         }
         if (handed_off) {
           ShowWindow(existing, SW_RESTORE);

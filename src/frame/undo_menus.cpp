@@ -27,12 +27,13 @@ void MainWindow::Impl::ClearRedo() {
   }
 }
 
-bool MainWindow::Impl::ApplyUndoOperation(const changes::UndoOperation& operation,
-                                          bool redo) {
+MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
+    const changes::UndoOperation& operation, bool redo) {
   if (!browse_.current_node()) {
-    return false;
+    return ReplayResult::kUnchanged;
   }
   bool ok = false;
+  bool rename_left_both_names = false;
   is_replaying_ = true;
   switch (operation.type) {
   case changes::UndoOperation::Type::kCreateKey: {
@@ -109,7 +110,8 @@ bool MainWindow::Impl::ApplyUndoOperation(const changes::UndoOperation& operatio
   case changes::UndoOperation::Type::kRenameValue: {
     std::wstring from = redo ? operation.name : operation.new_name;
     std::wstring to = redo ? operation.new_name : operation.name;
-    ok = RegistryStore::RenameValue(operation.node, from, to);
+    ok = RegistryStore::RenameValue(operation.node, from, to,
+                                    &rename_left_both_names);
     break;
   }
   default:
@@ -117,11 +119,16 @@ bool MainWindow::Impl::ApplyUndoOperation(const changes::UndoOperation& operatio
   }
   is_replaying_ = false;
 
-  if (ok) {
+  if (ok || rename_left_both_names) {
     MarkOfflineDirty();
   }
-  if (ok && browse_.current_node()) {
+  if ((ok || rename_left_both_names) && browse_.current_node()) {
     UpdateValueListForNode(browse_.current_node());
+  }
+  if (rename_left_both_names) {
+    ui::ShowError(hwnd_,
+                  L"The value was copied to the new name but the old name "
+                  L"could not be removed. Both names now exist.");
   }
   if (toolbar_.hwnd()) {
     SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo,
@@ -129,7 +136,10 @@ bool MainWindow::Impl::ApplyUndoOperation(const changes::UndoOperation& operatio
     SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo,
                  undo_stack_.CanRedo() ? TBSTATE_ENABLED : 0);
   }
-  return ok;
+  if (rename_left_both_names) {
+    return ReplayResult::kPartial;
+  }
+  return ok ? ReplayResult::kSuccess : ReplayResult::kUnchanged;
 }
 
 bool MainWindow::Impl::SameNode(const RegistryNode& left, const RegistryNode& right) const {

@@ -159,8 +159,17 @@ bool MainWindow::Impl::RevertHistoryEntry(const HistoryEntry& entry) {
   return true;
 }
 
-void MainWindow::Impl::AppendHistoryCache(const HistoryEntry& entry) {
-  changes::AppendHistoryFile(HistoryCachePath(), entry);
+bool MainWindow::Impl::AppendHistoryCache(const HistoryEntry& entry) {
+  if (changes::AppendHistoryFile(HistoryCachePath(), entry)) {
+    history_cache_failed_ = false;
+    return true;
+  }
+  if (!history_cache_failed_) {
+    history_cache_failed_ = true;
+    ui::ShowError(hwnd_, L"The history could not be written to disk. It is "
+                         L"kept for this session only.");
+  }
+  return false;
 }
 
 std::wstring MainWindow::Impl::CacheFolderPath() const {
@@ -391,6 +400,7 @@ bool MainWindow::Impl::SaveTabs() {
     }
   }
   workspace::TabState state;
+  bool saved_all = true;
   int active_index = TabCtrl_GetCurSel(tab_);
   int saved_active_index = -1;
 
@@ -431,9 +441,11 @@ bool MainWindow::Impl::SaveTabs() {
         search_tab.cache_file = file_name;
         reserved_files.insert(file_name);
       }
-      if (search_tab.results_loaded) {
-        std::wstring result_path = SearchTabCachePath(file_name);
-        search::SaveResults(result_path, search_tab.results);
+      if (search_tab.results_loaded &&
+          !search::SaveResults(SearchTabCachePath(file_name),
+                               search_tab.results)) {
+        saved_all = false;
+        continue;
       }
       referenced_files.insert(file_name);
       if (label.empty()) {
@@ -466,7 +478,7 @@ bool MainWindow::Impl::SaveTabs() {
     saved_active_index = 0;
   }
   state.active_index = saved_active_index;
-  const bool saved = workspace::SaveTabs(TabsCachePath(), state);
+  const bool saved = workspace::SaveTabs(TabsCachePath(), state) && saved_all;
 
   std::wstring pattern = util::JoinPath(folder, L"search_*.tsv");
   WIN32_FIND_DATAW data = {};
@@ -495,8 +507,8 @@ std::wstring MainWindow::Impl::CommentsPath() const {
   return util::JoinPath(folder, L"comments.tsv");
 }
 
-void MainWindow::Impl::SaveComments() const {
-  value_comments_.Save(CommentsPath());
+bool MainWindow::Impl::SaveComments() const {
+  return value_comments_.Save(CommentsPath());
 }
 
 bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path) {
@@ -648,7 +660,9 @@ bool MainWindow::Impl::EditValueComments(const std::vector<ListRow>& rows) {
       value_comments_.value_entries()[value_key] = std::move(entry);
     }
   }
-  SaveComments();
+  if (!SaveComments()) {
+    ui::ShowError(hwnd_, L"The comment could not be saved.");
+  }
   RefreshValueListComments();
   return true;
 }

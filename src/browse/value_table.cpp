@@ -4,7 +4,6 @@
 #include "browse/value_table.h"
 
 #include <algorithm>
-#include <cwctype>
 
 #include "win32/text_transform.h"
 
@@ -19,10 +18,7 @@ void AppendSearchField(std::wstring* out, const std::wstring& text) {
   if (!out->empty()) {
     out->push_back(L'\x1f');
   }
-  out->reserve(out->size() + text.size());
-  for (wchar_t ch : text) {
-    out->push_back(static_cast<wchar_t>(towlower(ch)));
-  }
+  out->append(util::ToLower(text));
 }
 
 std::wstring BuildSearchText(const ListRow& row) {

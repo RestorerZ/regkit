@@ -2,27 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "defaults/default_loader.h"
+#include "win32/text_transform.h"
 
 #include "regfile/reg_file.h"
 #include "registry/value_format.h"
 
-#include <algorithm>
-#include <cwctype>
 #include <utility>
 
 namespace regkit::defaults {
-
-namespace {
-
-std::wstring Lower(std::wstring text) {
-  std::transform(text.begin(), text.end(), text.begin(),
-                 [](wchar_t ch) {
-                   return static_cast<wchar_t>(towlower(ch));
-                 });
-  return text;
-}
-
-} // namespace
 
 bool Load(const std::wstring& path, const NormalizePath& normalize,
           Data* data, std::vector<Entry>* entries,
@@ -53,7 +40,7 @@ bool Load(const std::wstring& path, const NormalizePath& normalize,
     if (key_path.empty()) {
       continue;
     }
-    const auto source = document.keys.find(Lower(source_path));
+    const auto source = document.keys.find(util::ToLower(source_path));
     if (source == document.keys.end()) {
       continue;
     }
@@ -61,7 +48,7 @@ bool Load(const std::wstring& path, const NormalizePath& normalize,
     saw_key = true;
     Key* target = nullptr;
     if (data) {
-      target = &loaded.values_by_key[Lower(key_path)];
+      target = &loaded.values_by_key[util::ToLower(key_path)];
       target->values.reserve(source->second.values.size());
     }
     if (entries) {
@@ -83,7 +70,7 @@ bool Load(const std::wstring& path, const NormalizePath& normalize,
           static_cast<DWORD>(pair.second.data.size()));
       if (target) {
         auto& target_value =
-            target->values[Lower(pair.second.name)];
+            target->values[util::ToLower(pair.second.name)];
         if (entries) {
           target_value = value;
         } else {

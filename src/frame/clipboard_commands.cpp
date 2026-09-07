@@ -423,10 +423,15 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id) {
     if (!operation) {
       return true;
     }
-    if (ApplyUndoOperation(*operation, false)) {
+    switch (ApplyUndoOperation(*operation, false)) {
+    case ReplayResult::kSuccess:
       undo_stack_.CompleteUndo(std::move(*operation));
-    } else {
+      break;
+    case ReplayResult::kUnchanged:
       undo_stack_.CompleteRedo(std::move(*operation));
+      break;
+    case ReplayResult::kPartial:
+      break;
     }
     if (toolbar_.hwnd()) {
       SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo,
@@ -444,10 +449,15 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id) {
     if (!operation) {
       return true;
     }
-    if (ApplyUndoOperation(*operation, true)) {
+    switch (ApplyUndoOperation(*operation, true)) {
+    case ReplayResult::kSuccess:
       undo_stack_.CompleteRedo(std::move(*operation));
-    } else {
+      break;
+    case ReplayResult::kUnchanged:
       undo_stack_.CompleteUndo(std::move(*operation));
+      break;
+    case ReplayResult::kPartial:
+      break;
     }
     if (toolbar_.hwnd()) {
       SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo,

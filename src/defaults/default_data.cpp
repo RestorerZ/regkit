@@ -2,25 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "defaults/default_data.h"
+#include "win32/text_transform.h"
 
-#include <algorithm>
-#include <cwctype>
 #include <mutex>
 #include <utility>
 
 namespace regkit::defaults {
-
-namespace {
-
-std::wstring Lower(std::wstring text) {
-  std::transform(text.begin(), text.end(), text.begin(),
-                 [](wchar_t ch) {
-                   return static_cast<wchar_t>(towlower(ch));
-                 });
-  return text;
-}
-
-} // namespace
 
 void Merge(Data* data, const std::vector<Entry>& entries,
            const AliasPath& alias,
@@ -33,7 +20,7 @@ void Merge(Data* data, const std::vector<Entry>& entries,
     if (entry.key_path.empty()) {
       continue;
     }
-    const std::wstring key = Lower(entry.key_path);
+    const std::wstring key = util::ToLower(entry.key_path);
     if (affected_keys) {
       affected_keys->insert(key);
     }
@@ -44,12 +31,12 @@ void Merge(Data* data, const std::vector<Entry>& entries,
     value.type = entry.type;
     value.data = entry.data;
     value.raw = entry.raw;
-    const std::wstring name = Lower(entry.value_name);
+    const std::wstring name = util::ToLower(entry.value_name);
     data->values_by_key[key].values[name] = value;
 
     const std::wstring alias_path = alias ? alias(entry.key_path) : L"";
     if (!alias_path.empty()) {
-      const std::wstring alias_key = Lower(alias_path);
+      const std::wstring alias_key = util::ToLower(alias_path);
       data->values_by_key[alias_key].values[name] = std::move(value);
       if (affected_keys) {
         affected_keys->insert(alias_key);

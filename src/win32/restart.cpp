@@ -3,6 +3,8 @@
 
 #include "win32/restart.h"
 
+#include <cerrno>
+
 #include <shellapi.h>
 
 namespace regkit::win32 {
@@ -63,7 +65,7 @@ std::wstring QuoteArgument(const std::wstring& arg) {
 std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid,
                               const std::vector<std::wstring>& original_args) {
   std::wstring arguments = RestartArguments(target_arg, parent_pid);
-  for (size_t i = 1; i < original_args.size(); ++i) {
+  for (size_t i = 0; i < original_args.size(); ++i) {
     const std::wstring& arg = original_args[i];
     if (IsInternalRestartArg(arg)) {
       if (_wcsicmp(arg.c_str(), kRestartParentArg) == 0) {
@@ -105,11 +107,19 @@ DWORD RestartParentPid(const std::vector<std::wstring>& args) {
     if (_wcsicmp(args[i].c_str(), kRestartParentArg) != 0) {
       continue;
     }
-    wchar_t* end = nullptr;
-    const unsigned long value = wcstoul(args[i + 1].c_str(), &end, 10);
-    if (end && *end == L'\0') {
-      return static_cast<DWORD>(value);
+    const std::wstring& text = args[i + 1];
+    if (text.empty() ||
+        text.find_first_not_of(L"0123456789") != std::wstring::npos) {
+      continue;
     }
+    errno = 0;
+    wchar_t* end = nullptr;
+    const unsigned long value = wcstoul(text.c_str(), &end, 10);
+    if (!end || *end != L'\0' || errno == ERANGE || value == 0 ||
+        value > MAXDWORD) {
+      continue;
+    }
+    return static_cast<DWORD>(value);
   }
   return 0;
 }

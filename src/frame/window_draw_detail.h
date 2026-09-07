@@ -102,6 +102,7 @@ constexpr DWORD kSearchProgressUiMs = 500;
 constexpr size_t kSearchQueueBatch = 128;
 constexpr size_t kSearchPendingRowLimit = 8192;
 constexpr ULONG_PTR kExternalJumpCopyDataId = 0x52474A54;
+constexpr DWORD kExternalJumpMaxBytes = 64u * 1024u;
 constexpr UINT_PTR kAddressSubclassId = 1;
 constexpr UINT_PTR kTabSubclassId = 2;
 constexpr UINT_PTR kHeaderSubclassId = 3;

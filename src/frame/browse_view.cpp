@@ -6,10 +6,6 @@
 namespace regkit {
 using namespace window_detail;
 
-namespace {
-
-} // namespace
-
 void MainWindow::Impl::BuildImageLists() {
   if (tree_images_) {
     ImageList_Destroy(tree_images_);

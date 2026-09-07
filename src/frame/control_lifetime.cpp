@@ -752,8 +752,18 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam) 
                       L"Rename value", new_name);
       return FALSE;
     }
-    if (!RegistryStore::RenameValue(*browse_.current_node(), old_name, new_name)) {
-      ui::ShowError(hwnd_, L"Failed to rename value.");
+    bool both_names_left = false;
+    if (!RegistryStore::RenameValue(*browse_.current_node(), old_name, new_name,
+                                    &both_names_left)) {
+      if (both_names_left) {
+        MarkOfflineDirty();
+        UpdateValueListForNode(browse_.current_node());
+        ui::ShowError(hwnd_,
+                      L"The value was copied to the new name but the old name "
+                      L"could not be removed. Both names now exist.");
+      } else {
+        ui::ShowError(hwnd_, L"Failed to rename value.");
+      }
       return FALSE;
     }
     AppendValueHistoryEntry(L"Rename value " + old_name, old_name, new_name,
@@ -1711,6 +1721,8 @@ void MainWindow::Impl::OnDestroy() {
   StopValueListWorker();
   StopTreeStateWorker();
   CancelSearch();
+  update_session_.CancelAndJoin();
+  update_check_running_ = false;
   DiscardWorkerMessages();
   for (auto& entry : tabs_) {
     if (entry.kind == TabEntry::Kind::kRegFile) {

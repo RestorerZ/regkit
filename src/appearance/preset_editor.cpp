@@ -159,9 +159,9 @@ int GetSelectedPresetIndex(HWND list) {
   return static_cast<int>(item.lParam);
 }
 
-std::wstring MakeUniquePresetName(const std::vector<ThemePreset>& presets, const std::wstring& base_name) {
+std::wstring MakeUniquePresetName(const std::vector<ThemePreset>& presets, const std::wstring& base_name, const ThemePreset* ignored = nullptr) {
   std::wstring base = base_name.empty() ? L"Preset" : base_name;
-  auto exists = [&](const std::wstring& name) -> bool { return std::any_of(presets.begin(), presets.end(), [&](const ThemePreset& preset) { return _wcsicmp(preset.name.c_str(), name.c_str()) == 0; }); };
+  auto exists = [&](const std::wstring& name) -> bool { return std::any_of(presets.begin(), presets.end(), [&](const ThemePreset& preset) { return &preset != ignored && _wcsicmp(preset.name.c_str(), name.c_str()) == 0; }); };
   if (!exists(base)) {
     return base;
   }
@@ -847,7 +847,7 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
       if (!PromptPresetName(state, hwnd, L"Rename Preset", preset->name, &name)) {
         return 0;
       }
-      preset->name = MakeUniquePresetName(state->presets, name);
+      preset->name = MakeUniquePresetName(state->presets, name, preset);
       state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
       SyncSelection(state);
       return 0;
