@@ -38,7 +38,7 @@ RegKit adds functionality that standard regedit doesn't support:
 
 ## Keyboard Shortcuts
 
-### Files and registries
+### Files & Registries
 
 | Shortcut | Action |
 | --- | --- |
@@ -49,28 +49,28 @@ RegKit adds functionality that standard regedit doesn't support:
 | `Ctrl+S` | Save current editable tab |
 | `Ctrl+E` | Export |
 
-### Windows and tabs
+### Windows/Tabs
 
 | Shortcut | Action |
 | --- | --- |
-| `Ctrl+Shift+N` | Open a new RegKit window |
-| `Ctrl+W` | Close the current tab |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
-| `Ctrl+1` ... `Ctrl+9` | Select tab by position |
+| `Ctrl+Shift+N` | Open new RegKit window |
+| `Ctrl+W` | Close current tab |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next/previous tab |
+| `Ctrl+1` - `Ctrl+9` | Select tab by position |
 | `Alt+F4` | Close RegKit |
 
 ### Navigation
 
 | Shortcut | Action |
 | --- | --- |
-| `Alt+Left` / `Alt+Right` | Navigate back / forward |
+| `Alt+Left` / `Alt+Right` | Navigate back/forward |
 | `Alt+Up` | Navigate to parent key |
 | `Backspace` | Navigate back (outside text fields) |
 | `Ctrl+G` | Go to a registry path |
 | `Ctrl+L` / `Alt+D` | Focus address bar |
 | `Ctrl+Shift+V` | Paste into address bar and navigate |
-| `Ctrl+K` | Show and focus the filter bar |
-| `F6` / `Shift+F6` | Cycle forward / backward through the visible panes |
+| `Ctrl+K` | Show and focus filter bar |
+| `F6` / `Shift+F6` | Cycle forward/backward through the visible panes |
 | `Tab` | Switch between key tree & value list |
 | `F5` | Refresh |
 
@@ -91,36 +91,36 @@ RegKit adds functionality that standard regedit doesn't support:
 
 | Shortcut | Action |
 | --- | --- |
-| `Ctrl+Shift+H` | Show or hide the History pane |
+| `Ctrl+Shift+H` | Show or hide History pane |
 | `F10` | Activate menu bar |
-| `Alt+F` / `Alt+E` / `Alt+V` ... | Open the matching menu |
+| `Alt+F` / `Alt+E` / `Alt+V`... | Open matching menu (F = File, A = Favorites) |
 | `Shift+F10` / `Menu` | Open context menu for focused item |
 | `F1` | Open help |
 
-### Find and Replace windows
+### Find & Replace
 
 | Shortcut | Action |
 | --- | --- |
 | `Ctrl+F` | Find |
 | `Ctrl+H` | Replace |
-| `Enter` | Start the search / replace |
-| `Escape` | Close the window |
-| `Ctrl+Shift+G` | Open the selected result in a new tab |
-| `Enter` (results list) | Open the selected result |
+| `Enter` | Start search / replace |
+| `Escape` | Close window |
+| `Ctrl+Shift+G` | Open selected result in a new tab |
+| `Enter` (results list) | Open selected result |
 
-### Filter bar
-
-| Shortcut | Action |
-| --- | --- |
-| `Escape` | Clear the filter, then return focus to the value list |
-| `Enter` / `Down` | Move to the value list |
-
-### Value editor windows
+### Filter Bar
 
 | Shortcut | Action |
 | --- | --- |
-| `Enter` | Confirm (presses the default button) |
-| `Ctrl+Enter` | Insert a line break in multi-line fields |
+| `Escape` | Clear filter |
+| `Enter` / `Down` | Move to value list |
+
+### Value Editor
+
+| Shortcut | Action |
+| --- | --- |
+| `Enter` | Confirm |
+| `Ctrl+Enter` | Insert a line break in multi line fields |
 | `Escape` | Cancel |
 
 ## Command Line
