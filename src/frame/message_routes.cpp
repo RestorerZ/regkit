@@ -896,11 +896,13 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message,
     StartPendingValueListRename();
     if (!retained_value_key_path_.empty() && browse_.current_node() &&
         EqualsInsensitive(registry_path::Build(*browse_.current_node()),
-                          retained_value_key_path_)) {
-      SelectValueByName(retained_value_name_);
+                          retained_value_key_path_) &&
+        !SelectValueByName(retained_value_name_)) {
+      SelectListRowAtIndex(browse_.values().hwnd(), retained_value_index_);
     }
     retained_value_name_.clear();
     retained_value_key_path_.clear();
+    retained_value_index_ = -1;
     if (!pending_external_value_name_.empty() && browse_.current_node()) {
       std::wstring current_path = registry_path::Build(*browse_.current_node());
       if (EqualsInsensitive(current_path, pending_external_value_key_path_)) {
@@ -961,6 +963,12 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message,
     return 0;
   }
   case WM_TIMER:
+    if (wparam == kStatusMessageTimerId) {
+      KillTimer(hwnd_, kStatusMessageTimerId);
+      status_message_.clear();
+      UpdateStatus();
+      return 0;
+    }
     break;
   case WM_COPYDATA: {
     auto* data = reinterpret_cast<const COPYDATASTRUCT*>(lparam);
@@ -1127,6 +1135,10 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message,
       DrawHeaderCloseButton(draw);
       return TRUE;
     }
+    if (draw && draw->CtlType == ODT_BUTTON && draw->CtlID == kFilterClearId) {
+      DrawFilterClearButton(draw);
+      return TRUE;
+    }
     if (draw && draw->CtlType == ODT_BUTTON && draw->CtlID == kHistoryHeaderCloseId) {
       DrawHeaderCloseButton(draw);
       return TRUE;
@@ -1198,6 +1210,10 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message,
       NavigateToAddress();
       return 0;
     }
+    if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == kFilterClearId) {
+      ClearValueFilter(true);
+      return 0;
+    }
     if (HIWORD(wparam) == EN_CHANGE && LOWORD(wparam) == kAddressEditId) {
       UpdateGoButtonState();
       return 0;
@@ -1217,7 +1233,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message,
       UpdateStatus();
       return 0;
     }
-    if (HIWORD(wparam) == 0 && HandleMenuCommand(LOWORD(wparam))) {
+    if (HIWORD(wparam) <= 1 && HandleMenuCommand(LOWORD(wparam))) {
       return 0;
     }
     return 0;

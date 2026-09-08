@@ -41,13 +41,13 @@ void MainWindow::Impl::PrepareMenusForOwnerDraw(HMENU menu) {
       data->width = 4;
       data->height = 8;
     } else {
-      SIZE size = {};
+      RECT measure = {};
       if (hdc) {
-        GetTextExtentPoint32W(hdc, data->text.c_str(),
-                              static_cast<int>(data->text.size()), &size);
+        DrawTextW(hdc, data->text.c_str(), -1, &measure,
+                  DT_SINGLELINE | DT_CALCRECT);
       }
       data->height = 18;
-      data->width = static_cast<int>(size.cx) + 8;
+      data->width = static_cast<int>(measure.right - measure.left) + 8;
     }
 
     MenuItemData* raw = data.get();
@@ -139,9 +139,11 @@ void MainWindow::Impl::OnDrawMenuItem(const DRAWITEMSTRUCT* info) {
   if (ui_font_) {
     old_font = reinterpret_cast<HFONT>(SelectObject(hdc, ui_font_));
   }
-  DrawTextW(hdc, data->text.c_str(), -1, &rect,
-            DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_NOPREFIX |
-                DT_END_ELLIPSIS);
+  UINT format = DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_END_ELLIPSIS;
+  if ((info->itemState & ODS_NOACCEL) != 0) {
+    format |= DT_HIDEPREFIX;
+  }
+  DrawTextW(hdc, data->text.c_str(), -1, &rect, format);
   if (old_font) {
     SelectObject(hdc, old_font);
   }

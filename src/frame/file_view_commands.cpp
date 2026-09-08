@@ -316,6 +316,18 @@ bool MainWindow::Impl::HandleViewCommand(int command_id) {
     ApplyViewVisibility();
     BuildMenus();
     return true;
+  case cmd::kViewFocusFilter:
+    if (!show_filter_bar_) {
+      show_filter_bar_ = true;
+      SaveSettings();
+      ApplyViewVisibility();
+      BuildMenus();
+    }
+    if (browse_.filter()) {
+      SetFocus(browse_.filter());
+      SendMessageW(browse_.filter(), EM_SETSEL, 0, -1);
+    }
+    return true;
   case cmd::kViewTabControl:
     show_tab_control_ = !show_tab_control_;
     SaveSettings();

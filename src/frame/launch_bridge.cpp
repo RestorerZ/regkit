@@ -78,11 +78,30 @@ bool BrokerRestart(HWND owner, const wchar_t* target_arg, const wchar_t* failure
 
 } // namespace
 
+void MainWindow::Impl::PrepareSessionHandover() {
+  CaptureRegistryTabState(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
+  SaveTabs();
+  SaveSettings();
+}
+
 bool MainWindow::Impl::RestartAsAdmin() {
+  PrepareSessionHandover();
+  if (util::IsProcessSystem() || util::IsProcessTrustedInstaller()) {
+    return BrokerRestart(hwnd_, kRestartAdminArg,
+                         L"Failed to restart with administrator rights.",
+                         util::LaunchProcessAsShellUser);
+  }
   return BeginRestart(hwnd_, nullptr, L"Failed to restart with administrator rights.");
 }
 
+bool MainWindow::Impl::RestartAsUser() {
+  PrepareSessionHandover();
+  return BrokerRestart(hwnd_, kRestartUserArg, L"Failed to restart as the signed-in user.",
+                       util::LaunchProcessAsShellUser);
+}
+
 bool MainWindow::Impl::RestartAsSystem() {
+  PrepareSessionHandover();
   if (!util::IsProcessElevated()) {
     return BeginRestart(hwnd_, kRestartSystemArg, L"Failed to request SYSTEM restart.");
   }
@@ -91,6 +110,7 @@ bool MainWindow::Impl::RestartAsSystem() {
 }
 
 bool MainWindow::Impl::RestartAsTrustedInstaller() {
+  PrepareSessionHandover();
   if (!util::IsProcessElevated()) {
     return BeginRestart(hwnd_, kRestartTiArg, L"Failed to request TrustedInstaller restart.");
   }

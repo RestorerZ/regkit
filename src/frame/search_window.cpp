@@ -98,6 +98,17 @@ bool MainWindow::Impl::CreateRegistryPath(const std::wstring& path) {
   return true;
 }
 
+void MainWindow::Impl::SetStatusMessage(const std::wstring& text) {
+  status_message_ = text;
+  UpdateStatus();
+  if (hwnd_) {
+    KillTimer(hwnd_, kStatusMessageTimerId);
+    if (!text.empty()) {
+      SetTimer(hwnd_, kStatusMessageTimerId, 8000, nullptr);
+    }
+  }
+}
+
 void MainWindow::Impl::UpdateStatus() {
   if (!status_bar_) {
     return;
@@ -148,7 +159,10 @@ void MainWindow::Impl::UpdateStatus() {
     }
     int part = total_width;
     SendMessageW(status_bar_, SB_SETPARTS, 1, reinterpret_cast<LPARAM>(&part));
-    SendMessageW(status_bar_, SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(buffer));
+    SendMessageW(status_bar_, SB_SETTEXTW, 0,
+                 reinterpret_cast<LPARAM>(status_message_.empty()
+                                              ? buffer
+                                              : status_message_.c_str()));
     return;
   }
   if (IsRegFileTabSelected()) {
@@ -172,7 +186,9 @@ void MainWindow::Impl::UpdateStatus() {
   std::wstring values_text;
   std::wstring selected_text;
   std::wstring path_text;
-  if (browse_.current_node()) {
+  if (!status_message_.empty()) {
+    path_text = status_message_;
+  } else if (browse_.current_node()) {
     path_text = registry_path::Build(*browse_.current_node());
   }
   swprintf_s(buffer, L"Keys: %d", current_key_count_);
@@ -814,6 +830,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
         auto payload = std::make_unique<ReplacePayload>();
         payload->generation = generation;
         std::vector<RegistryNode> stack;
+        std::vector<std::pair<RegistryNode, std::wstring>> key_renames;
         stack.push_back(start);
 
         while (!stack.empty() && !cancel.load()) {
@@ -850,7 +867,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
 
             std::wstring current_name = value.name;
             std::wstring replaced_name;
-            if (!current_name.empty() &&
+            if (options.replace_values && !current_name.empty() &&
                 matcher.Replace(current_name, &replaced_name) &&
                 replaced_name != current_name) {
               if (replaced_name.empty()) {
@@ -882,9 +899,9 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
               }
             }
 
-            if (value.type != REG_SZ &&
-                value.type != REG_EXPAND_SZ &&
-                value.type != REG_MULTI_SZ) {
+            if (!options.replace_data || (value.type != REG_SZ &&
+                                          value.type != REG_EXPAND_SZ &&
+                                          value.type != REG_MULTI_SZ)) {
               continue;
             }
 
@@ -948,6 +965,15 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
             payload->changes.push_back(std::move(change));
           }
 
+          if (options.replace_keys && !node.subkey.empty()) {
+            const std::wstring leaf = LeafName(node);
+            std::wstring renamed;
+            if (!leaf.empty() && matcher.Replace(leaf, &renamed) &&
+                renamed != leaf && !renamed.empty()) {
+              key_renames.emplace_back(node, renamed);
+            }
+          }
+
           if (options.recursive && !cancel.load()) {
             auto subkeys =
                 RegistryStore::EnumSubKeyNames(node, false);
@@ -955,6 +981,39 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
               stack.push_back(MakeChildNode(node, name));
             }
           }
+        }
+
+        std::stable_sort(key_renames.begin(), key_renames.end(),
+                         [](const auto& left, const auto& right) {
+                           return std::count(left.first.subkey.begin(),
+                                             left.first.subkey.end(), L'\\') >
+                                  std::count(right.first.subkey.begin(),
+                                             right.first.subkey.end(), L'\\');
+                         });
+        for (const auto& rename : key_renames) {
+          if (cancel.load()) {
+            break;
+          }
+          const std::wstring leaf = LeafName(rename.first);
+          if (!RegistryStore::RenameKey(rename.first, rename.second)) {
+            ++payload->failures;
+            continue;
+          }
+          RegistryNode parent = rename.first;
+          const size_t split = parent.subkey.rfind(L'\\');
+          parent.subkey = split == std::wstring::npos
+                              ? std::wstring()
+                              : parent.subkey.substr(0, split);
+          ReplacePayload::Change change;
+          change.undo.type = changes::UndoOperation::Type::kRenameKey;
+          change.undo.node = parent;
+          change.undo.name = leaf;
+          change.undo.new_name = rename.second;
+          change.history.action = L"Rename key " + leaf;
+          change.history.old_data = leaf;
+          change.history.new_data = rename.second;
+          change.history.key_path = registry_path::Build(parent);
+          payload->changes.push_back(std::move(change));
         }
 
         payload->cancelled = cancel.load();
@@ -994,6 +1053,18 @@ void MainWindow::Impl::CommitReplacePayload(
   }
   if (browse_.current_node()) {
     UpdateValueListForNode(browse_.current_node());
+  }
+  if (show_failures) {
+    std::wstring summary =
+        L"Replaced " + std::to_wstring(payload->changes.size()) +
+        (payload->changes.size() == 1 ? L" entry" : L" entries");
+    if (payload->failures > 0) {
+      summary += L", " + std::to_wstring(payload->failures) + L" failed";
+    }
+    if (payload->cancelled) {
+      summary += L" (cancelled)";
+    }
+    SetStatusMessage(summary);
   }
   if (show_failures && payload->failures > 0) {
     std::wstring message =

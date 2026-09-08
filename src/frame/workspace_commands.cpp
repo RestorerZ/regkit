@@ -15,6 +15,9 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(int command_id) {
     }
     return true;
   }
+  if (command_id >= cmd::kTabClose && command_id <= cmd::kTabSelectMax) {
+    return HandleTabCommand(command_id);
+  }
   switch (command_id) {
   case cmd::kWindowNew:
   case cmd::kWindowClose:
@@ -31,6 +34,7 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(int command_id) {
   case cmd::kOptionsIconSetCustom:
     return HandleWindowAppearanceCommand(command_id);
   case cmd::kOptionsRestartAdmin:
+  case cmd::kOptionsRestartUser:
   case cmd::kOptionsAlwaysRunAdmin:
   case cmd::kOptionsRestartSystem:
   case cmd::kOptionsAlwaysRunSystem:
@@ -136,6 +140,9 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id) {
   switch (command_id) {
   case cmd::kOptionsRestartAdmin:
     RestartAsAdmin();
+    return true;
+  case cmd::kOptionsRestartUser:
+    RestartAsUser();
     return true;
   case cmd::kOptionsAlwaysRunAdmin:
     always_run_as_admin_ = !always_run_as_admin_;

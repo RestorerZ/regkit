@@ -34,11 +34,13 @@ constexpr wchar_t kAppTitle[] = L"RegKit";
 struct ErrorDialogState {
   HWND hwnd = nullptr;
   HWND text = nullptr;
+  HWND detail_box = nullptr;
   HWND ok_btn = nullptr;
   HWND owner = nullptr;
   HFONT font = nullptr;
   std::wstring title;
   std::wstring message;
+  std::wstring detail;
   bool accepted = false;
   bool owner_restored = false;
 };
@@ -275,9 +277,17 @@ void LayoutErrorDialog(HWND hwnd, ErrorDialogState* state) {
   int btn_w = 80;
   int btn_h = 22;
   int btn_y = height - padding - btn_h;
+  int text_w = width - padding * 2;
   int text_h = btn_y - padding;
-  if (state->text) {
-    SetWindowPos(state->text, nullptr, padding, padding, width - padding * 2, text_h, SWP_NOZORDER);
+  if (state->detail_box) {
+    const int message_h =
+        std::min(text_h / 2, TextBlockHeight(hwnd, state->font, state->message, text_w));
+    SetWindowPos(state->text, nullptr, padding, padding, text_w, message_h, SWP_NOZORDER);
+    const int detail_y = padding + message_h + 6;
+    SetWindowPos(state->detail_box, nullptr, padding, detail_y, text_w,
+                 std::max(0, btn_y - detail_y - 6), SWP_NOZORDER);
+  } else if (state->text) {
+    SetWindowPos(state->text, nullptr, padding, padding, text_w, text_h, SWP_NOZORDER);
   }
   int ok_x = width - padding - btn_w;
   if (state->ok_btn) {
@@ -335,7 +345,7 @@ LRESULT CALLBACK ChoiceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
   case WM_NCCREATE: {
     auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return TRUE;
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
   }
   case WM_CREATE: {
     state = reinterpret_cast<ChoiceDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -507,7 +517,7 @@ LRESULT CALLBACK ErrorDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
   case WM_NCCREATE: {
     auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return TRUE;
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
   }
   case WM_CREATE: {
     state = reinterpret_cast<ErrorDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -515,9 +525,16 @@ LRESULT CALLBACK ErrorDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
       return -1;
     }
     state->hwnd = hwnd;
-    SetWindowTextW(hwnd, kAppTitle);
+    SetWindowTextW(hwnd, state->title.empty() ? kAppTitle : state->title.c_str());
     state->font = DefaultUIFont();
     state->text = CreateWindowExW(0, L"STATIC", state->message.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+    if (!state->detail.empty()) {
+      state->detail_box = CreateWindowExW(
+          0, L"EDIT", state->detail.c_str(),
+          WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | WS_HSCROLL |
+              ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL,
+          0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+    }
     state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
 
     ApplyConfirmFonts(hwnd, state->font);
@@ -557,6 +574,8 @@ LRESULT CALLBACK ErrorDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
     HWND target = reinterpret_cast<HWND>(lparam);
     return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_BTN));
   }
+  case DM_GETDEFID:
+    return MAKELRESULT(IDOK, DC_HASDEFID);
   case WM_COMMAND:
     switch (LOWORD(wparam)) {
     case IDOK:
@@ -596,7 +615,7 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
   case WM_NCCREATE: {
     auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return TRUE;
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
   }
   case WM_CREATE: {
     state = reinterpret_cast<AboutDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -684,6 +703,8 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
     }
     break;
   }
+  case DM_GETDEFID:
+    return MAKELRESULT(IDOK, DC_HASDEFID);
   case WM_COMMAND:
     switch (LOWORD(wparam)) {
     case IDOK:
@@ -717,7 +738,8 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
   return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
-bool ShowErrorDialog(HWND owner, const std::wstring& message) {
+bool ShowErrorDialog(HWND owner, const std::wstring& title,
+                     const std::wstring& message) {
   WNDCLASSW wc = {};
   wc.lpfnWndProc = ErrorDialogProc;
   wc.hInstance = GetModuleHandleW(nullptr);
@@ -728,8 +750,21 @@ bool ShowErrorDialog(HWND owner, const std::wstring& message) {
 
   ErrorDialogState state;
   state.owner = owner;
-  state.message = message;
-  HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kErrorClass, kAppTitle, WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 320, 120, owner, nullptr, wc.hInstance, &state);
+  state.title = title;
+  const size_t split = message.find(L'\n');
+  if (split == std::wstring::npos) {
+    state.message = message;
+  } else {
+    state.message = message.substr(0, split);
+    state.detail = message.substr(split + 1);
+    while (!state.detail.empty() &&
+           (state.detail.front() == L'\n' || state.detail.front() == L'\r')) {
+      state.detail.erase(state.detail.begin());
+    }
+  }
+  const int width = state.detail.empty() ? 320 : 520;
+  const int height = state.detail.empty() ? 120 : 300;
+  HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kErrorClass, title.c_str(), WS_POPUP | WS_CAPTION | WS_SYSMENU | (state.detail.empty() ? 0 : WS_THICKFRAME), CW_USEDEFAULT, CW_USEDEFAULT, width, height, owner, nullptr, wc.hInstance, &state);
   if (!hwnd) {
     return false;
   }
@@ -908,20 +943,20 @@ bool CopyTextToClipboard(HWND owner, const std::wstring& text) {
 }
 
 void ShowError(HWND owner, const std::wstring& message) {
-  if (!ShowErrorDialog(owner, message)) {
-    ShowTaskDialog(owner, kAppTitle, message, TDCBF_OK_BUTTON, nullptr, TD_ERROR_ICON);
+  if (!ShowErrorDialog(owner, L"Error", message)) {
+    ShowTaskDialog(owner, L"Error", message, TDCBF_OK_BUTTON, nullptr, TD_ERROR_ICON);
   }
 }
 
 void ShowWarning(HWND owner, const std::wstring& message) {
-  if (!ShowErrorDialog(owner, message)) {
-    ShowTaskDialog(owner, kAppTitle, message, TDCBF_OK_BUTTON, nullptr, TD_WARNING_ICON);
+  if (!ShowErrorDialog(owner, L"Warning", message)) {
+    ShowTaskDialog(owner, L"Warning", message, TDCBF_OK_BUTTON, nullptr, TD_WARNING_ICON);
   }
 }
 
 void ShowInfo(HWND owner, const std::wstring& message) {
-  if (!ShowErrorDialog(owner, message)) {
-    ShowTaskDialog(owner, kAppTitle, message, TDCBF_OK_BUTTON, nullptr, TD_INFORMATION_ICON);
+  if (!ShowErrorDialog(owner, L"Information", message)) {
+    ShowTaskDialog(owner, L"Information", message, TDCBF_OK_BUTTON, nullptr, TD_INFORMATION_ICON);
   }
 }
 

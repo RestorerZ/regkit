@@ -671,6 +671,8 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id) {
       RegistryNode parent = target;
       size_t pos = parent.subkey.rfind(L'\\');
       parent.subkey = (pos == std::wstring::npos) ? L"" : parent.subkey.substr(0, pos);
+      HTREEITEM deleted_item = TreeView_GetSelection(browse_.tree().hwnd());
+      const std::wstring neighbour_path = TreeNeighbourPath(deleted_item);
       changes::KeySnapshot snapshot = changes::CaptureKey(target);
       const bool restorable = snapshot.complete;
       if (!restorable &&
@@ -694,14 +696,15 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id) {
           op.key_snapshot = std::move(snapshot);
           PushUndo(std::move(op));
         }
-        std::wstring parent_path = registry_path::Build(parent);
-        bool selected_parent = false;
-        if (!parent_path.empty()) {
-          selected_parent = SelectTreePath(parent_path);
+        if (deleted_item) {
+          TreeView_DeleteItem(browse_.tree().hwnd(), deleted_item);
         }
-        RefreshTreeSelection();
+        std::wstring next_path = neighbour_path.empty()
+                                     ? registry_path::Build(parent)
+                                     : neighbour_path;
+        const bool moved = !next_path.empty() && SelectTreePath(next_path);
         RefreshMatchingTreeNodes();
-        if (!selected_parent) {
+        if (!moved) {
           UpdateValueListForNode(browse_.current_node());
         }
       }

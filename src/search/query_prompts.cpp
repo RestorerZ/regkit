@@ -19,7 +19,6 @@
 
 namespace regkit::query_prompts {
 
-constexpr wchar_t kAppTitle[] = L"RegKit";
 
 HFONT CreateDialogFont() {
   return ui::DefaultUIFont();
@@ -105,7 +104,7 @@ LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
   case WM_NCCREATE: {
     auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return TRUE;
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
   }
   case WM_CREATE: {
     state = reinterpret_cast<DataTypesDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -191,6 +190,8 @@ LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
     FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
     return 1;
   }
+  case DM_GETDEFID:
+    return MAKELRESULT(IDOK, DC_HASDEFID);
   case WM_COMMAND: {
     if (!state) {
       return 0;
@@ -282,7 +283,7 @@ bool ShowDataTypes(HWND owner, std::vector<DWORD>* types) {
   state.col_w = kDataTypesColWidth;
   state.rows_per_col = rows_per_col;
 
-  HWND hwnd = CreateWindowExW(ex_style, wc.lpszClassName, kAppTitle, style, CW_USEDEFAULT, CW_USEDEFAULT, width, height, owner, nullptr, instance, &state);
+  HWND hwnd = CreateWindowExW(ex_style, wc.lpszClassName, L"Data Types", style, CW_USEDEFAULT, CW_USEDEFAULT, width, height, owner, nullptr, instance, &state);
   if (!hwnd) {
     return false;
   }
@@ -321,7 +322,7 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
   case WM_NCCREATE: {
     auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return TRUE;
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
   }
   case WM_CREATE: {
     state = reinterpret_cast<BrowseDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -425,6 +426,8 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     }
     break;
   }
+  case DM_GETDEFID:
+    return MAKELRESULT(IDOK, DC_HASDEFID);
   case WM_COMMAND: {
     if (!state) {
       return 0;
@@ -476,7 +479,7 @@ bool ShowRegistryKey(HWND owner, std::wstring* selected_path) {
 
   BrowseDialogState state;
   state.owner = owner;
-  HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, wc.lpszClassName, kAppTitle, WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_SIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 420, 420, owner, nullptr, instance, &state);
+  HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, wc.lpszClassName, L"Browse Key", WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_SIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 420, 420, owner, nullptr, instance, &state);
   if (!hwnd) {
     return false;
   }

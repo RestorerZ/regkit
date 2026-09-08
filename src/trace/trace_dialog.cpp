@@ -35,7 +35,6 @@ namespace regkit {
 namespace {
 
 constexpr wchar_t kDialogClass[] = L"RegKitTraceDialog";
-constexpr wchar_t kAppTitle[] = L"RegKit";
 constexpr UINT kDialogAddEntriesMessage = WM_APP + 1;
 constexpr UINT kDialogDoneMessage = WM_APP + 2;
 constexpr UINT kDialogProcessEntriesMessage = WM_APP + 3;
@@ -475,7 +474,7 @@ LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
   case WM_NCCREATE: {
     auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return TRUE;
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
   }
   case WM_CREATE: {
     state = reinterpret_cast<TraceDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -571,6 +570,8 @@ LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
     FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
     return 1;
   }
+  case DM_GETDEFID:
+    return MAKELRESULT(IDOK, DC_HASDEFID);
   case WM_COMMAND: {
     if (!state) {
       return 0;
@@ -666,7 +667,7 @@ HWND CreateTraceDialogWindow(HINSTANCE instance, const std::wstring& title, HWND
   wc.lpszClassName = kDialogClass;
   RegisterClassW(&wc);
 
-  const wchar_t* window_title = title.empty() ? kAppTitle : title.c_str();
+  const wchar_t* window_title = title.empty() ? L"Trace" : title.c_str();
   return CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kDialogClass, window_title, WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 560, 552, owner, nullptr, instance, state);
 }
 

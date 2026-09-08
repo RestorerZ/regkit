@@ -247,6 +247,17 @@ void MainWindow::Impl::CaptureRegistryTabState(int index) {
     return;
   }
   CaptureTreeState(&entry.selected_path, &entry.expanded_paths);
+  entry.selected_value.clear();
+  if (browse_.values().hwnd()) {
+    const int selected =
+        ListView_GetNextItem(browse_.values().hwnd(), -1, LVNI_SELECTED);
+    if (selected >= 0) {
+      const ListRow* row = browse_.values().RowAt(selected);
+      if (row && row->kind == rowkind::kValue) {
+        entry.selected_value = row->extra;
+      }
+    }
+  }
 }
 
 void MainWindow::Impl::ResetRegistryTreeState() {
@@ -314,6 +325,9 @@ void MainWindow::Impl::RestoreRegistryTabState(int index) {
     ExpandTreePath(path);
   }
   if (!entry.selected_path.empty() && SelectTreePath(entry.selected_path)) {
+    if (!entry.selected_value.empty()) {
+      SelectValueAfterRefresh(entry.selected_value);
+    }
     return;
   }
   SelectDefaultTreeItem();

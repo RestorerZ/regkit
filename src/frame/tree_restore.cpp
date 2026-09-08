@@ -10,6 +10,20 @@ void MainWindow::Impl::RefreshTreePath(const std::wstring& path) {
   RefreshTreeItem(FindTreeItem(path));
 }
 
+namespace {
+
+bool IsAncestorItem(HWND tree, HTREEITEM candidate, HTREEITEM item) {
+  for (HTREEITEM parent = TreeView_GetParent(tree, item); parent;
+       parent = TreeView_GetParent(tree, parent)) {
+    if (parent == candidate) {
+      return true;
+    }
+  }
+  return false;
+}
+
+} // namespace
+
 void MainWindow::Impl::RefreshMatchingTreeNodes() {
   HWND tree = browse_.tree().hwnd();
   HTREEITEM selected = tree ? TreeView_GetSelection(tree) : nullptr;
@@ -42,7 +56,8 @@ void MainWindow::Impl::RefreshMatchingTreeNodes() {
          child = TreeView_GetNextSibling(tree, child)) {
       pending.emplace_back(depth + 1, child);
     }
-    if (item == selected || !browse_.tree().NodeFromItem(item)) {
+    if (item == selected || !browse_.tree().NodeFromItem(item) ||
+        IsAncestorItem(tree, item, selected)) {
       continue;
     }
     wchar_t text[256] = {};
@@ -54,11 +69,16 @@ void MainWindow::Impl::RefreshMatchingTreeNodes() {
 
 
 
+  if (matches.empty()) {
+    return;
+  }
   std::sort(matches.begin(), matches.end(),
             [](const std::pair<int, HTREEITEM>& left,
                const std::pair<int, HTREEITEM>& right) {
               return left.first > right.first;
             });
+  HTREEITEM first_visible = TreeView_GetFirstVisible(tree);
+  SendMessageW(tree, WM_SETREDRAW, FALSE, 0);
   for (const auto& match : matches) {
     const bool was_expanded =
         (TreeView_GetItemState(tree, match.second, TVIS_EXPANDED) & TVIS_EXPANDED) != 0;
@@ -67,6 +87,11 @@ void MainWindow::Impl::RefreshMatchingTreeNodes() {
       TreeView_Expand(tree, match.second, TVE_COLLAPSE);
     }
   }
+  if (first_visible) {
+    TreeView_SelectSetFirstVisible(tree, first_visible);
+  }
+  SendMessageW(tree, WM_SETREDRAW, TRUE, 0);
+  RedrawWindow(tree, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
 }
 
 void MainWindow::Impl::RefreshTreeSelection() {

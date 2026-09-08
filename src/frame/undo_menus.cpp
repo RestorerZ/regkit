@@ -34,6 +34,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
   }
   bool ok = false;
   bool rename_left_both_names = false;
+  std::optional<std::wstring> restored_value;
   is_replaying_ = true;
   switch (operation.type) {
   case changes::UndoOperation::Type::kCreateKey: {
@@ -45,6 +46,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
       }
       if (ok) {
         RefreshTreeSelection();
+        SelectChildKey(operation.node, operation.name);
       }
     } else {
       RegistryNode child = MakeChildNode(operation.node, operation.name);
@@ -66,6 +68,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
       ok = changes::RestoreKey(operation.node, operation.key_snapshot);
       if (ok) {
         RefreshTreeSelection();
+        SelectChildKey(operation.node, operation.key_snapshot.name);
       }
     }
     break;
@@ -89,6 +92,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
   case changes::UndoOperation::Type::kCreateValue: {
     if (redo) {
       ok = RegistryStore::SetValue(operation.node, operation.new_value.name, operation.new_value.type, operation.new_value.data);
+      restored_value = operation.new_value.name;
     } else {
       ok = RegistryStore::DeleteValue(operation.node, operation.name);
     }
@@ -99,6 +103,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
       ok = RegistryStore::DeleteValue(operation.node, operation.old_value.name);
     } else {
       ok = RegistryStore::SetValue(operation.node, operation.old_value.name, operation.old_value.type, operation.old_value.data);
+      restored_value = operation.old_value.name;
     }
     break;
   }
@@ -124,6 +129,9 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
   }
   if ((ok || rename_left_both_names) && browse_.current_node()) {
     UpdateValueListForNode(browse_.current_node());
+    if (ok && restored_value) {
+      SelectValueAfterRefresh(*restored_value);
+    }
   }
   if (rename_left_both_names) {
     ui::ShowError(hwnd_,
@@ -599,6 +607,68 @@ void MainWindow::Impl::DrawHeaderCloseButton(const DRAWITEMSTRUCT* info) {
                  win32::DpiForWindow(info->hwndItem));
 }
 
+void MainWindow::Impl::DrawFilterClearButton(const DRAWITEMSTRUCT* info) {
+  if (!info) {
+    return;
+  }
+  const Theme& theme = Theme::Current();
+  HDC hdc = info->hDC;
+  RECT rect = info->rcItem;
+  const bool pressed = (info->itemState & ODS_SELECTED) != 0;
+  FillRect(hdc, &rect,
+           appearance::CachedBrush(pressed ? theme.HoverColor()
+                                           : theme.SurfaceColor()));
+  HPEN pen = appearance::CachedPen(theme.BorderColor());
+  HPEN old_pen = reinterpret_cast<HPEN>(SelectObject(hdc, pen));
+  MoveToEx(hdc, rect.left, rect.top + 3, nullptr);
+  LineTo(hdc, rect.left, rect.bottom - 3);
+  SelectObject(hdc, old_pen);
+  DrawCloseGlyph(hdc, rect, theme.MutedTextColor(),
+                 win32::DpiForWindow(info->hwndItem));
+}
+
+void MainWindow::Impl::ClearValueFilter(bool focus_values) {
+  if (!browse_.filter()) {
+    return;
+  }
+  if (GetWindowTextLengthW(browse_.filter()) > 0) {
+    SetWindowTextW(browse_.filter(), L"");
+  }
+  if (focus_values && browse_.values().hwnd()) {
+    SetFocus(browse_.values().hwnd());
+  }
+}
+
+bool MainWindow::Impl::SelectChildKey(const RegistryNode& parent,
+                                     const std::wstring& name) {
+  if (name.empty()) {
+    return false;
+  }
+  std::wstring path = registry_path::Build(parent);
+  if (path.empty()) {
+    return false;
+  }
+  path.append(L"\\");
+  path.append(name);
+  return SelectTreePath(path);
+}
+
+std::wstring MainWindow::Impl::TreeNeighbourPath(HTREEITEM item) {
+  HWND tree = browse_.tree().hwnd();
+  if (!tree || !item) {
+    return std::wstring();
+  }
+  HTREEITEM next = TreeView_GetNextSibling(tree, item);
+  if (!next) {
+    next = TreeView_GetPrevSibling(tree, item);
+  }
+  if (!next) {
+    next = TreeView_GetParent(tree, item);
+  }
+  RegistryNode* node = next ? browse_.tree().NodeFromItem(next) : nullptr;
+  return node ? registry_path::Build(*node) : std::wstring();
+}
+
 bool MainWindow::Impl::SelectTreePath(const std::wstring& path) {
   if (!browse_.tree().hwnd()) {
     return false;
@@ -633,6 +703,31 @@ bool MainWindow::Impl::SelectTreePath(const std::wstring& path) {
 
 bool MainWindow::Impl::SelectValueByName(const std::wstring& name) {
   return browse_.SelectValue(name);
+}
+
+void MainWindow::Impl::SelectValueAfterRefresh(const std::wstring& name) {
+  if (!browse_.current_node()) {
+    return;
+  }
+  retained_value_name_ = name;
+  retained_value_key_path_ = registry_path::Build(*browse_.current_node());
+}
+
+void MainWindow::Impl::SelectListRowAtIndex(HWND list, int index) {
+  if (!list || index < 0) {
+    return;
+  }
+  const int count = ListView_GetItemCount(list);
+  if (count <= 0) {
+    return;
+  }
+  if (index >= count) {
+    index = count - 1;
+  }
+  ListView_SetItemState(list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+  ListView_SetItemState(list, index, LVIS_SELECTED | LVIS_FOCUSED,
+                        LVIS_SELECTED | LVIS_FOCUSED);
+  ListView_EnsureVisible(list, index, FALSE);
 }
 
 void MainWindow::Impl::HandleTypeToSelectList(wchar_t ch) {

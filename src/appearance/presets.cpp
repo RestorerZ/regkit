@@ -635,7 +635,7 @@ bool LoadFromStream(std::wistream& file, std::vector<ThemePreset>* presets,
   auto fail = [&](const std::wstring& text) {
     if (error) {
       *error = L"The theme preset file contains an entry RegKit cannot "
-               L"parse: " +
+               L"parse:\n" +
                text;
     }
     presets->clear();

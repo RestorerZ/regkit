@@ -112,13 +112,97 @@ LRESULT MainWindow::Impl::HandleNotification(LPARAM lparam) {
   return 0;
 }
 
-bool MainWindow::Impl::ValueCellTooltipText(std::wstring* out) {
-  HWND list = browse_.values().hwnd();
-  if (!out || !list) {
+std::wstring MainWindow::Impl::SearchCellFieldText(const search::Result& result,
+                                                  int subitem) const {
+  switch (subitem) {
+  case 0:
+    return result.key_path;
+  case 1:
+    return std::wstring(search::DisplayName(result));
+  case 2:
+    return search::TypeText(result);
+  case 3:
+    return result.data_text;
+  case 4:
+    return search::IsKeyRow(result) ||
+                   result.kind == search::ResultKind::kTraceValue
+               ? std::wstring()
+               : std::to_wstring(result.data_size);
+  default:
+    return std::wstring();
+  }
+}
+
+std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item,
+                                                 int display_subitem) {
+  if (list == browse_.values().hwnd()) {
+    const ListRow* row = browse_.values().RowAt(item);
+    return row ? ValueRowFieldText(
+                     *row, MappedSubItem(value_column_subitems_, display_subitem))
+               : std::wstring();
+  }
+  if (list == search_results_list_) {
+    const int subitem = MappedSubItem(search_column_subitems_, display_subitem);
+    const int tab_index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
+    const SearchTab* tab =
+        tab_index >= 0 && static_cast<size_t>(tab_index) < search_tabs_.size()
+            ? &search_tabs_[static_cast<size_t>(tab_index)]
+            : nullptr;
+    if (tab && tab->is_compare) {
+      if (item < 0 || static_cast<size_t>(item) >= tab->compare_rows.size()) {
+        return std::wstring();
+      }
+      const search::compare::Row& row = tab->compare_rows[static_cast<size_t>(item)];
+      switch (subitem) {
+      case 0:
+        return row.key_path;
+      case 1:
+        return row.is_key ? std::wstring(L"(Key)")
+                          : (row.value_name.empty() ? std::wstring(L"(Default)")
+                                                    : row.value_name);
+      case 2:
+        return row.first_text;
+      case 3:
+        return row.second_text;
+      default:
+        return std::wstring();
+      }
+    }
+    const search::Result* result = SearchResultAt(item);
+    return result ? SearchCellFieldText(*result, subitem) : std::wstring();
+  }
+  if (list == history_list_) {
+    const auto& entries = change_history_.entries();
+    if (item < 0 || static_cast<size_t>(item) >= entries.size()) {
+      return std::wstring();
+    }
+    const HistoryEntry& entry = entries[static_cast<size_t>(item)];
+    switch (display_subitem) {
+    case 0:
+      return entry.time_text;
+    case 1:
+      return entry.action;
+    case 2:
+      return entry.old_data;
+    case 3:
+      return entry.new_data;
+    default:
+      return std::wstring();
+    }
+  }
+  return std::wstring();
+}
+
+bool MainWindow::Impl::ListCellTooltipText(std::wstring* out) {
+  POINT pt = {};
+  if (!out || !GetCursorPos(&pt)) {
     return false;
   }
-  POINT pt = {};
-  GetCursorPos(&pt);
+  HWND list = WindowFromPoint(pt);
+  if (list != browse_.values().hwnd() && list != search_results_list_ &&
+      list != history_list_) {
+    return false;
+  }
   ScreenToClient(list, &pt);
   LVHITTESTINFO hit = {};
   hit.pt = pt;
@@ -126,12 +210,7 @@ bool MainWindow::Impl::ValueCellTooltipText(std::wstring* out) {
   if (item < 0) {
     return false;
   }
-  ListRow* row = browse_.values().MutableRowAt(item);
-  if (!row) {
-    return false;
-  }
-  const int subitem = MappedSubItem(value_column_subitems_, hit.iSubItem);
-  const std::wstring& text = ValueRowFieldText(*row, subitem);
+  const std::wstring text = ListCellFieldText(list, item, hit.iSubItem);
   RECT cell = {};
   const bool measured =
       hit.iSubItem == 0
@@ -155,77 +234,6 @@ bool MainWindow::Impl::ValueCellTooltipText(std::wstring* out) {
     out->append(L"...");
   }
   return true;
-}
-
-std::wstring MainWindow::Impl::SearchCellFieldText(const search::Result& result,
-                                                  int subitem) const {
-  switch (subitem) {
-  case 0:
-    return result.key_path;
-  case 1:
-    return std::wstring(search::DisplayName(result));
-  case 2:
-    return search::TypeText(result);
-  case 3:
-    return result.data_text;
-  case 4:
-    return search::IsKeyRow(result) ||
-                   result.kind == search::ResultKind::kTraceValue
-               ? std::wstring()
-               : std::to_wstring(result.data_size);
-  default:
-    return std::wstring();
-  }
-}
-
-bool MainWindow::Impl::SearchCellTooltipText(std::wstring* out) {
-  HWND list = search_results_list_;
-  if (!out || !list) {
-    return false;
-  }
-  POINT pt = {};
-  GetCursorPos(&pt);
-  ScreenToClient(list, &pt);
-  LVHITTESTINFO hit = {};
-  hit.pt = pt;
-  const int item = ListView_SubItemHitTest(list, &hit);
-  if (item < 0) {
-    return false;
-  }
-  const search::Result* result = SearchResultAt(item);
-  if (!result) {
-    return false;
-  }
-  const std::wstring text = SearchCellFieldText(
-      *result, MappedSubItem(search_column_subitems_, hit.iSubItem));
-  RECT cell = {};
-  const bool measured =
-      hit.iSubItem == 0
-          ? ListView_GetItemRect(list, item, &cell, LVIR_LABEL) != FALSE
-          : ListView_GetSubItemRect(list, item, hit.iSubItem, LVIR_BOUNDS, &cell) != FALSE;
-  const int available = static_cast<int>(cell.right - cell.left) - kCellTooltipPadding;
-  if (!measured || text.empty() || available <= 0 ||
-      !CellTextIsClipped(list, text, available)) {
-    return false;
-  }
-  out->assign(text, 0, std::min(text.size(), kValueTooltipTextLimit));
-  if (out->size() < text.size()) {
-    out->append(L"...");
-  }
-  return true;
-}
-
-bool MainWindow::Impl::ListCellTooltipText(std::wstring* out) {
-  POINT pt = {};
-  GetCursorPos(&pt);
-  HWND under = WindowFromPoint(pt);
-  if (under == search_results_list_) {
-    return SearchCellTooltipText(out);
-  }
-  if (under == browse_.values().hwnd()) {
-    return ValueCellTooltipText(out);
-  }
-  return false;
 }
 
 LRESULT MainWindow::Impl::HandleTooltipNotification(NMHDR* header, LPARAM lparam) {
@@ -360,6 +368,41 @@ LRESULT MainWindow::Impl::HandleToolbarNotification(NMHDR* header, LPARAM lparam
     return CDRF_DODEFAULT;
   }
   return 0;
+}
+
+bool MainWindow::Impl::OpenSearchResultRow(int item, bool new_tab) {
+  const int index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
+  if (item < 0 || index < 0 ||
+      static_cast<size_t>(item) >= SearchRowCount(index)) {
+    return false;
+  }
+  const std::wstring path = SearchRowKeyPath(index, item);
+  const search::Result* row = SearchResultAt(item);
+  const bool value_row = row && !search::IsKeyRow(*row);
+  const std::wstring value_name = value_row ? row->value_name : std::wstring();
+  if (new_tab) {
+    OpenLocalRegistryTab();
+  } else {
+    ActivateRegistryTab();
+  }
+  ApplyViewVisibility();
+  UpdateStatus();
+  SelectTreePath(path);
+  if (value_row && !SelectValueByName(value_name)) {
+    pending_external_value_key_path_ = path;
+    pending_external_value_name_ = value_name;
+    pending_value_command_ = 0;
+  }
+  return true;
+}
+
+bool MainWindow::Impl::OpenSelectedSearchResult(bool new_tab) {
+  if (!search_results_list_ || GetFocus() != search_results_list_ ||
+      IsCompareTabSelected()) {
+    return false;
+  }
+  return OpenSearchResultRow(
+      ListView_GetNextItem(search_results_list_, -1, LVNI_SELECTED), new_tab);
 }
 
 LRESULT MainWindow::Impl::HandleTabNotification(NMHDR* header, LPARAM lparam) {
@@ -1313,25 +1356,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
     }
     auto* activate = reinterpret_cast<NMITEMACTIVATE*>(lparam);
     if (activate && activate->iItem >= 0) {
-      int sel = TabCtrl_GetCurSel(tab_);
-      int index = SearchIndexFromTab(sel);
-      if (index >= 0 &&
-          static_cast<size_t>(activate->iItem) < SearchRowCount(index)) {
-        const std::wstring activated_path =
-            SearchRowKeyPath(index, activate->iItem);
-        if (SearchResultOpensInNewTab()) {
-          OpenLocalRegistryTab();
-        } else {
-          ActivateRegistryTab();
-        }
-        ApplyViewVisibility();
-        UpdateStatus();
-        SelectTreePath(activated_path);
-        const search::Result* row = SearchResultAt(activate->iItem);
-        if (row && !search::IsKeyRow(*row)) {
-          SelectValueByName(row->value_name);
-        }
-      }
+      OpenSearchResultRow(activate->iItem, SearchResultOpensInNewTab());
     }
     return 0;
   }
@@ -1429,6 +1454,7 @@ bool MainWindow::Impl::OnCreate() {
 
   tree_header_ = CreateWindowExW(0, L"STATIC", L"Key Tree", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | SS_LEFT | SS_OWNERDRAW, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTreeHeaderId)), instance_, nullptr);
   tree_close_btn_ = CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_OWNERDRAW, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTreeHeaderCloseId)), instance_, nullptr);
+  filter_clear_btn_ = CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_CLIPSIBLINGS | BS_OWNERDRAW, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kFilterClearId)), instance_, nullptr);
   SetWindowPos(tree_close_btn_, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
   browse_.tree().SetIconResolver([this](const RegistryNode& node) { return KeyIconIndex(node, nullptr, nullptr); });

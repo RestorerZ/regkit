@@ -751,7 +751,7 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
   case WM_NCCREATE: {
     auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return TRUE;
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
   }
   case WM_CREATE: {
     state = reinterpret_cast<ThemePresetWindowState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -805,6 +805,8 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
     }
     return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
   }
+  case DM_GETDEFID:
+    return MAKELRESULT(IDOK, DC_HASDEFID);
   case WM_COMMAND: {
     if (!state) {
       return 0;

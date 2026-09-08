@@ -26,7 +26,6 @@ namespace regkit {
 namespace {
 
 constexpr wchar_t kDialogClass[] = L"RegKitSearchDialog";
-constexpr wchar_t kAppTitle[] = L"RegKit";
 
 enum ControlId {
   kFindLabel = 100,
@@ -133,7 +132,8 @@ int CalcDialogLineHeight(HWND hwnd, HFONT font, int min_height) {
   HFONT old = reinterpret_cast<HFONT>(SelectObject(hdc, font));
   TEXTMETRICW tm = {};
   if (GetTextMetricsW(hdc, &tm)) {
-    int metric_height = static_cast<int>(tm.tmHeight + tm.tmExternalLeading + 6);
+    int metric_height = static_cast<int>(tm.tmHeight + tm.tmExternalLeading) +
+                        2 * GetSystemMetrics(SM_CYBORDER);
     height = std::max(height, metric_height);
   }
   SelectObject(hdc, old);
@@ -458,7 +458,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   int x = 12;
   int y = 12;
   int label_w = 94;
-  int edit_h = CalcDialogLineHeight(hwnd, font, 20);
+  int edit_h = CalcDialogLineHeight(hwnd, font, 18);
   int line_h = std::max(edit_h + 2, 22);
   auto place_check = [&](HWND check, int x_pos, int y_pos, int width, int limit = 0) {
     if (!check) {
@@ -486,7 +486,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
     if (limit > 0) {
       width = std::min(width, limit);
     }
-    SetWindowPos(check, nullptr, x_pos, y_pos, width, 18, SWP_NOZORDER);
+    SetWindowPos(check, nullptr, x_pos, y_pos, width, 20, SWP_NOZORDER);
   };
 
   HWND find_label = GetDlgItem(hwnd, kFindLabel);
@@ -574,7 +574,7 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
   case WM_NCCREATE: {
     auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return TRUE;
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
   }
   case WM_CREATE: {
     state = reinterpret_cast<SearchDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -801,6 +801,8 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     HWND target = reinterpret_cast<HWND>(lparam);
     return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_EDIT));
   }
+  case DM_GETDEFID:
+    return MAKELRESULT(IDOK, DC_HASDEFID);
   case WM_COMMAND: {
     if (!state) {
       return 0;

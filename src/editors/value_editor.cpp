@@ -76,7 +76,6 @@ struct ExtendedValueDialogState {
 std::wstring RegDataToString(const std::vector<BYTE>& data);
 bool ParseNumberValue(const std::wstring& text, int base, unsigned long long* value);
 
-constexpr wchar_t kAppTitle[] = L"RegKit";
 void MoveDialogControl(HWND dlg, int id, int dx, int dy) {
   HWND control = GetDlgItem(dlg, id);
   if (!control) {
@@ -785,6 +784,7 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
          IDC_REG_MULTI_EDIT, IDC_REG_DWORD_EDIT, IDC_REG_QWORD_EDIT,
          IDC_REG_BINARY_EDIT, IDC_REG_BINARY_PREVIEW, IDC_REG_NONE_EDIT,
          IDC_REG_NONE_PREVIEW});
+    dialog_support::AllowNewlines(dlg, IDC_REG_MULTI_EDIT);
     using namespace appearance;
     state->resizer.Attach(dlg, {
         {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
@@ -1112,6 +1112,7 @@ INT_PTR CALLBACK TextDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam
     dialog_support::Initialize(
         dlg, &state->ui_font, {IDC_VALUE_NAME, IDC_EDIT});
     if (IsMultilineEdit(dlg, IDC_EDIT)) {
+      dialog_support::AllowNewlines(dlg, IDC_EDIT);
       using namespace appearance;
       state->resizer.Attach(dlg, {
           {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},

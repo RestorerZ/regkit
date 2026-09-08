@@ -3,11 +3,47 @@
 
 #include "win32/restart.h"
 
+#include "win32/shell_paths.h"
+
 #include <cerrno>
 
 #include <shellapi.h>
 
 namespace regkit::win32 {
+
+bool ArgTakesValue(const std::wstring& arg) {
+  return _wcsicmp(arg.c_str(), kRestartParentArg) == 0 ||
+         _wcsicmp(arg.c_str(), kRestartDataDirArg) == 0;
+}
+
+std::wstring RestartDataDir(const std::vector<std::wstring>& args) {
+  for (size_t i = 0; i + 1 < args.size(); ++i) {
+    if (_wcsicmp(args[i].c_str(), kRestartDataDirArg) == 0) {
+      return args[i + 1];
+    }
+  }
+  return L"";
+}
+
+bool RestoreSessionRequested() {
+  int argc = 0;
+  LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+  if (!argv) {
+    return false;
+  }
+  bool requested = false;
+  for (int i = 1; i < argc && !requested; ++i) {
+    requested = _wcsicmp(argv[i], kRestartSessionArg) == 0;
+  }
+  LocalFree(argv);
+  return requested;
+}
+
+namespace {
+
+std::wstring QuoteArgument(const std::wstring& arg);
+
+} // namespace
 
 std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid) {
   std::wstring arguments;
@@ -22,6 +58,17 @@ std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid) {
     arguments.push_back(L' ');
     arguments += std::to_wstring(parent_pid);
   }
+  const std::wstring data_dir = util::GetAppDataFolder();
+  if (!data_dir.empty()) {
+    if (!arguments.empty()) {
+      arguments.push_back(L' ');
+    }
+    arguments += kRestartDataDirArg;
+    arguments.push_back(L' ');
+    arguments += QuoteArgument(data_dir);
+    arguments.push_back(L' ');
+    arguments += kRestartSessionArg;
+  }
   return arguments;
 }
 
@@ -30,7 +77,10 @@ namespace {
 bool IsInternalRestartArg(const std::wstring& arg) {
   return _wcsicmp(arg.c_str(), kRestartSystemArg) == 0 ||
          _wcsicmp(arg.c_str(), kRestartTiArg) == 0 ||
-         _wcsicmp(arg.c_str(), kRestartParentArg) == 0;
+         _wcsicmp(arg.c_str(), kRestartUserArg) == 0 ||
+         _wcsicmp(arg.c_str(), kRestartAdminArg) == 0 ||
+         _wcsicmp(arg.c_str(), kRestartSessionArg) == 0 ||
+         ArgTakesValue(arg);
 }
 
 std::wstring QuoteArgument(const std::wstring& arg) {
@@ -68,7 +118,7 @@ std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid,
   for (size_t i = 0; i < original_args.size(); ++i) {
     const std::wstring& arg = original_args[i];
     if (IsInternalRestartArg(arg)) {
-      if (_wcsicmp(arg.c_str(), kRestartParentArg) == 0) {
+      if (ArgTakesValue(arg)) {
         ++i;
       }
       continue;

@@ -11,6 +11,7 @@
 #include <cwctype>
 #include <limits>
 #include <shellapi.h>
+#include <shlobj.h>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,8 @@ namespace {
 
 using regkit::win32::kRestartSystemArg;
 using regkit::win32::kRestartTiArg;
+using regkit::win32::kRestartUserArg;
+using regkit::win32::kRestartAdminArg;
 constexpr ULONG_PTR kExternalJumpCopyDataId = 0x52474A54;
 constexpr wchar_t kRegKitWindowProperty[] = L"RegKitMainWindow";
 
@@ -56,6 +59,24 @@ std::vector<std::wstring> GetCommandLineArgs() {
   }
   LocalFree(argv);
   return args;
+}
+
+void ApplyDataDirOverride(const std::vector<std::wstring>& args) {
+  const std::wstring dir = regkit::win32::RestartDataDir(args);
+  if (dir.empty()) {
+    return;
+  }
+  SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
+  const std::wstring probe = util::JoinPath(dir, L"session.probe");
+  HANDLE handle = CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr,
+                              CREATE_ALWAYS,
+                              FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
+                              nullptr);
+  if (handle == INVALID_HANDLE_VALUE) {
+    return;
+  }
+  CloseHandle(handle);
+  SetEnvironmentVariableW(L"REGKIT_DATA_DIR", dir.c_str());
 }
 
 bool HasCommandLineArg(const std::vector<std::wstring>& args, const wchar_t* arg) {
@@ -215,6 +236,9 @@ bool ResolveExternalJumpTarget(const std::vector<std::wstring>& args, std::wstri
       continue;
     }
     if (arg[0] == L'-' || arg[0] == L'/') {
+      if (regkit::win32::ArgTakesValue(arg)) {
+        ++index;
+      }
       continue;
     }
     if (LooksLikeRegistryPath(arg)) {
@@ -563,6 +587,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
   BufferedPaintInit();
 
   const auto args = GetCommandLineArgs();
+  ApplyDataDirOverride(args);
   const bool regedit_compat_requested = IsInterceptedRegeditLaunch(args);
   int cli_exit = 0;
   if (regkit::cli::Execute(
@@ -576,6 +601,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
   const bool external_jump_requested = ResolveExternalJumpTarget(args, &startup_jump_target);
   const std::vector<std::wstring> regedit_merge_files = regedit_compat_requested ? RegFilesFromArgs(args) : std::vector<std::wstring>();
   const bool restart_system = HasCommandLineArg(args, kRestartSystemArg);
+  const bool stay_as_user = HasCommandLineArg(args, kRestartUserArg);
   const bool restart_ti = HasCommandLineArg(args, kRestartTiArg);
   const DWORD restart_parent_pid = regkit::win32::RestartParentPid(args);
   const DWORD handoff_pid =
@@ -613,7 +639,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
     } else if (!error.empty()) {
       regkit::ui::ShowError(nullptr, error);
     }
-  } else if (startup_settings.always_run_as_trustedinstaller &&
+  } else if (!stay_as_user && startup_settings.always_run_as_trustedinstaller &&
              !util::IsProcessTrustedInstaller()) {
     std::wstring error;
     bool launched = false;
@@ -630,7 +656,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
     } else if (!error.empty()) {
       regkit::ui::ShowError(nullptr, error);
     }
-  } else if (startup_settings.always_run_as_system &&
+  } else if (!stay_as_user && startup_settings.always_run_as_system &&
              !util::IsProcessSystem()) {
     std::wstring error;
     bool launched = false;
@@ -647,7 +673,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show) {
     } else if (!error.empty()) {
       regkit::ui::ShowError(nullptr, error);
     }
-  } else if (startup_settings.always_run_as_admin &&
+  } else if ((HasCommandLineArg(args, kRestartAdminArg) ||
+              (!stay_as_user && startup_settings.always_run_as_admin)) &&
              !util::IsProcessElevated()) {
     if (RelaunchAsAdmin(handoff_pid, args)) {
       return 0;

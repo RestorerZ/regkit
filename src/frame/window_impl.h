@@ -146,8 +146,7 @@ private:
                                              LPARAM lparam);
   LRESULT HandleNotification(LPARAM lparam);
   LRESULT HandleTooltipNotification(NMHDR* header, LPARAM lparam);
-  bool ValueCellTooltipText(std::wstring* out);
-  bool SearchCellTooltipText(std::wstring* out);
+  std::wstring ListCellFieldText(HWND list, int item, int display_subitem);
   bool ListCellTooltipText(std::wstring* out);
   std::wstring SearchCellFieldText(const search::Result& result, int subitem) const;
   LRESULT HandleToolbarNotification(NMHDR* header, LPARAM lparam);
@@ -256,6 +255,7 @@ private:
   std::vector<std::wstring> BuildAddressSuggestions(const std::wstring& input) const;
   void ApplyAutoCompleteTheme();
   void UpdateStatus();
+  void SetStatusMessage(const std::wstring& text);
   void SortValueList(int column, bool toggle);
   void SortHistoryList(int column, bool toggle);
   void SortSearchResults(int column, bool toggle);
@@ -295,6 +295,8 @@ private:
   void UpdateTabText(const std::wstring& text);
   void UpdateTabWidth();
   void CloseTab(int tab_index);
+  void ActivateTabIndex(int index);
+  bool HandleTabCommand(int command_id);
   bool ConfirmCloseTab(int tab_index);
   bool ConfirmOfflineChanges(const wchar_t* message);
   void MarkOfflineDirty();
@@ -309,6 +311,8 @@ private:
   int FindFirstRegistryTabIndex() const;
   void ActivateRegistryTab();
   bool SearchResultOpensInNewTab() const;
+  bool OpenSearchResultRow(int item, bool new_tab);
+  bool OpenSelectedSearchResult(bool new_tab);
   void UpdateTabHotState(HWND hwnd, POINT pt);
   void PaintTabControl(HWND hwnd, HDC hdc);
   void DrawTabItem(HDC hdc, int index, const RECT& item_rect, int header_bottom, bool selected);
@@ -317,7 +321,11 @@ private:
   bool UnloadOfflineRegistry(std::wstring* error);
   void NavigateToAddress();
   bool SelectTreePath(const std::wstring& path);
+  std::wstring TreeNeighbourPath(HTREEITEM item);
+  bool SelectChildKey(const RegistryNode& parent, const std::wstring& name);
   bool SelectValueByName(const std::wstring& name);
+  void SelectValueAfterRefresh(const std::wstring& name);
+  void SelectListRowAtIndex(HWND list, int index);
   void FocusAddressBarForExternalJump(bool defer_if_needed);
   void BeginJumpUiBatch();
   void EndJumpUiBatch();
@@ -384,6 +392,8 @@ private:
   void ShowSearchResultContextMenu(POINT screen_pt);
   void DrawAddressButton(const DRAWITEMSTRUCT* info);
   void DrawHeaderCloseButton(const DRAWITEMSTRUCT* info);
+  void DrawFilterClearButton(const DRAWITEMSTRUCT* info);
+  void ClearValueFilter(bool focus_values);
   void ShowPermissionsDialog(const RegistryNode& node);
   void ReplaceRegedit(bool enable);
   void SyncReplaceRegeditState();
@@ -410,6 +420,7 @@ private:
   bool FindNearestExistingPath(const std::wstring& path, std::wstring* nearest_path) const;
   bool CreateRegistryPath(const std::wstring& path);
   bool SelectAllInFocusedList();
+  void CyclePaneFocus(bool forward);
   bool InvertSelectionInFocusedList();
   bool IsCompareTabSelected() const;
   void StartCompareRegistries();
@@ -432,6 +443,8 @@ private:
   std::wstring CommentsPath() const;
   bool EditValueComments(const std::vector<ListRow>& rows);
   bool RestartAsAdmin();
+  bool RestartAsUser();
+  void PrepareSessionHandover();
   bool RestartAsSystem();
   bool RestartAsTrustedInstaller();
   void LoadSettings();
@@ -532,6 +545,7 @@ private:
   HWND tab_ = nullptr;
   HWND tree_header_ = nullptr;
   HWND tree_close_btn_ = nullptr;
+  HWND filter_clear_btn_ = nullptr;
   HWND history_label_ = nullptr;
   HWND history_close_btn_ = nullptr;
   HWND history_list_ = nullptr;
@@ -638,6 +652,7 @@ private:
   bool applying_theme_ = false;
   bool history_loaded_ = false;
   bool history_cache_failed_ = false;
+  std::wstring status_message_;
   bool is_replaying_ = false;
   bool clear_history_on_exit_ = false;
   bool save_tabs_ = true;
@@ -651,6 +666,7 @@ private:
   HWND last_focus_ = nullptr;
   int pending_value_command_ = 0;
   std::wstring retained_value_name_;
+  int retained_value_index_ = -1;
   std::wstring retained_value_key_path_;
   std::wstring queued_external_jump_target_;
   bool jump_ui_batch_active_ = false;
@@ -706,6 +722,7 @@ private:
     std::wstring offline_path;
     std::wstring remote_machine;
     std::wstring selected_path;
+    std::wstring selected_value;
     std::vector<std::wstring> expanded_paths;
     bool offline_dirty = false;
     std::wstring reg_file_path;

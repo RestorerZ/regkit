@@ -206,7 +206,7 @@ std::wstring MainWindow::Impl::SearchTabCachePath(const std::wstring& file) cons
   if (folder.empty()) {
     return L"";
   }
-  if (file.empty()) {
+  if (file.empty() || file.find_first_of(L"\\/:") != std::wstring::npos) {
     return L"";
   }
   return util::JoinPath(folder, file);
@@ -315,9 +315,13 @@ void MainWindow::Impl::LoadTabs() {
 
   int active_index = 0;
   bool loaded = false;
-  if (save_tabs_) {
+  const bool restore_session = win32::RestoreSessionRequested();
+  if (save_tabs_ || restore_session) {
     workspace::TabState state;
     loaded = workspace::LoadTabs(TabsCachePath(), &state);
+    if (loaded && restore_session && !save_tabs_) {
+      DeleteFileW(TabsCachePath().c_str());
+    }
     if (loaded) {
       active_index = state.active_index;
       for (workspace::PersistedTab& saved : state.tabs) {
@@ -334,6 +338,7 @@ void MainWindow::Impl::LoadTabs() {
           entry.kind = TabEntry::Kind::kRegistry;
           entry.registry_mode = RegistryMode::kLocal;
           entry.selected_path = std::move(saved.selected_path);
+          entry.selected_value = std::move(saved.selected_value);
           entry.expanded_paths = std::move(saved.expanded_paths);
           tabs_.push_back(std::move(entry));
         } else {
@@ -469,6 +474,7 @@ bool MainWindow::Impl::SaveTabs() {
       saved.kind = workspace::PersistedTab::Kind::kRegistry;
       saved.label = std::move(label);
       saved.selected_path = registry_entry.selected_path;
+      saved.selected_value = registry_entry.selected_value;
       saved.expanded_paths = registry_entry.expanded_paths;
       state.tabs.push_back(std::move(saved));
     }

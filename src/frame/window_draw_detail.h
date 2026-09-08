@@ -78,10 +78,14 @@ constexpr int kHistoryHeaderCloseId = 114;
 constexpr int kFilterEditId = 115;
 constexpr int kValueGridButtonId = 116;
 constexpr int kSearchGridButtonId = 117;
+constexpr int kFilterClearId = 118;
+constexpr UINT_PTR kStatusMessageTimerId = 41;
 constexpr int kValueGridButtonWidth = 22;
 constexpr int kToolbarIconSize = 16;
 constexpr int kToolbarGlyphSize = 16;
 using win32::kRestartSystemArg;
+using win32::kRestartUserArg;
+using win32::kRestartAdminArg;
 using win32::kRestartTiArg;
 template <typename T>
 inline T ClampValue(T value, T low, T high) {
@@ -280,11 +284,14 @@ inline void DrawSearchMatchOverlay(HDC hdc, const RECT& cell,
   }
   constexpr int kMaxOverlayChars = 512;
   if (total > kMaxOverlayChars) {
-    if (start + length > kMaxOverlayChars) {
+    if (start >= kMaxOverlayChars) {
       return;
     }
     text = text.substr(0, static_cast<size_t>(kMaxOverlayChars));
     total = kMaxOverlayChars;
+    if (start + length > total) {
+      length = total - start;
+    }
   }
   const int available = cell.right - cell.left;
   SIZE full = {};
@@ -304,8 +311,11 @@ inline void DrawSearchMatchOverlay(HDC hdc, const RECT& cell,
       return;
     }
   }
-  if (start + length > visible) {
+  if (start >= visible) {
     return;
+  }
+  if (start + length > visible) {
+    length = visible - start;
   }
   SIZE prefix = {};
   if (!GetTextExtentPoint32W(hdc, text.data(), start, &prefix)) {

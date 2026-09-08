@@ -506,14 +506,24 @@ DataMatch MatchValueData(const Matcher& matcher,
       }
     }
 
+    auto accept_bytes = [&](size_t byte_start, size_t byte_length) {
+      result.matched = true;
+      result.data_text = value_format::Data(type, data, size);
+      if (byte_length > 0) {
+        result.match.matched = true;
+        result.match.start = byte_start * 3;
+        result.match.length = byte_length * 3 - 1;
+      }
+    };
+
     if (scratch) {
       scratch->assign(size, L'\0');
       for (DWORD i = 0; i < size; ++i) {
         (*scratch)[i] = static_cast<wchar_t>(data[i]);
       }
-      if (matcher.Find(*scratch).matched) {
-        result.matched = true;
-        result.data_text = value_format::Data(type, data, size);
+      const Match match = matcher.Find(*scratch);
+      if (match.matched) {
+        accept_bytes(match.start, match.length);
         return result;
       }
     }
@@ -522,9 +532,10 @@ DataMatch MatchValueData(const Matcher& matcher,
         (reinterpret_cast<uintptr_t>(data) % alignof(wchar_t)) == 0) {
       const std::wstring_view wide(reinterpret_cast<const wchar_t*>(data),
                                    size / sizeof(wchar_t));
-      if (matcher.Find(wide).matched) {
-        result.matched = true;
-        result.data_text = value_format::Data(type, data, size);
+      const Match match = matcher.Find(wide);
+      if (match.matched) {
+        accept_bytes(match.start * sizeof(wchar_t),
+                     match.length * sizeof(wchar_t));
         return result;
       }
     }

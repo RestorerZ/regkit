@@ -246,7 +246,7 @@ void MainWindow::Impl::CreateSearchColumns() {
       {L"Type", 110, LVCFMT_LEFT},
       {L"Data", 360, LVCFMT_LEFT},
       {L"Size", 80, LVCFMT_RIGHT},
-      {L"Data Modified", 150, LVCFMT_LEFT},
+      {L"Date Modified", 150, LVCFMT_LEFT},
   };
   search_column_widths_.clear();
   search_column_visible_.clear();
@@ -332,13 +332,15 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node) {
   appended_value_name_.clear();
   retained_value_name_.clear();
   retained_value_key_path_.clear();
+  retained_value_index_ = -1;
   if (browse_.current_node()) {
     int selected = ListView_GetNextItem(browse_.values().hwnd(), -1, LVNI_SELECTED);
     if (selected >= 0 && ListView_GetNextItem(browse_.values().hwnd(), selected, LVNI_SELECTED) < 0) {
       if (const ListRow* row = browse_.values().RowAt(selected)) {
+        retained_value_index_ = selected;
+        retained_value_key_path_ = registry_path::Build(*browse_.current_node());
         if (row->kind == rowkind::kValue) {
           retained_value_name_ = row->extra;
-          retained_value_key_path_ = registry_path::Build(*browse_.current_node());
         }
       }
     }

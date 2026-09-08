@@ -378,6 +378,7 @@ void MainWindow::Impl::ApplyViewVisibility() {
   ShowWindow(browse_.go_button(), show_address_bar_ ? SW_SHOW : SW_HIDE);
   ShowWindow(tab_, show_tab_control_ ? SW_SHOW : SW_HIDE);
   ShowWindow(browse_.filter(), (show_value && show_filter_bar_) ? SW_SHOW : SW_HIDE);
+  ShowWindow(filter_clear_btn_, (show_value && show_filter_bar_) ? SW_SHOW : SW_HIDE);
   ShowWindow(tree_header_, show_tree ? SW_SHOW : SW_HIDE);
   ShowWindow(tree_close_btn_, show_tree ? SW_SHOW : SW_HIDE);
   ShowWindow(browse_.tree().hwnd(), show_tree ? SW_SHOW : SW_HIDE);
@@ -985,11 +986,14 @@ void MainWindow::Impl::LayoutControls(int width, int height) {
         int filter_width = std::min(target_width, std::max(filter_min_width, available - kTabMinWidth - filter_gap));
         tabs_width = std::max(kTabMinWidth, available - filter_width - filter_gap);
         int filter_y = y + std::max(0, (tabs_height - filter_height) / 2);
+        int edit_width = std::max(filter_min_width / 2, filter_width - address_btn_width);
         place(tab_, padding, y, tabs_width, tabs_height);
-        place(browse_.filter(), padding + tabs_width + filter_gap, filter_y, filter_width, filter_height);
+        place(browse_.filter(), padding + tabs_width + filter_gap, filter_y, edit_width, filter_height);
+        place(filter_clear_btn_, padding + tabs_width + filter_gap + edit_width, filter_y, address_btn_width, filter_height);
         SetEditMargins(browse_.filter(), 6, 6);
         SetEditVerticalRect(browse_.filter(), ui_font_, 2, 6, 6);
         ShowWindow(browse_.filter(), SW_SHOW);
+        ShowWindow(filter_clear_btn_, SW_SHOW);
       } else {
         show_filter = false;
       }
@@ -999,15 +1003,19 @@ void MainWindow::Impl::LayoutControls(int width, int height) {
       if (browse_.filter()) {
         ShowWindow(browse_.filter(), SW_HIDE);
       }
+      ShowWindow(filter_clear_btn_, SW_HIDE);
     } else if (!show_tabs && show_filter) {
       int available = std::max(0, tabs_width);
       int filter_width = ClampValue(available, filter_min_width, filter_max_width);
       int filter_y = y + std::max(0, (tabs_height - filter_height) / 2);
       int filter_x = padding + std::max(0, tabs_width - filter_width);
-      place(browse_.filter(), filter_x, filter_y, filter_width, filter_height);
+      int edit_width = std::max(filter_min_width / 2, filter_width - address_btn_width);
+      place(browse_.filter(), filter_x, filter_y, edit_width, filter_height);
+      place(filter_clear_btn_, filter_x + edit_width, filter_y, address_btn_width, filter_height);
       SetEditMargins(browse_.filter(), 6, 6);
       SetEditVerticalRect(browse_.filter(), ui_font_, 2, 6, 6);
       ShowWindow(browse_.filter(), SW_SHOW);
+      ShowWindow(filter_clear_btn_, SW_SHOW);
     }
     y += tabs_height + kMainVerticalGap;
   } else {
@@ -1017,6 +1025,7 @@ void MainWindow::Impl::LayoutControls(int width, int height) {
     if (browse_.filter()) {
       ShowWindow(browse_.filter(), SW_HIDE);
     }
+    ShowWindow(filter_clear_btn_, SW_HIDE);
   }
 
   int status_top = height - status_height;

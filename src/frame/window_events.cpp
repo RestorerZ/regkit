@@ -127,6 +127,34 @@ void MainWindow::Impl::FocusAddressBarForExternalJump(bool defer_if_needed) {
   }
 }
 
+void MainWindow::Impl::CyclePaneFocus(bool forward) {
+  HWND panes[] = {toolbar_.hwnd(),          browse_.address(),
+                  tab_,                     browse_.filter(),
+                  browse_.tree().hwnd(),    browse_.values().hwnd(),
+                  search_results_list_,     history_list_};
+  HWND visible[_countof(panes)] = {};
+  int count = 0;
+  for (HWND pane : panes) {
+    if (pane && IsWindowVisible(pane) && IsWindowEnabled(pane)) {
+      visible[count++] = pane;
+    }
+  }
+  if (count == 0) {
+    return;
+  }
+  HWND focus = GetFocus();
+  int current = -1;
+  for (int i = 0; i < count; ++i) {
+    if (visible[i] == focus || IsChild(visible[i], focus)) {
+      current = i;
+      break;
+    }
+  }
+  const int next = current < 0 ? (forward ? 0 : count - 1)
+                               : (current + (forward ? 1 : count - 1)) % count;
+  SetFocus(visible[next]);
+}
+
 bool MainWindow::Impl::TranslateAccelerator(const MSG& msg) {
   if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) {
     const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
@@ -167,75 +195,18 @@ bool MainWindow::Impl::TranslateAccelerator(const MSG& msg) {
       }
     }
 
-    if (ctrl && !alt) {
-      if (shift && msg.wParam == 'C' && !focus_edit) {
-        HandleMenuCommand(cmd::kEditCopyKey);
+    if (ctrl && !alt && !shift && msg.wParam == 'A') {
+      if (SelectAllInFocusedList()) {
         return true;
       }
-      switch (msg.wParam) {
-      case 'A':
-        if (SelectAllInFocusedList()) {
-          return true;
-        }
-        if (focus_edit && focus) {
-          SendMessageW(focus, EM_SETSEL, 0, -1);
-          return true;
-        }
-        break;
-      case 'C':
-        if (!focus_edit) {
-          HandleMenuCommand(cmd::kEditCopy);
-          return true;
-        }
-        return false;
-      case 'V':
-        if (!focus_edit) {
-          HandleMenuCommand(cmd::kEditPaste);
-          return true;
-        }
-        return false;
-      case 'X':
-        if (!focus_edit) {
-          HandleMenuCommand(cmd::kEditDelete);
-          return true;
-        }
-        return false;
-      case 'Z':
-        if (!focus_edit) {
-          HandleMenuCommand(cmd::kEditUndo);
-          return true;
-        }
-        return false;
-      case 'Y':
-        if (focus_edit && focus) {
-          SendMessageW(focus, EM_REDO, 0, 0);
-          return true;
-        }
-        HandleMenuCommand(cmd::kEditRedo);
+      if (focus_edit && focus) {
+        SendMessageW(focus, EM_SETSEL, 0, -1);
         return true;
-      case 'F':
-        HandleMenuCommand(cmd::kEditFind);
-        return true;
-      case 'G':
-        HandleMenuCommand(cmd::kEditGoTo);
-        return true;
-      case 'H':
-        HandleMenuCommand(cmd::kEditReplace);
-        return true;
-      case 'S':
-        HandleMenuCommand(cmd::kFileSave);
-        return true;
-      case 'E':
-        HandleMenuCommand(cmd::kFileExport);
-        return true;
-      case 'N':
-        OpenLocalRegistryTab();
-        return true;
-      case 'R':
-        HandleMenuCommand(cmd::kRegistryNetwork);
-        return true;
-      case 'O':
-        HandleMenuCommand(cmd::kRegistryOffline);
+      }
+    }
+
+    if (ctrl && !alt && shift && msg.wParam == 'G') {
+      if (OpenSelectedSearchResult(true)) {
         return true;
       }
     }
@@ -255,22 +226,19 @@ bool MainWindow::Impl::TranslateAccelerator(const MSG& msg) {
           return true;
         }
       }
-      if (msg.wParam == VK_DELETE && !focus_edit) {
-        HandleMenuCommand(cmd::kEditDelete);
+      if (msg.wParam == VK_F6) {
+        CyclePaneFocus(!shift);
         return true;
       }
-      if (msg.wParam == VK_F2 && !focus_edit) {
-        HandleMenuCommand(cmd::kEditRename);
-        return true;
-      }
-      if (msg.wParam == VK_F5) {
-        HandleMenuCommand(cmd::kViewRefresh);
+      if (msg.wParam == VK_BACK && !focus_edit) {
+        HandleMenuCommand(cmd::kNavBack);
         return true;
       }
     }
 
     if (focus_edit) {
-      if (msg.wParam == VK_DELETE || msg.wParam == VK_BACK) {
+      if (msg.wParam == VK_DELETE || msg.wParam == VK_BACK ||
+          msg.wParam == VK_F2) {
         return false;
       }
       if (ctrl && !alt) {
@@ -376,6 +344,15 @@ LRESULT CALLBACK MainWindow::Impl::FilterEditProc(HWND hwnd, UINT message, WPARA
     if (self) {
       self->FocusFirstValue();
     }
+    return 0;
+  }
+  if (message == WM_KEYDOWN && wparam == VK_ESCAPE) {
+    if (self) {
+      self->ClearValueFilter(GetWindowTextLengthW(hwnd) == 0);
+    }
+    return 0;
+  }
+  if (message == WM_CHAR && wparam == VK_ESCAPE) {
     return 0;
   }
   if (message == WM_CHAR && wparam == VK_RETURN) {

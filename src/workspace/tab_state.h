@@ -17,12 +17,13 @@ struct PersistedTab {
   Kind kind = Kind::kRegistry;
   std::wstring label;
   std::wstring selected_path;
+  std::wstring selected_value;
   std::vector<std::wstring> expanded_paths;
   std::wstring search_cache_file;
 };
 
 struct TabState {
-  static constexpr int kCurrentVersion = 1;
+  static constexpr int kCurrentVersion = 2;
   int source_version = 1;
   int active_index = 0;
   std::vector<PersistedTab> tabs;

@@ -81,8 +81,6 @@ bool Pane::Create(const CreateRequest& request) {
                          request.callback_context)) {
     return false;
   }
-  SendMessageW(address_, EM_SETCUEBANNER, TRUE,
-               reinterpret_cast<LPARAM>(L"Registry path"));
   return true;
 }
 

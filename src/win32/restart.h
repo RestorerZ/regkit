@@ -15,6 +15,14 @@ namespace regkit::win32 {
 inline constexpr wchar_t kRestartSystemArg[] = L"--restart-system";
 inline constexpr wchar_t kRestartTiArg[] = L"--restart-ti";
 inline constexpr wchar_t kRestartParentArg[] = L"--restart-from-pid";
+inline constexpr wchar_t kRestartUserArg[] = L"--restart-user";
+inline constexpr wchar_t kRestartAdminArg[] = L"--restart-admin";
+inline constexpr wchar_t kRestartDataDirArg[] = L"--data-dir";
+inline constexpr wchar_t kRestartSessionArg[] = L"--restore-session";
+
+bool ArgTakesValue(const std::wstring& arg);
+std::wstring RestartDataDir(const std::vector<std::wstring>& args);
+bool RestoreSessionRequested();
 
 std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid);
 std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid,

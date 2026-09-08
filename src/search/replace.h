@@ -16,6 +16,9 @@ struct ReplaceOptions {
   bool match_case = false;
   bool match_whole = false;
   bool use_regex = false;
+  bool replace_keys = false;
+  bool replace_values = true;
+  bool replace_data = true;
 };
 
 class Replacer {

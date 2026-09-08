@@ -68,7 +68,7 @@ CommandArea ClassifyCommand(int command_id) noexcept {
     return CommandArea::kNavigateClipboard;
   }
   if (command_id >= cmd::kViewRefresh &&
-      command_id <= cmd::kViewGridLines) {
+      command_id <= cmd::kViewFocusFilter) {
     return CommandArea::kView;
   }
   if ((command_id >= cmd::kTraceLoad23H2 &&
@@ -80,7 +80,7 @@ CommandArea ClassifyCommand(int command_id) noexcept {
   if ((command_id >= cmd::kFavoritesAdd &&
        command_id <= cmd::kFavoritesImportRegedit) ||
       (command_id >= cmd::kWindowNew &&
-       command_id <= cmd::kWindowAlwaysOnTop) ||
+       command_id <= cmd::kTabSelectMax) ||
       (command_id >= cmd::kOptionsThemeSystem &&
        command_id <= cmd::kHistoryRemove) ||
       (command_id >= cmd::kHelpAbout &&

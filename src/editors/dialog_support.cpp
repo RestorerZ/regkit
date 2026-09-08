@@ -20,19 +20,6 @@ namespace regkit::editors::dialog_support {
 
 namespace {
 
-constexpr UINT_PTR kMultilineSubclassId = 1;
-
-LRESULT CALLBACK MultilineProc(HWND window, UINT message, WPARAM wparam,
-                               LPARAM lparam, UINT_PTR, DWORD_PTR) {
-  if (message == WM_GETDLGCODE && wparam == VK_RETURN) {
-    return DefSubclassProc(window, message, wparam, lparam) | DLGC_WANTMESSAGE;
-  }
-  if (message == WM_NCDESTROY) {
-    RemoveWindowSubclass(window, MultilineProc, kMultilineSubclassId);
-  }
-  return DefSubclassProc(window, message, wparam, lparam);
-}
-
 constexpr UINT_PTR kSingleLineSubclassId = 2;
 
 LRESULT CALLBACK SingleLineProc(HWND window, UINT message, WPARAM wparam,
@@ -167,11 +154,7 @@ void Initialize(HWND dialog, HFONT* owned_font,
           const LONG_PTR style = GetWindowLongPtrW(child, GWL_STYLE);
           if (_wcsicmp(class_name, L"Edit") == 0 &&
               (style & ES_MULTILINE) && !(style & ES_READONLY)) {
-            if (style & ES_WANTRETURN) {
-              SetWindowSubclass(child, MultilineProc, kMultilineSubclassId, 0);
-            } else {
-              SetWindowSubclass(child, SingleLineProc, kSingleLineSubclassId, 0);
-            }
+            SetWindowSubclass(child, SingleLineProc, kSingleLineSubclassId, 0);
           }
           return TRUE;
         },

@@ -68,7 +68,8 @@ inline int CalcEditHeight(HWND hwnd, HFONT font, int min_height) {
   HFONT old = reinterpret_cast<HFONT>(SelectObject(hdc, font));
   TEXTMETRICW tm = {};
   if (GetTextMetricsW(hdc, &tm)) {
-    int metric_height = static_cast<int>(tm.tmHeight + tm.tmExternalLeading + 6);
+    int metric_height = static_cast<int>(tm.tmHeight + tm.tmExternalLeading) +
+                        2 * GetSystemMetrics(SM_CYBORDER);
     height = std::max(height, metric_height);
   }
   SelectObject(hdc, old);

@@ -35,6 +35,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
                    state->value.apply_to_same_name ? BST_CHECKED
                                                    : BST_UNCHECKED);
     dialog_support::Initialize(dialog, &state->font, {IDC_EDIT});
+    dialog_support::AllowNewlines(dialog, IDC_EDIT);
     using namespace appearance;
     state->resizer.Attach(dialog, {
         {IDC_LABEL, kAnchorLeft | kAnchorTop | kAnchorRight},

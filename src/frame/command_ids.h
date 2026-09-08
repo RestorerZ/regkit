@@ -81,6 +81,7 @@ constexpr int kViewFilterBar = 2211;
 constexpr int kViewTabControl = 2212;
 constexpr int kViewSimulatedKeys = 2213;
 constexpr int kViewGridLines = 2214;
+constexpr int kViewFocusFilter = 2215;
 
 constexpr int kFavoritesAdd = 2300;
 constexpr int kFavoritesRemove = 2301;
@@ -94,6 +95,11 @@ constexpr int kFavoritesItemMax = 2699;
 constexpr int kWindowNew = 2400;
 constexpr int kWindowClose = 2401;
 constexpr int kWindowAlwaysOnTop = 2402;
+constexpr int kTabClose = 2403;
+constexpr int kTabNext = 2404;
+constexpr int kTabPrevious = 2405;
+constexpr int kTabSelectBase = 2410;
+constexpr int kTabSelectMax = 2418;
 
 constexpr int kOptionsThemeSystem = 2450;
 constexpr int kOptionsThemeLight = 2451;
@@ -110,6 +116,7 @@ constexpr int kOptionsThemeCustom = 2461;
 constexpr int kOptionsCompareRegistries = 2462;
 constexpr int kOptionsRestartSystem = 2463;
 constexpr int kOptionsAlwaysRunSystem = 2464;
+constexpr int kOptionsRestartUser = 2465;
 constexpr int kOptionsRestartTrustedInstaller = 2466;
 constexpr int kOptionsAlwaysRunTrustedInstaller = 2467;
 constexpr int kOptionsThemePresets = 2468;

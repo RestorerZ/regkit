@@ -14,6 +14,10 @@ TabState ParseTabs(const std::wstring& content) {
     if (line.empty()) {
       continue;
     }
+    if (line.rfind(L"version=", 0) == 0) {
+      state.source_version = _wtoi(line.substr(8).c_str());
+      continue;
+    }
     if (line.rfind(L"active=", 0) == 0) {
       state.active_index = _wtoi(line.substr(7).c_str());
       continue;
@@ -29,7 +33,14 @@ TabState ParseTabs(const std::wstring& content) {
       if (fields.size() >= 4) {
         tab.selected_path = record_fields::Unescape(fields[3]);
       }
-      for (size_t index = 4; index < fields.size(); ++index) {
+      size_t first_expanded = 4;
+      if (state.source_version >= 2) {
+        if (fields.size() >= 5) {
+          tab.selected_value = record_fields::Unescape(fields[4]);
+        }
+        first_expanded = 5;
+      }
+      for (size_t index = first_expanded; index < fields.size(); ++index) {
         std::wstring path = record_fields::Unescape(fields[index]);
         if (!path.empty()) {
           tab.expanded_paths.push_back(std::move(path));
@@ -48,8 +59,10 @@ TabState ParseTabs(const std::wstring& content) {
 }
 
 std::wstring SerializeTabs(const TabState& state) {
-  std::wstring content =
-      L"active=" + std::to_wstring(state.active_index) + L"\n";
+  std::wstring content = L"version=" +
+                         std::to_wstring(TabState::kCurrentVersion) +
+                         L"\nactive=" + std::to_wstring(state.active_index) +
+                         L"\n";
   for (const PersistedTab& tab : state.tabs) {
     content.append(L"tab\t");
     content.append(tab.kind == PersistedTab::Kind::kSearch ? L"search\t"
@@ -60,6 +73,8 @@ std::wstring SerializeTabs(const TabState& state) {
       content.append(record_fields::Escape(tab.search_cache_file));
     } else {
       content.append(record_fields::Escape(tab.selected_path));
+      content.push_back(L'\t');
+      content.append(record_fields::Escape(tab.selected_value));
       for (const std::wstring& path : tab.expanded_paths) {
         content.push_back(L'\t');
         content.append(record_fields::Escape(path));

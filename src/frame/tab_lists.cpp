@@ -5,6 +5,8 @@
 
 #include <unordered_set>
 
+#include "frame/shortcut_bindings.h"
+
 namespace regkit {
 using namespace window_detail;
 
@@ -609,26 +611,54 @@ void MainWindow::Impl::BuildAccelerators() {
     DestroyAcceleratorTable(accelerators_);
     accelerators_ = nullptr;
   }
-  ACCEL accels[] = {
-      {FVIRTKEY | FCONTROL, 'C', cmd::kEditCopy},
-      {FVIRTKEY | FCONTROL, 'V', cmd::kEditPaste},
-      {FVIRTKEY | FCONTROL, 'A', cmd::kViewSelectAll},
-      {FVIRTKEY | FCONTROL, 'Z', cmd::kEditUndo},
-      {FVIRTKEY | FCONTROL, 'Y', cmd::kEditRedo},
-      {FVIRTKEY | FCONTROL, 'F', cmd::kEditFind},
-      {FVIRTKEY | FCONTROL, 'G', cmd::kEditGoTo},
-      {FVIRTKEY | FCONTROL, 'H', cmd::kEditReplace},
-      {FVIRTKEY | FCONTROL, 'S', cmd::kFileSave},
-      {FVIRTKEY | FCONTROL, 'E', cmd::kFileExport},
-      {FVIRTKEY | FCONTROL | FSHIFT, 'C', cmd::kEditCopyKey},
-      {FVIRTKEY, VK_DELETE, cmd::kEditDelete},
-      {FVIRTKEY, VK_F2, cmd::kEditRename},
-      {FVIRTKEY, VK_F5, cmd::kViewRefresh},
-      {FVIRTKEY | FALT, VK_LEFT, cmd::kNavBack},
-      {FVIRTKEY | FALT, VK_RIGHT, cmd::kNavForward},
-      {FVIRTKEY | FALT, VK_UP, cmd::kNavUp},
-  };
-  accelerators_ = CreateAcceleratorTableW(accels, static_cast<int>(sizeof(accels) / sizeof(accels[0])));
+  std::vector<ACCEL> accels;
+  accels.reserve(_countof(frame::kShortcutBindings) + 9);
+  for (const auto& binding : frame::kShortcutBindings) {
+    accels.push_back({static_cast<BYTE>(FVIRTKEY | binding.modifiers), binding.key,
+                      static_cast<WORD>(binding.command)});
+  }
+  for (int i = 0; i < 9; ++i) {
+    accels.push_back({FVIRTKEY | FCONTROL, static_cast<WORD>('1' + i),
+                      static_cast<WORD>(cmd::kTabSelectBase + i)});
+  }
+  accelerators_ = CreateAcceleratorTableW(accels.data(), static_cast<int>(accels.size()));
+}
+
+void MainWindow::Impl::ActivateTabIndex(int index) {
+  if (!tab_ || index < 0 || index >= TabCtrl_GetItemCount(tab_) ||
+      index == TabCtrl_GetCurSel(tab_)) {
+    return;
+  }
+  SelectTabIndex(index);
+  ApplyTabSelection(index);
+  ApplyViewVisibility();
+  UpdateSearchResultsView();
+  UpdateStatus();
+}
+
+bool MainWindow::Impl::HandleTabCommand(int command_id) {
+  if (!tab_) {
+    return true;
+  }
+  if (command_id >= cmd::kTabSelectBase && command_id <= cmd::kTabSelectMax) {
+    ActivateTabIndex(command_id - cmd::kTabSelectBase);
+    return true;
+  }
+  const int count = TabCtrl_GetItemCount(tab_);
+  switch (command_id) {
+  case cmd::kTabClose:
+    CloseTab(TabCtrl_GetCurSel(tab_));
+    return true;
+  case cmd::kTabNext:
+  case cmd::kTabPrevious:
+    if (count > 1) {
+      const int step = command_id == cmd::kTabNext ? 1 : count - 1;
+      ActivateTabIndex((TabCtrl_GetCurSel(tab_) + step) % count);
+    }
+    return true;
+  default:
+    return false;
+  }
 }
 
 bool MainWindow::Impl::SelectAllInFocusedList() {

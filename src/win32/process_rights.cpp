@@ -355,6 +355,25 @@ bool IsProcessElevated() {
   return elevated;
 }
 
+bool IsUacEnabled() {
+  HKEY key = nullptr;
+  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                    L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+                    0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
+    return true;
+  }
+  DWORD value = 1;
+  DWORD size = sizeof(value);
+  DWORD type = 0;
+  const LONG result = RegQueryValueExW(key, L"EnableLUA", nullptr, &type,
+                                       reinterpret_cast<LPBYTE>(&value), &size);
+  RegCloseKey(key);
+  if (result != ERROR_SUCCESS || type != REG_DWORD) {
+    return true;
+  }
+  return value != 0;
+}
+
 bool IsProcessSystem() {
   ScopedHandle token;
   if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, token.put())) {
@@ -431,6 +450,76 @@ bool IsProcessTrustedInstaller() {
     }
   }
   return false;
+}
+
+bool LaunchProcessAsShellUser(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code, bool* impersonation_lost) {
+  if (error_code) {
+    *error_code = ERROR_SUCCESS;
+  }
+  if (impersonation_lost) {
+    *impersonation_lost = false;
+  }
+  if (command_line.empty()) {
+    SetLastError(ERROR_INVALID_PARAMETER);
+    if (error_code) {
+      *error_code = ERROR_INVALID_PARAMETER;
+    }
+    return false;
+  }
+
+  bool result = false;
+  DWORD error = ERROR_SUCCESS;
+  DWORD shell_pid = 0;
+  const HWND shell = GetShellWindow();
+  ScopedHandle shell_process;
+  ScopedHandle shell_token;
+  ScopedHandle target_token;
+  ScopedEnvBlock env;
+  STARTUPINFOW startup = {};
+  PROCESS_INFORMATION process = {};
+  std::wstring mutable_command;
+
+  if (!shell || !GetWindowThreadProcessId(shell, &shell_pid) || shell_pid == 0) {
+    error = ERROR_NOT_FOUND;
+    goto Cleanup;
+  }
+  shell_process.reset(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, shell_pid));
+  if (!shell_process) {
+    error = GetLastError();
+    goto Cleanup;
+  }
+  if (!OpenProcessToken(shell_process.get(), TOKEN_DUPLICATE, shell_token.put())) {
+    error = GetLastError();
+    goto Cleanup;
+  }
+  if (!DuplicateTokenEx(shell_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenPrimary, target_token.put())) {
+    error = GetLastError();
+    goto Cleanup;
+  }
+  if (!CreateEnvironmentBlock(env.put(), target_token.get(), FALSE)) {
+    error = GetLastError();
+    goto Cleanup;
+  }
+
+  startup.cb = sizeof(startup);
+  startup.lpDesktop = const_cast<LPWSTR>(L"winsta0\\default");
+  mutable_command = command_line;
+  result = CreateProcessWithTokenW(target_token.get(), 0, nullptr, mutable_command.data(), CREATE_UNICODE_ENVIRONMENT, env.get(), work_dir.empty() ? nullptr : work_dir.c_str(), &startup, &process);
+  if (!result) {
+    error = GetLastError();
+    goto Cleanup;
+  }
+  CloseHandle(process.hThread);
+  CloseHandle(process.hProcess);
+
+Cleanup:
+  if (!result) {
+    if (error_code) {
+      *error_code = error;
+    }
+    SetLastError(error);
+  }
+  return result;
 }
 
 bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code, bool* impersonation_lost) {
