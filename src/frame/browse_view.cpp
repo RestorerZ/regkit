@@ -558,6 +558,9 @@ void MainWindow::Impl::UpdateAddressBar(RegistryNode* node) {
     }
   }
   SetWindowTextW(address, path.c_str());
+  const int end = static_cast<int>(path.size());
+  SendMessageW(address, EM_SETSEL, end, end);
+  SendMessageW(address, EM_SCROLLCARET, 0, 0);
   UpdateGoButtonState();
 }
 

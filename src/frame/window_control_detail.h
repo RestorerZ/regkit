@@ -59,24 +59,6 @@
 #include "resource.h"
 
 namespace regkit::window_detail {
-inline int CalcEditHeight(HWND hwnd, HFONT font, int min_height) {
-  int height = min_height;
-  if (!hwnd || !font) {
-    return height;
-  }
-  HDC hdc = GetDC(hwnd);
-  HFONT old = reinterpret_cast<HFONT>(SelectObject(hdc, font));
-  TEXTMETRICW tm = {};
-  if (GetTextMetricsW(hdc, &tm)) {
-    int metric_height = static_cast<int>(tm.tmHeight + tm.tmExternalLeading) +
-                        2 * GetSystemMetrics(SM_CYBORDER);
-    height = std::max(height, metric_height);
-  }
-  SelectObject(hdc, old);
-  ReleaseDC(hwnd, hdc);
-  return height;
-}
-
 inline void SetEditMargins(HWND hwnd, int left, int right) {
   if (!hwnd) {
     return;
@@ -275,6 +257,7 @@ inline int CompareUint64(uint64_t left, uint64_t right) {
 }
 
 constexpr int kCellTooltipPadding = 8;
+constexpr int kCellTextInset = 16;
 constexpr size_t kCellTooltipMeasureLimit = 512;
 constexpr size_t kCellTextDrawLimit = 512;
 constexpr size_t kValuePreviewLimit = 4096;
@@ -309,19 +292,7 @@ inline bool CellTextIsClipped(HWND list, const std::wstring& text, int available
   if (text.size() > kCellTooltipMeasureLimit) {
     return true;
   }
-  HDC dc = GetDC(list);
-  if (!dc) {
-    return false;
-  }
-  HFONT font = reinterpret_cast<HFONT>(SendMessageW(list, WM_GETFONT, 0, 0));
-  HGDIOBJ old_font = font ? SelectObject(dc, font) : nullptr;
-  SIZE size = {};
-  GetTextExtentPoint32W(dc, text.c_str(), static_cast<int>(text.size()), &size);
-  if (old_font) {
-    SelectObject(dc, old_font);
-  }
-  ReleaseDC(list, dc);
-  return size.cx > available;
+  return ListView_GetStringWidth(list, text.c_str()) > available;
 }
 
 inline int CompareValueRow(const ListRow& left, const ListRow& right, int column) {

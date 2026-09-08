@@ -216,7 +216,8 @@ bool MainWindow::Impl::ListCellTooltipText(std::wstring* out) {
       hit.iSubItem == 0
           ? ListView_GetItemRect(list, item, &cell, LVIR_LABEL) != FALSE
           : ListView_GetSubItemRect(list, item, hit.iSubItem, LVIR_BOUNDS, &cell) != FALSE;
-  const int available = static_cast<int>(cell.right - cell.left) - kCellTooltipPadding;
+  const int padding = hit.iSubItem == 0 ? kCellTooltipPadding : kCellTextInset;
+  const int available = static_cast<int>(cell.right - cell.left) - padding;
   if (!measured || text.empty() || available <= 0 ||
       !CellTextIsClipped(list, text, available)) {
     return false;
@@ -388,10 +389,8 @@ bool MainWindow::Impl::OpenSearchResultRow(int item, bool new_tab) {
   ApplyViewVisibility();
   UpdateStatus();
   SelectTreePath(path);
-  if (value_row && !SelectValueByName(value_name)) {
-    pending_external_value_key_path_ = path;
-    pending_external_value_name_ = value_name;
-    pending_value_command_ = 0;
+  if (value_row) {
+    SelectValueWhenReady(value_name);
   }
   return true;
 }
@@ -1092,6 +1091,7 @@ LRESULT MainWindow::Impl::HandleSearchListCustomDraw(NMLVCUSTOMDRAW* draw) {
         return CDRF_DODEFAULT;
       }
       cell.right = row.left + ListView_GetColumnWidth(search_results_list_, 0);
+      cell.left += kLabelTextInset;
     } else {
       cell.top = draw->iSubItem;
       cell.left = LVIR_BOUNDS;

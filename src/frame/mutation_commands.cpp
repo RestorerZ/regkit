@@ -677,10 +677,9 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id) {
       const bool restorable = snapshot.complete;
       if (!restorable &&
           !ui::ConfirmDelete(
-              hwnd_,
+              hwnd_, L"Delete Key", name,
               L"Part of this key could not be read, so this delete cannot be "
-              L"undone. Delete anyway?",
-              name)) {
+              L"undone. Delete anyway?")) {
         return true;
       }
       if (!RegistryStore::DeleteKey(target)) {

@@ -16,6 +16,8 @@ namespace regkit::search::compare {
 
 struct Row {
   std::wstring key_path;
+  std::wstring first_key_path;
+  std::wstring second_key_path;
   std::wstring value_name;
   std::wstring first_text;
   std::wstring second_text;

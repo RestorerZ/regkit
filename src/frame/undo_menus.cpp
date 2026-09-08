@@ -705,6 +705,16 @@ bool MainWindow::Impl::SelectValueByName(const std::wstring& name) {
   return browse_.SelectValue(name);
 }
 
+void MainWindow::Impl::SelectValueWhenReady(const std::wstring& name) {
+  pending_value_name_ = name;
+  if (browse_.values().hwnd()) {
+    SetFocus(browse_.values().hwnd());
+  }
+  if (!value_list_loading_ && SelectValueByName(name)) {
+    pending_value_name_.clear();
+  }
+}
+
 void MainWindow::Impl::SelectValueAfterRefresh(const std::wstring& name) {
   if (!browse_.current_node()) {
     return;

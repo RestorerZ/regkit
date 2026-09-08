@@ -325,6 +325,7 @@ private:
   bool SelectChildKey(const RegistryNode& parent, const std::wstring& name);
   bool SelectValueByName(const std::wstring& name);
   void SelectValueAfterRefresh(const std::wstring& name);
+  void SelectValueWhenReady(const std::wstring& name);
   void SelectListRowAtIndex(HWND list, int index);
   void FocusAddressBarForExternalJump(bool defer_if_needed);
   void BeginJumpUiBatch();
@@ -666,6 +667,7 @@ private:
   HWND last_focus_ = nullptr;
   int pending_value_command_ = 0;
   std::wstring retained_value_name_;
+  std::wstring pending_value_name_;
   int retained_value_index_ = -1;
   std::wstring retained_value_key_path_;
   std::wstring queued_external_jump_target_;

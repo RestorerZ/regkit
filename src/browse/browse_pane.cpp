@@ -36,7 +36,7 @@ bool Pane::Create(const CreateRequest& request) {
     return false;
   }
   address_ = CreateWindowExW(
-      0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+      0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
       0, 0, 0, 0, request.parent,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.address_id)),
       request.instance, nullptr);
@@ -46,7 +46,7 @@ bool Pane::Create(const CreateRequest& request) {
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.go_id)),
       request.instance, nullptr);
   filter_ = CreateWindowExW(
-      0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+      0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
       0, 0, 0, 0, request.parent,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.filter_id)),
       request.instance, nullptr);

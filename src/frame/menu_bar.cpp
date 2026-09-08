@@ -225,6 +225,9 @@ void MainWindow::Impl::BuildMenus() {
   bool is_system = util::IsProcessSystem();
   bool is_ti = util::IsProcessTrustedInstaller();
   const bool is_high = is_system || is_ti;
+  UINT user_flags =
+      MF_STRING | ((is_high || (is_elevated && util::IsUacEnabled())) ? 0 : MF_GRAYED);
+  AppendMenuW(options_menu, user_flags, cmd::kOptionsRestartUser, L"Restart as User");
   UINT admin_flags = MF_STRING | ((is_elevated && !is_high) ? MF_GRAYED : 0);
   AppendMenuW(options_menu, admin_flags, cmd::kOptionsRestartAdmin, L"Restart as Admin");
   AppendMenuW(options_menu, MF_STRING | (always_run_as_admin_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunAdmin, L"Always run as Admin");
@@ -234,9 +237,6 @@ void MainWindow::Impl::BuildMenus() {
   UINT ti_flags = MF_STRING | (is_ti ? MF_GRAYED : 0);
   AppendMenuW(options_menu, ti_flags, cmd::kOptionsRestartTrustedInstaller, L"Restart as TI");
   AppendMenuW(options_menu, MF_STRING | (always_run_as_trustedinstaller_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunTrustedInstaller, L"Always run as TI");
-  UINT user_flags =
-      MF_STRING | ((is_high || (is_elevated && util::IsUacEnabled())) ? 0 : MF_GRAYED);
-  AppendMenuW(options_menu, user_flags, cmd::kOptionsRestartUser, L"Restart as User");
   AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
   UINT replace_flags = MF_STRING | ((is_elevated || is_system || is_ti) ? 0 : MF_GRAYED);
   AppendMenuW(options_menu, replace_flags | (replace_regedit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReplaceRegedit, L"Replace Regedit");

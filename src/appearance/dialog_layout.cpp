@@ -107,6 +107,51 @@ void PositionDialog(HWND dialog, HWND owner, int width, int height) {
                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
+void CenterEditText(HWND edit, HFONT font, int left_pad, int right_pad) {
+  if (!edit || !font) {
+    return;
+  }
+  RECT rect = {};
+  GetClientRect(edit, &rect);
+  HDC hdc = GetDC(edit);
+  if (!hdc) {
+    return;
+  }
+  HFONT old = reinterpret_cast<HFONT>(SelectObject(hdc, font));
+  TEXTMETRICW tm = {};
+  const bool ok = GetTextMetricsW(hdc, &tm) != FALSE;
+  SelectObject(hdc, old);
+  ReleaseDC(edit, hdc);
+  if (!ok) {
+    return;
+  }
+  const int line = static_cast<int>(tm.tmHeight + tm.tmExternalLeading);
+  const int pad = std::max(0, (static_cast<int>(rect.bottom - rect.top) - line) / 2);
+  rect.left += left_pad;
+  rect.right -= right_pad;
+  rect.top += pad;
+  rect.bottom = rect.top + line;
+  SendMessageW(edit, EM_SETRECT, 0, reinterpret_cast<LPARAM>(&rect));
+}
+
+void FitDialogHeight(HWND dialog, int client_height) {
+  if (!dialog || client_height <= 0) {
+    return;
+  }
+  RECT client = {};
+  if (!GetClientRect(dialog, &client) ||
+      client.bottom - client.top == client_height) {
+    return;
+  }
+  RECT want = {0, 0, client.right - client.left, client_height};
+  AdjustWindowRectEx(&want, static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_STYLE)),
+                     FALSE,
+                     static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_EXSTYLE)));
+  SetWindowPos(dialog, nullptr, 0, 0, want.right - want.left,
+               want.bottom - want.top,
+               SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 void RunModalLoop(HWND dialog) {
   MSG msg = {};
   while (IsWindow(dialog)) {

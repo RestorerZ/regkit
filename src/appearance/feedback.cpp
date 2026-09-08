@@ -5,6 +5,7 @@
 
 #include "appearance/default_font.h"
 #include "appearance/dialog_layout.h"
+#include "appearance/dialog_metrics.h"
 
 #include <algorithm>
 #include <cwchar>
@@ -178,18 +179,16 @@ void FitChoiceDialogToContent(HWND hwnd, ChoiceDialogState* state) {
   }
   RECT client = {};
   GetClientRect(hwnd, &client);
-  const int padding = 12;
+  using namespace appearance::metrics;
   const int icon_w = state->icon_id ? 32 : 0;
-  const int icon_gap = state->icon_id ? 12 : 0;
-  const int base_units = GetDialogBaseUnits();
-  const int base_y = std::max(1, static_cast<int>(HIWORD(base_units)));
-  const int content_w = (client.right - client.left) - padding - icon_w - icon_gap - padding;
-  const int text_h = TextBlockHeight(hwnd, state->font, state->message, content_w);
+  const int content_w = (client.right - client.left) - kMargin * 2 - icon_w -
+                        (icon_w ? kBlockGap : 0);
+  const int text_h =
+      std::max(icon_w, TextBlockHeight(hwnd, state->font, state->message, content_w));
   const int lines = std::min(DetailLineCount(state->detail), kMaxDetailLines);
-  const int detail_h = MulDiv(12, base_y, 8) + (lines - 1) * base_y;
-  const int btn_h = MulDiv(11, base_y, 8);
-  const int needed = padding + text_h + MulDiv(2, base_y, 8) + detail_h +
-                     MulDiv(6, base_y, 8) + btn_h + padding;
+  const int detail_h = kControlHeight + (lines - 1) * kDetailLineHeight;
+  const int needed = kMargin + text_h + kBlockGap + detail_h + kBlockGap +
+                     kButtonHeight + kMargin;
   if (needed <= client.bottom - client.top) {
     return;
   }
@@ -205,44 +204,38 @@ void LayoutChoiceDialog(HWND hwnd, ChoiceDialogState* state) {
   if (!hwnd || !state) {
     return;
   }
+  using namespace appearance::metrics;
   RECT client = {};
   GetClientRect(hwnd, &client);
   int width = client.right - client.left;
-  int height = client.bottom - client.top;
-  int padding = 12;
   int icon_w = state->icon_id ? 32 : 0;
-  int icon_gap = state->icon_id ? 12 : 0;
-  int base_units = GetDialogBaseUnits();
-  int base_x = std::max(1, static_cast<int>(LOWORD(base_units)));
-  int base_y = std::max(1, static_cast<int>(HIWORD(base_units)));
-  int btn_w = MulDiv(state->button_width_dlu, base_x, 4);
-  int btn_h = MulDiv(11, base_y, 8);
-  int btn_y = height - padding - btn_h;
-  int gap = MulDiv(6, base_x, 4);
+  int base_x = std::max(1, static_cast<int>(LOWORD(GetDialogBaseUnits())));
+  int btn_w = std::max(kButtonWidth, MulDiv(state->button_width_dlu, base_x, 4));
   if (state->icon) {
-    SetWindowPos(state->icon, nullptr, padding, padding + 2, 32, 32, SWP_NOZORDER);
+    SetWindowPos(state->icon, nullptr, kMargin, kMargin, 32, 32, SWP_NOZORDER);
   }
-  const int text_x = padding + icon_w + icon_gap;
-  const int content_w = width - text_x - padding;
+  const int text_x = kMargin + icon_w + (icon_w ? kBlockGap : 0);
+  const int content_w = width - text_x - kMargin;
+  int y = kMargin;
+  const int text_h =
+      std::max(icon_w, TextBlockHeight(hwnd, state->font, state->message, content_w));
+  if (state->text) {
+    SetWindowPos(state->text, nullptr, text_x, y, content_w, text_h, SWP_NOZORDER);
+  }
+  y += text_h + kBlockGap;
   if (state->detail_edit) {
-    const int text_h = TextBlockHeight(hwnd, state->font, state->message, content_w);
-    const int detail_y = padding + text_h + MulDiv(2, base_y, 8);
-    if (state->text) {
-      SetWindowPos(state->text, nullptr, text_x, padding, content_w, text_h, SWP_NOZORDER);
-    }
     const int lines = std::min(DetailLineCount(state->detail), kMaxDetailLines);
-    const int detail_h = MulDiv(12, base_y, 8) + (lines - 1) * base_y;
-    SetWindowPos(state->detail_edit, nullptr, text_x, detail_y, content_w, detail_h, SWP_NOZORDER);
+    const int detail_h = kControlHeight + (lines - 1) * kDetailLineHeight;
+    SetWindowPos(state->detail_edit, nullptr, text_x, y, content_w, detail_h, SWP_NOZORDER);
     if (state->detail_tip) {
       SendMessageW(state->detail_tip, TTM_ACTIVATE,
                    lines == 1 && TextWidth(hwnd, state->font, state->detail) > content_w - 8, 0);
     }
-  } else if (state->text) {
-    SetWindowPos(state->text, nullptr, text_x, padding, content_w, btn_y - padding, SWP_NOZORDER);
+    y += detail_h + kBlockGap;
   }
 
   HWND buttons[] = {state->yes_btn, state->no_btn, state->cancel_btn};
-  const int widths[] = {state->yes_button_width_dlu > 0 ? MulDiv(state->yes_button_width_dlu, base_x, 4) : btn_w, btn_w, btn_w};
+  const int widths[] = {state->yes_button_width_dlu > 0 ? std::max(kButtonWidth, MulDiv(state->yes_button_width_dlu, base_x, 4)) : btn_w, btn_w, btn_w};
   int total_w = 0;
   int button_count = 0;
   for (int i = 0; i < 3; ++i) {
@@ -254,44 +247,44 @@ void LayoutChoiceDialog(HWND hwnd, ChoiceDialogState* state) {
   if (button_count == 0) {
     return;
   }
-  total_w += gap * (button_count - 1);
-  int x = std::max(padding, width - padding - total_w);
+  total_w += kButtonGap * (button_count - 1);
+  int x = std::max(kMargin, width - kMargin - total_w);
   for (int i = 0; i < 3; ++i) {
     if (!buttons[i]) {
       continue;
     }
-    SetWindowPos(buttons[i], nullptr, x, btn_y, widths[i], btn_h, SWP_NOZORDER);
-    x += widths[i] + gap;
+    SetWindowPos(buttons[i], nullptr, x, y, widths[i], kButtonHeight, SWP_NOZORDER);
+    x += widths[i] + kButtonGap;
   }
+  appearance::FitDialogHeight(hwnd, y + kButtonHeight + kMargin);
 }
 
 void LayoutErrorDialog(HWND hwnd, ErrorDialogState* state) {
   if (!hwnd || !state) {
     return;
   }
+  using namespace appearance::metrics;
   RECT client = {};
   GetClientRect(hwnd, &client);
   int width = client.right - client.left;
   int height = client.bottom - client.top;
-  int padding = 12;
-  int btn_w = 80;
-  int btn_h = 22;
-  int btn_y = height - padding - btn_h;
-  int text_w = width - padding * 2;
-  int text_h = btn_y - padding;
+  int text_w = width - kMargin * 2;
+  int btn_y = height - kMargin - kButtonHeight;
+  const int message_h = TextBlockHeight(hwnd, state->font, state->message, text_w);
   if (state->detail_box) {
-    const int message_h =
-        std::min(text_h / 2, TextBlockHeight(hwnd, state->font, state->message, text_w));
-    SetWindowPos(state->text, nullptr, padding, padding, text_w, message_h, SWP_NOZORDER);
-    const int detail_y = padding + message_h + 6;
-    SetWindowPos(state->detail_box, nullptr, padding, detail_y, text_w,
-                 std::max(0, btn_y - detail_y - 6), SWP_NOZORDER);
+    SetWindowPos(state->text, nullptr, kMargin, kMargin, text_w,
+                 std::min(message_h, std::max(0, btn_y - kMargin)), SWP_NOZORDER);
+    const int detail_y = kMargin + message_h + kBlockGap;
+    SetWindowPos(state->detail_box, nullptr, kMargin, detail_y, text_w,
+                 std::max(0, btn_y - detail_y - kBlockGap), SWP_NOZORDER);
   } else if (state->text) {
-    SetWindowPos(state->text, nullptr, padding, padding, text_w, text_h, SWP_NOZORDER);
+    SetWindowPos(state->text, nullptr, kMargin, kMargin, text_w, message_h, SWP_NOZORDER);
+    btn_y = kMargin + message_h + kBlockGap;
+    appearance::FitDialogHeight(hwnd, btn_y + kButtonHeight + kMargin);
   }
-  int ok_x = width - padding - btn_w;
+  int ok_x = width - kMargin - kButtonWidth;
   if (state->ok_btn) {
-    SetWindowPos(state->ok_btn, nullptr, ok_x, btn_y, btn_w, btn_h, SWP_NOZORDER);
+    SetWindowPos(state->ok_btn, nullptr, ok_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
   }
 }
 
@@ -299,16 +292,13 @@ void LayoutAboutDialog(HWND hwnd, AboutDialogState* state) {
   if (!hwnd || !state) {
     return;
   }
+  using namespace appearance::metrics;
   RECT client = {};
   GetClientRect(hwnd, &client);
   int width = client.right - client.left;
-  int height = client.bottom - client.top;
-  int padding = 12;
-  int line_h = 20;
-  int gap = 6;
-  int btn_w = 80;
-  int btn_h = 22;
-  int btn_y = height - padding - btn_h;
+  int padding = kMargin;
+  int line_h = kCheckHeight;
+  int gap = kRowGap;
   int text_w = width - padding * 2;
   int y = padding;
 
@@ -333,10 +323,12 @@ void LayoutAboutDialog(HWND hwnd, AboutDialogState* state) {
     SetWindowPos(state->email_link, nullptr, padding, y, text_w, line_h, SWP_NOZORDER);
   }
 
-  int ok_x = width - padding - btn_w;
+  int btn_y = y + line_h + kBlockGap;
+  int ok_x = width - padding - kButtonWidth;
   if (state->ok_btn) {
-    SetWindowPos(state->ok_btn, nullptr, ok_x, btn_y, btn_w, btn_h, SWP_NOZORDER);
+    SetWindowPos(state->ok_btn, nullptr, ok_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
   }
+  appearance::FitDialogHeight(hwnd, btn_y + kButtonHeight + kMargin);
 }
 
 LRESULT CALLBACK ChoiceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -531,11 +523,11 @@ LRESULT CALLBACK ErrorDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
     if (!state->detail.empty()) {
       state->detail_box = CreateWindowExW(
           0, L"EDIT", state->detail.c_str(),
-          WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | WS_HSCROLL |
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | WS_VSCROLL | WS_HSCROLL |
               ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL,
           0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
     }
-    state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+    state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
 
     ApplyConfirmFonts(hwnd, state->font);
     Theme::Current().ApplyToWindow(hwnd);
@@ -642,7 +634,7 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
                                         L"Email: <a href=\"mailto:contact@noverse.dev\">"
                                         L"contact@noverse.dev</a>",
                                         WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
-    state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+    state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
 
     ApplyConfirmFonts(hwnd, state->font);
     Theme::Current().ApplyToWindow(hwnd);
@@ -1022,13 +1014,15 @@ void ShowRegFileMergeFailed(HWND owner, const std::wstring& path, const std::wst
 constexpr int kKeyChoiceButtonWidthDlu = 45;
 
 bool ConfirmDelete(HWND owner, const std::wstring& title,
-                   const std::vector<std::wstring>& names) {
+                   const std::vector<std::wstring>& names,
+                   const std::wstring& override_message) {
   if (names.empty()) {
     return false;
   }
   const bool many = names.size() > 1;
-  std::wstring message;
-  if (_wcsicmp(title.c_str(), L"Delete Key") == 0) {
+  std::wstring message = override_message;
+  if (!message.empty()) {
+  } else if (_wcsicmp(title.c_str(), L"Delete Key") == 0) {
     message = many ? L"Delete these keys and all of their subkeys?"
                    : L"Delete this key and all of its subkeys?";
   } else if (_wcsnicmp(title.c_str(), L"Delete Value", 12) == 0) {
@@ -1055,8 +1049,9 @@ bool ConfirmDelete(HWND owner, const std::wstring& title,
   return false;
 }
 
-bool ConfirmDelete(HWND owner, const std::wstring& title, const std::wstring& name) {
-  return ConfirmDelete(owner, title, std::vector<std::wstring>{name});
+bool ConfirmDelete(HWND owner, const std::wstring& title, const std::wstring& name,
+                   const std::wstring& override_message) {
+  return ConfirmDelete(owner, title, std::vector<std::wstring>{name}, override_message);
 }
 
 

@@ -10,6 +10,7 @@
 #include <vsstyle.h>
 
 #include "appearance/dialog_layout.h"
+#include "appearance/dialog_metrics.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
 #include "appearance/list_header.h"
@@ -677,30 +678,30 @@ void CreateControls(ThemePresetWindowState* state) {
 
   state->preset_list = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | LVS_NOSORTHEADER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kPresetListId)), nullptr, nullptr);
 
-  state->new_btn = CreateWindowExW(0, L"BUTTON", L"New...", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kNewPresetId)), nullptr, nullptr);
-  state->duplicate_btn = CreateWindowExW(0, L"BUTTON", L"Duplicate", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDuplicatePresetId)), nullptr, nullptr);
-  state->rename_btn = CreateWindowExW(0, L"BUTTON", L"Rename...", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kRenamePresetId)), nullptr, nullptr);
-  state->delete_btn = CreateWindowExW(0, L"BUTTON", L"Delete", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDeletePresetId)), nullptr, nullptr);
-  state->import_btn = CreateWindowExW(0, L"BUTTON", L"Import...", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kImportPresetId)), nullptr, nullptr);
-  state->export_btn = CreateWindowExW(0, L"BUTTON", L"Export...", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kExportPresetId)), nullptr, nullptr);
+  state->new_btn = CreateWindowExW(0, L"BUTTON", L"New...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kNewPresetId)), nullptr, nullptr);
+  state->duplicate_btn = CreateWindowExW(0, L"BUTTON", L"Duplicate", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDuplicatePresetId)), nullptr, nullptr);
+  state->rename_btn = CreateWindowExW(0, L"BUTTON", L"Rename...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kRenamePresetId)), nullptr, nullptr);
+  state->delete_btn = CreateWindowExW(0, L"BUTTON", L"Delete", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDeletePresetId)), nullptr, nullptr);
+  state->import_btn = CreateWindowExW(0, L"BUTTON", L"Import...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kImportPresetId)), nullptr, nullptr);
+  state->export_btn = CreateWindowExW(0, L"BUTTON", L"Export...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kExportPresetId)), nullptr, nullptr);
 
   state->colors_group = CreateWindowExW(0, L"BUTTON", L"Colors", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
   state->color_list = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kColorListId)), nullptr, nullptr);
 
-  state->edit_color_btn = CreateWindowExW(0, L"BUTTON", L"Edit Color...", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kEditColorId)), nullptr, nullptr);
+  state->edit_color_btn = CreateWindowExW(0, L"BUTTON", L"Edit Color...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kEditColorId)), nullptr, nullptr);
 
-  state->dark_check = CreateWindowExW(0, L"BUTTON", L"Treat as dark theme", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDarkCheckId)), nullptr, nullptr);
+  state->dark_check = CreateWindowExW(0, L"BUTTON", L"Treat as dark theme", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDarkCheckId)), nullptr, nullptr);
 
   state->templates_group = CreateWindowExW(0, L"BUTTON", L"Templates", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
   state->template_combo = CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTemplateComboId)), nullptr, nullptr);
 
-  state->template_btn = CreateWindowExW(0, L"BUTTON", L"Apply Template", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kApplyTemplateId)), nullptr, nullptr);
+  state->template_btn = CreateWindowExW(0, L"BUTTON", L"Apply Template", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kApplyTemplateId)), nullptr, nullptr);
 
-  state->apply_btn = CreateWindowExW(0, L"BUTTON", L"Apply", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kApplyId)), nullptr, nullptr);
-  state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
-  state->cancel_btn = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
+  state->apply_btn = CreateWindowExW(0, L"BUTTON", L"Apply", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kApplyId)), nullptr, nullptr);
+  state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+  state->cancel_btn = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
 
   SetupPresetListView(state->preset_list);
   SetupColorListView(state->color_list);

@@ -226,13 +226,16 @@ LRESULT DrawThemedButton(const NMCUSTOMDRAW* draw) {
   if (focused && show_cues) {
     RECT focus_rect = text_rect;
     RECT measured = text_rect;
-    if (DrawTextW(hdc, text, -1, &measured, format | DT_CALCRECT) > 0) {
+    TEXTMETRICW metrics = {};
+    if (DrawTextW(hdc, text, -1, &measured, format | DT_CALCRECT) > 0 &&
+        GetTextMetricsW(hdc, &metrics)) {
       if (measured.right < focus_rect.right) {
         focus_rect.right = measured.right;
       }
-      const LONG height = measured.bottom - measured.top;
-      focus_rect.top = (rect.top + rect.bottom - height) / 2;
-      focus_rect.bottom = focus_rect.top + height;
+      const LONG line = measured.bottom - measured.top;
+      const LONG top = (rect.top + rect.bottom - line) / 2;
+      focus_rect.top = top + metrics.tmInternalLeading;
+      focus_rect.bottom = top + metrics.tmHeight;
     }
     InflateRect(&focus_rect, 1, 1);
     DrawFocusRect(hdc, &focus_rect);

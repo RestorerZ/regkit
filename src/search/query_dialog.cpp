@@ -13,6 +13,7 @@
 #include <shlobj.h>
 
 #include "appearance/dialog_layout.h"
+#include "appearance/dialog_metrics.h"
 #include "appearance/theme.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
@@ -123,23 +124,6 @@ HFONT CreateDialogFont() {
   return ui::DefaultUIFont();
 }
 
-int CalcDialogLineHeight(HWND hwnd, HFONT font, int min_height) {
-  if (!hwnd || !font) {
-    return min_height;
-  }
-  int height = min_height;
-  HDC hdc = GetDC(hwnd);
-  HFONT old = reinterpret_cast<HFONT>(SelectObject(hdc, font));
-  TEXTMETRICW tm = {};
-  if (GetTextMetricsW(hdc, &tm)) {
-    int metric_height = static_cast<int>(tm.tmHeight + tm.tmExternalLeading) +
-                        2 * GetSystemMetrics(SM_CYBORDER);
-    height = std::max(height, metric_height);
-  }
-  SelectObject(hdc, old);
-  ReleaseDC(hwnd, hdc);
-  return height;
-}
 
 std::wstring SearchHistoryPath() {
   std::wstring folder = util::GetAppDataFolder();
@@ -455,11 +439,12 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   RECT client = {};
   GetClientRect(hwnd, &client);
   int width = client.right - client.left;
-  int x = 12;
-  int y = 12;
+  using namespace appearance::metrics;
+  int x = kMargin;
+  int y = kMargin;
   int label_w = 94;
-  int edit_h = CalcDialogLineHeight(hwnd, font, 18);
-  int line_h = std::max(edit_h + 2, 22);
+  int edit_h = kControlHeight;
+  int line_h = kControlHeight;
   auto place_check = [&](HWND check, int x_pos, int y_pos, int width, int limit = 0) {
     if (!check) {
       return;
@@ -486,7 +471,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
     if (limit > 0) {
       width = std::min(width, limit);
     }
-    SetWindowPos(check, nullptr, x_pos, y_pos, width, 20, SWP_NOZORDER);
+    SetWindowPos(check, nullptr, x_pos, y_pos, width, kCheckHeight, SWP_NOZORDER);
   };
 
   HWND find_label = GetDlgItem(hwnd, kFindLabel);
@@ -496,72 +481,84 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   y += line_h + 12;
 
   int group_w = width - x * 2;
-  int where_h = 100;
+  int where_h = kGroupTop + kControlPitch * 2 + kControlHeight + kGroupBottom;
   SetWindowPos(GetDlgItem(hwnd, kWhereGroup), nullptr, x, y, group_w, where_h, SWP_NOZORDER);
-  int gx = x + 12;
-  int gy = y + 20;
+  int gx = x + kGroupInset;
+  int gy = y + kGroupTop;
   int left_w = 150;
-  place_check(state->scope_top, gx, gy, left_w);
-  int key_offset = 5;
-  place_check(state->scope_key, gx, gy + 22 + key_offset, left_w);
-  int combo_x = gx + left_w + 8;
-  int combo_w2 = width - combo_x - x - 8;
+  place_check(state->scope_top, gx, gy + kCheckInset, left_w);
+  int combo_x = gx + left_w + kLabelGap;
+  int combo_w2 = width - combo_x - x - kGroupInset;
   SetWindowPos(state->scope_combo, nullptr, combo_x, gy, combo_w2, line_h, SWP_NOZORDER);
-  int scope_edit_y = gy + 22 + key_offset + (line_h - edit_h) / 2;
+  place_check(state->scope_key, gx, gy + kControlPitch + kCheckInset, left_w);
+  int scope_edit_y = gy + kControlPitch;
   SetWindowPos(state->scope_edit, nullptr, combo_x, scope_edit_y, combo_w2 - 84, edit_h, SWP_NOZORDER);
   SetWindowPos(state->scope_browse, nullptr, combo_x + combo_w2 - 80, scope_edit_y, 80, edit_h, SWP_NOZORDER);
-  place_check(state->scope_recursive, combo_x, gy + 44 + key_offset, 140);
-  y += where_h + 12;
+  place_check(state->scope_recursive, combo_x, gy + kControlPitch * 2 + kCheckInset, 140);
+  y += where_h + kBlockGap;
 
-  int options_h = 160;
+  int options_h = kGroupTop + kRowPitch * 5 + kCheckHeight + kGroupBottom;
   SetWindowPos(GetDlgItem(hwnd, kOptionsGroup), nullptr, x, y, group_w, options_h, SWP_NOZORDER);
-  gy = y + 20;
-  int left_x = x + 12;
-  int right_x = x + group_w / 2 + 8;
-  place_check(state->options_keys, left_x, gy, 170);
-  place_check(state->options_values, left_x, gy + 22, 170);
-  place_check(state->options_data, left_x, gy + 44, 170);
-  place_check(state->options_standard, left_x, gy + 66, 200);
-  place_check(state->options_registry, left_x, gy + 88, 200);
-  place_check(state->options_trace, left_x, gy + 110, 200);
+  gy = y + kGroupTop;
+  int left_x = x + kGroupInset;
+  int right_x = x + group_w / 2 + kLabelGap;
+  auto option_row = [&](int row) { return gy + kRowPitch * row; };
+  place_check(state->options_keys, left_x, option_row(0), 170);
+  place_check(state->options_values, left_x, option_row(1), 170);
+  place_check(state->options_data, left_x, option_row(2), 170);
+  place_check(state->options_standard, left_x, option_row(3), 200);
+  place_check(state->options_registry, left_x, option_row(4), 200);
+  place_check(state->options_trace, left_x, option_row(5), 200);
 
-  place_check(state->min_size, right_x, gy, 180, 180);
-  SetWindowPos(state->min_size_edit, nullptr, right_x + 188, gy - 4, 76, line_h, SWP_NOZORDER);
-  place_check(state->max_size, right_x, gy + 22, 180, 180);
-  SetWindowPos(state->max_size_edit, nullptr, right_x + 188, gy + 18, 76, line_h, SWP_NOZORDER);
-  place_check(state->match_case, right_x, gy + 44, 140);
-  place_check(state->match_whole, right_x, gy + 66, 160);
-  place_check(state->use_regex, right_x, gy + 88, 190);
-  SetWindowPos(state->options_data_types, nullptr, right_x, gy + 110, 120, 20, SWP_NOZORDER);
-  y += options_h + 8;
+  place_check(state->min_size, right_x, option_row(0), 180, 180);
+  SetWindowPos(state->min_size_edit, nullptr, right_x + 188, option_row(0) - kCheckInset, 76, kControlHeight, SWP_NOZORDER);
+  place_check(state->max_size, right_x, option_row(1), 180, 180);
+  SetWindowPos(state->max_size_edit, nullptr, right_x + 188, option_row(1) - kCheckInset, 76, kControlHeight, SWP_NOZORDER);
+  place_check(state->match_case, right_x, option_row(2), 140);
+  place_check(state->match_whole, right_x, option_row(3), 160);
+  place_check(state->use_regex, right_x, option_row(4), 190);
+  SetWindowPos(state->options_data_types, nullptr, right_x, option_row(5) - kCheckInset, 120, kControlHeight, SWP_NOZORDER);
+  y += options_h + kBlockGap;
 
   int modified_label_w = 150;
   int modified_x = x + modified_label_w + 6;
   int modified_w = 150;
-  SetWindowPos(GetDlgItem(hwnd, kModifiedLabel), nullptr, x, y + 4, modified_label_w, 18, SWP_NOZORDER);
+  SetWindowPos(GetDlgItem(hwnd, kModifiedLabel), nullptr, x, y + kLabelInset, modified_label_w, kLabelHeight, SWP_NOZORDER);
   SetWindowPos(state->modified_from, nullptr, modified_x, y, modified_w, line_h, SWP_NOZORDER);
-  SetWindowPos(GetDlgItem(hwnd, kModifiedDash), nullptr, modified_x + modified_w + 6, y + 4, 12, 18, SWP_NOZORDER);
+  SetWindowPos(GetDlgItem(hwnd, kModifiedDash), nullptr, modified_x + modified_w + 6, y + kLabelInset, 12, kLabelHeight, SWP_NOZORDER);
   SetWindowPos(state->modified_to, nullptr, modified_x + modified_w + 24, y, modified_w, line_h, SWP_NOZORDER);
-  y += line_h + 12;
+  y += line_h + kBlockGap;
 
-  int exclude_h = 70;
+  int exclude_h = kGroupTop + kRowPitch + kControlHeight + kGroupBottom;
   SetWindowPos(GetDlgItem(hwnd, kExcludeGroup), nullptr, x, y, group_w, exclude_h, SWP_NOZORDER);
-  place_check(state->exclude_enable, x + 12, y + 20, 120);
-  SetWindowPos(state->exclude_edit, nullptr, x + 12, y + 40, group_w - 100, line_h, SWP_NOZORDER);
-  SetWindowPos(state->exclude_button, nullptr, x + group_w - 80, y + 40, 70, line_h, SWP_NOZORDER);
-  y += exclude_h + 8;
+  place_check(state->exclude_enable, x + kGroupInset, y + kGroupTop, 120);
+  int exclude_row = y + kGroupTop + kRowPitch;
+  SetWindowPos(state->exclude_edit, nullptr, x + kGroupInset, exclude_row, group_w - 100, kControlHeight, SWP_NOZORDER);
+  SetWindowPos(state->exclude_button, nullptr, x + group_w - 80, exclude_row, 70, kControlHeight, SWP_NOZORDER);
+  y += exclude_h + kBlockGap;
 
-  int result_h = 114;
+  int result_h = kGroupTop + kRowPitch * 2 + kControlPitch + kControlHeight + kGroupBottom;
   SetWindowPos(GetDlgItem(hwnd, kResultGroup), nullptr, x, y, group_w, result_h, SWP_NOZORDER);
-  place_check(state->result_reuse, x + 12, y + 20, 220);
-  place_check(state->result_new, x + 12, y + 42, 240);
-  place_check(state->result_open_new_tab, x + 12, y + 64, 200);
-  place_check(state->result_limit_enable, x + 12, y + 88, 140, 140);
-  SetWindowPos(state->result_limit_edit, nullptr, x + 160, y + 86, 70, line_h, SWP_NOZORDER);
+  int result_gy = y + kGroupTop;
+  place_check(state->result_reuse, x + kGroupInset, result_gy, 220);
+  place_check(state->result_new, x + kGroupInset, result_gy + kRowPitch, 240);
+  place_check(state->result_open_new_tab, x + kGroupInset, result_gy + kRowPitch * 2, 200);
+  int limit_row = result_gy + kRowPitch * 2 + kControlPitch;
+  place_check(state->result_limit_enable, x + kGroupInset, limit_row + kCheckInset, 140, 140);
+  SetWindowPos(state->result_limit_edit, nullptr, x + 160, limit_row, 70, kControlHeight, SWP_NOZORDER);
 
-  int btn_y = client.bottom - 30;
-  SetWindowPos(state->find_button, nullptr, width - 180, btn_y, 80, 22, SWP_NOZORDER);
-  SetWindowPos(state->cancel_button, nullptr, width - 90, btn_y, 80, 22, SWP_NOZORDER);
+  y += result_h + kBlockGap;
+  int btn_y = y;
+  int cancel_x = width - kMargin - kButtonWidth;
+  int find_x = cancel_x - kButtonGap - kButtonWidth;
+  SetWindowPos(state->find_button, nullptr, find_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
+  SetWindowPos(state->cancel_button, nullptr, cancel_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
+  appearance::FitDialogHeight(hwnd, btn_y + kButtonHeight + kMargin);
+
+  for (HWND edit : {state->scope_edit, state->min_size_edit, state->max_size_edit,
+                    state->exclude_edit, state->result_limit_edit}) {
+    appearance::CenterEditText(edit, font, 2, 2);
+  }
 
   appearance::SetControlFont(find_label, font);
   appearance::SetControlFont(state->find_combo, font);
@@ -590,28 +587,28 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     state->find_combo = CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWN | CBS_AUTOHSCROLL, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindCombo), nullptr, nullptr);
 
     CreateWindowExW(0, L"BUTTON", L"Where to search", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kWhereGroup), nullptr, nullptr);
-    state->scope_top = CreateWindowExW(0, L"BUTTON", L"Top-level keys", WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeTop), nullptr, nullptr);
+    state->scope_top = CreateWindowExW(0, L"BUTTON", L"Top-level keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeTop), nullptr, nullptr);
     state->scope_key = CreateWindowExW(0, L"BUTTON", L"Specific Key", WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeKey), nullptr, nullptr);
     state->scope_combo = CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | CBS_HASSTRINGS, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeCombo), nullptr, nullptr);
-    state->scope_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeEdit), nullptr, nullptr);
-    state->scope_browse = CreateWindowExW(0, L"BUTTON", L"Browse...", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeBrowse), nullptr, nullptr);
-    state->scope_recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeRecursive), nullptr, nullptr);
+    state->scope_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeEdit), nullptr, nullptr);
+    state->scope_browse = CreateWindowExW(0, L"BUTTON", L"Browse...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeBrowse), nullptr, nullptr);
+    state->scope_recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeRecursive), nullptr, nullptr);
 
     CreateWindowExW(0, L"BUTTON", L"Search options", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptionsGroup), nullptr, nullptr);
-    state->options_keys = CreateWindowExW(0, L"BUTTON", L"Search keys", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptKeys), nullptr, nullptr);
-    state->options_values = CreateWindowExW(0, L"BUTTON", L"Search values", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptValues), nullptr, nullptr);
-    state->options_data = CreateWindowExW(0, L"BUTTON", L"Search data", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptData), nullptr, nullptr);
-    state->options_data_types = CreateWindowExW(0, L"BUTTON", L"Data Types...", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptDataTypes), nullptr, nullptr);
-    state->match_case = CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchCase), nullptr, nullptr);
-    state->match_whole = CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchWhole), nullptr, nullptr);
-    state->use_regex = CreateWindowExW(0, L"BUTTON", L"Use regular expressions", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptUseRegex), nullptr, nullptr);
-    state->min_size = CreateWindowExW(0, L"BUTTON", L"Min data size (bytes):", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSize), nullptr, nullptr);
-    state->min_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSizeEdit), nullptr, nullptr);
-    state->max_size = CreateWindowExW(0, L"BUTTON", L"Max data size (bytes):", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSize), nullptr, nullptr);
-    state->max_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSizeEdit), nullptr, nullptr);
-    state->options_standard = CreateWindowExW(0, L"BUTTON", L"Search Standard Hives", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptStandardHives), nullptr, nullptr);
-    state->options_registry = CreateWindowExW(0, L"BUTTON", L"Search REGISTRY", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegistryRoot), nullptr, nullptr);
-    state->options_trace = CreateWindowExW(0, L"BUTTON", L"Search Trace Values", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptTraceValues), nullptr, nullptr);
+    state->options_keys = CreateWindowExW(0, L"BUTTON", L"Search keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptKeys), nullptr, nullptr);
+    state->options_values = CreateWindowExW(0, L"BUTTON", L"Search values", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptValues), nullptr, nullptr);
+    state->options_data = CreateWindowExW(0, L"BUTTON", L"Search data", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptData), nullptr, nullptr);
+    state->options_data_types = CreateWindowExW(0, L"BUTTON", L"Data Types...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptDataTypes), nullptr, nullptr);
+    state->match_case = CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchCase), nullptr, nullptr);
+    state->match_whole = CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchWhole), nullptr, nullptr);
+    state->use_regex = CreateWindowExW(0, L"BUTTON", L"Use regular expressions", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptUseRegex), nullptr, nullptr);
+    state->min_size = CreateWindowExW(0, L"BUTTON", L"Min data size (bytes):", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSize), nullptr, nullptr);
+    state->min_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSizeEdit), nullptr, nullptr);
+    state->max_size = CreateWindowExW(0, L"BUTTON", L"Max data size (bytes):", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSize), nullptr, nullptr);
+    state->max_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSizeEdit), nullptr, nullptr);
+    state->options_standard = CreateWindowExW(0, L"BUTTON", L"Search Standard Hives", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptStandardHives), nullptr, nullptr);
+    state->options_registry = CreateWindowExW(0, L"BUTTON", L"Search REGISTRY", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegistryRoot), nullptr, nullptr);
+    state->options_trace = CreateWindowExW(0, L"BUTTON", L"Search Trace Values", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptTraceValues), nullptr, nullptr);
 
     CreateWindowExW(0, L"STATIC", L"Modified in period:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedLabel), nullptr, nullptr);
     CreateWindowExW(0, L"STATIC", L"-", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedDash), nullptr, nullptr);
@@ -623,19 +620,19 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     SendMessageW(state->modified_to, DTM_SETSYSTEMTIME, GDT_NONE, 0);
 
     CreateWindowExW(0, L"BUTTON", L"Exclude keys", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeGroup), nullptr, nullptr);
-    state->exclude_enable = CreateWindowExW(0, L"BUTTON", L"Exclude keys", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeEnable), nullptr, nullptr);
-    state->exclude_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeEdit), nullptr, nullptr);
-    state->exclude_button = CreateWindowExW(0, L"BUTTON", L"Edit...", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeButton), nullptr, nullptr);
+    state->exclude_enable = CreateWindowExW(0, L"BUTTON", L"Exclude keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeEnable), nullptr, nullptr);
+    state->exclude_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeEdit), nullptr, nullptr);
+    state->exclude_button = CreateWindowExW(0, L"BUTTON", L"Edit...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeButton), nullptr, nullptr);
 
     CreateWindowExW(0, L"BUTTON", L"Result options", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultGroup), nullptr, nullptr);
-    state->result_reuse = CreateWindowExW(0, L"BUTTON", L"Reuse last Find Results window", WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultReuse), nullptr, nullptr);
+    state->result_reuse = CreateWindowExW(0, L"BUTTON", L"Reuse last Find Results window", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultReuse), nullptr, nullptr);
     state->result_new = CreateWindowExW(0, L"BUTTON", L"Open new Find Results window", WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultNew), nullptr, nullptr);
-    state->result_open_new_tab = CreateWindowExW(0, L"BUTTON", L"Open result in new tab", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultOpenNewTab), nullptr, nullptr);
-    state->result_limit_enable = CreateWindowExW(0, L"BUTTON", L"Limit results to", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultLimitEnable), nullptr, nullptr);
-    state->result_limit_edit = CreateWindowExW(0, L"EDIT", L"1000", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_NUMBER | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultLimitEdit), nullptr, nullptr);
+    state->result_open_new_tab = CreateWindowExW(0, L"BUTTON", L"Open result in new tab", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultOpenNewTab), nullptr, nullptr);
+    state->result_limit_enable = CreateWindowExW(0, L"BUTTON", L"Limit results to", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultLimitEnable), nullptr, nullptr);
+    state->result_limit_edit = CreateWindowExW(0, L"EDIT", L"1000", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_NUMBER | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultLimitEdit), nullptr, nullptr);
 
-    state->find_button = CreateWindowExW(0, L"BUTTON", L"Find", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindButton), nullptr, nullptr);
-    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
+    state->find_button = CreateWindowExW(0, L"BUTTON", L"Find", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindButton), nullptr, nullptr);
+    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
 
     for (HWND bordered : {state->scope_edit, state->min_size_edit,
                           state->max_size_edit, state->exclude_edit,

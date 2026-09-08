@@ -903,6 +903,10 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message,
     retained_value_name_.clear();
     retained_value_key_path_.clear();
     retained_value_index_ = -1;
+    if (!pending_value_name_.empty()) {
+      SelectValueByName(pending_value_name_);
+      pending_value_name_.clear();
+    }
     if (!pending_external_value_name_.empty() && browse_.current_node()) {
       std::wstring current_path = registry_path::Build(*browse_.current_node());
       if (EqualsInsensitive(current_path, pending_external_value_key_path_)) {

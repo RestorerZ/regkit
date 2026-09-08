@@ -300,13 +300,11 @@ bool RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node) {
     insert.item.cChildren = I_CHILDRENCALLBACK;
     TreeView_InsertItem(hwnd_, &insert);
   }
-  if (entries.empty()) {
-    TVITEMW empty = {};
-    empty.mask = TVIF_CHILDREN;
-    empty.hItem = parent;
-    empty.cChildren = 0;
-    TreeView_SetItem(hwnd_, &empty);
-  }
+  TVITEMW parent_state = {};
+  parent_state.mask = TVIF_CHILDREN;
+  parent_state.hItem = parent;
+  parent_state.cChildren = entries.empty() ? 0 : I_CHILDRENCALLBACK;
+  TreeView_SetItem(hwnd_, &parent_state);
   return enumerated;
 }
 

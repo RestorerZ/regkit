@@ -261,13 +261,11 @@ inline int GetListViewColumnSubItem(HWND list, int display_index) {
 }
 
 constexpr int kCellTextPadding = 6;
+constexpr int kLabelTextInset = 2;
 constexpr int kPanelHeaderHeight = 22;
 constexpr int kPanelCloseSize = 16;
 constexpr int kPanelCloseInset = 2;
 constexpr int kPanelBorderOverlap = 1;
-
-
-
 
 inline void DrawSearchMatchOverlay(HDC hdc, const RECT& cell,
                                    std::wstring_view text, int start,

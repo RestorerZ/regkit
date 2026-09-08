@@ -16,6 +16,8 @@ void SetControlFont(HWND control, HFONT font);
 void RestoreDialogOwner(HWND owner, bool* restored);
 void PositionDialog(HWND dialog, HWND owner, int width, int height);
 void RunModalLoop(HWND dialog);
+void CenterEditText(HWND edit, HFONT font, int left_pad, int right_pad);
+void FitDialogHeight(HWND dialog, int client_height);
 
 enum AnchorFlags : unsigned {
   kAnchorLeft = 1u,

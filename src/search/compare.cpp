@@ -291,6 +291,8 @@ std::vector<Row> Diff(const Snapshot& first, const Snapshot& second,
       Row result;
       result.is_key = true;
       result.key_path = first_key ? first_path : second_path;
+      result.first_key_path = first_key ? first_path : std::wstring();
+      result.second_key_path = second_key ? second_path : std::wstring();
       result.first_text = first_key ? L"Present" : L"(Missing)";
       result.second_text = second_key ? L"Present" : L"(Missing)";
       results.push_back(std::move(result));
@@ -329,6 +331,8 @@ std::vector<Row> Diff(const Snapshot& first, const Snapshot& second,
 
       Row result;
       result.key_path = first_path;
+      result.first_key_path = first_path;
+      result.second_key_path = second_path;
       result.value_name = left ? left->name : right->name;
       result.first_text = EntryText(left);
       result.second_text = EntryText(right);

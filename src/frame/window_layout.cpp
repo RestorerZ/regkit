@@ -3,6 +3,8 @@
 
 #include "frame/window_detail.h"
 
+#include "appearance/dialog_metrics.h"
+
 namespace regkit {
 using namespace window_detail;
 
@@ -28,7 +30,7 @@ void MainWindow::Impl::ComputeHistorySplitterLimits(int* min_height, int* max_he
   int height = rect.bottom - rect.top;
 
   UINT dpi = win32::DpiForWindow(hwnd_);
-  const int address_height = CalcEditHeight(browse_.address(), ui_font_, util::ScaleForDpi(18, dpi));
+  const int address_height = util::ScaleForDpi(appearance::metrics::kControlHeight, dpi);
   const int tabs_height = std::max(20, tab_height_);
   int status_height = 0;
   if (status_bar_ && show_status_bar_) {
@@ -908,7 +910,7 @@ void MainWindow::Impl::LayoutControls(int width, int height) {
   const int padding = 8;
   const int splitter_width = kSplitterWidth;
   UINT dpi = win32::DpiForWindow(hwnd_);
-  const int address_height = CalcEditHeight(browse_.address(), ui_font_, util::ScaleForDpi(18, dpi));
+  const int address_height = util::ScaleForDpi(appearance::metrics::kControlHeight, dpi);
   const int address_btn_width = std::max(util::ScaleForDpi(18, dpi), address_height);
   const int tabs_height = std::max(20, tab_height_);
   const int filter_height = address_height;

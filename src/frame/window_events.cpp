@@ -318,6 +318,7 @@ LRESULT CALLBACK MainWindow::Impl::AddressEditProc(HWND hwnd, UINT message, WPAR
   if (message == WM_SETFOCUS) {
     LRESULT result = DefSubclassProc(hwnd, message, wparam, lparam);
     SendMessageW(hwnd, EM_SETSEL, 0, -1);
+    SendMessageW(hwnd, EM_SCROLLCARET, 0, 0);
     return result;
   }
   if (message == WM_KEYUP) {
@@ -332,6 +333,7 @@ LRESULT CALLBACK MainWindow::Impl::AddressEditProc(HWND hwnd, UINT message, WPAR
     if (GetFocus() != hwnd) {
       LRESULT result = DefSubclassProc(hwnd, message, wparam, lparam);
       SendMessageW(hwnd, EM_SETSEL, 0, -1);
+      SendMessageW(hwnd, EM_SCROLLCARET, 0, 0);
       return result;
     }
   }

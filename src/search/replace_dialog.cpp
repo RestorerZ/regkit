@@ -9,6 +9,7 @@
 #include <uxtheme.h>
 
 #include "appearance/dialog_layout.h"
+#include "appearance/dialog_metrics.h"
 #include "search/query_dialog.h"
 #include "appearance/theme.h"
 #include "appearance/default_font.h"
@@ -67,22 +68,6 @@ HFONT CreateDialogFont() {
   return ui::DefaultUIFont();
 }
 
-int CalcDialogLineHeight(HWND hwnd, HFONT font, int min_height) {
-  if (!hwnd || !font) {
-    return min_height;
-  }
-  int height = min_height;
-  HDC hdc = GetDC(hwnd);
-  HFONT old = reinterpret_cast<HFONT>(SelectObject(hdc, font));
-  TEXTMETRICW tm = {};
-  if (GetTextMetricsW(hdc, &tm)) {
-    int metric_height = static_cast<int>(tm.tmHeight + tm.tmExternalLeading + 6);
-    height = std::max(height, metric_height);
-  }
-  SelectObject(hdc, old);
-  ReleaseDC(hwnd, hdc);
-  return height;
-}
 
 void CenterWindowToOwner(HWND hwnd, HWND owner) {
   if (!hwnd) {
@@ -108,76 +93,72 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
   if (!hwnd || !state) {
     return;
   }
+  using namespace appearance::metrics;
   RECT client = {};
   GetClientRect(hwnd, &client);
   int width = client.right - client.left;
-  int x = 12;
-  int y = 12;
+  int x = kMargin;
+  int y = kMargin;
   int label_w = 90;
   int key_label_w = 32;
-  int key_gap = 4;
-  int line_h = std::max(22, CalcDialogLineHeight(hwnd, font, 18) + 4);
-  int edit_h = CalcDialogLineHeight(hwnd, font, 18);
-  int edit_offset = (line_h - edit_h) / 2;
-  int check_h = std::max(20, line_h);
+  int line_h = kControlHeight;
   auto place_check = [&](HWND check, int x_pos, int y_pos, int width) {
     if (check) {
-      SetWindowPos(check, nullptr, x_pos, y_pos, width, check_h, SWP_NOZORDER);
+      SetWindowPos(check, nullptr, x_pos, y_pos, width, kCheckHeight, SWP_NOZORDER);
     }
   };
 
   HWND find_label = GetDlgItem(hwnd, kFindLabel);
-  SetWindowPos(find_label, nullptr, x, y + 4, label_w, 18, SWP_NOZORDER);
-  int edit_w = width - x * 2 - label_w - 8;
-  SetWindowPos(state->find_edit, nullptr, x + label_w + 8, y + edit_offset, edit_w, edit_h, SWP_NOZORDER);
-  y += line_h + 8;
+  SetWindowPos(find_label, nullptr, x, y + kLabelInset, label_w, kLabelHeight, SWP_NOZORDER);
+  int edit_w = width - x * 2 - label_w - kLabelGap;
+  SetWindowPos(state->find_edit, nullptr, x + label_w + kLabelGap, y, edit_w, line_h, SWP_NOZORDER);
+  y += kControlPitch;
 
   HWND replace_label = GetDlgItem(hwnd, kReplaceLabel);
-  SetWindowPos(replace_label, nullptr, x, y + 4, label_w, 18, SWP_NOZORDER);
-  SetWindowPos(state->replace_edit, nullptr, x + label_w + 8, y + edit_offset, edit_w, edit_h, SWP_NOZORDER);
-  y += line_h + 12;
+  SetWindowPos(replace_label, nullptr, x, y + kLabelInset, label_w, kLabelHeight, SWP_NOZORDER);
+  SetWindowPos(state->replace_edit, nullptr, x + label_w + kLabelGap, y, edit_w, line_h, SWP_NOZORDER);
+  y += line_h + kBlockGap;
 
   int group_w = width - x * 2;
-  int where_h = line_h + 26;
+  int where_h = kGroupTop + line_h + kGroupBottom;
   SetWindowPos(GetDlgItem(hwnd, kWhereGroup), nullptr, x, y, group_w, where_h, SWP_NOZORDER);
-  int gx = x + 12;
-  int gy = y + 18;
+  int gx = x + kGroupInset;
+  int gy = y + kGroupTop;
   int browse_w = 80;
-  int key_w = group_w - 24 - key_label_w - key_gap - browse_w - 6;
-  SetWindowPos(GetDlgItem(hwnd, kKeyLabel), nullptr, gx, gy + 4, key_label_w, 18, SWP_NOZORDER);
-  SetWindowPos(state->key_edit, nullptr, gx + key_label_w + key_gap, gy + edit_offset, key_w, edit_h, SWP_NOZORDER);
-  SetWindowPos(state->key_browse, nullptr, gx + key_label_w + key_gap + key_w + 6, gy, browse_w, line_h, SWP_NOZORDER);
-  y += where_h + 10;
+  int key_w = group_w - kGroupInset * 2 - key_label_w - kLabelGap * 2 - browse_w;
+  SetWindowPos(GetDlgItem(hwnd, kKeyLabel), nullptr, gx, gy + kLabelInset, key_label_w, kLabelHeight, SWP_NOZORDER);
+  SetWindowPos(state->key_edit, nullptr, gx + key_label_w + kLabelGap, gy, key_w, line_h, SWP_NOZORDER);
+  SetWindowPos(state->key_browse, nullptr, gx + key_label_w + kLabelGap * 2 + key_w, gy, browse_w, line_h, SWP_NOZORDER);
+  y += where_h + kBlockGap;
 
-  int check_gap = check_h + 4;
-  int options_h = 18 + check_gap * 4 + 8;
+  int options_h = kGroupTop + kRowPitch * 3 + kCheckHeight + kGroupBottom;
   SetWindowPos(GetDlgItem(hwnd, kOptionsGroup), nullptr, x, y, group_w, options_h, SWP_NOZORDER);
-  int ox = x + 12;
-  int oy = y + 18;
-  int col_w = (group_w - 36) / 2;
-  int option_col2_x = ox + col_w + 12;
+  int ox = x + kGroupInset;
+  int oy = y + kGroupTop;
+  int col_w = (group_w - kGroupInset * 2 - kLabelGap) / 2;
+  int option_col2_x = ox + col_w + kLabelGap;
   place_check(state->recursive, ox, oy, col_w);
   place_check(state->match_case, option_col2_x, oy, col_w);
-  place_check(state->match_whole, ox, oy + check_gap, col_w);
-  place_check(state->use_regex, option_col2_x, oy + check_gap, col_w);
-  place_check(state->search_keys, ox, oy + check_gap * 2, col_w);
-  place_check(state->search_values, option_col2_x, oy + check_gap * 2, col_w);
-  place_check(state->search_data, ox, oy + check_gap * 3, col_w);
-  y += options_h;
+  place_check(state->match_whole, ox, oy + kRowPitch, col_w);
+  place_check(state->use_regex, option_col2_x, oy + kRowPitch, col_w);
+  place_check(state->search_keys, ox, oy + kRowPitch * 2, col_w);
+  place_check(state->search_values, option_col2_x, oy + kRowPitch * 2, col_w);
+  place_check(state->search_data, ox, oy + kRowPitch * 3, col_w);
+  y += options_h + kBlockGap;
 
-  int btn_w = 90;
-  int btn_h = std::max(20, line_h);
-  int btn_gap = 10;
-  int btn_margin = 10;
-  int btn_y = std::max(y + 12, client.bottom - btn_h - 12);
-  int cancel_x = width - btn_margin - btn_w;
-  int replace_x = cancel_x - btn_gap - btn_w;
-  SetWindowPos(state->replace_button, nullptr, replace_x, btn_y, btn_w, btn_h, SWP_NOZORDER);
-  SetWindowPos(state->cancel_button, nullptr, cancel_x, btn_y, btn_w, btn_h, SWP_NOZORDER);
+  int btn_y = y;
+  int cancel_x = width - kMargin - kButtonWidth;
+  int replace_x = cancel_x - kButtonGap - kButtonWidth;
+  SetWindowPos(state->replace_button, nullptr, replace_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
+  SetWindowPos(state->cancel_button, nullptr, cancel_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
+  appearance::FitDialogHeight(hwnd, btn_y + kButtonHeight + kMargin);
 
   appearance::SetControlFont(hwnd, font);
   appearance::SetControlFont(find_label, font);
   appearance::SetControlFont(replace_label, font);
+  for (HWND edit : {state->find_edit, state->replace_edit, state->key_edit}) {
+    appearance::CenterEditText(edit, font, 2, 2);
+  }
 }
 
 LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -199,27 +180,27 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
     HFONT font = state->font;
 
     CreateWindowExW(0, L"STATIC", L"Find what:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindLabel), nullptr, nullptr);
-    state->find_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindEdit), nullptr, nullptr);
+    state->find_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindEdit), nullptr, nullptr);
 
     CreateWindowExW(0, L"STATIC", L"Replace with:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceLabel), nullptr, nullptr);
-    state->replace_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceEdit), nullptr, nullptr);
+    state->replace_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceEdit), nullptr, nullptr);
 
     CreateWindowExW(0, L"BUTTON", L"Where to search", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kWhereGroup), nullptr, nullptr);
     CreateWindowExW(0, L"STATIC", L"Key:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyLabel), nullptr, nullptr);
-    state->key_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyEdit), nullptr, nullptr);
-    state->key_browse = CreateWindowExW(0, L"BUTTON", L"Browse...", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyBrowse), nullptr, nullptr);
+    state->key_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyEdit), nullptr, nullptr);
+    state->key_browse = CreateWindowExW(0, L"BUTTON", L"Browse...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyBrowse), nullptr, nullptr);
 
     CreateWindowExW(0, L"BUTTON", L"Options", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptionsGroup), nullptr, nullptr);
-    state->recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kRecursive), nullptr, nullptr);
-    state->match_case = CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kMatchCase), nullptr, nullptr);
-    state->match_whole = CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kMatchWhole), nullptr, nullptr);
-    state->use_regex = CreateWindowExW(0, L"BUTTON", L"Use regular expressions", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kUseRegex), nullptr, nullptr);
-    state->search_keys = CreateWindowExW(0, L"BUTTON", L"Replace in key names", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchKeys), nullptr, nullptr);
-    state->search_values = CreateWindowExW(0, L"BUTTON", L"Replace in value names", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchValues), nullptr, nullptr);
-    state->search_data = CreateWindowExW(0, L"BUTTON", L"Replace in value data", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchData), nullptr, nullptr);
+    state->recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kRecursive), nullptr, nullptr);
+    state->match_case = CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kMatchCase), nullptr, nullptr);
+    state->match_whole = CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kMatchWhole), nullptr, nullptr);
+    state->use_regex = CreateWindowExW(0, L"BUTTON", L"Use regular expressions", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kUseRegex), nullptr, nullptr);
+    state->search_keys = CreateWindowExW(0, L"BUTTON", L"Replace in key names", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchKeys), nullptr, nullptr);
+    state->search_values = CreateWindowExW(0, L"BUTTON", L"Replace in value names", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchValues), nullptr, nullptr);
+    state->search_data = CreateWindowExW(0, L"BUTTON", L"Replace in value data", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchData), nullptr, nullptr);
 
-    state->replace_button = CreateWindowExW(0, L"BUTTON", L"Replace", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceButton), nullptr, nullptr);
-    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
+    state->replace_button = CreateWindowExW(0, L"BUTTON", L"Replace", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceButton), nullptr, nullptr);
+    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
 
     if (state->out) {
       SetWindowTextW(state->find_edit, state->out->find_text.c_str());

@@ -482,9 +482,27 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
                         LVIS_SELECTED | LVIS_FOCUSED,
                         LVIS_SELECTED | LVIS_FOCUSED);
   std::wstring key_path = SearchRowKeyPath(search_index, index);
+  std::wstring first_key_path;
+  std::wstring second_key_path;
+  std::wstring row_value_name;
+  const bool compare_row = IsCompareTabSelected();
+  if (compare_row) {
+    const SearchTab& compare_tab = search_tabs_[static_cast<size_t>(search_index)];
+    if (static_cast<size_t>(index) < compare_tab.compare_rows.size()) {
+      const auto& row = compare_tab.compare_rows[static_cast<size_t>(index)];
+      first_key_path = row.first_key_path;
+      second_key_path = row.second_key_path;
+      if (!row.is_key) {
+        row_value_name = row.value_name;
+      }
+    }
+  }
 
   const search::Result* result = SearchResultAt(index);
   const bool is_key_row = !result || search::IsKeyRow(*result);
+  if (!is_key_row && result) {
+    row_value_name = result->value_name;
+  }
   if (key_path.empty()) {
     return;
   }
@@ -514,6 +532,8 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
   enum {
     kSearchOpenKey = 51000,
     kSearchOpenKeyNewTab = 51001,
+    kSearchOpenSecondKey = 51019,
+    kSearchOpenSecondKeyNewTab = 51020,
     kSearchModify = 51002,
     kSearchModifyBinary = 51003,
     kSearchModifyComment = 51004,
@@ -544,8 +564,17 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
   };
 
   HMENU menu = CreatePopupMenu();
-  AppendMenuW(menu, MF_STRING, kSearchOpenKey, L"Open Key");
-  AppendMenuW(menu, MF_STRING, kSearchOpenKeyNewTab, L"Open Key in New Tab");
+  if (compare_row) {
+    const UINT first_flags = MF_STRING | (first_key_path.empty() ? MF_GRAYED : 0);
+    const UINT second_flags = MF_STRING | (second_key_path.empty() ? MF_GRAYED : 0);
+    AppendMenuW(menu, first_flags, kSearchOpenKey, L"Open First Entry");
+    AppendMenuW(menu, first_flags, kSearchOpenKeyNewTab, L"Open First Entry in New Tab");
+    AppendMenuW(menu, second_flags, kSearchOpenSecondKey, L"Open Second Entry");
+    AppendMenuW(menu, second_flags, kSearchOpenSecondKeyNewTab, L"Open Second Entry in New Tab");
+  } else {
+    AppendMenuW(menu, MF_STRING, kSearchOpenKey, L"Open Key");
+    AppendMenuW(menu, MF_STRING, kSearchOpenKeyNewTab, L"Open Key in New Tab");
+  }
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   if (!is_key_row) {
     UINT modify_flags = MF_STRING | (can_modify ? 0 : MF_GRAYED);
@@ -576,8 +605,8 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
     return;
   }
 
-  auto open_key = [&](bool new_tab) {
-    if (!tab_) {
+  auto open_path = [&](const std::wstring& path, bool new_tab) {
+    if (!tab_ || path.empty()) {
       return;
     }
     if (new_tab) {
@@ -587,7 +616,14 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
     }
     ApplyViewVisibility();
     UpdateStatus();
-    SelectTreePath(key_path);
+    SelectTreePath(path);
+    if (!row_value_name.empty()) {
+      SelectValueWhenReady(row_value_name);
+    }
+  };
+  auto open_key = [&](bool new_tab) {
+    open_path(compare_row && !first_key_path.empty() ? first_key_path : key_path,
+              new_tab);
   };
   auto focus_key = [&]() {
     open_key(false);
@@ -629,6 +665,12 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
     return;
   case kSearchOpenKeyNewTab:
     open_key(true);
+    return;
+  case kSearchOpenSecondKey:
+    open_path(second_key_path, SearchResultOpensInNewTab());
+    return;
+  case kSearchOpenSecondKeyNewTab:
+    open_path(second_key_path, true);
     return;
   case kSearchModify:
     run_on_value(cmd::kEditModify);

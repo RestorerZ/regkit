@@ -13,6 +13,7 @@
 #include <commctrl.h>
 
 #include "appearance/dialog_layout.h"
+#include "appearance/dialog_metrics.h"
 #include "appearance/theme.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
@@ -415,11 +416,12 @@ void LayoutDialog(HWND hwnd, TraceDialogState* state, HFONT font) {
   GetClientRect(hwnd, &rect);
   int width = rect.right - rect.left;
   int height = rect.bottom - rect.top;
-  int padding = 12;
-  int gap = 6;
-  int button_h = 22;
-  int button_w = 90;
-  int check_h = 22;
+  using namespace appearance::metrics;
+  int padding = kMargin;
+  int gap = kRowGap;
+  int button_h = kButtonHeight;
+  int button_w = kButtonWidth;
+  int check_h = kCheckHeight;
   int label_h = 18;
 
   int y = padding;
@@ -432,9 +434,9 @@ void LayoutDialog(HWND hwnd, TraceDialogState* state, HFONT font) {
     y += label_h + gap;
   }
 
-  int buttons_y = height - padding - button_h + 4;
-  int check_y = buttons_y - check_h - gap;
-  int tree_height = check_y - y - gap;
+  int buttons_y = height - padding - button_h;
+  int check_y = buttons_y - check_h - kBlockGap;
+  int tree_height = check_y - y - kBlockGap;
   if (tree_height < 80) {
     tree_height = 80;
   }
@@ -490,10 +492,10 @@ LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
     }
     state->status = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceStatus), nullptr, nullptr);
     state->tree = CreateWindowExW(0, WC_TREEVIEWW, L"", WS_CHILD | WS_VISIBLE | WS_BORDER | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_CHECKBOXES, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceTree), nullptr, nullptr);
-    state->recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kRecursiveCheck), nullptr, nullptr);
-    state->select_all = CreateWindowExW(0, L"BUTTON", L"Select All Keys", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSelectAllButton), nullptr, nullptr);
-    state->ok_button = CreateWindowExW(0, L"BUTTON", L"Select", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOkButton), nullptr, nullptr);
-    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
+    state->recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kRecursiveCheck), nullptr, nullptr);
+    state->select_all = CreateWindowExW(0, L"BUTTON", L"Select All Keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSelectAllButton), nullptr, nullptr);
+    state->ok_button = CreateWindowExW(0, L"BUTTON", L"Select", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOkButton), nullptr, nullptr);
+    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
 
     appearance::SetControlFont(hwnd, font);
     EnumChildWindows(
