@@ -3,8 +3,10 @@
 
 #include "appearance/dialog_layout.h"
 
+#include "appearance/default_font.h"
 #include "appearance/theme.h"
 #include "appearance/gdi_cache.h"
+#include "win32/window_metrics.h"
 
 #include <algorithm>
 #include <commctrl.h>
@@ -82,6 +84,12 @@ void SetControlFont(HWND control, HFONT font) {
   }
 }
 
+void Place(HWND control, int x, int y, int width, int height) {
+  if (control) {
+    SetWindowPos(control, nullptr, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+  }
+}
+
 void RestoreDialogOwner(HWND owner, bool* restored) {
   if (!owner || !restored || *restored) {
     return;
@@ -105,6 +113,55 @@ void PositionDialog(HWND dialog, HWND owner, int width, int height) {
   }
   SetWindowPos(dialog, nullptr, 0, 0, width, height,
                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
+void CenterWindow(HWND window, HWND owner) {
+  RECT rect = {};
+  if (!window || !GetWindowRect(window, &rect)) {
+    return;
+  }
+  RECT target = {};
+  if ((!owner || !GetWindowRect(owner, &target)) &&
+      !SystemParametersInfoW(SPI_GETWORKAREA, 0, &target, 0)) {
+    return;
+  }
+  const LONG width = rect.right - rect.left;
+  const LONG height = rect.bottom - rect.top;
+  SetWindowPos(window, nullptr,
+               target.left + std::max<LONG>(0, (target.right - target.left - width) / 2),
+               target.top + std::max<LONG>(0, (target.bottom - target.top - height) / 2),
+               0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+}
+
+void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi) {
+  if (!window || !owned_font) {
+    return;
+  }
+  HFONT font = ui::DefaultUIFont(dpi);
+  if (!font) {
+    return;
+  }
+  SetControlFont(window, font);
+  EnumChildWindows(
+      window,
+      [](HWND child, LPARAM param) -> BOOL {
+        SetControlFont(child, reinterpret_cast<HFONT>(param));
+        return TRUE;
+      },
+      reinterpret_cast<LPARAM>(font));
+  if (*owned_font) {
+    DeleteObject(*owned_font);
+  }
+  *owned_font = font;
+}
+
+void ApplyDpiChange(HWND window, LPARAM suggested_rect) {
+  const RECT* rect = reinterpret_cast<const RECT*>(suggested_rect);
+  if (!window || !rect) {
+    return;
+  }
+  SetWindowPos(window, nullptr, rect->left, rect->top, rect->right - rect->left,
+               rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 void CenterEditText(HWND edit, HFONT font, int left_pad, int right_pad) {
@@ -144,9 +201,10 @@ void FitDialogHeight(HWND dialog, int client_height) {
     return;
   }
   RECT want = {0, 0, client.right - client.left, client_height};
-  AdjustWindowRectEx(&want, static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_STYLE)),
-                     FALSE,
-                     static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_EXSTYLE)));
+  win32::AdjustWindowRectForDpi(&want,
+                               static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_STYLE)),
+                               static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_EXSTYLE)),
+                               win32::DpiForWindow(dialog));
   SetWindowPos(dialog, nullptr, 0, 0, want.right - want.left,
                want.bottom - want.top,
                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);

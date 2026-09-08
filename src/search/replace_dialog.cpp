@@ -10,6 +10,7 @@
 
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
+#include "win32/window_metrics.h"
 #include "search/query_dialog.h"
 #include "appearance/theme.h"
 #include "appearance/default_font.h"
@@ -20,6 +21,7 @@ namespace regkit {
 namespace {
 
 constexpr wchar_t kDialogClass[] = L"RegKitReplaceDialog";
+constexpr int kReplaceButtonWidth = 80;
 
 enum ControlId {
   kFindLabel = 100,
@@ -64,30 +66,10 @@ struct ReplaceDialogState {
   bool owner_restored = false;
 };
 
-HFONT CreateDialogFont() {
-  return ui::DefaultUIFont();
+HFONT CreateDialogFont(HWND hwnd) {
+  return ui::DefaultUIFont(win32::DpiForWindow(hwnd));
 }
 
-
-void CenterWindowToOwner(HWND hwnd, HWND owner) {
-  if (!hwnd) {
-    return;
-  }
-  RECT rect = {};
-  if (!GetWindowRect(hwnd, &rect)) {
-    return;
-  }
-  int width = rect.right - rect.left;
-  int height = rect.bottom - rect.top;
-  RECT owner_rect = {};
-  if (owner && GetWindowRect(owner, &owner_rect)) {
-    int owner_w = owner_rect.right - owner_rect.left;
-    int owner_h = owner_rect.bottom - owner_rect.top;
-    int x = owner_rect.left + std::max(0, (owner_w - width) / 2);
-    int y = owner_rect.top + std::max(0, (owner_h - height) / 2);
-    SetWindowPos(hwnd, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
-  }
-}
 
 void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
   if (!hwnd || !state) {
@@ -96,62 +78,75 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
   using namespace appearance::metrics;
   RECT client = {};
   GetClientRect(hwnd, &client);
-  int width = client.right - client.left;
-  int x = kMargin;
-  int y = kMargin;
-  int label_w = 90;
-  int key_label_w = 32;
-  int line_h = kControlHeight;
-  auto place_check = [&](HWND check, int x_pos, int y_pos, int width) {
-    if (check) {
-      SetWindowPos(check, nullptr, x_pos, y_pos, width, kCheckHeight, SWP_NOZORDER);
-    }
-  };
+  const UINT dpi = win32::DpiForWindow(hwnd);
+  const int margin = Scaled(kDialogContentMargin, dpi);
+  const int block_gap = Scaled(kBlockGap, dpi);
+  const int label_gap = Scaled(kLabelGap, dpi);
+  const int label_inset = Scaled(kLabelInset, dpi);
+  const int label_h = Scaled(kLabelHeight, dpi);
+  const int line_h = Scaled(kControlHeight, dpi);
+  const int control_pitch = Scaled(kControlPitch, dpi);
+  const int row_pitch = Scaled(kRowPitch, dpi);
+  const int check_h = Scaled(kCheckHeight, dpi);
+  const int group_top = Scaled(kGroupTop, dpi);
+  const int group_bottom = Scaled(kGroupBottom, dpi);
+  const int group_inset = Scaled(kGroupInset, dpi);
+  const int button_h = Scaled(kButtonHeight, dpi);
+  const int button_gap = Scaled(kButtonGap, dpi);
+  const int button_w = Scaled(kButtonMinWidth, dpi);
+  const int replace_w = Scaled(kReplaceButtonWidth, dpi);
+  const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
+  const int bottom_margin = Scaled(kDialogButtonBottomMargin, dpi);
+  const int width = client.right - client.left;
+  const int x = margin;
+  const int label_w = Scaled(90, dpi);
+  const int key_label_w = Scaled(32, dpi);
+  const int browse_w = Scaled(90, dpi);
+  int y = margin;
 
   HWND find_label = GetDlgItem(hwnd, kFindLabel);
-  SetWindowPos(find_label, nullptr, x, y + kLabelInset, label_w, kLabelHeight, SWP_NOZORDER);
-  int edit_w = width - x * 2 - label_w - kLabelGap;
-  SetWindowPos(state->find_edit, nullptr, x + label_w + kLabelGap, y, edit_w, line_h, SWP_NOZORDER);
-  y += kControlPitch;
+  appearance::Place(find_label, x, y + label_inset, label_w, label_h);
+  const int edit_w = width - x * 2 - label_w - label_gap;
+  appearance::Place(state->find_edit, x + label_w + label_gap, y, edit_w, line_h);
+  y += control_pitch;
 
   HWND replace_label = GetDlgItem(hwnd, kReplaceLabel);
-  SetWindowPos(replace_label, nullptr, x, y + kLabelInset, label_w, kLabelHeight, SWP_NOZORDER);
-  SetWindowPos(state->replace_edit, nullptr, x + label_w + kLabelGap, y, edit_w, line_h, SWP_NOZORDER);
-  y += line_h + kBlockGap;
+  appearance::Place(replace_label, x, y + label_inset, label_w, label_h);
+  appearance::Place(state->replace_edit, x + label_w + label_gap, y, edit_w, line_h);
+  y += line_h + block_gap;
 
-  int group_w = width - x * 2;
-  int where_h = kGroupTop + line_h + kGroupBottom;
-  SetWindowPos(GetDlgItem(hwnd, kWhereGroup), nullptr, x, y, group_w, where_h, SWP_NOZORDER);
-  int gx = x + kGroupInset;
-  int gy = y + kGroupTop;
-  int browse_w = 80;
-  int key_w = group_w - kGroupInset * 2 - key_label_w - kLabelGap * 2 - browse_w;
-  SetWindowPos(GetDlgItem(hwnd, kKeyLabel), nullptr, gx, gy + kLabelInset, key_label_w, kLabelHeight, SWP_NOZORDER);
-  SetWindowPos(state->key_edit, nullptr, gx + key_label_w + kLabelGap, gy, key_w, line_h, SWP_NOZORDER);
-  SetWindowPos(state->key_browse, nullptr, gx + key_label_w + kLabelGap * 2 + key_w, gy, browse_w, line_h, SWP_NOZORDER);
-  y += where_h + kBlockGap;
+  const int group_w = width - x * 2;
+  const int where_h = group_top + line_h + group_bottom;
+  appearance::Place(GetDlgItem(hwnd, kWhereGroup), x, y, group_w, where_h);
+  const int gx = x + group_inset;
+  const int gy = y + group_top;
+  const int key_w = group_w - group_inset * 2 - key_label_w - label_gap * 2 - browse_w;
+  appearance::Place(GetDlgItem(hwnd, kKeyLabel), gx, gy + label_inset, key_label_w, label_h);
+  appearance::Place(state->key_edit, gx + key_label_w + label_gap, gy, key_w, line_h);
+  appearance::Place(state->key_browse, gx + key_label_w + label_gap * 2 + key_w, gy, browse_w,
+                    line_h);
+  y += where_h + block_gap;
 
-  int options_h = kGroupTop + kRowPitch * 3 + kCheckHeight + kGroupBottom;
-  SetWindowPos(GetDlgItem(hwnd, kOptionsGroup), nullptr, x, y, group_w, options_h, SWP_NOZORDER);
-  int ox = x + kGroupInset;
-  int oy = y + kGroupTop;
-  int col_w = (group_w - kGroupInset * 2 - kLabelGap) / 2;
-  int option_col2_x = ox + col_w + kLabelGap;
-  place_check(state->recursive, ox, oy, col_w);
-  place_check(state->match_case, option_col2_x, oy, col_w);
-  place_check(state->match_whole, ox, oy + kRowPitch, col_w);
-  place_check(state->use_regex, option_col2_x, oy + kRowPitch, col_w);
-  place_check(state->search_keys, ox, oy + kRowPitch * 2, col_w);
-  place_check(state->search_values, option_col2_x, oy + kRowPitch * 2, col_w);
-  place_check(state->search_data, ox, oy + kRowPitch * 3, col_w);
-  y += options_h + kBlockGap;
+  const int options_h = group_top + row_pitch * 3 + check_h + group_bottom;
+  appearance::Place(GetDlgItem(hwnd, kOptionsGroup), x, y, group_w, options_h);
+  const int ox = x + group_inset;
+  const int oy = y + group_top;
+  const int col_w = (group_w - group_inset * 2 - label_gap) / 2;
+  const int col2_x = ox + col_w + label_gap;
+  appearance::Place(state->recursive, ox, oy, col_w, check_h);
+  appearance::Place(state->match_case, col2_x, oy, col_w, check_h);
+  appearance::Place(state->match_whole, ox, oy + row_pitch, col_w, check_h);
+  appearance::Place(state->use_regex, col2_x, oy + row_pitch, col_w, check_h);
+  appearance::Place(state->search_keys, ox, oy + row_pitch * 2, col_w, check_h);
+  appearance::Place(state->search_values, col2_x, oy + row_pitch * 2, col_w, check_h);
+  appearance::Place(state->search_data, ox, oy + row_pitch * 3, col_w, check_h);
+  y += options_h + block_gap;
 
-  int btn_y = y;
-  int cancel_x = width - kMargin - kButtonWidth;
-  int replace_x = cancel_x - kButtonGap - kButtonWidth;
-  SetWindowPos(state->replace_button, nullptr, replace_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
-  SetWindowPos(state->cancel_button, nullptr, cancel_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
-  appearance::FitDialogHeight(hwnd, btn_y + kButtonHeight + kMargin);
+  const int cancel_x = width - right_margin - button_w;
+  appearance::Place(state->replace_button, cancel_x - button_gap - replace_w, y, replace_w,
+                    button_h);
+  appearance::Place(state->cancel_button, cancel_x, y, button_w, button_h);
+  appearance::FitDialogHeight(hwnd, y + button_h + bottom_margin);
 
   appearance::SetControlFont(hwnd, font);
   appearance::SetControlFont(find_label, font);
@@ -176,7 +171,7 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
     }
     state->hwnd = hwnd;
     SetWindowTextW(hwnd, L"Replace");
-    state->font = CreateDialogFont();
+    state->font = CreateDialogFont(hwnd);
     HFONT font = state->font;
 
     CreateWindowExW(0, L"STATIC", L"Find what:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindLabel), nullptr, nullptr);
@@ -238,6 +233,12 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
       DeleteObject(state->font);
       state->font = nullptr;
     }
+    return 0;
+  case WM_DPICHANGED:
+    if (state) {
+      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
+    }
+    appearance::ApplyDpiChange(hwnd, lparam);
     return 0;
   case WM_SIZE: {
     HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
@@ -355,7 +356,7 @@ HWND CreateReplaceDialogWindow(HINSTANCE instance, HWND owner, ReplaceDialogStat
   wc.lpszClassName = kDialogClass;
   RegisterClassW(&wc);
 
-  return CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kDialogClass, L"Replace", WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 520, 360, owner, nullptr, instance, state);
+  return CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kDialogClass, L"Replace", WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, appearance::metrics::Scaled(520, win32::DpiForWindow(owner)), appearance::metrics::Scaled(360, win32::DpiForWindow(owner)), owner, nullptr, instance, state);
 }
 
 } // namespace
@@ -375,7 +376,7 @@ bool ShowReplaceDialog(HWND owner, ReplaceDialogResult* result) {
   SetWindowTextW(hwnd, L"Replace");
 
   Theme::Current().ApplyToWindow(hwnd);
-  CenterWindowToOwner(hwnd, owner);
+  appearance::CenterWindow(hwnd, owner);
 
   EnableWindow(owner, FALSE);
   ShowWindow(hwnd, SW_SHOW);

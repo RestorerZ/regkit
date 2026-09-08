@@ -41,4 +41,3 @@ END
 #include "icons.rc"
 #include "editor_dialogs.rc"
 #include "search_dialogs.rc"
-#include "appearance_dialogs.rc"

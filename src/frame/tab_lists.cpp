@@ -387,7 +387,7 @@ bool MainWindow::Impl::ConfirmCloseTab(int tab_index) {
   if (entry.kind == TabEntry::Kind::kRegFile && entry.reg_file_dirty) {
     std::wstring message = L"The registry file has unsaved changes.\nSave "
                            L"before closing the tab?";
-    int result = ui::PromptChoice(hwnd_, message, L"Unsaved changes", L"Save", L"Don't Save", L"Cancel");
+    int result = ui::PromptChoice(hwnd_, message, L"Unsaved changes", L"Save", L"Don't Save", L"Cancel", {70, 100, 70});
     if (result == IDCANCEL) {
       return false;
     }
@@ -420,7 +420,7 @@ bool MainWindow::Impl::ConfirmOfflineChanges(const wchar_t* message) {
       entry.registry_mode != RegistryMode::kOffline || !entry.offline_dirty) {
     return true;
   }
-  int result = ui::PromptChoice(hwnd_, message, L"Unsaved changes", L"Save", L"Don't Save", L"Cancel");
+  int result = ui::PromptChoice(hwnd_, message, L"Unsaved changes", L"Save", L"Don't Save", L"Cancel", {70, 100, 70});
   if (result == IDCANCEL) {
     return false;
   }

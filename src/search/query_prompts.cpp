@@ -10,6 +10,7 @@
 
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
+#include "win32/window_metrics.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
 #include "appearance/theme.h"
@@ -21,8 +22,8 @@
 namespace regkit::query_prompts {
 
 
-HFONT CreateDialogFont() {
-  return ui::DefaultUIFont();
+HFONT CreateDialogFont(HWND hwnd) {
+  return ui::DefaultUIFont(win32::DpiForWindow(hwnd));
 }
 
 struct DataTypeItem {
@@ -52,7 +53,7 @@ constexpr BaseTypeItem kBaseDataTypes[] = {
 
 constexpr DWORD kExtendedTypeFlags[] = {0x20000, 0x40000};
 
-constexpr int kDataTypesPadding = appearance::metrics::kMargin;
+constexpr int kDataTypesPadding = appearance::metrics::kDialogContentMargin;
 constexpr int kDataTypesButtonHeight = appearance::metrics::kButtonHeight;
 constexpr int kDataTypesButtonGap = appearance::metrics::kButtonGap;
 constexpr int kDataTypesColGap = appearance::metrics::kBlockGap;
@@ -99,6 +100,47 @@ struct DataTypesDialogState {
   bool owner_restored = false;
 };
 
+void LayoutDataTypesDialog(HWND hwnd, DataTypesDialogState* state) {
+  if (!state) {
+    return;
+  }
+  RECT client = {};
+  GetClientRect(hwnd, &client);
+  using namespace appearance::metrics;
+  const UINT dpi = win32::DpiForWindow(hwnd);
+  const int padding = Scaled(state->padding, dpi);
+  const int col_w = Scaled(state->col_w, dpi);
+  const int col_gap = Scaled(state->col_gap, dpi);
+  const int row_h = Scaled(state->row_h, dpi);
+  const int row_step = Scaled(state->row_step, dpi);
+  const int button_h = Scaled(state->button_h, dpi);
+  const int button_gap = Scaled(state->button_gap, dpi);
+  const int button_w = Scaled(kButtonMinWidth, dpi);
+  const int select_all_w = Scaled(100, dpi);
+  const int clear_all_w = Scaled(90, dpi);
+  const int width = client.right - client.left;
+  const int height = client.bottom - client.top;
+
+  int col = 0;
+  int row = 0;
+  for (HWND check : state->checks) {
+    appearance::Place(check, padding + col * (col_w + col_gap), padding + row * row_step, col_w,
+                      row_h);
+    if (++row >= state->rows_per_col) {
+      row = 0;
+      ++col;
+    }
+  }
+
+  const int btn_y = height - Scaled(kDialogButtonBottomMargin, dpi) - button_h;
+  const int cancel_x = width - Scaled(kDialogButtonRightMargin, dpi) - button_w;
+  appearance::Place(state->select_all, padding, btn_y, select_all_w, button_h);
+  appearance::Place(state->clear_all, padding + select_all_w + button_gap, btn_y, clear_all_w,
+                    button_h);
+  appearance::Place(state->ok_button, cancel_x - button_gap - button_w, btn_y, button_w, button_h);
+  appearance::Place(state->cancel_button, cancel_x, btn_y, button_w, button_h);
+}
+
 LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
   auto* state = reinterpret_cast<DataTypesDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
   switch (msg) {
@@ -113,22 +155,10 @@ LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
       return -1;
     }
     state->hwnd = hwnd;
-    state->font = CreateDialogFont();
+    state->font = CreateDialogFont(hwnd);
     HFONT font = state->font;
-    RECT client = {};
-    GetClientRect(hwnd, &client);
-    int btn_h = state->button_h;
-    int x = state->padding;
-    int y = state->padding;
-    int col_w = state->col_w;
-    int row_h = state->row_h;
-    int row_step = state->row_step;
-    int col_gap = state->col_gap;
-    int rows_per_col = state->rows_per_col;
-    int col = 0;
-    int row = 0;
     for (const auto& item : state->items) {
-      HWND check = CreateWindowExW(0, L"BUTTON", item.label.c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, x + col * (col_w + col_gap), y + row * row_step, col_w, row_h, hwnd, nullptr, nullptr, nullptr);
+      HWND check = CreateWindowExW(0, L"BUTTON", item.label.c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
       appearance::SetControlFont(check, font);
       bool checked = state->types.empty();
       if (!state->types.empty()) {
@@ -136,28 +166,16 @@ LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
       }
       SendMessageW(check, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
       state->checks.push_back(check);
-      ++row;
-      if (row >= rows_per_col) {
-        row = 0;
-        ++col;
-      }
     }
-    const int btn_w = 70;
-    const int btn_gap = 12;
-    const int aux_btn_w = 90;
-    int btn_y = client.bottom - state->padding - btn_h;
-    int cancel_x = client.right - state->padding - btn_w;
-    int ok_x = cancel_x - btn_gap - btn_w;
-    int select_x = x;
-    int clear_x = select_x + aux_btn_w + btn_gap;
-    state->select_all = CreateWindowExW(0, L"BUTTON", L"Select All", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, select_x, btn_y, aux_btn_w, btn_h, hwnd, reinterpret_cast<HMENU>(100), nullptr, nullptr);
-    state->clear_all = CreateWindowExW(0, L"BUTTON", L"Clear All", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, clear_x, btn_y, aux_btn_w, btn_h, hwnd, reinterpret_cast<HMENU>(101), nullptr, nullptr);
-    state->ok_button = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, ok_x, btn_y, btn_w, btn_h, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
-    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, cancel_x, btn_y, btn_w, btn_h, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
+    state->select_all = CreateWindowExW(0, L"BUTTON", L"Select All", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(100), nullptr, nullptr);
+    state->clear_all = CreateWindowExW(0, L"BUTTON", L"Clear All", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(101), nullptr, nullptr);
+    state->ok_button = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
     appearance::SetControlFont(state->select_all, font);
     appearance::SetControlFont(state->clear_all, font);
     appearance::SetControlFont(state->ok_button, font);
     appearance::SetControlFont(state->cancel_button, font);
+    LayoutDataTypesDialog(hwnd, state);
     Theme::Current().ApplyToChildren(hwnd);
     return 0;
   }
@@ -166,6 +184,15 @@ LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
       DeleteObject(state->font);
       state->font = nullptr;
     }
+    return 0;
+  case WM_SIZE:
+    LayoutDataTypesDialog(hwnd, state);
+    return 0;
+  case WM_DPICHANGED:
+    if (state) {
+      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
+    }
+    appearance::ApplyDpiChange(hwnd, lparam);
     return 0;
   case WM_SETTINGCHANGE: {
     if (Theme::UpdateFromSystem()) {
@@ -269,13 +296,18 @@ bool ShowDataTypes(HWND owner, std::vector<DWORD>* types) {
   int rows = rows_per_col;
   int content_w = kDataTypesColCount * kDataTypesColWidth + (kDataTypesColCount - 1) * kDataTypesColGap;
   int content_h = rows * kDataTypesRowStep;
-  int client_w = kDataTypesPadding * 2 + content_w;
-  int client_h = kDataTypesPadding * 2 + content_h + kDataTypesButtonGap + kDataTypesButtonHeight;
+  const UINT dpi = win32::DpiForWindow(owner);
+  int client_w = appearance::metrics::Scaled(
+      kDataTypesPadding + content_w + appearance::metrics::kDialogButtonRightMargin, dpi);
+  int client_h = appearance::metrics::Scaled(
+      kDataTypesPadding + content_h + kDataTypesButtonGap + kDataTypesButtonHeight +
+          appearance::metrics::kDialogButtonBottomMargin,
+      dpi);
 
   RECT window_rect = {0, 0, client_w, client_h};
   DWORD style = WS_POPUP | WS_CAPTION | WS_SYSMENU;
   DWORD ex_style = WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT;
-  AdjustWindowRectEx(&window_rect, style, FALSE, ex_style);
+  win32::AdjustWindowRectForDpi(&window_rect, style, ex_style, dpi);
   int width = window_rect.right - window_rect.left;
   int height = window_rect.bottom - window_rect.top;
 
@@ -331,7 +363,7 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
       return -1;
     }
     state->hwnd = hwnd;
-    state->font = CreateDialogFont();
+    state->font = CreateDialogFont(hwnd);
     HFONT font = state->font;
     state->ok_button = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
     state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
@@ -353,17 +385,30 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
       state->font = nullptr;
     }
     return 0;
+  case WM_DPICHANGED:
+    if (state) {
+      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
+    }
+    appearance::ApplyDpiChange(hwnd, lparam);
+    return 0;
   case WM_SIZE: {
     RECT client = {};
     GetClientRect(hwnd, &client);
-    int width = client.right - client.left;
-    int height = client.bottom - client.top;
     using namespace appearance::metrics;
-    int bottom_y = height - kMargin - kButtonHeight;
-    SetWindowPos(state->tree.hwnd(), nullptr, kMargin, kMargin, width - kMargin * 2,
-                 std::max(0, bottom_y - kBlockGap - kMargin), SWP_NOZORDER);
-    SetWindowPos(state->ok_button, nullptr, width - kMargin - kButtonWidth * 2 - kButtonGap, bottom_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
-    SetWindowPos(state->cancel_button, nullptr, width - kMargin - kButtonWidth, bottom_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
+    const UINT dpi = win32::DpiForWindow(hwnd);
+    const int margin = Scaled(kDialogContentMargin, dpi);
+    const int button_h = Scaled(kButtonHeight, dpi);
+    const int button_w = Scaled(kButtonMinWidth, dpi);
+    const int button_gap = Scaled(kButtonGap, dpi);
+    const int width = client.right - client.left;
+    const int height = client.bottom - client.top;
+    const int bottom_y = height - Scaled(kDialogButtonBottomMargin, dpi) - button_h;
+    const int cancel_x = width - Scaled(kDialogButtonRightMargin, dpi) - button_w;
+    appearance::Place(state->tree.hwnd(), margin, margin, width - margin * 2,
+                      std::max(0, bottom_y - Scaled(kBlockGap, dpi) - margin));
+    appearance::Place(state->ok_button, cancel_x - button_gap - button_w, bottom_y, button_w,
+                      button_h);
+    appearance::Place(state->cancel_button, cancel_x, bottom_y, button_w, button_h);
     return 0;
   }
   case WM_SETTINGCHANGE: {
@@ -479,12 +524,12 @@ bool ShowRegistryKey(HWND owner, std::wstring* selected_path) {
 
   BrowseDialogState state;
   state.owner = owner;
-  HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, wc.lpszClassName, L"Browse Key", WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_SIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 420, 420, owner, nullptr, instance, &state);
+  HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, wc.lpszClassName, L"Browse Key", WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_SIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, appearance::metrics::Scaled(420, win32::DpiForWindow(owner)), appearance::metrics::Scaled(420, win32::DpiForWindow(owner)), owner, nullptr, instance, &state);
   if (!hwnd) {
     return false;
   }
   Theme::Current().ApplyToWindow(hwnd);
-  appearance::PositionDialog(hwnd, owner, 420, 420);
+  appearance::CenterWindow(hwnd, owner);
 
   EnableWindow(owner, FALSE);
   ShowWindow(hwnd, SW_SHOW);

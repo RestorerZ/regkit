@@ -14,6 +14,7 @@
 
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
+#include "win32/window_metrics.h"
 #include "appearance/theme.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
@@ -91,8 +92,8 @@ struct TraceDialogState {
   size_t value_count = 0;
 };
 
-HFONT CreateDialogFont() {
-  return ui::DefaultUIFont();
+HFONT CreateDialogFont(HWND hwnd) {
+  return ui::DefaultUIFont(win32::DpiForWindow(hwnd));
 }
 
 TraceNodeData* StoreNodeData(TraceDialogState* state, bool is_value, const std::wstring& key_path, const std::wstring& value_name) {
@@ -414,56 +415,47 @@ void LayoutDialog(HWND hwnd, TraceDialogState* state, HFONT font) {
   }
   RECT rect = {};
   GetClientRect(hwnd, &rect);
-  int width = rect.right - rect.left;
-  int height = rect.bottom - rect.top;
   using namespace appearance::metrics;
-  int padding = kMargin;
-  int gap = kRowGap;
-  int button_h = kButtonHeight;
-  int button_w = kButtonWidth;
-  int check_h = kCheckHeight;
-  int label_h = 18;
+  const UINT dpi = win32::DpiForWindow(hwnd);
+  const int padding = Scaled(kDialogContentMargin, dpi);
+  const int gap = Scaled(kRowGap, dpi);
+  const int block_gap = Scaled(kBlockGap, dpi);
+  const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
+  const int bottom_margin = Scaled(kDialogButtonBottomMargin, dpi);
+  const int button_h = Scaled(kButtonHeight, dpi);
+  const int button_w = Scaled(kButtonMinWidth, dpi);
+  const int button_gap = Scaled(kButtonGap, dpi);
+  const int check_h = Scaled(kCheckHeight, dpi);
+  const int label_h = Scaled(kLabelHeight, dpi);
+  const int width = rect.right - rect.left;
+  const int height = rect.bottom - rect.top;
+  const int content_w = width - padding * 2;
 
   int y = padding;
   if (state->label) {
-    SetWindowPos(state->label, nullptr, padding, y, width - padding * 2, label_h, SWP_NOZORDER | SWP_NOACTIVATE);
+    appearance::Place(state->label, padding, y, content_w, label_h);
     y += label_h + gap;
   }
   if (state->status) {
-    SetWindowPos(state->status, nullptr, padding, y, width - padding * 2, label_h, SWP_NOZORDER | SWP_NOACTIVATE);
+    appearance::Place(state->status, padding, y, content_w, label_h);
     y += label_h + gap;
   }
 
-  int buttons_y = height - padding - button_h;
-  int check_y = buttons_y - check_h - kBlockGap;
-  int tree_height = check_y - y - kBlockGap;
-  if (tree_height < 80) {
-    tree_height = 80;
-  }
-  if (state->tree) {
-    SetWindowPos(state->tree, nullptr, padding, y, width - padding * 2, tree_height, SWP_NOZORDER | SWP_NOACTIVATE);
-  }
+  const int buttons_y = height - bottom_margin - button_h;
+  const int check_y = buttons_y - button_h - block_gap;
+  const int tree_height = std::max(Scaled(80, dpi), check_y - y - block_gap);
+  appearance::Place(state->tree, padding, y, content_w, tree_height);
 
-  int select_all_w = 140;
-  int recursive_w = 160;
-  int select_x = padding;
-  int recursive_x = select_x + select_all_w + gap;
-  if (state->select_all) {
-    SetWindowPos(state->select_all, nullptr, select_x, check_y, select_all_w, check_h, SWP_NOZORDER | SWP_NOACTIVATE);
-  }
-  if (state->recursive) {
-    SetWindowPos(state->recursive, nullptr, recursive_x, check_y, recursive_w, check_h, SWP_NOZORDER | SWP_NOACTIVATE);
-  }
+  const int select_all_w = Scaled(135, dpi);
+  const int recursive_w = Scaled(160, dpi);
+  appearance::Place(state->select_all, padding, check_y, select_all_w, button_h);
+  appearance::Place(state->recursive, padding + select_all_w + gap,
+                    check_y + (button_h - check_h) / 2, recursive_w, check_h);
 
-  int button_right_margin = 8;
-  int cancel_x = width - button_right_margin - button_w;
-  int ok_x = cancel_x - button_w - gap;
-  if (state->ok_button) {
-    SetWindowPos(state->ok_button, nullptr, ok_x, buttons_y, button_w, button_h, SWP_NOZORDER | SWP_NOACTIVATE);
-  }
-  if (state->cancel_button) {
-    SetWindowPos(state->cancel_button, nullptr, cancel_x, buttons_y, button_w, button_h, SWP_NOZORDER | SWP_NOACTIVATE);
-  }
+  const int cancel_x = width - right_margin - button_w;
+  const int ok_x = cancel_x - button_w - button_gap;
+  appearance::Place(state->ok_button, ok_x, buttons_y, button_w, button_h);
+  appearance::Place(state->cancel_button, cancel_x, buttons_y, button_w, button_h);
 
   if (font) {
     appearance::SetControlFont(hwnd, font);
@@ -484,7 +476,7 @@ LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
       return -1;
     }
     state->hwnd = hwnd;
-    state->font = CreateDialogFont();
+    state->font = CreateDialogFont(hwnd);
     HFONT font = state->font;
 
     if (!state->prompt.empty()) {
@@ -534,6 +526,12 @@ LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
     }
     return 0;
   }
+  case WM_DPICHANGED:
+    if (state) {
+      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
+    }
+    appearance::ApplyDpiChange(hwnd, lparam);
+    return 0;
   case WM_SIZE: {
     HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
     LayoutDialog(hwnd, state, font);
@@ -670,7 +668,8 @@ HWND CreateTraceDialogWindow(HINSTANCE instance, const std::wstring& title, HWND
   RegisterClassW(&wc);
 
   const wchar_t* window_title = title.empty() ? L"Trace" : title.c_str();
-  return CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kDialogClass, window_title, WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 560, 552, owner, nullptr, instance, state);
+  const UINT dpi = win32::DpiForWindow(owner);
+  return CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kDialogClass, window_title, WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, appearance::metrics::Scaled(560, dpi), appearance::metrics::Scaled(552, dpi), owner, nullptr, instance, state);
 }
 
 } // namespace

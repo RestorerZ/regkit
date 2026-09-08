@@ -415,10 +415,8 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id) {
     bool supports_extended_dialog = base_type == REG_SZ || base_type == REG_EXPAND_SZ || base_type == REG_MULTI_SZ || base_type == REG_DWORD || base_type == REG_DWORD_BIG_ENDIAN || base_type == REG_QWORD || base_type == REG_LINK;
     std::vector<BYTE> new_data;
     if (command_id == cmd::kEditModifyBinary || base_type == REG_BINARY || base_type == REG_NONE || base_type == REG_RESOURCE_LIST || base_type == REG_FULL_RESOURCE_DESCRIPTOR || base_type == REG_RESOURCE_REQUIREMENTS_LIST) {
-      std::wstring type_label = value_format::TypeName(entry.type);
       editors::BinaryRequest request;
       request.value_name = entry.name;
-      request.value_type = std::move(type_label);
       request.data = entry.data;
       editors::BinaryResult result;
       if (!editors::EditBinary(hwnd_, request, &result)) {
@@ -426,10 +424,8 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id) {
       }
       new_data = std::move(result.data);
     } else if (command_id == cmd::kEditModify && supports_extended_dialog) {
-      std::wstring type_label = value_format::TypeName(entry.type);
       editors::FlaggedValueRequest request;
       request.value_name = entry.name;
-      request.value_type = std::move(type_label);
       request.base_type = base_type;
       request.data = entry.data;
       editors::FlaggedValueResult result;
@@ -438,10 +434,8 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id) {
       }
       new_data = std::move(result.data);
     } else {
-      std::wstring type_label = value_format::TypeName(entry.type);
       editors::BinaryRequest request;
       request.value_name = entry.name;
-      request.value_type = std::move(type_label);
       request.data = entry.data;
       editors::BinaryResult result;
       if (!editors::EditBinary(hwnd_, request, &result)) {

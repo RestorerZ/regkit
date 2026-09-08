@@ -36,6 +36,21 @@ UINT DpiForWindow(HWND window) {
   return dpi > 0 ? static_cast<UINT>(dpi) : 96;
 }
 
+bool AdjustWindowRectForDpi(RECT* rect, DWORD style, DWORD ex_style, UINT dpi) {
+  if (!rect) {
+    return false;
+  }
+  HMODULE user32 = GetModuleHandleW(L"user32.dll");
+  if (user32) {
+    auto adjust_for_dpi = reinterpret_cast<BOOL(WINAPI*)(RECT*, DWORD, BOOL, DWORD, UINT)>(
+        GetProcAddress(user32, "AdjustWindowRectExForDpi"));
+    if (adjust_for_dpi && adjust_for_dpi(rect, style, FALSE, ex_style, dpi)) {
+      return true;
+    }
+  }
+  return AdjustWindowRectEx(rect, style, FALSE, ex_style) != FALSE;
+}
+
 void ClampToWorkArea(RECT* rect) {
   if (!rect || rect->right <= rect->left || rect->bottom <= rect->top) {
     return;

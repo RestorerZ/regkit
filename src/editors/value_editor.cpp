@@ -32,9 +32,6 @@ struct TextDialogState {
   const wchar_t* title = nullptr;
   const wchar_t* label = nullptr;
   std::wstring text;
-  std::wstring value_name;
-  std::wstring value_type;
-  bool show_details = false;
   HFONT ui_font = nullptr;
   appearance::DialogResizer resizer;
 };
@@ -62,7 +59,6 @@ struct TraceValueDialogState {
 struct ExtendedValueDialogState {
   DWORD base_type = REG_SZ;
   std::wstring value_name;
-  std::wstring value_type;
   std::wstring initial_text;
   std::vector<BYTE> initial_data;
   std::vector<BYTE> data;
@@ -76,26 +72,6 @@ struct ExtendedValueDialogState {
 std::wstring RegDataToString(const std::vector<BYTE>& data);
 bool ParseNumberValue(const std::wstring& text, int base, unsigned long long* value);
 
-void MoveDialogControl(HWND dlg, int id, int dx, int dy) {
-  HWND control = GetDlgItem(dlg, id);
-  if (!control) {
-    return;
-  }
-  RECT rect = {};
-  GetWindowRect(control, &rect);
-  MapWindowPoints(nullptr, dlg, reinterpret_cast<POINT*>(&rect), 2);
-  SetWindowPos(control, nullptr, rect.left + dx, rect.top + dy, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
-}
-
-void ResizeDialogHeight(HWND dlg, int delta) {
-  if (delta == 0) {
-    return;
-  }
-  RECT rect = {};
-  GetWindowRect(dlg, &rect);
-  SetWindowPos(dlg, nullptr, 0, 0, rect.right - rect.left, rect.bottom - rect.top + delta, SWP_NOZORDER | SWP_NOMOVE);
-}
-
 void ConfigureReadOnlyNameField(HWND dlg, const std::wstring& name) {
   HWND name_value = GetDlgItem(dlg, IDC_VALUE_NAME);
   if (!name_value) {
@@ -108,67 +84,6 @@ void ConfigureReadOnlyNameField(HWND dlg, const std::wstring& name) {
   if (style & WS_TABSTOP) {
     style &= ~WS_TABSTOP;
     SetWindowLongPtrW(name_value, GWL_STYLE, style);
-  }
-}
-
-void ConfigureValueDetails(HWND dlg, const std::wstring& name, const std::wstring& type, bool show, bool show_type, int hide_offset, const std::vector<int>& move_ids) {
-  HWND name_label = GetDlgItem(dlg, IDC_VALUE_NAME_LABEL);
-  HWND name_value = GetDlgItem(dlg, IDC_VALUE_NAME);
-  HWND type_label = GetDlgItem(dlg, IDC_VALUE_TYPE_LABEL);
-  HWND type_value = GetDlgItem(dlg, IDC_VALUE_TYPE);
-  HWND bytes_label = GetDlgItem(dlg, IDC_VALUE_BYTES_LABEL);
-  HWND bytes_value = GetDlgItem(dlg, IDC_VALUE_BYTES);
-
-  if (show) {
-    if (name_label) {
-      ShowWindow(name_label, SW_SHOW);
-    }
-    if (name_value) {
-      ConfigureReadOnlyNameField(dlg, name);
-    }
-    if (type_label && show_type) {
-      ShowWindow(type_label, SW_SHOW);
-    } else if (type_label) {
-      ShowWindow(type_label, SW_HIDE);
-    }
-    if (type_value && show_type) {
-      SetWindowTextW(type_value, type.c_str());
-      ShowWindow(type_value, SW_SHOW);
-    } else if (type_value) {
-      ShowWindow(type_value, SW_HIDE);
-    }
-    if (bytes_label) {
-      ShowWindow(bytes_label, SW_SHOW);
-    }
-    if (bytes_value) {
-      ShowWindow(bytes_value, SW_SHOW);
-    }
-    return;
-  }
-
-  if (name_label) {
-    ShowWindow(name_label, SW_HIDE);
-  }
-  if (name_value) {
-    ShowWindow(name_value, SW_HIDE);
-  }
-  if (type_label) {
-    ShowWindow(type_label, SW_HIDE);
-  }
-  if (type_value) {
-    ShowWindow(type_value, SW_HIDE);
-  }
-  if (bytes_label) {
-    ShowWindow(bytes_label, SW_HIDE);
-  }
-  if (bytes_value) {
-    ShowWindow(bytes_value, SW_HIDE);
-  }
-  if (hide_offset != 0) {
-    for (int id : move_ids) {
-      MoveDialogControl(dlg, id, 0, -hide_offset);
-    }
-    ResizeDialogHeight(dlg, -hide_offset);
   }
 }
 
@@ -883,7 +798,7 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
           L"The current data cannot be represented as " +
               value_format::TypeName(type) +
               L". Continue and start with an empty value?",
-          L"Change Data Type", L"Continue", L"Cancel", L"");
+          L"Change Data Type", L"Continue", L"Cancel", L"", {85, 70, 70});
       if (choice != IDYES) {
         SelectTraceType(dlg, state, previous);
         return TRUE;
@@ -1078,45 +993,13 @@ INT_PTR CALLBACK TextDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam
     if (state->label) {
       SetDlgItemTextW(dlg, IDC_LABEL, state->label);
     }
-    ConfigureValueDetails(dlg, state->value_name, state->value_type, state->show_details, false, 20, {IDC_LABEL, IDC_EDIT, IDOK, IDCANCEL, IDC_NOTE});
     SetDlgItemTextW(dlg, IDC_EDIT, state->text.c_str());
     SendDlgItemMessageW(dlg, IDC_EDIT, EM_SETSEL, 0, -1);
-    const bool is_remote_registry = (state->title && wcscmp(state->title, L"Connect to Remote Registry") == 0);
-    if (is_remote_registry) {
-      RECT client = {};
-      GetClientRect(dlg, &client);
-      HWND label = GetDlgItem(dlg, IDC_LABEL);
-      int shift = 0;
-      if (label) {
-        RECT rect = {};
-        GetWindowRect(label, &rect);
-        MapWindowPoints(nullptr, dlg, reinterpret_cast<POINT*>(&rect), 2);
-        const int desired_top = 9;
-        shift = desired_top - rect.top;
-      }
-      if (shift != 0) {
-        MoveDialogControl(dlg, IDC_LABEL, 0, shift);
-        MoveDialogControl(dlg, IDC_EDIT, 0, shift);
-        MoveDialogControl(dlg, IDOK, 0, shift);
-        MoveDialogControl(dlg, IDCANCEL, 0, shift);
-        ResizeDialogHeight(dlg, shift);
-      }
-      if (label) {
-        RECT rect = {};
-        GetWindowRect(label, &rect);
-        MapWindowPoints(nullptr, dlg, reinterpret_cast<POINT*>(&rect), 2);
-        int width = std::max(0, static_cast<int>(client.right - client.left) - static_cast<int>(rect.left) - 8);
-        SetWindowPos(label, nullptr, rect.left, rect.top, width, rect.bottom - rect.top, SWP_NOZORDER);
-      }
-    }
-    dialog_support::Initialize(
-        dlg, &state->ui_font, {IDC_VALUE_NAME, IDC_EDIT});
+    dialog_support::Initialize(dlg, &state->ui_font, {IDC_EDIT});
     if (IsMultilineEdit(dlg, IDC_EDIT)) {
       dialog_support::AllowNewlines(dlg, IDC_EDIT);
       using namespace appearance;
       state->resizer.Attach(dlg, {
-          {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
-          {IDC_VALUE_TYPE, kAnchorLeft | kAnchorTop | kAnchorRight},
           {IDC_LABEL, kAnchorLeft | kAnchorTop | kAnchorRight},
           {IDC_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
           {IDOK, kAnchorRight | kAnchorBottom},
@@ -1177,14 +1060,10 @@ INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPAR
     state = reinterpret_cast<ExtendedValueDialogState*>(lparam);
     SetWindowLongPtrW(dlg, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
     SetWindowTextW(dlg, L"Edit Value");
-    std::wstring value_name;
-    std::wstring value_type;
     if (state) {
-      value_name = state->value_name;
-      value_type = state->value_type;
       SetDlgItemTextW(dlg, IDC_EDIT, state->initial_text.c_str());
+      ConfigureReadOnlyNameField(dlg, state->value_name);
     }
-    ConfigureValueDetails(dlg, value_name, value_type, true, false, 20, {IDC_LABEL, IDC_EDIT, IDC_BASE_GROUP, IDC_HEX, IDC_DEC, IDC_BIN, IDOK, IDCANCEL});
 
     if (state && (state->base_type == REG_DWORD || state->base_type == REG_DWORD_BIG_ENDIAN || state->base_type == REG_QWORD)) {
       CheckDlgButton(dlg, IDC_HEX, state->number_base == 16 ? BST_CHECKED : BST_UNCHECKED);
@@ -1204,7 +1083,6 @@ INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPAR
       using namespace appearance;
       state->resizer.Attach(dlg, {
           {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
-          {IDC_VALUE_TYPE, kAnchorLeft | kAnchorTop | kAnchorRight},
           {IDC_LABEL, kAnchorLeft | kAnchorTop | kAnchorRight},
           {IDC_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
           {IDOK, kAnchorRight | kAnchorBottom},
@@ -1349,12 +1227,6 @@ bool EditText(HWND owner, const TextRequest& request, TextResult* result) {
   state.title = request.title.c_str();
   state.label = request.label.c_str();
   state.text = request.text;
-  state.value_name = request.value_name;
-  state.value_type = request.value_type;
-  if (request.show_value_details && state.value_name.empty()) {
-    state.value_name = L"(Default)";
-  }
-  state.show_details = request.show_value_details;
   const int dialog_id = request.multiline ? IDD_MULTI_TEXT : IDD_INPUT;
   const INT_PTR dialog_result = DialogBoxParamW(
       GetModuleHandleW(nullptr), MAKEINTRESOURCEW(dialog_id), owner,
@@ -1395,7 +1267,6 @@ bool EditFlaggedValue(HWND owner, const FlaggedValueRequest& request,
   state.base_type = request.base_type;
   state.value_name =
       request.value_name.empty() ? L"(Default)" : request.value_name;
-  state.value_type = request.value_type;
   state.initial_data.assign(request.data.begin(), request.data.end());
   state.number_base = 16;
   state.initial_number_base = state.number_base;

@@ -14,6 +14,7 @@
 
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
+#include "win32/window_metrics.h"
 #include "appearance/theme.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
@@ -120,8 +121,8 @@ struct SearchDialogState {
   bool owner_restored = false;
 };
 
-HFONT CreateDialogFont() {
-  return ui::DefaultUIFont();
+HFONT CreateDialogFont(HWND hwnd) {
+  return ui::DefaultUIFont(win32::DpiForWindow(hwnd));
 }
 
 
@@ -438,122 +439,132 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   appearance::SetControlFont(hwnd, font);
   RECT client = {};
   GetClientRect(hwnd, &client);
-  int width = client.right - client.left;
   using namespace appearance::metrics;
-  int x = kMargin;
-  int y = kMargin;
-  int label_w = 94;
-  int edit_h = kControlHeight;
-  int line_h = kControlHeight;
-  auto place_check = [&](HWND check, int x_pos, int y_pos, int width, int limit = 0) {
-    if (!check) {
-      return;
-    }
-    wchar_t label[160] = {};
-    const int length = GetWindowTextW(check, label, static_cast<int>(_countof(label)));
-    if (length > 0) {
-      if (HDC dc = GetDC(check)) {
-        HFONT drawn = reinterpret_cast<HFONT>(SendMessageW(check, WM_GETFONT, 0, 0));
-        if (!drawn) {
-          drawn = font;
-        }
-        HFONT previous = drawn ? reinterpret_cast<HFONT>(SelectObject(dc, drawn)) : nullptr;
-        SIZE text = {};
-        if (GetTextExtentPoint32W(dc, label, length, &text)) {
-          width = std::max<int>(width, text.cx + GetSystemMetrics(SM_CXMENUCHECK) + 12);
-        }
-        if (previous) {
-          SelectObject(dc, previous);
-        }
-        ReleaseDC(check, dc);
-      }
-    }
-    if (limit > 0) {
-      width = std::min(width, limit);
-    }
-    SetWindowPos(check, nullptr, x_pos, y_pos, width, kCheckHeight, SWP_NOZORDER);
-  };
+  const UINT dpi = win32::DpiForWindow(hwnd);
+  const int margin = Scaled(kDialogContentMargin, dpi);
+  const int block_gap = Scaled(kBlockGap, dpi);
+  const int label_gap = Scaled(kLabelGap, dpi);
+  const int label_inset = Scaled(kLabelInset, dpi);
+  const int label_h = Scaled(kLabelHeight, dpi);
+  const int check_inset = Scaled(kCheckInset, dpi);
+  const int check_h = Scaled(kCheckHeight, dpi);
+  const int line_h = Scaled(kControlHeight, dpi);
+  const int control_pitch = Scaled(kControlPitch, dpi);
+  const int row_pitch = Scaled(kRowPitch, dpi);
+  const int group_top = Scaled(kGroupTop, dpi);
+  const int group_bottom = Scaled(kGroupBottom, dpi);
+  const int group_inset = Scaled(kGroupInset, dpi);
+  const int button_h = Scaled(kButtonHeight, dpi);
+  const int button_w = Scaled(kButtonMinWidth, dpi);
+  const int button_gap = Scaled(kButtonGap, dpi);
+  const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
+  const int bottom_margin = Scaled(kDialogButtonBottomMargin, dpi);
+  const int width = client.right - client.left;
+  const int x = margin;
+  int y = margin;
 
+  const int label_w = Scaled(94, dpi);
   HWND find_label = GetDlgItem(hwnd, kFindLabel);
-  SetWindowPos(find_label, nullptr, x, y + 4, label_w, 18, SWP_NOZORDER);
-  int combo_w = width - x * 2 - label_w - 8;
-  SetWindowPos(state->find_combo, nullptr, x + label_w + 8, y, combo_w, line_h, SWP_NOZORDER);
-  y += line_h + 12;
+  appearance::Place(find_label, x, y + label_inset, label_w, label_h);
+  appearance::Place(state->find_combo, x + label_w + label_gap, y,
+                    width - x * 2 - label_w - label_gap, line_h);
+  y += line_h + block_gap;
 
-  int group_w = width - x * 2;
-  int where_h = kGroupTop + kControlPitch * 2 + kControlHeight + kGroupBottom;
-  SetWindowPos(GetDlgItem(hwnd, kWhereGroup), nullptr, x, y, group_w, where_h, SWP_NOZORDER);
-  int gx = x + kGroupInset;
-  int gy = y + kGroupTop;
-  int left_w = 150;
-  place_check(state->scope_top, gx, gy + kCheckInset, left_w);
-  int combo_x = gx + left_w + kLabelGap;
-  int combo_w2 = width - combo_x - x - kGroupInset;
-  SetWindowPos(state->scope_combo, nullptr, combo_x, gy, combo_w2, line_h, SWP_NOZORDER);
-  place_check(state->scope_key, gx, gy + kControlPitch + kCheckInset, left_w);
-  int scope_edit_y = gy + kControlPitch;
-  SetWindowPos(state->scope_edit, nullptr, combo_x, scope_edit_y, combo_w2 - 84, edit_h, SWP_NOZORDER);
-  SetWindowPos(state->scope_browse, nullptr, combo_x + combo_w2 - 80, scope_edit_y, 80, edit_h, SWP_NOZORDER);
-  place_check(state->scope_recursive, combo_x, gy + kControlPitch * 2 + kCheckInset, 140);
-  y += where_h + kBlockGap;
+  const int group_w = width - x * 2;
+  const int where_h = group_top + control_pitch * 2 + line_h + group_bottom;
+  appearance::Place(GetDlgItem(hwnd, kWhereGroup), x, y, group_w, where_h);
+  const int gx = x + group_inset;
+  int gy = y + group_top;
+  const int scope_label_w = Scaled(150, dpi);
+  const int browse_w = Scaled(90, dpi);
+  appearance::Place(state->scope_top, gx, gy + check_inset, scope_label_w, check_h);
+  const int combo_x = gx + scope_label_w + label_gap;
+  const int combo_w = width - combo_x - x - group_inset;
+  appearance::Place(state->scope_combo, combo_x, gy, combo_w, line_h);
+  appearance::Place(state->scope_key, gx, gy + control_pitch + check_inset, scope_label_w, check_h);
+  const int scope_edit_y = gy + control_pitch;
+  appearance::Place(state->scope_edit, combo_x, scope_edit_y, combo_w - browse_w - label_gap,
+                    line_h);
+  appearance::Place(state->scope_browse, combo_x + combo_w - browse_w, scope_edit_y, browse_w,
+                    line_h);
+  appearance::Place(state->scope_recursive, combo_x, gy + control_pitch * 2 + check_inset,
+                    Scaled(140, dpi), check_h);
+  y += where_h + block_gap;
 
-  int options_h = kGroupTop + kRowPitch * 5 + kCheckHeight + kGroupBottom;
-  SetWindowPos(GetDlgItem(hwnd, kOptionsGroup), nullptr, x, y, group_w, options_h, SWP_NOZORDER);
-  gy = y + kGroupTop;
-  int left_x = x + kGroupInset;
-  int right_x = x + group_w / 2 + kLabelGap;
-  auto option_row = [&](int row) { return gy + kRowPitch * row; };
-  place_check(state->options_keys, left_x, option_row(0), 170);
-  place_check(state->options_values, left_x, option_row(1), 170);
-  place_check(state->options_data, left_x, option_row(2), 170);
-  place_check(state->options_standard, left_x, option_row(3), 200);
-  place_check(state->options_registry, left_x, option_row(4), 200);
-  place_check(state->options_trace, left_x, option_row(5), 200);
+  const int options_h = group_top + row_pitch * 5 + check_h + group_bottom;
+  appearance::Place(GetDlgItem(hwnd, kOptionsGroup), x, y, group_w, options_h);
+  gy = y + group_top;
+  const int left_x = x + group_inset;
+  const int right_x = x + group_w / 2 + label_gap;
+  auto option_row = [&](int row) { return gy + row_pitch * row; };
+  const int scope_col_w = Scaled(170, dpi);
+  const int hive_col_w = Scaled(200, dpi);
+  appearance::Place(state->options_keys, left_x, option_row(0), scope_col_w, check_h);
+  appearance::Place(state->options_values, left_x, option_row(1), scope_col_w, check_h);
+  appearance::Place(state->options_data, left_x, option_row(2), scope_col_w, check_h);
+  appearance::Place(state->options_standard, left_x, option_row(3), hive_col_w, check_h);
+  appearance::Place(state->options_registry, left_x, option_row(4), hive_col_w, check_h);
+  appearance::Place(state->options_trace, left_x, option_row(5), hive_col_w, check_h);
 
-  place_check(state->min_size, right_x, option_row(0), 180, 180);
-  SetWindowPos(state->min_size_edit, nullptr, right_x + 188, option_row(0) - kCheckInset, 76, kControlHeight, SWP_NOZORDER);
-  place_check(state->max_size, right_x, option_row(1), 180, 180);
-  SetWindowPos(state->max_size_edit, nullptr, right_x + 188, option_row(1) - kCheckInset, 76, kControlHeight, SWP_NOZORDER);
-  place_check(state->match_case, right_x, option_row(2), 140);
-  place_check(state->match_whole, right_x, option_row(3), 160);
-  place_check(state->use_regex, right_x, option_row(4), 190);
-  SetWindowPos(state->options_data_types, nullptr, right_x, option_row(5) - kCheckInset, 120, kControlHeight, SWP_NOZORDER);
-  y += options_h + kBlockGap;
+  const int size_label_w = Scaled(180, dpi);
+  const int size_edit_x = right_x + Scaled(188, dpi);
+  const int size_edit_w = Scaled(76, dpi);
+  appearance::Place(state->min_size, right_x, option_row(0), size_label_w, check_h);
+  appearance::Place(state->min_size_edit, size_edit_x, option_row(0) - check_inset, size_edit_w,
+                    line_h);
+  appearance::Place(state->max_size, right_x, option_row(1), size_label_w, check_h);
+  appearance::Place(state->max_size_edit, size_edit_x, option_row(1) - check_inset, size_edit_w,
+                    line_h);
+  appearance::Place(state->match_case, right_x, option_row(2), Scaled(140, dpi), check_h);
+  appearance::Place(state->match_whole, right_x, option_row(3), Scaled(160, dpi), check_h);
+  appearance::Place(state->use_regex, right_x, option_row(4), Scaled(190, dpi), check_h);
+  appearance::Place(state->options_data_types, right_x, option_row(5) - check_inset,
+                    Scaled(120, dpi), line_h);
+  y += options_h + block_gap;
 
-  int modified_label_w = 150;
-  int modified_x = x + modified_label_w + 6;
-  int modified_w = 150;
-  SetWindowPos(GetDlgItem(hwnd, kModifiedLabel), nullptr, x, y + kLabelInset, modified_label_w, kLabelHeight, SWP_NOZORDER);
-  SetWindowPos(state->modified_from, nullptr, modified_x, y, modified_w, line_h, SWP_NOZORDER);
-  SetWindowPos(GetDlgItem(hwnd, kModifiedDash), nullptr, modified_x + modified_w + 6, y + kLabelInset, 12, kLabelHeight, SWP_NOZORDER);
-  SetWindowPos(state->modified_to, nullptr, modified_x + modified_w + 24, y, modified_w, line_h, SWP_NOZORDER);
-  y += line_h + kBlockGap;
+  const int modified_label_w = Scaled(150, dpi);
+  const int modified_w = Scaled(150, dpi);
+  const int modified_gap = Scaled(6, dpi);
+  const int modified_x = x + modified_label_w + modified_gap;
+  const int dash_x = modified_x + modified_w + modified_gap;
+  appearance::Place(GetDlgItem(hwnd, kModifiedLabel), x, y + label_inset, modified_label_w,
+                    label_h);
+  appearance::Place(state->modified_from, modified_x, y, modified_w, line_h);
+  appearance::Place(GetDlgItem(hwnd, kModifiedDash), dash_x, y + label_inset, Scaled(12, dpi),
+                    label_h);
+  appearance::Place(state->modified_to, dash_x + Scaled(18, dpi), y, modified_w, line_h);
+  y += line_h + block_gap;
 
-  int exclude_h = kGroupTop + kRowPitch + kControlHeight + kGroupBottom;
-  SetWindowPos(GetDlgItem(hwnd, kExcludeGroup), nullptr, x, y, group_w, exclude_h, SWP_NOZORDER);
-  place_check(state->exclude_enable, x + kGroupInset, y + kGroupTop, 120);
-  int exclude_row = y + kGroupTop + kRowPitch;
-  SetWindowPos(state->exclude_edit, nullptr, x + kGroupInset, exclude_row, group_w - 100, kControlHeight, SWP_NOZORDER);
-  SetWindowPos(state->exclude_button, nullptr, x + group_w - 80, exclude_row, 70, kControlHeight, SWP_NOZORDER);
-  y += exclude_h + kBlockGap;
+  const int exclude_h = group_top + row_pitch + line_h + group_bottom;
+  const int exclude_button_w = Scaled(80, dpi);
+  appearance::Place(GetDlgItem(hwnd, kExcludeGroup), x, y, group_w, exclude_h);
+  appearance::Place(state->exclude_enable, x + group_inset, y + group_top, Scaled(120, dpi),
+                    check_h);
+  const int exclude_row = y + group_top + row_pitch;
+  appearance::Place(state->exclude_edit, x + group_inset, exclude_row,
+                    group_w - group_inset * 2 - exclude_button_w - label_gap, line_h);
+  appearance::Place(state->exclude_button, x + group_w - group_inset - exclude_button_w,
+                    exclude_row, exclude_button_w, line_h);
+  y += exclude_h + block_gap;
 
-  int result_h = kGroupTop + kRowPitch * 2 + kControlPitch + kControlHeight + kGroupBottom;
-  SetWindowPos(GetDlgItem(hwnd, kResultGroup), nullptr, x, y, group_w, result_h, SWP_NOZORDER);
-  int result_gy = y + kGroupTop;
-  place_check(state->result_reuse, x + kGroupInset, result_gy, 220);
-  place_check(state->result_new, x + kGroupInset, result_gy + kRowPitch, 240);
-  place_check(state->result_open_new_tab, x + kGroupInset, result_gy + kRowPitch * 2, 200);
-  int limit_row = result_gy + kRowPitch * 2 + kControlPitch;
-  place_check(state->result_limit_enable, x + kGroupInset, limit_row + kCheckInset, 140, 140);
-  SetWindowPos(state->result_limit_edit, nullptr, x + 160, limit_row, 70, kControlHeight, SWP_NOZORDER);
+  const int result_h = group_top + row_pitch * 2 + control_pitch + line_h + group_bottom;
+  appearance::Place(GetDlgItem(hwnd, kResultGroup), x, y, group_w, result_h);
+  const int result_gy = y + group_top;
+  appearance::Place(state->result_reuse, x + group_inset, result_gy, Scaled(220, dpi), check_h);
+  appearance::Place(state->result_new, x + group_inset, result_gy + row_pitch, Scaled(240, dpi),
+                    check_h);
+  appearance::Place(state->result_open_new_tab, x + group_inset, result_gy + row_pitch * 2,
+                    Scaled(200, dpi), check_h);
+  const int limit_row = result_gy + row_pitch * 2 + control_pitch;
+  appearance::Place(state->result_limit_enable, x + group_inset, limit_row + check_inset,
+                    Scaled(140, dpi), check_h);
+  appearance::Place(state->result_limit_edit, x + Scaled(160, dpi), limit_row, button_w, line_h);
+  y += result_h + block_gap;
 
-  y += result_h + kBlockGap;
-  int btn_y = y;
-  int cancel_x = width - kMargin - kButtonWidth;
-  int find_x = cancel_x - kButtonGap - kButtonWidth;
-  SetWindowPos(state->find_button, nullptr, find_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
-  SetWindowPos(state->cancel_button, nullptr, cancel_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
-  appearance::FitDialogHeight(hwnd, btn_y + kButtonHeight + kMargin);
+  const int cancel_x = width - right_margin - button_w;
+  appearance::Place(state->find_button, cancel_x - button_gap - button_w, y, button_w, button_h);
+  appearance::Place(state->cancel_button, cancel_x, y, button_w, button_h);
+  appearance::FitDialogHeight(hwnd, y + button_h + bottom_margin);
 
   for (HWND edit : {state->scope_edit, state->min_size_edit, state->max_size_edit,
                     state->exclude_edit, state->result_limit_edit}) {
@@ -580,7 +591,7 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     }
     state->hwnd = hwnd;
     SetWindowTextW(hwnd, L"Find");
-    state->font = CreateDialogFont();
+    state->font = CreateDialogFont(hwnd);
     HFONT font = state->font;
 
     CreateWindowExW(0, L"STATIC", L"Find what:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindLabel), nullptr, nullptr);
@@ -757,6 +768,12 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
       DeleteObject(state->font);
       state->font = nullptr;
     }
+    return 0;
+  case WM_DPICHANGED:
+    if (state) {
+      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
+    }
+    appearance::ApplyDpiChange(hwnd, lparam);
     return 0;
   case WM_SIZE: {
     HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
@@ -1043,7 +1060,7 @@ HWND CreateSearchDialogWindow(HINSTANCE instance, HWND owner, SearchDialogState*
   wc.lpszClassName = kDialogClass;
   RegisterClassW(&wc);
 
-  return CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kDialogClass, L"Find", WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 600, 634, owner, nullptr, instance, state);
+  return CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kDialogClass, L"Find", WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, appearance::metrics::Scaled(600, win32::DpiForWindow(owner)), appearance::metrics::Scaled(634, win32::DpiForWindow(owner)), owner, nullptr, instance, state);
 }
 
 } // namespace

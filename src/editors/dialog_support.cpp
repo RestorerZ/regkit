@@ -3,7 +3,9 @@
 
 #include "editors/dialog_support.h"
 #include "win32/text_transform.h"
+#include "win32/window_metrics.h"
 
+#include "appearance/dialog_layout.h"
 #include "appearance/theme.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
@@ -96,27 +98,6 @@ void DrawSizeGrip(HWND dialog, HDC hdc) {
   DrawFrameControl(hdc, &grip, DFC_SCROLL, DFCS_SCROLLSIZEGRIP);
 }
 
-void Center(HWND dialog) {
-  RECT dialog_rect = {};
-  if (!GetWindowRect(dialog, &dialog_rect)) {
-    return;
-  }
-  RECT target = {};
-  const HWND owner = GetWindow(dialog, GW_OWNER);
-  if ((!owner || !GetWindowRect(owner, &target)) &&
-      !SystemParametersInfoW(SPI_GETWORKAREA, 0, &target, 0)) {
-    return;
-  }
-  const int width = dialog_rect.right - dialog_rect.left;
-  const int height = dialog_rect.bottom - dialog_rect.top;
-  const LONG x = target.left +
-                 std::max<LONG>(0, (target.right - target.left - width) / 2);
-  const LONG y = target.top +
-                 std::max<LONG>(0, (target.bottom - target.top - height) / 2);
-  SetWindowPos(dialog, nullptr, x, y, 0, 0,
-               SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
-}
-
 void ThinBorder(HWND dialog, int id) {
   const HWND edit = GetDlgItem(dialog, id);
   if (!edit) {
@@ -139,7 +120,7 @@ void Initialize(HWND dialog, HFONT* owned_font,
   for (const int id : bordered_edits) {
     ThinBorder(dialog, id);
   }
-  HFONT font = ui::DefaultUIFont();
+  HFONT font = ui::DefaultUIFont(win32::DpiForWindow(dialog));
   if (owned_font) {
     *owned_font = font;
   }
@@ -162,7 +143,7 @@ void Initialize(HWND dialog, HFONT* owned_font,
   }
   Theme::Current().ApplyToWindow(dialog);
   Theme::Current().ApplyToChildren(dialog);
-  Center(dialog);
+  regkit::appearance::CenterWindow(dialog, GetWindow(dialog, GW_OWNER));
 }
 
 void AllowNewlines(HWND dialog, int control_id) {

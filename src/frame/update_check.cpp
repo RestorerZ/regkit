@@ -288,7 +288,7 @@ void MainWindow::Impl::ApplyUpdateCheckResult(UpdateCheckPayload* payload) {
   message += REGKIT_VERSION_STR_W;
   message += L".\n\nDownload it now?";
   if (ui::PromptChoice(hwnd_, message, L"Update available", L"Download",
-                       L"", L"Close") == IDYES) {
+                       L"", L"Close", {85, 70, 70}) == IDYES) {
     const std::wstring target = payload->download_url.empty()
                                     ? std::wstring(kReleasesPage)
                                     : payload->download_url;

@@ -28,8 +28,6 @@ constexpr UINT_PTR kFontDialogSubclassId = 1;
 constexpr UINT_PTR kFontDialogGroupBoxSubclassId = 3;
 constexpr UINT_PTR kFontDialogSampleSubclassId = 4;
 constexpr UINT kFontDialogUpdatePreviewMessage = WM_APP + 101;
-constexpr int kFontDialogWidth = 447;
-constexpr int kFontDialogHeight = 324;
 
 LRESULT CALLBACK FontDialogGroupBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR ref_data);
 LRESULT CALLBACK FontDialogSampleSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR ref_data);
@@ -375,8 +373,6 @@ UINT_PTR CALLBACK FontDialogHookProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
       SetWindowSubclass(hwnd, FontDialogSubclassProc, kFontDialogSubclassId, 0);
     }
     ApplyFontDialogTheme(hwnd, dark_mode);
-    SetWindowPos(hwnd, nullptr, 0, 0, kFontDialogWidth, kFontDialogHeight,
-                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     PostMessageW(hwnd, kFontDialogUpdatePreviewMessage, 0, reinterpret_cast<LPARAM>(state));
     return 0;
   }

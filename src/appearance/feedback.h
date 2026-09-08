@@ -29,8 +29,14 @@ bool ConfirmDelete(HWND owner, const std::wstring& title, const std::wstring& na
                    const std::wstring& message = std::wstring());
 bool ConfirmDelete(HWND owner, const std::wstring& title, const std::vector<std::wstring>& names,
                    const std::wstring& message = std::wstring());
-int PromptKeyChoice(HWND owner, const std::wstring& message, const std::wstring& key_path, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, int yes_button_width_dlu = 0);
-int PromptChoice(HWND owner, const std::wstring& message, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, int button_width_dlu = 50, int width = 420);
+struct ChoiceButtonWidths {
+  int yes = 70;
+  int no = 70;
+  int cancel = 70;
+};
+
+int PromptKeyChoice(HWND owner, const std::wstring& message, const std::wstring& key_path, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths = {});
+int PromptChoice(HWND owner, const std::wstring& message, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths = {}, int width = 420);
 bool ReportFileDialogResult(HWND owner, HRESULT hr);
 bool LaunchNewInstance();
 

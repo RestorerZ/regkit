@@ -9,7 +9,9 @@
 
 namespace regkit::appearance {
 
+int SystemFontDpi();
 int FontPointSize(const LOGFONTW& font, int zero_height_fallback = 0);
 int FontHeight(int point_size);
+int FontHeight(int point_size, UINT dpi);
 
 } // namespace regkit::appearance

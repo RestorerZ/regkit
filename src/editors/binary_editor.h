@@ -15,7 +15,6 @@ namespace regkit::editors {
 
 struct BinaryRequest {
   std::wstring value_name;
-  std::wstring value_type = L"REG_BINARY";
   std::span<const BYTE> data;
 };
 

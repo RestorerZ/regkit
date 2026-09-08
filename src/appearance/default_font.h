@@ -10,6 +10,8 @@
 namespace regkit::ui {
 
 LOGFONTW DefaultUIFontLogFont();
+LOGFONTW DefaultUIFontLogFont(UINT dpi);
 HFONT DefaultUIFont();
+HFONT DefaultUIFont(UINT dpi);
 
 } // namespace regkit::ui

@@ -523,7 +523,7 @@ bool MainWindow::Impl::SwitchToRemoteRegistry() {
 bool MainWindow::Impl::SwitchToOfflineRegistry() {
   const int choice = ui::PromptChoice(
       hwnd_, L"Load the offline registry from a single hive file, or from a folder of hives?",
-      L"Offline Registry", L"Hive File", L"Folder", L"Cancel", 60, 470);
+      L"Offline Registry", L"Hive File", L"Folder", L"Cancel", {90, 70, 70}, 470);
   std::wstring hive_path;
   HRESULT hr = S_OK;
   if (choice == IDYES) {
@@ -742,13 +742,13 @@ void MainWindow::Impl::NavigateToAddress() {
     std::wstring message = L"The registry key doesn't exist:";
     if (read_only_) {
       message += L"\nRead only mode is enabled.";
-      int result = ui::PromptKeyChoice(hwnd_, message, path, L"Registry path not found", L"Go to nearest key", L"", L"Cancel", 70);
+      int result = ui::PromptKeyChoice(hwnd_, message, path, L"Registry path not found", L"Go to nearest key", L"", L"Cancel", {150, 70, 70});
       if (result == IDYES) {
         SelectTreePath(nearest);
       }
       return;
     }
-    int result = ui::PromptKeyChoice(hwnd_, message, path, L"Registry path not found", L"Go to nearest key", L"Create key", L"Cancel", 70);
+    int result = ui::PromptKeyChoice(hwnd_, message, path, L"Registry path not found", L"Go to nearest key", L"Create key", L"Cancel", {150, 100, 70});
     if (result == IDYES) {
       SelectTreePath(nearest);
       return;

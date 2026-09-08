@@ -138,14 +138,14 @@ std::wstring ReadFontSubstitute(const wchar_t* value_name) {
 
 } // namespace
 
-LOGFONTW DefaultUIFontLogFont() {
+LOGFONTW DefaultUIFontLogFont(UINT dpi) {
   LOGFONTW lf = {};
   HFONT stock = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
   if (!stock || GetObjectW(stock, sizeof(lf), &lf) == 0) {
     lf.lfWeight = FW_NORMAL;
     lf.lfCharSet = DEFAULT_CHARSET;
   }
-  lf.lfHeight = appearance::FontHeight(9);
+  lf.lfHeight = appearance::FontHeight(9, dpi);
   std::wstring default_face = ReadFontSubstitute(L"Segoe UI");
   if (default_face.empty()) {
     default_face = L"Segoe UI";
@@ -158,7 +158,7 @@ LOGFONTW DefaultUIFontLogFont() {
       wcsncpy_s(lf.lfFaceName, settings.face.c_str(), _TRUNCATE);
     }
     if (settings.size > 0) {
-      lf.lfHeight = appearance::FontHeight(settings.size);
+      lf.lfHeight = appearance::FontHeight(settings.size, dpi);
     }
     if (settings.weight > 0) {
       lf.lfWeight = settings.weight;
@@ -170,10 +170,17 @@ LOGFONTW DefaultUIFontLogFont() {
   return lf;
 }
 
+LOGFONTW DefaultUIFontLogFont() {
+  return DefaultUIFontLogFont(static_cast<UINT>(appearance::SystemFontDpi()));
+}
+
+HFONT DefaultUIFont(UINT dpi) {
+  LOGFONTW lf = DefaultUIFontLogFont(dpi);
+  return CreateFontIndirectW(&lf);
+}
+
 HFONT DefaultUIFont() {
-  LOGFONTW lf = DefaultUIFontLogFont();
-  HFONT font = CreateFontIndirectW(&lf);
-  return font;
+  return DefaultUIFont(static_cast<UINT>(appearance::SystemFontDpi()));
 }
 
 } // namespace regkit::ui

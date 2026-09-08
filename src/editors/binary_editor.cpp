@@ -73,8 +73,6 @@ void ConfigureIdentity(HWND dialog, const BinaryRequest& request) {
   const HWND name_control = GetDlgItem(dialog, IDC_VALUE_NAME);
   SetWindowLongPtrW(name_control, GWL_STYLE,
                     GetWindowLongPtrW(name_control, GWL_STYLE) & ~WS_TABSTOP);
-  ShowWindow(GetDlgItem(dialog, IDC_VALUE_TYPE_LABEL), SW_HIDE);
-  ShowWindow(GetDlgItem(dialog, IDC_VALUE_TYPE), SW_HIDE);
 }
 
 INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,

@@ -6,6 +6,7 @@
 #include "appearance/default_font.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
+#include "win32/window_metrics.h"
 
 #include <algorithm>
 #include <cwchar>
@@ -64,10 +65,9 @@ struct ChoiceDialogState {
   std::wstring yes_label;
   std::wstring no_label;
   std::wstring cancel_label;
-  int yes_button_width_dlu = 0;
+  ChoiceButtonWidths button_widths;
   int default_id = 0;
   PCWSTR icon_id = nullptr;
-  int button_width_dlu = 45;
   int result = IDCANCEL;
   bool accepted = false;
   bool owner_restored = false;
@@ -86,35 +86,6 @@ struct AboutDialogState {
   bool accepted = false;
   bool owner_restored = false;
 };
-
-void CenterWindowToOwner(HWND hwnd, HWND owner) {
-  if (!hwnd) {
-    return;
-  }
-  RECT rect = {};
-  if (!GetWindowRect(hwnd, &rect)) {
-    return;
-  }
-  int width = rect.right - rect.left;
-  int height = rect.bottom - rect.top;
-  RECT owner_rect = {};
-  if (owner && GetWindowRect(owner, &owner_rect)) {
-    int owner_w = owner_rect.right - owner_rect.left;
-    int owner_h = owner_rect.bottom - owner_rect.top;
-    int x = owner_rect.left + std::max(0, (owner_w - width) / 2);
-    int y = owner_rect.top + std::max(0, (owner_h - height) / 2);
-    SetWindowPos(hwnd, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
-    return;
-  }
-  RECT work_area = {};
-  if (SystemParametersInfoW(SPI_GETWORKAREA, 0, &work_area, 0)) {
-    int work_w = work_area.right - work_area.left;
-    int work_h = work_area.bottom - work_area.top;
-    int x = work_area.left + std::max(0, (work_w - width) / 2);
-    int y = work_area.top + std::max(0, (work_h - height) / 2);
-    SetWindowPos(hwnd, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
-  }
-}
 
 void ApplyConfirmFonts(HWND hwnd, HFONT font) {
   if (!font) {
@@ -180,22 +151,26 @@ void FitChoiceDialogToContent(HWND hwnd, ChoiceDialogState* state) {
   RECT client = {};
   GetClientRect(hwnd, &client);
   using namespace appearance::metrics;
-  const int icon_w = state->icon_id ? 32 : 0;
-  const int content_w = (client.right - client.left) - kMargin * 2 - icon_w -
-                        (icon_w ? kBlockGap : 0);
+  const UINT dpi = win32::DpiForWindow(hwnd);
+  const int margin = Scaled(kDialogContentMargin, dpi);
+  const int block_gap = Scaled(kBlockGap, dpi);
+  const int icon_w = state->icon_id ? Scaled(32, dpi) : 0;
+  const int content_w =
+      (client.right - client.left) - margin * 2 - icon_w - (icon_w ? block_gap : 0);
   const int text_h =
       std::max(icon_w, TextBlockHeight(hwnd, state->font, state->message, content_w));
   const int lines = std::min(DetailLineCount(state->detail), kMaxDetailLines);
-  const int detail_h = kControlHeight + (lines - 1) * kDetailLineHeight;
-  const int needed = kMargin + text_h + kBlockGap + detail_h + kBlockGap +
-                     kButtonHeight + kMargin;
+  const int detail_h =
+      Scaled(kControlHeight, dpi) + (lines - 1) * Scaled(kDetailLineHeight, dpi);
+  const int needed = margin + text_h + block_gap + detail_h + block_gap +
+                     Scaled(kButtonHeight, dpi) + Scaled(kDialogButtonBottomMargin, dpi);
   if (needed <= client.bottom - client.top) {
     return;
   }
   RECT frame = {0, 0, client.right - client.left, needed};
   const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_STYLE));
   const DWORD ex_style = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_EXSTYLE));
-  AdjustWindowRectEx(&frame, style, FALSE, ex_style);
+  win32::AdjustWindowRectForDpi(&frame, style, ex_style, dpi);
   SetWindowPos(hwnd, nullptr, 0, 0, frame.right - frame.left, frame.bottom - frame.top,
                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
@@ -207,35 +182,40 @@ void LayoutChoiceDialog(HWND hwnd, ChoiceDialogState* state) {
   using namespace appearance::metrics;
   RECT client = {};
   GetClientRect(hwnd, &client);
-  int width = client.right - client.left;
-  int icon_w = state->icon_id ? 32 : 0;
-  int base_x = std::max(1, static_cast<int>(LOWORD(GetDialogBaseUnits())));
-  int btn_w = std::max(kButtonWidth, MulDiv(state->button_width_dlu, base_x, 4));
-  if (state->icon) {
-    SetWindowPos(state->icon, nullptr, kMargin, kMargin, 32, 32, SWP_NOZORDER);
-  }
-  const int text_x = kMargin + icon_w + (icon_w ? kBlockGap : 0);
-  const int content_w = width - text_x - kMargin;
-  int y = kMargin;
+  const UINT dpi = win32::DpiForWindow(hwnd);
+  const int margin = Scaled(kDialogContentMargin, dpi);
+  const int block_gap = Scaled(kBlockGap, dpi);
+  const int button_h = Scaled(kButtonHeight, dpi);
+  const int button_gap = Scaled(kButtonGap, dpi);
+  const int width = client.right - client.left;
+  const int icon_w = state->icon_id ? Scaled(32, dpi) : 0;
+  appearance::Place(state->icon, margin, margin, icon_w, icon_w);
+
+  const int text_x = margin + icon_w + (icon_w ? block_gap : 0);
+  const int content_w = width - text_x - margin;
+  int y = margin;
   const int text_h =
       std::max(icon_w, TextBlockHeight(hwnd, state->font, state->message, content_w));
-  if (state->text) {
-    SetWindowPos(state->text, nullptr, text_x, y, content_w, text_h, SWP_NOZORDER);
-  }
-  y += text_h + kBlockGap;
+  appearance::Place(state->text, text_x, y, content_w, text_h);
+  y += text_h + block_gap;
   if (state->detail_edit) {
     const int lines = std::min(DetailLineCount(state->detail), kMaxDetailLines);
-    const int detail_h = kControlHeight + (lines - 1) * kDetailLineHeight;
-    SetWindowPos(state->detail_edit, nullptr, text_x, y, content_w, detail_h, SWP_NOZORDER);
+    const int detail_h =
+        Scaled(kControlHeight, dpi) + (lines - 1) * Scaled(kDetailLineHeight, dpi);
+    appearance::Place(state->detail_edit, text_x, y, content_w, detail_h);
     if (state->detail_tip) {
       SendMessageW(state->detail_tip, TTM_ACTIVATE,
-                   lines == 1 && TextWidth(hwnd, state->font, state->detail) > content_w - 8, 0);
+                   lines == 1 && TextWidth(hwnd, state->font, state->detail) >
+                                     content_w - Scaled(8, dpi),
+                   0);
     }
-    y += detail_h + kBlockGap;
+    y += detail_h + block_gap;
   }
 
   HWND buttons[] = {state->yes_btn, state->no_btn, state->cancel_btn};
-  const int widths[] = {state->yes_button_width_dlu > 0 ? std::max(kButtonWidth, MulDiv(state->yes_button_width_dlu, base_x, 4)) : btn_w, btn_w, btn_w};
+  const int widths[] = {Scaled(state->button_widths.yes, dpi),
+                        Scaled(state->button_widths.no, dpi),
+                        Scaled(state->button_widths.cancel, dpi)};
   int total_w = 0;
   int button_count = 0;
   for (int i = 0; i < 3; ++i) {
@@ -247,16 +227,16 @@ void LayoutChoiceDialog(HWND hwnd, ChoiceDialogState* state) {
   if (button_count == 0) {
     return;
   }
-  total_w += kButtonGap * (button_count - 1);
-  int x = std::max(kMargin, width - kMargin - total_w);
+  total_w += button_gap * (button_count - 1);
+  int x = std::max(margin, width - Scaled(kDialogButtonRightMargin, dpi) - total_w);
   for (int i = 0; i < 3; ++i) {
     if (!buttons[i]) {
       continue;
     }
-    SetWindowPos(buttons[i], nullptr, x, y, widths[i], kButtonHeight, SWP_NOZORDER);
-    x += widths[i] + kButtonGap;
+    appearance::Place(buttons[i], x, y, widths[i], button_h);
+    x += widths[i] + button_gap;
   }
-  appearance::FitDialogHeight(hwnd, y + kButtonHeight + kMargin);
+  appearance::FitDialogHeight(hwnd, y + button_h + Scaled(kDialogButtonBottomMargin, dpi));
 }
 
 void LayoutErrorDialog(HWND hwnd, ErrorDialogState* state) {
@@ -266,26 +246,30 @@ void LayoutErrorDialog(HWND hwnd, ErrorDialogState* state) {
   using namespace appearance::metrics;
   RECT client = {};
   GetClientRect(hwnd, &client);
-  int width = client.right - client.left;
-  int height = client.bottom - client.top;
-  int text_w = width - kMargin * 2;
-  int btn_y = height - kMargin - kButtonHeight;
+  const UINT dpi = win32::DpiForWindow(hwnd);
+  const int margin = Scaled(kDialogContentMargin, dpi);
+  const int block_gap = Scaled(kBlockGap, dpi);
+  const int button_h = Scaled(kButtonHeight, dpi);
+  const int button_w = Scaled(kButtonMinWidth, dpi);
+  const int bottom_margin = Scaled(kDialogButtonBottomMargin, dpi);
+  const int width = client.right - client.left;
+  const int height = client.bottom - client.top;
+  const int text_w = width - margin * 2;
+  int btn_y = height - bottom_margin - button_h;
   const int message_h = TextBlockHeight(hwnd, state->font, state->message, text_w);
   if (state->detail_box) {
-    SetWindowPos(state->text, nullptr, kMargin, kMargin, text_w,
-                 std::min(message_h, std::max(0, btn_y - kMargin)), SWP_NOZORDER);
-    const int detail_y = kMargin + message_h + kBlockGap;
-    SetWindowPos(state->detail_box, nullptr, kMargin, detail_y, text_w,
-                 std::max(0, btn_y - detail_y - kBlockGap), SWP_NOZORDER);
+    appearance::Place(state->text, margin, margin, text_w,
+                      std::min(message_h, std::max(0, btn_y - margin)));
+    const int detail_y = margin + message_h + block_gap;
+    appearance::Place(state->detail_box, margin, detail_y, text_w,
+                      std::max(0, btn_y - detail_y - block_gap));
   } else if (state->text) {
-    SetWindowPos(state->text, nullptr, kMargin, kMargin, text_w, message_h, SWP_NOZORDER);
-    btn_y = kMargin + message_h + kBlockGap;
-    appearance::FitDialogHeight(hwnd, btn_y + kButtonHeight + kMargin);
+    appearance::Place(state->text, margin, margin, text_w, message_h);
+    btn_y = margin + message_h + block_gap;
+    appearance::FitDialogHeight(hwnd, btn_y + button_h + bottom_margin);
   }
-  int ok_x = width - kMargin - kButtonWidth;
-  if (state->ok_btn) {
-    SetWindowPos(state->ok_btn, nullptr, ok_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
-  }
+  appearance::Place(state->ok_btn, width - Scaled(kDialogButtonRightMargin, dpi) - button_w,
+                    btn_y, button_w, button_h);
 }
 
 void LayoutAboutDialog(HWND hwnd, AboutDialogState* state) {
@@ -295,40 +279,27 @@ void LayoutAboutDialog(HWND hwnd, AboutDialogState* state) {
   using namespace appearance::metrics;
   RECT client = {};
   GetClientRect(hwnd, &client);
-  int width = client.right - client.left;
-  int padding = kMargin;
-  int line_h = kCheckHeight;
-  int gap = kRowGap;
-  int text_w = width - padding * 2;
+  const UINT dpi = win32::DpiForWindow(hwnd);
+  const int padding = Scaled(kDialogContentMargin, dpi);
+  const int line_h = Scaled(kCheckHeight, dpi);
+  const int gap = Scaled(kRowGap, dpi);
+  const int button_h = Scaled(kButtonHeight, dpi);
+  const int button_w = Scaled(kButtonMinWidth, dpi);
+  const int bottom_margin = Scaled(kDialogButtonBottomMargin, dpi);
+  const int width = client.right - client.left;
+  const int text_w = width - padding * 2;
   int y = padding;
 
-  if (state->credits) {
-    SetWindowPos(state->credits, nullptr, padding, y, text_w, line_h, SWP_NOZORDER);
-  }
-  y += line_h + gap;
-
-  if (state->repo_link) {
-    SetWindowPos(state->repo_link, nullptr, padding, y, text_w, line_h, SWP_NOZORDER);
-  }
-  y += line_h + gap;
-  if (state->discord_link) {
-    SetWindowPos(state->discord_link, nullptr, padding, y, text_w, line_h, SWP_NOZORDER);
-  }
-  y += line_h + gap;
-  if (state->website_link) {
-    SetWindowPos(state->website_link, nullptr, padding, y, text_w, line_h, SWP_NOZORDER);
-  }
-  y += line_h + gap;
-  if (state->email_link) {
-    SetWindowPos(state->email_link, nullptr, padding, y, text_w, line_h, SWP_NOZORDER);
+  for (HWND line : {state->credits, state->repo_link, state->discord_link, state->website_link,
+                    state->email_link}) {
+    appearance::Place(line, padding, y, text_w, line_h);
+    y += line_h + gap;
   }
 
-  int btn_y = y + line_h + kBlockGap;
-  int ok_x = width - padding - kButtonWidth;
-  if (state->ok_btn) {
-    SetWindowPos(state->ok_btn, nullptr, ok_x, btn_y, kButtonWidth, kButtonHeight, SWP_NOZORDER);
-  }
-  appearance::FitDialogHeight(hwnd, btn_y + kButtonHeight + kMargin);
+  const int btn_y = y - gap + Scaled(kBlockGap, dpi);
+  appearance::Place(state->ok_btn, width - Scaled(kDialogButtonRightMargin, dpi) - button_w,
+                    btn_y, button_w, button_h);
+  appearance::FitDialogHeight(hwnd, btn_y + button_h + bottom_margin);
 }
 
 LRESULT CALLBACK ChoiceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -346,7 +317,7 @@ LRESULT CALLBACK ChoiceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     }
     state->hwnd = hwnd;
     SetWindowTextW(hwnd, state->title.empty() ? kAppTitle : state->title.c_str());
-    state->font = DefaultUIFont();
+    state->font = DefaultUIFont(win32::DpiForWindow(hwnd));
     if (state->icon_id) {
       state->icon = CreateWindowExW(0, L"STATIC", nullptr, WS_CHILD | WS_VISIBLE | SS_ICON, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
       HICON icon = LoadIconW(nullptr, state->icon_id);
@@ -420,6 +391,12 @@ LRESULT CALLBACK ChoiceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     }
     return 0;
   }
+  case WM_DPICHANGED:
+    if (state) {
+      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
+    }
+    appearance::ApplyDpiChange(hwnd, lparam);
+    return 0;
   case WM_SIZE:
     LayoutChoiceDialog(hwnd, state);
     return 0;
@@ -518,7 +495,7 @@ LRESULT CALLBACK ErrorDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
     }
     state->hwnd = hwnd;
     SetWindowTextW(hwnd, state->title.empty() ? kAppTitle : state->title.c_str());
-    state->font = DefaultUIFont();
+    state->font = DefaultUIFont(win32::DpiForWindow(hwnd));
     state->text = CreateWindowExW(0, L"STATIC", state->message.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
     if (!state->detail.empty()) {
       state->detail_box = CreateWindowExW(
@@ -535,6 +512,12 @@ LRESULT CALLBACK ErrorDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
     LayoutErrorDialog(hwnd, state);
     return 0;
   }
+  case WM_DPICHANGED:
+    if (state) {
+      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
+    }
+    appearance::ApplyDpiChange(hwnd, lparam);
+    return 0;
   case WM_SIZE:
     LayoutErrorDialog(hwnd, state);
     return 0;
@@ -616,7 +599,7 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
     }
     state->hwnd = hwnd;
     SetWindowTextW(hwnd, L"About RegKit");
-    state->font = DefaultUIFont();
+    state->font = DefaultUIFont(win32::DpiForWindow(hwnd));
     state->credits = CreateWindowExW(0, L"STATIC", L"\x00A9 nohuto 2026", WS_CHILD | WS_VISIBLE | SS_LEFT, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
     state->repo_link = CreateWindowExW(0, WC_LINK,
                                        L"Repository: <a href=\"https://github.com/nohuto/regkit\">"
@@ -654,6 +637,12 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
       return 0;
     }
     break;
+  case WM_DPICHANGED:
+    if (state) {
+      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
+    }
+    appearance::ApplyDpiChange(hwnd, lparam);
+    return 0;
   case WM_SIZE:
     LayoutAboutDialog(hwnd, state);
     return 0;
@@ -754,13 +743,14 @@ bool ShowErrorDialog(HWND owner, const std::wstring& title,
       state.detail.erase(state.detail.begin());
     }
   }
-  const int width = state.detail.empty() ? 320 : 520;
-  const int height = state.detail.empty() ? 120 : 300;
+  const UINT dpi = win32::DpiForWindow(owner);
+  const int width = appearance::metrics::Scaled(state.detail.empty() ? 320 : 520, dpi);
+  const int height = appearance::metrics::Scaled(state.detail.empty() ? 120 : 300, dpi);
   HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kErrorClass, title.c_str(), WS_POPUP | WS_CAPTION | WS_SYSMENU | (state.detail.empty() ? 0 : WS_THICKFRAME), CW_USEDEFAULT, CW_USEDEFAULT, width, height, owner, nullptr, wc.hInstance, &state);
   if (!hwnd) {
     return false;
   }
-  CenterWindowToOwner(hwnd, owner);
+  appearance::CenterWindow(hwnd, owner);
 
   EnableWindow(owner, FALSE);
   ShowWindow(hwnd, SW_SHOW);
@@ -783,11 +773,11 @@ bool ShowAboutDialog(HWND owner) {
 
   AboutDialogState state;
   state.owner = owner;
-  HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kAboutClass, L"About RegKit", WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 460, 240, owner, nullptr, wc.hInstance, &state);
+  HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kAboutClass, L"About RegKit", WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, appearance::metrics::Scaled(460, win32::DpiForWindow(owner)), appearance::metrics::Scaled(240, win32::DpiForWindow(owner)), owner, nullptr, wc.hInstance, &state);
   if (!hwnd) {
     return false;
   }
-  CenterWindowToOwner(hwnd, owner);
+  appearance::CenterWindow(hwnd, owner);
 
   EnableWindow(owner, FALSE);
   ShowWindow(hwnd, SW_SHOW);
@@ -799,7 +789,7 @@ bool ShowAboutDialog(HWND owner) {
   return state.accepted;
 }
 
-bool ShowChoiceDialog(HWND owner, const std::wstring& title, const std::wstring& message, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, int* result, PCWSTR icon_id, int width, int height, int button_width_dlu = 45, const std::wstring& detail = std::wstring(), int yes_button_width_dlu = 0, int default_id = 0) {
+bool ShowChoiceDialog(HWND owner, const std::wstring& title, const std::wstring& message, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, int* result, PCWSTR icon_id, int width, int height, ChoiceButtonWidths button_widths = {}, const std::wstring& detail = std::wstring(), int default_id = 0) {
   WNDCLASSW wc = {};
   wc.lpfnWndProc = ChoiceDialogProc;
   wc.hInstance = GetModuleHandleW(nullptr);
@@ -817,14 +807,16 @@ bool ShowChoiceDialog(HWND owner, const std::wstring& title, const std::wstring&
   state.no_label = no_label;
   state.cancel_label = cancel_label;
   state.icon_id = icon_id;
-  state.button_width_dlu = button_width_dlu;
-  state.yes_button_width_dlu = yes_button_width_dlu;
+  state.button_widths = button_widths;
   state.default_id = default_id;
+  const UINT dpi = win32::DpiForWindow(owner);
+  width = appearance::metrics::Scaled(width, dpi);
+  height = appearance::metrics::Scaled(height, dpi);
   HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kChoiceClass, kAppTitle, WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, width, height, owner, nullptr, wc.hInstance, &state);
   if (!hwnd) {
     return false;
   }
-  CenterWindowToOwner(hwnd, owner);
+  appearance::CenterWindow(hwnd, owner);
 
   EnableWindow(owner, FALSE);
   ShowWindow(hwnd, SW_SHOW);
@@ -844,7 +836,7 @@ bool ShowChoiceDialog(HWND owner, const std::wstring& title, const std::wstring&
 
 HRESULT CALLBACK TaskDialogCenterCallback(HWND hwnd, UINT msg, WPARAM, LPARAM, LONG_PTR ref_data) {
   if (msg == TDN_CREATED) {
-    CenterWindowToOwner(hwnd, reinterpret_cast<HWND>(ref_data));
+    appearance::CenterWindow(hwnd, reinterpret_cast<HWND>(ref_data));
   }
   return S_OK;
 }
@@ -971,7 +963,7 @@ bool ConfirmRegFileMerge(HWND owner, const std::wstring& path) {
   message += L",\ndon't add it to the registry.\n\n"
              L"Are you sure you want to continue?";
   int result = IDCANCEL;
-  if (ShowChoiceDialog(owner, kAppTitle, message, L"Yes", L"No", L"", &result, IDI_WARNING, 560, 200, 36)) {
+  if (ShowChoiceDialog(owner, kAppTitle, message, L"Yes", L"No", L"", &result, IDI_WARNING, 560, 200)) {
     return result == IDYES;
   }
   int clicked = 0;
@@ -986,7 +978,7 @@ void ShowRegFileMergeSucceeded(HWND owner, const std::wstring& path) {
   message += path;
   message += L" have been successfully added to\nthe registry.";
   int result = IDCANCEL;
-  if (ShowChoiceDialog(owner, kAppTitle, message, L"OK", L"", L"", &result, IDI_INFORMATION, 350, 150, 36)) {
+  if (ShowChoiceDialog(owner, kAppTitle, message, L"OK", L"", L"", &result, IDI_INFORMATION, 350, 150)) {
     return;
   }
   if (!ShowTaskDialog(owner, kAppTitle, message, TDCBF_OK_BUTTON, nullptr, TD_INFORMATION_ICON)) {
@@ -1003,7 +995,7 @@ void ShowRegFileMergeFailed(HWND owner, const std::wstring& path, const std::wst
     message += detail;
   }
   int result = IDCANCEL;
-  if (ShowChoiceDialog(owner, kAppTitle, message, L"OK", L"", L"", &result, IDI_ERROR, 520, 180, 36)) {
+  if (ShowChoiceDialog(owner, kAppTitle, message, L"OK", L"", L"", &result, IDI_ERROR, 520, 180)) {
     return;
   }
   if (!ShowTaskDialog(owner, kAppTitle, message, TDCBF_OK_BUTTON, nullptr, TD_ERROR_ICON)) {
@@ -1011,7 +1003,6 @@ void ShowRegFileMergeFailed(HWND owner, const std::wstring& path, const std::wst
   }
 }
 
-constexpr int kKeyChoiceButtonWidthDlu = 45;
 
 bool ConfirmDelete(HWND owner, const std::wstring& title,
                    const std::vector<std::wstring>& names,
@@ -1042,8 +1033,7 @@ bool ConfirmDelete(HWND owner, const std::wstring& title,
   const int lines = std::min(static_cast<int>(names.size()), kMaxDetailLines);
   int result = IDCANCEL;
   if (ShowChoiceDialog(owner, title, message, L"Delete", L"", L"Cancel", &result,
-                       nullptr, 460, 128 + (lines - 1) * 16, kKeyChoiceButtonWidthDlu,
-                       detail)) {
+                       nullptr, 460, 128 + (lines - 1) * 16, {}, detail)) {
     return result == IDYES;
   }
   return false;
@@ -1055,19 +1045,18 @@ bool ConfirmDelete(HWND owner, const std::wstring& title, const std::wstring& na
 }
 
 
-int PromptKeyChoice(HWND owner, const std::wstring& message, const std::wstring& key_path, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, int yes_button_width_dlu) {
+int PromptKeyChoice(HWND owner, const std::wstring& message, const std::wstring& key_path, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths) {
   int result = IDCANCEL;
   if (ShowChoiceDialog(owner, title, message, yes_label, no_label, cancel_label,
-                       &result, nullptr, 560, 140, kKeyChoiceButtonWidthDlu,
-                       key_path, yes_button_width_dlu)) {
+                       &result, nullptr, 560, 140, widths, key_path)) {
     return result;
   }
   return IDCANCEL;
 }
 
-int PromptChoice(HWND owner, const std::wstring& message, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, int button_width_dlu, int width) {
+int PromptChoice(HWND owner, const std::wstring& message, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths, int width) {
   int result = IDCANCEL;
-  if (ShowChoiceDialog(owner, title, message, yes_label, no_label, cancel_label, &result, nullptr, width, 120, button_width_dlu)) {
+  if (ShowChoiceDialog(owner, title, message, yes_label, no_label, cancel_label, &result, nullptr, width, 120, widths)) {
     return result;
   }
   return IDCANCEL;

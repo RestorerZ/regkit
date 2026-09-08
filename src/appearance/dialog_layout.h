@@ -13,8 +13,12 @@
 namespace regkit::appearance {
 
 void SetControlFont(HWND control, HFONT font);
+void Place(HWND control, int x, int y, int width, int height);
 void RestoreDialogOwner(HWND owner, bool* restored);
 void PositionDialog(HWND dialog, HWND owner, int width, int height);
+void CenterWindow(HWND window, HWND owner);
+void ApplyDpiChange(HWND window, LPARAM suggested_rect);
+void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi);
 void RunModalLoop(HWND dialog);
 void CenterEditText(HWND edit, HFONT font, int left_pad, int right_pad);
 void FitDialogHeight(HWND dialog, int client_height);

@@ -17,6 +17,7 @@
 
 #include "frame/command_ids.h"
 #include "workspace/favorites.h"
+#include "appearance/dialog_layout.h"
 #include "appearance/font_picker.h"
 #include "appearance/gdi_cache.h"
 #include "win32/window_metrics.h"
@@ -504,36 +505,6 @@ inline void ApplyDialogFonts(HWND hwnd, HFONT font) {
       reinterpret_cast<LPARAM>(font));
 }
 
-inline void CenterDialogToOwner(HWND dlg) {
-  if (!dlg) {
-    return;
-  }
-  RECT rect = {};
-  if (!GetWindowRect(dlg, &rect)) {
-    return;
-  }
-  int width = rect.right - rect.left;
-  int height = rect.bottom - rect.top;
-  HWND owner = GetWindow(dlg, GW_OWNER);
-  RECT owner_rect = {};
-  if (owner && GetWindowRect(owner, &owner_rect)) {
-    int owner_w = owner_rect.right - owner_rect.left;
-    int owner_h = owner_rect.bottom - owner_rect.top;
-    int x = owner_rect.left + std::max(0, (owner_w - width) / 2);
-    int y = owner_rect.top + std::max(0, (owner_h - height) / 2);
-    SetWindowPos(dlg, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
-    return;
-  }
-  RECT work_area = {};
-  if (SystemParametersInfoW(SPI_GETWORKAREA, 0, &work_area, 0)) {
-    int work_w = work_area.right - work_area.left;
-    int work_h = work_area.bottom - work_area.top;
-    int x = work_area.left + std::max(0, (work_w - width) / 2);
-    int y = work_area.top + std::max(0, (work_h - height) / 2);
-    SetWindowPos(dlg, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
-  }
-}
-
 inline HFONT CreateDefaultGuiFont() {
   HFONT stock = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
   if (!stock) {
@@ -718,7 +689,7 @@ inline INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPA
 
     ToggleCompareControls(dlg, true, state->data.left.type);
     ToggleCompareControls(dlg, false, state->data.right.type);
-    CenterDialogToOwner(dlg);
+    appearance::CenterWindow(dlg, GetWindow(dlg, GW_OWNER));
     return TRUE;
   }
   case WM_DESTROY:

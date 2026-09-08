@@ -17,6 +17,10 @@ int VerticalDpi() {
 
 } // namespace
 
+int SystemFontDpi() {
+  return VerticalDpi();
+}
+
 int FontPointSize(const LOGFONTW& font, int zero_height_fallback) {
   if (font.lfHeight == 0) {
     return zero_height_fallback;
@@ -26,6 +30,10 @@ int FontPointSize(const LOGFONTW& font, int zero_height_fallback) {
 
 int FontHeight(int point_size) {
   return -MulDiv(point_size, VerticalDpi(), 72);
+}
+
+int FontHeight(int point_size, UINT dpi) {
+  return -MulDiv(point_size, static_cast<int>(dpi), 72);
 }
 
 } // namespace regkit::appearance

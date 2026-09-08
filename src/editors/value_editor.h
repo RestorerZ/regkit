@@ -17,9 +17,6 @@ struct TextRequest {
   std::wstring title;
   std::wstring label;
   std::wstring text;
-  std::wstring value_name;
-  std::wstring value_type;
-  bool show_value_details = false;
   bool multiline = false;
 };
 
@@ -40,7 +37,6 @@ struct CustomValueResult {
 
 struct FlaggedValueRequest {
   std::wstring value_name;
-  std::wstring value_type;
   DWORD base_type = REG_SZ;
   std::span<const BYTE> data;
 };

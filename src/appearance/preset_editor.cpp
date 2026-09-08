@@ -11,6 +11,7 @@
 
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
+#include "win32/window_metrics.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
 #include "appearance/list_header.h"
@@ -25,15 +26,17 @@ constexpr wchar_t kThemePresetTitle[] = L"Theme Presets";
 
 constexpr int kWindowWidth = 580;
 constexpr int kWindowHeight = 360;
-constexpr int kPadding = 12;
+constexpr int kPadding = appearance::metrics::kDialogContentMargin;
 constexpr int kGap = 8;
-constexpr int kButtonHeight = 22;
-constexpr int kBottomButtonHeight = 24;
-constexpr int kLeftPanelWidth = 190;
+constexpr int kButtonGap = appearance::metrics::kButtonGap;
+constexpr int kButtonHeight = appearance::metrics::kButtonHeight;
+constexpr int kButtonWidth = appearance::metrics::kButtonMinWidth;
+constexpr int kWideButtonWidth = 90;
+constexpr int kLeftPanelWidth = 210;
 constexpr int kGroupBoxCaptionHeight = 18;
 constexpr int kGroupBoxPadding = 10;
-constexpr int kEditColorButtonWidth = 125;
-constexpr int kTemplateButtonWidth = 135;
+constexpr int kEditColorButtonWidth = 120;
+constexpr int kTemplateButtonWidth = 130;
 constexpr UINT_PTR kThemePresetHeaderSubclassId = 1;
 constexpr UINT_PTR kThemePresetListViewSubclassId = 2;
 
@@ -533,139 +536,99 @@ void LayoutControls(ThemePresetWindowState* state) {
   if (!state || !state->hwnd) {
     return;
   }
+  using appearance::metrics::Scaled;
   RECT rc = {};
   GetClientRect(state->hwnd, &rc);
-  int width = rc.right - rc.left;
-  int height = rc.bottom - rc.top;
+  const UINT dpi = win32::DpiForWindow(state->hwnd);
+  const int padding = Scaled(kPadding, dpi);
+  const int gap = Scaled(kGap, dpi);
+  const int button_gap = Scaled(kButtonGap, dpi);
+  const int button_h = Scaled(kButtonHeight, dpi);
+  const int button_w = Scaled(kButtonWidth, dpi);
+  const int wide_button_w = Scaled(kWideButtonWidth, dpi);
+  const int caption_h = Scaled(kGroupBoxCaptionHeight, dpi);
+  const int box_padding = Scaled(kGroupBoxPadding, dpi);
+  const int right_margin = Scaled(appearance::metrics::kDialogButtonRightMargin, dpi);
+  const int bottom_margin = Scaled(appearance::metrics::kDialogButtonBottomMargin, dpi);
+  const int width = rc.right - rc.left;
+  const int height = rc.bottom - rc.top;
 
-  int bottom_row_h = kBottomButtonHeight;
-  int content_top = kPadding;
-  int content_h = height - content_top - kPadding - bottom_row_h - kGap;
-  if (content_h < 100) {
-    content_h = 100;
+  const int content_top = padding;
+  const int content_h =
+      std::max(Scaled(100, dpi), height - content_top - padding - button_h - gap);
+  const int button_rows_h = button_h * 3 + gap * 2;
+
+  const int left_x = padding;
+  const int left_w = Scaled(kLeftPanelWidth, dpi);
+  const int right_x = left_x + left_w + gap;
+  const int right_w = std::max(Scaled(180, dpi), width - right_x - padding);
+
+  int template_group_h = std::max(Scaled(60, dpi), caption_h + box_padding * 2 + button_h);
+  int colors_group_h = content_h - template_group_h - gap;
+  if (colors_group_h < Scaled(100, dpi)) {
+    colors_group_h = Scaled(100, dpi);
+    template_group_h = std::max(Scaled(60, dpi), content_h - colors_group_h - gap);
   }
 
-  int button_rows_h = kButtonHeight * 3 + kGap * 2;
-  int left_x = kPadding;
-  int left_y = content_top;
-  int left_w = kLeftPanelWidth;
-  int left_h = content_h;
+  const int left_inner_x = left_x + box_padding;
+  const int left_inner_w = left_w - box_padding * 2;
+  const int left_inner_h = content_h - caption_h - box_padding;
+  const int list_y = content_top + caption_h;
+  const int list_h = std::max(Scaled(80, dpi), left_inner_h - button_rows_h - gap);
+  const int row1_y = list_y + list_h + gap;
+  const int row2_y = row1_y + button_h + gap;
+  const int row3_y = row2_y + button_h + gap;
 
-  int right_x = left_x + left_w + kGap;
-  int right_w = std::max(180, width - right_x - kPadding);
-  int right_y = content_top;
-
-  int template_group_h = kGroupBoxCaptionHeight + kGroupBoxPadding * 2 + kButtonHeight;
-  if (template_group_h < 60) {
-    template_group_h = 60;
-  }
-  int colors_group_h = content_h - template_group_h - kGap;
-  if (colors_group_h < 100) {
-    colors_group_h = 100;
-    template_group_h = std::max(60, content_h - colors_group_h - kGap);
-  }
-
-  int left_inner_x = left_x + kGroupBoxPadding;
-  int left_inner_y = left_y + kGroupBoxCaptionHeight;
-  int left_inner_w = left_w - kGroupBoxPadding * 2;
-  int left_inner_h = left_h - kGroupBoxCaptionHeight - kGroupBoxPadding;
-  int list_h = left_inner_h - button_rows_h - kGap;
-  if (list_h < 80) {
-    list_h = 80;
-  }
-  int list_y = left_inner_y;
-
-  int left_btn_w = (left_inner_w - kGap) / 2;
-  int row1_y = list_y + list_h + kGap;
-  int row2_y = row1_y + kButtonHeight + kGap;
-  int row3_y = row2_y + kButtonHeight + kGap;
-
-  if (state->presets_group) {
-    SetWindowPos(state->presets_group, nullptr, left_x, left_y, left_w, left_h, SWP_NOZORDER);
-  }
+  appearance::Place(state->presets_group, left_x, content_top, left_w, content_h);
+  appearance::Place(state->preset_list, left_inner_x, list_y, left_inner_w, list_h);
   if (state->preset_list) {
-    SetWindowPos(state->preset_list, nullptr, left_inner_x, list_y, left_inner_w, list_h, SWP_NOZORDER);
-    int col_width = std::max(60, left_inner_w - 6);
-    ListView_SetColumnWidth(state->preset_list, 0, col_width);
+    ListView_SetColumnWidth(state->preset_list, 0,
+                            std::max(Scaled(60, dpi), left_inner_w - Scaled(6, dpi)));
   }
-  if (state->new_btn) {
-    SetWindowPos(state->new_btn, nullptr, left_inner_x, row1_y, left_btn_w, kButtonHeight, SWP_NOZORDER);
-  }
-  if (state->duplicate_btn) {
-    SetWindowPos(state->duplicate_btn, nullptr, left_inner_x + left_btn_w + kGap, row1_y, left_btn_w, kButtonHeight, SWP_NOZORDER);
-  }
-  if (state->rename_btn) {
-    SetWindowPos(state->rename_btn, nullptr, left_inner_x, row2_y, left_btn_w, kButtonHeight, SWP_NOZORDER);
-  }
-  if (state->delete_btn) {
-    SetWindowPos(state->delete_btn, nullptr, left_inner_x + left_btn_w + kGap, row2_y, left_btn_w, kButtonHeight, SWP_NOZORDER);
-  }
-  if (state->import_btn) {
-    SetWindowPos(state->import_btn, nullptr, left_inner_x, row3_y, left_btn_w, kButtonHeight, SWP_NOZORDER);
-  }
-  if (state->export_btn) {
-    SetWindowPos(state->export_btn, nullptr, left_inner_x + left_btn_w + kGap, row3_y, left_btn_w, kButtonHeight, SWP_NOZORDER);
-  }
+  appearance::Place(state->new_btn, left_inner_x, row1_y, button_w, button_h);
+  appearance::Place(state->duplicate_btn, left_inner_x + button_w + button_gap, row1_y,
+                    wide_button_w, button_h);
+  appearance::Place(state->rename_btn, left_inner_x, row2_y, wide_button_w, button_h);
+  appearance::Place(state->delete_btn, left_inner_x + wide_button_w + button_gap, row2_y, button_w,
+                    button_h);
+  appearance::Place(state->import_btn, left_inner_x, row3_y, wide_button_w, button_h);
+  appearance::Place(state->export_btn, left_inner_x + wide_button_w + button_gap, row3_y,
+                    wide_button_w, button_h);
 
-  if (state->colors_group) {
-    SetWindowPos(state->colors_group, nullptr, right_x, right_y, right_w, colors_group_h, SWP_NOZORDER);
-  }
-  int colors_inner_x = right_x + kGroupBoxPadding;
-  int colors_inner_y = right_y + kGroupBoxCaptionHeight;
-  int colors_inner_w = right_w - kGroupBoxPadding * 2;
-  int colors_inner_h = colors_group_h - kGroupBoxCaptionHeight - kGroupBoxPadding;
-  int edit_row_h = kButtonHeight;
-  int color_list_h = colors_inner_h - edit_row_h - kGap;
-  if (color_list_h < 80) {
-    color_list_h = 80;
-  }
-  int color_list_y = colors_inner_y;
-  if (state->color_list) {
-    SetWindowPos(state->color_list, nullptr, colors_inner_x, color_list_y, colors_inner_w, color_list_h, SWP_NOZORDER);
-  }
+  appearance::Place(state->colors_group, right_x, content_top, right_w, colors_group_h);
+  const int colors_inner_x = right_x + box_padding;
+  const int colors_inner_w = right_w - box_padding * 2;
+  const int colors_inner_h = colors_group_h - caption_h - box_padding;
+  const int color_list_y = content_top + caption_h;
+  const int color_list_h = std::max(Scaled(80, dpi), colors_inner_h - button_h - gap);
+  appearance::Place(state->color_list, colors_inner_x, color_list_y, colors_inner_w,
+                    color_list_h);
 
-  int edit_row_y = color_list_y + color_list_h + kGap;
-  int edit_btn_w = kEditColorButtonWidth;
-  if (state->edit_color_btn) {
-    SetWindowPos(state->edit_color_btn, nullptr, colors_inner_x, edit_row_y, edit_btn_w, edit_row_h, SWP_NOZORDER);
-  }
-  if (state->dark_check) {
-    SetWindowPos(state->dark_check, nullptr, colors_inner_x + edit_btn_w + kGap, edit_row_y, colors_inner_w - edit_btn_w - kGap, edit_row_h, SWP_NOZORDER);
-  }
+  const int edit_row_y = color_list_y + color_list_h + gap;
+  const int edit_btn_w = Scaled(kEditColorButtonWidth, dpi);
+  appearance::Place(state->edit_color_btn, colors_inner_x, edit_row_y, edit_btn_w, button_h);
+  appearance::Place(state->dark_check, colors_inner_x + edit_btn_w + gap, edit_row_y,
+                    colors_inner_w - edit_btn_w - gap, button_h);
 
-  int templates_group_y = right_y + colors_group_h + kGap;
-  if (state->templates_group) {
-    SetWindowPos(state->templates_group, nullptr, right_x, templates_group_y, right_w, template_group_h, SWP_NOZORDER);
-  }
-  int templates_inner_x = right_x + kGroupBoxPadding;
-  int templates_inner_y = templates_group_y + kGroupBoxCaptionHeight;
-  int templates_inner_w = right_w - kGroupBoxPadding * 2;
-  int template_row_h = kButtonHeight;
-  int template_row_y = templates_inner_y;
-  int template_btn_w = kTemplateButtonWidth;
-  int combo_w = std::max(120, templates_inner_w - template_btn_w - kGap);
-  if (state->template_combo) {
-    SetWindowPos(state->template_combo, nullptr, templates_inner_x, template_row_y, combo_w, template_row_h, SWP_NOZORDER);
-  }
-  if (state->template_btn) {
-    SetWindowPos(state->template_btn, nullptr, templates_inner_x + combo_w + kGap, template_row_y, template_btn_w, template_row_h, SWP_NOZORDER);
-  }
+  const int templates_group_y = content_top + colors_group_h + gap;
+  appearance::Place(state->templates_group, right_x, templates_group_y, right_w,
+                    template_group_h);
+  const int templates_inner_x = right_x + box_padding;
+  const int templates_inner_w = right_w - box_padding * 2;
+  const int template_row_y = templates_group_y + caption_h;
+  const int template_btn_w = Scaled(kTemplateButtonWidth, dpi);
+  const int combo_w =
+      std::max(Scaled(120, dpi), templates_inner_w - template_btn_w - gap);
+  appearance::Place(state->template_combo, templates_inner_x, template_row_y, combo_w, button_h);
+  appearance::Place(state->template_btn, templates_inner_x + combo_w + gap, template_row_y,
+                    template_btn_w, button_h);
 
-  int bottom_y = height - kPadding - bottom_row_h;
-  int btn_w = 70;
-  int cancel_x = width - kPadding - btn_w;
-  int ok_x = cancel_x - kGap - btn_w;
-  int apply_x = ok_x - kGap - btn_w;
-
-  if (state->apply_btn) {
-    SetWindowPos(state->apply_btn, nullptr, apply_x, bottom_y, btn_w, bottom_row_h, SWP_NOZORDER);
-  }
-  if (state->ok_btn) {
-    SetWindowPos(state->ok_btn, nullptr, ok_x, bottom_y, btn_w, bottom_row_h, SWP_NOZORDER);
-  }
-  if (state->cancel_btn) {
-    SetWindowPos(state->cancel_btn, nullptr, cancel_x, bottom_y, btn_w, bottom_row_h, SWP_NOZORDER);
-  }
+  const int bottom_y = height - bottom_margin - button_h;
+  const int cancel_x = width - right_margin - button_w;
+  const int ok_x = cancel_x - button_gap - button_w;
+  appearance::Place(state->apply_btn, ok_x - button_gap - button_w, bottom_y, button_w, button_h);
+  appearance::Place(state->ok_btn, ok_x, bottom_y, button_w, button_h);
+  appearance::Place(state->cancel_btn, cancel_x, bottom_y, button_w, button_h);
 }
 
 void CreateControls(ThemePresetWindowState* state) {
@@ -762,7 +725,7 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
     state->hwnd = hwnd;
     SetWindowTextW(hwnd, kThemePresetTitle);
     CreateControls(state);
-    state->font = ui::DefaultUIFont();
+    state->font = ui::DefaultUIFont(win32::DpiForWindow(hwnd));
     ApplyFontRecursive(hwnd, state->font);
     PopulateTemplates(state);
     PopulatePresets(state);
@@ -770,6 +733,12 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
     LayoutControls(state);
     return 0;
   }
+  case WM_DPICHANGED:
+    if (state) {
+      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
+    }
+    appearance::ApplyDpiChange(hwnd, lparam);
+    return 0;
   case WM_SIZE:
     LayoutControls(state);
     return 0;
@@ -1062,8 +1031,10 @@ void appearance::ShowThemePresetEditor(HWND owner,
 
   DWORD style = WS_POPUP | WS_CAPTION | WS_SYSMENU;
   DWORD ex_style = WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT;
-  RECT rect = {0, 0, kWindowWidth, kWindowHeight};
-  AdjustWindowRectEx(&rect, style, FALSE, ex_style);
+  const UINT dpi = win32::DpiForWindow(owner);
+  RECT rect = {0, 0, appearance::metrics::Scaled(kWindowWidth, dpi),
+               appearance::metrics::Scaled(kWindowHeight, dpi)};
+  win32::AdjustWindowRectForDpi(&rect, style, ex_style, dpi);
   int width = rect.right - rect.left;
   int height = rect.bottom - rect.top;
 

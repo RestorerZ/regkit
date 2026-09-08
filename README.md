@@ -1,6 +1,6 @@
 # RegKit
 
-RegKit is a native Windows Registry editor written in C++ using the Win32 API and common controls for performance reasons. Based on its features, customization options, and the fact that it's FOSS, it's the best alternative to regedit.
+RegKit is a native Windows Registry editor written in C++ using the Win32 API and common controls for performance reasons. Based on its features, customization options, and the fact that it's FOSS, it's the best alternative to regedit. It currently supports Windows Vista through Windows 11 (32bit & 64bit versions).
 
 ## Differences to Default RegEdit
 
