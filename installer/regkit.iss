@@ -1,7 +1,7 @@
 ﻿#define AppId "4678f42c-c6a2-4df9-bc2a-dddbd2613045"
 #define AppName "RegKit"
 #define AppExeName "regkit.exe"
-#define AppVersion "0.0.0.8"
+#define AppVersion "0.0.0.9"
 #define AppPublisher "nohuto"
 #define AppCopyright "(C) 2026 nohuto"
 #define AppURL "https://github.com/nohuto/regkit"
