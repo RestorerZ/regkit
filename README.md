@@ -4,26 +4,20 @@ RegKit is a native Windows Registry editor written in C++ using the Win32 API an
 
 Note that native RegEdit can't run alongside RegKit, as RegKit uses `RegEdit_RegEdit` window class (required for jump support), which causes Regedit to see this window as an existing instance and exits instead of opening another one.
 
-## Documentation
-
-- [Windows Registry internals](docs/registry-internals.md)
-- [Tracing program Registry activity](docs/procmon.md)
-- [Tracing boot Registry activity](docs/wpr-wpa.md)
-
-## Differences to Default RegEdit
+## Differences to Native RegEdit
 
 RegKit adds functionality that standard regedit doesn't support:
 
 - A real REGISTRY root view in addition to standard hives
-- [Theme modes](https://github.com/nohuto/regkit#theme-presets) (System/Light/Dark) and custom theme presets (edit colors, import/export `.rktheme`)
+- [Theme modes](https://noverse.dev/docs/regkit/overview/#theme-presets) (System/Light/Dark) and custom theme presets (edit colors, import/export `.rktheme`)
 - Custom font support
-- Custom [icon support](https://github.com/nohuto/regkit#icon-sets) (has 4 sets installed by default)
+- Custom [icon support](https://noverse.dev/docs/regkit/overview/#icon-sets) (has 4 sets installed by default)
 - Symbolic link detection (`SymbolicLinkValue` value with the link target)
 - Hive backed key detection using hivelist key & open Hive File (opens the backing hive file)
-- [Trace presets](https://github.com/nohuto/regkit#trace-menu) (23H2/24H2/25H2 - see below), used for "Read on boot" column
+- [Trace presets](https://noverse.dev/docs/regkit/overview/#trace-menu) (23H2/24H2/25H2 - see below), used for "Read on boot" column
 - Default presets, this shows default data from new installations
 - Extra hives toggle, exposes additional predefined keys that RegEdit typically doesn't show, such as `HKEY_PERFORMANCE_DATA` (live performance counter data produced on demand, not stored in a hive file) and related keys like `HKEY_PERFORMANCE_TEXT`/`HKEY_PERFORMANCE_NLSTEXT` for e.g. counter name strings (read more [here](https://learn.microsoft.com/en-us/windows/win32/perfctrs/using-the-registry-functions-to-consume-counter-data))
-- Run with [SYSTEM/TI rights](https://github.com/nohuto/regkit#rights-and-elevation)
+- Run with [SYSTEM/TI rights](https://noverse.dev/docs/regkit/overview/#rights-and-elevation)
 - Favorites import/export
 - Comment column for values with import/export support
 - Loading/unloading hives
@@ -251,7 +245,7 @@ Examples:
 
 ### Database Icon <img src="https://github.com/nohuto/regkit/blob/main/assets/icons/lucide/light/database.ico?raw=true" width="16" height="16">
 
-Used to mark keys that map to hive files listed under `HKLM\SYSTEM\CurrentControlSet\Control\Hivelist` (see "[A true hive is stored in a file.](https://scorpiosoftware.net/2022/04/15/mysteries-of-the-registry/)"). These (hive backed) keys can be opened directly via '*Open Hive File*' (menu). See [Hives and on-disk files](docs/registry-internals.md#hives-and-on-disk-files) for hive file paths.
+Used to mark keys that map to hive files listed under `HKLM\SYSTEM\CurrentControlSet\Control\Hivelist` (see "[A true hive is stored in a file.](https://scorpiosoftware.net/2022/04/15/mysteries-of-the-registry/)"). These (hive backed) keys can be opened directly via '*Open Hive File*' (menu). See [Hives and on-disk files](https://noverse.dev/docs/regkit/registry-internals/registry-fundamentals/#hives-and-on-disk-files) for hive file paths.
 
 ### Simulated Key Icon <img src="https://github.com/nohuto/regkit/blob/main/assets/icons/lucide/light/folder-sim.ico?raw=true" width="16" height="16">
 
@@ -261,11 +255,11 @@ Keys displayed as simulated are virtual entries created from trace files when a 
 
 There are three trace files which are quite similar, `23H2`/`24H2`/`25H2`. I've done all of them on new installations. Trace loading supports multiple active traces at once and shows "Read on boot" as `Yes (<traceName>, ...)`.
 
-The trace key menu shows the kernel paths as they appear in the trace (for example `REGISTRY\\MACHINE\\...`), but trace data is also shown in the standard hives. Registry symbolic links (the `SymbolicLinkValue` targets) are also resolved so trace values show up under linked keys (including `CurrentControlSet` and other link keys). It can also [simulate missing keys](https://github.com/nohuto/regkit#simulated-key-icon) for trace only data (optional "Simulated Keys" view toggle), you can either use traces for informational purposes or modify them.
+The trace key menu shows the kernel paths as they appear in the trace (for example `REGISTRY\\MACHINE\\...`), but trace data is also shown in the standard hives. Registry symbolic links (the `SymbolicLinkValue` targets) are also resolved so trace values show up under linked keys (including `CurrentControlSet` and other link keys). It can also [simulate missing keys](https://noverse.dev/docs/regkit/overview/#simulated-key-icon) for trace only data (optional "Simulated Keys" view toggle), you can either use traces for informational purposes or modify them.
 
-Note that WPR doesn't pass the type/data so you'll have to find that out on your own. Several ones are documented on my own, see [registry value details](docs/registry-internals.md#registry-value-details) section.
+Note that WPR doesn't pass the type/data so you'll have to find that out on your own.
 
-It's recommended that you create your own trace, as the templates are based on my system and IDs such as those for the disk won't be correct for your system. Follow the [wpr-wpa.md](docs/wpr-wpa.md) guide to create a trace which regkit can use.
+It's recommended that you create your own trace, as the templates are based on my system and IDs such as those for the disk won't be correct for your system. Follow the [Boot Registry Activity](https://noverse.dev/docs/regkit/guides/wpr-wpa/) guide to create a trace which regkit can use.
 
 Loading traces affects startup time and memory consumption, therefore, it's recommended to either load only one trace or none at all if you don't use them frequently (loading a trace takes only a few seconds, so it's better to load it when needed than to keep it active all the time).
 
