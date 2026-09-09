@@ -30,7 +30,10 @@ inline constexpr int kButtonMinWidth = 70;
 inline constexpr int kButtonHeight = 22;
 inline constexpr int kButtonGap = 10;
 
-inline int Scaled(int value, UINT dpi) {
+inline int Scaled(
+    int value,
+    UINT dpi
+) {
   return dpi == 96 ? value : MulDiv(value, static_cast<int>(dpi), 96);
 }
 

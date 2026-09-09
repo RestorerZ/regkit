@@ -112,7 +112,10 @@ struct ThemePresetWindowState {
   bool owner_restored = false;
 };
 
-void ApplyFontRecursive(HWND hwnd, HFONT font) {
+void ApplyFontRecursive(
+    HWND hwnd,
+    HFONT font
+) {
   if (!hwnd || !font) {
     return;
   }
@@ -124,10 +127,13 @@ void ApplyFontRecursive(HWND hwnd, HFONT font) {
         SendMessageW(child, WM_SETFONT, reinterpret_cast<WPARAM>(font_handle), TRUE);
         return TRUE;
       },
-      reinterpret_cast<LPARAM>(font));
+      reinterpret_cast<LPARAM>(font)
+  );
 }
 
-ThemePreset* CurrentPreset(ThemePresetWindowState* state) {
+ThemePreset* CurrentPreset(
+    ThemePresetWindowState* state
+) {
   if (!state) {
     return nullptr;
   }
@@ -137,7 +143,10 @@ ThemePreset* CurrentPreset(ThemePresetWindowState* state) {
   return &state->presets[static_cast<size_t>(state->selected_index)];
 }
 
-int FindPresetIndexByName(const std::vector<ThemePreset>& presets, const std::wstring& name) {
+int FindPresetIndexByName(
+    const std::vector<ThemePreset>& presets,
+    const std::wstring& name
+) {
   for (size_t i = 0; i < presets.size(); ++i) {
     if (_wcsicmp(presets[i].name.c_str(), name.c_str()) == 0) {
       return static_cast<int>(i);
@@ -146,7 +155,9 @@ int FindPresetIndexByName(const std::vector<ThemePreset>& presets, const std::ws
   return -1;
 }
 
-int GetSelectedPresetIndex(HWND list) {
+int GetSelectedPresetIndex(
+    HWND list
+) {
   if (!list) {
     return -1;
   }
@@ -163,7 +174,11 @@ int GetSelectedPresetIndex(HWND list) {
   return static_cast<int>(item.lParam);
 }
 
-std::wstring MakeUniquePresetName(const std::vector<ThemePreset>& presets, const std::wstring& base_name, const ThemePreset* ignored = nullptr) {
+std::wstring MakeUniquePresetName(
+    const std::vector<ThemePreset>& presets,
+    const std::wstring& base_name,
+    const ThemePreset* ignored = nullptr
+) {
   std::wstring base = base_name.empty() ? L"Preset" : base_name;
   auto exists = [&](const std::wstring& name) -> bool { return std::any_of(presets.begin(), presets.end(), [&](const ThemePreset& preset) { return &preset != ignored && _wcsicmp(preset.name.c_str(), name.c_str()) == 0; }); };
   if (!exists(base)) {
@@ -178,11 +193,13 @@ std::wstring MakeUniquePresetName(const std::vector<ThemePreset>& presets, const
   return base + L" Copy";
 }
 
-bool PromptPresetName(ThemePresetWindowState* state,
-                      HWND owner,
-                      const wchar_t* title,
-                      const std::wstring& initial,
-                      std::wstring* out_name) {
+bool PromptPresetName(
+    ThemePresetWindowState* state,
+    HWND owner,
+    const wchar_t* title,
+    const std::wstring& initial,
+    std::wstring* out_name
+) {
   if (!state || !state->prompt_name || !out_name) {
     return false;
   }
@@ -201,15 +218,25 @@ bool PromptPresetName(ThemePresetWindowState* state,
 constexpr wchar_t kThemeFilter[] =
     L"RegKit Theme Presets (*.rktheme)\0*.rktheme\0All Files (*.*)\0*.*\0";
 
-bool PromptOpenThemeFile(HWND owner, std::wstring* path) {
+bool PromptOpenThemeFile(
+    HWND owner,
+    std::wstring* path
+) {
   return ui::ReportFileDialogResult(owner, win32::ChooseFileToOpen(owner, kThemeFilter, path));
 }
 
-bool PromptSaveThemeFile(HWND owner, std::wstring* path) {
+bool PromptSaveThemeFile(
+    HWND owner,
+    std::wstring* path
+) {
   return ui::ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, kThemeFilter, L"rktheme", nullptr, path));
 }
 
-bool ChooseColorFor(HWND owner, COLORREF* color, COLORREF* custom_colors) {
+bool ChooseColorFor(
+    HWND owner,
+    COLORREF* color,
+    COLORREF* custom_colors
+) {
   if (!color) {
     return false;
   }
@@ -226,13 +253,19 @@ bool ChooseColorFor(HWND owner, COLORREF* color, COLORREF* custom_colors) {
   return true;
 }
 
-int CompareTextInsensitive(const wchar_t* left, const wchar_t* right) {
+int CompareTextInsensitive(
+    const wchar_t* left,
+    const wchar_t* right
+) {
   const wchar_t* safe_left = left ? left : L"";
   const wchar_t* safe_right = right ? right : L"";
   return _wcsicmp(safe_left, safe_right);
 }
 
-int CompareColorValue(COLORREF left, COLORREF right) {
+int CompareColorValue(
+    COLORREF left,
+    COLORREF right
+) {
   if (left < right) {
     return -1;
   }
@@ -242,7 +275,10 @@ int CompareColorValue(COLORREF left, COLORREF right) {
   return 0;
 }
 
-int GetListViewColumnSubItem(HWND list, int display_index) {
+int GetListViewColumnSubItem(
+    HWND list,
+    int display_index
+) {
   if (!list || display_index < 0) {
     return -1;
   }
@@ -254,7 +290,11 @@ int GetListViewColumnSubItem(HWND list, int display_index) {
   return col.iSubItem;
 }
 
-void UpdateListViewSort(HWND list, int column, bool ascending) {
+void UpdateListViewSort(
+    HWND list,
+    int column,
+    bool ascending
+) {
   if (!list) {
     return;
   }
@@ -277,7 +317,14 @@ void UpdateListViewSort(HWND list, int column, bool ascending) {
   }
 }
 
-LRESULT CALLBACK ThemePresetHeaderProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR) {
+LRESULT CALLBACK ThemePresetHeaderProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR,
+    DWORD_PTR
+) {
   if (message == WM_ERASEBKGND) {
     return 1;
   }
@@ -295,7 +342,14 @@ LRESULT CALLBACK ThemePresetHeaderProc(HWND hwnd, UINT message, WPARAM wparam, L
   return DefSubclassProc(hwnd, message, wparam, lparam);
 }
 
-LRESULT CALLBACK ThemePresetListViewProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR) {
+LRESULT CALLBACK ThemePresetListViewProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR,
+    DWORD_PTR
+) {
   if (message == WM_SETFOCUS || message == WM_KILLFOCUS) {
     SendMessageW(hwnd, WM_CHANGEUISTATE, MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS), 0);
   }
@@ -310,7 +364,9 @@ LRESULT CALLBACK ThemePresetListViewProc(HWND hwnd, UINT message, WPARAM wparam,
   return DefSubclassProc(hwnd, message, wparam, lparam);
 }
 
-void SetupPresetListView(HWND list) {
+void SetupPresetListView(
+    HWND list
+) {
   if (!list) {
     return;
   }
@@ -329,7 +385,9 @@ void SetupPresetListView(HWND list) {
   Theme::Current().ApplyToListView(list);
 }
 
-void SetupColorListView(HWND list) {
+void SetupColorListView(
+    HWND list
+) {
   if (!list) {
     return;
   }
@@ -361,7 +419,11 @@ struct ColorSortContext {
   bool ascending = true;
 };
 
-int CALLBACK CompareColorListItems(LPARAM left_param, LPARAM right_param, LPARAM sort_param) {
+int CALLBACK CompareColorListItems(
+    LPARAM left_param,
+    LPARAM right_param,
+    LPARAM sort_param
+) {
   auto* ctx = reinterpret_cast<ColorSortContext*>(sort_param);
   if (!ctx || !ctx->preset) {
     return 0;
@@ -385,7 +447,9 @@ int CALLBACK CompareColorListItems(LPARAM left_param, LPARAM right_param, LPARAM
   return ctx->ascending ? result : -result;
 }
 
-int GetSelectedColorField(HWND list) {
+int GetSelectedColorField(
+    HWND list
+) {
   if (!list) {
     return -1;
   }
@@ -402,7 +466,10 @@ int GetSelectedColorField(HWND list) {
   return static_cast<int>(item.lParam);
 }
 
-void ReselectColorField(HWND list, int field_index) {
+void ReselectColorField(
+    HWND list,
+    int field_index
+) {
   if (!list || field_index < 0) {
     return;
   }
@@ -417,7 +484,10 @@ void ReselectColorField(HWND list, int field_index) {
   ListView_EnsureVisible(list, row, FALSE);
 }
 
-void FillColorList(ThemePresetWindowState* state, const ThemePreset* preset) {
+void FillColorList(
+    ThemePresetWindowState* state,
+    const ThemePreset* preset
+) {
   if (!state || !state->color_list) {
     return;
   }
@@ -459,7 +529,11 @@ void FillColorList(ThemePresetWindowState* state, const ThemePreset* preset) {
   }
 }
 
-int RefreshPresetList(HWND list, const std::vector<ThemePreset>& presets, int selected_index) {
+int RefreshPresetList(
+    HWND list,
+    const std::vector<ThemePreset>& presets,
+    int selected_index
+) {
   if (!list) {
     return -1;
   }
@@ -484,7 +558,9 @@ int RefreshPresetList(HWND list, const std::vector<ThemePreset>& presets, int se
   return index;
 }
 
-void SyncSelection(ThemePresetWindowState* state) {
+void SyncSelection(
+    ThemePresetWindowState* state
+) {
   if (!state) {
     return;
   }
@@ -499,7 +575,10 @@ void SyncSelection(ThemePresetWindowState* state) {
   }
 }
 
-ThemePreset BuildPresetFromTemplate(const ThemePresetWindowState* state, int template_index) {
+ThemePreset BuildPresetFromTemplate(
+    const ThemePresetWindowState* state,
+    int template_index
+) {
   ThemePreset preset;
   if (!state || state->templates.empty()) {
     return preset;
@@ -510,13 +589,17 @@ ThemePreset BuildPresetFromTemplate(const ThemePresetWindowState* state, int tem
   return state->templates[static_cast<size_t>(template_index)];
 }
 
-void ApplyCurrentTheme(HWND hwnd) {
+void ApplyCurrentTheme(
+    HWND hwnd
+) {
   Theme::Current().ApplyToWindow(hwnd);
   Theme::Current().ApplyToChildren(hwnd);
   InvalidateRect(hwnd, nullptr, TRUE);
 }
 
-void RefreshThemeRendering(ThemePresetWindowState* state) {
+void RefreshThemeRendering(
+    ThemePresetWindowState* state
+) {
   if (!state) {
     return;
   }
@@ -532,7 +615,9 @@ void RefreshThemeRendering(ThemePresetWindowState* state) {
   RedrawWindow(state->hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN);
 }
 
-void LayoutControls(ThemePresetWindowState* state) {
+void LayoutControls(
+    ThemePresetWindowState* state
+) {
   if (!state || !state->hwnd) {
     return;
   }
@@ -582,18 +667,14 @@ void LayoutControls(ThemePresetWindowState* state) {
   appearance::Place(state->presets_group, left_x, content_top, left_w, content_h);
   appearance::Place(state->preset_list, left_inner_x, list_y, left_inner_w, list_h);
   if (state->preset_list) {
-    ListView_SetColumnWidth(state->preset_list, 0,
-                            std::max(Scaled(60, dpi), left_inner_w - Scaled(6, dpi)));
+    ListView_SetColumnWidth(state->preset_list, 0, std::max(Scaled(60, dpi), left_inner_w - Scaled(6, dpi)));
   }
   appearance::Place(state->new_btn, left_inner_x, row1_y, button_w, button_h);
-  appearance::Place(state->duplicate_btn, left_inner_x + button_w + button_gap, row1_y,
-                    wide_button_w, button_h);
+  appearance::Place(state->duplicate_btn, left_inner_x + button_w + button_gap, row1_y, wide_button_w, button_h);
   appearance::Place(state->rename_btn, left_inner_x, row2_y, wide_button_w, button_h);
-  appearance::Place(state->delete_btn, left_inner_x + wide_button_w + button_gap, row2_y, button_w,
-                    button_h);
+  appearance::Place(state->delete_btn, left_inner_x + wide_button_w + button_gap, row2_y, button_w, button_h);
   appearance::Place(state->import_btn, left_inner_x, row3_y, wide_button_w, button_h);
-  appearance::Place(state->export_btn, left_inner_x + wide_button_w + button_gap, row3_y,
-                    wide_button_w, button_h);
+  appearance::Place(state->export_btn, left_inner_x + wide_button_w + button_gap, row3_y, wide_button_w, button_h);
 
   appearance::Place(state->colors_group, right_x, content_top, right_w, colors_group_h);
   const int colors_inner_x = right_x + box_padding;
@@ -601,18 +682,15 @@ void LayoutControls(ThemePresetWindowState* state) {
   const int colors_inner_h = colors_group_h - caption_h - box_padding;
   const int color_list_y = content_top + caption_h;
   const int color_list_h = std::max(Scaled(80, dpi), colors_inner_h - button_h - gap);
-  appearance::Place(state->color_list, colors_inner_x, color_list_y, colors_inner_w,
-                    color_list_h);
+  appearance::Place(state->color_list, colors_inner_x, color_list_y, colors_inner_w, color_list_h);
 
   const int edit_row_y = color_list_y + color_list_h + gap;
   const int edit_btn_w = Scaled(kEditColorButtonWidth, dpi);
   appearance::Place(state->edit_color_btn, colors_inner_x, edit_row_y, edit_btn_w, button_h);
-  appearance::Place(state->dark_check, colors_inner_x + edit_btn_w + gap, edit_row_y,
-                    colors_inner_w - edit_btn_w - gap, button_h);
+  appearance::Place(state->dark_check, colors_inner_x + edit_btn_w + gap, edit_row_y, colors_inner_w - edit_btn_w - gap, button_h);
 
   const int templates_group_y = content_top + colors_group_h + gap;
-  appearance::Place(state->templates_group, right_x, templates_group_y, right_w,
-                    template_group_h);
+  appearance::Place(state->templates_group, right_x, templates_group_y, right_w, template_group_h);
   const int templates_inner_x = right_x + box_padding;
   const int templates_inner_w = right_w - box_padding * 2;
   const int template_row_y = templates_group_y + caption_h;
@@ -620,8 +698,7 @@ void LayoutControls(ThemePresetWindowState* state) {
   const int combo_w =
       std::max(Scaled(120, dpi), templates_inner_w - template_btn_w - gap);
   appearance::Place(state->template_combo, templates_inner_x, template_row_y, combo_w, button_h);
-  appearance::Place(state->template_btn, templates_inner_x + combo_w + gap, template_row_y,
-                    template_btn_w, button_h);
+  appearance::Place(state->template_btn, templates_inner_x + combo_w + gap, template_row_y, template_btn_w, button_h);
 
   const int bottom_y = height - bottom_margin - button_h;
   const int cancel_x = width - right_margin - button_w;
@@ -631,7 +708,9 @@ void LayoutControls(ThemePresetWindowState* state) {
   appearance::Place(state->cancel_btn, cancel_x, bottom_y, button_w, button_h);
 }
 
-void CreateControls(ThemePresetWindowState* state) {
+void CreateControls(
+    ThemePresetWindowState* state
+) {
   if (!state || !state->hwnd) {
     return;
   }
@@ -670,7 +749,9 @@ void CreateControls(ThemePresetWindowState* state) {
   SetupColorListView(state->color_list);
 }
 
-void PopulateTemplates(ThemePresetWindowState* state) {
+void PopulateTemplates(
+    ThemePresetWindowState* state
+) {
   if (!state || !state->template_combo) {
     return;
   }
@@ -681,7 +762,9 @@ void PopulateTemplates(ThemePresetWindowState* state) {
   SendMessageW(state->template_combo, CB_SETCURSEL, 0, 0);
 }
 
-void PopulatePresets(ThemePresetWindowState* state) {
+void PopulatePresets(
+    ThemePresetWindowState* state
+) {
   if (!state || !state->preset_list) {
     return;
   }
@@ -690,7 +773,10 @@ void PopulatePresets(ThemePresetWindowState* state) {
   SyncSelection(state);
 }
 
-void ApplySelectedPreset(ThemePresetWindowState* state, bool close_dialog) {
+void ApplySelectedPreset(
+    ThemePresetWindowState* state,
+    bool close_dialog
+) {
   if (!state || !state->apply) {
     return;
   }
@@ -709,30 +795,37 @@ void ApplySelectedPreset(ThemePresetWindowState* state, bool close_dialog) {
   }
 }
 
-LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+LRESULT CALLBACK ThemePresetWindowProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* state = reinterpret_cast<ThemePresetWindowState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
   switch (msg) {
-  case WM_NCCREATE: {
-    auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
-    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return DefWindowProcW(hwnd, msg, wparam, lparam);
-  }
-  case WM_CREATE: {
-    state = reinterpret_cast<ThemePresetWindowState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    if (!state) {
-      return -1;
+  case WM_NCCREATE:
+    {
+      auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+      SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+      return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
-    state->hwnd = hwnd;
-    SetWindowTextW(hwnd, kThemePresetTitle);
-    CreateControls(state);
-    state->font = ui::DefaultUIFont(win32::DpiForWindow(hwnd));
-    ApplyFontRecursive(hwnd, state->font);
-    PopulateTemplates(state);
-    PopulatePresets(state);
-    ApplyCurrentTheme(hwnd);
-    LayoutControls(state);
-    return 0;
-  }
+  case WM_CREATE:
+    {
+      state = reinterpret_cast<ThemePresetWindowState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+      if (!state) {
+        return -1;
+      }
+      state->hwnd = hwnd;
+      SetWindowTextW(hwnd, kThemePresetTitle);
+      CreateControls(state);
+      state->font = ui::DefaultUIFont(win32::DpiForWindow(hwnd));
+      ApplyFontRecursive(hwnd, state->font);
+      PopulateTemplates(state);
+      PopulatePresets(state);
+      ApplyCurrentTheme(hwnd);
+      LayoutControls(state);
+      return 0;
+    }
   case WM_DPICHANGED:
     if (state) {
       appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
@@ -748,244 +841,258 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
       RefreshThemeRendering(state);
     }
     return 0;
-  case WM_ERASEBKGND: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rect = {};
-    GetClientRect(hwnd, &rect);
-    FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
-    return TRUE;
-  }
-  case WM_CTLCOLORDLG: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, hwnd, CTLCOLOR_DLG));
-  }
+  case WM_ERASEBKGND:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rect = {};
+      GetClientRect(hwnd, &rect);
+      FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
+      return TRUE;
+    }
+  case WM_CTLCOLORDLG:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, hwnd, CTLCOLOR_DLG));
+    }
   case WM_CTLCOLORSTATIC:
   case WM_CTLCOLOREDIT:
   case WM_CTLCOLORLISTBOX:
-  case WM_CTLCOLORBTN: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    int type = CTLCOLOR_STATIC;
-    if (msg == WM_CTLCOLOREDIT) {
-      type = CTLCOLOR_EDIT;
-    } else if (msg == WM_CTLCOLORLISTBOX) {
-      type = CTLCOLOR_LISTBOX;
-    } else if (msg == WM_CTLCOLORBTN) {
-      type = CTLCOLOR_BTN;
+  case WM_CTLCOLORBTN:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      int type = CTLCOLOR_STATIC;
+      if (msg == WM_CTLCOLOREDIT) {
+        type = CTLCOLOR_EDIT;
+      } else if (msg == WM_CTLCOLORLISTBOX) {
+        type = CTLCOLOR_LISTBOX;
+      } else if (msg == WM_CTLCOLORBTN) {
+        type = CTLCOLOR_BTN;
+      }
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
     }
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
-  }
   case DM_GETDEFID:
     return MAKELRESULT(IDOK, DC_HASDEFID);
-  case WM_COMMAND: {
-    if (!state) {
-      return 0;
-    }
-    int id = LOWORD(wparam);
-    switch (id) {
-    case kNewPresetId: {
-      std::wstring name;
-      if (!PromptPresetName(state, hwnd, L"New Preset", L"", &name)) {
+  case WM_COMMAND:
+    {
+      if (!state) {
         return 0;
       }
-      int sel = state->template_combo ? static_cast<int>(SendMessageW(state->template_combo, CB_GETCURSEL, 0, 0)) : -1;
-      ThemePreset preset = BuildPresetFromTemplate(state, sel);
-      preset.name = MakeUniquePresetName(state->presets, name);
-      state->presets.push_back(preset);
-      state->selected_index = static_cast<int>(state->presets.size() - 1);
-      state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
-      SyncSelection(state);
-      return 0;
-    }
-    case kDuplicatePresetId: {
-      ThemePreset* preset = CurrentPreset(state);
-      if (!preset) {
-        return 0;
-      }
-      ThemePreset copy = *preset;
-      copy.name = MakeUniquePresetName(state->presets, preset->name + L" Copy");
-      state->presets.push_back(copy);
-      state->selected_index = static_cast<int>(state->presets.size() - 1);
-      state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
-      SyncSelection(state);
-      return 0;
-    }
-    case kRenamePresetId: {
-      ThemePreset* preset = CurrentPreset(state);
-      if (!preset) {
-        return 0;
-      }
-      std::wstring name;
-      if (!PromptPresetName(state, hwnd, L"Rename Preset", preset->name, &name)) {
-        return 0;
-      }
-      preset->name = MakeUniquePresetName(state->presets, name, preset);
-      state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
-      SyncSelection(state);
-      return 0;
-    }
-    case kDeletePresetId: {
-      if (state->presets.size() <= 1) {
-        ui::ShowWarning(hwnd, L"At least one preset must remain.");
-        return 0;
-      }
-      ThemePreset* preset = CurrentPreset(state);
-      if (!preset) {
-        return 0;
-      }
-      if (!ui::ConfirmDelete(hwnd, L"Delete Preset", preset->name)) {
-        return 0;
-      }
-      state->presets.erase(state->presets.begin() + state->selected_index);
-      if (state->selected_index >= static_cast<int>(state->presets.size())) {
-        state->selected_index = static_cast<int>(state->presets.size() - 1);
-      }
-      state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
-      SyncSelection(state);
-      return 0;
-    }
-    case kImportPresetId: {
-      std::wstring path;
-      if (!PromptOpenThemeFile(hwnd, &path)) {
-        return 0;
-      }
-      std::vector<ThemePreset> imported;
-      std::wstring error;
-      if (!ThemePresetStore::ImportFromFile(path, &imported, &error)) {
-        ui::ShowError(hwnd, error.empty() ? L"Failed to import theme presets." : error);
-        return 0;
-      }
-      if (!imported.empty()) {
-        for (auto& preset : imported) {
-          preset.name = MakeUniquePresetName(state->presets, preset.name);
+      int id = LOWORD(wparam);
+      switch (id) {
+      case kNewPresetId:
+        {
+          std::wstring name;
+          if (!PromptPresetName(state, hwnd, L"New Preset", L"", &name)) {
+            return 0;
+          }
+          int sel = state->template_combo ? static_cast<int>(SendMessageW(state->template_combo, CB_GETCURSEL, 0, 0)) : -1;
+          ThemePreset preset = BuildPresetFromTemplate(state, sel);
+          preset.name = MakeUniquePresetName(state->presets, name);
           state->presets.push_back(preset);
+          state->selected_index = static_cast<int>(state->presets.size() - 1);
+          state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
+          SyncSelection(state);
+          return 0;
         }
-        state->selected_index = static_cast<int>(state->presets.size() - 1);
-        state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
-        SyncSelection(state);
-      }
-      return 0;
-    }
-    case kExportPresetId: {
-      std::wstring path;
-      if (!PromptSaveThemeFile(hwnd, &path)) {
+      case kDuplicatePresetId:
+        {
+          ThemePreset* preset = CurrentPreset(state);
+          if (!preset) {
+            return 0;
+          }
+          ThemePreset copy = *preset;
+          copy.name = MakeUniquePresetName(state->presets, preset->name + L" Copy");
+          state->presets.push_back(copy);
+          state->selected_index = static_cast<int>(state->presets.size() - 1);
+          state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
+          SyncSelection(state);
+          return 0;
+        }
+      case kRenamePresetId:
+        {
+          ThemePreset* preset = CurrentPreset(state);
+          if (!preset) {
+            return 0;
+          }
+          std::wstring name;
+          if (!PromptPresetName(state, hwnd, L"Rename Preset", preset->name, &name)) {
+            return 0;
+          }
+          preset->name = MakeUniquePresetName(state->presets, name, preset);
+          state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
+          SyncSelection(state);
+          return 0;
+        }
+      case kDeletePresetId:
+        {
+          if (state->presets.size() <= 1) {
+            ui::ShowWarning(hwnd, L"At least one preset must remain.");
+            return 0;
+          }
+          ThemePreset* preset = CurrentPreset(state);
+          if (!preset) {
+            return 0;
+          }
+          if (!ui::ConfirmDelete(hwnd, L"Delete Preset", preset->name)) {
+            return 0;
+          }
+          state->presets.erase(state->presets.begin() + state->selected_index);
+          if (state->selected_index >= static_cast<int>(state->presets.size())) {
+            state->selected_index = static_cast<int>(state->presets.size() - 1);
+          }
+          state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
+          SyncSelection(state);
+          return 0;
+        }
+      case kImportPresetId:
+        {
+          std::wstring path;
+          if (!PromptOpenThemeFile(hwnd, &path)) {
+            return 0;
+          }
+          std::vector<ThemePreset> imported;
+          std::wstring error;
+          if (!ThemePresetStore::ImportFromFile(path, &imported, &error)) {
+            ui::ShowError(hwnd, error.empty() ? L"Failed to import theme presets." : error);
+            return 0;
+          }
+          if (!imported.empty()) {
+            for (auto& preset : imported) {
+              preset.name = MakeUniquePresetName(state->presets, preset.name);
+              state->presets.push_back(preset);
+            }
+            state->selected_index = static_cast<int>(state->presets.size() - 1);
+            state->selected_index = RefreshPresetList(state->preset_list, state->presets, state->selected_index);
+            SyncSelection(state);
+          }
+          return 0;
+        }
+      case kExportPresetId:
+        {
+          std::wstring path;
+          if (!PromptSaveThemeFile(hwnd, &path)) {
+            return 0;
+          }
+          std::wstring error;
+          if (!ThemePresetStore::ExportToFile(path, state->presets, &error)) {
+            ui::ShowError(hwnd, error.empty() ? L"Failed to export theme presets." : error);
+          }
+          return 0;
+        }
+      case kEditColorId:
+        {
+          ThemePreset* preset = CurrentPreset(state);
+          if (!preset || !state->color_list) {
+            return 0;
+          }
+          int row = ListView_GetNextItem(state->color_list, -1, LVNI_SELECTED);
+          if (row < 0) {
+            return 0;
+          }
+          LVITEMW item = {};
+          item.mask = LVIF_PARAM;
+          item.iItem = row;
+          if (!ListView_GetItem(state->color_list, &item)) {
+            return 0;
+          }
+          int field_index = static_cast<int>(item.lParam);
+          if (field_index < 0 || field_index >= static_cast<int>(std::size(kColorFields))) {
+            return 0;
+          }
+          COLORREF* color = &(preset->colors.*(kColorFields[field_index].member));
+          if (ChooseColorFor(hwnd, color, state->custom_colors)) {
+            FillColorList(state, preset);
+          }
+          return 0;
+        }
+      case kDarkCheckId:
+        {
+          ThemePreset* preset = CurrentPreset(state);
+          if (!preset || !state->dark_check) {
+            return 0;
+          }
+          preset->is_dark = (SendMessageW(state->dark_check, BM_GETCHECK, 0, 0) == BST_CHECKED);
+          return 0;
+        }
+      case kApplyTemplateId:
+        {
+          ThemePreset* preset = CurrentPreset(state);
+          if (!preset) {
+            return 0;
+          }
+          int sel = state->template_combo ? static_cast<int>(SendMessageW(state->template_combo, CB_GETCURSEL, 0, 0)) : -1;
+          ThemePreset tmpl = BuildPresetFromTemplate(state, sel);
+          preset->colors = tmpl.colors;
+          preset->is_dark = tmpl.is_dark;
+          SyncSelection(state);
+          return 0;
+        }
+      case kApplyId:
+        ApplySelectedPreset(state, false);
         return 0;
-      }
-      std::wstring error;
-      if (!ThemePresetStore::ExportToFile(path, state->presets, &error)) {
-        ui::ShowError(hwnd, error.empty() ? L"Failed to export theme presets." : error);
-      }
-      return 0;
-    }
-    case kEditColorId: {
-      ThemePreset* preset = CurrentPreset(state);
-      if (!preset || !state->color_list) {
+      case IDOK:
+        ApplySelectedPreset(state, true);
         return 0;
-      }
-      int row = ListView_GetNextItem(state->color_list, -1, LVNI_SELECTED);
-      if (row < 0) {
+      case IDCANCEL:
+        appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
+        DestroyWindow(hwnd);
         return 0;
+      default:
+        break;
       }
-      LVITEMW item = {};
-      item.mask = LVIF_PARAM;
-      item.iItem = row;
-      if (!ListView_GetItem(state->color_list, &item)) {
-        return 0;
-      }
-      int field_index = static_cast<int>(item.lParam);
-      if (field_index < 0 || field_index >= static_cast<int>(std::size(kColorFields))) {
-        return 0;
-      }
-      COLORREF* color = &(preset->colors.*(kColorFields[field_index].member));
-      if (ChooseColorFor(hwnd, color, state->custom_colors)) {
-        FillColorList(state, preset);
-      }
-      return 0;
-    }
-    case kDarkCheckId: {
-      ThemePreset* preset = CurrentPreset(state);
-      if (!preset || !state->dark_check) {
-        return 0;
-      }
-      preset->is_dark = (SendMessageW(state->dark_check, BM_GETCHECK, 0, 0) == BST_CHECKED);
-      return 0;
-    }
-    case kApplyTemplateId: {
-      ThemePreset* preset = CurrentPreset(state);
-      if (!preset) {
-        return 0;
-      }
-      int sel = state->template_combo ? static_cast<int>(SendMessageW(state->template_combo, CB_GETCURSEL, 0, 0)) : -1;
-      ThemePreset tmpl = BuildPresetFromTemplate(state, sel);
-      preset->colors = tmpl.colors;
-      preset->is_dark = tmpl.is_dark;
-      SyncSelection(state);
-      return 0;
-    }
-    case kApplyId:
-      ApplySelectedPreset(state, false);
-      return 0;
-    case IDOK:
-      ApplySelectedPreset(state, true);
-      return 0;
-    case IDCANCEL:
-      appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-      DestroyWindow(hwnd);
-      return 0;
-    default:
       break;
     }
-    break;
-  }
-  case WM_NOTIFY: {
-    auto* hdr = reinterpret_cast<NMHDR*>(lparam);
-    if (!hdr || !state) {
+  case WM_NOTIFY:
+    {
+      auto* hdr = reinterpret_cast<NMHDR*>(lparam);
+      if (!hdr || !state) {
+        break;
+      }
+      if (hdr->hwndFrom == state->preset_list && hdr->code == LVN_ITEMCHANGED) {
+        auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
+        if (info && (info->uNewState & LVIS_SELECTED) && info->iItem >= 0) {
+          SyncSelection(state);
+        }
+        return 0;
+      }
+      if (hdr->hwndFrom == state->preset_list && hdr->code == NM_CUSTOMDRAW) {
+        return ui::HandleThemedListViewCustomDraw(state->preset_list, reinterpret_cast<NMLVCUSTOMDRAW*>(lparam));
+      }
+      if (hdr->hwndFrom == state->color_list && hdr->code == NM_DBLCLK) {
+        SendMessageW(hwnd, WM_COMMAND, MAKEWPARAM(kEditColorId, 0), 0);
+        return 0;
+      }
+      if (hdr->hwndFrom == state->color_list && hdr->code == LVN_COLUMNCLICK) {
+        auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
+        if (info) {
+          if (state->color_sort_column == info->iSubItem) {
+            state->color_sort_ascending = !state->color_sort_ascending;
+          } else {
+            state->color_sort_column = info->iSubItem;
+            state->color_sort_ascending = true;
+          }
+          ThemePreset* preset = CurrentPreset(state);
+          if (preset) {
+            ColorSortContext ctx = {};
+            ctx.preset = preset;
+            ctx.column = state->color_sort_column;
+            ctx.ascending = state->color_sort_ascending;
+            ListView_SortItemsEx(state->color_list, CompareColorListItems, reinterpret_cast<LPARAM>(&ctx));
+          }
+          UpdateListViewSort(state->color_list, state->color_sort_column, state->color_sort_ascending);
+          HWND header = ListView_GetHeader(state->color_list);
+          if (header) {
+            InvalidateRect(header, nullptr, TRUE);
+          }
+        }
+        return 0;
+      }
+      if (hdr->hwndFrom == state->color_list && hdr->code == NM_CUSTOMDRAW) {
+        return ui::HandleThemedListViewCustomDraw(state->color_list, reinterpret_cast<NMLVCUSTOMDRAW*>(lparam));
+      }
       break;
     }
-    if (hdr->hwndFrom == state->preset_list && hdr->code == LVN_ITEMCHANGED) {
-      auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
-      if (info && (info->uNewState & LVIS_SELECTED) && info->iItem >= 0) {
-        SyncSelection(state);
-      }
-      return 0;
-    }
-    if (hdr->hwndFrom == state->preset_list && hdr->code == NM_CUSTOMDRAW) {
-      return ui::HandleThemedListViewCustomDraw(state->preset_list, reinterpret_cast<NMLVCUSTOMDRAW*>(lparam));
-    }
-    if (hdr->hwndFrom == state->color_list && hdr->code == NM_DBLCLK) {
-      SendMessageW(hwnd, WM_COMMAND, MAKEWPARAM(kEditColorId, 0), 0);
-      return 0;
-    }
-    if (hdr->hwndFrom == state->color_list && hdr->code == LVN_COLUMNCLICK) {
-      auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
-      if (info) {
-        if (state->color_sort_column == info->iSubItem) {
-          state->color_sort_ascending = !state->color_sort_ascending;
-        } else {
-          state->color_sort_column = info->iSubItem;
-          state->color_sort_ascending = true;
-        }
-        ThemePreset* preset = CurrentPreset(state);
-        if (preset) {
-          ColorSortContext ctx = {};
-          ctx.preset = preset;
-          ctx.column = state->color_sort_column;
-          ctx.ascending = state->color_sort_ascending;
-          ListView_SortItemsEx(state->color_list, CompareColorListItems, reinterpret_cast<LPARAM>(&ctx));
-        }
-        UpdateListViewSort(state->color_list, state->color_sort_column, state->color_sort_ascending);
-        HWND header = ListView_GetHeader(state->color_list);
-        if (header) {
-          InvalidateRect(header, nullptr, TRUE);
-        }
-      }
-      return 0;
-    }
-    if (hdr->hwndFrom == state->color_list && hdr->code == NM_CUSTOMDRAW) {
-      return ui::HandleThemedListViewCustomDraw(state->color_list, reinterpret_cast<NMLVCUSTOMDRAW*>(lparam));
-    }
-    break;
-  }
   case WM_CLOSE:
     appearance::RestoreDialogOwner(state ? state->owner : nullptr, state ? &state->owner_restored : nullptr);
     DestroyWindow(hwnd);
@@ -1006,12 +1113,14 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
 
 } // namespace
 
-void appearance::ShowThemePresetEditor(HWND owner,
-                                       const std::vector<ThemePreset>& presets,
-                                       const std::wstring& active_name,
-                                       appearance::ThemePresetApply apply,
-                                       appearance::ThemePresetNamePrompt prompt_name,
-                                       void* context) {
+void appearance::ShowThemePresetEditor(
+    HWND owner,
+    const std::vector<ThemePreset>& presets,
+    const std::wstring& active_name,
+    appearance::ThemePresetApply apply,
+    appearance::ThemePresetNamePrompt prompt_name,
+    void* context
+) {
   WNDCLASSW wc = {};
   wc.lpfnWndProc = ThemePresetWindowProc;
   wc.hInstance = GetModuleHandleW(nullptr);
@@ -1032,8 +1141,7 @@ void appearance::ShowThemePresetEditor(HWND owner,
   DWORD style = WS_POPUP | WS_CAPTION | WS_SYSMENU;
   DWORD ex_style = WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT;
   const UINT dpi = win32::DpiForWindow(owner);
-  RECT rect = {0, 0, appearance::metrics::Scaled(kWindowWidth, dpi),
-               appearance::metrics::Scaled(kWindowHeight, dpi)};
+  RECT rect = {0, 0, appearance::metrics::Scaled(kWindowWidth, dpi), appearance::metrics::Scaled(kWindowHeight, dpi)};
   win32::AdjustWindowRectForDpi(&rect, style, ex_style, dpi);
   int width = rect.right - rect.left;
   int height = rect.bottom - rect.top;

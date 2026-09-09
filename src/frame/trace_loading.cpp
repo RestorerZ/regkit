@@ -17,14 +17,19 @@ void MainWindow::Impl::StartTraceLoadWorker() {
   const HWND hwnd = hwnd_;
   trace_load_session_.StartIfIdle(
       [this, selection_cache = std::move(selection_cache), active_path, hwnd](
-          uint64_t generation, const std::atomic_bool& cancel) mutable {
+          uint64_t generation,
+          const std::atomic_bool& cancel
+      ) mutable {
         auto payload = std::make_unique<TraceLoadPayload>();
         payload->generation = generation;
         payload->selection_cache = std::move(selection_cache);
         std::wstring content;
         if (!util::ReadTextFile(
-                active_path, &content, nullptr,
-                static_cast<uint64_t>(std::numeric_limits<int>::max()))) {
+                active_path,
+                &content,
+                nullptr,
+                static_cast<uint64_t>(std::numeric_limits<int>::max())
+            )) {
           return;
         }
 
@@ -80,8 +85,7 @@ void MainWindow::Impl::StartTraceLoadWorker() {
             continue;
           }
           trace::Data data;
-          if (!trace::Load(use_label, source, TraceNormalizers(), &data,
-                           nullptr, &cancel)) {
+          if (!trace::Load(use_label, source, TraceNormalizers(), &data, nullptr, &cancel)) {
             continue;
           }
           std::shared_ptr<const trace::Data> trace_data =
@@ -96,19 +100,19 @@ void MainWindow::Impl::StartTraceLoadWorker() {
           trace::NormalizeSelection(*trace_data, &selection);
           payload->selection_cache[source_lower] = selection;
           payload->traces.push_back(
-              {trace_data->label, source, trace_data,
-               std::make_shared<trace::Selection>(selection)});
+              {trace_data->label, source, trace_data, std::make_shared<trace::Selection>(selection)}
+          );
         }
 
         if (cancel.load()) {
           return;
         }
         if (hwnd && IsWindow(hwnd) &&
-            PostMessageW(hwnd, frame::message_id::kTraceLoadReady, 0,
-                         reinterpret_cast<LPARAM>(payload.get()))) {
+            PostMessageW(hwnd, frame::message_id::kTraceLoadReady, 0, reinterpret_cast<LPARAM>(payload.get()))) {
           ReleasePostedPayload(payload);
         }
-      });
+      }
+  );
 }
 
 void MainWindow::Impl::StopTraceLoadWorker() {

@@ -6,7 +6,9 @@
 namespace regkit {
 using namespace command_detail;
 
-void MainWindow::Impl::RecordNavigation(const std::wstring& path) {
+void MainWindow::Impl::RecordNavigation(
+    const std::wstring& path
+) {
   if (browse_.RecordNavigation(path)) {
     UpdateNavigationButtons();
   }
@@ -44,15 +46,15 @@ void MainWindow::Impl::UpdateNavigationButtons() {
     return;
   }
   const browse::NavigationAvailability available = browse_.navigation();
-  SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kNavBack,
-               available.back ? TBSTATE_ENABLED : 0);
-  SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kNavForward,
-               available.forward ? TBSTATE_ENABLED : 0);
-  SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kNavUp,
-               available.up ? TBSTATE_ENABLED : 0);
+  SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kNavBack, available.back ? TBSTATE_ENABLED : 0);
+  SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kNavForward, available.forward ? TBSTATE_ENABLED : 0);
+  SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kNavUp, available.up ? TBSTATE_ENABLED : 0);
 }
 
-void MainWindow::Impl::ShowAddressContextMenu(HWND edit, POINT screen_pt) {
+void MainWindow::Impl::ShowAddressContextMenu(
+    HWND edit,
+    POINT screen_pt
+) {
   if (!edit) {
     return;
   }
@@ -125,7 +127,9 @@ void MainWindow::Impl::ShowAddressContextMenu(HWND edit, POINT screen_pt) {
   }
 }
 
-void MainWindow::Impl::ShowTreeContextMenu(POINT screen_pt) {
+void MainWindow::Impl::ShowTreeContextMenu(
+    POINT screen_pt
+) {
   if (!browse_.tree().hwnd()) {
     return;
   }
@@ -230,7 +234,9 @@ void MainWindow::Impl::ShowTreeContextMenu(POINT screen_pt) {
   }
 }
 
-void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt) {
+void MainWindow::Impl::ShowValueContextMenu(
+    POINT screen_pt
+) {
   if (!browse_.values().hwnd()) {
     return;
   }
@@ -321,9 +327,7 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt) {
   } else if (row && row->kind == rowkind::kValue) {
     std::vector<ListRow> selected_rows = SelectedListRows(browse_.values());
     const bool all_values = !selected_rows.empty() &&
-                            std::all_of(selected_rows.begin(), selected_rows.end(), [](const ListRow& selected) {
-                              return selected.kind == rowkind::kValue && !selected.simulated;
-                            });
+                            std::all_of(selected_rows.begin(), selected_rows.end(), [](const ListRow& selected) { return selected.kind == rowkind::kValue && !selected.simulated; });
     const bool single_value = all_values && selected_rows.size() == 1;
     bool can_modify = !read_only_ && single_value;
     bool can_delete = !read_only_ && all_values;
@@ -390,7 +394,9 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt) {
   }
 }
 
-void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt) {
+void MainWindow::Impl::ShowHistoryContextMenu(
+    POINT screen_pt
+) {
   if (!history_list_) {
     return;
   }
@@ -402,12 +408,9 @@ void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt) {
   if (index >= 0) {
     if ((ListView_GetItemState(history_list_, index, LVIS_SELECTED) &
          LVIS_SELECTED) == 0) {
-      ListView_SetItemState(history_list_, -1, 0,
-                            LVIS_SELECTED | LVIS_FOCUSED);
+      ListView_SetItemState(history_list_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
     }
-    ListView_SetItemState(history_list_, index,
-                          LVIS_SELECTED | LVIS_FOCUSED,
-                          LVIS_SELECTED | LVIS_FOCUSED);
+    ListView_SetItemState(history_list_, index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
   }
   const HistoryEntry* entry = nullptr;
   if (index >= 0 &&
@@ -426,8 +429,7 @@ void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt) {
   AppendMenuW(menu, MF_STRING, cmd::kEditCopyKey, L"Copy");
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   const int selected = ListView_GetSelectedCount(history_list_);
-  AppendMenuW(menu, MF_STRING | (selected > 0 ? 0 : MF_GRAYED),
-              cmd::kHistoryRemove, L"Remove from History");
+  AppendMenuW(menu, MF_STRING | (selected > 0 ? 0 : MF_GRAYED), cmd::kHistoryRemove, L"Remove from History");
   AppendMenuW(menu, MF_STRING, cmd::kEditDelete, L"Clear History");
 
   int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
@@ -451,7 +453,9 @@ void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt) {
   }
 }
 
-void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
+void MainWindow::Impl::ShowSearchResultContextMenu(
+    POINT screen_pt
+) {
   if (!search_results_list_) {
     return;
   }
@@ -475,12 +479,9 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
 
   if ((ListView_GetItemState(search_results_list_, index, LVIS_SELECTED) &
        LVIS_SELECTED) == 0) {
-    ListView_SetItemState(search_results_list_, -1, 0,
-                          LVIS_SELECTED | LVIS_FOCUSED);
+    ListView_SetItemState(search_results_list_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
   }
-  ListView_SetItemState(search_results_list_, index,
-                        LVIS_SELECTED | LVIS_FOCUSED,
-                        LVIS_SELECTED | LVIS_FOCUSED);
+  ListView_SetItemState(search_results_list_, index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
   std::wstring key_path = SearchRowKeyPath(search_index, index);
   std::wstring first_key_path;
   std::wstring second_key_path;
@@ -675,8 +676,7 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
     open_key(true);
     return;
   case kSearchOpenSecondKey:
-    OpenSourceEntry(second_source, second_key_path, row_value_name,
-                    SearchResultOpensInNewTab());
+    OpenSourceEntry(second_source, second_key_path, row_value_name, SearchResultOpensInNewTab());
     return;
   case kSearchOpenSecondKeyNewTab:
     OpenSourceEntry(second_source, second_key_path, row_value_name, true);
@@ -690,19 +690,20 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
   case kSearchModifyComment:
     run_on_value(cmd::kEditModifyComment);
     return;
-  case kSearchCopyKeyName: {
-    std::wstring name;
-    if (node_ok) {
-      name = LeafName(node);
-    } else {
-      size_t pos = key_path.find_last_of(L"\\/");
-      name = (pos == std::wstring::npos) ? key_path : key_path.substr(pos + 1);
+  case kSearchCopyKeyName:
+    {
+      std::wstring name;
+      if (node_ok) {
+        name = LeafName(node);
+      } else {
+        size_t pos = key_path.find_last_of(L"\\/");
+        name = (pos == std::wstring::npos) ? key_path : key_path.substr(pos + 1);
+      }
+      if (!name.empty()) {
+        ui::CopyTextToClipboard(hwnd_, name);
+      }
+      return;
     }
-    if (!name.empty()) {
-      ui::CopyTextToClipboard(hwnd_, name);
-    }
-    return;
-  }
   case kSearchCopyKeyPath:
     if (!key_path.empty()) {
       ui::CopyTextToClipboard(hwnd_, key_path);

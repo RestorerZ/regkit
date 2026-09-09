@@ -19,13 +19,19 @@
 namespace regkit::changes {
 namespace {
 
-int CompareText(const std::wstring& left, const std::wstring& right) {
+int CompareText(
+    const std::wstring& left,
+    const std::wstring& right
+) {
   const int result = _wcsicmp(left.c_str(), right.c_str());
   return result < 0 ? -1 : (result > 0 ? 1 : 0);
 }
 
-int CompareEntry(const HistoryEntry& left, const HistoryEntry& right,
-                 int column) {
+int CompareEntry(
+    const HistoryEntry& left,
+    const HistoryEntry& right,
+    int column
+) {
   switch (column) {
   case 1:
     return CompareText(left.action, right.action);
@@ -40,7 +46,10 @@ int CompareEntry(const HistoryEntry& left, const HistoryEntry& right,
   }
 }
 
-void Trim(std::vector<HistoryEntry>* entries, size_t maximum) {
+void Trim(
+    std::vector<HistoryEntry>* entries,
+    size_t maximum
+) {
   if (!entries) {
     return;
   }
@@ -53,22 +62,26 @@ void Trim(std::vector<HistoryEntry>* entries, size_t maximum) {
   }
   auto cut = entries->end() - static_cast<std::ptrdiff_t>(maximum);
   std::nth_element(
-      entries->begin(), cut, entries->end(),
+      entries->begin(),
+      cut,
+      entries->end(),
       [](const HistoryEntry& left, const HistoryEntry& right) {
         return left.timestamp < right.timestamp;
-      });
+      }
+  );
   entries->erase(entries->begin(), cut);
 }
 
-void Stamp(HistoryEntry* entry) {
+void Stamp(
+    HistoryEntry* entry
+) {
   if (!entry || (entry->timestamp != 0 && !entry->time_text.empty())) {
     return;
   }
   SYSTEMTIME local = {};
   GetLocalTime(&local);
   wchar_t text[64] = {};
-  swprintf_s(text, L"%d/%d/%d %d:%02d:%02d", local.wMonth, local.wDay,
-             local.wYear, local.wHour, local.wMinute, local.wSecond);
+  swprintf_s(text, L"%d/%d/%d %d:%02d:%02d", local.wMonth, local.wDay, local.wYear, local.wHour, local.wMinute, local.wSecond);
   FILETIME now = {};
   GetSystemTimeAsFileTime(&now);
   ULARGE_INTEGER value = {};
@@ -78,8 +91,10 @@ void Stamp(HistoryEntry* entry) {
   entry->time_text = text;
 }
 
-void DecodeRevert(const std::vector<std::wstring>& fields,
-                  HistoryEntry* entry) {
+void DecodeRevert(
+    const std::vector<std::wstring>& fields,
+    HistoryEntry* entry
+) {
   if (!entry || fields.size() < 11) {
     return;
   }
@@ -106,8 +121,7 @@ void DecodeRevert(const std::vector<std::wstring>& fields,
       return;
     }
     entry->revert_value.type = static_cast<DWORD>(type);
-    if (!value_format::ParseHex(record_fields::Unescape(fields[10]),
-                                &entry->revert_value.data)) {
+    if (!value_format::ParseHex(record_fields::Unescape(fields[10]), &entry->revert_value.data)) {
       entry->revert_kind = HistoryEntry::RevertKind::kNone;
       entry->revert_value = {};
     }
@@ -119,7 +133,10 @@ void DecodeRevert(const std::vector<std::wstring>& fields,
 
 } // namespace
 
-HistoryEntry ChangeHistory::Append(HistoryEntry entry, size_t maximum) {
+HistoryEntry ChangeHistory::Append(
+    HistoryEntry entry,
+    size_t maximum
+) {
   Stamp(&entry);
   HistoryEntry appended = entry;
   entries_.push_back(std::move(entry));
@@ -127,8 +144,10 @@ HistoryEntry ChangeHistory::Append(HistoryEntry entry, size_t maximum) {
   return appended;
 }
 
-void ChangeHistory::Replace(std::vector<HistoryEntry> entries,
-                            size_t maximum) {
+void ChangeHistory::Replace(
+    std::vector<HistoryEntry> entries,
+    size_t maximum
+) {
   entries_ = std::move(entries);
   Trim(&entries_, maximum);
 }
@@ -137,15 +156,19 @@ void ChangeHistory::Clear() {
   entries_.clear();
 }
 
-void ChangeHistory::Sort(int column, bool ascending) {
+void ChangeHistory::Sort(
+    int column,
+    bool ascending
+) {
   std::stable_sort(
-      entries_.begin(), entries_.end(),
-      [column, ascending](const HistoryEntry& left,
-                          const HistoryEntry& right) {
+      entries_.begin(),
+      entries_.end(),
+      [column, ascending](const HistoryEntry& left, const HistoryEntry& right) {
         const int comparison = CompareEntry(left, right, column);
         return comparison != 0 &&
                (ascending ? comparison < 0 : comparison > 0);
-      });
+      }
+  );
 }
 
 const std::vector<HistoryEntry>& ChangeHistory::entries() const noexcept {
@@ -156,7 +179,9 @@ std::vector<HistoryEntry>& ChangeHistory::entries() noexcept {
   return entries_;
 }
 
-HistoryDocument ParseHistory(const std::wstring& content) {
+HistoryDocument ParseHistory(
+    const std::wstring& content
+) {
   HistoryDocument document;
   for (const std::wstring& line : record_fields::Lines(content)) {
     if (line.empty()) {
@@ -193,11 +218,18 @@ HistoryDocument ParseHistory(const std::wstring& content) {
   return document;
 }
 
-std::wstring SerializeHistoryEntry(const HistoryEntry& entry) {
+std::wstring SerializeHistoryEntry(
+    const HistoryEntry& entry
+) {
   std::wstring line = std::to_wstring(entry.timestamp);
   const std::wstring fields[] = {
-      entry.time_text, entry.action, entry.old_data, entry.new_data,
-      entry.key_path, entry.value_name};
+      entry.time_text,
+      entry.action,
+      entry.old_data,
+      entry.new_data,
+      entry.key_path,
+      entry.value_name
+  };
   for (const std::wstring& field : fields) {
     line.push_back(L'\t');
     line.append(record_fields::Escape(field));
@@ -210,14 +242,18 @@ std::wstring SerializeHistoryEntry(const HistoryEntry& entry) {
   line.append(std::to_wstring(entry.revert_value.type));
   line.push_back(L'\t');
   line.append(record_fields::Escape(util::ToHex(
-      entry.revert_value.data.data(), entry.revert_value.data.size(),
-      entry.revert_value.data.size())));
+      entry.revert_value.data.data(),
+      entry.revert_value.data.size(),
+      entry.revert_value.data.size()
+  )));
   line.push_back(L'\n');
   return line;
 }
 
-bool WriteHistoryFile(const std::wstring& path,
-                      const std::vector<HistoryEntry>& entries) {
+bool WriteHistoryFile(
+    const std::wstring& path,
+    const std::vector<HistoryEntry>& entries
+) {
   if (path.empty()) {
     return false;
   }
@@ -233,15 +269,13 @@ bool WriteHistoryFile(const std::wstring& path,
   swprintf_s(stamp, L".%08x.tmp", GetCurrentProcessId());
   const std::wstring temp_path = path + stamp;
   HANDLE file =
-      CreateFileW(temp_path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr,
-                  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+      CreateFileW(temp_path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (file == INVALID_HANDLE_VALUE) {
     return false;
   }
   DWORD written = 0;
   bool success =
-      WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written,
-                nullptr) != 0 &&
+      WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) != 0 &&
       written == static_cast<DWORD>(bytes.size());
   if (success) {
     success = FlushFileBuffers(file) != 0;
@@ -253,15 +287,17 @@ bool WriteHistoryFile(const std::wstring& path,
     DeleteFileW(temp_path.c_str());
     return false;
   }
-  if (!MoveFileExW(temp_path.c_str(), path.c_str(),
-                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+  if (!MoveFileExW(temp_path.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
     DeleteFileW(temp_path.c_str());
     return false;
   }
   return true;
 }
 
-bool AppendHistoryFile(const std::wstring& path, const HistoryEntry& entry) {
+bool AppendHistoryFile(
+    const std::wstring& path,
+    const HistoryEntry& entry
+) {
   if (path.empty()) {
     return false;
   }
@@ -270,22 +306,23 @@ bool AppendHistoryFile(const std::wstring& path, const HistoryEntry& entry) {
     return false;
   }
   HANDLE file =
-      CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr,
-                  OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+      CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (file == INVALID_HANDLE_VALUE) {
     return false;
   }
   DWORD written = 0;
   const bool success =
-      WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()),
-                &written, nullptr) != 0 &&
+      WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) != 0 &&
       written == static_cast<DWORD>(bytes.size());
   CloseHandle(file);
   return success;
 }
 
-bool PrepareRevert(const HistoryEntry& entry, const QueryValue& query_value,
-                   HistoryEntry* prepared) {
+bool PrepareRevert(
+    const HistoryEntry& entry,
+    const QueryValue& query_value,
+    HistoryEntry* prepared
+) {
   if (!prepared || entry.key_path.empty()) {
     return false;
   }
@@ -369,9 +406,11 @@ bool PrepareRevert(const HistoryEntry& entry, const QueryValue& query_value,
   return true;
 }
 
-bool FindNearestExistingPath(const std::wstring& path,
-                             const PathExists& path_exists,
-                             std::wstring* nearest_path) {
+bool FindNearestExistingPath(
+    const std::wstring& path,
+    const PathExists& path_exists,
+    std::wstring* nearest_path
+) {
   if (!nearest_path || !path_exists) {
     return false;
   }

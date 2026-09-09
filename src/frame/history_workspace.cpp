@@ -7,13 +7,17 @@ namespace regkit {
 
 namespace {
 
-search::Source::Kind ToSourceKind(int value) {
+search::Source::Kind ToSourceKind(
+    int value
+) {
   return value < 0 || value > static_cast<int>(search::Source::Kind::kRegFile)
              ? search::Source::Kind::kLocal
              : static_cast<search::Source::Kind>(value);
 }
 
-search::Source::Kind LegacyCompareKind(int value) {
+search::Source::Kind LegacyCompareKind(
+    int value
+) {
   switch (value) {
   case 1:
     return search::Source::Kind::kRegFile;
@@ -27,7 +31,11 @@ search::Source::Kind LegacyCompareKind(int value) {
 } // namespace
 using namespace window_detail;
 
-void MainWindow::Impl::AppendHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data) {
+void MainWindow::Impl::AppendHistoryEntry(
+    const std::wstring& action,
+    const std::wstring& old_data,
+    const std::wstring& new_data
+) {
   HistoryEntry entry;
   entry.action = action;
   entry.old_data = old_data;
@@ -38,7 +46,15 @@ void MainWindow::Impl::AppendHistoryEntry(const std::wstring& action, const std:
   AppendHistoryEntry(std::move(entry));
 }
 
-void MainWindow::Impl::AppendValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const ValueEntry* revert_value) {
+void MainWindow::Impl::AppendValueHistoryEntry(
+    const std::wstring& action,
+    const std::wstring& old_data,
+    const std::wstring& new_data,
+    const RegistryNode& node,
+    const std::wstring& value_name,
+    HistoryEntry::RevertKind revert_kind,
+    const ValueEntry* revert_value
+) {
   HistoryEntry entry;
   entry.action = action;
   entry.old_data = old_data;
@@ -52,14 +68,15 @@ void MainWindow::Impl::AppendValueHistoryEntry(const std::wstring& action, const
   AppendHistoryEntry(std::move(entry));
 }
 
-void MainWindow::Impl::AppendHistoryEntry(HistoryEntry entry) {
+void MainWindow::Impl::AppendHistoryEntry(
+    HistoryEntry entry
+) {
   if (!history_list_) {
     return;
   }
 
   const HistoryEntry appended =
-      change_history_.Append(std::move(entry),
-                             static_cast<size_t>(history_max_rows_));
+      change_history_.Append(std::move(entry), static_cast<size_t>(history_max_rows_));
   if (history_loaded_) {
     AppendHistoryCache(appended);
   }
@@ -67,9 +84,11 @@ void MainWindow::Impl::AppendHistoryEntry(HistoryEntry entry) {
   RebuildHistoryList();
 }
 
-bool MainWindow::Impl::PrepareHistoryRevert(const HistoryEntry& entry, HistoryEntry* prepared) const {
-  auto query_value = [this](const std::wstring& path,
-                            const std::wstring& name, ValueEntry* value) {
+bool MainWindow::Impl::PrepareHistoryRevert(
+    const HistoryEntry& entry,
+    HistoryEntry* prepared
+) const {
+  auto query_value = [this](const std::wstring& path, const std::wstring& name, ValueEntry* value) {
     RegistryNode node;
     return ResolvePathToNode(path, &node) &&
            RegistryStore::QueryValue(node, name, value);
@@ -91,10 +110,12 @@ bool MainWindow::Impl::PrepareHistoryRevert(const HistoryEntry& entry, HistoryEn
     }
   }
   std::stable_sort(
-      later_entries.begin(), later_entries.end(),
+      later_entries.begin(),
+      later_entries.end(),
       [](const HistoryEntry* left, const HistoryEntry* right) {
         return left->timestamp < right->timestamp;
-      });
+      }
+  );
   for (const HistoryEntry* candidate : later_entries) {
     if (!EqualsInsensitive(candidate->old_data, prepared->value_name)) {
       continue;
@@ -108,7 +129,9 @@ bool MainWindow::Impl::PrepareHistoryRevert(const HistoryEntry& entry, HistoryEn
   return query_value(prepared->key_path, prepared->value_name, &current);
 }
 
-bool MainWindow::Impl::OpenHistoryTarget(const HistoryEntry& entry) {
+bool MainWindow::Impl::OpenHistoryTarget(
+    const HistoryEntry& entry
+) {
   if (entry.key_path.empty()) {
     return false;
   }
@@ -124,7 +147,9 @@ bool MainWindow::Impl::OpenHistoryTarget(const HistoryEntry& entry) {
   return NavigateToResolvedExternalJump(target, entry.value_name);
 }
 
-bool MainWindow::Impl::RevertHistoryEntry(const HistoryEntry& entry) {
+bool MainWindow::Impl::RevertHistoryEntry(
+    const HistoryEntry& entry
+) {
   HistoryEntry prepared;
   if (!EnsureWritable() || !PrepareHistoryRevert(entry, &prepared)) {
     return false;
@@ -133,30 +158,33 @@ bool MainWindow::Impl::RevertHistoryEntry(const HistoryEntry& entry) {
   bool ok = false;
   is_replaying_ = true;
   switch (prepared.revert_kind) {
-  case HistoryEntry::RevertKind::kSetValue: {
-    RegistryNode node;
-    if (ResolvePathToNode(prepared.key_path, &node)) {
-      ok = RegistryStore::SetValue(node, prepared.revert_value.name, prepared.revert_value.type, prepared.revert_value.data);
-    }
-    break;
-  }
-  case HistoryEntry::RevertKind::kDeleteValue: {
-    RegistryNode node;
-    if (ResolvePathToNode(prepared.key_path, &node)) {
-      ok = RegistryStore::DeleteValue(node, prepared.value_name);
-    }
-    break;
-  }
-  case HistoryEntry::RevertKind::kDeleteKey: {
-    RegistryNode node;
-    if (ResolvePathToNode(prepared.key_path, &node)) {
-      std::wstring name = LeafName(node);
-      if (!name.empty() && ui::ConfirmDelete(hwnd_, L"Revert Key Creation", name)) {
-        ok = RegistryStore::DeleteKey(node);
+  case HistoryEntry::RevertKind::kSetValue:
+    {
+      RegistryNode node;
+      if (ResolvePathToNode(prepared.key_path, &node)) {
+        ok = RegistryStore::SetValue(node, prepared.revert_value.name, prepared.revert_value.type, prepared.revert_value.data);
       }
+      break;
     }
-    break;
-  }
+  case HistoryEntry::RevertKind::kDeleteValue:
+    {
+      RegistryNode node;
+      if (ResolvePathToNode(prepared.key_path, &node)) {
+        ok = RegistryStore::DeleteValue(node, prepared.value_name);
+      }
+      break;
+    }
+  case HistoryEntry::RevertKind::kDeleteKey:
+    {
+      RegistryNode node;
+      if (ResolvePathToNode(prepared.key_path, &node)) {
+        std::wstring name = LeafName(node);
+        if (!name.empty() && ui::ConfirmDelete(hwnd_, L"Revert Key Creation", name)) {
+          ok = RegistryStore::DeleteKey(node);
+        }
+      }
+      break;
+    }
   default:
     break;
   }
@@ -180,7 +208,9 @@ bool MainWindow::Impl::RevertHistoryEntry(const HistoryEntry& entry) {
   return true;
 }
 
-bool MainWindow::Impl::AppendHistoryCache(const HistoryEntry& entry) {
+bool MainWindow::Impl::AppendHistoryCache(
+    const HistoryEntry& entry
+) {
   if (changes::AppendHistoryFile(HistoryCachePath(), entry)) {
     history_cache_failed_ = false;
     return true;
@@ -230,7 +260,9 @@ std::wstring MainWindow::Impl::SessionCachePath() const {
   return util::JoinPath(folder, L"session.ini");
 }
 
-std::wstring MainWindow::Impl::SearchTabCachePath(const std::wstring& file) const {
+std::wstring MainWindow::Impl::SearchTabCachePath(
+    const std::wstring& file
+) const {
   std::wstring folder = CacheFolderPath();
   if (folder.empty()) {
     return L"";
@@ -241,7 +273,9 @@ std::wstring MainWindow::Impl::SearchTabCachePath(const std::wstring& file) cons
   return util::JoinPath(folder, file);
 }
 
-bool MainWindow::Impl::EnsureSearchTabResultsLoaded(int search_index) {
+bool MainWindow::Impl::EnsureSearchTabResultsLoaded(
+    int search_index
+) {
   if (search_index < 0 || static_cast<size_t>(search_index) >= search_tabs_.size()) {
     return false;
   }
@@ -253,8 +287,7 @@ bool MainWindow::Impl::EnsureSearchTabResultsLoaded(int search_index) {
   if (tab.is_compare) {
     tab.results_loaded = true;
     if (!tab.compare_cache_file.empty()) {
-      search::compare::LoadRows(SearchTabCachePath(tab.compare_cache_file),
-                                &tab.compare_rows);
+      search::compare::LoadRows(SearchTabCachePath(tab.compare_cache_file), &tab.compare_rows);
     }
     return true;
   }
@@ -262,7 +295,6 @@ bool MainWindow::Impl::EnsureSearchTabResultsLoaded(int search_index) {
     tab.results_loaded = true;
     return true;
   }
-
 
   if (tab.load_pending) {
     return false;
@@ -290,7 +322,9 @@ bool MainWindow::Impl::EnsureSearchTabResultsLoaded(int search_index) {
   return false;
 }
 
-void MainWindow::Impl::ApplySearchTabLoad(SearchTabLoadPayload* payload) {
+void MainWindow::Impl::ApplySearchTabLoad(
+    SearchTabLoadPayload* payload
+) {
   if (!payload) {
     return;
   }
@@ -391,7 +425,8 @@ void MainWindow::Impl::LoadTabs() {
               {LegacyCompareKind(saved.first_source_kind),
                std::move(saved.first_source_file)},
               {LegacyCompareKind(saved.second_source_kind),
-               std::move(saved.second_source_file)}};
+               std::move(saved.second_source_file)}
+          };
         }
         search_tabs_.push_back(std::move(search_tab));
         const int search_index = static_cast<int>(search_tabs_.size() - 1);
@@ -476,8 +511,9 @@ bool MainWindow::Impl::SaveSessionTabs() {
   return SaveTabState(SessionCachePath(), workspace::kSaveTabsAll);
 }
 
-
-int MainWindow::Impl::TabSaveKind(const TabEntry& entry) const {
+int MainWindow::Impl::TabSaveKind(
+    const TabEntry& entry
+) const {
   if (entry.kind == TabEntry::Kind::kRegFile) {
     return workspace::kSaveTabsRegFile;
   }
@@ -488,12 +524,15 @@ int MainWindow::Impl::TabSaveKind(const TabEntry& entry) const {
                ? workspace::kSaveTabsCompare
                : workspace::kSaveTabsSearch;
   }
-  return entry.registry_mode == RegistryMode::kOffline ? workspace::kSaveTabsOffline
+  return entry.registry_mode == RegistryMode::kOffline  ? workspace::kSaveTabsOffline
          : entry.registry_mode == RegistryMode::kRemote ? workspace::kSaveTabsRemote
                                                         : workspace::kSaveTabsLocal;
 }
 
-bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds) {
+bool MainWindow::Impl::SaveTabState(
+    const std::wstring& path,
+    int kinds
+) {
   if (!tab_ || path.empty()) {
     return true;
   }
@@ -560,10 +599,8 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds) {
       if (search_tab.results_loaded) {
         const bool written =
             search_tab.is_compare
-                ? search::compare::SaveRows(SearchTabCachePath(file_name),
-                                            search_tab.compare_rows)
-                : search::SaveResults(SearchTabCachePath(file_name),
-                                      search_tab.results);
+                ? search::compare::SaveRows(SearchTabCachePath(file_name), search_tab.compare_rows)
+                : search::SaveResults(SearchTabCachePath(file_name), search_tab.results);
         if (!written) {
           saved_all = false;
           continue;
@@ -673,7 +710,9 @@ bool MainWindow::Impl::SaveComments() const {
   return value_comments_.Save(CommentsPath());
 }
 
-bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path) {
+bool MainWindow::Impl::ImportCommentsFromFile(
+    const std::wstring& path
+) {
   if (!value_comments_.Import(path)) {
     return false;
   }
@@ -684,7 +723,9 @@ bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path) {
   return true;
 }
 
-bool MainWindow::Impl::ExportCommentsToFile(const std::wstring& path) const {
+bool MainWindow::Impl::ExportCommentsToFile(
+    const std::wstring& path
+) const {
   return value_comments_.Export(path);
 }
 
@@ -730,12 +771,13 @@ void MainWindow::Impl::RefreshValueListComments() {
   if (browse_.values().HasFilter()) {
     browse_.values().RebuildFilter();
   } else if (changed && browse_.values().hwnd()) {
-    RedrawWindow(browse_.values().hwnd(), nullptr, nullptr,
-                 RDW_INVALIDATE | RDW_NOERASE);
+    RedrawWindow(browse_.values().hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
   }
 }
 
-bool MainWindow::Impl::EditValueComments(const std::vector<ListRow>& rows) {
+bool MainWindow::Impl::EditValueComments(
+    const std::vector<ListRow>& rows
+) {
   if (!browse_.current_node() || rows.empty()) {
     return false;
   }
@@ -1051,7 +1093,8 @@ void MainWindow::Impl::StartTreeStateWorker() {
       std::chrono::seconds(2),
       [this](workspace::TreeState state) {
         SaveTreeStateFile(state.selected_path, state.expanded_paths);
-      });
+      }
+  );
 }
 
 void MainWindow::Impl::StopTreeStateWorker() {

@@ -9,8 +9,7 @@
 
 namespace util {
 
-UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access,
-                                 bool open_link = false);
+UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access, bool open_link = false);
 UniqueHKey OpenNativeRegistryRoot();
 bool DeleteNativeRegistryKey(HKEY key);
 

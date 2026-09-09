@@ -6,13 +6,19 @@
 namespace regkit {
 using namespace window_detail;
 
-void MainWindow::Impl::RefreshTreePath(const std::wstring& path) {
+void MainWindow::Impl::RefreshTreePath(
+    const std::wstring& path
+) {
   RefreshTreeItem(FindTreeItem(path));
 }
 
 namespace {
 
-bool IsAncestorItem(HWND tree, HTREEITEM candidate, HTREEITEM item) {
+bool IsAncestorItem(
+    HWND tree,
+    HTREEITEM candidate,
+    HTREEITEM item
+) {
   for (HTREEITEM parent = TreeView_GetParent(tree, item); parent;
        parent = TreeView_GetParent(tree, parent)) {
     if (parent == candidate) {
@@ -67,16 +73,10 @@ void MainWindow::Impl::RefreshMatchingTreeNodes() {
     }
   }
 
-
-
   if (matches.empty()) {
     return;
   }
-  std::sort(matches.begin(), matches.end(),
-            [](const std::pair<int, HTREEITEM>& left,
-               const std::pair<int, HTREEITEM>& right) {
-              return left.first > right.first;
-            });
+  std::sort(matches.begin(), matches.end(), [](const std::pair<int, HTREEITEM>& left, const std::pair<int, HTREEITEM>& right) { return left.first > right.first; });
   HTREEITEM first_visible = TreeView_GetFirstVisible(tree);
   SendMessageW(tree, WM_SETREDRAW, FALSE, 0);
   for (const auto& match : matches) {
@@ -101,7 +101,9 @@ void MainWindow::Impl::RefreshTreeSelection() {
   RefreshTreeItem(TreeView_GetSelection(browse_.tree().hwnd()));
 }
 
-void MainWindow::Impl::RefreshTreeItem(HTREEITEM item) {
+void MainWindow::Impl::RefreshTreeItem(
+    HTREEITEM item
+) {
   if (!browse_.tree().hwnd() || !item) {
     return;
   }
@@ -119,7 +121,9 @@ void MainWindow::Impl::RefreshTreeItem(HTREEITEM item) {
   MarkTreeStateDirty();
 }
 
-void MainWindow::Impl::UpdateSimulatedChain(HTREEITEM item) {
+void MainWindow::Impl::UpdateSimulatedChain(
+    HTREEITEM item
+) {
   if (!browse_.tree().hwnd() || !item) {
     return;
   }
@@ -142,7 +146,10 @@ void MainWindow::Impl::UpdateSimulatedChain(HTREEITEM item) {
   }
 }
 
-void MainWindow::Impl::CaptureTreeState(std::wstring* selected_path, std::vector<std::wstring>* expanded_paths) const {
+void MainWindow::Impl::CaptureTreeState(
+    std::wstring* selected_path,
+    std::vector<std::wstring>* expanded_paths
+) const {
   if (selected_path) {
     selected_path->clear();
   }
@@ -241,15 +248,14 @@ void MainWindow::Impl::ApplySavedWindowPlacement() {
   if (!SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0)) {
     work = {};
   }
-  RECT target = {window_x_ + work.left, window_y_ + work.top,
-                 window_x_ + work.left + width, window_y_ + work.top + height};
+  RECT target = {window_x_ + work.left, window_y_ + work.top, window_x_ + work.left + width, window_y_ + work.top + height};
   win32::ClampToWorkArea(&target);
-  SetWindowPos(hwnd_, nullptr, target.left, target.top,
-               target.right - target.left, target.bottom - target.top,
-               SWP_NOZORDER | SWP_NOACTIVATE);
+  SetWindowPos(hwnd_, nullptr, target.left, target.top, target.right - target.left, target.bottom - target.top, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-HTREEITEM MainWindow::Impl::FindTreeItem(const std::wstring& path) {
+HTREEITEM MainWindow::Impl::FindTreeItem(
+    const std::wstring& path
+) {
   if (!browse_.tree().hwnd()) {
     return nullptr;
   }
@@ -269,7 +275,9 @@ HTREEITEM MainWindow::Impl::FindTreeItem(const std::wstring& path) {
   return current;
 }
 
-bool MainWindow::Impl::ExpandTreePath(const std::wstring& path) {
+bool MainWindow::Impl::ExpandTreePath(
+    const std::wstring& path
+) {
   HTREEITEM item = FindTreeItem(path);
   if (!item) {
     return false;

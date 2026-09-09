@@ -11,8 +11,12 @@ namespace {
 using registry_backend::virtual_store::FindRoot;
 
 template <typename VirtualCall, typename OfflineCall, typename LiveCall>
-decltype(auto) Dispatch(const RegistryNode& node, VirtualCall&& virtual_call,
-                        OfflineCall&& offline_call, LiveCall&& live_call) {
+decltype(auto) Dispatch(
+    const RegistryNode& node,
+    VirtualCall&& virtual_call,
+    OfflineCall&& offline_call,
+    LiveCall&& live_call
+) {
   if (std::shared_ptr<VirtualRegistryData> data = FindRoot(node.root)) {
     return virtual_call(*data);
   }
@@ -25,98 +29,124 @@ decltype(auto) Dispatch(const RegistryNode& node, VirtualCall&& virtual_call,
 } // namespace
 
 std::vector<RegistryRootEntry> RegistryStore::DefaultRoots(
-    bool include_extra) {
+    bool include_extra
+) {
   std::vector<RegistryRootEntry> roots = {
       {HKEY_CLASSES_ROOT, L"HKEY_CLASSES_ROOT", L"HKEY_CLASSES_ROOT", L""},
       {HKEY_CURRENT_USER, L"HKEY_CURRENT_USER", L"HKEY_CURRENT_USER", L""},
-      {HKEY_LOCAL_MACHINE, L"HKEY_LOCAL_MACHINE", L"HKEY_LOCAL_MACHINE",
-       L""},
+      {HKEY_LOCAL_MACHINE, L"HKEY_LOCAL_MACHINE", L"HKEY_LOCAL_MACHINE", L""},
       {HKEY_USERS, L"HKEY_USERS", L"HKEY_USERS", L""},
-      {HKEY_CURRENT_CONFIG, L"HKEY_CURRENT_CONFIG", L"HKEY_CURRENT_CONFIG",
-       L""},
+      {HKEY_CURRENT_CONFIG, L"HKEY_CURRENT_CONFIG", L"HKEY_CURRENT_CONFIG", L""},
   };
   if (include_extra) {
-    roots.push_back({HKEY_PERFORMANCE_DATA, L"HKEY_PERFORMANCE_DATA",
-                     L"HKEY_PERFORMANCE_DATA", L""});
-    roots.push_back({HKEY_PERFORMANCE_TEXT, L"HKEY_PERFORMANCE_TEXT",
-                     L"HKEY_PERFORMANCE_TEXT", L""});
-    roots.push_back({HKEY_PERFORMANCE_NLSTEXT, L"HKEY_PERFORMANCE_NLSTEXT",
-                     L"HKEY_PERFORMANCE_NLSTEXT", L""});
+    roots.push_back({HKEY_PERFORMANCE_DATA, L"HKEY_PERFORMANCE_DATA", L"HKEY_PERFORMANCE_DATA", L""});
+    roots.push_back({HKEY_PERFORMANCE_TEXT, L"HKEY_PERFORMANCE_TEXT", L"HKEY_PERFORMANCE_TEXT", L""});
+    roots.push_back({HKEY_PERFORMANCE_NLSTEXT, L"HKEY_PERFORMANCE_NLSTEXT", L"HKEY_PERFORMANCE_NLSTEXT", L""});
   }
   return roots;
 }
 
-bool RegistryStore::OpenOfflineHive(const std::wstring& path, HKEY* root,
-                                    std::wstring* error) {
+bool RegistryStore::OpenOfflineHive(
+    const std::wstring& path,
+    HKEY* root,
+    std::wstring* error
+) {
   return registry_backend::offline::OpenHive(path, root, error);
 }
 
-void RegistryStore::AddOfflineRoot(HKEY root) {
+void RegistryStore::AddOfflineRoot(
+    HKEY root
+) {
   registry_backend::offline::AddRoot(root);
 }
 
-void RegistryStore::RemoveOfflineRoot(HKEY root) {
+void RegistryStore::RemoveOfflineRoot(
+    HKEY root
+) {
   registry_backend::offline::RemoveRoot(root);
 }
 
-bool RegistryStore::SaveOfflineHive(HKEY root, const std::wstring& path,
-                                    std::wstring* error) {
+bool RegistryStore::SaveOfflineHive(
+    HKEY root,
+    const std::wstring& path,
+    std::wstring* error
+) {
   return registry_backend::offline::SaveHive(root, path, error);
 }
 
-bool RegistryStore::CloseOfflineHive(HKEY root, std::wstring* error) {
+bool RegistryStore::CloseOfflineHive(
+    HKEY root,
+    std::wstring* error
+) {
   return registry_backend::offline::CloseHive(root, error);
 }
 
-void RegistryStore::SetOfflineRoots(const std::vector<HKEY>& roots) {
+void RegistryStore::SetOfflineRoots(
+    const std::vector<HKEY>& roots
+) {
   registry_backend::offline::SetRoots(roots);
 }
 
 HKEY RegistryStore::RegisterVirtualRoot(
     const std::wstring& root_name,
-    const std::shared_ptr<VirtualRegistryData>& data) {
+    const std::shared_ptr<VirtualRegistryData>& data
+) {
   return registry_backend::virtual_store::RegisterRoot(root_name, data);
 }
 
-void RegistryStore::UnregisterVirtualRoot(HKEY root) {
+void RegistryStore::UnregisterVirtualRoot(
+    HKEY root
+) {
   registry_backend::virtual_store::UnregisterRoot(root);
 }
 
-bool RegistryStore::IsVirtualRoot(HKEY root) {
+bool RegistryStore::IsVirtualRoot(
+    HKEY root
+) {
   return static_cast<bool>(FindRoot(root));
 }
 
-bool RegistryStore::GetVirtualRootName(HKEY root,
-                                       std::wstring* root_name) {
+bool RegistryStore::GetVirtualRootName(
+    HKEY root,
+    std::wstring* root_name
+) {
   return static_cast<bool>(FindRoot(root, root_name));
 }
 
-bool RegistryStore::HasSubKeys(const RegistryNode& node) {
+bool RegistryStore::HasSubKeys(
+    const RegistryNode& node
+) {
   return Dispatch(
       node,
       [&](const VirtualRegistryData& data) {
         return registry_backend::virtual_store::HasSubKeys(data, node);
       },
       [&] { return registry_backend::offline::HasSubKeys(node); },
-      [&] { return registry_backend::live::HasSubKeys(node); });
+      [&] { return registry_backend::live::HasSubKeys(node); }
+  );
 }
 
-bool RegistryStore::QueryKeyInfo(const RegistryNode& node, KeyInfo* info) {
+bool RegistryStore::QueryKeyInfo(
+    const RegistryNode& node,
+    KeyInfo* info
+) {
   if (!info) {
     return false;
   }
   return Dispatch(
       node,
       [&](const VirtualRegistryData& data) {
-        return registry_backend::virtual_store::QueryKeyInfo(data, node,
-                                                             info);
+        return registry_backend::virtual_store::QueryKeyInfo(data, node, info);
       },
       [&] { return registry_backend::offline::QueryKeyInfo(node, info); },
-      [&] { return registry_backend::live::QueryKeyInfo(node, info); });
+      [&] { return registry_backend::live::QueryKeyInfo(node, info); }
+  );
 }
 
-bool RegistryStore::QuerySymbolicLinkTarget(const RegistryNode& node,
-                                            std::wstring* target) {
+bool RegistryStore::QuerySymbolicLinkTarget(
+    const RegistryNode& node,
+    std::wstring* target
+) {
   if (!target) {
     return false;
   }
@@ -125,31 +155,38 @@ bool RegistryStore::QuerySymbolicLinkTarget(const RegistryNode& node,
     return false;
   }
   return registry_backend::offline::Owns(node.root)
-             ? registry_backend::offline::QuerySymbolicLinkTarget(node,
-                                                                  target)
+             ? registry_backend::offline::QuerySymbolicLinkTarget(node, target)
              : registry_backend::live::QuerySymbolicLinkTarget(node, target);
 }
 
 std::vector<std::wstring> RegistryStore::EnumSubKeyNames(
-    const RegistryNode& node, bool sorted) {
+    const RegistryNode& node,
+    bool sorted
+) {
   return Dispatch(
       node,
       [&](const VirtualRegistryData& data) {
-        return registry_backend::virtual_store::EnumSubKeyNames(data, node,
-                                                                sorted);
+        return registry_backend::virtual_store::EnumSubKeyNames(data, node, sorted);
       },
       [&] {
         return registry_backend::offline::EnumSubKeyNames(node, sorted);
       },
-      [&] { return registry_backend::live::EnumSubKeyNames(node, sorted); });
+      [&] { return registry_backend::live::EnumSubKeyNames(node, sorted); }
+  );
 }
 
 bool RegistryStore::EnumKeyStreaming(
-    const RegistryNode& node, bool include_values, bool include_data,
-    bool include_subkeys, KeyEnumResult* out_info,
+    const RegistryNode& node,
+    bool include_values,
+    bool include_data,
+    bool include_subkeys,
+    KeyEnumResult* out_info,
     const ValueStreamCallback& value_callback,
-    const SubkeyStreamCallback& subkey_callback, DWORD max_data_size,
-    EnumerationScratch* scratch, bool ordered) {
+    const SubkeyStreamCallback& subkey_callback,
+    DWORD max_data_size,
+    EnumerationScratch* scratch,
+    bool ordered
+) {
   if (out_info) {
     out_info->info = {};
     out_info->info_valid = false;
@@ -158,48 +195,82 @@ bool RegistryStore::EnumKeyStreaming(
       node,
       [&](const VirtualRegistryData& data) {
         return registry_backend::virtual_store::EnumKeyStreaming(
-            data, node, include_values, include_data, include_subkeys,
-            out_info, value_callback, subkey_callback, max_data_size, scratch,
-            ordered);
+            data,
+            node,
+            include_values,
+            include_data,
+            include_subkeys,
+            out_info,
+            value_callback,
+            subkey_callback,
+            max_data_size,
+            scratch,
+            ordered
+        );
       },
       [&] {
         return registry_backend::offline::EnumKeyStreaming(
-            node, include_values, include_data, include_subkeys, out_info,
-            value_callback, subkey_callback, max_data_size, scratch, ordered);
+            node,
+            include_values,
+            include_data,
+            include_subkeys,
+            out_info,
+            value_callback,
+            subkey_callback,
+            max_data_size,
+            scratch,
+            ordered
+        );
       },
       [&] {
         return registry_backend::live::EnumKeyStreaming(
-            node, include_values, include_data, include_subkeys, out_info,
-            value_callback, subkey_callback, max_data_size, scratch, ordered);
-      });
+            node,
+            include_values,
+            include_data,
+            include_subkeys,
+            out_info,
+            value_callback,
+            subkey_callback,
+            max_data_size,
+            scratch,
+            ordered
+        );
+      }
+  );
 }
 
-bool RegistryStore::IsOfflineRoot(HKEY root) {
+bool RegistryStore::IsOfflineRoot(
+    HKEY root
+) {
   return registry_backend::offline::Owns(root);
 }
 
-bool RegistryStore::QueryValue(const RegistryNode& node,
-                               const std::wstring& value_name,
-                               ValueEntry* out) {
+bool RegistryStore::QueryValue(
+    const RegistryNode& node,
+    const std::wstring& value_name,
+    ValueEntry* out
+) {
   if (!out) {
     return false;
   }
   return Dispatch(
       node,
       [&](const VirtualRegistryData& data) {
-        return registry_backend::virtual_store::QueryValue(data, node,
-                                                           value_name, out);
+        return registry_backend::virtual_store::QueryValue(data, node, value_name, out);
       },
       [&] {
         return registry_backend::offline::QueryValue(node, value_name, out);
       },
       [&] {
         return registry_backend::live::QueryValue(node, value_name, out);
-      });
+      }
+  );
 }
 
-bool RegistryStore::CreateKey(const RegistryNode& node,
-                              const std::wstring& name) {
+bool RegistryStore::CreateKey(
+    const RegistryNode& node,
+    const std::wstring& name
+) {
   if (name.empty()) {
     return false;
   }
@@ -209,51 +280,71 @@ bool RegistryStore::CreateKey(const RegistryNode& node,
         return registry_backend::virtual_store::CreateKey(data, node, name);
       },
       [&] { return registry_backend::offline::CreateKey(node, name); },
-      [&] { return registry_backend::live::CreateKey(node, name); });
+      [&] { return registry_backend::live::CreateKey(node, name); }
+  );
 }
 
-bool RegistryStore::CreateKeyLink(const RegistryNode& node,
-                                  const std::wstring& name,
-                                  const std::wstring& nt_target) {
+bool RegistryStore::CreateKeyLink(
+    const RegistryNode& node,
+    const std::wstring& name,
+    const std::wstring& nt_target
+) {
   return Dispatch(
-      node, [&](VirtualRegistryData&) { return false; }, [&] { return false; },
+      node,
+      [&](VirtualRegistryData&) { return false; },
+      [&] { return false; },
       [&] {
-        return registry_backend::live::CreateRegistryLink(node, name, nt_target,
-                                                          nullptr);
-      });
+        return registry_backend::live::CreateRegistryLink(node, name, nt_target, nullptr);
+      }
+  );
 }
 
-bool RegistryStore::ReadKeyLink(const RegistryNode& node,
-                                std::wstring* target) {
+bool RegistryStore::ReadKeyLink(
+    const RegistryNode& node,
+    std::wstring* target
+) {
   if (node.subkey.empty()) {
     return false;
   }
   return Dispatch(
-      node, [&](VirtualRegistryData&) { return false; }, [&] { return false; },
-      [&] { return registry_backend::live::ReadKeyLink(node, target); });
+      node,
+      [&](VirtualRegistryData&) { return false; },
+      [&] { return false; },
+      [&] { return registry_backend::live::ReadKeyLink(node, target); }
+  );
 }
 
-bool RegistryStore::ReadKeySecurity(const RegistryNode& node,
-                                   std::vector<BYTE>* descriptor) {
+bool RegistryStore::ReadKeySecurity(
+    const RegistryNode& node,
+    std::vector<BYTE>* descriptor
+) {
   return Dispatch(
-      node, [&](VirtualRegistryData&) { return false; },
+      node,
+      [&](VirtualRegistryData&) { return false; },
       [&] { return registry_backend::offline::ReadKeySecurity(node, descriptor); },
-      [&] { return registry_backend::live::ReadKeySecurity(node, descriptor); });
+      [&] { return registry_backend::live::ReadKeySecurity(node, descriptor); }
+  );
 }
 
-bool RegistryStore::WriteKeySecurity(const RegistryNode& node,
-                                     const std::vector<BYTE>& descriptor) {
+bool RegistryStore::WriteKeySecurity(
+    const RegistryNode& node,
+    const std::vector<BYTE>& descriptor
+) {
   return Dispatch(
-      node, [&](VirtualRegistryData&) { return false; },
+      node,
+      [&](VirtualRegistryData&) { return false; },
       [&] {
         return registry_backend::offline::WriteKeySecurity(node, descriptor);
       },
       [&] {
         return registry_backend::live::WriteKeySecurity(node, descriptor);
-      });
+      }
+  );
 }
 
-bool RegistryStore::DeleteKey(const RegistryNode& node) {
+bool RegistryStore::DeleteKey(
+    const RegistryNode& node
+) {
   if (node.subkey.empty()) {
     return false;
   }
@@ -263,60 +354,75 @@ bool RegistryStore::DeleteKey(const RegistryNode& node) {
         return registry_backend::virtual_store::DeleteKey(data, node);
       },
       [&] { return registry_backend::offline::DeleteKey(node); },
-      [&] { return registry_backend::live::DeleteKey(node); });
+      [&] { return registry_backend::live::DeleteKey(node); }
+  );
 }
 
-bool RegistryStore::RenameKey(const RegistryNode& node,
-                              const std::wstring& new_name) {
+bool RegistryStore::RenameKey(
+    const RegistryNode& node,
+    const std::wstring& new_name
+) {
   if (node.subkey.empty() || new_name.empty()) {
     return false;
   }
   return Dispatch(
       node,
       [&](VirtualRegistryData& data) {
-        return registry_backend::virtual_store::RenameKey(data, node,
-                                                          new_name);
+        return registry_backend::virtual_store::RenameKey(data, node, new_name);
       },
       [&] { return registry_backend::offline::RenameKey(node, new_name); },
-      [&] { return registry_backend::live::RenameKey(node, new_name); });
+      [&] { return registry_backend::live::RenameKey(node, new_name); }
+  );
 }
 
-bool RegistryStore::DeleteValue(const RegistryNode& node,
-                                const std::wstring& value_name) {
+bool RegistryStore::DeleteValue(
+    const RegistryNode& node,
+    const std::wstring& value_name
+) {
   return Dispatch(
       node,
       [&](VirtualRegistryData& data) {
-        return registry_backend::virtual_store::DeleteValue(data, node,
-                                                            value_name);
+        return registry_backend::virtual_store::DeleteValue(data, node, value_name);
       },
       [&] {
         return registry_backend::offline::DeleteValue(node, value_name);
       },
-      [&] { return registry_backend::live::DeleteValue(node, value_name); });
+      [&] { return registry_backend::live::DeleteValue(node, value_name); }
+  );
 }
 
-bool RegistryStore::SetValue(const RegistryNode& node,
-                             const std::wstring& value_name, DWORD type,
-                             const std::vector<BYTE>& data) {
+bool RegistryStore::SetValue(
+    const RegistryNode& node,
+    const std::wstring& value_name,
+    DWORD type,
+    const std::vector<BYTE>& data
+) {
   return Dispatch(
       node,
       [&](VirtualRegistryData& virtual_data) {
         return registry_backend::virtual_store::SetValue(
-            virtual_data, node, value_name, type, data);
+            virtual_data,
+            node,
+            value_name,
+            type,
+            data
+        );
       },
       [&] {
-        return registry_backend::offline::SetValue(node, value_name, type,
-                                                   data);
+        return registry_backend::offline::SetValue(node, value_name, type, data);
       },
       [&] {
         return registry_backend::live::SetValue(node, value_name, type, data);
-      });
+      }
+  );
 }
 
-bool RegistryStore::RenameValue(const RegistryNode& node,
-                                const std::wstring& old_name,
-                                const std::wstring& new_name,
-                                bool* both_names_left) {
+bool RegistryStore::RenameValue(
+    const RegistryNode& node,
+    const std::wstring& old_name,
+    const std::wstring& new_name,
+    bool* both_names_left
+) {
   if (both_names_left) {
     *both_names_left = false;
   }
@@ -327,16 +433,20 @@ bool RegistryStore::RenameValue(const RegistryNode& node,
       node,
       [&](VirtualRegistryData& data) {
         return registry_backend::virtual_store::RenameValue(
-            data, node, old_name, new_name, both_names_left);
+            data,
+            node,
+            old_name,
+            new_name,
+            both_names_left
+        );
       },
       [&] {
-        return registry_backend::offline::RenameValue(node, old_name, new_name,
-                                                      both_names_left);
+        return registry_backend::offline::RenameValue(node, old_name, new_name, both_names_left);
       },
       [&] {
-        return registry_backend::live::RenameValue(node, old_name, new_name,
-                                                   both_names_left);
-      });
+        return registry_backend::live::RenameValue(node, old_name, new_name, both_names_left);
+      }
+  );
 }
 
 } // namespace regkit

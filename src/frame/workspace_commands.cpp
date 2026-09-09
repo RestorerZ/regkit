@@ -7,7 +7,9 @@
 namespace regkit {
 using namespace command_detail;
 
-bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(int command_id) {
+bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(
+    int command_id
+) {
   if (const auto* link = frame::ResearchLinkForCommand(command_id)) {
     const HRESULT hr = win32::ShellOpen(hwnd_, link->url);
     if (FAILED(hr)) {
@@ -60,7 +62,9 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(int command_id) {
   }
 }
 
-bool MainWindow::Impl::HandleWindowAppearanceCommand(int command_id) {
+bool MainWindow::Impl::HandleWindowAppearanceCommand(
+    int command_id
+) {
   switch (command_id) {
   case cmd::kWindowNew:
     ui::LaunchNewInstance();
@@ -136,7 +140,9 @@ bool MainWindow::Impl::HandleWindowAppearanceCommand(int command_id) {
   }
 }
 
-bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id) {
+bool MainWindow::Impl::HandleLaunchHelpCommand(
+    int command_id
+) {
   switch (command_id) {
   case cmd::kOptionsRestartAdmin:
     RestartAsAdmin();

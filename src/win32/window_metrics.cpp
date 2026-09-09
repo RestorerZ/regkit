@@ -7,11 +7,14 @@
 
 namespace regkit::win32 {
 
-UINT DpiForWindow(HWND window) {
+UINT DpiForWindow(
+    HWND window
+) {
   HMODULE user32 = GetModuleHandleW(L"user32.dll");
   if (user32) {
     auto get_window_dpi = reinterpret_cast<UINT(WINAPI*)(HWND)>(
-        GetProcAddress(user32, "GetDpiForWindow"));
+        GetProcAddress(user32, "GetDpiForWindow")
+    );
     if (get_window_dpi && window) {
       const UINT dpi = get_window_dpi(window);
       if (dpi != 0) {
@@ -19,7 +22,8 @@ UINT DpiForWindow(HWND window) {
       }
     }
     auto get_system_dpi = reinterpret_cast<UINT(WINAPI*)()>(
-        GetProcAddress(user32, "GetDpiForSystem"));
+        GetProcAddress(user32, "GetDpiForSystem")
+    );
     if (get_system_dpi) {
       const UINT dpi = get_system_dpi();
       if (dpi != 0) {
@@ -36,14 +40,20 @@ UINT DpiForWindow(HWND window) {
   return dpi > 0 ? static_cast<UINT>(dpi) : 96;
 }
 
-bool AdjustWindowRectForDpi(RECT* rect, DWORD style, DWORD ex_style, UINT dpi) {
+bool AdjustWindowRectForDpi(
+    RECT* rect,
+    DWORD style,
+    DWORD ex_style,
+    UINT dpi
+) {
   if (!rect) {
     return false;
   }
   HMODULE user32 = GetModuleHandleW(L"user32.dll");
   if (user32) {
     auto adjust_for_dpi = reinterpret_cast<BOOL(WINAPI*)(RECT*, DWORD, BOOL, DWORD, UINT)>(
-        GetProcAddress(user32, "AdjustWindowRectExForDpi"));
+        GetProcAddress(user32, "AdjustWindowRectExForDpi")
+    );
     if (adjust_for_dpi && adjust_for_dpi(rect, style, FALSE, ex_style, dpi)) {
       return true;
     }
@@ -51,7 +61,9 @@ bool AdjustWindowRectForDpi(RECT* rect, DWORD style, DWORD ex_style, UINT dpi) {
   return AdjustWindowRectEx(rect, style, FALSE, ex_style) != FALSE;
 }
 
-void ClampToWorkArea(RECT* rect) {
+void ClampToWorkArea(
+    RECT* rect
+) {
   if (!rect || rect->right <= rect->left || rect->bottom <= rect->top) {
     return;
   }

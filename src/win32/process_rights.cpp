@@ -15,12 +15,25 @@ namespace {
 class ScopedHandle {
 public:
   ScopedHandle() noexcept = default;
-  explicit ScopedHandle(HANDLE handle) noexcept : handle_(handle) {}
-  ~ScopedHandle() { reset(); }
+  explicit ScopedHandle(
+      HANDLE handle
+  ) noexcept
+      : handle_(handle) {
+  }
+  ~ScopedHandle() {
+    reset();
+  }
   ScopedHandle(const ScopedHandle&) = delete;
   ScopedHandle& operator=(const ScopedHandle&) = delete;
-  ScopedHandle(ScopedHandle&& other) noexcept : handle_(other.handle_) { other.handle_ = nullptr; }
-  ScopedHandle& operator=(ScopedHandle&& other) noexcept {
+  ScopedHandle(
+      ScopedHandle&& other
+  ) noexcept
+      : handle_(other.handle_) {
+    other.handle_ = nullptr;
+  }
+  ScopedHandle& operator=(
+      ScopedHandle&& other
+  ) noexcept {
     if (this != &other) {
       reset();
       handle_ = other.handle_;
@@ -29,7 +42,9 @@ public:
     return *this;
   }
 
-  HANDLE get() const noexcept { return handle_; }
+  HANDLE get() const noexcept {
+    return handle_;
+  }
   HANDLE* put() noexcept {
     reset();
     return &handle_;
@@ -39,13 +54,17 @@ public:
     handle_ = nullptr;
     return temp;
   }
-  void reset(HANDLE handle = nullptr) noexcept {
+  void reset(
+      HANDLE handle = nullptr
+  ) noexcept {
     if (handle_ && handle_ != INVALID_HANDLE_VALUE) {
       CloseHandle(handle_);
     }
     handle_ = handle;
   }
-  explicit operator bool() const noexcept { return handle_ && handle_ != INVALID_HANDLE_VALUE; }
+  explicit operator bool() const noexcept {
+    return handle_ && handle_ != INVALID_HANDLE_VALUE;
+  }
 
 private:
   HANDLE handle_ = nullptr;
@@ -54,16 +73,22 @@ private:
 class ScopedEnvBlock {
 public:
   ScopedEnvBlock() noexcept = default;
-  ~ScopedEnvBlock() { reset(); }
+  ~ScopedEnvBlock() {
+    reset();
+  }
   ScopedEnvBlock(const ScopedEnvBlock&) = delete;
   ScopedEnvBlock& operator=(const ScopedEnvBlock&) = delete;
 
-  LPVOID get() const noexcept { return block_; }
+  LPVOID get() const noexcept {
+    return block_;
+  }
   LPVOID* put() noexcept {
     reset();
     return &block_;
   }
-  void reset(LPVOID block = nullptr) noexcept {
+  void reset(
+      LPVOID block = nullptr
+  ) noexcept {
     if (block_) {
       DestroyEnvironmentBlock(block_);
     }
@@ -95,7 +120,10 @@ DWORD GetActiveSessionId() {
   return active_session;
 }
 
-bool CreateSystemToken(DWORD desired_access, HANDLE* token_handle) {
+bool CreateSystemToken(
+    DWORD desired_access,
+    HANDLE* token_handle
+) {
   if (!token_handle) {
     SetLastError(ERROR_INVALID_PARAMETER);
     return false;
@@ -150,7 +178,10 @@ bool CreateSystemToken(DWORD desired_access, HANDLE* token_handle) {
   return true;
 }
 
-bool EnablePrivilege(HANDLE token, const wchar_t* privilege) {
+bool EnablePrivilege(
+    HANDLE token,
+    const wchar_t* privilege
+) {
   if (!token || !privilege) {
     SetLastError(ERROR_INVALID_PARAMETER);
     return false;
@@ -167,7 +198,10 @@ bool EnablePrivilege(HANDLE token, const wchar_t* privilege) {
   return GetLastError() == ERROR_SUCCESS;
 }
 
-bool AdjustTokenAllPrivileges(HANDLE token, DWORD attributes) {
+bool AdjustTokenAllPrivileges(
+    HANDLE token,
+    DWORD attributes
+) {
   DWORD length = 0;
   GetTokenInformation(token, TokenPrivileges, nullptr, 0, &length);
   if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || length == 0) {
@@ -185,7 +219,10 @@ bool AdjustTokenAllPrivileges(HANDLE token, DWORD attributes) {
   return GetLastError() == ERROR_SUCCESS;
 }
 
-bool QueryServiceProcess(SC_HANDLE service, SERVICE_STATUS_PROCESS* status) {
+bool QueryServiceProcess(
+    SC_HANDLE service,
+    SERVICE_STATUS_PROCESS* status
+) {
   if (!status) {
     SetLastError(ERROR_INVALID_PARAMETER);
     return false;
@@ -194,8 +231,11 @@ bool QueryServiceProcess(SC_HANDLE service, SERVICE_STATUS_PROCESS* status) {
   return QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, reinterpret_cast<LPBYTE>(status), sizeof(SERVICE_STATUS_PROCESS), &bytes) != FALSE;
 }
 
-bool WaitWhileServicePending(SC_HANDLE service, DWORD pending_state,
-                            SERVICE_STATUS_PROCESS* status) {
+bool WaitWhileServicePending(
+    SC_HANDLE service,
+    DWORD pending_state,
+    SERVICE_STATUS_PROCESS* status
+) {
   constexpr ULONGLONG kMaxWaitMs = 60000;
   const ULONGLONG start = GetTickCount64();
   DWORD checkpoint = status->dwCheckPoint;
@@ -226,7 +266,10 @@ bool WaitWhileServicePending(SC_HANDLE service, DWORD pending_state,
   return true;
 }
 
-bool StartServiceAndGetProcessId(const wchar_t* service_name, DWORD* process_id) {
+bool StartServiceAndGetProcessId(
+    const wchar_t* service_name,
+    DWORD* process_id
+) {
   if (!service_name || !process_id) {
     SetLastError(ERROR_INVALID_PARAMETER);
     return false;
@@ -286,7 +329,11 @@ bool StartServiceAndGetProcessId(const wchar_t* service_name, DWORD* process_id)
   return true;
 }
 
-bool OpenServiceProcessToken(const wchar_t* service_name, DWORD desired_access, HANDLE* token_handle) {
+bool OpenServiceProcessToken(
+    const wchar_t* service_name,
+    DWORD desired_access,
+    HANDLE* token_handle
+) {
   if (!token_handle) {
     SetLastError(ERROR_INVALID_PARAMETER);
     return false;
@@ -357,16 +404,13 @@ bool IsProcessElevated() {
 
 bool IsUacEnabled() {
   HKEY key = nullptr;
-  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-                    L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-                    0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
+  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
     return true;
   }
   DWORD value = 1;
   DWORD size = sizeof(value);
   DWORD type = 0;
-  const LONG result = RegQueryValueExW(key, L"EnableLUA", nullptr, &type,
-                                       reinterpret_cast<LPBYTE>(&value), &size);
+  const LONG result = RegQueryValueExW(key, L"EnableLUA", nullptr, &type, reinterpret_cast<LPBYTE>(&value), &size);
   RegCloseKey(key);
   if (result != ERROR_SUCCESS || type != REG_DWORD) {
     return true;
@@ -452,7 +496,12 @@ bool IsProcessTrustedInstaller() {
   return false;
 }
 
-bool LaunchProcessAsShellUser(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code, bool* impersonation_lost) {
+bool LaunchProcessAsShellUser(
+    const std::wstring& command_line,
+    const std::wstring& work_dir,
+    DWORD* error_code,
+    bool* impersonation_lost
+) {
   if (error_code) {
     *error_code = ERROR_SUCCESS;
   }
@@ -522,7 +571,12 @@ Cleanup:
   return result;
 }
 
-bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code, bool* impersonation_lost) {
+bool LaunchProcessAsSystem(
+    const std::wstring& command_line,
+    const std::wstring& work_dir,
+    DWORD* error_code,
+    bool* impersonation_lost
+) {
   if (error_code) {
     *error_code = ERROR_SUCCESS;
   }
@@ -553,8 +607,7 @@ bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring&
   PROCESS_INFORMATION process = {};
   std::wstring mutable_command;
 
-  if (OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE,
-                      previous_thread_token.put())) {
+  if (OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE, previous_thread_token.put())) {
     had_thread_token = true;
   } else if (GetLastError() != ERROR_NO_TOKEN) {
     error = GetLastError();
@@ -628,8 +681,7 @@ bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring&
 Cleanup:
   {
     const bool restored = had_thread_token
-                              ? SetThreadToken(nullptr,
-                                               previous_thread_token.get()) != 0
+                              ? SetThreadToken(nullptr, previous_thread_token.get()) != 0
                               : RevertToSelf() != 0;
     if (!restored) {
       const DWORD restore_error = GetLastError();
@@ -648,7 +700,12 @@ Cleanup:
   return result;
 }
 
-bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code, bool* impersonation_lost) {
+bool LaunchProcessAsTrustedInstaller(
+    const std::wstring& command_line,
+    const std::wstring& work_dir,
+    DWORD* error_code,
+    bool* impersonation_lost
+) {
   if (error_code) {
     *error_code = ERROR_SUCCESS;
   }
@@ -680,8 +737,7 @@ bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std
   PROCESS_INFORMATION process = {};
   std::wstring mutable_command;
 
-  if (OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE,
-                      previous_thread_token.put())) {
+  if (OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE, previous_thread_token.put())) {
     had_thread_token = true;
   } else if (GetLastError() != ERROR_NO_TOKEN) {
     error = GetLastError();
@@ -759,8 +815,7 @@ bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std
 Cleanup:
   {
     const bool restored = had_thread_token
-                              ? SetThreadToken(nullptr,
-                                               previous_thread_token.get()) != 0
+                              ? SetThreadToken(nullptr, previous_thread_token.get()) != 0
                               : RevertToSelf() != 0;
     if (!restored) {
       const DWORD restore_error = GetLastError();

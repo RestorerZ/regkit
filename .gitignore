@@ -2,3 +2,5 @@
 /build32/
 /installer/dist/
 /todo/
+/.clang-format
+/format.ps1

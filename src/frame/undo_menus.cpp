@@ -7,14 +7,15 @@ namespace regkit {
 
 using namespace window_detail;
 
-void MainWindow::Impl::PushUndo(changes::UndoOperation operation) {
+void MainWindow::Impl::PushUndo(
+    changes::UndoOperation operation
+) {
   if (is_replaying_) {
     return;
   }
   undo_stack_.Push(std::move(operation));
   if (toolbar_.hwnd()) {
-    SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo,
-                 undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
+    SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
     SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, 0);
   }
 }
@@ -22,14 +23,15 @@ void MainWindow::Impl::PushUndo(changes::UndoOperation operation) {
 void MainWindow::Impl::ClearRedo() {
   undo_stack_.ClearRedo();
   if (toolbar_.hwnd()) {
-    SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo,
-                 undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
+    SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
     SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, 0);
   }
 }
 
 MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
-    const changes::UndoOperation& operation, bool redo) {
+    const changes::UndoOperation& operation,
+    bool redo
+) {
   if (!browse_.current_node()) {
     return ReplayResult::kUnchanged;
   }
@@ -38,88 +40,94 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
   std::optional<std::wstring> restored_value;
   is_replaying_ = true;
   switch (operation.type) {
-  case changes::UndoOperation::Type::kCreateKey: {
-    if (redo) {
-      if (!operation.key_snapshot.name.empty()) {
-        ok = changes::RestoreKey(operation.node, operation.key_snapshot);
+  case changes::UndoOperation::Type::kCreateKey:
+    {
+      if (redo) {
+        if (!operation.key_snapshot.name.empty()) {
+          ok = changes::RestoreKey(operation.node, operation.key_snapshot);
+        } else {
+          ok = RegistryStore::CreateKey(operation.node, operation.name);
+        }
+        if (ok) {
+          RefreshTreeSelection();
+          SelectChildKey(operation.node, operation.name);
+        }
       } else {
-        ok = RegistryStore::CreateKey(operation.node, operation.name);
+        RegistryNode child = MakeChildNode(operation.node, operation.name);
+        ok = RegistryStore::DeleteKey(child);
+        if (ok) {
+          RefreshTreeSelection();
+        }
       }
+      break;
+    }
+  case changes::UndoOperation::Type::kDeleteKey:
+    {
+      if (redo) {
+        RegistryNode child = MakeChildNode(operation.node, operation.name);
+        ok = RegistryStore::DeleteKey(child);
+        if (ok) {
+          RefreshTreeSelection();
+        }
+      } else {
+        ok = changes::RestoreKey(operation.node, operation.key_snapshot);
+        if (ok) {
+          RefreshTreeSelection();
+          SelectChildKey(operation.node, operation.key_snapshot.name);
+        }
+      }
+      break;
+    }
+  case changes::UndoOperation::Type::kRenameKey:
+    {
+      std::wstring from = redo ? operation.name : operation.new_name;
+      std::wstring to = redo ? operation.new_name : operation.name;
+      RegistryNode child = MakeChildNode(operation.node, from);
+      ok = RegistryStore::RenameKey(child, to);
       if (ok) {
         RefreshTreeSelection();
-        SelectChildKey(operation.node, operation.name);
+        std::wstring path = registry_path::Build(operation.node);
+        if (!path.empty()) {
+          path.append(L"\\");
+          path.append(to);
+          SelectTreePath(path);
+        }
       }
-    } else {
-      RegistryNode child = MakeChildNode(operation.node, operation.name);
-      ok = RegistryStore::DeleteKey(child);
-      if (ok) {
-        RefreshTreeSelection();
+      break;
+    }
+  case changes::UndoOperation::Type::kCreateValue:
+    {
+      if (redo) {
+        ok = RegistryStore::SetValue(operation.node, operation.new_value.name, operation.new_value.type, operation.new_value.data);
+        restored_value = operation.new_value.name;
+      } else {
+        ok = RegistryStore::DeleteValue(operation.node, operation.name);
       }
+      break;
     }
-    break;
-  }
-  case changes::UndoOperation::Type::kDeleteKey: {
-    if (redo) {
-      RegistryNode child = MakeChildNode(operation.node, operation.name);
-      ok = RegistryStore::DeleteKey(child);
-      if (ok) {
-        RefreshTreeSelection();
+  case changes::UndoOperation::Type::kDeleteValue:
+    {
+      if (redo) {
+        ok = RegistryStore::DeleteValue(operation.node, operation.old_value.name);
+      } else {
+        ok = RegistryStore::SetValue(operation.node, operation.old_value.name, operation.old_value.type, operation.old_value.data);
+        restored_value = operation.old_value.name;
       }
-    } else {
-      ok = changes::RestoreKey(operation.node, operation.key_snapshot);
-      if (ok) {
-        RefreshTreeSelection();
-        SelectChildKey(operation.node, operation.key_snapshot.name);
-      }
+      break;
     }
-    break;
-  }
-  case changes::UndoOperation::Type::kRenameKey: {
-    std::wstring from = redo ? operation.name : operation.new_name;
-    std::wstring to = redo ? operation.new_name : operation.name;
-    RegistryNode child = MakeChildNode(operation.node, from);
-    ok = RegistryStore::RenameKey(child, to);
-    if (ok) {
-      RefreshTreeSelection();
-      std::wstring path = registry_path::Build(operation.node);
-      if (!path.empty()) {
-        path.append(L"\\");
-        path.append(to);
-        SelectTreePath(path);
-      }
+  case changes::UndoOperation::Type::kModifyValue:
+    {
+      const ValueEntry& value = redo ? operation.new_value : operation.old_value;
+      ok = RegistryStore::SetValue(operation.node, value.name, value.type, value.data);
+      break;
     }
-    break;
-  }
-  case changes::UndoOperation::Type::kCreateValue: {
-    if (redo) {
-      ok = RegistryStore::SetValue(operation.node, operation.new_value.name, operation.new_value.type, operation.new_value.data);
-      restored_value = operation.new_value.name;
-    } else {
-      ok = RegistryStore::DeleteValue(operation.node, operation.name);
+  case changes::UndoOperation::Type::kRenameValue:
+    {
+      std::wstring from = redo ? operation.name : operation.new_name;
+      std::wstring to = redo ? operation.new_name : operation.name;
+      ok = RegistryStore::RenameValue(operation.node, from, to, &rename_left_both_names);
+      break;
     }
-    break;
-  }
-  case changes::UndoOperation::Type::kDeleteValue: {
-    if (redo) {
-      ok = RegistryStore::DeleteValue(operation.node, operation.old_value.name);
-    } else {
-      ok = RegistryStore::SetValue(operation.node, operation.old_value.name, operation.old_value.type, operation.old_value.data);
-      restored_value = operation.old_value.name;
-    }
-    break;
-  }
-  case changes::UndoOperation::Type::kModifyValue: {
-    const ValueEntry& value = redo ? operation.new_value : operation.old_value;
-    ok = RegistryStore::SetValue(operation.node, value.name, value.type, value.data);
-    break;
-  }
-  case changes::UndoOperation::Type::kRenameValue: {
-    std::wstring from = redo ? operation.name : operation.new_name;
-    std::wstring to = redo ? operation.new_name : operation.name;
-    ok = RegistryStore::RenameValue(operation.node, from, to,
-                                    &rename_left_both_names);
-    break;
-  }
   default:
     break;
   }
@@ -135,15 +143,12 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
     }
   }
   if (rename_left_both_names) {
-    ui::ShowError(hwnd_,
-                  L"The value was copied to the new name but the old name "
-                  L"could not be removed. Both names now exist.");
+    ui::ShowError(hwnd_, L"The value was copied to the new name but the old name "
+                         L"could not be removed. Both names now exist.");
   }
   if (toolbar_.hwnd()) {
-    SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo,
-                 undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
-    SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo,
-                 undo_stack_.CanRedo() ? TBSTATE_ENABLED : 0);
+    SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
+    SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, undo_stack_.CanRedo() ? TBSTATE_ENABLED : 0);
   }
   if (rename_left_both_names) {
     return ReplayResult::kPartial;
@@ -151,7 +156,10 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
   return ok ? ReplayResult::kSuccess : ReplayResult::kUnchanged;
 }
 
-bool MainWindow::Impl::SameNode(const RegistryNode& left, const RegistryNode& right) const {
+bool MainWindow::Impl::SameNode(
+    const RegistryNode& left,
+    const RegistryNode& right
+) const {
   if (left.root != right.root) {
     return false;
   }
@@ -161,12 +169,19 @@ bool MainWindow::Impl::SameNode(const RegistryNode& left, const RegistryNode& ri
   return EqualsInsensitive(left.root_name, right.root_name);
 }
 
-std::wstring MainWindow::Impl::MakeUniqueValueName(const RegistryNode& node, const std::wstring& base) const {
+std::wstring MainWindow::Impl::MakeUniqueValueName(
+    const RegistryNode& node,
+    const std::wstring& base
+) const {
   std::unordered_set<std::wstring> value_names;
   RegistryStore::KeyEnumResult enum_result;
   bool names_reserved = false;
   RegistryStore::EnumKeyStreaming(
-      node, true, false, false, &enum_result,
+      node,
+      true,
+      false,
+      false,
+      &enum_result,
       [&](const ValueInfo& value, const BYTE*, DWORD) {
         if (!names_reserved) {
           if (enum_result.info_valid) {
@@ -177,7 +192,8 @@ std::wstring MainWindow::Impl::MakeUniqueValueName(const RegistryNode& node, con
         value_names.insert(ToLower(value.name));
         return true;
       },
-      {});
+      {}
+  );
   auto exists = [&](const std::wstring& candidate) -> bool {
     return value_names.contains(ToLower(candidate));
   };
@@ -201,7 +217,10 @@ std::wstring MainWindow::Impl::MakeUniqueValueName(const RegistryNode& node, con
   return base_name;
 }
 
-std::wstring MainWindow::Impl::MakeUniqueKeyName(const RegistryNode& node, const std::wstring& base) const {
+std::wstring MainWindow::Impl::MakeUniqueKeyName(
+    const RegistryNode& node,
+    const std::wstring& base
+) const {
   auto keys = RegistryStore::EnumSubKeyNames(node, false);
   auto exists = [&](const std::wstring& candidate) -> bool {
     for (const auto& key : keys) {
@@ -228,7 +247,10 @@ std::wstring MainWindow::Impl::MakeUniqueKeyName(const RegistryNode& node, const
   return base_name;
 }
 
-bool MainWindow::Impl::ResolvePathToNode(const std::wstring& path, RegistryNode* node) const {
+bool MainWindow::Impl::ResolvePathToNode(
+    const std::wstring& path,
+    RegistryNode* node
+) const {
   if (!node || path.empty()) {
     return false;
   }
@@ -262,7 +284,9 @@ bool MainWindow::Impl::ResolvePathToNode(const std::wstring& path, RegistryNode*
   return false;
 }
 
-void MainWindow::Impl::ShowValueHeaderMenu(POINT screen_pt) {
+void MainWindow::Impl::ShowValueHeaderMenu(
+    POINT screen_pt
+) {
   HWND header_hwnd = ListView_GetHeader(browse_.values().hwnd());
   if (!header_hwnd) {
     return;
@@ -330,7 +354,9 @@ void MainWindow::Impl::ShowValueHeaderMenu(POINT screen_pt) {
   }
 }
 
-void MainWindow::Impl::ShowHistoryHeaderMenu(POINT screen_pt) {
+void MainWindow::Impl::ShowHistoryHeaderMenu(
+    POINT screen_pt
+) {
   HWND header_hwnd = ListView_GetHeader(history_list_);
   if (!header_hwnd) {
     return;
@@ -393,7 +419,9 @@ void MainWindow::Impl::ShowHistoryHeaderMenu(POINT screen_pt) {
   }
 }
 
-void MainWindow::Impl::ShowSearchHeaderMenu(POINT screen_pt) {
+void MainWindow::Impl::ShowSearchHeaderMenu(
+    POINT screen_pt
+) {
   HWND header_hwnd = ListView_GetHeader(search_results_list_);
   if (!header_hwnd) {
     return;
@@ -461,7 +489,10 @@ void MainWindow::Impl::ShowSearchHeaderMenu(POINT screen_pt) {
   }
 }
 
-void MainWindow::Impl::ToggleValueColumn(int column, bool visible) {
+void MainWindow::Impl::ToggleValueColumn(
+    int column,
+    bool visible
+) {
   if (column < 0 || static_cast<size_t>(column) >= browse_.columns().visible.size()) {
     return;
   }
@@ -487,7 +518,10 @@ void MainWindow::Impl::ToggleValueColumn(int column, bool visible) {
   ApplyValueColumns();
 }
 
-void MainWindow::Impl::ToggleHistoryColumn(int column, bool visible) {
+void MainWindow::Impl::ToggleHistoryColumn(
+    int column,
+    bool visible
+) {
   if (column < 0 || static_cast<size_t>(column) >= history_column_visible_.size()) {
     return;
   }
@@ -513,7 +547,10 @@ void MainWindow::Impl::ToggleHistoryColumn(int column, bool visible) {
   ApplyHistoryColumns();
 }
 
-void MainWindow::Impl::ToggleSearchColumn(int column, bool visible) {
+void MainWindow::Impl::ToggleSearchColumn(
+    int column,
+    bool visible
+) {
   bool compare = IsCompareTabSelected();
   auto& columns = compare ? compare_columns_ : search_columns_;
   auto& widths = compare ? compare_column_widths_ : search_column_widths_;
@@ -543,7 +580,9 @@ void MainWindow::Impl::ToggleSearchColumn(int column, bool visible) {
   ApplySearchColumns(compare);
 }
 
-void MainWindow::Impl::DrawAddressButton(const DRAWITEMSTRUCT* info) {
+void MainWindow::Impl::DrawAddressButton(
+    const DRAWITEMSTRUCT* info
+) {
   if (!info) {
     return;
   }
@@ -568,9 +607,7 @@ void MainWindow::Impl::DrawAddressButton(const DRAWITEMSTRUCT* info) {
       int icon_x = rect.left + (rect.right - rect.left - icon_size) / 2;
       int icon_y = rect.top + (rect.bottom - rect.top - icon_size) / 2;
       if (info->itemState & ODS_DISABLED) {
-        DrawState(hdc, nullptr, nullptr,
-                  reinterpret_cast<LPARAM>(address_go_icon_), 0, icon_x, icon_y,
-                  icon_size, icon_size, DST_ICON | DSS_DISABLED);
+        DrawState(hdc, nullptr, nullptr, reinterpret_cast<LPARAM>(address_go_icon_), 0, icon_x, icon_y, icon_size, icon_size, DST_ICON | DSS_DISABLED);
       } else {
         DrawIconEx(hdc, icon_x, icon_y, address_go_icon_, icon_size, icon_size, 0, nullptr, DI_NORMAL);
       }
@@ -592,7 +629,9 @@ void MainWindow::Impl::DrawAddressButton(const DRAWITEMSTRUCT* info) {
   }
 }
 
-void MainWindow::Impl::DrawHeaderCloseButton(const DRAWITEMSTRUCT* info) {
+void MainWindow::Impl::DrawHeaderCloseButton(
+    const DRAWITEMSTRUCT* info
+) {
   if (!info) {
     return;
   }
@@ -604,11 +643,12 @@ void MainWindow::Impl::DrawHeaderCloseButton(const DRAWITEMSTRUCT* info) {
   COLORREF bg_color = pressed ? theme.HoverColor() : theme.HeaderColor();
   FillRect(hdc, &rect, appearance::CachedBrush(bg_color));
 
-  DrawCloseGlyph(hdc, rect, theme.MutedTextColor(),
-                 win32::DpiForWindow(info->hwndItem));
+  DrawCloseGlyph(hdc, rect, theme.MutedTextColor(), win32::DpiForWindow(info->hwndItem));
 }
 
-void MainWindow::Impl::DrawFilterClearButton(const DRAWITEMSTRUCT* info) {
+void MainWindow::Impl::DrawFilterClearButton(
+    const DRAWITEMSTRUCT* info
+) {
   if (!info) {
     return;
   }
@@ -616,19 +656,18 @@ void MainWindow::Impl::DrawFilterClearButton(const DRAWITEMSTRUCT* info) {
   HDC hdc = info->hDC;
   RECT rect = info->rcItem;
   const bool pressed = (info->itemState & ODS_SELECTED) != 0;
-  FillRect(hdc, &rect,
-           appearance::CachedBrush(pressed ? theme.HoverColor()
-                                           : theme.SurfaceColor()));
+  FillRect(hdc, &rect, appearance::CachedBrush(pressed ? theme.HoverColor() : theme.SurfaceColor()));
   HPEN pen = appearance::CachedPen(theme.BorderColor());
   HPEN old_pen = reinterpret_cast<HPEN>(SelectObject(hdc, pen));
   MoveToEx(hdc, rect.left, rect.top + 3, nullptr);
   LineTo(hdc, rect.left, rect.bottom - 3);
   SelectObject(hdc, old_pen);
-  DrawCloseGlyph(hdc, rect, theme.MutedTextColor(),
-                 win32::DpiForWindow(info->hwndItem));
+  DrawCloseGlyph(hdc, rect, theme.MutedTextColor(), win32::DpiForWindow(info->hwndItem));
 }
 
-void MainWindow::Impl::ClearValueFilter(bool focus_values) {
+void MainWindow::Impl::ClearValueFilter(
+    bool focus_values
+) {
   if (!browse_.filter()) {
     return;
   }
@@ -642,8 +681,10 @@ void MainWindow::Impl::ClearValueFilter(bool focus_values) {
   }
 }
 
-bool MainWindow::Impl::SelectChildKey(const RegistryNode& parent,
-                                     const std::wstring& name) {
+bool MainWindow::Impl::SelectChildKey(
+    const RegistryNode& parent,
+    const std::wstring& name
+) {
   if (name.empty()) {
     return false;
   }
@@ -656,7 +697,9 @@ bool MainWindow::Impl::SelectChildKey(const RegistryNode& parent,
   return SelectTreePath(path);
 }
 
-std::wstring MainWindow::Impl::TreeNeighbourPath(HTREEITEM item) {
+std::wstring MainWindow::Impl::TreeNeighbourPath(
+    HTREEITEM item
+) {
   HWND tree = browse_.tree().hwnd();
   if (!tree || !item) {
     return std::wstring();
@@ -672,7 +715,9 @@ std::wstring MainWindow::Impl::TreeNeighbourPath(HTREEITEM item) {
   return node ? registry_path::Build(*node) : std::wstring();
 }
 
-bool MainWindow::Impl::SelectTreePath(const std::wstring& path) {
+bool MainWindow::Impl::SelectTreePath(
+    const std::wstring& path
+) {
   if (!browse_.tree().hwnd()) {
     return false;
   }
@@ -704,11 +749,15 @@ bool MainWindow::Impl::SelectTreePath(const std::wstring& path) {
   return false;
 }
 
-bool MainWindow::Impl::SelectValueByName(const std::wstring& name) {
+bool MainWindow::Impl::SelectValueByName(
+    const std::wstring& name
+) {
   return browse_.SelectValue(name);
 }
 
-void MainWindow::Impl::SelectValueWhenReady(const std::wstring& name) {
+void MainWindow::Impl::SelectValueWhenReady(
+    const std::wstring& name
+) {
   pending_value_name_ = name;
   if (browse_.values().hwnd()) {
     SetFocus(browse_.values().hwnd());
@@ -737,9 +786,7 @@ void MainWindow::Impl::RestoreValueSelection() {
     if (!row || row->kind != rowkind::kValue || !wanted.count(row->extra)) {
       continue;
     }
-    ListView_SetItemState(list, row_index,
-                          LVIS_SELECTED | (first ? LVIS_FOCUSED : 0),
-                          LVIS_SELECTED | LVIS_FOCUSED);
+    ListView_SetItemState(list, row_index, LVIS_SELECTED | (first ? LVIS_FOCUSED : 0), LVIS_SELECTED | LVIS_FOCUSED);
     first = false;
   }
   const int current_top = ListView_GetTopIndex(list);
@@ -754,7 +801,9 @@ void MainWindow::Impl::RestoreValueSelection() {
   }
 }
 
-void MainWindow::Impl::SelectValueAfterRefresh(const std::wstring& name) {
+void MainWindow::Impl::SelectValueAfterRefresh(
+    const std::wstring& name
+) {
   if (!browse_.current_node()) {
     return;
   }
@@ -762,7 +811,10 @@ void MainWindow::Impl::SelectValueAfterRefresh(const std::wstring& name) {
   retained_value_key_path_ = registry_path::Build(*browse_.current_node());
 }
 
-void MainWindow::Impl::SelectListRowAtIndex(HWND list, int index) {
+void MainWindow::Impl::SelectListRowAtIndex(
+    HWND list,
+    int index
+) {
   if (!list || index < 0) {
     return;
   }
@@ -774,16 +826,19 @@ void MainWindow::Impl::SelectListRowAtIndex(HWND list, int index) {
     index = count - 1;
   }
   ListView_SetItemState(list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-  ListView_SetItemState(list, index, LVIS_SELECTED | LVIS_FOCUSED,
-                        LVIS_SELECTED | LVIS_FOCUSED);
+  ListView_SetItemState(list, index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
   ListView_EnsureVisible(list, index, FALSE);
 }
 
-void MainWindow::Impl::HandleTypeToSelectList(wchar_t ch) {
+void MainWindow::Impl::HandleTypeToSelectList(
+    wchar_t ch
+) {
   browse_.TypeSelectValues(ch, GetTickCount());
 }
 
-void MainWindow::Impl::HandleTypeToSelectTree(wchar_t ch) {
+void MainWindow::Impl::HandleTypeToSelectTree(
+    wchar_t ch
+) {
   browse_.TypeSelectTree(ch, GetTickCount());
 }
 

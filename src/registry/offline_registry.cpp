@@ -23,11 +23,28 @@ using ORSaveHiveFn = DWORD(WINAPI*)(ORHKEY, PCWSTR, DWORD, DWORD);
 using OROpenKeyFn = DWORD(WINAPI*)(ORHKEY, PCWSTR, ORHKEY*);
 using ORCloseKeyFn = DWORD(WINAPI*)(ORHKEY);
 using ORCreateKeyFn = DWORD(WINAPI*)(
-    ORHKEY, PCWSTR, PWSTR, DWORD, PSECURITY_DESCRIPTOR, ORHKEY*, DWORD*);
+    ORHKEY,
+    PCWSTR,
+    PWSTR,
+    DWORD,
+    PSECURITY_DESCRIPTOR,
+    ORHKEY*,
+    DWORD*
+);
 using ORDeleteKeyFn = DWORD(WINAPI*)(ORHKEY, PCWSTR);
 using ORQueryInfoKeyFn = DWORD(WINAPI*)(
-    ORHKEY, PWSTR, DWORD*, DWORD*, DWORD*, DWORD*, DWORD*, DWORD*, DWORD*,
-    DWORD*, FILETIME*);
+    ORHKEY,
+    PWSTR,
+    DWORD*,
+    DWORD*,
+    DWORD*,
+    DWORD*,
+    DWORD*,
+    DWORD*,
+    DWORD*,
+    DWORD*,
+    FILETIME*
+);
 using OREnumKeyFn =
     DWORD(WINAPI*)(ORHKEY, DWORD, PWSTR, DWORD*, PWSTR, DWORD*, FILETIME*);
 using ORGetValueFn =
@@ -44,7 +61,10 @@ using ORSetKeySecurityFn =
     DWORD(WINAPI*)(ORHKEY, SECURITY_INFORMATION, PSECURITY_DESCRIPTOR);
 
 template <typename Function>
-Function LoadFunction(HMODULE module, const char* name) {
+Function LoadFunction(
+    HMODULE module,
+    const char* name
+) {
   return reinterpret_cast<Function>(GetProcAddress(module, name));
 }
 
@@ -116,7 +136,9 @@ public:
   ORGetKeySecurityFn get_key_security = nullptr;
   ORSetKeySecurityFn set_key_security = nullptr;
 
-  DWORD load_error() const noexcept { return load_error_; }
+  DWORD load_error() const noexcept {
+    return load_error_;
+  }
 
 private:
   HMODULE module_ = nullptr;
@@ -147,15 +169,26 @@ std::wstring OffregLoadFailure() {
 class OfflineKey {
 public:
   OfflineKey() noexcept = default;
-  OfflineKey(ORHKEY handle, ORCloseKeyFn close) noexcept
-      : handle_(handle), close_(close) {}
-  ~OfflineKey() { reset(); }
+  OfflineKey(
+      ORHKEY handle,
+      ORCloseKeyFn close
+  ) noexcept
+      : handle_(handle), close_(close) {
+  }
+  ~OfflineKey() {
+    reset();
+  }
   OfflineKey(const OfflineKey&) = delete;
   OfflineKey& operator=(const OfflineKey&) = delete;
-  OfflineKey(OfflineKey&& other) noexcept
+  OfflineKey(
+      OfflineKey&& other
+  ) noexcept
       : handle_(std::exchange(other.handle_, nullptr)),
-        close_(std::exchange(other.close_, nullptr)) {}
-  OfflineKey& operator=(OfflineKey&& other) noexcept {
+        close_(std::exchange(other.close_, nullptr)) {
+  }
+  OfflineKey& operator=(
+      OfflineKey&& other
+  ) noexcept {
     if (this != &other) {
       reset();
       handle_ = std::exchange(other.handle_, nullptr);
@@ -164,7 +197,9 @@ public:
     return *this;
   }
 
-  ORHKEY get() const noexcept { return handle_; }
+  ORHKEY get() const noexcept {
+    return handle_;
+  }
 
 private:
   void reset() noexcept {
@@ -181,7 +216,10 @@ private:
 
 std::vector<HKEY> g_roots;
 
-OfflineKey OpenKey(const RegistryNode& node, OffregApi* api) {
+OfflineKey OpenKey(
+    const RegistryNode& node,
+    OffregApi* api
+) {
   ORHKEY root = reinterpret_cast<ORHKEY>(node.root);
   if (!api || !root) {
     return {};
@@ -197,8 +235,11 @@ OfflineKey OpenKey(const RegistryNode& node, OffregApi* api) {
   return {key, api->close_key};
 }
 
-bool DeleteSubtree(OffregApi& api, ORHKEY parent,
-                   const std::wstring& name) {
+bool DeleteSubtree(
+    OffregApi& api,
+    ORHKEY parent,
+    const std::wstring& name
+) {
   if (!parent || name.empty()) {
     return false;
   }
@@ -211,17 +252,14 @@ bool DeleteSubtree(OffregApi& api, ORHKEY parent,
 
   DWORD child_count = 0;
   DWORD max_name_length = 0;
-  if (api.query_info(child.get(), nullptr, nullptr, &child_count,
-                     &max_name_length, nullptr, nullptr, nullptr, nullptr,
-                     nullptr, nullptr) == ERROR_SUCCESS &&
+  if (api.query_info(child.get(), nullptr, nullptr, &child_count, &max_name_length, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS &&
       child_count > 0) {
     std::wstring buffer(max_name_length + 1, L'\0');
     std::vector<std::wstring> children;
     children.reserve(child_count);
     for (DWORD index = 0; index < child_count; ++index) {
       DWORD length = static_cast<DWORD>(buffer.size());
-      if (api.enum_key(child.get(), index, buffer.data(), &length, nullptr,
-                       nullptr, nullptr) == ERROR_SUCCESS) {
+      if (api.enum_key(child.get(), index, buffer.data(), &length, nullptr, nullptr, nullptr) == ERROR_SUCCESS) {
         children.emplace_back(buffer.data(), length);
       }
     }
@@ -235,14 +273,18 @@ bool DeleteSubtree(OffregApi& api, ORHKEY parent,
   return api.delete_key(parent, name.c_str()) == ERROR_SUCCESS;
 }
 
-bool GetOsVersion(DWORD* major, DWORD* minor) {
+bool GetOsVersion(
+    DWORD* major,
+    DWORD* minor
+) {
   const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
   if (!major || !minor || !ntdll) {
     return false;
   }
   using RtlGetVersionFn = NTSTATUS(WINAPI*)(PRTL_OSVERSIONINFOW);
   const auto get_version = reinterpret_cast<RtlGetVersionFn>(
-      GetProcAddress(ntdll, "RtlGetVersion"));
+      GetProcAddress(ntdll, "RtlGetVersion")
+  );
   if (!get_version) {
     return false;
   }
@@ -256,8 +298,11 @@ bool GetOsVersion(DWORD* major, DWORD* minor) {
   return true;
 }
 
-bool SplitNode(const RegistryNode& node, RegistryNode* parent,
-               std::wstring* name) {
+bool SplitNode(
+    const RegistryNode& node,
+    RegistryNode* parent,
+    std::wstring* name
+) {
   if (!parent || !name) {
     return false;
   }
@@ -272,7 +317,11 @@ bool SplitNode(const RegistryNode& node, RegistryNode* parent,
 
 } // namespace
 
-bool OpenHive(const std::wstring& path, HKEY* root, std::wstring* error) {
+bool OpenHive(
+    const std::wstring& path,
+    HKEY* root,
+    std::wstring* error
+) {
   if (error) {
     error->clear();
   }
@@ -299,7 +348,11 @@ bool OpenHive(const std::wstring& path, HKEY* root, std::wstring* error) {
   return true;
 }
 
-bool SaveHive(HKEY root, const std::wstring& path, std::wstring* error) {
+bool SaveHive(
+    HKEY root,
+    const std::wstring& path,
+    std::wstring* error
+) {
   if (error) {
     error->clear();
   }
@@ -317,8 +370,7 @@ bool SaveHive(HKEY root, const std::wstring& path, std::wstring* error) {
   DWORD minor = 0;
   GetOsVersion(&major, &minor);
   const DWORD result =
-      api->save_hive(reinterpret_cast<ORHKEY>(root), path.c_str(), major,
-                     minor);
+      api->save_hive(reinterpret_cast<ORHKEY>(root), path.c_str(), major, minor);
   if (result != ERROR_SUCCESS) {
     if (error) {
       *error = util::FormatWin32Error(result);
@@ -328,7 +380,10 @@ bool SaveHive(HKEY root, const std::wstring& path, std::wstring* error) {
   return true;
 }
 
-bool CloseHive(HKEY root, std::wstring* error) {
+bool CloseHive(
+    HKEY root,
+    std::wstring* error
+) {
   if (error) {
     error->clear();
   }
@@ -352,7 +407,9 @@ bool CloseHive(HKEY root, std::wstring* error) {
   return true;
 }
 
-void SetRoots(const std::vector<HKEY>& roots) {
+void SetRoots(
+    const std::vector<HKEY>& roots
+) {
   g_roots.clear();
   g_roots.reserve(roots.size());
   for (HKEY root : roots) {
@@ -362,35 +419,44 @@ void SetRoots(const std::vector<HKEY>& roots) {
   }
 }
 
-void AddRoot(HKEY root) {
+void AddRoot(
+    HKEY root
+) {
   if (root && std::find(g_roots.begin(), g_roots.end(), root) == g_roots.end()) {
     g_roots.push_back(root);
   }
 }
 
-void RemoveRoot(HKEY root) {
+void RemoveRoot(
+    HKEY root
+) {
   g_roots.erase(std::remove(g_roots.begin(), g_roots.end(), root), g_roots.end());
 }
 
-bool Owns(HKEY root) {
+bool Owns(
+    HKEY root
+) {
   return root &&
          std::find(g_roots.begin(), g_roots.end(), root) != g_roots.end();
 }
 
-bool HasSubKeys(const RegistryNode& node) {
+bool HasSubKeys(
+    const RegistryNode& node
+) {
   OffregApi* api = Api();
   OfflineKey key = OpenKey(node, api);
   if (!api || !key.get()) {
     return false;
   }
   DWORD count = 0;
-  return api->query_info(key.get(), nullptr, nullptr, &count, nullptr,
-                         nullptr, nullptr, nullptr, nullptr, nullptr,
-                         nullptr) == ERROR_SUCCESS &&
+  return api->query_info(key.get(), nullptr, nullptr, &count, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS &&
          count > 0;
 }
 
-bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info) {
+bool QueryKeyInfo(
+    const RegistryNode& node,
+    KeyInfo* info
+) {
   OffregApi* api = Api();
   OfflineKey key = OpenKey(node, api);
   if (!info || !api || !key.get()) {
@@ -399,9 +465,7 @@ bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info) {
   DWORD subkey_count = 0;
   DWORD value_count = 0;
   FILETIME last_write = {};
-  if (api->query_info(key.get(), nullptr, nullptr, &subkey_count, nullptr,
-                      nullptr, &value_count, nullptr, nullptr, nullptr,
-                      &last_write) != ERROR_SUCCESS) {
+  if (api->query_info(key.get(), nullptr, nullptr, &subkey_count, nullptr, nullptr, &value_count, nullptr, nullptr, nullptr, &last_write) != ERROR_SUCCESS) {
     return false;
   }
   info->subkey_count = subkey_count;
@@ -410,8 +474,10 @@ bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info) {
   return true;
 }
 
-bool QuerySymbolicLinkTarget(const RegistryNode& node,
-                             std::wstring* target) {
+bool QuerySymbolicLinkTarget(
+    const RegistryNode& node,
+    std::wstring* target
+) {
   if (!target) {
     return false;
   }
@@ -423,16 +489,14 @@ bool QuerySymbolicLinkTarget(const RegistryNode& node,
   }
   DWORD type = 0;
   DWORD size = 0;
-  DWORD result = api->get_value(key.get(), nullptr, L"SymbolicLinkValue",
-                                &type, nullptr, &size);
+  DWORD result = api->get_value(key.get(), nullptr, L"SymbolicLinkValue", &type, nullptr, &size);
   if ((result != ERROR_SUCCESS && result != ERROR_MORE_DATA) ||
       type != REG_LINK ||
       size == 0) {
     return false;
   }
   std::vector<wchar_t> buffer(size / sizeof(wchar_t) + 1, L'\0');
-  result = api->get_value(key.get(), nullptr, L"SymbolicLinkValue", &type,
-                          buffer.data(), &size);
+  result = api->get_value(key.get(), nullptr, L"SymbolicLinkValue", &type, buffer.data(), &size);
   if (result != ERROR_SUCCESS) {
     return false;
   }
@@ -447,8 +511,10 @@ bool QuerySymbolicLinkTarget(const RegistryNode& node,
   return true;
 }
 
-std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node,
-                                          bool sorted) {
+std::vector<std::wstring> EnumSubKeyNames(
+    const RegistryNode& node,
+    bool sorted
+) {
   std::vector<std::wstring> names;
   OffregApi* api = Api();
   OfflineKey key = OpenKey(node, api);
@@ -457,35 +523,35 @@ std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node,
   }
   DWORD count = 0;
   DWORD max_name_length = 0;
-  if (api->query_info(key.get(), nullptr, nullptr, &count, &max_name_length,
-                      nullptr, nullptr, nullptr, nullptr, nullptr,
-                      nullptr) != ERROR_SUCCESS) {
+  if (api->query_info(key.get(), nullptr, nullptr, &count, &max_name_length, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
     return names;
   }
   names.reserve(count);
   std::wstring buffer(max_name_length + 1, L'\0');
   for (DWORD index = 0; index < count; ++index) {
     DWORD length = static_cast<DWORD>(buffer.size());
-    if (api->enum_key(key.get(), index, buffer.data(), &length, nullptr,
-                      nullptr, nullptr) == ERROR_SUCCESS) {
+    if (api->enum_key(key.get(), index, buffer.data(), &length, nullptr, nullptr, nullptr) == ERROR_SUCCESS) {
       names.emplace_back(buffer.data(), length);
     }
   }
   if (sorted) {
-    std::sort(names.begin(), names.end(),
-              [](const std::wstring& left, const std::wstring& right) {
-                return _wcsicmp(left.c_str(), right.c_str()) < 0;
-              });
+    std::sort(names.begin(), names.end(), [](const std::wstring& left, const std::wstring& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
   }
   return names;
 }
 
 bool EnumKeyStreaming(
-    const RegistryNode& node, bool include_values, bool include_data,
-    bool include_subkeys, RegistryStore::KeyEnumResult* out_info,
+    const RegistryNode& node,
+    bool include_values,
+    bool include_data,
+    bool include_subkeys,
+    RegistryStore::KeyEnumResult* out_info,
     const RegistryStore::ValueStreamCallback& value_callback,
     const RegistryStore::SubkeyStreamCallback& subkey_callback,
-    DWORD max_data_size, EnumerationScratch* scratch, bool ordered) {
+    DWORD max_data_size,
+    EnumerationScratch* scratch,
+    bool ordered
+) {
   (void)ordered;
   EnumerationScratch local;
   EnumerationScratch& buffers = scratch ? *scratch : local;
@@ -501,9 +567,18 @@ bool EnumKeyStreaming(
   DWORD max_value_data_length = 0;
   FILETIME last_write = {};
   if (api->query_info(
-          key.get(), nullptr, nullptr, &subkey_count, &max_subkey_length,
-          nullptr, &value_count, &max_value_name_length,
-          &max_value_data_length, nullptr, &last_write) != ERROR_SUCCESS) {
+          key.get(),
+          nullptr,
+          nullptr,
+          &subkey_count,
+          &max_subkey_length,
+          nullptr,
+          &value_count,
+          &max_value_name_length,
+          &max_value_data_length,
+          nullptr,
+          &last_write
+      ) != ERROR_SUCCESS) {
     return false;
   }
   if (out_info) {
@@ -527,9 +602,14 @@ bool EnumKeyStreaming(
           include_data ? static_cast<DWORD>(data.size()) : 0;
       DWORD type = 0;
       DWORD result = api->enum_value(
-          key.get(), index, name.data(), &name_length, &type,
+          key.get(),
+          index,
+          name.data(),
+          &name_length,
+          &type,
           include_data && !data.empty() ? data.data() : nullptr,
-          &data_length);
+          &data_length
+      );
       if (result == ERROR_MORE_DATA && include_data &&
           data_length <= max_data_size) {
         if (data.size() < data_length) {
@@ -538,8 +618,14 @@ bool EnumKeyStreaming(
         name_length = static_cast<DWORD>(name.size());
         data_length = static_cast<DWORD>(data.size());
         result = api->enum_value(
-            key.get(), index, name.data(), &name_length, &type,
-            data.empty() ? nullptr : data.data(), &data_length);
+            key.get(),
+            index,
+            name.data(),
+            &name_length,
+            &type,
+            data.empty() ? nullptr : data.data(),
+            &data_length
+        );
       }
       const bool data_available =
           include_data && result == ERROR_SUCCESS;
@@ -565,8 +651,7 @@ bool EnumKeyStreaming(
     name.resize(static_cast<size_t>(max_subkey_length) + 1);
     for (DWORD index = 0; index < subkey_count; ++index) {
       DWORD name_length = static_cast<DWORD>(name.size());
-      if (api->enum_key(key.get(), index, name.data(), &name_length, nullptr,
-                        nullptr, nullptr) != ERROR_SUCCESS) {
+      if (api->enum_key(key.get(), index, name.data(), &name_length, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
         continue;
       }
       if (!subkey_callback(std::wstring(name.data(), name_length))) {
@@ -577,8 +662,11 @@ bool EnumKeyStreaming(
   return true;
 }
 
-bool QueryValue(const RegistryNode& node, const std::wstring& value_name,
-                ValueEntry* out) {
+bool QueryValue(
+    const RegistryNode& node,
+    const std::wstring& value_name,
+    ValueEntry* out
+) {
   OffregApi* api = Api();
   OfflineKey key = OpenKey(node, api);
   if (!out || !api || !key.get()) {
@@ -594,8 +682,7 @@ bool QueryValue(const RegistryNode& node, const std::wstring& value_name,
     return false;
   }
   std::vector<BYTE> data(size);
-  result = api->get_value(key.get(), nullptr, name, &type,
-                          data.empty() ? nullptr : data.data(), &size);
+  result = api->get_value(key.get(), nullptr, name, &type, data.empty() ? nullptr : data.data(), &size);
   if (result != ERROR_SUCCESS) {
     return false;
   }
@@ -606,7 +693,10 @@ bool QueryValue(const RegistryNode& node, const std::wstring& value_name,
   return true;
 }
 
-bool CreateKey(const RegistryNode& node, const std::wstring& name) {
+bool CreateKey(
+    const RegistryNode& node,
+    const std::wstring& name
+) {
   OffregApi* api = Api();
   OfflineKey parent = OpenKey(node, api);
   if (!api || !parent.get()) {
@@ -615,14 +705,15 @@ bool CreateKey(const RegistryNode& node, const std::wstring& name) {
   ORHKEY created_handle = nullptr;
   DWORD disposition = 0;
   const DWORD result =
-      api->create_key(parent.get(), name.c_str(), nullptr, 0, nullptr,
-                      &created_handle, &disposition);
+      api->create_key(parent.get(), name.c_str(), nullptr, 0, nullptr, &created_handle, &disposition);
   OfflineKey created(created_handle, api->close_key);
   return result == ERROR_SUCCESS && disposition == REG_CREATED_NEW_KEY;
 }
 
-bool ReadKeySecurity(const RegistryNode& node,
-                     std::vector<BYTE>* descriptor) {
+bool ReadKeySecurity(
+    const RegistryNode& node,
+    std::vector<BYTE>* descriptor
+) {
   if (!descriptor) {
     return false;
   }
@@ -646,8 +737,11 @@ bool ReadKeySecurity(const RegistryNode& node,
   }
   descriptor->resize(size);
   result = api->get_key_security(
-      key.get(), wanted,
-      reinterpret_cast<PSECURITY_DESCRIPTOR>(descriptor->data()), &size);
+      key.get(),
+      wanted,
+      reinterpret_cast<PSECURITY_DESCRIPTOR>(descriptor->data()),
+      &size
+  );
   if (result != ERROR_SUCCESS) {
     descriptor->clear();
     return false;
@@ -656,8 +750,10 @@ bool ReadKeySecurity(const RegistryNode& node,
   return true;
 }
 
-bool WriteKeySecurity(const RegistryNode& node,
-                      const std::vector<BYTE>& descriptor) {
+bool WriteKeySecurity(
+    const RegistryNode& node,
+    const std::vector<BYTE>& descriptor
+) {
   if (descriptor.empty()) {
     return false;
   }
@@ -673,12 +769,17 @@ bool WriteKeySecurity(const RegistryNode& node,
                                       GROUP_SECURITY_INFORMATION |
                                       DACL_SECURITY_INFORMATION;
   return api->set_key_security(
-             key.get(), wanted,
+             key.get(),
+             wanted,
              reinterpret_cast<PSECURITY_DESCRIPTOR>(
-                 const_cast<BYTE*>(descriptor.data()))) == ERROR_SUCCESS;
+                 const_cast<BYTE*>(descriptor.data())
+             )
+         ) == ERROR_SUCCESS;
 }
 
-bool DeleteKey(const RegistryNode& node) {
+bool DeleteKey(
+    const RegistryNode& node
+) {
   RegistryNode parent;
   std::wstring name;
   if (!SplitNode(node, &parent, &name)) {
@@ -689,37 +790,45 @@ bool DeleteKey(const RegistryNode& node) {
   return api && key.get() && DeleteSubtree(*api, key.get(), name);
 }
 
-bool RenameKey(const RegistryNode& node, const std::wstring& new_name) {
+bool RenameKey(
+    const RegistryNode& node,
+    const std::wstring& new_name
+) {
   OffregApi* api = Api();
   OfflineKey key = OpenKey(node, api);
   return api && key.get() &&
          api->rename_key(key.get(), new_name.c_str()) == ERROR_SUCCESS;
 }
 
-bool DeleteValue(const RegistryNode& node,
-                 const std::wstring& value_name) {
+bool DeleteValue(
+    const RegistryNode& node,
+    const std::wstring& value_name
+) {
   OffregApi* api = Api();
   OfflineKey key = OpenKey(node, api);
   return api && key.get() &&
-         api->delete_value(key.get(), value_name.empty()
-                                          ? nullptr
-                                          : value_name.c_str()) ==
+         api->delete_value(key.get(), value_name.empty() ? nullptr : value_name.c_str()) ==
              ERROR_SUCCESS;
 }
 
-bool SetValue(const RegistryNode& node, const std::wstring& value_name,
-              DWORD type, const std::vector<BYTE>& data) {
+bool SetValue(
+    const RegistryNode& node,
+    const std::wstring& value_name,
+    DWORD type,
+    const std::vector<BYTE>& data
+) {
   OffregApi* api = Api();
   OfflineKey key = OpenKey(node, api);
   return api && key.get() &&
-         api->set_value(key.get(),
-                        value_name.empty() ? nullptr : value_name.c_str(),
-                        type, data.empty() ? nullptr : data.data(),
-                        static_cast<DWORD>(data.size())) == ERROR_SUCCESS;
+         api->set_value(key.get(), value_name.empty() ? nullptr : value_name.c_str(), type, data.empty() ? nullptr : data.data(), static_cast<DWORD>(data.size())) == ERROR_SUCCESS;
 }
 
-bool RenameValue(const RegistryNode& node, const std::wstring& old_name,
-                 const std::wstring& new_name, bool* both_names_left) {
+bool RenameValue(
+    const RegistryNode& node,
+    const std::wstring& old_name,
+    const std::wstring& new_name,
+    bool* both_names_left
+) {
   if (both_names_left) {
     *both_names_left = false;
   }
@@ -730,26 +839,21 @@ bool RenameValue(const RegistryNode& node, const std::wstring& old_name,
   }
   DWORD type = 0;
   DWORD size = 0;
-  DWORD result = api->get_value(key.get(), nullptr, old_name.c_str(), &type,
-                                nullptr, &size);
+  DWORD result = api->get_value(key.get(), nullptr, old_name.c_str(), &type, nullptr, &size);
   if (result != ERROR_SUCCESS && result != ERROR_MORE_DATA) {
     return false;
   }
   std::vector<BYTE> data(size);
-  result = api->get_value(key.get(), nullptr, old_name.c_str(), &type,
-                          data.empty() ? nullptr : data.data(), &size);
+  result = api->get_value(key.get(), nullptr, old_name.c_str(), &type, data.empty() ? nullptr : data.data(), &size);
   if (result != ERROR_SUCCESS) {
     return false;
   }
   DWORD existing_type = 0;
   DWORD existing_size = 0;
-  if (api->get_value(key.get(), nullptr, new_name.c_str(), &existing_type,
-                     nullptr, &existing_size) != ERROR_FILE_NOT_FOUND) {
+  if (api->get_value(key.get(), nullptr, new_name.c_str(), &existing_type, nullptr, &existing_size) != ERROR_FILE_NOT_FOUND) {
     return false;
   }
-  if (api->set_value(key.get(), new_name.c_str(), type,
-                     data.empty() ? nullptr : data.data(),
-                     size) != ERROR_SUCCESS) {
+  if (api->set_value(key.get(), new_name.c_str(), type, data.empty() ? nullptr : data.data(), size) != ERROR_SUCCESS) {
     return false;
   }
   if (api->delete_value(key.get(), old_name.c_str()) != ERROR_SUCCESS) {

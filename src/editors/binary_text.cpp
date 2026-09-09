@@ -18,8 +18,7 @@ const wchar_t* AnsiCharTable() {
     for (int index = 0; index < 256; ++index) {
       const char narrow = static_cast<char>(index);
       wchar_t wide = 0;
-      const bool converted = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
-                                                 &narrow, 1, &wide, 1) == 1;
+      const bool converted = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, &narrow, 1, &wide, 1) == 1;
       entries[static_cast<size_t>(index)] =
           (converted && iswprint(wide)) ? wide : L'.';
     }
@@ -30,7 +29,9 @@ const wchar_t* AnsiCharTable() {
 
 } // namespace
 
-std::wstring Hex(std::span<const BYTE> data) {
+std::wstring Hex(
+    std::span<const BYTE> data
+) {
   if (data.empty()) {
     return {};
   }
@@ -46,8 +47,11 @@ std::wstring Hex(std::span<const BYTE> data) {
   return text;
 }
 
-std::wstring Preview(std::span<const BYTE> data, int group_bytes,
-                     bool unicode) {
+std::wstring Preview(
+    std::span<const BYTE> data,
+    int group_bytes,
+    bool unicode
+) {
   constexpr size_t kBytesPerLine = 16;
   const size_t group =
       (group_bytes == 2 || group_bytes == 4 || group_bytes == 8)
@@ -60,8 +64,7 @@ std::wstring Preview(std::span<const BYTE> data, int group_bytes,
 
   for (size_t offset = 0; offset < data.size(); offset += kBytesPerLine) {
     wchar_t offset_text[16] = {};
-    swprintf_s(offset_text, L"%0*X", offset_width,
-               static_cast<unsigned int>(offset));
+    swprintf_s(offset_text, L"%0*X", offset_width, static_cast<unsigned int>(offset));
     text.append(offset_text);
     text.append(L"  ");
 
@@ -86,7 +89,8 @@ std::wstring Preview(std::span<const BYTE> data, int group_bytes,
           break;
         }
         const wchar_t value = static_cast<wchar_t>(
-            data[position] | (data[position + 1] << 8));
+            data[position] | (data[position + 1] << 8)
+        );
         text.push_back(iswprint(value) ? value : L'.');
       }
     } else {

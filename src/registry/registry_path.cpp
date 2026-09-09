@@ -12,7 +12,9 @@
 namespace regkit::registry_path {
 namespace {
 
-std::wstring Trim(std::wstring_view text) {
+std::wstring Trim(
+    std::wstring_view text
+) {
   size_t first = 0;
   while (first < text.size() && iswspace(text[first])) {
     ++first;
@@ -24,7 +26,9 @@ std::wstring Trim(std::wstring_view text) {
   return std::wstring(text.substr(first, last - first));
 }
 
-std::wstring CanonicalRoot(std::wstring_view root) {
+std::wstring CanonicalRoot(
+    std::wstring_view root
+) {
   if (Equals(root, L"HKCR") || Equals(root, L"HKEY_CLASSES_ROOT")) {
     return L"HKEY_CLASSES_ROOT";
   }
@@ -48,7 +52,9 @@ std::wstring CanonicalRoot(std::wstring_view root) {
   return {};
 }
 
-std::wstring AbbreviatedRoot(std::wstring_view root) {
+std::wstring AbbreviatedRoot(
+    std::wstring_view root
+) {
   if (Equals(root, L"HKEY_CLASSES_ROOT")) {
     return L"HKCR";
   }
@@ -67,7 +73,10 @@ std::wstring AbbreviatedRoot(std::wstring_view root) {
   return std::wstring(root);
 }
 
-std::wstring Join(std::wstring_view root, std::wstring_view rest) {
+std::wstring Join(
+    std::wstring_view root,
+    std::wstring_view rest
+) {
   if (rest.empty()) {
     return std::wstring(root);
   }
@@ -77,13 +86,19 @@ std::wstring Join(std::wstring_view root, std::wstring_view rest) {
   return result;
 }
 
-bool HasComponentPrefix(std::wstring_view path, std::wstring_view prefix) {
+bool HasComponentPrefix(
+    std::wstring_view path,
+    std::wstring_view prefix
+) {
   return StartsWith(path, prefix) &&
          (path.size() == prefix.size() || path[prefix.size()] == L'\\');
 }
 
-std::wstring JoinRange(const std::vector<std::wstring>& parts, size_t first,
-                       size_t last) {
+std::wstring JoinRange(
+    const std::vector<std::wstring>& parts,
+    size_t first,
+    size_t last
+) {
   size_t characters = 0;
   for (size_t index = first; index < last; ++index) {
     characters += parts[index].size() + 1;
@@ -104,17 +119,25 @@ std::wstring JoinRange(const std::vector<std::wstring>& parts, size_t first,
 
 } // namespace
 
-bool Equals(std::wstring_view left, std::wstring_view right) {
+bool Equals(
+    std::wstring_view left,
+    std::wstring_view right
+) {
   return left.size() == right.size() &&
          _wcsnicmp(left.data(), right.data(), left.size()) == 0;
 }
 
-bool StartsWith(std::wstring_view text, std::wstring_view prefix) {
+bool StartsWith(
+    std::wstring_view text,
+    std::wstring_view prefix
+) {
   return text.size() >= prefix.size() &&
          _wcsnicmp(text.data(), prefix.data(), prefix.size()) == 0;
 }
 
-std::wstring RootName(HKEY root) {
+std::wstring RootName(
+    HKEY root
+) {
   std::wstring virtual_name;
   if (RegistryStore::GetVirtualRootName(root, &virtual_name)) {
     return virtual_name;
@@ -146,13 +169,17 @@ std::wstring RootName(HKEY root) {
   return {};
 }
 
-std::wstring Build(const RegistryNode& node) {
+std::wstring Build(
+    const RegistryNode& node
+) {
   const std::wstring root =
       node.root_name.empty() ? RootName(node.root) : node.root_name;
   return Join(root, node.subkey);
 }
 
-std::wstring BuildNative(const RegistryNode& node) {
+std::wstring BuildNative(
+    const RegistryNode& node
+) {
   if (RegistryStore::IsVirtualRoot(node.root)) {
     return {};
   }
@@ -180,7 +207,9 @@ std::wstring BuildNative(const RegistryNode& node) {
   return Join(root, node.subkey);
 }
 
-std::vector<std::wstring> Split(std::wstring_view path) {
+std::vector<std::wstring> Split(
+    std::wstring_view path
+) {
   std::vector<std::wstring> parts;
   size_t start = 0;
   while (start < path.size()) {
@@ -201,16 +230,23 @@ std::vector<std::wstring> Split(std::wstring_view path) {
   return parts;
 }
 
-std::wstring Join(const std::vector<std::wstring>& parts, size_t first_part) {
+std::wstring Join(
+    const std::vector<std::wstring>& parts,
+    size_t first_part
+) {
   return JoinRange(parts, std::min(first_part, parts.size()), parts.size());
 }
 
-std::wstring JoinPrefix(const std::vector<std::wstring>& parts,
-                        size_t part_count) {
+std::wstring JoinPrefix(
+    const std::vector<std::wstring>& parts,
+    size_t part_count
+) {
   return JoinRange(parts, 0, std::min(part_count, parts.size()));
 }
 
-std::wstring Parent(std::wstring_view path) {
+std::wstring Parent(
+    std::wstring_view path
+) {
   while (!path.empty() && (path.back() == L'\\' || path.back() == L'/')) {
     path.remove_suffix(1);
   }
@@ -219,16 +255,19 @@ std::wstring Parent(std::wstring_view path) {
                                           : std::wstring(path.substr(0, split));
 }
 
-std::wstring Leaf(std::wstring_view path) {
+std::wstring Leaf(
+    std::wstring_view path
+) {
   while (!path.empty() && (path.back() == L'\\' || path.back() == L'/')) {
     path.remove_suffix(1);
   }
   const size_t split = path.find_last_of(L"\\/");
-  return std::wstring(path.substr(split == std::wstring_view::npos ? 0
-                                                                   : split + 1));
+  return std::wstring(path.substr(split == std::wstring_view::npos ? 0 : split + 1));
 }
 
-std::wstring Clean(std::wstring_view input) {
+std::wstring Clean(
+    std::wstring_view input
+) {
   std::wstring path = Trim(input);
   if (path.size() >= 2 &&
       ((path.front() == L'[' && path.back() == L']') ||
@@ -269,8 +308,10 @@ std::wstring Clean(std::wstring_view input) {
   return path;
 }
 
-std::wstring Normalize(std::wstring_view input,
-                       std::wstring_view current_user_sid) {
+std::wstring Normalize(
+    std::wstring_view input,
+    std::wstring_view current_user_sid
+) {
   std::wstring path = Clean(input);
 
   if (StartsWith(path, L"REGISTRY\\")) {
@@ -333,9 +374,7 @@ std::wstring Normalize(std::wstring_view input,
   }
 
   const size_t split = path.find_first_of(L":\\");
-  const std::wstring_view root(path.data(),
-                               split == std::wstring::npos ? path.size()
-                                                           : split);
+  const std::wstring_view root(path.data(), split == std::wstring::npos ? path.size() : split);
   std::wstring_view rest =
       split == std::wstring::npos
           ? std::wstring_view{}
@@ -347,8 +386,11 @@ std::wstring Normalize(std::wstring_view input,
   return canonical.empty() ? path : Join(canonical, rest);
 }
 
-std::wstring Format(std::wstring_view path, Style style,
-                    std::wstring_view tree_root) {
+std::wstring Format(
+    std::wstring_view path,
+    Style style,
+    std::wstring_view tree_root
+) {
   const size_t split = path.find(L'\\');
   const std::wstring_view root =
       split == std::wstring_view::npos ? path : path.substr(0, split);
@@ -362,33 +404,38 @@ std::wstring Format(std::wstring_view path, Style style,
     return Join(tree_root.empty() ? L"Computer" : tree_root, path);
   case Style::kRegFileHeader:
     return L"[" + std::wstring(path) + L"]";
-  case Style::kPowerShellDrive: {
-    std::wstring result = AbbreviatedRoot(root) + L":";
-    if (!rest.empty()) {
-      result += L"\\" + std::wstring(rest);
+  case Style::kPowerShellDrive:
+    {
+      std::wstring result = AbbreviatedRoot(root) + L":";
+      if (!rest.empty()) {
+        result += L"\\" + std::wstring(rest);
+      }
+      return result;
     }
-    return result;
-  }
   case Style::kPowerShellProvider:
     return L"Registry::" + std::wstring(path);
-  case Style::kEscaped: {
-    std::wstring result;
-    result.reserve(path.size() * 2);
-    for (wchar_t character : path) {
-      if (character == L'\\') {
-        result.push_back(L'\\');
+  case Style::kEscaped:
+    {
+      std::wstring result;
+      result.reserve(path.size() * 2);
+      for (wchar_t character : path) {
+        if (character == L'\\') {
+          result.push_back(L'\\');
+        }
+        result.push_back(character);
       }
-      result.push_back(character);
+      return result;
     }
-    return result;
-  }
   case Style::kFull:
     return std::wstring(path);
   }
   return std::wstring(path);
 }
 
-bool ParseRoot(std::wstring_view input, RegistryNode* node) {
+bool ParseRoot(
+    std::wstring_view input,
+    RegistryNode* node
+) {
   if (!node) {
     return false;
   }

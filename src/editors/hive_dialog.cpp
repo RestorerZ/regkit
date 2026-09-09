@@ -21,7 +21,10 @@ struct State {
   bool accepted = false;
 };
 
-bool ChooseFile(HWND owner, std::wstring* path) {
+bool ChooseFile(
+    HWND owner,
+    std::wstring* path
+) {
   const HRESULT hr = win32::ChooseFileToOpen(owner, L"Hive Files (*.*)\0*.*\0", path);
   if (FAILED(hr) && !win32::DialogCancelled(hr)) {
     ui::ShowError(owner, win32::FormatDialogError(hr));
@@ -29,7 +32,9 @@ bool ChooseFile(HWND owner, std::wstring* path) {
   return SUCCEEDED(hr);
 }
 
-std::wstring FileNameOf(const std::wstring& path) {
+std::wstring FileNameOf(
+    const std::wstring& path
+) {
   const size_t slash = path.find_last_of(L"\\/");
   std::wstring name = slash == std::wstring::npos ? path : path.substr(slash + 1);
   const size_t dot = name.find_last_of(L'.');
@@ -39,8 +44,12 @@ std::wstring FileNameOf(const std::wstring& path) {
   return name;
 }
 
-INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
-                            LPARAM lparam) {
+INT_PTR CALLBACK DialogProc(
+    HWND dialog,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* state = reinterpret_cast<State*>(GetWindowLongPtrW(dialog, DWLP_USER));
   if (message == WM_INITDIALOG) {
     state = reinterpret_cast<State*>(lparam);
@@ -50,8 +59,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
     const bool users = state->value.root == HKEY_USERS;
     CheckDlgButton(dialog, IDC_LOAD_HIVE_HKLM, users ? BST_UNCHECKED : BST_CHECKED);
     CheckDlgButton(dialog, IDC_LOAD_HIVE_HKU, users ? BST_CHECKED : BST_UNCHECKED);
-    dialog_support::Initialize(dialog, &state->font,
-                               {IDC_LOAD_HIVE_PATH, IDC_LOAD_HIVE_NAME});
+    dialog_support::Initialize(dialog, &state->font, {IDC_LOAD_HIVE_PATH, IDC_LOAD_HIVE_NAME});
     return TRUE;
   }
   if (message == WM_DESTROY) {
@@ -110,22 +118,28 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
 
 } // namespace
 
-bool ChooseHiveToLoad(HWND owner, LoadHiveResult* result) {
+bool ChooseHiveToLoad(
+    HWND owner,
+    LoadHiveResult* result
+) {
   if (!result) {
     return false;
   }
   State state;
   state.value = *result;
   const INT_PTR dialog_result = DialogBoxParamW(
-      GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_LOAD_HIVE), owner,
-      DialogProc, reinterpret_cast<LPARAM>(&state));
+      GetModuleHandleW(nullptr),
+      MAKEINTRESOURCEW(IDD_LOAD_HIVE),
+      owner,
+      DialogProc,
+      reinterpret_cast<LPARAM>(&state)
+  );
   if (dialog_result != IDOK || !state.accepted) {
     return false;
   }
   *result = std::move(state.value);
   return true;
 }
-
 
 namespace {
 
@@ -135,10 +149,15 @@ struct SymbolicLinkDialogState {
   HFONT font = nullptr;
 };
 
-INT_PTR CALLBACK SymbolicLinkDialogProc(HWND dlg, UINT msg, WPARAM wparam,
-                                        LPARAM lparam) {
+INT_PTR CALLBACK SymbolicLinkDialogProc(
+    HWND dlg,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* dialog = reinterpret_cast<SymbolicLinkDialogState*>(
-      GetWindowLongPtrW(dlg, DWLP_USER));
+      GetWindowLongPtrW(dlg, DWLP_USER)
+  );
   SymbolicLinkResult* state = dialog ? dialog->result : nullptr;
   INT_PTR themed = 0;
   if (msg != WM_INITDIALOG && msg != WM_DESTROY &&
@@ -146,50 +165,53 @@ INT_PTR CALLBACK SymbolicLinkDialogProc(HWND dlg, UINT msg, WPARAM wparam,
     return themed;
   }
   switch (msg) {
-  case WM_INITDIALOG: {
-    dialog = reinterpret_cast<SymbolicLinkDialogState*>(lparam);
-    state = dialog ? dialog->result : nullptr;
-    SetWindowLongPtrW(dlg, DWLP_USER, static_cast<LONG_PTR>(lparam));
-    if (state) {
-      SetDlgItemTextW(dlg, IDC_SYMLINK_NAME, state->name.c_str());
-      SetDlgItemTextW(dlg, IDC_SYMLINK_TARGET, state->target.c_str());
+  case WM_INITDIALOG:
+    {
+      dialog = reinterpret_cast<SymbolicLinkDialogState*>(lparam);
+      state = dialog ? dialog->result : nullptr;
+      SetWindowLongPtrW(dlg, DWLP_USER, static_cast<LONG_PTR>(lparam));
+      if (state) {
+        SetDlgItemTextW(dlg, IDC_SYMLINK_NAME, state->name.c_str());
+        SetDlgItemTextW(dlg, IDC_SYMLINK_TARGET, state->target.c_str());
+      }
+      dialog_support::Initialize(dlg, dialog ? &dialog->font : nullptr, {IDC_SYMLINK_NAME, IDC_SYMLINK_TARGET});
+      return TRUE;
     }
-    dialog_support::Initialize(dlg, dialog ? &dialog->font : nullptr,
-                               {IDC_SYMLINK_NAME, IDC_SYMLINK_TARGET});
-    return TRUE;
-  }
-  case WM_DESTROY: {
-    if (dialog) {
-      dialog_support::ReleaseFont(&dialog->font);
+  case WM_DESTROY:
+    {
+      if (dialog) {
+        dialog_support::ReleaseFont(&dialog->font);
+      }
+      return TRUE;
     }
-    return TRUE;
-  }
   case WM_COMMAND:
     switch (LOWORD(wparam)) {
-    case IDOK: {
-      if (state) {
-        state->name = dialog_support::ReadText(dlg, IDC_SYMLINK_NAME);
-        state->target = dialog_support::ReadText(dlg, IDC_SYMLINK_TARGET);
-        if (state->name.empty() || state->target.empty()) {
-          ui::ShowWarning(dlg, L"Enter a link name and a target key.");
-          return TRUE;
+    case IDOK:
+      {
+        if (state) {
+          state->name = dialog_support::ReadText(dlg, IDC_SYMLINK_NAME);
+          state->target = dialog_support::ReadText(dlg, IDC_SYMLINK_TARGET);
+          if (state->name.empty() || state->target.empty()) {
+            ui::ShowWarning(dlg, L"Enter a link name and a target key.");
+            return TRUE;
+          }
+          if (state->name.find(L'\\') != std::wstring::npos) {
+            ui::ShowWarning(dlg, L"The link name cannot contain a backslash.");
+            return TRUE;
+          }
         }
-        if (state->name.find(L'\\') != std::wstring::npos) {
-          ui::ShowWarning(dlg, L"The link name cannot contain a backslash.");
-          return TRUE;
+        EndDialog(dlg, IDOK);
+        return TRUE;
+      }
+    case IDC_SYMLINK_BROWSE:
+      {
+        std::wstring selected;
+        if (dialog && dialog->browse && (*dialog->browse)(dlg, &selected) &&
+            !selected.empty()) {
+          SetDlgItemTextW(dlg, IDC_SYMLINK_TARGET, selected.c_str());
         }
+        return TRUE;
       }
-      EndDialog(dlg, IDOK);
-      return TRUE;
-    }
-    case IDC_SYMLINK_BROWSE: {
-      std::wstring selected;
-      if (dialog && dialog->browse && (*dialog->browse)(dlg, &selected) &&
-          !selected.empty()) {
-        SetDlgItemTextW(dlg, IDC_SYMLINK_TARGET, selected.c_str());
-      }
-      return TRUE;
-    }
     case IDCANCEL:
       EndDialog(dlg, IDCANCEL);
       return TRUE;
@@ -205,9 +227,12 @@ INT_PTR CALLBACK SymbolicLinkDialogProc(HWND dlg, UINT msg, WPARAM wparam,
 
 } // namespace
 
-bool PromptSymbolicLink(HWND owner, const std::wstring& suggested_name,
-                        const BrowseKeyCallback& browse,
-                        SymbolicLinkResult* result) {
+bool PromptSymbolicLink(
+    HWND owner,
+    const std::wstring& suggested_name,
+    const BrowseKeyCallback& browse,
+    SymbolicLinkResult* result
+) {
   if (!result) {
     return false;
   }
@@ -215,10 +240,7 @@ bool PromptSymbolicLink(HWND owner, const std::wstring& suggested_name,
   SymbolicLinkDialogState dialog;
   dialog.result = result;
   dialog.browse = &browse;
-  return DialogBoxParamW(GetModuleHandleW(nullptr),
-                         MAKEINTRESOURCEW(IDD_NEW_SYMLINK), owner,
-                         SymbolicLinkDialogProc,
-                         reinterpret_cast<LPARAM>(&dialog)) == IDOK;
+  return DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_NEW_SYMLINK), owner, SymbolicLinkDialogProc, reinterpret_cast<LPARAM>(&dialog)) == IDOK;
 }
 
 } // namespace regkit::editors

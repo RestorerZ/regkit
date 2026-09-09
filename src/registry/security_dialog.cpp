@@ -18,8 +18,11 @@ namespace regkit {
 
 namespace {
 
-bool SetPrivilege(const wchar_t* name, bool enable,
-                  TOKEN_PRIVILEGES* previous = nullptr) {
+bool SetPrivilege(
+    const wchar_t* name,
+    bool enable,
+    TOKEN_PRIVILEGES* previous = nullptr
+) {
   HANDLE token = nullptr;
   if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
     return false;
@@ -34,22 +37,21 @@ bool SetPrivilege(const wchar_t* name, bool enable,
   tp.Privileges[0].Luid = luid;
   tp.Privileges[0].Attributes = enable ? SE_PRIVILEGE_ENABLED : 0;
   DWORD previous_size = previous ? sizeof(TOKEN_PRIVILEGES) : 0;
-  AdjustTokenPrivileges(token, FALSE, &tp, previous_size, previous,
-                        previous ? &previous_size : nullptr);
+  AdjustTokenPrivileges(token, FALSE, &tp, previous_size, previous, previous ? &previous_size : nullptr);
   DWORD last_error = GetLastError();
   CloseHandle(token);
   return last_error == ERROR_SUCCESS;
 }
 
-bool RestorePrivilege(const TOKEN_PRIVILEGES& previous) {
+bool RestorePrivilege(
+    const TOKEN_PRIVILEGES& previous
+) {
   HANDLE token = nullptr;
-  if (!OpenProcessToken(GetCurrentProcess(),
-                        TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
+  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
     return false;
   }
   TOKEN_PRIVILEGES restore = previous;
-  AdjustTokenPrivileges(token, FALSE, &restore, sizeof(restore), nullptr,
-                        nullptr);
+  AdjustTokenPrivileges(token, FALSE, &restore, sizeof(restore), nullptr, nullptr);
   const DWORD last_error = GetLastError();
   CloseHandle(token);
   return last_error == ERROR_SUCCESS;
@@ -57,9 +59,18 @@ bool RestorePrivilege(const TOKEN_PRIVILEGES& previous) {
 
 class RegistrySecurityInformation : public ISecurityInformation {
 public:
-  RegistrySecurityInformation(HKEY key, std::wstring object_name, bool read_only) : key_(key), object_name_(std::move(object_name)), read_only_(read_only) {}
+  RegistrySecurityInformation(
+      HKEY key,
+      std::wstring object_name,
+      bool read_only
+  )
+      : key_(key), object_name_(std::move(object_name)), read_only_(read_only) {
+  }
 
-  HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppv) override {
+  HRESULT STDMETHODCALLTYPE QueryInterface(
+      REFIID riid,
+      void** ppv
+  ) override {
     if (!ppv) {
       return E_POINTER;
     }
@@ -81,7 +92,9 @@ public:
     return static_cast<ULONG>(remaining < 0 ? 0 : remaining);
   }
 
-  HRESULT STDMETHODCALLTYPE GetObjectInformation(PSI_OBJECT_INFO info) override {
+  HRESULT STDMETHODCALLTYPE GetObjectInformation(
+      PSI_OBJECT_INFO info
+  ) override {
     if (!info) {
       return E_POINTER;
     }
@@ -97,7 +110,11 @@ public:
     return S_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE GetSecurity(SECURITY_INFORMATION security_info, PSECURITY_DESCRIPTOR* out_sd, BOOL) override {
+  HRESULT STDMETHODCALLTYPE GetSecurity(
+      SECURITY_INFORMATION security_info,
+      PSECURITY_DESCRIPTOR* out_sd,
+      BOOL
+  ) override {
     if (!out_sd) {
       return E_POINTER;
     }
@@ -106,7 +123,10 @@ public:
     return HRESULT_FROM_WIN32(result);
   }
 
-  HRESULT STDMETHODCALLTYPE SetSecurity(SECURITY_INFORMATION security_info, PSECURITY_DESCRIPTOR sd) override {
+  HRESULT STDMETHODCALLTYPE SetSecurity(
+      SECURITY_INFORMATION security_info,
+      PSECURITY_DESCRIPTOR sd
+  ) override {
     if (!sd) {
       return E_POINTER;
     }
@@ -115,7 +135,13 @@ public:
                                    : HRESULT_FROM_WIN32(status);
   }
 
-  HRESULT STDMETHODCALLTYPE GetAccessRights(const GUID*, DWORD, PSI_ACCESS* access, ULONG* count, ULONG* default_access) override {
+  HRESULT STDMETHODCALLTYPE GetAccessRights(
+      const GUID*,
+      DWORD,
+      PSI_ACCESS* access,
+      ULONG* count,
+      ULONG* default_access
+  ) override {
     static SI_ACCESS rights[] = {
         {&GUID_NULL, KEY_CREATE_SUB_KEY, const_cast<wchar_t*>(L"Create"), SI_ACCESS_SPECIFIC},
         {&GUID_NULL, KEY_ENUMERATE_SUB_KEYS, const_cast<wchar_t*>(L"Enumerate"), SI_ACCESS_SPECIFIC},
@@ -136,8 +162,11 @@ public:
     return S_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE MapGeneric(const GUID*, UCHAR*,
-                                       ACCESS_MASK* mask) override {
+  HRESULT STDMETHODCALLTYPE MapGeneric(
+      const GUID*,
+      UCHAR*,
+      ACCESS_MASK* mask
+  ) override {
     if (!mask) {
       return E_POINTER;
     }
@@ -150,7 +179,10 @@ public:
     return S_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE GetInheritTypes(PSI_INHERIT_TYPE* types, ULONG* count) override {
+  HRESULT STDMETHODCALLTYPE GetInheritTypes(
+      PSI_INHERIT_TYPE* types,
+      ULONG* count
+  ) override {
     static SI_INHERIT_TYPE inherit_types[] = {
         {&GUID_NULL, 0, const_cast<wchar_t*>(L"This key only")},
         {&GUID_NULL, CONTAINER_INHERIT_ACE, const_cast<wchar_t*>(L"This key and subkeys")},
@@ -164,7 +196,13 @@ public:
     return S_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE PropertySheetPageCallback(HWND, UINT, SI_PAGE_TYPE) override { return S_OK; }
+  HRESULT STDMETHODCALLTYPE PropertySheetPageCallback(
+      HWND,
+      UINT,
+      SI_PAGE_TYPE
+  ) override {
+    return S_OK;
+  }
 
 private:
   HKEY key_ = nullptr;
@@ -175,7 +213,10 @@ private:
 
 } // namespace
 
-bool ShowRegistryPermissions(HWND owner, const RegistryNode& node) {
+bool ShowRegistryPermissions(
+    HWND owner,
+    const RegistryNode& node
+) {
   std::wstring path = registry_path::Build(node);
   if (path.empty()) {
     return false;

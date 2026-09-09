@@ -34,8 +34,7 @@ class Writer {
 public:
   Writer();
 
-  void AppendKey(std::wstring_view path,
-                 std::vector<const Value*> values, bool sorted = true);
+  void AppendKey(std::wstring_view path, std::vector<const Value*> values, bool sorted = true);
   void AppendRemovedKey(std::wstring_view path);
   void AppendRemovedValues(const std::vector<std::wstring>& names);
   std::wstring Finish() &&;
@@ -44,11 +43,8 @@ private:
   std::wstring output_;
 };
 
-bool Parse(std::wstring_view content, Document* output,
-           const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr,
-           std::wstring* error = nullptr);
-bool Load(const std::wstring& path, Document* output, std::wstring* error,
-          const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr);
+bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr, std::wstring* error = nullptr);
+bool Load(const std::wstring& path, Document* output, std::wstring* error, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr);
 std::wstring Serialize(const Document& document);
 
 } // namespace regkit::regfile

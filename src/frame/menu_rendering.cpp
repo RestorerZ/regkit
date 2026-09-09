@@ -6,7 +6,9 @@
 namespace regkit {
 using namespace command_detail;
 
-void MainWindow::Impl::PrepareMenusForOwnerDraw(HMENU menu) {
+void MainWindow::Impl::PrepareMenusForOwnerDraw(
+    HMENU menu
+) {
   if (!menu) {
     return;
   }
@@ -43,8 +45,7 @@ void MainWindow::Impl::PrepareMenusForOwnerDraw(HMENU menu) {
     } else {
       RECT measure = {};
       if (hdc) {
-        DrawTextW(hdc, data->text.c_str(), -1, &measure,
-                  DT_SINGLELINE | DT_CALCRECT);
+        DrawTextW(hdc, data->text.c_str(), -1, &measure, DT_SINGLELINE | DT_CALCRECT);
       }
       data->height = 18;
       data->width = static_cast<int>(measure.right - measure.left) + 8;
@@ -67,7 +68,9 @@ void MainWindow::Impl::PrepareMenusForOwnerDraw(HMENU menu) {
   }
 }
 
-void MainWindow::Impl::OnMeasureMenuItem(MEASUREITEMSTRUCT* info) {
+void MainWindow::Impl::OnMeasureMenuItem(
+    MEASUREITEMSTRUCT* info
+) {
   if (!info) {
     return;
   }
@@ -93,8 +96,7 @@ void MainWindow::Impl::OnMeasureMenuItem(MEASUREITEMSTRUCT* info) {
     if (ui_font_) {
       old = reinterpret_cast<HFONT>(SelectObject(hdc, ui_font_));
     }
-    GetTextExtentPoint32W(hdc, data->text.c_str(),
-                          static_cast<int>(data->text.size()), &size);
+    GetTextExtentPoint32W(hdc, data->text.c_str(), static_cast<int>(data->text.size()), &size);
     if (old) {
       SelectObject(hdc, old);
     }
@@ -104,7 +106,9 @@ void MainWindow::Impl::OnMeasureMenuItem(MEASUREITEMSTRUCT* info) {
   info->itemWidth = size.cx + 8;
 }
 
-void MainWindow::Impl::OnDrawMenuItem(const DRAWITEMSTRUCT* info) {
+void MainWindow::Impl::OnDrawMenuItem(
+    const DRAWITEMSTRUCT* info
+) {
   if (!info) {
     return;
   }

@@ -7,7 +7,9 @@
 
 namespace regkit::frame {
 
-MessageArea ClassifyMessage(UINT message) noexcept {
+MessageArea ClassifyMessage(
+    UINT message
+) noexcept {
   switch (message) {
   case message_id::kSearchResults:
   case message_id::kSearchFailed:

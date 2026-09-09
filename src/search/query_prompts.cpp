@@ -21,8 +21,9 @@
 
 namespace regkit::query_prompts {
 
-
-HFONT CreateDialogFont(HWND hwnd) {
+HFONT CreateDialogFont(
+    HWND hwnd
+) {
   return ui::DefaultUIFont(win32::DpiForWindow(hwnd));
 }
 
@@ -100,7 +101,10 @@ struct DataTypesDialogState {
   bool owner_restored = false;
 };
 
-void LayoutDataTypesDialog(HWND hwnd, DataTypesDialogState* state) {
+void LayoutDataTypesDialog(
+    HWND hwnd,
+    DataTypesDialogState* state
+) {
   if (!state) {
     return;
   }
@@ -124,8 +128,7 @@ void LayoutDataTypesDialog(HWND hwnd, DataTypesDialogState* state) {
   int col = 0;
   int row = 0;
   for (HWND check : state->checks) {
-    appearance::Place(check, padding + col * (col_w + col_gap), padding + row * row_step, col_w,
-                      row_h);
+    appearance::Place(check, padding + col * (col_w + col_gap), padding + row * row_step, col_w, row_h);
     if (++row >= state->rows_per_col) {
       row = 0;
       ++col;
@@ -135,50 +138,56 @@ void LayoutDataTypesDialog(HWND hwnd, DataTypesDialogState* state) {
   const int btn_y = height - Scaled(kDialogButtonBottomMargin, dpi) - button_h;
   const int cancel_x = width - Scaled(kDialogButtonRightMargin, dpi) - button_w;
   appearance::Place(state->select_all, padding, btn_y, select_all_w, button_h);
-  appearance::Place(state->clear_all, padding + select_all_w + button_gap, btn_y, clear_all_w,
-                    button_h);
+  appearance::Place(state->clear_all, padding + select_all_w + button_gap, btn_y, clear_all_w, button_h);
   appearance::Place(state->ok_button, cancel_x - button_gap - button_w, btn_y, button_w, button_h);
   appearance::Place(state->cancel_button, cancel_x, btn_y, button_w, button_h);
 }
 
-LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+LRESULT CALLBACK DataTypesDialogProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* state = reinterpret_cast<DataTypesDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
   switch (msg) {
-  case WM_NCCREATE: {
-    auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
-    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return DefWindowProcW(hwnd, msg, wparam, lparam);
-  }
-  case WM_CREATE: {
-    state = reinterpret_cast<DataTypesDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    if (!state) {
-      return -1;
+  case WM_NCCREATE:
+    {
+      auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+      SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+      return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
-    state->hwnd = hwnd;
-    state->font = CreateDialogFont(hwnd);
-    HFONT font = state->font;
-    for (const auto& item : state->items) {
-      HWND check = CreateWindowExW(0, L"BUTTON", item.label.c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
-      appearance::SetControlFont(check, font);
-      bool checked = state->types.empty();
-      if (!state->types.empty()) {
-        checked = std::find(state->types.begin(), state->types.end(), item.type) != state->types.end();
+  case WM_CREATE:
+    {
+      state = reinterpret_cast<DataTypesDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+      if (!state) {
+        return -1;
       }
-      SendMessageW(check, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
-      state->checks.push_back(check);
+      state->hwnd = hwnd;
+      state->font = CreateDialogFont(hwnd);
+      HFONT font = state->font;
+      for (const auto& item : state->items) {
+        HWND check = CreateWindowExW(0, L"BUTTON", item.label.c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+        appearance::SetControlFont(check, font);
+        bool checked = state->types.empty();
+        if (!state->types.empty()) {
+          checked = std::find(state->types.begin(), state->types.end(), item.type) != state->types.end();
+        }
+        SendMessageW(check, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
+        state->checks.push_back(check);
+      }
+      state->select_all = CreateWindowExW(0, L"BUTTON", L"Select All", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(100), nullptr, nullptr);
+      state->clear_all = CreateWindowExW(0, L"BUTTON", L"Clear All", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(101), nullptr, nullptr);
+      state->ok_button = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+      state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
+      appearance::SetControlFont(state->select_all, font);
+      appearance::SetControlFont(state->clear_all, font);
+      appearance::SetControlFont(state->ok_button, font);
+      appearance::SetControlFont(state->cancel_button, font);
+      LayoutDataTypesDialog(hwnd, state);
+      Theme::Current().ApplyToChildren(hwnd);
+      return 0;
     }
-    state->select_all = CreateWindowExW(0, L"BUTTON", L"Select All", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(100), nullptr, nullptr);
-    state->clear_all = CreateWindowExW(0, L"BUTTON", L"Clear All", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(101), nullptr, nullptr);
-    state->ok_button = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
-    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
-    appearance::SetControlFont(state->select_all, font);
-    appearance::SetControlFont(state->clear_all, font);
-    appearance::SetControlFont(state->ok_button, font);
-    appearance::SetControlFont(state->cancel_button, font);
-    LayoutDataTypesDialog(hwnd, state);
-    Theme::Current().ApplyToChildren(hwnd);
-    return 0;
-  }
   case WM_DESTROY:
     if (state && state->font) {
       DeleteObject(state->font);
@@ -194,74 +203,81 @@ LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
     }
     appearance::ApplyDpiChange(hwnd, lparam);
     return 0;
-  case WM_SETTINGCHANGE: {
-    if (Theme::UpdateFromSystem()) {
-      Theme::Current().ApplyToWindow(hwnd);
-      Theme::Current().ApplyToChildren(hwnd);
-      InvalidateRect(hwnd, nullptr, TRUE);
+  case WM_SETTINGCHANGE:
+    {
+      if (Theme::UpdateFromSystem()) {
+        Theme::Current().ApplyToWindow(hwnd);
+        Theme::Current().ApplyToChildren(hwnd);
+        InvalidateRect(hwnd, nullptr, TRUE);
+      }
+      return 0;
     }
-    return 0;
-  }
   case WM_CTLCOLORSTATIC:
   case WM_CTLCOLORBTN:
-  case WM_CTLCOLOREDIT: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    int type = (msg == WM_CTLCOLORSTATIC) ? CTLCOLOR_STATIC : (msg == WM_CTLCOLORBTN) ? CTLCOLOR_BTN
-                                                                                      : CTLCOLOR_EDIT;
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
-  }
-  case WM_ERASEBKGND: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rect = {};
-    GetClientRect(hwnd, &rect);
-    FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
-    return 1;
-  }
+  case WM_CTLCOLOREDIT:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      int type = (msg == WM_CTLCOLORSTATIC) ? CTLCOLOR_STATIC : (msg == WM_CTLCOLORBTN) ? CTLCOLOR_BTN
+                                                                                        : CTLCOLOR_EDIT;
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
+    }
+  case WM_ERASEBKGND:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rect = {};
+      GetClientRect(hwnd, &rect);
+      FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
+      return 1;
+    }
   case DM_GETDEFID:
     return MAKELRESULT(IDOK, DC_HASDEFID);
-  case WM_COMMAND: {
-    if (!state) {
-      return 0;
-    }
-    switch (LOWORD(wparam)) {
-    case 100: {
-      for (HWND check : state->checks) {
-        SendMessageW(check, BM_SETCHECK, BST_CHECKED, 0);
-      }
-      return 0;
-    }
-    case 101: {
-      for (HWND check : state->checks) {
-        SendMessageW(check, BM_SETCHECK, BST_UNCHECKED, 0);
-      }
-      return 0;
-    }
-    case IDOK: {
-      state->types.clear();
-      for (size_t i = 0; i < state->checks.size() && i < state->items.size(); ++i) {
-        if (SendMessageW(state->checks[i], BM_GETCHECK, 0, 0) == BST_CHECKED) {
-          state->types.push_back(state->items[i].type);
-        }
-      }
-      if (state->types.empty()) {
-        ui::ShowWarning(hwnd, L"Select at least one data type.");
+  case WM_COMMAND:
+    {
+      if (!state) {
         return 0;
       }
-      state->accepted = true;
-      appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-      DestroyWindow(hwnd);
-      return 0;
-    }
-    case IDCANCEL:
-      appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-      DestroyWindow(hwnd);
-      return 0;
-    default:
+      switch (LOWORD(wparam)) {
+      case 100:
+        {
+          for (HWND check : state->checks) {
+            SendMessageW(check, BM_SETCHECK, BST_CHECKED, 0);
+          }
+          return 0;
+        }
+      case 101:
+        {
+          for (HWND check : state->checks) {
+            SendMessageW(check, BM_SETCHECK, BST_UNCHECKED, 0);
+          }
+          return 0;
+        }
+      case IDOK:
+        {
+          state->types.clear();
+          for (size_t i = 0; i < state->checks.size() && i < state->items.size(); ++i) {
+            if (SendMessageW(state->checks[i], BM_GETCHECK, 0, 0) == BST_CHECKED) {
+              state->types.push_back(state->items[i].type);
+            }
+          }
+          if (state->types.empty()) {
+            ui::ShowWarning(hwnd, L"Select at least one data type.");
+            return 0;
+          }
+          state->accepted = true;
+          appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
+          DestroyWindow(hwnd);
+          return 0;
+        }
+      case IDCANCEL:
+        appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
+        DestroyWindow(hwnd);
+        return 0;
+      default:
+        break;
+      }
       break;
     }
-    break;
-  }
   case WM_CLOSE:
     if (state) {
       appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
@@ -274,7 +290,10 @@ LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
   return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
-bool ShowDataTypes(HWND owner, std::vector<DWORD>* types) {
+bool ShowDataTypes(
+    HWND owner,
+    std::vector<DWORD>* types
+) {
   if (!types) {
     return false;
   }
@@ -298,11 +317,14 @@ bool ShowDataTypes(HWND owner, std::vector<DWORD>* types) {
   int content_h = rows * kDataTypesRowStep;
   const UINT dpi = win32::DpiForWindow(owner);
   int client_w = appearance::metrics::Scaled(
-      kDataTypesPadding + content_w + appearance::metrics::kDialogButtonRightMargin, dpi);
+      kDataTypesPadding + content_w + appearance::metrics::kDialogButtonRightMargin,
+      dpi
+  );
   int client_h = appearance::metrics::Scaled(
       kDataTypesPadding + content_h + kDataTypesButtonGap + kDataTypesButtonHeight +
           appearance::metrics::kDialogButtonBottomMargin,
-      dpi);
+      dpi
+  );
 
   RECT window_rect = {0, 0, client_w, client_h};
   DWORD style = WS_POPUP | WS_CAPTION | WS_SYSMENU;
@@ -349,36 +371,43 @@ struct BrowseDialogState {
   bool owner_restored = false;
 };
 
-LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+LRESULT CALLBACK BrowseDialogProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* state = reinterpret_cast<BrowseDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
   switch (msg) {
-  case WM_NCCREATE: {
-    auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
-    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return DefWindowProcW(hwnd, msg, wparam, lparam);
-  }
-  case WM_CREATE: {
-    state = reinterpret_cast<BrowseDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    if (!state) {
-      return -1;
+  case WM_NCCREATE:
+    {
+      auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+      SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+      return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
-    state->hwnd = hwnd;
-    state->font = CreateDialogFont(hwnd);
-    HFONT font = state->font;
-    state->ok_button = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
-    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
-    appearance::SetControlFont(state->ok_button, font);
-    appearance::SetControlFont(state->cancel_button, font);
+  case WM_CREATE:
+    {
+      state = reinterpret_cast<BrowseDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+      if (!state) {
+        return -1;
+      }
+      state->hwnd = hwnd;
+      state->font = CreateDialogFont(hwnd);
+      HFONT font = state->font;
+      state->ok_button = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+      state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
+      appearance::SetControlFont(state->ok_button, font);
+      appearance::SetControlFont(state->cancel_button, font);
 
-    state->tree.Create(hwnd, GetModuleHandleW(nullptr), 1);
-    appearance::SetControlFont(state->tree.hwnd(), font);
-    std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots();
-    state->tree.PopulateRoots(roots);
+      state->tree.Create(hwnd, GetModuleHandleW(nullptr), 1);
+      appearance::SetControlFont(state->tree.hwnd(), font);
+      std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots();
+      state->tree.PopulateRoots(roots);
 
-    Theme::Current().ApplyToTreeView(state->tree.hwnd());
-    Theme::Current().ApplyToChildren(hwnd);
-    return 0;
-  }
+      Theme::Current().ApplyToTreeView(state->tree.hwnd());
+      Theme::Current().ApplyToChildren(hwnd);
+      return 0;
+    }
   case WM_DESTROY:
     if (state && state->font) {
       DeleteObject(state->font);
@@ -391,112 +420,117 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     }
     appearance::ApplyDpiChange(hwnd, lparam);
     return 0;
-  case WM_SIZE: {
-    RECT client = {};
-    GetClientRect(hwnd, &client);
-    using namespace appearance::metrics;
-    const UINT dpi = win32::DpiForWindow(hwnd);
-    const int margin = Scaled(kDialogContentMargin, dpi);
-    const int button_h = Scaled(kButtonHeight, dpi);
-    const int button_w = Scaled(kButtonMinWidth, dpi);
-    const int button_gap = Scaled(kButtonGap, dpi);
-    const int width = client.right - client.left;
-    const int height = client.bottom - client.top;
-    const int bottom_y = height - Scaled(kDialogButtonBottomMargin, dpi) - button_h;
-    const int cancel_x = width - Scaled(kDialogButtonRightMargin, dpi) - button_w;
-    appearance::Place(state->tree.hwnd(), margin, margin, width - margin * 2,
-                      std::max(0, bottom_y - Scaled(kBlockGap, dpi) - margin));
-    appearance::Place(state->ok_button, cancel_x - button_gap - button_w, bottom_y, button_w,
-                      button_h);
-    appearance::Place(state->cancel_button, cancel_x, bottom_y, button_w, button_h);
-    return 0;
-  }
-  case WM_SETTINGCHANGE: {
-    if (Theme::UpdateFromSystem()) {
-      Theme::Current().ApplyToWindow(hwnd);
-      Theme::Current().ApplyToChildren(hwnd);
-      InvalidateRect(hwnd, nullptr, TRUE);
+  case WM_SIZE:
+    {
+      RECT client = {};
+      GetClientRect(hwnd, &client);
+      using namespace appearance::metrics;
+      const UINT dpi = win32::DpiForWindow(hwnd);
+      const int margin = Scaled(kDialogContentMargin, dpi);
+      const int button_h = Scaled(kButtonHeight, dpi);
+      const int button_w = Scaled(kButtonMinWidth, dpi);
+      const int button_gap = Scaled(kButtonGap, dpi);
+      const int width = client.right - client.left;
+      const int height = client.bottom - client.top;
+      const int bottom_y = height - Scaled(kDialogButtonBottomMargin, dpi) - button_h;
+      const int cancel_x = width - Scaled(kDialogButtonRightMargin, dpi) - button_w;
+      appearance::Place(state->tree.hwnd(), margin, margin, width - margin * 2, std::max(0, bottom_y - Scaled(kBlockGap, dpi) - margin));
+      appearance::Place(state->ok_button, cancel_x - button_gap - button_w, bottom_y, button_w, button_h);
+      appearance::Place(state->cancel_button, cancel_x, bottom_y, button_w, button_h);
+      return 0;
     }
-    return 0;
-  }
+  case WM_SETTINGCHANGE:
+    {
+      if (Theme::UpdateFromSystem()) {
+        Theme::Current().ApplyToWindow(hwnd);
+        Theme::Current().ApplyToChildren(hwnd);
+        InvalidateRect(hwnd, nullptr, TRUE);
+      }
+      return 0;
+    }
   case WM_CTLCOLORSTATIC:
   case WM_CTLCOLORBTN:
-  case WM_CTLCOLOREDIT: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    int type = (msg == WM_CTLCOLORSTATIC) ? CTLCOLOR_STATIC : (msg == WM_CTLCOLORBTN) ? CTLCOLOR_BTN
-                                                                                      : CTLCOLOR_EDIT;
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
-  }
-  case WM_ERASEBKGND: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rect = {};
-    GetClientRect(hwnd, &rect);
-    FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
-    return 1;
-  }
-  case WM_NOTIFY: {
-    auto* hdr = reinterpret_cast<NMHDR*>(lparam);
-    if (hdr && hdr->hwndFrom == state->tree.hwnd()) {
-      if (hdr->code == TVN_ITEMEXPANDINGW) {
-        state->tree.OnItemExpanding(reinterpret_cast<NMTREEVIEWW*>(lparam));
-        return 0;
-      }
-      if (hdr->code == TVN_GETDISPINFOW) {
-        state->tree.OnGetDispInfo(reinterpret_cast<NMTVDISPINFOW*>(lparam));
-        return 0;
-      }
-      if (hdr->code == TVN_SELCHANGEDW) {
-        RegistryNode* node = state->tree.OnSelectionChanged(reinterpret_cast<NMTREEVIEWW*>(lparam));
-        if (node) {
-          state->selected_path = registry_path::Build(*node);
+  case WM_CTLCOLOREDIT:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      int type = (msg == WM_CTLCOLORSTATIC) ? CTLCOLOR_STATIC : (msg == WM_CTLCOLORBTN) ? CTLCOLOR_BTN
+                                                                                        : CTLCOLOR_EDIT;
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
+    }
+  case WM_ERASEBKGND:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rect = {};
+      GetClientRect(hwnd, &rect);
+      FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
+      return 1;
+    }
+  case WM_NOTIFY:
+    {
+      auto* hdr = reinterpret_cast<NMHDR*>(lparam);
+      if (hdr && hdr->hwndFrom == state->tree.hwnd()) {
+        if (hdr->code == TVN_ITEMEXPANDINGW) {
+          state->tree.OnItemExpanding(reinterpret_cast<NMTREEVIEWW*>(lparam));
+          return 0;
         }
-        return 0;
-      }
-      if (hdr->code == NM_CUSTOMDRAW) {
-        const Theme& theme = Theme::Current();
-        auto* draw = reinterpret_cast<NMTVCUSTOMDRAW*>(lparam);
-        if (draw->nmcd.dwDrawStage == CDDS_PREPAINT) {
-          return CDRF_NOTIFYITEMDRAW;
+        if (hdr->code == TVN_GETDISPINFOW) {
+          state->tree.OnGetDispInfo(reinterpret_cast<NMTVDISPINFOW*>(lparam));
+          return 0;
         }
-        if (draw->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
-          if (draw->nmcd.uItemState & CDIS_SELECTED) {
-            return CDRF_DODEFAULT;
+        if (hdr->code == TVN_SELCHANGEDW) {
+          RegistryNode* node = state->tree.OnSelectionChanged(reinterpret_cast<NMTREEVIEWW*>(lparam));
+          if (node) {
+            state->selected_path = registry_path::Build(*node);
           }
-          draw->clrText = theme.TextColor();
-          draw->clrTextBk = theme.PanelColor();
-          return CDRF_NEWFONT;
+          return 0;
+        }
+        if (hdr->code == NM_CUSTOMDRAW) {
+          const Theme& theme = Theme::Current();
+          auto* draw = reinterpret_cast<NMTVCUSTOMDRAW*>(lparam);
+          if (draw->nmcd.dwDrawStage == CDDS_PREPAINT) {
+            return CDRF_NOTIFYITEMDRAW;
+          }
+          if (draw->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
+            if (draw->nmcd.uItemState & CDIS_SELECTED) {
+              return CDRF_DODEFAULT;
+            }
+            draw->clrText = theme.TextColor();
+            draw->clrTextBk = theme.PanelColor();
+            return CDRF_NEWFONT;
+          }
         }
       }
-    }
-    break;
-  }
-  case DM_GETDEFID:
-    return MAKELRESULT(IDOK, DC_HASDEFID);
-  case WM_COMMAND: {
-    if (!state) {
-      return 0;
-    }
-    switch (LOWORD(wparam)) {
-    case IDOK: {
-      if (state->selected_path.empty()) {
-        ui::ShowWarning(hwnd, L"Select a key.");
-        return 0;
-      }
-      state->accepted = true;
-      appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-      DestroyWindow(hwnd);
-      return 0;
-    }
-    case IDCANCEL:
-      appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-      DestroyWindow(hwnd);
-      return 0;
-    default:
       break;
     }
-    break;
-  }
+  case DM_GETDEFID:
+    return MAKELRESULT(IDOK, DC_HASDEFID);
+  case WM_COMMAND:
+    {
+      if (!state) {
+        return 0;
+      }
+      switch (LOWORD(wparam)) {
+      case IDOK:
+        {
+          if (state->selected_path.empty()) {
+            ui::ShowWarning(hwnd, L"Select a key.");
+            return 0;
+          }
+          state->accepted = true;
+          appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
+          DestroyWindow(hwnd);
+          return 0;
+        }
+      case IDCANCEL:
+        appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
+        DestroyWindow(hwnd);
+        return 0;
+      default:
+        break;
+      }
+      break;
+    }
   case WM_CLOSE:
     if (state) {
       appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
@@ -509,7 +543,10 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
   return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
-bool ShowRegistryKey(HWND owner, std::wstring* selected_path) {
+bool ShowRegistryKey(
+    HWND owner,
+    std::wstring* selected_path
+) {
   if (!selected_path) {
     return false;
   }

@@ -11,9 +11,14 @@
 
 namespace regkit::defaults {
 
-bool Load(const std::wstring& path, const NormalizePath& normalize,
-          Data* data, std::vector<Entry>* entries,
-          std::wstring* error, const std::atomic_bool* cancel) {
+bool Load(
+    const std::wstring& path,
+    const NormalizePath& normalize,
+    Data* data,
+    std::vector<Entry>* entries,
+    std::wstring* error,
+    const std::atomic_bool* cancel
+) {
   if ((!data && !entries) || !normalize) {
     return false;
   }
@@ -67,7 +72,8 @@ bool Load(const std::wstring& path, const NormalizePath& normalize,
       value.data = value_format::DisplayData(
           pair.second.type,
           pair.second.data.empty() ? nullptr : pair.second.data.data(),
-          static_cast<DWORD>(pair.second.data.size()));
+          static_cast<DWORD>(pair.second.data.size())
+      );
       if (target) {
         auto& target_value =
             target->values[util::ToLower(pair.second.name)];

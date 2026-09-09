@@ -21,36 +21,41 @@ struct State {
   bool accepted = false;
 };
 
-bool ChoosePath(HWND owner, std::wstring* path) {
+bool ChoosePath(
+    HWND owner,
+    std::wstring* path
+) {
   const HRESULT hr = win32::ChooseFileToSave(
-      owner, L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0", L"reg",
-      path && !path->empty() ? path->c_str() : nullptr, path);
+      owner,
+      L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0",
+      L"reg",
+      path && !path->empty() ? path->c_str() : nullptr,
+      path
+  );
   if (FAILED(hr) && !win32::DialogCancelled(hr)) {
     ui::ShowError(owner, win32::FormatDialogError(hr));
   }
   return SUCCEEDED(hr);
 }
 
-INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
-                            LPARAM lparam) {
+INT_PTR CALLBACK DialogProc(
+    HWND dialog,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* state = reinterpret_cast<State*>(
-      GetWindowLongPtrW(dialog, DWLP_USER));
+      GetWindowLongPtrW(dialog, DWLP_USER)
+  );
   if (message == WM_INITDIALOG) {
     state = reinterpret_cast<State*>(lparam);
-    SetWindowLongPtrW(dialog, DWLP_USER,
-                      reinterpret_cast<LONG_PTR>(state));
+    SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
     SetWindowTextW(dialog, L"RegKit");
     SetDlgItemTextW(dialog, IDC_EXPORT_PATH, state->value.path.c_str());
-    CheckDlgButton(dialog, IDC_EXPORT_RANGE_BRANCH,
-                   state->value.include_subkeys ? BST_CHECKED
-                                                : BST_UNCHECKED);
-    CheckDlgButton(dialog, IDC_EXPORT_RANGE_KEY,
-                   state->value.include_subkeys ? BST_UNCHECKED
-                                                : BST_CHECKED);
-    CheckDlgButton(dialog, IDC_EXPORT_OPEN_AFTER,
-                   state->value.open_after ? BST_CHECKED : BST_UNCHECKED);
-    dialog_support::Initialize(dialog, &state->font,
-                               {IDC_EXPORT_PATH});
+    CheckDlgButton(dialog, IDC_EXPORT_RANGE_BRANCH, state->value.include_subkeys ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(dialog, IDC_EXPORT_RANGE_KEY, state->value.include_subkeys ? BST_UNCHECKED : BST_CHECKED);
+    CheckDlgButton(dialog, IDC_EXPORT_OPEN_AFTER, state->value.open_after ? BST_CHECKED : BST_UNCHECKED);
+    dialog_support::Initialize(dialog, &state->font, {IDC_EXPORT_PATH});
     return TRUE;
   }
   if (message == WM_DESTROY) {
@@ -61,7 +66,12 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
   }
   INT_PTR themed = 0;
   if (dialog_support::HandleThemeMessage(
-          dialog, message, wparam, lparam, &themed)) {
+          dialog,
+          message,
+          wparam,
+          lparam,
+          &themed
+      )) {
     return themed;
   }
   if (message != WM_COMMAND || !state) {
@@ -100,16 +110,23 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
 
 } // namespace
 
-bool ChooseExport(HWND owner, const ExportRequest& request,
-                  ExportResult* result) {
+bool ChooseExport(
+    HWND owner,
+    const ExportRequest& request,
+    ExportResult* result
+) {
   if (!result) {
     return false;
   }
   State state;
   state.value = request;
   const INT_PTR dialog_result = DialogBoxParamW(
-      GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_EXPORT_OPTIONS), owner,
-      DialogProc, reinterpret_cast<LPARAM>(&state));
+      GetModuleHandleW(nullptr),
+      MAKEINTRESOURCEW(IDD_EXPORT_OPTIONS),
+      owner,
+      DialogProc,
+      reinterpret_cast<LPARAM>(&state)
+  );
   if (dialog_result != IDOK || !state.accepted) {
     return false;
   }

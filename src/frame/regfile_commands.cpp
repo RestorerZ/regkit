@@ -6,7 +6,9 @@
 namespace regkit {
 using namespace window_detail;
 
-bool MainWindow::Impl::SaveRegFileTab(int tab_index) {
+bool MainWindow::Impl::SaveRegFileTab(
+    int tab_index
+) {
   if (!IsRegFileTabIndex(tab_index) || static_cast<size_t>(tab_index) >= tabs_.size()) {
     return false;
   }
@@ -30,7 +32,10 @@ bool MainWindow::Impl::SaveRegFileTab(int tab_index) {
   return true;
 }
 
-bool MainWindow::Impl::ExportRegFileTab(int tab_index, const std::wstring& path) {
+bool MainWindow::Impl::ExportRegFileTab(
+    int tab_index,
+    const std::wstring& path
+) {
   if (!IsRegFileTabIndex(tab_index) || static_cast<size_t>(tab_index) >= tabs_.size()) {
     return false;
   }
@@ -49,7 +54,10 @@ bool MainWindow::Impl::ExportRegFileTab(int tab_index, const std::wstring& path)
   return true;
 }
 
-bool MainWindow::Impl::BuildRegFileContent(const TabEntry& entry, std::wstring* out) const {
+bool MainWindow::Impl::BuildRegFileContent(
+    const TabEntry& entry,
+    std::wstring* out
+) const {
   if (!out) {
     return false;
   }
@@ -59,8 +67,7 @@ bool MainWindow::Impl::BuildRegFileContent(const TabEntry& entry, std::wstring* 
   }
 
   regfile::Writer writer;
-  std::function<void(const VirtualRegistryKey&,
-                     const std::wstring&)>
+  std::function<void(const VirtualRegistryKey&, const std::wstring&)>
       append_key;
   append_key = [&](const VirtualRegistryKey& key,
                    const std::wstring& full_path) {
@@ -83,8 +90,7 @@ bool MainWindow::Impl::BuildRegFileContent(const TabEntry& entry, std::wstring* 
       if (!left || !right) {
         return left != nullptr;
       }
-      return _wcsicmp(left->name.c_str(), right->name.c_str()) < 0;
-    });
+      return _wcsicmp(left->name.c_str(), right->name.c_str()) < 0; });
     for (const auto* child : children) {
       if (!child) {
         continue;
@@ -110,7 +116,9 @@ bool MainWindow::Impl::BuildRegFileContent(const TabEntry& entry, std::wstring* 
   return true;
 }
 
-void MainWindow::Impl::ReleaseRegFileRoots(TabEntry* entry) {
+void MainWindow::Impl::ReleaseRegFileRoots(
+    TabEntry* entry
+) {
   if (!entry) {
     return;
   }
@@ -124,9 +132,10 @@ void MainWindow::Impl::ReleaseRegFileRoots(TabEntry* entry) {
   entry->reg_file_roots.clear();
 }
 
-
-void MainWindow::Impl::StartRegFileParse(const std::wstring& path,
-                                        const std::wstring& session_key) {
+void MainWindow::Impl::StartRegFileParse(
+    const std::wstring& path,
+    const std::wstring& session_key
+) {
   if (path.empty() || session_key.empty() ||
       reg_file_parse_sessions_.find(session_key) != reg_file_parse_sessions_.end()) {
     return;
@@ -136,8 +145,7 @@ void MainWindow::Impl::StartRegFileParse(const std::wstring& path,
   session->source_lower = session_key;
   HWND hwnd = hwnd_;
   RegFileParseSession* session_ptr = session.get();
-  session->work.Start([this, session_ptr, hwnd](uint64_t generation,
-                                                std::atomic_bool& cancel) {
+  session->work.Start([this, session_ptr, hwnd](uint64_t generation, std::atomic_bool& cancel) {
     auto payload = std::make_unique<RegFileParsePayload>();
     payload->generation = generation;
     payload->source_path = session_ptr->source_path;
@@ -157,12 +165,14 @@ void MainWindow::Impl::StartRegFileParse(const std::wstring& path,
     if (!hwnd || !IsWindow(hwnd) || !PostMessageW(hwnd, frame::message_id::kRegFileLoadReady, 0, reinterpret_cast<LPARAM>(payload.get()))) {
       return;
     }
-    ReleasePostedPayload(payload);
-  });
+    ReleasePostedPayload(payload); });
   reg_file_parse_sessions_.emplace(session_key, std::move(session));
 }
 
-bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path, bool force_new_tab) {
+bool MainWindow::Impl::OpenRegFileTab(
+    const std::wstring& path,
+    bool force_new_tab
+) {
   if (!tab_ || path.empty()) {
     return false;
   }

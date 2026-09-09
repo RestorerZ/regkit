@@ -8,27 +8,37 @@ using namespace window_detail;
 
 namespace {
 
-bool ValueNameExists(const RegistryNode& node, const std::wstring& name) {
+bool ValueNameExists(
+    const RegistryNode& node,
+    const std::wstring& name
+) {
   ValueEntry entry;
   return RegistryStore::QueryValue(node, name, &entry);
 }
 
-bool KeyNameExists(const RegistryNode& parent, const std::wstring& name) {
+bool KeyNameExists(
+    const RegistryNode& parent,
+    const std::wstring& name
+) {
   KeyInfo info = {};
   return RegistryStore::QueryKeyInfo(MakeChildNode(parent, name), &info);
 }
 
-void ReportNameTaken(HWND owner, const wchar_t* message, const wchar_t* title,
-                     const std::wstring& name) {
+void ReportNameTaken(
+    HWND owner,
+    const wchar_t* message,
+    const wchar_t* title,
+    const std::wstring& name
+) {
   ui::PromptKeyChoice(owner, message, name, title, L"", L"", L"OK");
 }
 
 constexpr int kDividerProbeWidth = 32;
 constexpr int kDividerProbeHeight = 16;
 
-
-
-COLORREF HeaderDividerColor(HWND header) {
+COLORREF HeaderDividerColor(
+    HWND header
+) {
   COLORREF color = Theme::Current().BorderColor();
   HTHEME theme = OpenThemeData(header, VSCLASS_HEADER);
   if (!theme) {
@@ -40,8 +50,7 @@ COLORREF HeaderDividerColor(HWND header) {
             CreateCompatibleBitmap(screen, kDividerProbeWidth, kDividerProbeHeight)) {
       HGDIOBJ previous = SelectObject(mem, bitmap);
       RECT probe = {0, 0, kDividerProbeWidth, kDividerProbeHeight};
-      if (SUCCEEDED(DrawThemeBackground(theme, mem, HP_HEADERITEM, HIS_NORMAL,
-                                        &probe, nullptr))) {
+      if (SUCCEEDED(DrawThemeBackground(theme, mem, HP_HEADERITEM, HIS_NORMAL, &probe, nullptr))) {
         const COLORREF edge =
             GetPixel(mem, kDividerProbeWidth - 1, kDividerProbeHeight / 2);
         if (edge != CLR_INVALID) {
@@ -58,7 +67,11 @@ COLORREF HeaderDividerColor(HWND header) {
   return color;
 }
 
-void FormatCellFileTime(const FILETIME& filetime, wchar_t* buffer, int capacity) {
+void FormatCellFileTime(
+    const FILETIME& filetime,
+    wchar_t* buffer,
+    int capacity
+) {
   buffer[0] = L'\0';
   if (filetime.dwLowDateTime == 0 && filetime.dwHighDateTime == 0) {
     return;
@@ -69,14 +82,14 @@ void FormatCellFileTime(const FILETIME& filetime, wchar_t* buffer, int capacity)
       !FileTimeToSystemTime(&local, &st)) {
     return;
   }
-  swprintf_s(buffer, static_cast<size_t>(capacity), L"%d/%d/%d %d:%02d",
-             st.wMonth, st.wDay, st.wYear, st.wHour, st.wMinute);
+  swprintf_s(buffer, static_cast<size_t>(capacity), L"%d/%d/%d %d:%02d", st.wMonth, st.wDay, st.wYear, st.wHour, st.wMinute);
 }
 
 } // namespace
 
-
-LRESULT MainWindow::Impl::HandleNotification(LPARAM lparam) {
+LRESULT MainWindow::Impl::HandleNotification(
+    LPARAM lparam
+) {
   auto* header = reinterpret_cast<NMHDR*>(lparam);
   if (!header) {
     return 0;
@@ -112,8 +125,10 @@ LRESULT MainWindow::Impl::HandleNotification(LPARAM lparam) {
   return 0;
 }
 
-std::wstring MainWindow::Impl::SearchCellFieldText(const search::Result& result,
-                                                  int subitem) const {
+std::wstring MainWindow::Impl::SearchCellFieldText(
+    const search::Result& result,
+    int subitem
+) const {
   switch (subitem) {
   case 0:
     return result.key_path;
@@ -133,12 +148,17 @@ std::wstring MainWindow::Impl::SearchCellFieldText(const search::Result& result,
   }
 }
 
-std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item,
-                                                 int display_subitem) {
+std::wstring MainWindow::Impl::ListCellFieldText(
+    HWND list,
+    int item,
+    int display_subitem
+) {
   if (list == browse_.values().hwnd()) {
     const ListRow* row = browse_.values().RowAt(item);
     return row ? ValueRowFieldText(
-                     *row, MappedSubItem(value_column_subitems_, display_subitem))
+                     *row,
+                     MappedSubItem(value_column_subitems_, display_subitem)
+                 )
                : std::wstring();
   }
   if (list == search_results_list_) {
@@ -193,7 +213,9 @@ std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item,
   return std::wstring();
 }
 
-bool MainWindow::Impl::ListCellTooltipText(std::wstring* out) {
+bool MainWindow::Impl::ListCellTooltipText(
+    std::wstring* out
+) {
   POINT pt = {};
   if (!out || !GetCursorPos(&pt)) {
     return false;
@@ -237,7 +259,10 @@ bool MainWindow::Impl::ListCellTooltipText(std::wstring* out) {
   return true;
 }
 
-LRESULT MainWindow::Impl::HandleTooltipNotification(NMHDR* header, LPARAM lparam) {
+LRESULT MainWindow::Impl::HandleTooltipNotification(
+    NMHDR* header,
+    LPARAM lparam
+) {
   if (header->code == TTN_SHOW && header->hwndFrom == value_tooltip_) {
     RECT tip = {};
     POINT pt = {};
@@ -301,7 +326,10 @@ HBRUSH MainWindow::Impl::ValueHeaderSurfaceBrush() const {
   return appearance::CachedBrush(color);
 }
 
-LRESULT MainWindow::Impl::HandleToolbarNotification(NMHDR* header, LPARAM lparam) {
+LRESULT MainWindow::Impl::HandleToolbarNotification(
+    NMHDR* header,
+    LPARAM lparam
+) {
   const bool is_grid_bar = header->hwndFrom == value_grid_toolbar_ ||
                            header->hwndFrom == search_grid_toolbar_;
   if ((header->hwndFrom == toolbar_.hwnd() || is_grid_bar) &&
@@ -314,55 +342,53 @@ LRESULT MainWindow::Impl::HandleToolbarNotification(NMHDR* header, LPARAM lparam
     const Theme& theme = Theme::Current();
     switch (draw->nmcd.dwDrawStage) {
     case CDDS_PREPAINT:
-      FillRect(draw->nmcd.hdc, &draw->nmcd.rc,
-               is_grid_bar ? ValueHeaderSurfaceBrush() : theme.BackgroundBrush());
+      FillRect(draw->nmcd.hdc, &draw->nmcd.rc, is_grid_bar ? ValueHeaderSurfaceBrush() : theme.BackgroundBrush());
       return CDRF_NOTIFYITEMDRAW;
-    case CDDS_ITEMPREPAINT: {
-      bool is_separator = false;
-      int command_id = static_cast<int>(draw->nmcd.dwItemSpec);
-      int index = static_cast<int>(SendMessageW(bar, TB_COMMANDTOINDEX, command_id, 0));
-      if (index >= 0) {
-        TBBUTTON button = {};
-        if (SendMessageW(bar, TB_GETBUTTON, index, reinterpret_cast<LPARAM>(&button))) {
-          is_separator = (button.fsStyle & BTNS_SEP) != 0;
+    case CDDS_ITEMPREPAINT:
+      {
+        bool is_separator = false;
+        int command_id = static_cast<int>(draw->nmcd.dwItemSpec);
+        int index = static_cast<int>(SendMessageW(bar, TB_COMMANDTOINDEX, command_id, 0));
+        if (index >= 0) {
+          TBBUTTON button = {};
+          if (SendMessageW(bar, TB_GETBUTTON, index, reinterpret_cast<LPARAM>(&button))) {
+            is_separator = (button.fsStyle & BTNS_SEP) != 0;
+          }
         }
-      }
-      if (is_separator) {
-        return CDRF_DODEFAULT;
-      }
+        if (is_separator) {
+          return CDRF_DODEFAULT;
+        }
 
-      POINT cursor = {};
-      GetCursorPos(&cursor);
-      ScreenToClient(bar, &cursor);
-      bool is_hovered = ((draw->nmcd.uItemState & CDIS_HOT) == CDIS_HOT) || PtInRect(&draw->nmcd.rc, cursor);
+        POINT cursor = {};
+        GetCursorPos(&cursor);
+        ScreenToClient(bar, &cursor);
+        bool is_hovered = ((draw->nmcd.uItemState & CDIS_HOT) == CDIS_HOT) || PtInRect(&draw->nmcd.rc, cursor);
 
-      draw->hbrMonoDither = theme.BackgroundBrush();
-      draw->hbrLines = theme.BackgroundBrush();
-      draw->hpenLines = appearance::CachedPen(theme.BorderColor(), 1);
-      draw->clrText = theme.TextColor();
-      draw->clrTextHighlight = theme.TextColor();
-      draw->clrBtnFace = theme.BackgroundColor();
-      draw->clrBtnHighlight = theme.SurfaceColor();
-      draw->clrHighlightHotTrack = theme.HoverColor();
-      draw->nStringBkMode = TRANSPARENT;
-      draw->nHLStringBkMode = TRANSPARENT;
+        draw->hbrMonoDither = theme.BackgroundBrush();
+        draw->hbrLines = theme.BackgroundBrush();
+        draw->hpenLines = appearance::CachedPen(theme.BorderColor(), 1);
+        draw->clrText = theme.TextColor();
+        draw->clrTextHighlight = theme.TextColor();
+        draw->clrBtnFace = theme.BackgroundColor();
+        draw->clrBtnHighlight = theme.SurfaceColor();
+        draw->clrHighlightHotTrack = theme.HoverColor();
+        draw->nStringBkMode = TRANSPARENT;
+        draw->nHLStringBkMode = TRANSPARENT;
 
-      if (is_hovered) {
-        DrawToolbarButtonBackground(draw->nmcd.hdc, draw->nmcd.rc, theme.HoverColor(),
-                                    is_grid_bar ? theme.HoverColor() : theme.BorderColor());
-        draw->nmcd.uItemState &= ~(CDIS_HOT | CDIS_CHECKED);
-      } else if ((draw->nmcd.uItemState & CDIS_CHECKED) == CDIS_CHECKED) {
-        DrawToolbarButtonBackground(draw->nmcd.hdc, draw->nmcd.rc, theme.SurfaceColor(),
-                                    is_grid_bar ? theme.SurfaceColor() : theme.BorderColor());
-        draw->nmcd.uItemState &= ~CDIS_CHECKED;
+        if (is_hovered) {
+          DrawToolbarButtonBackground(draw->nmcd.hdc, draw->nmcd.rc, theme.HoverColor(), is_grid_bar ? theme.HoverColor() : theme.BorderColor());
+          draw->nmcd.uItemState &= ~(CDIS_HOT | CDIS_CHECKED);
+        } else if ((draw->nmcd.uItemState & CDIS_CHECKED) == CDIS_CHECKED) {
+          DrawToolbarButtonBackground(draw->nmcd.hdc, draw->nmcd.rc, theme.SurfaceColor(), is_grid_bar ? theme.SurfaceColor() : theme.BorderColor());
+          draw->nmcd.uItemState &= ~CDIS_CHECKED;
+        }
+
+        LRESULT lr = TBCDRF_USECDCOLORS;
+        if ((draw->nmcd.uItemState & CDIS_SELECTED) == CDIS_SELECTED) {
+          lr |= TBCDRF_NOBACKGROUND;
+        }
+        return lr;
       }
-
-      LRESULT lr = TBCDRF_USECDCOLORS;
-      if ((draw->nmcd.uItemState & CDIS_SELECTED) == CDIS_SELECTED) {
-        lr |= TBCDRF_NOBACKGROUND;
-      }
-      return lr;
-    }
     default:
       break;
     }
@@ -371,7 +397,10 @@ LRESULT MainWindow::Impl::HandleToolbarNotification(NMHDR* header, LPARAM lparam
   return 0;
 }
 
-bool MainWindow::Impl::OpenSearchResultRow(int item, bool new_tab) {
+bool MainWindow::Impl::OpenSearchResultRow(
+    int item,
+    bool new_tab
+) {
   const int index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
   if (item < 0 || index < 0 ||
       static_cast<size_t>(item) >= SearchRowCount(index)) {
@@ -395,16 +424,23 @@ bool MainWindow::Impl::OpenSearchResultRow(int item, bool new_tab) {
   return true;
 }
 
-bool MainWindow::Impl::OpenSelectedSearchResult(bool new_tab) {
+bool MainWindow::Impl::OpenSelectedSearchResult(
+    bool new_tab
+) {
   if (!search_results_list_ || GetFocus() != search_results_list_ ||
       IsCompareTabSelected()) {
     return false;
   }
   return OpenSearchResultRow(
-      ListView_GetNextItem(search_results_list_, -1, LVNI_SELECTED), new_tab);
+      ListView_GetNextItem(search_results_list_, -1, LVNI_SELECTED),
+      new_tab
+  );
 }
 
-LRESULT MainWindow::Impl::HandleTabNotification(NMHDR* header, LPARAM lparam) {
+LRESULT MainWindow::Impl::HandleTabNotification(
+    NMHDR* header,
+    LPARAM lparam
+) {
   (void)lparam;
   if (header->hwndFrom == tab_ && header->code == TCN_SELCHANGING) {
     if (!suppress_tab_change_ && tab_) {
@@ -430,7 +466,10 @@ LRESULT MainWindow::Impl::HandleTabNotification(NMHDR* header, LPARAM lparam) {
   return 0;
 }
 
-LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam) {
+LRESULT MainWindow::Impl::HandleTreeNotification(
+    NMHDR* header,
+    LPARAM lparam
+) {
   if (header->hwndFrom == browse_.tree().hwnd()) {
     if (header->code == TVN_ITEMEXPANDINGW) {
       browse_.tree().OnItemExpanding(reinterpret_cast<NMTREEVIEWW*>(lparam));
@@ -490,8 +529,7 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam) {
                                  ? L""
                                  : rename_parent.subkey.substr(0, rename_sep);
       if (KeyNameExists(rename_parent, new_name)) {
-        ReportNameTaken(hwnd_, L"A key with this name already exists:",
-                        L"Rename key", new_name);
+        ReportNameTaken(hwnd_, L"A key with this name already exists:", L"Rename key", new_name);
         return FALSE;
       }
       if (!RegistryStore::RenameKey(*node, new_name)) {
@@ -547,21 +585,22 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam) {
       switch (draw->nmcd.dwDrawStage) {
       case CDDS_PREPAINT:
         return CDRF_NOTIFYITEMDRAW;
-      case CDDS_ITEMPREPAINT: {
-        if (draw->nmcd.uItemState & CDIS_SELECTED) {
-          return CDRF_DODEFAULT;
+      case CDDS_ITEMPREPAINT:
+        {
+          if (draw->nmcd.uItemState & CDIS_SELECTED) {
+            return CDRF_DODEFAULT;
+          }
+          const Theme& theme = Theme::Current();
+          bool hot = (draw->nmcd.uItemState & CDIS_HOT) != 0;
+          if (hot) {
+            draw->clrText = theme.TextColor();
+            draw->clrTextBk = theme.HoverColor();
+          } else {
+            draw->clrText = theme.TextColor();
+            draw->clrTextBk = theme.PanelColor();
+          }
+          return CDRF_NEWFONT;
         }
-        const Theme& theme = Theme::Current();
-        bool hot = (draw->nmcd.uItemState & CDIS_HOT) != 0;
-        if (hot) {
-          draw->clrText = theme.TextColor();
-          draw->clrTextBk = theme.HoverColor();
-        } else {
-          draw->clrText = theme.TextColor();
-          draw->clrTextBk = theme.PanelColor();
-        }
-        return CDRF_NEWFONT;
-      }
       default:
         break;
       }
@@ -570,7 +609,10 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam) {
   return 0;
 }
 
-LRESULT MainWindow::Impl::HandleHeaderNotification(NMHDR* header, LPARAM lparam) {
+LRESULT MainWindow::Impl::HandleHeaderNotification(
+    NMHDR* header,
+    LPARAM lparam
+) {
   HWND value_header = ListView_GetHeader(browse_.values().hwnd());
   HWND history_header = ListView_GetHeader(history_list_);
   HWND search_header = ListView_GetHeader(search_results_list_);
@@ -585,7 +627,6 @@ LRESULT MainWindow::Impl::HandleHeaderNotification(NMHDR* header, LPARAM lparam)
           SaveSettings();
         }
       }
-
 
       InvalidateListViewColumn(browse_.values().hwnd(), info->iItem);
       InvalidateListViewTail(browse_.values().hwnd());
@@ -618,9 +659,10 @@ LRESULT MainWindow::Impl::HandleHeaderNotification(NMHDR* header, LPARAM lparam)
   return 0;
 }
 
-
-
-bool MainWindow::Impl::PaintHeaderItem(HWND header, NMCUSTOMDRAW* draw) {
+bool MainWindow::Impl::PaintHeaderItem(
+    HWND header,
+    NMCUSTOMDRAW* draw
+) {
   HTHEME theme = OpenThemeData(header, VSCLASS_HEADER);
   if (!theme) {
     return false;
@@ -635,10 +677,8 @@ bool MainWindow::Impl::PaintHeaderItem(HWND header, NMCUSTOMDRAW* draw) {
     if (grid_line_color_ == CLR_INVALID) {
       grid_line_color_ = HeaderDividerColor(header);
     }
-    FillRect(draw->hdc, &draw->rc,
-             appearance::CachedBrush(ListView_GetBkColor(GetParent(header))));
-    RECT divider = {draw->rc.right - 1, draw->rc.top, draw->rc.right,
-                    draw->rc.bottom};
+    FillRect(draw->hdc, &draw->rc, appearance::CachedBrush(ListView_GetBkColor(GetParent(header))));
+    RECT divider = {draw->rc.right - 1, draw->rc.top, draw->rc.right, draw->rc.bottom};
     FillRect(draw->hdc, &divider, appearance::CachedBrush(grid_line_color_));
   } else {
     DrawThemeBackground(theme, draw->hdc, HP_HEADERITEM, state, &draw->rc, nullptr);
@@ -654,12 +694,10 @@ bool MainWindow::Impl::PaintHeaderItem(HWND header, NMCUSTOMDRAW* draw) {
   if (item.fmt & (HDF_SORTUP | HDF_SORTDOWN)) {
     const int arrow_state = (item.fmt & HDF_SORTUP) ? HSAS_SORTEDUP : HSAS_SORTEDDOWN;
     SIZE size = {};
-    if (SUCCEEDED(GetThemePartSize(theme, draw->hdc, HP_HEADERSORTARROW,
-                                   arrow_state, nullptr, TS_TRUE, &size))) {
+    if (SUCCEEDED(GetThemePartSize(theme, draw->hdc, HP_HEADERSORTARROW, arrow_state, nullptr, TS_TRUE, &size))) {
       RECT arrow = draw->rc;
       arrow.bottom = arrow.top + size.cy;
-      DrawThemeBackground(theme, draw->hdc, HP_HEADERSORTARROW, arrow_state,
-                          &arrow, nullptr);
+      DrawThemeBackground(theme, draw->hdc, HP_HEADERSORTARROW, arrow_state, &arrow, nullptr);
     }
   }
 
@@ -681,7 +719,10 @@ bool MainWindow::Impl::PaintHeaderItem(HWND header, NMCUSTOMDRAW* draw) {
   return true;
 }
 
-LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam) {
+LRESULT MainWindow::Impl::HandleValueNotification(
+    NMHDR* header,
+    LPARAM lparam
+) {
   if (header->hwndFrom == browse_.values().hwnd() &&
       header->code == LVN_ODCACHEHINT) {
     auto* hint = reinterpret_cast<NMLVCACHEHINT*>(lparam);
@@ -710,8 +751,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam) 
       if (subitem == kValueColData && mutable_row && !mutable_row->data_ready &&
           !value_preview_request_posted_) {
         value_preview_request_posted_ = true;
-        if (!PostMessageW(hwnd_, frame::message_id::kValuePreviewRequest,
-                          static_cast<WPARAM>(disp->item.iItem), 0)) {
+        if (!PostMessageW(hwnd_, frame::message_id::kValuePreviewRequest, static_cast<WPARAM>(disp->item.iItem), 0)) {
           value_preview_request_posted_ = false;
         }
       }
@@ -769,8 +809,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam) 
     if (row->kind == rowkind::kKey) {
       RegistryNode child = MakeChildNode(*browse_.current_node(), old_name);
       if (KeyNameExists(*browse_.current_node(), new_name)) {
-        ReportNameTaken(hwnd_, L"A key with this name already exists:",
-                        L"Rename key", new_name);
+        ReportNameTaken(hwnd_, L"A key with this name already exists:", L"Rename key", new_name);
         return FALSE;
       }
       if (!RegistryStore::RenameKey(child, new_name)) {
@@ -790,27 +829,22 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam) 
       return TRUE;
     }
     if (ValueNameExists(*browse_.current_node(), new_name)) {
-      ReportNameTaken(hwnd_, L"A value with this name already exists:",
-                      L"Rename value", new_name);
+      ReportNameTaken(hwnd_, L"A value with this name already exists:", L"Rename value", new_name);
       return FALSE;
     }
     bool both_names_left = false;
-    if (!RegistryStore::RenameValue(*browse_.current_node(), old_name, new_name,
-                                    &both_names_left)) {
+    if (!RegistryStore::RenameValue(*browse_.current_node(), old_name, new_name, &both_names_left)) {
       if (both_names_left) {
         MarkOfflineDirty();
         UpdateValueListForNode(browse_.current_node());
-        ui::ShowError(hwnd_,
-                      L"The value was copied to the new name but the old name "
-                      L"could not be removed. Both names now exist.");
+        ui::ShowError(hwnd_, L"The value was copied to the new name but the old name "
+                             L"could not be removed. Both names now exist.");
       } else {
         ui::ShowError(hwnd_, L"Failed to rename value.");
       }
       return FALSE;
     }
-    AppendValueHistoryEntry(L"Rename value " + old_name, old_name, new_name,
-                            *browse_.current_node(), new_name,
-                            HistoryEntry::RevertKind::kNone);
+    AppendValueHistoryEntry(L"Rename value " + old_name, old_name, new_name, *browse_.current_node(), new_name, HistoryEntry::RevertKind::kNone);
     MarkOfflineDirty();
     changes::UndoOperation op;
     op.type = changes::UndoOperation::Type::kRenameValue;
@@ -825,8 +859,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam) 
         updated->extra = new_name;
         browse_.values().InvalidateFilterCache(updated);
         browse_.values().RefreshFilter();
-        ListView_RedrawItems(browse_.values().hwnd(), disp->item.iItem,
-                             disp->item.iItem);
+        ListView_RedrawItems(browse_.values().hwnd(), disp->item.iItem, disp->item.iItem);
         browse_.SelectValue(new_name);
       }
       appended_value_name_.clear();
@@ -902,18 +935,14 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam) 
     case CDDS_ITEMPREPAINT:
       draw->nmcd.uItemState &= ~CDIS_FOCUS;
       return show_value_grid_ ? CDRF_NOTIFYPOSTPAINT : CDRF_DODEFAULT;
-    case CDDS_ITEMPOSTPAINT: {
-
-
-      RECT row = {};
-      if (ListView_GetItemRect(browse_.values().hwnd(),
-                               static_cast<int>(draw->nmcd.dwItemSpec), &row,
-                               LVIR_BOUNDS)) {
-        PaintValueGridLines(browse_.values().hwnd(), draw->nmcd.hdc, row,
-                            row.bottom - 1, row.bottom - row.top);
+    case CDDS_ITEMPOSTPAINT:
+      {
+        RECT row = {};
+        if (ListView_GetItemRect(browse_.values().hwnd(), static_cast<int>(draw->nmcd.dwItemSpec), &row, LVIR_BOUNDS)) {
+          PaintValueGridLines(browse_.values().hwnd(), draw->nmcd.hdc, row, row.bottom - 1, row.bottom - row.top);
+        }
+        return CDRF_DODEFAULT;
       }
-      return CDRF_DODEFAULT;
-    }
     case CDDS_POSTPAINT:
       PaintValueGridTail(browse_.values().hwnd(), draw->nmcd.hdc);
       return CDRF_DODEFAULT;
@@ -924,10 +953,13 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam) 
   return 0;
 }
 
-
-
-void MainWindow::Impl::PaintValueGridLines(HWND list, HDC hdc, const RECT& area,
-                                           int first_line_y, int row_height) {
+void MainWindow::Impl::PaintValueGridLines(
+    HWND list,
+    HDC hdc,
+    const RECT& area,
+    int first_line_y,
+    int row_height
+) {
   HWND header = list ? ListView_GetHeader(list) : nullptr;
   if (!hdc || !header || area.top >= area.bottom) {
     return;
@@ -970,8 +1002,10 @@ void MainWindow::Impl::PaintValueGridLines(HWND list, HDC hdc, const RECT& area,
   }
 }
 
-
-void MainWindow::Impl::PaintValueGridTail(HWND list, HDC hdc) {
+void MainWindow::Impl::PaintValueGridTail(
+    HWND list,
+    HDC hdc
+) {
   HWND header = list ? ListView_GetHeader(list) : nullptr;
   if (!hdc || !header) {
     return;
@@ -1000,7 +1034,9 @@ void MainWindow::Impl::PaintValueGridTail(HWND list, HDC hdc) {
   PaintValueGridLines(list, hdc, area, area.top + row_height - 1, row_height);
 }
 
-search::Result* MainWindow::Impl::SearchResultAt(int item) {
+search::Result* MainWindow::Impl::SearchResultAt(
+    int item
+) {
   const int tab_index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
   if (item < 0 || tab_index < 0 || static_cast<size_t>(tab_index) >= search_tabs_.size()) {
     return nullptr;
@@ -1014,8 +1050,10 @@ search::Result* MainWindow::Impl::SearchResultAt(int item) {
              : nullptr;
 }
 
-
-std::wstring MainWindow::Impl::SearchRowKeyPath(int tab_index, int item) const {
+std::wstring MainWindow::Impl::SearchRowKeyPath(
+    int tab_index,
+    int item
+) const {
   if (item < 0 || tab_index < 0 ||
       static_cast<size_t>(tab_index) >= search_tabs_.size()) {
     return std::wstring();
@@ -1029,7 +1067,9 @@ std::wstring MainWindow::Impl::SearchRowKeyPath(int tab_index, int item) const {
   return row < tab.results.size() ? tab.results[row].key_path : std::wstring();
 }
 
-size_t MainWindow::Impl::SearchRowCount(int tab_index) const {
+size_t MainWindow::Impl::SearchRowCount(
+    int tab_index
+) const {
   if (tab_index < 0 || static_cast<size_t>(tab_index) >= search_tabs_.size()) {
     return 0;
   }
@@ -1037,7 +1077,9 @@ size_t MainWindow::Impl::SearchRowCount(int tab_index) const {
   return tab.is_compare ? tab.compare_rows.size() : tab.results.size();
 }
 
-LRESULT MainWindow::Impl::HandleSearchListCustomDraw(NMLVCUSTOMDRAW* draw) {
+LRESULT MainWindow::Impl::HandleSearchListCustomDraw(
+    NMLVCUSTOMDRAW* draw
+) {
   if (!draw || !search_results_list_) {
     return CDRF_DODEFAULT;
   }
@@ -1046,95 +1088,98 @@ LRESULT MainWindow::Impl::HandleSearchListCustomDraw(NMLVCUSTOMDRAW* draw) {
   case CDDS_PREPAINT:
     return show_value_grid_ ? (CDRF_NOTIFYITEMDRAW | CDRF_NOTIFYPOSTPAINT)
                             : CDRF_NOTIFYITEMDRAW;
-  case CDDS_ITEMPREPAINT: {
-    draw->nmcd.uItemState &= ~CDIS_FOCUS;
-    LRESULT stage = show_value_grid_ ? CDRF_NOTIFYPOSTPAINT : CDRF_DODEFAULT;
-    const search::Result* result = SearchResultAt(item);
-    if (result && result->match_length > 0) {
-      stage |= CDRF_NOTIFYSUBITEMDRAW;
+  case CDDS_ITEMPREPAINT:
+    {
+      draw->nmcd.uItemState &= ~CDIS_FOCUS;
+      LRESULT stage = show_value_grid_ ? CDRF_NOTIFYPOSTPAINT : CDRF_DODEFAULT;
+      const search::Result* result = SearchResultAt(item);
+      if (result && result->match_length > 0) {
+        stage |= CDRF_NOTIFYSUBITEMDRAW;
+      }
+      return stage;
     }
-    return stage;
-  }
-  case CDDS_ITEMPOSTPAINT: {
-    RECT row = {};
-    if (show_value_grid_ &&
-        ListView_GetItemRect(search_results_list_, item, &row, LVIR_BOUNDS)) {
-      PaintValueGridLines(search_results_list_, draw->nmcd.hdc, row,
-                          row.bottom - 1, row.bottom - row.top);
+  case CDDS_ITEMPOSTPAINT:
+    {
+      RECT row = {};
+      if (show_value_grid_ &&
+          ListView_GetItemRect(search_results_list_, item, &row, LVIR_BOUNDS)) {
+        PaintValueGridLines(search_results_list_, draw->nmcd.hdc, row, row.bottom - 1, row.bottom - row.top);
+      }
+      return CDRF_DODEFAULT;
     }
-    return CDRF_DODEFAULT;
-  }
   case CDDS_POSTPAINT:
     if (show_value_grid_) {
       PaintValueGridTail(search_results_list_, draw->nmcd.hdc);
     }
     return CDRF_DODEFAULT;
-  case CDDS_ITEMPREPAINT | CDDS_SUBITEM: {
-    search::Result* result = SearchResultAt(item);
-    if (!result ||
-        SearchMatchSubItem(*result) != MappedSubItem(search_column_subitems_, draw->iSubItem)) {
-      return CDRF_DODEFAULT;
-    }
-    return CDRF_NOTIFYPOSTPAINT;
-  }
-  case CDDS_ITEMPOSTPAINT | CDDS_SUBITEM: {
-    const search::Result* result = SearchResultAt(item);
-    const int subitem = MappedSubItem(search_column_subitems_, draw->iSubItem);
-    if (!result || SearchMatchSubItem(*result) != subitem) {
-      return CDRF_DODEFAULT;
-    }
-    RECT cell = {};
-    if (draw->iSubItem == 0) {
-      RECT row = {};
-      if (!ListView_GetItemRect(search_results_list_, item, &cell, LVIR_LABEL) ||
-          !ListView_GetItemRect(search_results_list_, item, &row, LVIR_BOUNDS)) {
+  case CDDS_ITEMPREPAINT | CDDS_SUBITEM:
+    {
+      search::Result* result = SearchResultAt(item);
+      if (!result ||
+          SearchMatchSubItem(*result) != MappedSubItem(search_column_subitems_, draw->iSubItem)) {
         return CDRF_DODEFAULT;
       }
-      cell.right = row.left + ListView_GetColumnWidth(search_results_list_, 0);
-      cell.left += kLabelTextInset;
-    } else {
-      cell.top = draw->iSubItem;
-      cell.left = LVIR_BOUNDS;
-      if (!SendMessageW(search_results_list_, LVM_GETSUBITEMRECT, item,
-                        reinterpret_cast<LPARAM>(&cell))) {
+      return CDRF_NOTIFYPOSTPAINT;
+    }
+  case CDDS_ITEMPOSTPAINT | CDDS_SUBITEM:
+    {
+      const search::Result* result = SearchResultAt(item);
+      const int subitem = MappedSubItem(search_column_subitems_, draw->iSubItem);
+      if (!result || SearchMatchSubItem(*result) != subitem) {
         return CDRF_DODEFAULT;
       }
-      cell.left += kCellTextPadding;
-    }
-    cell.right -= kCellTextPadding;
-    if (cell.left >= cell.right) {
+      RECT cell = {};
+      if (draw->iSubItem == 0) {
+        RECT row = {};
+        if (!ListView_GetItemRect(search_results_list_, item, &cell, LVIR_LABEL) ||
+            !ListView_GetItemRect(search_results_list_, item, &row, LVIR_BOUNDS)) {
+          return CDRF_DODEFAULT;
+        }
+        cell.right = row.left + ListView_GetColumnWidth(search_results_list_, 0);
+        cell.left += kLabelTextInset;
+      } else {
+        cell.top = draw->iSubItem;
+        cell.left = LVIR_BOUNDS;
+        if (!SendMessageW(search_results_list_, LVM_GETSUBITEMRECT, item, reinterpret_cast<LPARAM>(&cell))) {
+          return CDRF_DODEFAULT;
+        }
+        cell.left += kCellTextPadding;
+      }
+      cell.right -= kCellTextPadding;
+      if (cell.left >= cell.right) {
+        return CDRF_DODEFAULT;
+      }
+      std::wstring_view cell_text;
+      switch (subitem) {
+      case 0:
+        cell_text = result->key_path;
+        break;
+      case 1:
+        cell_text = search::DisplayName(*result);
+        break;
+      case 3:
+        cell_text = result->data_text;
+        break;
+      default:
+        return CDRF_DODEFAULT;
+      }
+      HFONT font = reinterpret_cast<HFONT>(SendMessageW(search_results_list_, WM_GETFONT, 0, 0));
+      HFONT old_font = font ? reinterpret_cast<HFONT>(SelectObject(draw->nmcd.hdc, font)) : nullptr;
+      DrawSearchMatchOverlay(draw->nmcd.hdc, cell, cell_text, static_cast<int>(result->match_start), static_cast<int>(result->match_length));
+      if (old_font) {
+        SelectObject(draw->nmcd.hdc, old_font);
+      }
       return CDRF_DODEFAULT;
     }
-    std::wstring_view cell_text;
-    switch (subitem) {
-    case 0:
-      cell_text = result->key_path;
-      break;
-    case 1:
-      cell_text = search::DisplayName(*result);
-      break;
-    case 3:
-      cell_text = result->data_text;
-      break;
-    default:
-      return CDRF_DODEFAULT;
-    }
-    HFONT font = reinterpret_cast<HFONT>(SendMessageW(search_results_list_, WM_GETFONT, 0, 0));
-    HFONT old_font = font ? reinterpret_cast<HFONT>(SelectObject(draw->nmcd.hdc, font)) : nullptr;
-    DrawSearchMatchOverlay(draw->nmcd.hdc, cell, cell_text,
-                           static_cast<int>(result->match_start),
-                           static_cast<int>(result->match_length));
-    if (old_font) {
-      SelectObject(draw->nmcd.hdc, old_font);
-    }
-    return CDRF_DODEFAULT;
-  }
   default:
     return CDRF_DODEFAULT;
   }
 }
 
-LRESULT MainWindow::Impl::HandleHistoryNotification(NMHDR* header, LPARAM lparam) {
+LRESULT MainWindow::Impl::HandleHistoryNotification(
+    NMHDR* header,
+    LPARAM lparam
+) {
   if (header->hwndFrom == history_list_ && header->code == LVN_GETDISPINFOW) {
     auto* disp = reinterpret_cast<NMLVDISPINFOW*>(lparam);
     const auto& entries = change_history_.entries();
@@ -1150,10 +1195,17 @@ LRESULT MainWindow::Impl::HandleHistoryNotification(NMHDR* header, LPARAM lparam
       const auto& entry = entries[static_cast<size_t>(disp->item.iItem)];
       const std::wstring* text = &entry.time_text;
       switch (disp->item.iSubItem) {
-      case 1: text = &entry.action; break;
-      case 2: text = &entry.old_data; break;
-      case 3: text = &entry.new_data; break;
-      default: break;
+      case 1:
+        text = &entry.action;
+        break;
+      case 2:
+        text = &entry.old_data;
+        break;
+      case 3:
+        text = &entry.new_data;
+        break;
+      default:
+        break;
       }
       if (text->size() > kCellTextDrawLimit && disp->item.pszText &&
           disp->item.cchTextMax > 0) {
@@ -1187,7 +1239,10 @@ LRESULT MainWindow::Impl::HandleHistoryNotification(NMHDR* header, LPARAM lparam
   return 0;
 }
 
-LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam) {
+LRESULT MainWindow::Impl::HandleSearchNotification(
+    NMHDR* header,
+    LPARAM lparam
+) {
   if (header->hwndFrom == search_results_list_ &&
       header->code == LVN_ODCACHEHINT) {
     auto* hint = reinterpret_cast<NMLVCACHEHINT*>(lparam);
@@ -1319,8 +1374,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
       case 4:
         if (buffer && capacity > 0 && !search::IsKeyRow(result) &&
             result.kind != search::ResultKind::kTraceValue) {
-          swprintf_s(buffer, static_cast<size_t>(capacity), L"%lu",
-                     static_cast<unsigned long>(result.data_size));
+          swprintf_s(buffer, static_cast<size_t>(capacity), L"%lu", static_cast<unsigned long>(result.data_size));
         }
         break;
       case 5:
@@ -1330,9 +1384,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
         break;
       case 6:
         if (buffer && capacity > 0 && result.source < tab->sources.size()) {
-          lstrcpynW(buffer,
-                    search::SourceLabel(tab->sources[result.source]).c_str(),
-                    capacity);
+          lstrcpynW(buffer, search::SourceLabel(tab->sources[result.source]).c_str(), capacity);
         }
         break;
       default:
@@ -1436,10 +1488,7 @@ bool MainWindow::Impl::OnCreate() {
     return false;
   }
 
-  value_tooltip_ = CreateWindowExW(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr,
-                                   WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
-                                   CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-                                   CW_USEDEFAULT, hwnd_, nullptr, instance_, nullptr);
+  value_tooltip_ = CreateWindowExW(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr, WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, hwnd_, nullptr, instance_, nullptr);
   if (value_tooltip_) {
     TOOLINFOW info = {};
     info.cbSize = sizeof(info);
@@ -1450,8 +1499,7 @@ bool MainWindow::Impl::OnCreate() {
     SendMessageW(value_tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&info));
     SendMessageW(value_tooltip_, TTM_SETMAXTIPWIDTH, 0, kValueTooltipMaxWidth);
     AllowDarkModeForWindow(value_tooltip_, Theme::UseDarkMode());
-    SetWindowTheme(value_tooltip_,
-                   Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer", nullptr);
+    SetWindowTheme(value_tooltip_, Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer", nullptr);
   }
 
   tab_ = CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_TABS | TCS_FOCUSNEVER, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTabId)), instance_, nullptr);
@@ -1591,7 +1639,9 @@ void MainWindow::Impl::RunDeferredStartup() {
   }
 }
 
-void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state) {
+void MainWindow::Impl::StartStartupCacheLoad(
+    bool include_tree_state
+) {
   StopStartupCacheLoad();
   const bool load_tree_state = include_tree_state && save_tree_state_;
   int history_max_rows = history_max_rows_;
@@ -1599,9 +1649,10 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state) {
   bool history_sort_ascending = history_sort_ascending_;
   const HWND hwnd = hwnd_;
   startup_cache_session_.Start(
-      [this, load_tree_state, history_max_rows, history_sort_column,
-       history_sort_ascending, hwnd](
-          uint64_t generation, const std::atomic_bool& cancel) {
+      [this, load_tree_state, history_max_rows, history_sort_column, history_sort_ascending, hwnd](
+          uint64_t generation,
+          const std::atomic_bool& cancel
+      ) {
         auto payload = std::make_unique<StartupCachePayload>();
         payload->generation = generation;
 
@@ -1609,8 +1660,11 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state) {
         std::wstring comments_content;
         if (!comments_path.empty() &&
             util::ReadTextFile(
-                comments_path, &comments_content, nullptr,
-                static_cast<uint64_t>(std::numeric_limits<int>::max()))) {
+                comments_path,
+                &comments_content,
+                nullptr,
+                static_cast<uint64_t>(std::numeric_limits<int>::max())
+            )) {
           changes::CommentDocument comments;
           if (changes::ParseComments(comments_content, &comments)) {
             payload->value_comments = std::move(comments.value_entries);
@@ -1626,12 +1680,16 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state) {
         std::wstring history_content;
         if (!history_path.empty() &&
             util::ReadTextFile(
-                history_path, &history_content, nullptr,
-                static_cast<uint64_t>(std::numeric_limits<int>::max()))) {
+                history_path,
+                &history_content,
+                nullptr,
+                static_cast<uint64_t>(std::numeric_limits<int>::max())
+            )) {
           changes::ChangeHistory history;
           history.Replace(
               std::move(changes::ParseHistory(history_content).entries),
-              static_cast<size_t>(history_max_rows));
+              static_cast<size_t>(history_max_rows)
+          );
           history.Sort(history_sort_column, history_sort_ascending);
           payload->history_entries = std::move(history.entries());
           payload->history_loaded = true;
@@ -1647,8 +1705,11 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state) {
           std::wstring tree_content;
           if (!tree_path.empty() &&
               util::ReadTextFile(
-                  tree_path, &tree_content, nullptr,
-                  static_cast<uint64_t>(std::numeric_limits<int>::max()))) {
+                  tree_path,
+                  &tree_content,
+                  nullptr,
+                  static_cast<uint64_t>(std::numeric_limits<int>::max())
+              )) {
             workspace::TreeState state =
                 workspace::ParseTreeState(tree_content);
             payload->tree_selected_path = std::move(state.selected_path);
@@ -1661,19 +1722,20 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state) {
           return;
         }
         if (hwnd && IsWindow(hwnd) &&
-            PostMessageW(hwnd, frame::message_id::kStartupCacheReady,
-                         static_cast<WPARAM>(generation),
-                         reinterpret_cast<LPARAM>(payload.get()))) {
+            PostMessageW(hwnd, frame::message_id::kStartupCacheReady, static_cast<WPARAM>(generation), reinterpret_cast<LPARAM>(payload.get()))) {
           ReleasePostedPayload(payload);
         }
-      });
+      }
+  );
 }
 
 void MainWindow::Impl::StopStartupCacheLoad() {
   startup_cache_session_.CancelAndJoin();
 }
 
-void MainWindow::Impl::ApplyStartupCachePayload(StartupCachePayload* payload) {
+void MainWindow::Impl::ApplyStartupCachePayload(
+    StartupCachePayload* payload
+) {
   if (!payload) {
     return;
   }
@@ -1714,8 +1776,7 @@ void MainWindow::Impl::ApplyStartupCachePayload(StartupCachePayload* payload) {
     if (!change_history_.entries().empty()) {
       owned->history_entries.insert(owned->history_entries.end(), change_history_.entries().begin(), change_history_.entries().end());
     }
-    change_history_.Replace(std::move(owned->history_entries),
-                            static_cast<size_t>(history_max_rows_));
+    change_history_.Replace(std::move(owned->history_entries), static_cast<size_t>(history_max_rows_));
     change_history_.Sort(history_sort_column_, history_sort_ascending_);
     history_loaded_ = true;
     for (const auto& entry : pending_session_entries) {
@@ -1822,15 +1883,20 @@ void MainWindow::Impl::DiscardWorkerMessages() {
   }
   MSG message = {};
   const UINT payload_messages[] = {
-      frame::message_id::kTraceLoadReady, frame::message_id::kDefaultLoadReady,
-      frame::message_id::kStartupCacheReady, frame::message_id::kRegFileLoadReady,
-      frame::message_id::kTraceParseBatch, frame::message_id::kDefaultParseBatch,
-      frame::message_id::kValueListReady, frame::message_id::kReplaceReady,
+      frame::message_id::kTraceLoadReady,
+      frame::message_id::kDefaultLoadReady,
+      frame::message_id::kStartupCacheReady,
+      frame::message_id::kRegFileLoadReady,
+      frame::message_id::kTraceParseBatch,
+      frame::message_id::kDefaultParseBatch,
+      frame::message_id::kValueListReady,
+      frame::message_id::kReplaceReady,
       frame::message_id::kValuePreviewReady,
       frame::message_id::kSearchPreviewReady,
       frame::message_id::kSearchSortReady,
       frame::message_id::kSearchTabLoadReady,
-      frame::message_id::kUpdateCheckReady};
+      frame::message_id::kUpdateCheckReady
+  };
   for (const UINT id : payload_messages) {
     while (PeekMessageW(&message, hwnd_, id, id, PM_REMOVE)) {
       switch (id) {

@@ -36,9 +36,7 @@ constexpr std::array<ResearchLink, 22> kLinks = {{
     {L"Windows Security Values", L"https://noverse.dev/docs/win-config/security/windows-defender/#windows-security-captures"},
 }};
 
-static_assert(kLinks.size() ==
-              static_cast<std::size_t>(cmd::kResearchItemMax -
-                                       cmd::kResearchItemBase + 1));
+static_assert(kLinks.size() == static_cast<std::size_t>(cmd::kResearchItemMax - cmd::kResearchItemBase + 1));
 
 } // namespace
 
@@ -46,13 +44,14 @@ std::span<const ResearchLink> ResearchLinks() noexcept {
   return kLinks;
 }
 
-const ResearchLink* ResearchLinkForCommand(int command_id) noexcept {
+const ResearchLink* ResearchLinkForCommand(
+    int command_id
+) noexcept {
   if (command_id < cmd::kResearchItemBase ||
       command_id > cmd::kResearchItemMax) {
     return nullptr;
   }
-  return &kLinks[static_cast<std::size_t>(command_id -
-                                          cmd::kResearchItemBase)];
+  return &kLinks[static_cast<std::size_t>(command_id - cmd::kResearchItemBase)];
 }
 
 } // namespace regkit::frame

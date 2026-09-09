@@ -19,7 +19,11 @@ LoadIconWithScaleDownFn ScaleDownLoader() {
   return fn;
 }
 
-HICON LoadScaledDown(HINSTANCE instance, PCWSTR name, int size) {
+HICON LoadScaledDown(
+    HINSTANCE instance,
+    PCWSTR name,
+    int size
+) {
   LoadIconWithScaleDownFn fn = ScaleDownLoader();
   HICON icon = nullptr;
   if (fn && SUCCEEDED(fn(instance, name, size, size, &icon))) {
@@ -28,7 +32,9 @@ HICON LoadScaledDown(HINSTANCE instance, PCWSTR name, int size) {
   return nullptr;
 }
 
-UINT ResolveDpi(UINT dpi) {
+UINT ResolveDpi(
+    UINT dpi
+) {
   if (dpi != 0) {
     return dpi;
   }
@@ -39,7 +45,11 @@ UINT ResolveDpi(UINT dpi) {
   return get_system_dpi ? get_system_dpi() : 96;
 }
 
-bool GetIconSize(HICON icon, int* width, int* height) {
+bool GetIconSize(
+    HICON icon,
+    int* width,
+    int* height
+) {
   if (!icon) {
     return false;
   }
@@ -75,7 +85,10 @@ bool GetIconSize(HICON icon, int* width, int* height) {
   return true;
 }
 
-HICON EnsureIconSize(HICON icon, int size) {
+HICON EnsureIconSize(
+    HICON icon,
+    int size
+) {
   if (!icon || size <= 0) {
     return icon;
   }
@@ -97,7 +110,10 @@ HICON EnsureIconSize(HICON icon, int size) {
 
 } // namespace
 
-int ScaleForDpi(int size, UINT dpi) {
+int ScaleForDpi(
+    int size,
+    UINT dpi
+) {
   if (size <= 0) {
     return size;
   }
@@ -109,7 +125,11 @@ int ScaleForDpi(int size, UINT dpi) {
   return scaled > 0 ? scaled : size;
 }
 
-HICON LoadIconResource(int resource_id, int size, UINT dpi) {
+HICON LoadIconResource(
+    int resource_id,
+    int size,
+    UINT dpi
+) {
   if (resource_id == 0 || size <= 0) {
     return nullptr;
   }
@@ -122,7 +142,11 @@ HICON LoadIconResource(int resource_id, int size, UINT dpi) {
   return EnsureIconSize(icon, scaled);
 }
 
-HICON LoadIconFromFile(const std::wstring& path, int size, UINT dpi) {
+HICON LoadIconFromFile(
+    const std::wstring& path,
+    int size,
+    UINT dpi
+) {
   if (path.empty() || size <= 0) {
     return nullptr;
   }
@@ -134,7 +158,11 @@ HICON LoadIconFromFile(const std::wstring& path, int size, UINT dpi) {
   return EnsureIconSize(icon, scaled);
 }
 
-void ImageListAddOrBlank(HIMAGELIST list, HICON icon, int size) {
+void ImageListAddOrBlank(
+    HIMAGELIST list,
+    HICON icon,
+    int size
+) {
   if (!list) {
     return;
   }

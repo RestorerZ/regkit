@@ -59,14 +59,24 @@
 #include "resource.h"
 
 namespace regkit::window_detail {
-inline void SetEditMargins(HWND hwnd, int left, int right) {
+inline void SetEditMargins(
+    HWND hwnd,
+    int left,
+    int right
+) {
   if (!hwnd) {
     return;
   }
   SendMessageW(hwnd, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN, MAKELONG(left, right));
 }
 
-inline void SetEditVerticalRect(HWND hwnd, HFONT font, int min_pad, int left_pad, int right_pad) {
+inline void SetEditVerticalRect(
+    HWND hwnd,
+    HFONT font,
+    int min_pad,
+    int left_pad,
+    int right_pad
+) {
   if (!hwnd) {
     return;
   }
@@ -105,7 +115,12 @@ inline void SetEditVerticalRect(HWND hwnd, HFONT font, int min_pad, int left_pad
   SendMessageW(hwnd, EM_SETRECT, 0, reinterpret_cast<LPARAM>(&rect));
 }
 
-inline void DrawToolbarButtonBackground(HDC hdc, const RECT& rect, COLORREF fill, COLORREF border) {
+inline void DrawToolbarButtonBackground(
+    HDC hdc,
+    const RECT& rect,
+    COLORREF fill,
+    COLORREF border
+) {
   if (!hdc) {
     return;
   }
@@ -120,7 +135,10 @@ inline void DrawToolbarButtonBackground(HDC hdc, const RECT& rect, COLORREF fill
   SelectObject(hdc, old_brush);
 }
 
-inline RegistryNode MakeChildNode(const RegistryNode& parent, const std::wstring& name) {
+inline RegistryNode MakeChildNode(
+    const RegistryNode& parent,
+    const std::wstring& name
+) {
   RegistryNode child = parent;
   if (child.subkey.empty()) {
     child.subkey = name;
@@ -130,14 +148,18 @@ inline RegistryNode MakeChildNode(const RegistryNode& parent, const std::wstring
   return child;
 }
 
-inline std::wstring LeafName(const RegistryNode& node) {
+inline std::wstring LeafName(
+    const RegistryNode& node
+) {
   if (node.subkey.empty()) {
     return node.root_name.empty() ? registry_path::RootName(node.root) : node.root_name;
   }
   return registry_path::Leaf(node.subkey);
 }
 
-inline bool UseBinaryValueIcon(DWORD type) {
+inline bool UseBinaryValueIcon(
+    DWORD type
+) {
   switch (type) {
   case REG_NONE:
   case REG_BINARY:
@@ -154,8 +176,12 @@ inline bool UseBinaryValueIcon(DWORD type) {
   }
 }
 
-inline ListRow MakeValueListRow(const std::wstring& name, DWORD type,
-                                const BYTE* data, DWORD data_size) {
+inline ListRow MakeValueListRow(
+    const std::wstring& name,
+    DWORD type,
+    const BYTE* data,
+    DWORD data_size
+) {
   ListRow row;
   row.name = name.empty() ? L"(Default)" : name;
   row.type = value_format::TypeName(type);
@@ -164,7 +190,7 @@ inline ListRow MakeValueListRow(const std::wstring& name, DWORD type,
     row.data = value_format::DisplayData(type, data, data_size);
   }
   row.image_index = UseBinaryValueIcon(type) ? kBinaryIconIndex
-                                              : kValueIconIndex;
+                                             : kValueIconIndex;
   row.kind = rowkind::kValue;
   row.extra = name;
   row.size = std::to_wstring(data_size);
@@ -175,7 +201,10 @@ inline ListRow MakeValueListRow(const std::wstring& name, DWORD type,
   return row;
 }
 
-inline void UpdateLeafName(RegistryNode* node, const std::wstring& new_name) {
+inline void UpdateLeafName(
+    RegistryNode* node,
+    const std::wstring& new_name
+) {
   if (!node || node->subkey.empty()) {
     return;
   }
@@ -187,7 +216,9 @@ inline void UpdateLeafName(RegistryNode* node, const std::wstring& new_name) {
   }
 }
 
-inline std::wstring FormatFileTime(const FILETIME& filetime) {
+inline std::wstring FormatFileTime(
+    const FILETIME& filetime
+) {
   if (filetime.dwLowDateTime == 0 && filetime.dwHighDateTime == 0) {
     return L"";
   }
@@ -201,7 +232,9 @@ inline std::wstring FormatFileTime(const FILETIME& filetime) {
   return buffer;
 }
 
-inline std::wstring FormatCommentDisplay(const std::wstring& text) {
+inline std::wstring FormatCommentDisplay(
+    const std::wstring& text
+) {
   std::wstring out;
   out.reserve(text.size());
   bool last_space = false;
@@ -222,14 +255,19 @@ inline std::wstring FormatCommentDisplay(const std::wstring& text) {
   return out;
 }
 
-inline uint64_t FileTimeToUint64(const FILETIME& filetime) {
+inline uint64_t FileTimeToUint64(
+    const FILETIME& filetime
+) {
   ULARGE_INTEGER value = {};
   value.LowPart = filetime.dwLowDateTime;
   value.HighPart = filetime.dwHighDateTime;
   return value.QuadPart;
 }
 
-inline int CompareTextInsensitive(const std::wstring& left, const std::wstring& right) {
+inline int CompareTextInsensitive(
+    const std::wstring& left,
+    const std::wstring& right
+) {
   if (left.empty()) {
     return right.empty() ? 0 : 1;
   }
@@ -246,7 +284,10 @@ inline int CompareTextInsensitive(const std::wstring& left, const std::wstring& 
   return 0;
 }
 
-inline int CompareUint64(uint64_t left, uint64_t right) {
+inline int CompareUint64(
+    uint64_t left,
+    uint64_t right
+) {
   if (left < right) {
     return -1;
   }
@@ -263,7 +304,10 @@ constexpr size_t kCellTextDrawLimit = 512;
 constexpr size_t kValuePreviewLimit = 4096;
 constexpr DWORD kValuePreviewBytes = 4096;
 
-inline const std::wstring& ValueRowFieldText(const ListRow& row, int subitem) {
+inline const std::wstring& ValueRowFieldText(
+    const ListRow& row,
+    int subitem
+) {
   switch (subitem) {
   case kValueColName:
     return row.name;
@@ -288,14 +332,22 @@ inline const std::wstring& ValueRowFieldText(const ListRow& row, int subitem) {
   }
 }
 
-inline bool CellTextIsClipped(HWND list, const std::wstring& text, int available) {
+inline bool CellTextIsClipped(
+    HWND list,
+    const std::wstring& text,
+    int available
+) {
   if (text.size() > kCellTooltipMeasureLimit) {
     return true;
   }
   return ListView_GetStringWidth(list, text.c_str()) > available;
 }
 
-inline int CompareValueRow(const ListRow& left, const ListRow& right, int column) {
+inline int CompareValueRow(
+    const ListRow& left,
+    const ListRow& right,
+    int column
+) {
   if (left.kind != right.kind) {
     return (left.kind == rowkind::kKey) ? -1 : 1;
   }
@@ -335,7 +387,11 @@ inline int CompareValueRow(const ListRow& left, const ListRow& right, int column
   }
 }
 
-inline void SortValueRows(std::vector<ListRow>* rows, int column, bool ascending) {
+inline void SortValueRows(
+    std::vector<ListRow>* rows,
+    int column,
+    bool ascending
+) {
   if (!rows || rows->size() < 2) {
     return;
   }
@@ -344,13 +400,15 @@ inline void SortValueRows(std::vector<ListRow>* rows, int column, bool ascending
     if (result == 0) {
       return false;
     }
-    return ascending ? (result < 0) : (result > 0);
-  });
+    return ascending ? (result < 0) : (result > 0); });
 }
 
 constexpr wchar_t kListScrollProp[] = L"RegKitListScrollX";
 
-inline void InvalidateListViewTail(HWND list, bool immediate = false) {
+inline void InvalidateListViewTail(
+    HWND list,
+    bool immediate = false
+) {
   RECT tail = {};
   if (!list || !GetClientRect(list, &tail)) {
     return;
@@ -371,20 +429,18 @@ inline void InvalidateListViewTail(HWND list, bool immediate = false) {
     tail.top = header_rect.bottom;
   }
   if (tail.top < tail.bottom) {
-
-
     if (immediate) {
-      RedrawWindow(list, &tail, nullptr,
-                   RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
+      RedrawWindow(list, &tail, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
     } else {
       InvalidateRect(list, &tail, TRUE);
     }
   }
 }
 
-
-
-inline void InvalidateListViewColumn(HWND list, int display_index) {
+inline void InvalidateListViewColumn(
+    HWND list,
+    int display_index
+) {
   HWND header = list ? ListView_GetHeader(list) : nullptr;
   if (!header || display_index < 0) {
     return;
@@ -397,12 +453,13 @@ inline void InvalidateListViewColumn(HWND list, int display_index) {
     return;
   }
   MapWindowPoints(nullptr, list, reinterpret_cast<POINT*>(&header_rect), 2);
-  RECT band = {header_rect.left + column.left, client.top,
-               header_rect.left + column.right + 1, client.bottom};
+  RECT band = {header_rect.left + column.left, client.top, header_rect.left + column.right + 1, client.bottom};
   RedrawWindow(list, &band, nullptr, RDW_INVALIDATE | RDW_ERASE);
 }
 
-inline bool ListViewScrolledHorizontally(HWND list) {
+inline bool ListViewScrolledHorizontally(
+    HWND list
+) {
   const INT_PTR position = GetScrollPos(list, SB_HORZ) + 1;
   if (GetPropW(list, kListScrollProp) == reinterpret_cast<HANDLE>(position)) {
     return false;
@@ -411,7 +468,11 @@ inline bool ListViewScrolledHorizontally(HWND list) {
   return true;
 }
 
-inline void UpdateListViewSort(HWND list, int column, bool ascending) {
+inline void UpdateListViewSort(
+    HWND list,
+    int column,
+    bool ascending
+) {
   if (!list) {
     return;
   }
@@ -443,18 +504,27 @@ inline HFONT CreateUIFont() {
   return static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
 }
 
-inline HFONT CreateIconFont(int point_size) {
+inline HFONT CreateIconFont(
+    int point_size
+) {
   int height = appearance::FontHeight(point_size);
   return CreateFontW(height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe MDL2 Assets");
 }
 
-inline void ApplyFont(HWND hwnd, HFONT font) {
+inline void ApplyFont(
+    HWND hwnd,
+    HFONT font
+) {
   if (hwnd && font) {
     SendMessageW(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
   }
 }
 
-inline HTREEITEM FindChildByText(HWND tree, HTREEITEM parent, const std::wstring& text) {
+inline HTREEITEM FindChildByText(
+    HWND tree,
+    HTREEITEM parent,
+    const std::wstring& text
+) {
   wchar_t buffer[256] = {};
   HTREEITEM child = TreeView_GetChild(tree, parent);
   while (child) {

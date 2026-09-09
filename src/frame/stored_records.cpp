@@ -13,14 +13,16 @@ void MainWindow::Impl::StartDefaultLoadWorker() {
   std::wstring active_path = ActiveDefaultsPath();
   const HWND hwnd = hwnd_;
   default_load_session_.StartIfIdle(
-      [this, active_path, hwnd](uint64_t generation,
-                                const std::atomic_bool& cancel) {
+      [this, active_path, hwnd](uint64_t generation, const std::atomic_bool& cancel) {
         auto payload = std::make_unique<DefaultLoadPayload>();
         payload->generation = generation;
         std::wstring content;
         if (!util::ReadTextFile(
-                active_path, &content, nullptr,
-                static_cast<uint64_t>(std::numeric_limits<int>::max()))) {
+                active_path,
+                &content,
+                nullptr,
+                static_cast<uint64_t>(std::numeric_limits<int>::max())
+            )) {
           return;
         }
 
@@ -81,8 +83,11 @@ void MainWindow::Impl::StartDefaultLoadWorker() {
                   [](const std::wstring& path) {
                     return NormalizeTraceKeyPathBasic(path);
                   },
-                  &data, nullptr, nullptr,
-                  &cancel)) {
+                  &data,
+                  nullptr,
+                  nullptr,
+                  &cancel
+              )) {
             continue;
           }
           std::shared_ptr<const defaults::Data> default_data =
@@ -91,19 +96,19 @@ void MainWindow::Impl::StartDefaultLoadWorker() {
           selection.select_all = true;
           selection.recursive = true;
           payload->defaults.push_back(
-              {use_label, source, default_data,
-               std::make_shared<trace::Selection>(selection)});
+              {use_label, source, default_data, std::make_shared<trace::Selection>(selection)}
+          );
         }
 
         if (cancel.load()) {
           return;
         }
         if (hwnd && IsWindow(hwnd) &&
-            PostMessageW(hwnd, frame::message_id::kDefaultLoadReady, 0,
-                         reinterpret_cast<LPARAM>(payload.get()))) {
+            PostMessageW(hwnd, frame::message_id::kDefaultLoadReady, 0, reinterpret_cast<LPARAM>(payload.get()))) {
           ReleasePostedPayload(payload);
         }
-      });
+      }
+  );
 }
 
 void MainWindow::Impl::StopDefaultLoadWorker() {
@@ -151,7 +156,10 @@ void MainWindow::Impl::CaptureTreeStateNow() {
   tree_state_saver_.Submit(std::move(state));
 }
 
-void MainWindow::Impl::SaveTreeStateFile(const std::wstring& selected, const std::vector<std::wstring>& expanded) const {
+void MainWindow::Impl::SaveTreeStateFile(
+    const std::wstring& selected,
+    const std::vector<std::wstring>& expanded
+) const {
   workspace::TreeState state;
   state.selected_path = selected;
   state.expanded_paths = expanded;
@@ -483,7 +491,9 @@ bool MainWindow::Impl::HasActiveTraces() const {
   return !active_traces_.empty();
 }
 
-bool MainWindow::Impl::RemoveTraceByPath(const std::wstring& path) {
+bool MainWindow::Impl::RemoveTraceByPath(
+    const std::wstring& path
+) {
   if (path.empty()) {
     return false;
   }
@@ -500,15 +510,12 @@ bool MainWindow::Impl::RemoveTraceByPath(const std::wstring& path) {
     trace_parse_sessions_.erase(session_it);
   }
   size_t removed = 0;
-  active_traces_.erase(std::remove_if(active_traces_.begin(), active_traces_.end(),
-                                      [&](const ActiveTrace& trace) {
+  active_traces_.erase(std::remove_if(active_traces_.begin(), active_traces_.end(), [&](const ActiveTrace& trace) {
                                         if (!EqualsInsensitive(trace.source_path, target)) {
                                           return false;
                                         }
                                         ++removed;
-                                        return true;
-                                      }),
-                       active_traces_.end());
+                                        return true; }), active_traces_.end());
   if (removed == 0) {
     return false;
   }
@@ -522,7 +529,9 @@ bool MainWindow::Impl::RemoveTraceByPath(const std::wstring& path) {
   return true;
 }
 
-bool MainWindow::Impl::RemoveTraceByLabel(const std::wstring& label) {
+bool MainWindow::Impl::RemoveTraceByLabel(
+    const std::wstring& label
+) {
   if (label.empty()) {
     return false;
   }
@@ -535,15 +544,12 @@ bool MainWindow::Impl::RemoveTraceByLabel(const std::wstring& label) {
     ++it;
   }
   size_t removed = 0;
-  active_traces_.erase(std::remove_if(active_traces_.begin(), active_traces_.end(),
-                                      [&](const ActiveTrace& trace) {
+  active_traces_.erase(std::remove_if(active_traces_.begin(), active_traces_.end(), [&](const ActiveTrace& trace) {
                                         if (_wcsicmp(trace.label.c_str(), label.c_str()) != 0) {
                                           return false;
                                         }
                                         ++removed;
-                                        return true;
-                                      }),
-                       active_traces_.end());
+                                        return true; }), active_traces_.end());
   if (removed == 0) {
     return false;
   }
@@ -564,7 +570,9 @@ bool MainWindow::Impl::RemoveTraceByLabel(const std::wstring& label) {
   return true;
 }
 
-bool MainWindow::Impl::RemoveDefaultByPath(const std::wstring& path) {
+bool MainWindow::Impl::RemoveDefaultByPath(
+    const std::wstring& path
+) {
   if (path.empty()) {
     return false;
   }
@@ -581,15 +589,12 @@ bool MainWindow::Impl::RemoveDefaultByPath(const std::wstring& path) {
     default_parse_sessions_.erase(session_it);
   }
   size_t removed = 0;
-  active_defaults_.erase(std::remove_if(active_defaults_.begin(), active_defaults_.end(),
-                                        [&](const ActiveDefault& defaults) {
+  active_defaults_.erase(std::remove_if(active_defaults_.begin(), active_defaults_.end(), [&](const ActiveDefault& defaults) {
                                           if (!EqualsInsensitive(defaults.source_path, target)) {
                                             return false;
                                           }
                                           ++removed;
-                                          return true;
-                                        }),
-                         active_defaults_.end());
+                                          return true; }), active_defaults_.end());
   if (removed == 0) {
     return false;
   }

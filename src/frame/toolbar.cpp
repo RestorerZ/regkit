@@ -8,7 +8,11 @@
 
 namespace regkit {
 
-void Toolbar::Create(HWND parent, HINSTANCE instance, int control_id) {
+void Toolbar::Create(
+    HWND parent,
+    HINSTANCE instance,
+    int control_id
+) {
   hwnd_ = CreateWindowExW(0, TOOLBARCLASSNAMEW, nullptr, WS_CHILD | WS_VISIBLE | TBSTYLE_FLAT | TBSTYLE_TOOLTIPS | CCS_NODIVIDER | CCS_NOPARENTALIGN, 0, 0, 0, 0, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(control_id)), instance, nullptr);
   SendMessageW(hwnd_, TB_BUTTONSTRUCTSIZE, sizeof(TBBUTTON), 0);
   SendMessageW(hwnd_, TB_SETMAXTEXTROWS, 0, 0);
@@ -19,7 +23,11 @@ HWND Toolbar::hwnd() const {
   return hwnd_;
 }
 
-void Toolbar::LoadIcons(const std::vector<ToolbarIcon>& icons, int size, int glyph_size) {
+void Toolbar::LoadIcons(
+    const std::vector<ToolbarIcon>& icons,
+    int size,
+    int glyph_size
+) {
   if (image_list_) {
     ImageList_Destroy(image_list_);
     image_list_ = nullptr;
@@ -52,7 +60,9 @@ void Toolbar::LoadIcons(const std::vector<ToolbarIcon>& icons, int size, int gly
   SendMessageW(hwnd_, TB_SETIMAGELIST, 0, reinterpret_cast<LPARAM>(image_list_));
 }
 
-void Toolbar::AddButtons(const std::vector<TBBUTTON>& buttons) {
+void Toolbar::AddButtons(
+    const std::vector<TBBUTTON>& buttons
+) {
   if (!buttons.empty()) {
     SendMessageW(hwnd_, TB_ADDBUTTONSW, static_cast<WPARAM>(buttons.size()), reinterpret_cast<LPARAM>(buttons.data()));
     SendMessageW(hwnd_, TB_AUTOSIZE, 0, 0);

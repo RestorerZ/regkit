@@ -13,8 +13,12 @@ namespace {
 
 constexpr uint64_t kMaxTraceFileBytes = 128ull * 1024 * 1024;
 
-bool Read(const std::wstring& path, std::vector<BYTE>* bytes,
-          std::wstring* error, const std::atomic_bool* cancel) {
+bool Read(
+    const std::wstring& path,
+    std::vector<BYTE>* bytes,
+    std::wstring* error,
+    const std::atomic_bool* cancel
+) {
   if (cancel && cancel->load()) {
     return false;
   }
@@ -29,29 +33,40 @@ bool Read(const std::wstring& path, std::vector<BYTE>* bytes,
 
 } // namespace
 
-bool LoadEntries(const std::wstring& path,
-                 const Normalizers& normalizers,
-                 const EntryCallback& callback,
-                 std::wstring* error,
-                 const std::atomic_bool* cancel) {
+bool LoadEntries(
+    const std::wstring& path,
+    const Normalizers& normalizers,
+    const EntryCallback& callback,
+    std::wstring* error,
+    const std::atomic_bool* cancel
+) {
   std::vector<BYTE> bytes;
   if (!Read(path, &bytes, error, cancel)) {
     return false;
   }
   const std::string_view buffer(
-      reinterpret_cast<const char*>(bytes.data()), bytes.size());
+      reinterpret_cast<const char*>(bytes.data()),
+      bytes.size()
+  );
   return ParseEntries(buffer, normalizers, callback, error, cancel);
 }
 
-bool Load(const std::wstring& label, const std::wstring& path,
-          const Normalizers& normalizers, Data* data,
-          std::wstring* error, const std::atomic_bool* cancel) {
+bool Load(
+    const std::wstring& label,
+    const std::wstring& path,
+    const Normalizers& normalizers,
+    Data* data,
+    std::wstring* error,
+    const std::atomic_bool* cancel
+) {
   std::vector<BYTE> bytes;
   if (!Read(path, &bytes, error, cancel)) {
     return false;
   }
   const std::string_view buffer(
-      reinterpret_cast<const char*>(bytes.data()), bytes.size());
+      reinterpret_cast<const char*>(bytes.data()),
+      bytes.size()
+  );
   return Parse(label, path, buffer, normalizers, data, error, cancel);
 }
 

@@ -17,7 +17,9 @@ namespace {
 constexpr wchar_t kHeaderThemeProp[] = L"RegKitHeaderTheme";
 constexpr int kHeaderTextPadding = 8;
 
-HTHEME HeaderTheme(HWND header) {
+HTHEME HeaderTheme(
+    HWND header
+) {
   HTHEME cached = reinterpret_cast<HTHEME>(GetPropW(header, kHeaderThemeProp));
   if (!cached) {
     cached = OpenThemeData(header, VSCLASS_HEADER);
@@ -26,7 +28,9 @@ HTHEME HeaderTheme(HWND header) {
   return cached;
 }
 
-HBRUSH ListSurfaceBrush(HWND header) {
+HBRUSH ListSurfaceBrush(
+    HWND header
+) {
   HWND list = GetParent(header);
   const COLORREF color = list ? ListView_GetBkColor(list) : CLR_NONE;
   if (color == CLR_NONE || color == CLR_DEFAULT) {
@@ -37,7 +41,10 @@ HBRUSH ListSurfaceBrush(HWND header) {
 
 } // namespace
 
-void PaintListHeader(HWND header, HFONT font) {
+void PaintListHeader(
+    HWND header,
+    HFONT font
+) {
   if (!header) {
     return;
   }
@@ -132,7 +139,9 @@ void PaintListHeader(HWND header, HFONT font) {
   EndPaint(header, &ps);
 }
 
-void ReleaseListHeaderTheme(HWND header) {
+void ReleaseListHeaderTheme(
+    HWND header
+) {
   if (!header) {
     return;
   }

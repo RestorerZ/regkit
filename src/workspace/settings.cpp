@@ -14,13 +14,19 @@
 namespace regkit::workspace {
 namespace {
 
-bool Boolean(const std::wstring& value) {
+bool Boolean(
+    const std::wstring& value
+) {
   return _wtoi(value.c_str()) != 0 ||
          _wcsicmp(value.c_str(), L"true") == 0 ||
          _wcsicmp(value.c_str(), L"yes") == 0;
 }
 
-bool Indexed(const std::wstring& key, const wchar_t* prefix, int* index) {
+bool Indexed(
+    const std::wstring& key,
+    const wchar_t* prefix,
+    int* index
+) {
   const size_t length = wcslen(prefix);
   if (!index || key.size() <= length ||
       _wcsnicmp(key.c_str(), prefix, length) != 0) {
@@ -37,26 +43,40 @@ bool Indexed(const std::wstring& key, const wchar_t* prefix, int* index) {
   return true;
 }
 
-void BooleanLine(std::wstring* output, const wchar_t* key, bool value) {
+void BooleanLine(
+    std::wstring* output,
+    const wchar_t* key,
+    bool value
+) {
   output->append(key);
   output->append(value ? L"=1\n" : L"=0\n");
 }
 
-void TextLine(std::wstring* output, const wchar_t* key,
-              const std::wstring& value) {
+void TextLine(
+    std::wstring* output,
+    const wchar_t* key,
+    const std::wstring& value
+) {
   output->append(key);
   output->push_back(L'=');
   output->append(value);
   output->push_back(L'\n');
 }
 
-void NumberLine(std::wstring* output, const wchar_t* key, int value) {
+void NumberLine(
+    std::wstring* output,
+    const wchar_t* key,
+    int value
+) {
   TextLine(output, key, std::to_wstring(value));
 }
 
 } // namespace
 
-Settings ParseSettings(const std::wstring& content, Settings settings) {
+Settings ParseSettings(
+    const std::wstring& content,
+    Settings settings
+) {
   for (const std::wstring& line : record_fields::Lines(content)) {
     const size_t separator = line.find(L'=');
     if (separator == std::wstring::npos) {
@@ -72,27 +92,7 @@ Settings ParseSettings(const std::wstring& content, Settings settings) {
     settings.member = Boolean(value);     \
   }
     REGKIT_BOOL(L"clear_history_on_exit", clear_history_on_exit)
-    else REGKIT_BOOL(L"clear_tabs_on_exit",             clear_tabs_on_exit)
-    else REGKIT_BOOL(L"view_toolbar",                   show_toolbar)
-    else REGKIT_BOOL(L"view_address_bar",               show_address_bar)
-    else REGKIT_BOOL(L"view_filter_bar",                show_filter_bar)
-    else REGKIT_BOOL(L"view_tab_control",               show_tab_control)
-    else REGKIT_BOOL(L"view_tree",                      show_tree)
-    else REGKIT_BOOL(L"view_history",                   show_history)
-    else REGKIT_BOOL(L"view_status_bar",                show_status_bar)
-    else REGKIT_BOOL(L"view_keys_in_list",              show_keys_in_list)
-    else REGKIT_BOOL(L"view_simulated_keys",            show_simulated_keys)
-    else REGKIT_BOOL(L"view_extra_hives",               show_extra_hives)
-    else REGKIT_BOOL(L"view_value_grid",                show_value_grid)
-    else REGKIT_BOOL(L"save_tree_state",                save_tree_state)
-    else REGKIT_BOOL(L"always_run_as_admin",            always_run_as_admin)
-    else REGKIT_BOOL(L"always_run_as_system",           always_run_as_system)
-    else REGKIT_BOOL(L"always_run_as_trustedinstaller", always_run_as_trustedinstaller)
-    else REGKIT_BOOL(L"always_on_top",                  always_on_top)
-    else REGKIT_BOOL(L"single_instance",                single_instance)
-    else REGKIT_BOOL(L"read_only",                      read_only)
-    else REGKIT_BOOL(L"auto_check_updates",             auto_check_updates)
-    else REGKIT_BOOL(L"default_reset_enabled",          default_reset_enabled)
+    else REGKIT_BOOL(L"clear_tabs_on_exit", clear_tabs_on_exit) else REGKIT_BOOL(L"view_toolbar", show_toolbar) else REGKIT_BOOL(L"view_address_bar", show_address_bar) else REGKIT_BOOL(L"view_filter_bar", show_filter_bar) else REGKIT_BOOL(L"view_tab_control", show_tab_control) else REGKIT_BOOL(L"view_tree", show_tree) else REGKIT_BOOL(L"view_history", show_history) else REGKIT_BOOL(L"view_status_bar", show_status_bar) else REGKIT_BOOL(L"view_keys_in_list", show_keys_in_list) else REGKIT_BOOL(L"view_simulated_keys", show_simulated_keys) else REGKIT_BOOL(L"view_extra_hives", show_extra_hives) else REGKIT_BOOL(L"view_value_grid", show_value_grid) else REGKIT_BOOL(L"save_tree_state", save_tree_state) else REGKIT_BOOL(L"always_run_as_admin", always_run_as_admin) else REGKIT_BOOL(L"always_run_as_system", always_run_as_system) else REGKIT_BOOL(L"always_run_as_trustedinstaller", always_run_as_trustedinstaller) else REGKIT_BOOL(L"always_on_top", always_on_top) else REGKIT_BOOL(L"single_instance", single_instance) else REGKIT_BOOL(L"read_only", read_only) else REGKIT_BOOL(L"auto_check_updates", auto_check_updates) else REGKIT_BOOL(L"default_reset_enabled", default_reset_enabled)
 #undef REGKIT_BOOL
         else if (_wcsicmp(key.c_str(), L"window_x") == 0) {
       settings.window_x = _wtoi(value.c_str());
@@ -187,8 +187,7 @@ Settings ParseSettings(const std::wstring& content, Settings settings) {
     else if (Indexed(key, L"value_column_visible_", &index)) {
       if (static_cast<size_t>(index) >=
           settings.value_column_visible.size()) {
-        settings.value_column_visible.resize(static_cast<size_t>(index) + 1,
-                                             true);
+        settings.value_column_visible.resize(static_cast<size_t>(index) + 1, true);
       }
       settings.value_column_visible[static_cast<size_t>(index)] =
           Boolean(value);
@@ -203,10 +202,11 @@ Settings ParseSettings(const std::wstring& content, Settings settings) {
   return settings;
 }
 
-std::wstring SerializeSettings(const Settings& settings) {
+std::wstring SerializeSettings(
+    const Settings& settings
+) {
   std::wstring content;
-  BooleanLine(&content, L"clear_history_on_exit",
-              settings.clear_history_on_exit);
+  BooleanLine(&content, L"clear_history_on_exit", settings.clear_history_on_exit);
   BooleanLine(&content, L"clear_tabs_on_exit", settings.clear_tabs_on_exit);
   BooleanLine(&content, L"view_toolbar", settings.show_toolbar);
   BooleanLine(&content, L"view_address_bar", settings.show_address_bar);
@@ -216,22 +216,17 @@ std::wstring SerializeSettings(const Settings& settings) {
   BooleanLine(&content, L"view_history", settings.show_history);
   BooleanLine(&content, L"view_status_bar", settings.show_status_bar);
   BooleanLine(&content, L"view_keys_in_list", settings.show_keys_in_list);
-  BooleanLine(&content, L"view_simulated_keys",
-              settings.show_simulated_keys);
+  BooleanLine(&content, L"view_simulated_keys", settings.show_simulated_keys);
   BooleanLine(&content, L"view_extra_hives", settings.show_extra_hives);
   BooleanLine(&content, L"view_value_grid", settings.show_value_grid);
   BooleanLine(&content, L"save_tree_state", settings.save_tree_state);
   BooleanLine(&content, L"save_tabs", settings.save_tabs);
   NumberLine(&content, L"save_tab_types", settings.save_tab_kinds);
   BooleanLine(&content, L"auto_check_updates", settings.auto_check_updates);
-  BooleanLine(&content, L"default_reset_enabled",
-              settings.default_reset_enabled);
-  BooleanLine(&content, L"always_run_as_admin",
-              settings.always_run_as_admin);
-  BooleanLine(&content, L"always_run_as_system",
-              settings.always_run_as_system);
-  BooleanLine(&content, L"always_run_as_trustedinstaller",
-              settings.always_run_as_trustedinstaller);
+  BooleanLine(&content, L"default_reset_enabled", settings.default_reset_enabled);
+  BooleanLine(&content, L"always_run_as_admin", settings.always_run_as_admin);
+  BooleanLine(&content, L"always_run_as_system", settings.always_run_as_system);
+  BooleanLine(&content, L"always_run_as_trustedinstaller", settings.always_run_as_trustedinstaller);
   if (settings.window_width > 0 && settings.window_height > 0) {
     NumberLine(&content, L"window_x", settings.window_x);
     NumberLine(&content, L"window_y", settings.window_y);
@@ -258,21 +253,16 @@ std::wstring SerializeSettings(const Settings& settings) {
   BooleanLine(&content, L"font_italic", settings.font_italic);
   for (size_t index = 0; index < settings.recent_traces.size(); ++index) {
     if (!settings.recent_traces[index].empty()) {
-      TextLine(&content,
-               (L"trace_recent_" + std::to_wstring(index)).c_str(),
-               settings.recent_traces[index]);
+      TextLine(&content, (L"trace_recent_" + std::to_wstring(index)).c_str(), settings.recent_traces[index]);
     }
   }
   for (size_t index = 0; index < settings.recent_defaults.size(); ++index) {
     if (!settings.recent_defaults[index].empty()) {
-      TextLine(&content,
-               (L"default_recent_" + std::to_wstring(index)).c_str(),
-               settings.recent_defaults[index]);
+      TextLine(&content, (L"default_recent_" + std::to_wstring(index)).c_str(), settings.recent_defaults[index]);
     }
   }
   const size_t columns =
-      std::max(settings.value_column_widths.size(),
-               settings.value_column_visible.size());
+      std::max(settings.value_column_widths.size(), settings.value_column_visible.size());
   for (size_t index = 0; index < columns; ++index) {
     const int width = index < settings.value_column_widths.size()
                           ? settings.value_column_widths[index]
@@ -280,18 +270,20 @@ std::wstring SerializeSettings(const Settings& settings) {
     const bool visible = index < settings.value_column_visible.size()
                              ? settings.value_column_visible[index]
                              : true;
-    NumberLine(&content,
-               (L"value_column_width_" + std::to_wstring(index)).c_str(),
-               width);
+    NumberLine(&content, (L"value_column_width_" + std::to_wstring(index)).c_str(), width);
     BooleanLine(
         &content,
         (L"value_column_visible_" + std::to_wstring(index)).c_str(),
-        visible);
+        visible
+    );
   }
   return content;
 }
 
-bool LoadSettings(const std::wstring& path, Settings* settings) {
+bool LoadSettings(
+    const std::wstring& path,
+    Settings* settings
+) {
   if (!settings) {
     return false;
   }
@@ -303,7 +295,10 @@ bool LoadSettings(const std::wstring& path, Settings* settings) {
   return true;
 }
 
-bool SaveSettings(const std::wstring& path, const Settings& settings) {
+bool SaveSettings(
+    const std::wstring& path,
+    const Settings& settings
+) {
   return !path.empty() &&
          util::WriteTextFile(path, SerializeSettings(settings), false);
 }

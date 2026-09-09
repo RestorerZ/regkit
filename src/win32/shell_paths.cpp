@@ -39,11 +39,12 @@ using PathCchRemoveFileSpecFn = HRESULT(WINAPI*)(PWSTR, size_t);
 using PathCchCombineFn = HRESULT(WINAPI*)(PWSTR, size_t, PCWSTR, PCWSTR);
 
 template <typename Fn>
-Fn LoadPathFunction(const char* name) {
+Fn LoadPathFunction(
+    const char* name
+) {
   HMODULE module = GetModuleHandleW(L"kernelbase.dll");
   if (!module) {
-    module = LoadLibraryExW(L"kernelbase.dll", nullptr,
-                            LOAD_LIBRARY_SEARCH_SYSTEM32);
+    module = LoadLibraryExW(L"kernelbase.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
   }
   return module ? reinterpret_cast<Fn>(GetProcAddress(module, name)) : nullptr;
 }
@@ -73,20 +74,20 @@ std::wstring GetModuleDirectory() {
   return path;
 }
 
-std::wstring JoinPath(const std::wstring& left, const std::wstring& right) {
+std::wstring JoinPath(
+    const std::wstring& left,
+    const std::wstring& right
+) {
   if (left.empty()) {
     return right;
   }
   const size_t capacity =
-      std::min<size_t>(std::max<size_t>(MAX_PATH,
-                                        left.size() + right.size() + 2),
-                       32768);
+      std::min<size_t>(std::max<size_t>(MAX_PATH, left.size() + right.size() + 2), 32768);
   static const auto combine =
       LoadPathFunction<PathCchCombineFn>("PathCchCombine");
   if (combine) {
     std::wstring output(capacity, L'\0');
-    if (SUCCEEDED(combine(output.data(), output.size(), left.c_str(),
-                          right.c_str()))) {
+    if (SUCCEEDED(combine(output.data(), output.size(), left.c_str(), right.c_str()))) {
       return output.c_str();
     }
   }
@@ -99,7 +100,10 @@ std::wstring GetAppDataFolder() {
   if (override_size > 1) {
     std::wstring path(override_size, L'\0');
     const DWORD written = GetEnvironmentVariableW(
-        L"REGKIT_DATA_DIR", path.data(), override_size);
+        L"REGKIT_DATA_DIR",
+        path.data(),
+        override_size
+    );
     if (written > 0 && written < override_size) {
       path.resize(written);
       SHCreateDirectoryExW(nullptr, path.c_str(), nullptr);

@@ -92,11 +92,18 @@ struct TraceDialogState {
   size_t value_count = 0;
 };
 
-HFONT CreateDialogFont(HWND hwnd) {
+HFONT CreateDialogFont(
+    HWND hwnd
+) {
   return ui::DefaultUIFont(win32::DpiForWindow(hwnd));
 }
 
-TraceNodeData* StoreNodeData(TraceDialogState* state, bool is_value, const std::wstring& key_path, const std::wstring& value_name) {
+TraceNodeData* StoreNodeData(
+    TraceDialogState* state,
+    bool is_value,
+    const std::wstring& key_path,
+    const std::wstring& value_name
+) {
   auto node = std::make_unique<TraceNodeData>();
   node->is_value = is_value;
   node->key_path = key_path;
@@ -106,7 +113,9 @@ TraceNodeData* StoreNodeData(TraceDialogState* state, bool is_value, const std::
   return raw;
 }
 
-void UpdateStatus(TraceDialogState* state) {
+void UpdateStatus(
+    TraceDialogState* state
+) {
   if (!state || !state->status) {
     return;
   }
@@ -126,7 +135,12 @@ void UpdateStatus(TraceDialogState* state) {
   SetWindowTextW(state->status, text.c_str());
 }
 
-HTREEITEM EnsureKeyNode(HWND tree, TraceDialogState* state, const std::wstring& key_path, const std::wstring& display_path) {
+HTREEITEM EnsureKeyNode(
+    HWND tree,
+    TraceDialogState* state,
+    const std::wstring& key_path,
+    const std::wstring& display_path
+) {
   if (!state || !tree || key_path.empty()) {
     return nullptr;
   }
@@ -140,8 +154,7 @@ HTREEITEM EnsureKeyNode(HWND tree, TraceDialogState* state, const std::wstring& 
   while (match_suffix < tree_parts.size() && match_suffix < key_parts.size()) {
     size_t tree_index = tree_parts.size() - 1 - match_suffix;
     size_t key_index = key_parts.size() - 1 - match_suffix;
-    if (!registry_path::Equals(tree_parts[tree_index],
-                               key_parts[key_index])) {
+    if (!registry_path::Equals(tree_parts[tree_index], key_parts[key_index])) {
       break;
     }
     ++match_suffix;
@@ -200,7 +213,13 @@ HTREEITEM EnsureKeyNode(HWND tree, TraceDialogState* state, const std::wstring& 
   return parent == TVI_ROOT ? nullptr : parent;
 }
 
-HTREEITEM InsertValueNode(HWND tree, TraceDialogState* state, HTREEITEM key_item, const std::wstring& key_path, const std::wstring& value_name) {
+HTREEITEM InsertValueNode(
+    HWND tree,
+    TraceDialogState* state,
+    HTREEITEM key_item,
+    const std::wstring& key_path,
+    const std::wstring& value_name
+) {
   if (!state || !tree || !key_item) {
     return nullptr;
   }
@@ -222,7 +241,12 @@ HTREEITEM InsertValueNode(HWND tree, TraceDialogState* state, HTREEITEM key_item
   return item;
 }
 
-void EnsureValueNodes(HWND tree, TraceDialogState* state, HTREEITEM key_item, const std::wstring& key_path) {
+void EnsureValueNodes(
+    HWND tree,
+    TraceDialogState* state,
+    HTREEITEM key_item,
+    const std::wstring& key_path
+) {
   if (!state || !tree || !key_item || key_path.empty()) {
     return;
   }
@@ -243,7 +267,11 @@ void EnsureValueNodes(HWND tree, TraceDialogState* state, HTREEITEM key_item, co
   }
 }
 
-void AddEntry(HWND tree, TraceDialogState* state, const KeyValueDialogEntry& entry) {
+void AddEntry(
+    HWND tree,
+    TraceDialogState* state,
+    const KeyValueDialogEntry& entry
+) {
   if (!state || !tree || entry.key_path.empty()) {
     return;
   }
@@ -271,7 +299,10 @@ void AddEntry(HWND tree, TraceDialogState* state, const KeyValueDialogEntry& ent
   }
 }
 
-TraceNodeData* GetNodeData(HWND tree, HTREEITEM item) {
+TraceNodeData* GetNodeData(
+    HWND tree,
+    HTREEITEM item
+) {
   if (!tree || !item) {
     return nullptr;
   }
@@ -284,9 +315,12 @@ TraceNodeData* GetNodeData(HWND tree, HTREEITEM item) {
   return reinterpret_cast<TraceNodeData*>(info.lParam);
 }
 
-void AppendCheckedNodes(HWND tree, HTREEITEM item,
-                        trace::Selection* selection,
-                        std::unordered_set<std::wstring>* seen_keys) {
+void AppendCheckedNodes(
+    HWND tree,
+    HTREEITEM item,
+    trace::Selection* selection,
+    std::unordered_set<std::wstring>* seen_keys
+) {
   while (item) {
     TraceNodeData* data = GetNodeData(tree, item);
     if (data && TreeView_GetCheckState(tree, item)) {
@@ -320,7 +354,11 @@ void AppendCheckedNodes(HWND tree, HTREEITEM item,
   }
 }
 
-void ApplyCheckStateToChildren(HWND tree, HTREEITEM parent, bool checked) {
+void ApplyCheckStateToChildren(
+    HWND tree,
+    HTREEITEM parent,
+    bool checked
+) {
   if (!tree || !parent) {
     return;
   }
@@ -332,7 +370,11 @@ void ApplyCheckStateToChildren(HWND tree, HTREEITEM parent, bool checked) {
   }
 }
 
-void QueueEntries(HWND hwnd, TraceDialogState* state, std::vector<KeyValueDialogEntry>&& entries) {
+void QueueEntries(
+    HWND hwnd,
+    TraceDialogState* state,
+    std::vector<KeyValueDialogEntry>&& entries
+) {
   if (!state || entries.empty()) {
     return;
   }
@@ -346,7 +388,10 @@ void QueueEntries(HWND hwnd, TraceDialogState* state, std::vector<KeyValueDialog
   }
 }
 
-void ProcessPendingEntries(HWND hwnd, TraceDialogState* state) {
+void ProcessPendingEntries(
+    HWND hwnd,
+    TraceDialogState* state
+) {
   if (!state || !state->processing_entries) {
     return;
   }
@@ -375,7 +420,11 @@ void ProcessPendingEntries(HWND hwnd, TraceDialogState* state) {
   UpdateStatus(state);
 }
 
-void AcceptSelection(HWND hwnd, TraceDialogState* state, bool select_all) {
+void AcceptSelection(
+    HWND hwnd,
+    TraceDialogState* state,
+    bool select_all
+) {
   if (!state || !state->out) {
     return;
   }
@@ -409,7 +458,11 @@ void AcceptSelection(HWND hwnd, TraceDialogState* state, bool select_all) {
   DestroyWindow(hwnd);
 }
 
-void LayoutDialog(HWND hwnd, TraceDialogState* state, HFONT font) {
+void LayoutDialog(
+    HWND hwnd,
+    TraceDialogState* state,
+    HFONT font
+) {
   if (!state) {
     return;
   }
@@ -449,8 +502,7 @@ void LayoutDialog(HWND hwnd, TraceDialogState* state, HFONT font) {
   const int select_all_w = Scaled(135, dpi);
   const int recursive_w = Scaled(160, dpi);
   appearance::Place(state->select_all, padding, check_y, select_all_w, button_h);
-  appearance::Place(state->recursive, padding + select_all_w + gap,
-                    check_y + (button_h - check_h) / 2, recursive_w, check_h);
+  appearance::Place(state->recursive, padding + select_all_w + gap, check_y + (button_h - check_h) / 2, recursive_w, check_h);
 
   const int cancel_x = width - right_margin - button_w;
   const int ok_x = cancel_x - button_w - button_gap;
@@ -462,179 +514,197 @@ void LayoutDialog(HWND hwnd, TraceDialogState* state, HFONT font) {
   }
 }
 
-LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+LRESULT CALLBACK TraceDialogProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* state = reinterpret_cast<TraceDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
   switch (msg) {
-  case WM_NCCREATE: {
-    auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
-    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return DefWindowProcW(hwnd, msg, wparam, lparam);
-  }
-  case WM_CREATE: {
-    state = reinterpret_cast<TraceDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    if (!state) {
-      return -1;
+  case WM_NCCREATE:
+    {
+      auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+      SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+      return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
-    state->hwnd = hwnd;
-    state->font = CreateDialogFont(hwnd);
-    HFONT font = state->font;
+  case WM_CREATE:
+    {
+      state = reinterpret_cast<TraceDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+      if (!state) {
+        return -1;
+      }
+      state->hwnd = hwnd;
+      state->font = CreateDialogFont(hwnd);
+      HFONT font = state->font;
 
-    if (!state->prompt.empty()) {
-      state->label = CreateWindowExW(0, L"STATIC", state->prompt.c_str(), WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceLabel), nullptr, nullptr);
+      if (!state->prompt.empty()) {
+        state->label = CreateWindowExW(0, L"STATIC", state->prompt.c_str(), WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceLabel), nullptr, nullptr);
+      }
+      state->status = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceStatus), nullptr, nullptr);
+      state->tree = CreateWindowExW(0, WC_TREEVIEWW, L"", WS_CHILD | WS_VISIBLE | WS_BORDER | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_CHECKBOXES, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceTree), nullptr, nullptr);
+      state->recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kRecursiveCheck), nullptr, nullptr);
+      state->select_all = CreateWindowExW(0, L"BUTTON", L"Select All Keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSelectAllButton), nullptr, nullptr);
+      state->ok_button = CreateWindowExW(0, L"BUTTON", L"Select", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOkButton), nullptr, nullptr);
+      state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
+
+      appearance::SetControlFont(hwnd, font);
+      EnumChildWindows(
+          hwnd,
+          [](HWND child, LPARAM param) -> BOOL {
+            HFONT font_handle = reinterpret_cast<HFONT>(param);
+            appearance::SetControlFont(child, font_handle);
+            return TRUE;
+          },
+          reinterpret_cast<LPARAM>(font)
+      );
+
+      SendMessageW(state->recursive, BM_SETCHECK, BST_CHECKED, 0);
+      SendMessageW(state->tree, TVM_SETEXTENDEDSTYLE, TVS_EX_DOUBLEBUFFER, TVS_EX_DOUBLEBUFFER);
+
+      Theme::Current().ApplyToTreeView(state->tree);
+      Theme::Current().ApplyToChildren(hwnd);
+
+      UpdateStatus(state);
+      LayoutDialog(hwnd, state, font);
+
+      if (state->on_ready) {
+        state->on_ready(hwnd, state->on_ready_context);
+      }
+      return 0;
     }
-    state->status = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceStatus), nullptr, nullptr);
-    state->tree = CreateWindowExW(0, WC_TREEVIEWW, L"", WS_CHILD | WS_VISIBLE | WS_BORDER | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_CHECKBOXES, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceTree), nullptr, nullptr);
-    state->recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kRecursiveCheck), nullptr, nullptr);
-    state->select_all = CreateWindowExW(0, L"BUTTON", L"Select All Keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSelectAllButton), nullptr, nullptr);
-    state->ok_button = CreateWindowExW(0, L"BUTTON", L"Select", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOkButton), nullptr, nullptr);
-    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
-
-    appearance::SetControlFont(hwnd, font);
-    EnumChildWindows(
-        hwnd,
-        [](HWND child, LPARAM param) -> BOOL {
-          HFONT font_handle = reinterpret_cast<HFONT>(param);
-          appearance::SetControlFont(child, font_handle);
-          return TRUE;
-        },
-        reinterpret_cast<LPARAM>(font));
-
-    SendMessageW(state->recursive, BM_SETCHECK, BST_CHECKED, 0);
-    SendMessageW(state->tree, TVM_SETEXTENDEDSTYLE, TVS_EX_DOUBLEBUFFER, TVS_EX_DOUBLEBUFFER);
-
-    Theme::Current().ApplyToTreeView(state->tree);
-    Theme::Current().ApplyToChildren(hwnd);
-
-    UpdateStatus(state);
-    LayoutDialog(hwnd, state, font);
-
-    if (state->on_ready) {
-      state->on_ready(hwnd, state->on_ready_context);
+  case WM_DESTROY:
+    {
+      MSG pending = {};
+      while (PeekMessageW(&pending, hwnd, kDialogAddEntriesMessage, kDialogAddEntriesMessage, PM_REMOVE)) {
+        delete reinterpret_cast<std::vector<KeyValueDialogEntry>*>(
+            pending.lParam
+        );
+      }
+      if (state && state->font) {
+        DeleteObject(state->font);
+        state->font = nullptr;
+      }
+      return 0;
     }
-    return 0;
-  }
-  case WM_DESTROY: {
-    MSG pending = {};
-    while (PeekMessageW(&pending, hwnd, kDialogAddEntriesMessage,
-                        kDialogAddEntriesMessage, PM_REMOVE)) {
-      delete reinterpret_cast<std::vector<KeyValueDialogEntry>*>(
-          pending.lParam);
-    }
-    if (state && state->font) {
-      DeleteObject(state->font);
-      state->font = nullptr;
-    }
-    return 0;
-  }
   case WM_DPICHANGED:
     if (state) {
       appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
     }
     appearance::ApplyDpiChange(hwnd, lparam);
     return 0;
-  case WM_SIZE: {
-    HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
-    LayoutDialog(hwnd, state, font);
-    return 0;
-  }
-  case WM_SETTINGCHANGE: {
-    if (Theme::UpdateFromSystem()) {
-      Theme::Current().ApplyToWindow(hwnd);
-      if (state && state->tree) {
-        Theme::Current().ApplyToTreeView(state->tree);
-      }
-      Theme::Current().ApplyToChildren(hwnd);
-      InvalidateRect(hwnd, nullptr, TRUE);
+  case WM_SIZE:
+    {
+      HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
+      LayoutDialog(hwnd, state, font);
+      return 0;
     }
-    return 0;
-  }
-  case WM_CTLCOLORSTATIC: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_STATIC));
-  }
-  case WM_CTLCOLORBTN: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_BTN));
-  }
-  case WM_CTLCOLOREDIT: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_EDIT));
-  }
-  case WM_ERASEBKGND: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rect = {};
-    GetClientRect(hwnd, &rect);
-    FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
-    return 1;
-  }
+  case WM_SETTINGCHANGE:
+    {
+      if (Theme::UpdateFromSystem()) {
+        Theme::Current().ApplyToWindow(hwnd);
+        if (state && state->tree) {
+          Theme::Current().ApplyToTreeView(state->tree);
+        }
+        Theme::Current().ApplyToChildren(hwnd);
+        InvalidateRect(hwnd, nullptr, TRUE);
+      }
+      return 0;
+    }
+  case WM_CTLCOLORSTATIC:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_STATIC));
+    }
+  case WM_CTLCOLORBTN:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_BTN));
+    }
+  case WM_CTLCOLOREDIT:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_EDIT));
+    }
+  case WM_ERASEBKGND:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rect = {};
+      GetClientRect(hwnd, &rect);
+      FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
+      return 1;
+    }
   case DM_GETDEFID:
     return MAKELRESULT(IDOK, DC_HASDEFID);
-  case WM_COMMAND: {
-    if (!state) {
-      return 0;
-    }
-    if (HIWORD(wparam) == BN_CLICKED) {
-      switch (LOWORD(wparam)) {
-      case kSelectAllButton:
-        AcceptSelection(hwnd, state, true);
+  case WM_COMMAND:
+    {
+      if (!state) {
         return 0;
-      case kOkButton:
-        AcceptSelection(hwnd, state, false);
-        return 0;
-      case kCancelButton:
-        appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-        DestroyWindow(hwnd);
-        return 0;
-      default:
-        break;
       }
-    }
-    break;
-  }
-  case WM_NOTIFY: {
-    if (!state) {
-      return 0;
-    }
-    auto* header = reinterpret_cast<NMHDR*>(lparam);
-    if (header && header->code == TVN_ITEMEXPANDINGW) {
-      auto* info = reinterpret_cast<NMTREEVIEWW*>(lparam);
-      if (info->action == TVE_EXPAND) {
-        TraceNodeData* data = GetNodeData(state->tree, info->itemNew.hItem);
-        if (data && !data->is_value) {
-          EnsureValueNodes(state->tree, state, info->itemNew.hItem, data->key_path);
+      if (HIWORD(wparam) == BN_CLICKED) {
+        switch (LOWORD(wparam)) {
+        case kSelectAllButton:
+          AcceptSelection(hwnd, state, true);
+          return 0;
+        case kOkButton:
+          AcceptSelection(hwnd, state, false);
+          return 0;
+        case kCancelButton:
+          appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
+          DestroyWindow(hwnd);
+          return 0;
+        default:
+          break;
         }
       }
+      break;
     }
-    if (header && header->code == TVN_ITEMCHANGEDW) {
-      auto* change = reinterpret_cast<NMTVITEMCHANGE*>(lparam);
-      if (change && (change->uChanged & TVIF_STATE) && ((change->uStateNew ^ change->uStateOld) & TVIS_STATEIMAGEMASK)) {
-        if (!state->updating_checks) {
-          TraceNodeData* data = GetNodeData(state->tree, change->hItem);
+  case WM_NOTIFY:
+    {
+      if (!state) {
+        return 0;
+      }
+      auto* header = reinterpret_cast<NMHDR*>(lparam);
+      if (header && header->code == TVN_ITEMEXPANDINGW) {
+        auto* info = reinterpret_cast<NMTREEVIEWW*>(lparam);
+        if (info->action == TVE_EXPAND) {
+          TraceNodeData* data = GetNodeData(state->tree, info->itemNew.hItem);
           if (data && !data->is_value) {
-            bool checked = TreeView_GetCheckState(state->tree, change->hItem) != FALSE;
-            state->updating_checks = true;
-            ApplyCheckStateToChildren(state->tree, change->hItem, checked);
-            state->updating_checks = false;
+            EnsureValueNodes(state->tree, state, info->itemNew.hItem, data->key_path);
           }
         }
       }
+      if (header && header->code == TVN_ITEMCHANGEDW) {
+        auto* change = reinterpret_cast<NMTVITEMCHANGE*>(lparam);
+        if (change && (change->uChanged & TVIF_STATE) && ((change->uStateNew ^ change->uStateOld) & TVIS_STATEIMAGEMASK)) {
+          if (!state->updating_checks) {
+            TraceNodeData* data = GetNodeData(state->tree, change->hItem);
+            if (data && !data->is_value) {
+              bool checked = TreeView_GetCheckState(state->tree, change->hItem) != FALSE;
+              state->updating_checks = true;
+              ApplyCheckStateToChildren(state->tree, change->hItem, checked);
+              state->updating_checks = false;
+            }
+          }
+        }
+      }
+      break;
     }
-    break;
-  }
-  case kDialogAddEntriesMessage: {
-    if (!state) {
+  case kDialogAddEntriesMessage:
+    {
+      if (!state) {
+        return 0;
+      }
+      auto* entries = reinterpret_cast<std::vector<KeyValueDialogEntry>*>(lparam);
+      std::unique_ptr<std::vector<KeyValueDialogEntry>> owned(entries);
+      if (owned) {
+        QueueEntries(hwnd, state, std::move(*owned));
+      }
       return 0;
     }
-    auto* entries = reinterpret_cast<std::vector<KeyValueDialogEntry>*>(lparam);
-    std::unique_ptr<std::vector<KeyValueDialogEntry>> owned(entries);
-    if (owned) {
-      QueueEntries(hwnd, state, std::move(*owned));
-    }
-    return 0;
-  }
   case kDialogDoneMessage:
     if (state) {
       state->loading_done = (wparam != 0);
@@ -658,7 +728,12 @@ LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
   return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
-HWND CreateTraceDialogWindow(HINSTANCE instance, const std::wstring& title, HWND owner, TraceDialogState* state) {
+HWND CreateTraceDialogWindow(
+    HINSTANCE instance,
+    const std::wstring& title,
+    HWND owner,
+    TraceDialogState* state
+) {
   WNDCLASSW wc = {};
   wc.lpfnWndProc = TraceDialogProc;
   wc.hInstance = instance;
@@ -674,9 +749,13 @@ HWND CreateTraceDialogWindow(HINSTANCE instance, const std::wstring& title, HWND
 
 } // namespace
 
-bool ShowTraceDialog(HWND owner, const TraceDialogOptions& options,
-                     trace::Selection* selection,
-                     TraceDialogReadyCallback on_ready, void* context) {
+bool ShowTraceDialog(
+    HWND owner,
+    const TraceDialogOptions& options,
+    trace::Selection* selection,
+    TraceDialogReadyCallback on_ready,
+    void* context
+) {
   if (!selection) {
     return false;
   }
@@ -710,7 +789,10 @@ bool ShowTraceDialog(HWND owner, const TraceDialogOptions& options,
   return state.accepted;
 }
 
-void TraceDialogPostEntries(HWND dialog, std::vector<KeyValueDialogEntry>* entries) {
+void TraceDialogPostEntries(
+    HWND dialog,
+    std::vector<KeyValueDialogEntry>* entries
+) {
   if (!dialog || !entries) {
     delete entries;
     return;
@@ -720,7 +802,10 @@ void TraceDialogPostEntries(HWND dialog, std::vector<KeyValueDialogEntry>* entri
   }
 }
 
-void TraceDialogPostDone(HWND dialog, bool done) {
+void TraceDialogPostDone(
+    HWND dialog,
+    bool done
+) {
   if (!dialog) {
     return;
   }

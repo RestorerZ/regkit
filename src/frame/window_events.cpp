@@ -8,7 +8,9 @@ using namespace window_detail;
 
 MainWindow::Impl::~Impl() = default;
 
-bool MainWindow::Impl::Create(HINSTANCE instance) {
+bool MainWindow::Impl::Create(
+    HINSTANCE instance
+) {
   instance_ = instance;
   last_search_.criteria.search_keys = false;
 
@@ -20,9 +22,8 @@ bool MainWindow::Impl::Create(HINSTANCE instance) {
   wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
   wc.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(IDI_APPICON));
   wc.hIconSm = static_cast<HICON>(
-      LoadImageW(instance, MAKEINTRESOURCEW(IDI_APPICON), IMAGE_ICON,
-                 GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON),
-                 LR_DEFAULTCOLOR));
+      LoadImageW(instance, MAKEINTRESOURCEW(IDI_APPICON), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR)
+  );
   wc.hbrBackground = nullptr;
 
   RegisterClassExW(&wc);
@@ -44,7 +45,9 @@ bool MainWindow::Impl::Create(HINSTANCE instance) {
   return hwnd_ != nullptr;
 }
 
-void MainWindow::Impl::Show(int cmd_show) {
+void MainWindow::Impl::Show(
+    int cmd_show
+) {
   int show_cmd = cmd_show;
   if (window_placement_loaded_ && window_width_ > 0 && window_height_ > 0) {
     show_cmd = window_maximized_ ? SW_MAXIMIZE : SW_SHOWNORMAL;
@@ -57,9 +60,7 @@ void MainWindow::Impl::Show(int cmd_show) {
       RECT fitted = rect;
       win32::ClampToWorkArea(&fitted);
       if (!EqualRect(&fitted, &rect)) {
-        SetWindowPos(hwnd_, nullptr, fitted.left, fitted.top,
-                     fitted.right - fitted.left, fitted.bottom - fitted.top,
-                     SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(hwnd_, nullptr, fitted.left, fitted.top, fitted.right - fitted.left, fitted.bottom - fitted.top, SWP_NOZORDER | SWP_NOACTIVATE);
       }
     }
   }
@@ -70,7 +71,9 @@ void MainWindow::Impl::Show(int cmd_show) {
   PostMessageW(hwnd_, frame::message_id::kLoadDefaults, 0, 0);
 }
 
-void MainWindow::Impl::QueueExternalJump(const std::wstring& target) {
+void MainWindow::Impl::QueueExternalJump(
+    const std::wstring& target
+) {
   queued_external_jump_target_ = target;
 }
 
@@ -102,14 +105,18 @@ void MainWindow::Impl::EndJumpUiBatch() {
   }
 }
 
-void MainWindow::Impl::ApplyTreeSelectionEffects(RegistryNode* node) {
+void MainWindow::Impl::ApplyTreeSelectionEffects(
+    RegistryNode* node
+) {
   ResetValueFilter();
   UpdateAddressBar(node);
   UpdateValueListForNode(node);
   MarkTreeStateDirty();
 }
 
-void MainWindow::Impl::FocusAddressBarForExternalJump(bool defer_if_needed) {
+void MainWindow::Impl::FocusAddressBarForExternalJump(
+    bool defer_if_needed
+) {
   if (!hwnd_) {
     return;
   }
@@ -127,11 +134,10 @@ void MainWindow::Impl::FocusAddressBarForExternalJump(bool defer_if_needed) {
   }
 }
 
-void MainWindow::Impl::CyclePaneFocus(bool forward) {
-  HWND panes[] = {toolbar_.hwnd(),          browse_.address(),
-                  tab_,                     browse_.filter(),
-                  browse_.tree().hwnd(),    browse_.values().hwnd(),
-                  search_results_list_,     history_list_};
+void MainWindow::Impl::CyclePaneFocus(
+    bool forward
+) {
+  HWND panes[] = {toolbar_.hwnd(), browse_.address(), tab_, browse_.filter(), browse_.tree().hwnd(), browse_.values().hwnd(), search_results_list_, history_list_};
   HWND visible[_countof(panes)] = {};
   int count = 0;
   for (HWND pane : panes) {
@@ -155,7 +161,9 @@ void MainWindow::Impl::CyclePaneFocus(bool forward) {
   SetFocus(visible[next]);
 }
 
-bool MainWindow::Impl::TranslateAccelerator(const MSG& msg) {
+bool MainWindow::Impl::TranslateAccelerator(
+    const MSG& msg
+) {
   if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) {
     const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
     const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
@@ -261,7 +269,12 @@ bool MainWindow::Impl::TranslateAccelerator(const MSG& msg) {
   return false;
 }
 
-LRESULT CALLBACK MainWindow::Impl::WndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+LRESULT CALLBACK MainWindow::Impl::WndProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   if (message == WM_NCCREATE) {
     auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
     auto* self = static_cast<MainWindow::Impl*>(create->lpCreateParams);
@@ -276,7 +289,14 @@ LRESULT CALLBACK MainWindow::Impl::WndProc(HWND hwnd, UINT message, WPARAM wpara
   return self->HandleMessage(message, wparam, lparam);
 }
 
-LRESULT CALLBACK MainWindow::Impl::AddressEditProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR ref_data) {
+LRESULT CALLBACK MainWindow::Impl::AddressEditProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR,
+    DWORD_PTR ref_data
+) {
   auto* self = reinterpret_cast<MainWindow::Impl*>(ref_data);
   if (message == WM_CONTEXTMENU) {
     POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
@@ -340,7 +360,14 @@ LRESULT CALLBACK MainWindow::Impl::AddressEditProc(HWND hwnd, UINT message, WPAR
   return DefSubclassProc(hwnd, message, wparam, lparam);
 }
 
-LRESULT CALLBACK MainWindow::Impl::FilterEditProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR ref_data) {
+LRESULT CALLBACK MainWindow::Impl::FilterEditProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR,
+    DWORD_PTR ref_data
+) {
   auto* self = reinterpret_cast<MainWindow::Impl*>(ref_data);
   if (message == WM_KEYDOWN && (wparam == VK_RETURN || wparam == VK_DOWN)) {
     if (self) {
@@ -363,7 +390,14 @@ LRESULT CALLBACK MainWindow::Impl::FilterEditProc(HWND hwnd, UINT message, WPARA
   return DefSubclassProc(hwnd, message, wparam, lparam);
 }
 
-LRESULT CALLBACK MainWindow::Impl::TabProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR ref_data) {
+LRESULT CALLBACK MainWindow::Impl::TabProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR,
+    DWORD_PTR ref_data
+) {
   auto* self = reinterpret_cast<MainWindow::Impl*>(ref_data);
   if (!self) {
     return DefSubclassProc(hwnd, message, wparam, lparam);
@@ -372,19 +406,20 @@ LRESULT CALLBACK MainWindow::Impl::TabProc(HWND hwnd, UINT message, WPARAM wpara
   switch (message) {
   case WM_ERASEBKGND:
     return 1;
-  case WM_MOUSEMOVE: {
-    POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-    self->UpdateTabHotState(hwnd, pt);
-    if (!self->tab_mouse_tracking_) {
-      TRACKMOUSEEVENT tme = {};
-      tme.cbSize = sizeof(tme);
-      tme.dwFlags = TME_LEAVE;
-      tme.hwndTrack = hwnd;
-      TrackMouseEvent(&tme);
-      self->tab_mouse_tracking_ = true;
+  case WM_MOUSEMOVE:
+    {
+      POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+      self->UpdateTabHotState(hwnd, pt);
+      if (!self->tab_mouse_tracking_) {
+        TRACKMOUSEEVENT tme = {};
+        tme.cbSize = sizeof(tme);
+        tme.dwFlags = TME_LEAVE;
+        tme.hwndTrack = hwnd;
+        TrackMouseEvent(&tme);
+        self->tab_mouse_tracking_ = true;
+      }
+      return 0;
     }
-    return 0;
-  }
   case WM_MOUSELEAVE:
     self->tab_mouse_tracking_ = false;
     if (self->tab_hot_index_ != -1 || self->tab_close_hot_index_ != -1) {
@@ -393,54 +428,57 @@ LRESULT CALLBACK MainWindow::Impl::TabProc(HWND hwnd, UINT message, WPARAM wpara
       InvalidateRect(hwnd, nullptr, FALSE);
     }
     return 0;
-  case WM_LBUTTONDOWN: {
-    POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-    TCHITTESTINFO hit = {};
-    hit.pt = pt;
-    int index = TabCtrl_HitTest(hwnd, &hit);
-    RECT close_rect = {};
-    if (self->GetTabCloseRect(index, &close_rect) && PtInRect(&close_rect, pt)) {
-      self->tab_close_down_index_ = index;
-      SetCapture(hwnd);
-      InvalidateRect(hwnd, nullptr, FALSE);
-      return 0;
-    }
-    if (self->tab_close_down_index_ != -1) {
-      self->tab_close_down_index_ = -1;
-      InvalidateRect(hwnd, nullptr, FALSE);
-    }
-    break;
-  }
-  case WM_LBUTTONUP: {
-    if (self->tab_close_down_index_ >= 0) {
+  case WM_LBUTTONDOWN:
+    {
       POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-      int close_index = self->tab_close_down_index_;
-      self->tab_close_down_index_ = -1;
-      ReleaseCapture();
+      TCHITTESTINFO hit = {};
+      hit.pt = pt;
+      int index = TabCtrl_HitTest(hwnd, &hit);
       RECT close_rect = {};
-      if (self->GetTabCloseRect(close_index, &close_rect) && PtInRect(&close_rect, pt)) {
-        self->CloseTab(close_index);
-        self->tab_hot_index_ = -1;
-        self->tab_close_hot_index_ = -1;
+      if (self->GetTabCloseRect(index, &close_rect) && PtInRect(&close_rect, pt)) {
+        self->tab_close_down_index_ = index;
+        SetCapture(hwnd);
+        InvalidateRect(hwnd, nullptr, FALSE);
+        return 0;
       }
-      InvalidateRect(hwnd, nullptr, FALSE);
-      return 0;
+      if (self->tab_close_down_index_ != -1) {
+        self->tab_close_down_index_ = -1;
+        InvalidateRect(hwnd, nullptr, FALSE);
+      }
+      break;
     }
-    break;
-  }
+  case WM_LBUTTONUP:
+    {
+      if (self->tab_close_down_index_ >= 0) {
+        POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+        int close_index = self->tab_close_down_index_;
+        self->tab_close_down_index_ = -1;
+        ReleaseCapture();
+        RECT close_rect = {};
+        if (self->GetTabCloseRect(close_index, &close_rect) && PtInRect(&close_rect, pt)) {
+          self->CloseTab(close_index);
+          self->tab_hot_index_ = -1;
+          self->tab_close_hot_index_ = -1;
+        }
+        InvalidateRect(hwnd, nullptr, FALSE);
+        return 0;
+      }
+      break;
+    }
   case WM_CAPTURECHANGED:
     if (self->tab_close_down_index_ >= 0) {
       self->tab_close_down_index_ = -1;
       InvalidateRect(hwnd, nullptr, FALSE);
     }
     break;
-  case WM_PAINT: {
-    PAINTSTRUCT ps = {};
-    HDC hdc = BeginPaint(hwnd, &ps);
-    self->PaintTabControl(hwnd, hdc);
-    EndPaint(hwnd, &ps);
-    return 0;
-  }
+  case WM_PAINT:
+    {
+      PAINTSTRUCT ps = {};
+      HDC hdc = BeginPaint(hwnd, &ps);
+      self->PaintTabControl(hwnd, hdc);
+      EndPaint(hwnd, &ps);
+      return 0;
+    }
   default:
     break;
   }
@@ -448,7 +486,14 @@ LRESULT CALLBACK MainWindow::Impl::TabProc(HWND hwnd, UINT message, WPARAM wpara
   return DefSubclassProc(hwnd, message, wparam, lparam);
 }
 
-LRESULT CALLBACK MainWindow::Impl::ListViewProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR ref_data) {
+LRESULT CALLBACK MainWindow::Impl::ListViewProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR,
+    DWORD_PTR ref_data
+) {
   auto* self = reinterpret_cast<MainWindow::Impl*>(ref_data);
   if (message == WM_PAINT && ListViewScrolledHorizontally(hwnd)) {
     InvalidateListViewTail(hwnd);
@@ -476,7 +521,6 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(HWND hwnd, UINT message, WPARAM 
     RemovePropW(hwnd, kListScrollProp);
   }
 
-
   if (message == WM_NOTIFY && self) {
     auto* note = reinterpret_cast<NMHDR*>(lparam);
     if (note && note->code == NM_CUSTOMDRAW &&
@@ -485,8 +529,7 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(HWND hwnd, UINT message, WPARAM 
       if (draw->dwDrawStage == CDDS_PREPAINT) {
         RECT header_rect = {};
         if (GetClientRect(note->hwndFrom, &header_rect)) {
-          FillRect(draw->hdc, &header_rect,
-                   appearance::CachedBrush(ListView_GetBkColor(hwnd)));
+          FillRect(draw->hdc, &header_rect, appearance::CachedBrush(ListView_GetBkColor(hwnd)));
         }
         return CDRF_NOTIFYITEMDRAW | CDRF_NOTIFYPOSTPAINT;
       }
@@ -498,8 +541,7 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(HWND hwnd, UINT message, WPARAM 
             Header_GetItemRect(note->hwndFrom, count - 1, &last) &&
             last.right < header_rect.right) {
           header_rect.left = last.right;
-          FillRect(draw->hdc, &header_rect,
-                   appearance::CachedBrush(ListView_GetBkColor(hwnd)));
+          FillRect(draw->hdc, &header_rect, appearance::CachedBrush(ListView_GetBkColor(hwnd)));
         }
         return CDRF_DODEFAULT;
       }
@@ -567,7 +609,14 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(HWND hwnd, UINT message, WPARAM 
   return DefSubclassProc(hwnd, message, wparam, lparam);
 }
 
-LRESULT CALLBACK MainWindow::Impl::TreeViewProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR ref_data) {
+LRESULT CALLBACK MainWindow::Impl::TreeViewProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR,
+    DWORD_PTR ref_data
+) {
   auto* self = reinterpret_cast<MainWindow::Impl*>(ref_data);
   if (message == WM_SETFOCUS && self) {
     self->last_focus_ = hwnd;
@@ -610,7 +659,14 @@ LRESULT CALLBACK MainWindow::Impl::TreeViewProc(HWND hwnd, UINT message, WPARAM 
 #define HRGN_FULL reinterpret_cast<HRGN>(1)
 #endif
 
-LRESULT CALLBACK MainWindow::Impl::BorderProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+LRESULT CALLBACK MainWindow::Impl::BorderProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR
+) {
   if (message == WM_NCDESTROY) {
     RemoveWindowSubclass(hwnd, BorderProc, id);
     return DefSubclassProc(hwnd, message, wparam, lparam);
@@ -639,7 +695,14 @@ LRESULT CALLBACK MainWindow::Impl::BorderProc(HWND hwnd, UINT message, WPARAM wp
   return result;
 }
 
-LRESULT CALLBACK MainWindow::Impl::HeaderProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data) {
+LRESULT CALLBACK MainWindow::Impl::HeaderProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR subclass_id,
+    DWORD_PTR ref_data
+) {
   auto* self = reinterpret_cast<MainWindow::Impl*>(ref_data);
   HWND value_header = self ? ListView_GetHeader(self->browse_.values().hwnd()) : nullptr;
 

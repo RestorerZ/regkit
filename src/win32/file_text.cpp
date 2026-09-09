@@ -10,46 +10,63 @@
 
 namespace util {
 
-std::string WideToUtf8(const std::wstring& text) {
+std::string WideToUtf8(
+    const std::wstring& text
+) {
   if (text.empty()) {
     return {};
   }
   const int size = WideCharToMultiByte(
-      CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0,
-      nullptr, nullptr);
+      CP_UTF8,
+      0,
+      text.data(),
+      static_cast<int>(text.size()),
+      nullptr,
+      0,
+      nullptr,
+      nullptr
+  );
   if (size <= 0) {
     return {};
   }
   std::string output(static_cast<size_t>(size), '\0');
-  WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()),
-                      output.data(), size, nullptr, nullptr);
+  WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), output.data(), size, nullptr, nullptr);
   return output;
 }
 
-std::wstring Utf8ToWide(std::string_view text) {
+std::wstring Utf8ToWide(
+    std::string_view text
+) {
   if (text.empty()) {
     return {};
   }
   const int size = MultiByteToWideChar(
-      CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
-      static_cast<int>(text.size()), nullptr, 0);
+      CP_UTF8,
+      MB_ERR_INVALID_CHARS,
+      text.data(),
+      static_cast<int>(text.size()),
+      nullptr,
+      0
+  );
   if (size <= 0) {
     return {};
   }
   std::wstring output(static_cast<size_t>(size), L'\0');
-  MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
-                      static_cast<int>(text.size()), output.data(), size);
+  MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), output.data(), size);
   return output;
 }
 
-bool ReadFileBytes(const std::wstring& path, std::vector<BYTE>* output,
-                   uint64_t max_bytes, DWORD share_mode) {
+bool ReadFileBytes(
+    const std::wstring& path,
+    std::vector<BYTE>* output,
+    uint64_t max_bytes,
+    DWORD share_mode
+) {
   if (!output) {
     return false;
   }
   output->clear();
-  HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, share_mode, nullptr,
-                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, share_mode, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (file == INVALID_HANDLE_VALUE) {
     return false;
   }
@@ -64,9 +81,7 @@ bool ReadFileBytes(const std::wstring& path, std::vector<BYTE>* output,
   }
   output->resize(static_cast<size_t>(size.QuadPart));
   DWORD read = 0;
-  const BOOL result = ReadFile(file, output->data(),
-                               static_cast<DWORD>(output->size()), &read,
-                               nullptr);
+  const BOOL result = ReadFile(file, output->data(), static_cast<DWORD>(output->size()), &read, nullptr);
   CloseHandle(file);
   if (!result || read != output->size()) {
     output->clear();
@@ -75,8 +90,13 @@ bool ReadFileBytes(const std::wstring& path, std::vector<BYTE>* output,
   return true;
 }
 
-bool ReadTextFile(const std::wstring& path, std::wstring* output, bool* utf16,
-                  uint64_t max_bytes, DWORD share_mode) {
+bool ReadTextFile(
+    const std::wstring& path,
+    std::wstring* output,
+    bool* utf16,
+    uint64_t max_bytes,
+    DWORD share_mode
+) {
   if (!output) {
     return false;
   }
@@ -92,8 +112,7 @@ bool ReadTextFile(const std::wstring& path, std::wstring* output, bool* utf16,
     if ((bytes.size() - 2) % sizeof(wchar_t) != 0) {
       return false;
     }
-    output->assign(reinterpret_cast<const wchar_t*>(bytes.data() + 2),
-                   (bytes.size() - 2) / sizeof(wchar_t));
+    output->assign(reinterpret_cast<const wchar_t*>(bytes.data() + 2), (bytes.size() - 2) / sizeof(wchar_t));
     if (utf16) {
       *utf16 = true;
     }
@@ -106,17 +125,20 @@ bool ReadTextFile(const std::wstring& path, std::wstring* output, bool* utf16,
   }
   *output = Utf8ToWide(std::string_view(
       reinterpret_cast<const char*>(bytes.data() + offset),
-      bytes.size() - offset));
+      bytes.size() - offset
+  ));
   return !output->empty();
 }
 
 namespace {
 
-bool WriteWholeFile(const std::wstring& path, const std::wstring& text,
-                    bool utf16, DWORD disposition = CREATE_ALWAYS) {
-  HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ,
-                            nullptr, disposition, FILE_ATTRIBUTE_NORMAL,
-                            nullptr);
+bool WriteWholeFile(
+    const std::wstring& path,
+    const std::wstring& text,
+    bool utf16,
+    DWORD disposition = CREATE_ALWAYS
+) {
+  HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, disposition, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (file == INVALID_HANDLE_VALUE) {
     return false;
   }
@@ -148,8 +170,11 @@ bool WriteWholeFile(const std::wstring& path, const std::wstring& text,
 
 } // namespace
 
-bool WriteTextFile(const std::wstring& path, const std::wstring& text,
-                   bool utf16) {
+bool WriteTextFile(
+    const std::wstring& path,
+    const std::wstring& text,
+    bool utf16
+) {
   for (int attempt = 0; attempt < 16; ++attempt) {
     unsigned int suffix = 0;
     if (rand_s(&suffix) != 0) {
@@ -165,8 +190,7 @@ bool WriteTextFile(const std::wstring& path, const std::wstring& text,
       DeleteFileW(temp_path.c_str());
       return false;
     }
-    if (MoveFileExW(temp_path.c_str(), path.c_str(),
-                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+    if (MoveFileExW(temp_path.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
       return true;
     }
     DeleteFileW(temp_path.c_str());

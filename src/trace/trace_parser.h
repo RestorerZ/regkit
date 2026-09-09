@@ -19,14 +19,8 @@ struct Normalizers {
 
 using EntryCallback = std::function<bool(Entry&& entry)>;
 
-bool ParseEntries(std::string_view buffer,
-                  const Normalizers& normalizers,
-                  const EntryCallback& callback, std::wstring* error,
-                  const std::atomic_bool* cancel = nullptr);
+bool ParseEntries(std::string_view buffer, const Normalizers& normalizers, const EntryCallback& callback, std::wstring* error, const std::atomic_bool* cancel = nullptr);
 
-bool Parse(const std::wstring& label, const std::wstring& source,
-           std::string_view buffer, const Normalizers& normalizers,
-           Data* data, std::wstring* error,
-           const std::atomic_bool* cancel = nullptr);
+bool Parse(const std::wstring& label, const std::wstring& source, std::string_view buffer, const Normalizers& normalizers, Data* data, std::wstring* error, const std::atomic_bool* cancel = nullptr);
 
 } // namespace regkit::trace

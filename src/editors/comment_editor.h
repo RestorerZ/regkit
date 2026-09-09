@@ -19,7 +19,6 @@ struct CommentResult {
   bool apply_to_same_name = false;
 };
 
-bool EditComment(HWND owner, const CommentRequest& request,
-                 CommentResult* result);
+bool EditComment(HWND owner, const CommentRequest& request, CommentResult* result);
 
 } // namespace regkit::editors

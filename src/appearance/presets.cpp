@@ -17,7 +17,11 @@ constexpr wchar_t kPresetSection[] = L"[preset]";
 
 using util::ToLower;
 
-ThemePreset MakePreset(const wchar_t* name, const ThemeColors& colors, bool is_dark) {
+ThemePreset MakePreset(
+    const wchar_t* name,
+    const ThemeColors& colors,
+    bool is_dark
+) {
   ThemePreset preset;
   preset.name = name ? name : L"";
   preset.colors = colors;
@@ -25,7 +29,9 @@ ThemePreset MakePreset(const wchar_t* name, const ThemeColors& colors, bool is_d
   return preset;
 }
 
-std::wstring Trim(const std::wstring& text) {
+std::wstring Trim(
+    const std::wstring& text
+) {
   size_t start = 0;
   while (start < text.size() && (text[start] == L' ' || text[start] == L'\t')) {
     ++start;
@@ -541,7 +547,10 @@ ThemeColors KanagawaLotus() {
   return colors;
 }
 
-void WritePreset(std::wofstream& file, const ThemePreset& preset) {
+void WritePreset(
+    std::wofstream& file,
+    const ThemePreset& preset
+) {
   file << kPresetSection << L"\n";
   file << L"name=" << preset.name << L"\n";
   file << L"dark=" << (preset.is_dark ? L"1" : L"0") << L"\n";
@@ -582,7 +591,11 @@ constexpr ColorKey kColorKeys[] = {
     {L"focus", &ThemeColors::focus},
 };
 
-bool ApplyField(ThemePreset* preset, const std::wstring& key, const std::wstring& value) {
+bool ApplyField(
+    ThemePreset* preset,
+    const std::wstring& key,
+    const std::wstring& value
+) {
   if (!preset) {
     return false;
   }
@@ -616,14 +629,19 @@ bool ApplyField(ThemePreset* preset, const std::wstring& key, const std::wstring
   return true;
 }
 
-void ResolveLegacyField(ThemePreset* preset) {
+void ResolveLegacyField(
+    ThemePreset* preset
+) {
   if (preset && preset->colors.field == CLR_INVALID) {
     preset->colors.field = preset->colors.surface;
   }
 }
 
-bool LoadFromStream(std::wistream& file, std::vector<ThemePreset>* presets,
-                    std::wstring* error) {
+bool LoadFromStream(
+    std::wistream& file,
+    std::vector<ThemePreset>* presets,
+    std::wstring* error
+) {
   if (!presets) {
     return false;
   }
@@ -666,8 +684,7 @@ bool LoadFromStream(std::wistream& file, std::vector<ThemePreset>* presets,
     if (sep == std::wstring::npos) {
       return fail(line);
     }
-    if (!ApplyField(&current, Trim(line.substr(0, sep)),
-                    Trim(line.substr(sep + 1)))) {
+    if (!ApplyField(&current, Trim(line.substr(0, sep)), Trim(line.substr(sep + 1)))) {
       return fail(line);
     }
   }
@@ -724,7 +741,10 @@ std::vector<ThemePreset> ThemePresetStore::BuiltInPresets() {
   return presets;
 }
 
-bool ThemePresetStore::Load(std::vector<ThemePreset>* presets, std::wstring* error) {
+bool ThemePresetStore::Load(
+    std::vector<ThemePreset>* presets,
+    std::wstring* error
+) {
   if (presets) {
     presets->clear();
   }
@@ -752,7 +772,10 @@ bool ThemePresetStore::Load(std::vector<ThemePreset>* presets, std::wstring* err
   return true;
 }
 
-bool ThemePresetStore::Save(const std::vector<ThemePreset>& presets, std::wstring* error) {
+bool ThemePresetStore::Save(
+    const std::vector<ThemePreset>& presets,
+    std::wstring* error
+) {
   if (error) {
     error->clear();
   }
@@ -779,7 +802,11 @@ bool ThemePresetStore::Save(const std::vector<ThemePreset>& presets, std::wstrin
   return true;
 }
 
-bool ThemePresetStore::ImportFromFile(const std::wstring& path, std::vector<ThemePreset>* presets, std::wstring* error) {
+bool ThemePresetStore::ImportFromFile(
+    const std::wstring& path,
+    std::vector<ThemePreset>* presets,
+    std::wstring* error
+) {
   if (presets) {
     presets->clear();
   }
@@ -815,7 +842,11 @@ bool ThemePresetStore::ImportFromFile(const std::wstring& path, std::vector<Them
   return true;
 }
 
-bool ThemePresetStore::ExportToFile(const std::wstring& path, const std::vector<ThemePreset>& presets, std::wstring* error) {
+bool ThemePresetStore::ExportToFile(
+    const std::wstring& path,
+    const std::vector<ThemePreset>& presets,
+    std::wstring* error
+) {
   if (error) {
     error->clear();
   }
@@ -841,13 +872,18 @@ bool ThemePresetStore::ExportToFile(const std::wstring& path, const std::vector<
   return true;
 }
 
-std::wstring FormatColorHex(COLORREF color) {
+std::wstring FormatColorHex(
+    COLORREF color
+) {
   wchar_t buffer[16] = {};
   swprintf_s(buffer, L"#%02X%02X%02X", GetRValue(color), GetGValue(color), GetBValue(color));
   return buffer;
 }
 
-bool ParseColorHex(const std::wstring& text, COLORREF* color) {
+bool ParseColorHex(
+    const std::wstring& text,
+    COLORREF* color
+) {
   if (!color) {
     return false;
   }

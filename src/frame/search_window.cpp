@@ -7,7 +7,9 @@ namespace regkit {
 
 using namespace window_detail;
 
-std::wstring MainWindow::Impl::NormalizeRegistryPath(const std::wstring& input) const {
+std::wstring MainWindow::Impl::NormalizeRegistryPath(
+    const std::wstring& input
+) const {
   const std::wstring sid = util::GetCurrentUserSidString();
   std::wstring path = registry_path::Normalize(input, sid);
   auto strip_context = [&](const std::wstring& label) {
@@ -26,7 +28,10 @@ std::wstring MainWindow::Impl::NormalizeRegistryPath(const std::wstring& input) 
   return registry_path::Normalize(path, sid);
 }
 
-std::wstring MainWindow::Impl::FormatRegistryPath(const std::wstring& path, RegistryPathFormat format) const {
+std::wstring MainWindow::Impl::FormatRegistryPath(
+    const std::wstring& path,
+    RegistryPathFormat format
+) const {
   const std::wstring normalized = NormalizeRegistryPath(path);
   if (normalized.empty()) {
     return {};
@@ -58,7 +63,10 @@ std::wstring MainWindow::Impl::FormatRegistryPath(const std::wstring& path, Regi
   }
   return registry_path::Format(normalized, style, tree_root);
 }
-bool MainWindow::Impl::FindNearestExistingPath(const std::wstring& path, std::wstring* nearest_path) const {
+bool MainWindow::Impl::FindNearestExistingPath(
+    const std::wstring& path,
+    std::wstring* nearest_path
+) const {
   return changes::FindNearestExistingPath(
       path,
       [this](const std::wstring& candidate) {
@@ -67,10 +75,13 @@ bool MainWindow::Impl::FindNearestExistingPath(const std::wstring& path, std::ws
         return ResolvePathToNode(candidate, &node) &&
                RegistryStore::QueryKeyInfo(node, &info);
       },
-      nearest_path);
+      nearest_path
+  );
 }
 
-bool MainWindow::Impl::CreateRegistryPath(const std::wstring& path) {
+bool MainWindow::Impl::CreateRegistryPath(
+    const std::wstring& path
+) {
   RegistryNode node;
   if (!ResolvePathToNode(path, &node)) {
     return false;
@@ -100,7 +111,9 @@ bool MainWindow::Impl::CreateRegistryPath(const std::wstring& path) {
   return true;
 }
 
-void MainWindow::Impl::SetStatusMessage(const std::wstring& text) {
+void MainWindow::Impl::SetStatusMessage(
+    const std::wstring& text
+) {
   status_message_ = text;
   UpdateStatus();
   if (hwnd_) {
@@ -161,10 +174,7 @@ void MainWindow::Impl::UpdateStatus() {
     }
     int part = total_width;
     SendMessageW(status_bar_, SB_SETPARTS, 1, reinterpret_cast<LPARAM>(&part));
-    SendMessageW(status_bar_, SB_SETTEXTW, 0,
-                 reinterpret_cast<LPARAM>(status_message_.empty()
-                                              ? buffer
-                                              : status_message_.c_str()));
+    SendMessageW(status_bar_, SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(status_message_.empty() ? buffer : status_message_.c_str()));
     return;
   }
   if (IsRegFileTabSelected()) {
@@ -258,7 +268,9 @@ bool MainWindow::Impl::IsCompareTabSelected() const {
   return search_tabs_[static_cast<size_t>(search_index)].is_compare;
 }
 
-bool MainWindow::Impl::IsSearchTabIndex(int index) const {
+bool MainWindow::Impl::IsSearchTabIndex(
+    int index
+) const {
   if (index < 0) {
     return false;
   }
@@ -268,7 +280,9 @@ bool MainWindow::Impl::IsSearchTabIndex(int index) const {
   return tabs_[static_cast<size_t>(index)].kind == TabEntry::Kind::kSearch;
 }
 
-bool MainWindow::Impl::IsRegFileTabIndex(int index) const {
+bool MainWindow::Impl::IsRegFileTabIndex(
+    int index
+) const {
   if (index < 0) {
     return false;
   }
@@ -278,7 +292,9 @@ bool MainWindow::Impl::IsRegFileTabIndex(int index) const {
   return tabs_[static_cast<size_t>(index)].kind == TabEntry::Kind::kRegFile;
 }
 
-int MainWindow::Impl::SearchIndexFromTab(int index) const {
+int MainWindow::Impl::SearchIndexFromTab(
+    int index
+) const {
   if (!IsSearchTabIndex(index)) {
     return -1;
   }
@@ -378,8 +394,7 @@ void MainWindow::Impl::UpdateSearchResultsView() {
   if (force_redraw || count != old_count) {
     ListView_SetItemCountEx(search_results_list_, static_cast<int>(count), LVSICF_NOINVALIDATEALL | LVSICF_NOSCROLL);
     if (force_redraw || count < old_count) {
-      RedrawWindow(search_results_list_, nullptr, nullptr,
-                   RDW_INVALIDATE | RDW_NOERASE);
+      RedrawWindow(search_results_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
     } else if (count > old_count) {
       int first = static_cast<int>(old_count);
       int last = static_cast<int>(count - 1);
@@ -389,7 +404,9 @@ void MainWindow::Impl::UpdateSearchResultsView() {
   }
 }
 
-void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
+void MainWindow::Impl::StartSearch(
+    const SearchDialogResult& options
+) {
   if (options.criteria.query.empty()) {
     ui::ShowWarning(hwnd_, L"Enter text to find.");
     return;
@@ -675,11 +692,11 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
   bool registry_enabled = want_registry && !criteria.start_nodes.empty();
 
   const uint64_t generation = search_session_.Start(
-      [this, criteria, traces, exclude_paths, scope_lower, scope_recursive,
-       trace_enabled, registry_enabled, matcher](
-          uint64_t generation, std::atomic_bool& cancel) mutable {
+      [this, criteria, traces, exclude_paths, scope_lower, scope_recursive, trace_enabled, registry_enabled, matcher](
+          uint64_t generation,
+          std::atomic_bool& cancel
+      ) mutable {
         auto should_stop = [&]() { return cancel.load(); };
-
 
         auto publish_batch = [&](search::ResultBatch&& rows) -> bool {
           if (rows.empty()) {
@@ -692,10 +709,8 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
           {
             std::unique_lock<std::mutex> lock(search_mutex_);
 
-            search_queue_space_.wait(lock, [&]() {
-              return cancel.load() ||
-                     search_pending_rows_ < kSearchPendingRowLimit;
-            });
+            search_queue_space_.wait(lock, [&]() { return cancel.load() ||
+                                                          search_pending_rows_ < kSearchPendingRowLimit; });
             if (cancel.load()) {
               return false;
             }
@@ -703,8 +718,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
             search_pending_rows_ += added;
           }
           if (!search_posted_.exchange(true)) {
-            if (!PostMessageW(hwnd_, frame::message_id::kSearchResults,
-                              static_cast<WPARAM>(generation), 0)) {
+            if (!PostMessageW(hwnd_, frame::message_id::kSearchResults, static_cast<WPARAM>(generation), 0)) {
               search_posted_.store(false);
             }
           }
@@ -809,8 +823,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
                     }
                     std::wstring value_lower = ToLower(value_name);
                     if (!trace.selection ||
-                        !trace::IncludesValue(*trace.selection, key_lower,
-                                              value_lower)) {
+                        !trace::IncludesValue(*trace.selection, key_lower, value_lower)) {
                       continue;
                     }
                     const std::wstring display =
@@ -852,14 +865,16 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
             }
           };
           const bool ok = search::Run(
-              criteria, &cancel,
+              criteria,
+              &cancel,
               [&](search::ResultBatch&& rows) -> bool {
                 if (should_stop()) {
                   return false;
                 }
                 return publish_batch(std::move(rows));
               },
-              progress_cb);
+              progress_cb
+          );
           flush();
           if (!ok) {
             PostMessageW(hwnd_, frame::message_id::kSearchFailed, static_cast<WPARAM>(generation), 0);
@@ -873,20 +888,28 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
           search_producer_done_ = true;
         }
         if (!search_posted_.exchange(true)) {
-          if (!PostMessageW(hwnd_, frame::message_id::kSearchResults,
-                            static_cast<WPARAM>(generation), 0)) {
+          if (!PostMessageW(hwnd_, frame::message_id::kSearchResults, static_cast<WPARAM>(generation), 0)) {
             search_posted_.store(false);
           }
         }
-      });
+      }
+  );
   search_tabs_[static_cast<size_t>(search_index)].generation = generation;
 }
 
 namespace {
 
-enum class DataReplace { kUnchanged, kChanged, kRejected };
+enum class DataReplace {
+  kUnchanged,
+  kChanged,
+  kRejected
+};
 
-bool ParseUnsignedText(const std::wstring& text, int base, uint64_t* out) {
+bool ParseUnsignedText(
+    const std::wstring& text,
+    int base,
+    uint64_t* out
+) {
   std::wstring trimmed = TrimWhitespace(text);
   if (trimmed.empty() || trimmed.front() == L'-' || trimmed.front() == L'+') {
     return false;
@@ -909,7 +932,10 @@ bool ParseUnsignedText(const std::wstring& text, int base, uint64_t* out) {
   return true;
 }
 
-std::wstring PaddedHex(uint64_t value, size_t width) {
+std::wstring PaddedHex(
+    uint64_t value,
+    size_t width
+) {
   static constexpr wchar_t kDigits[] = L"0123456789ABCDEF";
   std::wstring text(width * 2, L'0');
   for (size_t index = 0; index < width * 2; ++index) {
@@ -918,7 +944,10 @@ std::wstring PaddedHex(uint64_t value, size_t width) {
   return text;
 }
 
-bool ParseHexBytesStrict(const std::wstring& text, std::vector<BYTE>* out) {
+bool ParseHexBytesStrict(
+    const std::wstring& text,
+    std::vector<BYTE>* out
+) {
   out->clear();
   auto separator = [](wchar_t c) {
     return c == L' ' || c == L'\t' || c == L',';
@@ -958,7 +987,11 @@ bool ParseHexBytesStrict(const std::wstring& text, std::vector<BYTE>* out) {
   return true;
 }
 
-uint64_t ReadNumber(const std::vector<BYTE>& data, size_t width, bool big_endian) {
+uint64_t ReadNumber(
+    const std::vector<BYTE>& data,
+    size_t width,
+    bool big_endian
+) {
   uint64_t value = 0;
   for (size_t i = 0; i < width; ++i) {
     const uint64_t byte = data[big_endian ? i : width - 1 - i];
@@ -967,8 +1000,12 @@ uint64_t ReadNumber(const std::vector<BYTE>& data, size_t width, bool big_endian
   return value;
 }
 
-void WriteNumber(uint64_t value, size_t width, bool big_endian,
-                 std::vector<BYTE>* out) {
+void WriteNumber(
+    uint64_t value,
+    size_t width,
+    bool big_endian,
+    std::vector<BYTE>* out
+) {
   out->assign(width, 0);
   for (size_t i = 0; i < width; ++i) {
     const BYTE byte = static_cast<BYTE>((value >> (8 * i)) & 0xFF);
@@ -976,100 +1013,114 @@ void WriteNumber(uint64_t value, size_t width, bool big_endian,
   }
 }
 
-DataReplace ReplaceValueData(const search::Replacer& matcher, DWORD type,
-                             const std::vector<BYTE>& data, bool number_decimal,
-                             bool number_hex, std::vector<BYTE>* out) {
+DataReplace ReplaceValueData(
+    const search::Replacer& matcher,
+    DWORD type,
+    const std::vector<BYTE>& data,
+    bool number_decimal,
+    bool number_hex,
+    std::vector<BYTE>* out
+) {
   const DWORD base = value_format::NormalizeType(type);
   switch (base) {
   case REG_SZ:
   case REG_EXPAND_SZ:
-  case REG_LINK: {
-    const std::wstring text = value_format::Data(
-        type, data.data(), static_cast<DWORD>(data.size()));
-    std::wstring updated;
-    if (!matcher.Replace(text, &updated) || updated == text) {
-      return DataReplace::kUnchanged;
-    }
-    *out = value_format::StringData(updated);
-    return DataReplace::kChanged;
-  }
-  case REG_MULTI_SZ: {
-    std::vector<std::wstring> parts = value_format::MultiStringItems(data);
-    bool changed = false;
-    for (auto& part : parts) {
+  case REG_LINK:
+    {
+      const std::wstring text = value_format::Data(
+          type,
+          data.data(),
+          static_cast<DWORD>(data.size())
+      );
       std::wstring updated;
-      if (matcher.Replace(part, &updated) && updated != part) {
-        part = std::move(updated);
-        changed = true;
+      if (!matcher.Replace(text, &updated) || updated == text) {
+        return DataReplace::kUnchanged;
       }
-    }
-    if (!changed) {
-      return DataReplace::kUnchanged;
-    }
-    *out = value_format::MultiStringData(parts);
-    return DataReplace::kChanged;
-  }
-  case REG_DWORD:
-  case REG_DWORD_BIG_ENDIAN:
-  case REG_QWORD: {
-    const bool big_endian = base == REG_DWORD_BIG_ENDIAN;
-    const size_t width = base == REG_QWORD ? sizeof(uint64_t) : sizeof(DWORD);
-    if (data.size() < width) {
-      return DataReplace::kUnchanged;
-    }
-    const uint64_t number = ReadNumber(data, width, big_endian);
-    const std::wstring decimal = std::to_wstring(number);
-    const std::wstring bare_hex = PaddedHex(number, width);
-    const std::wstring prefixed_hex = L"0x" + bare_hex;
-    struct NumberForm {
-      const std::wstring* text;
-      int base;
-    };
-    std::vector<NumberForm> forms;
-    if (number_decimal) {
-      forms.push_back({&decimal, 10});
-    }
-    if (number_hex) {
-      forms.push_back({&prefixed_hex, 16});
-      forms.push_back({&bare_hex, 16});
-    }
-
-    for (const auto& form : forms) {
-      std::wstring updated;
-      if (!matcher.Replace(*form.text, &updated) || updated == *form.text) {
-        continue;
-      }
-      uint64_t parsed = 0;
-      if (!ParseUnsignedText(updated, form.base, &parsed)) {
-        return DataReplace::kRejected;
-      }
-      if (width == sizeof(DWORD) && parsed > MAXDWORD) {
-        return DataReplace::kRejected;
-      }
-      WriteNumber(parsed, width, big_endian, out);
+      *out = value_format::StringData(updated);
       return DataReplace::kChanged;
     }
-    return DataReplace::kUnchanged;
-  }
-  default: {
-    const std::wstring text = util::ToHex(data.data(), data.size(), 0);
-    std::wstring updated;
-    if (!matcher.Replace(text, &updated) || updated == text) {
+  case REG_MULTI_SZ:
+    {
+      std::vector<std::wstring> parts = value_format::MultiStringItems(data);
+      bool changed = false;
+      for (auto& part : parts) {
+        std::wstring updated;
+        if (matcher.Replace(part, &updated) && updated != part) {
+          part = std::move(updated);
+          changed = true;
+        }
+      }
+      if (!changed) {
+        return DataReplace::kUnchanged;
+      }
+      *out = value_format::MultiStringData(parts);
+      return DataReplace::kChanged;
+    }
+  case REG_DWORD:
+  case REG_DWORD_BIG_ENDIAN:
+  case REG_QWORD:
+    {
+      const bool big_endian = base == REG_DWORD_BIG_ENDIAN;
+      const size_t width = base == REG_QWORD ? sizeof(uint64_t) : sizeof(DWORD);
+      if (data.size() < width) {
+        return DataReplace::kUnchanged;
+      }
+      const uint64_t number = ReadNumber(data, width, big_endian);
+      const std::wstring decimal = std::to_wstring(number);
+      const std::wstring bare_hex = PaddedHex(number, width);
+      const std::wstring prefixed_hex = L"0x" + bare_hex;
+      struct NumberForm {
+        const std::wstring* text;
+        int base;
+      };
+      std::vector<NumberForm> forms;
+      if (number_decimal) {
+        forms.push_back({&decimal, 10});
+      }
+      if (number_hex) {
+        forms.push_back({&prefixed_hex, 16});
+        forms.push_back({&bare_hex, 16});
+      }
+
+      for (const auto& form : forms) {
+        std::wstring updated;
+        if (!matcher.Replace(*form.text, &updated) || updated == *form.text) {
+          continue;
+        }
+        uint64_t parsed = 0;
+        if (!ParseUnsignedText(updated, form.base, &parsed)) {
+          return DataReplace::kRejected;
+        }
+        if (width == sizeof(DWORD) && parsed > MAXDWORD) {
+          return DataReplace::kRejected;
+        }
+        WriteNumber(parsed, width, big_endian, out);
+        return DataReplace::kChanged;
+      }
       return DataReplace::kUnchanged;
     }
-    std::vector<BYTE> bytes;
-    if (!ParseHexBytesStrict(updated, &bytes)) {
-      return DataReplace::kRejected;
+  default:
+    {
+      const std::wstring text = util::ToHex(data.data(), data.size(), 0);
+      std::wstring updated;
+      if (!matcher.Replace(text, &updated) || updated == text) {
+        return DataReplace::kUnchanged;
+      }
+      std::vector<BYTE> bytes;
+      if (!ParseHexBytesStrict(updated, &bytes)) {
+        return DataReplace::kRejected;
+      }
+      *out = std::move(bytes);
+      return DataReplace::kChanged;
     }
-    *out = std::move(bytes);
-    return DataReplace::kChanged;
-  }
   }
 }
 
 } // namespace
 
-void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
+void MainWindow::Impl::StartReplace(
+    const ReplaceDialogResult& options
+) {
   if (read_only_) {
     ui::ShowWarning(hwnd_, L"Read only mode is enabled.");
     return;
@@ -1106,7 +1157,9 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
   replace_result_pending_ = true;
   replace_session_.Start(
       [this, start, options, matcher, hwnd](
-          uint64_t generation, std::atomic_bool& cancel) mutable {
+          uint64_t generation,
+          std::atomic_bool& cancel
+      ) mutable {
         auto payload = std::make_unique<ReplacePayload>();
         payload->generation = generation;
         std::vector<RegistryNode> stack;
@@ -1121,7 +1174,11 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
           RegistryStore::KeyEnumResult enum_result;
           bool values_reserved = false;
           RegistryStore::EnumKeyStreaming(
-              node, true, true, false, &enum_result,
+              node,
+              true,
+              true,
+              false,
+              &enum_result,
               [&](const ValueInfo& info, const BYTE* data, DWORD data_size) {
                 if (!values_reserved) {
                   if (enum_result.info_valid) {
@@ -1138,7 +1195,8 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
                 values.push_back(std::move(value));
                 return !cancel.load();
               },
-              {});
+              {}
+          );
 
           for (const auto& value : values) {
             if (cancel.load()) {
@@ -1156,8 +1214,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
               std::wstring unique =
                   MakeUniqueValueName(node, replaced_name);
               bool both_names_left = false;
-              if (!RegistryStore::RenameValue(node, current_name, unique,
-                                              &both_names_left)) {
+              if (!RegistryStore::RenameValue(node, current_name, unique, &both_names_left)) {
                 ++payload->failures;
                 if (both_names_left) {
                   ++payload->partial_renames;
@@ -1185,8 +1242,13 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
 
             std::vector<BYTE> new_data;
             const DataReplace outcome = ReplaceValueData(
-                matcher, value.type, value.data, options.number_decimal,
-                options.number_hex, &new_data);
+                matcher,
+                value.type,
+                value.data,
+                options.number_decimal,
+                options.number_hex,
+                &new_data
+            );
             if (outcome == DataReplace::kRejected) {
               ++payload->rejected;
               continue;
@@ -1194,8 +1256,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
             if (outcome == DataReplace::kUnchanged) {
               continue;
             }
-            if (!RegistryStore::SetValue(node, current_name, value.type,
-                                         new_data)) {
+            if (!RegistryStore::SetValue(node, current_name, value.type, new_data)) {
               ++payload->failures;
               continue;
             }
@@ -1213,11 +1274,15 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
             change.undo.new_value = new_value;
             change.history.action = L"Modify value " + current_name;
             change.history.old_data = value_format::Data(
-                value.type, value.data.data(),
-                static_cast<DWORD>(value.data.size()));
+                value.type,
+                value.data.data(),
+                static_cast<DWORD>(value.data.size())
+            );
             change.history.new_data = value_format::Data(
-                value.type, new_data.data(),
-                static_cast<DWORD>(new_data.size()));
+                value.type,
+                new_data.data(),
+                static_cast<DWORD>(new_data.size())
+            );
             change.history.key_path = registry_path::Build(node);
             change.history.value_name = current_name;
             change.history.revert_kind =
@@ -1244,13 +1309,8 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
           }
         }
 
-        std::stable_sort(key_renames.begin(), key_renames.end(),
-                         [](const auto& left, const auto& right) {
-                           return std::count(left.first.subkey.begin(),
-                                             left.first.subkey.end(), L'\\') >
-                                  std::count(right.first.subkey.begin(),
-                                             right.first.subkey.end(), L'\\');
-                         });
+        std::stable_sort(key_renames.begin(), key_renames.end(), [](const auto& left, const auto& right) { return std::count(left.first.subkey.begin(), left.first.subkey.end(), L'\\') >
+                                                                                                                  std::count(right.first.subkey.begin(), right.first.subkey.end(), L'\\'); });
         for (const auto& rename : key_renames) {
           if (cancel.load()) {
             break;
@@ -1279,15 +1339,16 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
 
         payload->cancelled = cancel.load();
         if (hwnd && IsWindow(hwnd) &&
-            PostMessageW(hwnd, frame::message_id::kReplaceReady,
-                         static_cast<WPARAM>(generation),
-                         reinterpret_cast<LPARAM>(payload.get()))) {
+            PostMessageW(hwnd, frame::message_id::kReplaceReady, static_cast<WPARAM>(generation), reinterpret_cast<LPARAM>(payload.get()))) {
           ReleasePostedPayload(payload);
         }
-      });
+      }
+  );
 }
 
-void MainWindow::Impl::ApplyReplacePayload(ReplacePayload* payload) {
+void MainWindow::Impl::ApplyReplacePayload(
+    ReplacePayload* payload
+) {
   if (!payload) {
     return;
   }
@@ -1301,7 +1362,9 @@ void MainWindow::Impl::ApplyReplacePayload(ReplacePayload* payload) {
 }
 
 void MainWindow::Impl::CommitReplacePayload(
-    std::unique_ptr<ReplacePayload> payload, bool show_failures) {
+    std::unique_ptr<ReplacePayload> payload,
+    bool show_failures
+) {
   if (!payload) {
     return;
   }
@@ -1352,12 +1415,13 @@ void MainWindow::Impl::CommitReplacePayload(
 void MainWindow::Impl::StopReplace() {
   replace_session_.CancelAndJoin();
   MSG message = {};
-  while (PeekMessageW(&message, hwnd_, frame::message_id::kReplaceReady,
-                      frame::message_id::kReplaceReady, PM_REMOVE)) {
+  while (PeekMessageW(&message, hwnd_, frame::message_id::kReplaceReady, frame::message_id::kReplaceReady, PM_REMOVE)) {
     CommitReplacePayload(
         std::unique_ptr<ReplacePayload>(
-            reinterpret_cast<ReplacePayload*>(message.lParam)),
-        false);
+            reinterpret_cast<ReplacePayload*>(message.lParam)
+        ),
+        false
+    );
   }
   replace_result_pending_ = false;
 }
@@ -1387,7 +1451,9 @@ void MainWindow::Impl::CancelSearch() {
   UpdateStatus();
 }
 
-void MainWindow::Impl::CloseSearchTab(int tab_index) {
+void MainWindow::Impl::CloseSearchTab(
+    int tab_index
+) {
   if (!tab_ || !IsSearchTabIndex(tab_index)) {
     return;
   }

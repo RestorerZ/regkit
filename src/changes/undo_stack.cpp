@@ -5,7 +5,9 @@
 
 namespace regkit::changes {
 
-void UndoStack::Push(UndoOperation operation) {
+void UndoStack::Push(
+    UndoOperation operation
+) {
   undo_.push_back(std::move(operation));
   redo_.clear();
 }
@@ -32,11 +34,15 @@ std::optional<UndoOperation> UndoStack::TakeRedo() {
   return operation;
 }
 
-void UndoStack::CompleteUndo(UndoOperation operation) {
+void UndoStack::CompleteUndo(
+    UndoOperation operation
+) {
   redo_.push_back(std::move(operation));
 }
 
-void UndoStack::CompleteRedo(UndoOperation operation) {
+void UndoStack::CompleteRedo(
+    UndoOperation operation
+) {
   undo_.push_back(std::move(operation));
 }
 

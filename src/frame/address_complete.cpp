@@ -8,9 +8,17 @@ using namespace window_detail;
 
 class RegistryAddressEnum : public ::IEnumString, public ::IACList {
 public:
-  RegistryAddressEnum(MainWindow::Impl* owner, HWND edit) : owner_(owner), edit_(edit) {}
+  RegistryAddressEnum(
+      MainWindow::Impl* owner,
+      HWND edit
+  )
+      : owner_(owner), edit_(edit) {
+  }
 
-  HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** out) override {
+  HRESULT STDMETHODCALLTYPE QueryInterface(
+      REFIID riid,
+      void** out
+  ) override {
     if (!out) {
       return E_POINTER;
     }
@@ -28,7 +36,9 @@ public:
     return E_NOINTERFACE;
   }
 
-  ULONG STDMETHODCALLTYPE AddRef() override { return static_cast<ULONG>(InterlockedIncrement(&ref_count_)); }
+  ULONG STDMETHODCALLTYPE AddRef() override {
+    return static_cast<ULONG>(InterlockedIncrement(&ref_count_));
+  }
 
   ULONG STDMETHODCALLTYPE Release() override {
     ULONG count = static_cast<ULONG>(InterlockedDecrement(&ref_count_));
@@ -38,7 +48,11 @@ public:
     return count;
   }
 
-  HRESULT STDMETHODCALLTYPE Next(ULONG celt, LPOLESTR* rgelt, ULONG* pceltFetched) override {
+  HRESULT STDMETHODCALLTYPE Next(
+      ULONG celt,
+      LPOLESTR* rgelt,
+      ULONG* pceltFetched
+  ) override {
     if (!rgelt) {
       return E_POINTER;
     }
@@ -69,7 +83,9 @@ public:
     return fetched == celt ? S_OK : S_FALSE;
   }
 
-  HRESULT STDMETHODCALLTYPE Skip(ULONG celt) override {
+  HRESULT STDMETHODCALLTYPE Skip(
+      ULONG celt
+  ) override {
     UpdateSuggestionsIfNeeded();
     if (index_ + celt >= suggestions_.size()) {
       index_ = suggestions_.size();
@@ -85,7 +101,9 @@ public:
     return S_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE Clone(IEnumString** out) override {
+  HRESULT STDMETHODCALLTYPE Clone(
+      IEnumString** out
+  ) override {
     if (!out) {
       return E_POINTER;
     }
@@ -98,7 +116,9 @@ public:
     return S_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE Expand(PCWSTR text) noexcept override {
+  HRESULT STDMETHODCALLTYPE Expand(
+      PCWSTR text
+  ) noexcept override {
     if (!text) {
       query_override_.clear();
       return S_OK;
@@ -155,7 +175,14 @@ struct AutoCompleteThemeContext {
   const Theme* theme = nullptr;
 };
 
-LRESULT CALLBACK AutoCompleteListBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR) {
+LRESULT CALLBACK AutoCompleteListBoxSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR,
+    DWORD_PTR
+) {
   switch (msg) {
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, AutoCompleteListBoxSubclassProc, kAutoCompleteListBoxSubclassId);
@@ -166,62 +193,76 @@ LRESULT CALLBACK AutoCompleteListBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wpa
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-LRESULT CALLBACK AutoCompletePopupSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR) {
+LRESULT CALLBACK AutoCompletePopupSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR,
+    DWORD_PTR
+) {
   switch (msg) {
-  case WM_NOTIFY: {
-    auto* header = reinterpret_cast<NMHDR*>(lparam);
-    if (header && header->code == NM_CUSTOMDRAW && WindowClassEquals(header->hwndFrom, WC_LISTVIEWW)) {
-      auto* draw = reinterpret_cast<NMLVCUSTOMDRAW*>(lparam);
-      const Theme& theme = Theme::Current();
-      switch (draw->nmcd.dwDrawStage) {
-      case CDDS_PREPAINT:
-        return CDRF_NOTIFYITEMDRAW;
-      case CDDS_ITEMPREPAINT: {
-        if (draw->nmcd.uItemState & CDIS_SELECTED) {
-          return CDRF_DODEFAULT;
+  case WM_NOTIFY:
+    {
+      auto* header = reinterpret_cast<NMHDR*>(lparam);
+      if (header && header->code == NM_CUSTOMDRAW && WindowClassEquals(header->hwndFrom, WC_LISTVIEWW)) {
+        auto* draw = reinterpret_cast<NMLVCUSTOMDRAW*>(lparam);
+        const Theme& theme = Theme::Current();
+        switch (draw->nmcd.dwDrawStage) {
+        case CDDS_PREPAINT:
+          return CDRF_NOTIFYITEMDRAW;
+        case CDDS_ITEMPREPAINT:
+          {
+            if (draw->nmcd.uItemState & CDIS_SELECTED) {
+              return CDRF_DODEFAULT;
+            }
+            COLORREF text = theme.TextColor();
+            COLORREF background = theme.FieldColor();
+            if (draw->nmcd.uItemState & CDIS_HOT) {
+              background = theme.HoverColor();
+            }
+            draw->clrText = text;
+            draw->clrTextBk = background;
+            return CDRF_NEWFONT;
+          }
+        default:
+          break;
         }
-        COLORREF text = theme.TextColor();
-        COLORREF background = theme.FieldColor();
-        if (draw->nmcd.uItemState & CDIS_HOT) {
-          background = theme.HoverColor();
-        }
-        draw->clrText = text;
-        draw->clrTextBk = background;
-        return CDRF_NEWFONT;
       }
-      default:
-        break;
-      }
+      break;
     }
-    break;
-  }
-  case WM_ERASEBKGND: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rect = {};
-    GetClientRect(hwnd, &rect);
-    FillRect(hdc, &rect, Theme::Current().FieldBrush());
-    return TRUE;
-  }
+  case WM_ERASEBKGND:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rect = {};
+      GetClientRect(hwnd, &rect);
+      FillRect(hdc, &rect, Theme::Current().FieldBrush());
+      return TRUE;
+    }
   case WM_CTLCOLORLISTBOX:
   case WM_CTLCOLORSTATIC:
-  case WM_CTLCOLOREDIT: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    int type = CTLCOLOR_STATIC;
-    if (msg == WM_CTLCOLOREDIT) {
-      type = CTLCOLOR_EDIT;
-    } else if (msg == WM_CTLCOLORLISTBOX) {
-      type = CTLCOLOR_LISTBOX;
+  case WM_CTLCOLOREDIT:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      int type = CTLCOLOR_STATIC;
+      if (msg == WM_CTLCOLOREDIT) {
+        type = CTLCOLOR_EDIT;
+      } else if (msg == WM_CTLCOLORLISTBOX) {
+        type = CTLCOLOR_LISTBOX;
+      }
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
     }
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
-  }
   default:
     break;
   }
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-BOOL CALLBACK ApplyAutoCompleteThemeProc(HWND hwnd, LPARAM lparam) {
+BOOL CALLBACK ApplyAutoCompleteThemeProc(
+    HWND hwnd,
+    LPARAM lparam
+) {
   auto* ctx = reinterpret_cast<AutoCompleteThemeContext*>(lparam);
   if (!ctx || !ctx->theme) {
     return TRUE;
@@ -251,7 +292,8 @@ BOOL CALLBACK ApplyAutoCompleteThemeProc(HWND hwnd, LPARAM lparam) {
           }
           return TRUE;
         },
-        reinterpret_cast<LPARAM>(&has_list_child));
+        reinterpret_cast<LPARAM>(&has_list_child)
+    );
     if (!has_list_child) {
       return TRUE;
     }
@@ -284,7 +326,8 @@ BOOL CALLBACK ApplyAutoCompleteThemeProc(HWND hwnd, LPARAM lparam) {
         }
         return TRUE;
       },
-      reinterpret_cast<LPARAM>(ctx->theme));
+      reinterpret_cast<LPARAM>(ctx->theme)
+  );
   InvalidateRect(hwnd, nullptr, TRUE);
   return TRUE;
 }
@@ -312,7 +355,9 @@ void MainWindow::Impl::EnableAddressAutoComplete() {
   address_autocomplete_source_ = source;
 }
 
-std::vector<std::wstring> MainWindow::Impl::BuildAddressSuggestions(const std::wstring& input) const {
+std::vector<std::wstring> MainWindow::Impl::BuildAddressSuggestions(
+    const std::wstring& input
+) const {
   std::vector<std::wstring> items;
   std::wstring text = TrimWhitespace(input);
   for (auto& ch : text) {

@@ -27,8 +27,14 @@ namespace {
 
 constexpr UINT_PTR kThemedBorderSubclassId = 31;
 
-LRESULT CALLBACK ThemedBorderProc(HWND hwnd, UINT message, WPARAM wparam,
-                                  LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+LRESULT CALLBACK ThemedBorderProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR
+) {
   if (message == WM_NCDESTROY) {
     RemoveWindowSubclass(hwnd, ThemedBorderProc, id);
     return DefSubclassProc(hwnd, message, wparam, lparam);
@@ -59,38 +65,46 @@ LRESULT CALLBACK ThemedBorderProc(HWND hwnd, UINT message, WPARAM wparam,
 
 } // namespace
 
-void AttachThemedBorder(HWND control) {
+void AttachThemedBorder(
+    HWND control
+) {
   if (!control ||
-      GetWindowSubclass(control, ThemedBorderProc, kThemedBorderSubclassId,
-                        nullptr)) {
+      GetWindowSubclass(control, ThemedBorderProc, kThemedBorderSubclassId, nullptr)) {
     return;
   }
-  if (!SetWindowSubclass(control, ThemedBorderProc, kThemedBorderSubclassId,
-                         0)) {
+  if (!SetWindowSubclass(control, ThemedBorderProc, kThemedBorderSubclassId, 0)) {
     return;
   }
-  SetWindowLongPtrW(control, GWL_EXSTYLE,
-                    GetWindowLongPtrW(control, GWL_EXSTYLE) & ~WS_EX_CLIENTEDGE);
-  SetWindowLongPtrW(control, GWL_STYLE,
-                    GetWindowLongPtrW(control, GWL_STYLE) | WS_BORDER);
-  SetWindowPos(control, nullptr, 0, 0, 0, 0,
-               SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+  SetWindowLongPtrW(control, GWL_EXSTYLE, GetWindowLongPtrW(control, GWL_EXSTYLE) & ~WS_EX_CLIENTEDGE);
+  SetWindowLongPtrW(control, GWL_STYLE, GetWindowLongPtrW(control, GWL_STYLE) | WS_BORDER);
+  SetWindowPos(control, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 }
 
-
-void SetControlFont(HWND control, HFONT font) {
+void SetControlFont(
+    HWND control,
+    HFONT font
+) {
   if (control && font) {
     SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
   }
 }
 
-void Place(HWND control, int x, int y, int width, int height) {
+void Place(
+    HWND control,
+    int x,
+    int y,
+    int width,
+    int height
+) {
   if (control) {
     SetWindowPos(control, nullptr, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
   }
 }
 
-void RestoreDialogOwner(HWND owner, bool* restored) {
+void RestoreDialogOwner(
+    HWND owner,
+    bool* restored
+) {
   if (!owner || !restored || *restored) {
     return;
   }
@@ -100,22 +114,28 @@ void RestoreDialogOwner(HWND owner, bool* restored) {
   *restored = true;
 }
 
-void PositionDialog(HWND dialog, HWND owner, int width, int height) {
+void PositionDialog(
+    HWND dialog,
+    HWND owner,
+    int width,
+    int height
+) {
   RECT owner_rect = {};
   if (owner && GetWindowRect(owner, &owner_rect)) {
     const int owner_width = owner_rect.right - owner_rect.left;
     const int owner_height = owner_rect.bottom - owner_rect.top;
     const int x = owner_rect.left + std::max(0, (owner_width - width) / 2);
     const int y = owner_rect.top + std::max(0, (owner_height - height) / 2);
-    SetWindowPos(dialog, nullptr, x, y, width, height,
-                 SWP_NOZORDER | SWP_NOACTIVATE);
+    SetWindowPos(dialog, nullptr, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
     return;
   }
-  SetWindowPos(dialog, nullptr, 0, 0, width, height,
-               SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+  SetWindowPos(dialog, nullptr, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-void CenterWindow(HWND window, HWND owner) {
+void CenterWindow(
+    HWND window,
+    HWND owner
+) {
   RECT rect = {};
   if (!window || !GetWindowRect(window, &rect)) {
     return;
@@ -127,13 +147,14 @@ void CenterWindow(HWND window, HWND owner) {
   }
   const LONG width = rect.right - rect.left;
   const LONG height = rect.bottom - rect.top;
-  SetWindowPos(window, nullptr,
-               target.left + std::max<LONG>(0, (target.right - target.left - width) / 2),
-               target.top + std::max<LONG>(0, (target.bottom - target.top - height) / 2),
-               0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+  SetWindowPos(window, nullptr, target.left + std::max<LONG>(0, (target.right - target.left - width) / 2), target.top + std::max<LONG>(0, (target.bottom - target.top - height) / 2), 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
 }
 
-void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi) {
+void RefreshDialogFont(
+    HWND window,
+    HFONT* owned_font,
+    UINT dpi
+) {
   if (!window || !owned_font) {
     return;
   }
@@ -148,23 +169,31 @@ void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi) {
         SetControlFont(child, reinterpret_cast<HFONT>(param));
         return TRUE;
       },
-      reinterpret_cast<LPARAM>(font));
+      reinterpret_cast<LPARAM>(font)
+  );
   if (*owned_font) {
     DeleteObject(*owned_font);
   }
   *owned_font = font;
 }
 
-void ApplyDpiChange(HWND window, LPARAM suggested_rect) {
+void ApplyDpiChange(
+    HWND window,
+    LPARAM suggested_rect
+) {
   const RECT* rect = reinterpret_cast<const RECT*>(suggested_rect);
   if (!window || !rect) {
     return;
   }
-  SetWindowPos(window, nullptr, rect->left, rect->top, rect->right - rect->left,
-               rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
+  SetWindowPos(window, nullptr, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-void CenterEditText(HWND edit, HFONT font, int left_pad, int right_pad) {
+void CenterEditText(
+    HWND edit,
+    HFONT font,
+    int left_pad,
+    int right_pad
+) {
   if (!edit || !font) {
     return;
   }
@@ -191,7 +220,10 @@ void CenterEditText(HWND edit, HFONT font, int left_pad, int right_pad) {
   SendMessageW(edit, EM_SETRECT, 0, reinterpret_cast<LPARAM>(&rect));
 }
 
-void FitDialogHeight(HWND dialog, int client_height) {
+void FitDialogHeight(
+    HWND dialog,
+    int client_height
+) {
   if (!dialog || client_height <= 0) {
     return;
   }
@@ -201,16 +233,13 @@ void FitDialogHeight(HWND dialog, int client_height) {
     return;
   }
   RECT want = {0, 0, client.right - client.left, client_height};
-  win32::AdjustWindowRectForDpi(&want,
-                               static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_STYLE)),
-                               static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_EXSTYLE)),
-                               win32::DpiForWindow(dialog));
-  SetWindowPos(dialog, nullptr, 0, 0, want.right - want.left,
-               want.bottom - want.top,
-               SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+  win32::AdjustWindowRectForDpi(&want, static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_STYLE)), static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_EXSTYLE)), win32::DpiForWindow(dialog));
+  SetWindowPos(dialog, nullptr, 0, 0, want.right - want.left, want.bottom - want.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-void RunModalLoop(HWND dialog) {
+void RunModalLoop(
+    HWND dialog
+) {
   MSG msg = {};
   while (IsWindow(dialog)) {
     const BOOL available = GetMessageW(&msg, nullptr, 0, 0);
@@ -228,7 +257,10 @@ void RunModalLoop(HWND dialog) {
   }
 }
 
-void DialogResizer::Attach(HWND dialog, std::initializer_list<AnchorRule> rules) {
+void DialogResizer::Attach(
+    HWND dialog,
+    std::initializer_list<AnchorRule> rules
+) {
   items_.clear();
   client_ = {};
   min_window_ = {};
@@ -256,7 +288,9 @@ void DialogResizer::Attach(HWND dialog, std::initializer_list<AnchorRule> rules)
   }
 }
 
-void DialogResizer::Apply(HWND dialog) const {
+void DialogResizer::Apply(
+    HWND dialog
+) const {
   if (!dialog || items_.empty() || client_.cx <= 0 || client_.cy <= 0) {
     return;
   }
@@ -291,7 +325,9 @@ void DialogResizer::Apply(HWND dialog) const {
   InvalidateRect(dialog, nullptr, TRUE);
 }
 
-void DialogResizer::ClampMinSize(MINMAXINFO* info) const {
+void DialogResizer::ClampMinSize(
+    MINMAXINFO* info
+) const {
   if (!info || min_window_.cx <= 0 || min_window_.cy <= 0) {
     return;
   }

@@ -6,7 +6,10 @@
 namespace regkit {
 using namespace window_detail;
 
-void MainWindow::Impl::StartTraceDialogLoad(HWND hwnd, void* context) {
+void MainWindow::Impl::StartTraceDialogLoad(
+    HWND hwnd,
+    void* context
+) {
   auto* ctx = reinterpret_cast<TraceDialogStartContext*>(context);
   if (!ctx || !ctx->window || !ctx->session) {
     return;
@@ -15,7 +18,10 @@ void MainWindow::Impl::StartTraceDialogLoad(HWND hwnd, void* context) {
   ctx->window->StartTraceParseThread(ctx->session);
 }
 
-void MainWindow::Impl::StartDefaultDialogLoad(HWND hwnd, void* context) {
+void MainWindow::Impl::StartDefaultDialogLoad(
+    HWND hwnd,
+    void* context
+) {
   auto* ctx = reinterpret_cast<DefaultDialogStartContext*>(context);
   if (!ctx || !ctx->window || !ctx->session) {
     return;
@@ -24,7 +30,9 @@ void MainWindow::Impl::StartDefaultDialogLoad(HWND hwnd, void* context) {
   ctx->window->StartDefaultParseThread(ctx->session);
 }
 
-bool MainWindow::Impl::AllowTraceSimulation(const RegistryNode& node) const {
+bool MainWindow::Impl::AllowTraceSimulation(
+    const RegistryNode& node
+) const {
   if (active_traces_.empty()) {
     return false;
   }
@@ -37,7 +45,9 @@ bool MainWindow::Impl::AllowTraceSimulation(const RegistryNode& node) const {
   return true;
 }
 
-std::wstring MainWindow::Impl::TracePathLowerForNode(const RegistryNode& node) const {
+std::wstring MainWindow::Impl::TracePathLowerForNode(
+    const RegistryNode& node
+) const {
   std::wstring path = registry_path::Build(node);
   std::wstring trace_path = NormalizeTraceKeyPath(path);
   if (trace_path.empty()) {
@@ -46,7 +56,11 @@ std::wstring MainWindow::Impl::TracePathLowerForNode(const RegistryNode& node) c
   return ToLower(trace_path);
 }
 
-void MainWindow::Impl::AppendTraceChildren(const RegistryNode& node, const std::unordered_set<std::wstring>& existing_lower, std::vector<std::wstring>* out) const {
+void MainWindow::Impl::AppendTraceChildren(
+    const RegistryNode& node,
+    const std::unordered_set<std::wstring>& existing_lower,
+    std::vector<std::wstring>* out
+) const {
   if (!out) {
     return;
   }
@@ -90,7 +104,9 @@ void MainWindow::Impl::AppendTraceChildren(const RegistryNode& node, const std::
   std::sort(out->begin(), out->end(), [](const std::wstring& left, const std::wstring& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
 }
 
-std::wstring MainWindow::Impl::ResolveBundledTracePath(const std::wstring& label) const {
+std::wstring MainWindow::Impl::ResolveBundledTracePath(
+    const std::wstring& label
+) const {
   std::wstring file = TrimWhitespace(label);
   if (file.empty()) {
     return L"";
@@ -109,7 +125,8 @@ std::wstring MainWindow::Impl::ResolveBundledTracePath(const std::wstring& label
 
 bool MainWindow::Impl::LoadBundledTrace(
     const std::wstring& label,
-    const trace::Selection* selection_override) {
+    const trace::Selection* selection_override
+) {
   std::wstring path = ResolveBundledTracePath(label);
   if (path.empty()) {
     return false;
@@ -117,7 +134,9 @@ bool MainWindow::Impl::LoadBundledTrace(
   return LoadTraceFromFile(label, path, selection_override);
 }
 
-std::wstring MainWindow::Impl::ResolveBundledDefaultPath(const std::wstring& label) const {
+std::wstring MainWindow::Impl::ResolveBundledDefaultPath(
+    const std::wstring& label
+) const {
   std::wstring file = TrimWhitespace(label);
   if (file.empty()) {
     return L"";
@@ -166,9 +185,12 @@ std::wstring MainWindow::Impl::ResolveBundledDefaultPath(const std::wstring& lab
 }
 
 bool MainWindow::Impl::AddTraceFromFile(
-    const std::wstring& label, const std::wstring& path,
+    const std::wstring& label,
+    const std::wstring& path,
     const trace::Selection* selection_override,
-    bool prompt_for_selection, bool update_ui) {
+    bool prompt_for_selection,
+    bool update_ui
+) {
   std::wstring source = TrimWhitespace(path);
   if (source.empty()) {
     return false;
@@ -255,8 +277,8 @@ bool MainWindow::Impl::AddTraceFromFile(
 
   session_ptr->added_to_active = true;
   active_traces_.push_back(
-      {use_label, source, session_ptr->data,
-       std::make_shared<trace::Selection>(session_ptr->selection)});
+      {use_label, source, session_ptr->data, std::make_shared<trace::Selection>(session_ptr->selection)}
+  );
   trace_selection_cache_[source_lower] = session_ptr->selection;
 
   if (update_ui) {
@@ -277,8 +299,10 @@ bool MainWindow::Impl::AddTraceFromFile(
 }
 
 bool MainWindow::Impl::LoadTraceFromFile(
-    const std::wstring& label, const std::wstring& path,
-    const trace::Selection* selection_override) {
+    const std::wstring& label,
+    const std::wstring& path,
+    const trace::Selection* selection_override
+) {
   return AddTraceFromFile(label, path, selection_override, true, true);
 }
 

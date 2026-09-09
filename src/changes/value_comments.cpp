@@ -12,7 +12,9 @@
 namespace regkit::changes {
 namespace {
 
-bool HasText(const std::wstring& text) {
+bool HasText(
+    const std::wstring& text
+) {
   for (wchar_t character : text) {
     if (!iswspace(character)) {
       return true;
@@ -23,8 +25,11 @@ bool HasText(const std::wstring& text) {
 
 } // namespace
 
-std::wstring ValueComments::ValueKey(const std::wstring& path,
-                                     const std::wstring& name, DWORD type) {
+std::wstring ValueComments::ValueKey(
+    const std::wstring& path,
+    const std::wstring& name,
+    DWORD type
+) {
   std::wstring key = util::ToLower(path);
   key.push_back(L'\t');
   key.append(util::ToLower(name));
@@ -33,14 +38,19 @@ std::wstring ValueComments::ValueKey(const std::wstring& path,
   return key;
 }
 
-std::wstring ValueComments::NameKey(const std::wstring& name, DWORD type) {
+std::wstring ValueComments::NameKey(
+    const std::wstring& name,
+    DWORD type
+) {
   std::wstring key = util::ToLower(name);
   key.push_back(L'\t');
   key.append(std::to_wstring(type));
   return key;
 }
 
-bool ValueComments::Load(const std::wstring& path) {
+bool ValueComments::Load(
+    const std::wstring& path
+) {
   std::wstring content;
   if (!util::ReadTextFile(path, &content)) {
     return false;
@@ -54,16 +64,22 @@ bool ValueComments::Load(const std::wstring& path) {
   return true;
 }
 
-bool ValueComments::Save(const std::wstring& path) const {
+bool ValueComments::Save(
+    const std::wstring& path
+) const {
   return !path.empty() &&
          util::WriteTextFile(path, SerializeComments(*this), false);
 }
 
-bool ValueComments::Import(const std::wstring& path) {
+bool ValueComments::Import(
+    const std::wstring& path
+) {
   return Load(path);
 }
 
-bool ValueComments::Export(const std::wstring& path) const {
+bool ValueComments::Export(
+    const std::wstring& path
+) const {
   return Save(path);
 }
 
@@ -72,7 +88,9 @@ void ValueComments::Clear() {
   name_entries_.clear();
 }
 
-void ValueComments::Merge(const CommentDocument& document) {
+void ValueComments::Merge(
+    const CommentDocument& document
+) {
   for (const CommentEntry& entry : document.value_entries) {
     value_entries_[ValueKey(entry.path, entry.name, entry.type)] = entry;
   }
@@ -101,7 +119,10 @@ ValueComments::name_entries() noexcept {
   return name_entries_;
 }
 
-bool ParseComments(const std::wstring& content, CommentDocument* out) {
+bool ParseComments(
+    const std::wstring& content,
+    CommentDocument* out
+) {
   if (!out) {
     return false;
   }
@@ -145,7 +166,9 @@ bool ParseComments(const std::wstring& content, CommentDocument* out) {
   return true;
 }
 
-std::wstring SerializeComments(const ValueComments& comments) {
+std::wstring SerializeComments(
+    const ValueComments& comments
+) {
   std::wstring content;
   for (const auto& pair : comments.value_entries()) {
     const CommentEntry& entry = pair.second;

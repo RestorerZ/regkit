@@ -14,14 +14,15 @@ constexpr wchar_t kReleasesPage[] = L"https://github.com/nohuto/regkit/releases"
 constexpr wchar_t kApiHost[] = L"api.github.com";
 constexpr wchar_t kApiPath[] = L"/repos/nohuto/regkit/releases/latest";
 
-std::string HttpGet(const wchar_t* host, const wchar_t* path) {
+std::string HttpGet(
+    const wchar_t* host,
+    const wchar_t* path
+) {
   std::string body;
   HINTERNET session =
-      WinHttpOpen(L"RegKit", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-                  WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+      WinHttpOpen(L"RegKit", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
   if (!session) {
-    session = WinHttpOpen(L"RegKit", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-                          WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    session = WinHttpOpen(L"RegKit", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
   }
   if (!session) {
     return body;
@@ -31,21 +32,30 @@ std::string HttpGet(const wchar_t* host, const wchar_t* path) {
       WinHttpConnect(session, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
   if (connect) {
     HINTERNET request = WinHttpOpenRequest(
-        connect, L"GET", path, nullptr, WINHTTP_NO_REFERER,
-        WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+        connect,
+        L"GET",
+        path,
+        nullptr,
+        WINHTTP_NO_REFERER,
+        WINHTTP_DEFAULT_ACCEPT_TYPES,
+        WINHTTP_FLAG_SECURE
+    );
     if (request) {
       const wchar_t headers[] =
           L"Accept: application/vnd.github+json\r\n"
           L"X-GitHub-Api-Version: 2022-11-28\r\n";
-      if (WinHttpSendRequest(request, headers, static_cast<DWORD>(-1),
-                             WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
+      if (WinHttpSendRequest(request, headers, static_cast<DWORD>(-1), WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
           WinHttpReceiveResponse(request, nullptr)) {
         DWORD status = 0;
         DWORD status_size = sizeof(status);
         WinHttpQueryHeaders(
-            request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-            WINHTTP_HEADER_NAME_BY_INDEX, &status, &status_size,
-            WINHTTP_NO_HEADER_INDEX);
+            request,
+            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+            WINHTTP_HEADER_NAME_BY_INDEX,
+            &status,
+            &status_size,
+            WINHTTP_NO_HEADER_INDEX
+        );
         if (status == 200) {
           DWORD available = 0;
           while (WinHttpQueryDataAvailable(request, &available) &&
@@ -53,8 +63,7 @@ std::string HttpGet(const wchar_t* host, const wchar_t* path) {
             const size_t offset = body.size();
             body.resize(offset + available);
             DWORD read = 0;
-            if (!WinHttpReadData(request, body.data() + offset, available,
-                                 &read)) {
+            if (!WinHttpReadData(request, body.data() + offset, available, &read)) {
               break;
             }
             body.resize(offset + read);
@@ -69,8 +78,11 @@ std::string HttpGet(const wchar_t* host, const wchar_t* path) {
   return body;
 }
 
-std::string JsonString(const std::string& json, const char* key,
-                       size_t from = 0) {
+std::string JsonString(
+    const std::string& json,
+    const char* key,
+    size_t from = 0
+) {
   const std::string needle = std::string("\"") + key + "\"";
   size_t pos = json.find(needle, from);
   if (pos == std::string::npos) {
@@ -113,29 +125,30 @@ std::string JsonString(const std::string& json, const char* key,
     case 'f':
       value.push_back('\f');
       break;
-    case 'u': {
-      if (i + 4 >= json.size()) {
-        return {};
-      }
-      const std::string digits = json.substr(i + 1, 4);
-      wchar_t code = 0;
-      for (char digit : digits) {
-        int nibble = 0;
-        if (digit >= '0' && digit <= '9') {
-          nibble = digit - '0';
-        } else if (digit >= 'a' && digit <= 'f') {
-          nibble = 10 + (digit - 'a');
-        } else if (digit >= 'A' && digit <= 'F') {
-          nibble = 10 + (digit - 'A');
-        } else {
+    case 'u':
+      {
+        if (i + 4 >= json.size()) {
           return {};
         }
-        code = static_cast<wchar_t>((code << 4) | nibble);
+        const std::string digits = json.substr(i + 1, 4);
+        wchar_t code = 0;
+        for (char digit : digits) {
+          int nibble = 0;
+          if (digit >= '0' && digit <= '9') {
+            nibble = digit - '0';
+          } else if (digit >= 'a' && digit <= 'f') {
+            nibble = 10 + (digit - 'a');
+          } else if (digit >= 'A' && digit <= 'F') {
+            nibble = 10 + (digit - 'A');
+          } else {
+            return {};
+          }
+          code = static_cast<wchar_t>((code << 4) | nibble);
+        }
+        value += util::WideToUtf8(std::wstring(1, code));
+        i += 4;
+        break;
       }
-      value += util::WideToUtf8(std::wstring(1, code));
-      i += 4;
-      break;
-    }
     default:
       value.push_back(json[i]);
       break;
@@ -144,7 +157,9 @@ std::string JsonString(const std::string& json, const char* key,
   return {};
 }
 
-std::vector<int> VersionParts(const std::wstring& text) {
+std::vector<int> VersionParts(
+    const std::wstring& text
+) {
   std::vector<int> parts;
   int value = 0;
   bool digits = false;
@@ -169,7 +184,10 @@ std::vector<int> VersionParts(const std::wstring& text) {
   return parts;
 }
 
-bool IsNewerVersion(const std::wstring& candidate, const std::wstring& current) {
+bool IsNewerVersion(
+    const std::wstring& candidate,
+    const std::wstring& current
+) {
   const std::vector<int> left = VersionParts(candidate);
   const std::vector<int> right = VersionParts(current);
   const size_t count = std::max(left.size(), right.size());
@@ -183,7 +201,9 @@ bool IsNewerVersion(const std::wstring& candidate, const std::wstring& current) 
   return false;
 }
 
-bool AssetMatchesArchitecture(const std::string& name) {
+bool AssetMatchesArchitecture(
+    const std::string& name
+) {
   std::string lower = name;
   for (char& ch : lower) {
     ch = static_cast<char>(tolower(static_cast<unsigned char>(ch)));
@@ -206,7 +226,9 @@ bool AssetMatchesArchitecture(const std::string& name) {
   return has_32 || (!has_32 && !has_64);
 }
 
-std::wstring PickAssetUrl(const std::string& json) {
+std::wstring PickAssetUrl(
+    const std::string& json
+) {
   std::wstring fallback;
   size_t pos = json.find("\"assets\"");
   if (pos == std::string::npos) {
@@ -239,7 +261,9 @@ std::wstring PickAssetUrl(const std::string& json) {
 
 } // namespace
 
-void MainWindow::Impl::CheckForUpdates(bool silent) {
+void MainWindow::Impl::CheckForUpdates(
+    bool silent
+) {
   if (update_check_running_) {
     return;
   }
@@ -261,18 +285,19 @@ void MainWindow::Impl::CheckForUpdates(bool silent) {
     if (PostMessageW(owner, frame::message_id::kUpdateCheckReady, 0,
                      reinterpret_cast<LPARAM>(payload.get()))) {
       ReleasePostedPayload(payload);
-    }
-  });
+    } });
 }
 
-void MainWindow::Impl::ApplyUpdateCheckResult(UpdateCheckPayload* payload) {
+void MainWindow::Impl::ApplyUpdateCheckResult(
+    UpdateCheckPayload* payload
+) {
   update_check_running_ = false;
   if (!payload) {
     return;
   }
   if (payload->failed) {
     if (!payload->silent) {
-      ui::ShowError(hwnd_, L"Failed to contact the update server.");
+      ui::ShowError(hwnd_, L"Failed to reach the update server.");
     }
     return;
   }
@@ -287,8 +312,7 @@ void MainWindow::Impl::ApplyUpdateCheckResult(UpdateCheckPayload* payload) {
   message += L" is available. You are running ";
   message += REGKIT_VERSION_STR_W;
   message += L".\n\nDownload it now?";
-  if (ui::PromptChoice(hwnd_, message, L"Update available", L"Download",
-                       L"", L"Close", {85, 70, 70}) == IDYES) {
+  if (ui::PromptChoice(hwnd_, message, L"Update available", L"Download", L"", L"Close", {85, 70, 70}) == IDYES) {
     const std::wstring target = payload->download_url.empty()
                                     ? std::wstring(kReleasesPage)
                                     : payload->download_url;

@@ -128,10 +128,11 @@ struct SearchDialogState {
   bool owner_restored = false;
 };
 
-HFONT CreateDialogFont(HWND hwnd) {
+HFONT CreateDialogFont(
+    HWND hwnd
+) {
   return ui::DefaultUIFont(win32::DpiForWindow(hwnd));
 }
-
 
 std::wstring SearchHistoryPath() {
   std::wstring folder = util::GetAppDataFolder();
@@ -189,7 +190,9 @@ std::vector<std::wstring> LoadSearchHistory() {
   return items;
 }
 
-void SaveSearchHistory(const std::vector<std::wstring>& items) {
+void SaveSearchHistory(
+    const std::vector<std::wstring>& items
+) {
   std::wstring path = SearchHistoryPath();
   if (path.empty()) {
     return;
@@ -212,7 +215,10 @@ void SaveSearchHistory(const std::vector<std::wstring>& items) {
   CloseHandle(file);
 }
 
-void UpdateHistoryList(std::vector<std::wstring>* items, const std::wstring& entry) {
+void UpdateHistoryList(
+    std::vector<std::wstring>* items,
+    const std::wstring& entry
+) {
   if (!items || entry.empty()) {
     return;
   }
@@ -224,7 +230,10 @@ void UpdateHistoryList(std::vector<std::wstring>* items, const std::wstring& ent
   }
 }
 
-void PopulateHistoryCombo(HWND combo, const std::vector<std::wstring>& items) {
+void PopulateHistoryCombo(
+    HWND combo,
+    const std::vector<std::wstring>& items
+) {
   if (!combo) {
     return;
   }
@@ -234,7 +243,9 @@ void PopulateHistoryCombo(HWND combo, const std::vector<std::wstring>& items) {
   }
 }
 
-void UpdateScopeComboText(SearchDialogState* state) {
+void UpdateScopeComboText(
+    SearchDialogState* state
+) {
   if (!state || !state->scope_combo) {
     return;
   }
@@ -264,7 +275,10 @@ void UpdateScopeComboText(SearchDialogState* state) {
   SendMessageW(state->scope_combo, CB_SETCURSEL, 0, 0);
 }
 
-void ShowRootSelectionMenu(HWND owner, SearchDialogState* state) {
+void ShowRootSelectionMenu(
+    HWND owner,
+    SearchDialogState* state
+) {
   if (!owner || !state || !state->scope_combo) {
     return;
   }
@@ -289,7 +303,9 @@ void ShowRootSelectionMenu(HWND owner, SearchDialogState* state) {
   }
 }
 
-void FocusFindCombo(SearchDialogState* state) {
+void FocusFindCombo(
+    SearchDialogState* state
+) {
   if (!state || !state->find_combo) {
     return;
   }
@@ -304,7 +320,10 @@ void FocusFindCombo(SearchDialogState* state) {
   SendMessageW(state->find_combo, CB_SETEDITSEL, 0, MAKELPARAM(0, -1));
 }
 
-bool ParseUint64(const std::wstring& text, uint64_t* out) {
+bool ParseUint64(
+    const std::wstring& text,
+    uint64_t* out
+) {
   if (!out) {
     return false;
   }
@@ -325,7 +344,10 @@ bool ParseUint64(const std::wstring& text, uint64_t* out) {
   return true;
 }
 
-bool GetDateTimeValue(HWND control, FILETIME* out) {
+bool GetDateTimeValue(
+    HWND control,
+    FILETIME* out
+) {
   if (!control || !out) {
     return false;
   }
@@ -341,7 +363,10 @@ bool GetDateTimeValue(HWND control, FILETIME* out) {
   return SystemTimeToFileTime(&utc, out) != 0;
 }
 
-void SetDateTimeValue(HWND control, const FILETIME& value) {
+void SetDateTimeValue(
+    HWND control,
+    const FILETIME& value
+) {
   if (!control) {
     return;
   }
@@ -356,7 +381,9 @@ void SetDateTimeValue(HWND control, const FILETIME& value) {
   SendMessageW(control, DTM_SETSYSTEMTIME, GDT_VALID, reinterpret_cast<LPARAM>(&local));
 }
 
-std::vector<std::wstring> SplitExcludePaths(const std::wstring& text) {
+std::vector<std::wstring> SplitExcludePaths(
+    const std::wstring& text
+) {
   std::vector<std::wstring> items;
   std::wstring current;
   for (wchar_t ch : text) {
@@ -382,7 +409,9 @@ std::vector<std::wstring> SplitExcludePaths(const std::wstring& text) {
   return items;
 }
 
-std::wstring JoinExcludePaths(const std::vector<std::wstring>& items) {
+std::wstring JoinExcludePaths(
+    const std::vector<std::wstring>& items
+) {
   std::wstring out;
   for (const auto& item : items) {
     if (item.empty()) {
@@ -396,11 +425,15 @@ std::wstring JoinExcludePaths(const std::vector<std::wstring>& items) {
   return out;
 }
 
-bool IsChecked(HWND hwnd) {
+bool IsChecked(
+    HWND hwnd
+) {
   return SendMessageW(hwnd, BM_GETCHECK, 0, 0) == BST_CHECKED;
 }
 
-void UpdateDialogEnableState(SearchDialogState* state) {
+void UpdateDialogEnableState(
+    SearchDialogState* state
+) {
   if (!state) {
     return;
   }
@@ -438,7 +471,11 @@ void UpdateDialogEnableState(SearchDialogState* state) {
   EnableWindow(state->options_remote, state->sources.remote);
 }
 
-void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
+void LayoutDialog(
+    HWND hwnd,
+    SearchDialogState* state,
+    HFONT font
+) {
   if (!hwnd || !state) {
     return;
   }
@@ -472,8 +509,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   const int label_w = Scaled(94, dpi);
   HWND find_label = GetDlgItem(hwnd, kFindLabel);
   appearance::Place(find_label, x, y + label_inset, label_w, label_h);
-  appearance::Place(state->find_combo, x + label_w + label_gap, y,
-                    width - x * 2 - label_w - label_gap, line_h);
+  appearance::Place(state->find_combo, x + label_w + label_gap, y, width - x * 2 - label_w - label_gap, line_h);
   y += line_h + block_gap;
 
   const int group_w = width - x * 2;
@@ -489,12 +525,9 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   appearance::Place(state->scope_combo, combo_x, gy, combo_w, line_h);
   appearance::Place(state->scope_key, gx, gy + control_pitch + check_inset, scope_label_w, check_h);
   const int scope_edit_y = gy + control_pitch;
-  appearance::Place(state->scope_edit, combo_x, scope_edit_y, combo_w - browse_w - label_gap,
-                    line_h);
-  appearance::Place(state->scope_browse, combo_x + combo_w - browse_w, scope_edit_y, browse_w,
-                    line_h);
-  appearance::Place(state->scope_recursive, combo_x, gy + control_pitch * 2 + check_inset,
-                    Scaled(140, dpi), check_h);
+  appearance::Place(state->scope_edit, combo_x, scope_edit_y, combo_w - browse_w - label_gap, line_h);
+  appearance::Place(state->scope_browse, combo_x + combo_w - browse_w, scope_edit_y, browse_w, line_h);
+  appearance::Place(state->scope_recursive, combo_x, gy + control_pitch * 2 + check_inset, Scaled(140, dpi), check_h);
   y += where_h + block_gap;
 
   const int options_h = group_top + row_pitch * 8 + check_h + group_bottom;
@@ -519,11 +552,9 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   const int size_edit_x = right_x + Scaled(188, dpi);
   const int size_edit_w = Scaled(76, dpi);
   appearance::Place(state->min_size, right_x, option_row(0), size_label_w, check_h);
-  appearance::Place(state->min_size_edit, size_edit_x, option_row(0) - check_inset, size_edit_w,
-                    line_h);
+  appearance::Place(state->min_size_edit, size_edit_x, option_row(0) - check_inset, size_edit_w, line_h);
   appearance::Place(state->max_size, right_x, option_row(1), size_label_w, check_h);
-  appearance::Place(state->max_size_edit, size_edit_x, option_row(1) - check_inset, size_edit_w,
-                    line_h);
+  appearance::Place(state->max_size_edit, size_edit_x, option_row(1) - check_inset, size_edit_w, line_h);
   appearance::Place(state->match_case, right_x, option_row(2), Scaled(140, dpi), check_h);
   appearance::Place(state->match_whole, right_x, option_row(3), Scaled(160, dpi), check_h);
   appearance::Place(state->use_regex, right_x, option_row(4), Scaled(190, dpi), check_h);
@@ -535,37 +566,29 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   const int modified_gap = Scaled(6, dpi);
   const int modified_x = x + modified_label_w + modified_gap;
   const int dash_x = modified_x + modified_w + modified_gap;
-  appearance::Place(GetDlgItem(hwnd, kModifiedLabel), x, y + label_inset, modified_label_w,
-                    label_h);
+  appearance::Place(GetDlgItem(hwnd, kModifiedLabel), x, y + label_inset, modified_label_w, label_h);
   appearance::Place(state->modified_from, modified_x, y, modified_w, line_h);
-  appearance::Place(GetDlgItem(hwnd, kModifiedDash), dash_x, y + label_inset, Scaled(12, dpi),
-                    label_h);
+  appearance::Place(GetDlgItem(hwnd, kModifiedDash), dash_x, y + label_inset, Scaled(12, dpi), label_h);
   appearance::Place(state->modified_to, dash_x + Scaled(18, dpi), y, modified_w, line_h);
   y += line_h + block_gap;
 
   const int exclude_h = group_top + row_pitch + line_h + group_bottom;
   const int exclude_button_w = Scaled(80, dpi);
   appearance::Place(GetDlgItem(hwnd, kExcludeGroup), x, y, group_w, exclude_h);
-  appearance::Place(state->exclude_enable, x + group_inset, y + group_top, Scaled(120, dpi),
-                    check_h);
+  appearance::Place(state->exclude_enable, x + group_inset, y + group_top, Scaled(120, dpi), check_h);
   const int exclude_row = y + group_top + row_pitch;
-  appearance::Place(state->exclude_edit, x + group_inset, exclude_row,
-                    group_w - group_inset * 2 - exclude_button_w - label_gap, line_h);
-  appearance::Place(state->exclude_button, x + group_w - group_inset - exclude_button_w,
-                    exclude_row, exclude_button_w, line_h);
+  appearance::Place(state->exclude_edit, x + group_inset, exclude_row, group_w - group_inset * 2 - exclude_button_w - label_gap, line_h);
+  appearance::Place(state->exclude_button, x + group_w - group_inset - exclude_button_w, exclude_row, exclude_button_w, line_h);
   y += exclude_h + block_gap;
 
   const int result_h = group_top + row_pitch * 2 + control_pitch + line_h + group_bottom;
   appearance::Place(GetDlgItem(hwnd, kResultGroup), x, y, group_w, result_h);
   const int result_gy = y + group_top;
   appearance::Place(state->result_reuse, x + group_inset, result_gy, Scaled(220, dpi), check_h);
-  appearance::Place(state->result_new, x + group_inset, result_gy + row_pitch, Scaled(240, dpi),
-                    check_h);
-  appearance::Place(state->result_open_new_tab, x + group_inset, result_gy + row_pitch * 2,
-                    Scaled(200, dpi), check_h);
+  appearance::Place(state->result_new, x + group_inset, result_gy + row_pitch, Scaled(240, dpi), check_h);
+  appearance::Place(state->result_open_new_tab, x + group_inset, result_gy + row_pitch * 2, Scaled(200, dpi), check_h);
   const int limit_row = result_gy + row_pitch * 2 + control_pitch;
-  appearance::Place(state->result_limit_enable, x + group_inset, limit_row + check_inset,
-                    Scaled(140, dpi), check_h);
+  appearance::Place(state->result_limit_enable, x + group_inset, limit_row + check_inset, Scaled(140, dpi), check_h);
   appearance::Place(state->result_limit_edit, x + Scaled(160, dpi), limit_row, button_w, line_h);
   y += result_h + block_gap;
 
@@ -574,8 +597,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   appearance::Place(state->cancel_button, cancel_x, y, button_w, button_h);
   appearance::FitDialogHeight(hwnd, y + button_h + bottom_margin);
 
-  for (HWND edit : {state->scope_edit, state->min_size_edit, state->max_size_edit,
-                    state->exclude_edit, state->result_limit_edit}) {
+  for (HWND edit : {state->scope_edit, state->min_size_edit, state->max_size_edit, state->exclude_edit, state->result_limit_edit}) {
     appearance::CenterEditText(edit, font, 2, 2);
   }
 
@@ -584,199 +606,204 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   appearance::SetControlFont(state->scope_combo, font);
 }
 
-LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+LRESULT CALLBACK SearchDialogProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* state = reinterpret_cast<SearchDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
   switch (msg) {
-  case WM_NCCREATE: {
-    auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
-    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return DefWindowProcW(hwnd, msg, wparam, lparam);
-  }
-  case WM_CREATE: {
-    state = reinterpret_cast<SearchDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    if (!state) {
-      return -1;
+  case WM_NCCREATE:
+    {
+      auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+      SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+      return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
-    state->hwnd = hwnd;
-    SetWindowTextW(hwnd, L"Find");
-    state->font = CreateDialogFont(hwnd);
-    HFONT font = state->font;
+  case WM_CREATE:
+    {
+      state = reinterpret_cast<SearchDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+      if (!state) {
+        return -1;
+      }
+      state->hwnd = hwnd;
+      SetWindowTextW(hwnd, L"Find");
+      state->font = CreateDialogFont(hwnd);
+      HFONT font = state->font;
 
-    CreateWindowExW(0, L"STATIC", L"Find what:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindLabel), nullptr, nullptr);
-    state->find_combo = CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWN | CBS_AUTOHSCROLL, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindCombo), nullptr, nullptr);
+      CreateWindowExW(0, L"STATIC", L"Find what:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindLabel), nullptr, nullptr);
+      state->find_combo = CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWN | CBS_AUTOHSCROLL, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindCombo), nullptr, nullptr);
 
-    CreateWindowExW(0, L"BUTTON", L"Where to search", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kWhereGroup), nullptr, nullptr);
-    state->scope_top = CreateWindowExW(0, L"BUTTON", L"Top-level keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeTop), nullptr, nullptr);
-    state->scope_key = CreateWindowExW(0, L"BUTTON", L"Specific Key", WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeKey), nullptr, nullptr);
-    state->scope_combo = CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | CBS_HASSTRINGS, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeCombo), nullptr, nullptr);
-    state->scope_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeEdit), nullptr, nullptr);
-    state->scope_browse = CreateWindowExW(0, L"BUTTON", L"Browse...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeBrowse), nullptr, nullptr);
-    state->scope_recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeRecursive), nullptr, nullptr);
+      CreateWindowExW(0, L"BUTTON", L"Where to search", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kWhereGroup), nullptr, nullptr);
+      state->scope_top = CreateWindowExW(0, L"BUTTON", L"Top-level keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeTop), nullptr, nullptr);
+      state->scope_key = CreateWindowExW(0, L"BUTTON", L"Specific Key", WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeKey), nullptr, nullptr);
+      state->scope_combo = CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | CBS_HASSTRINGS, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeCombo), nullptr, nullptr);
+      state->scope_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeEdit), nullptr, nullptr);
+      state->scope_browse = CreateWindowExW(0, L"BUTTON", L"Browse...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeBrowse), nullptr, nullptr);
+      state->scope_recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeRecursive), nullptr, nullptr);
 
-    CreateWindowExW(0, L"BUTTON", L"Search options", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptionsGroup), nullptr, nullptr);
-    state->options_keys = CreateWindowExW(0, L"BUTTON", L"Search keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptKeys), nullptr, nullptr);
-    state->options_values = CreateWindowExW(0, L"BUTTON", L"Search values", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptValues), nullptr, nullptr);
-    state->options_data = CreateWindowExW(0, L"BUTTON", L"Search data", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptData), nullptr, nullptr);
-    state->options_data_types = CreateWindowExW(0, L"BUTTON", L"Data Types...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptDataTypes), nullptr, nullptr);
-    state->match_case = CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchCase), nullptr, nullptr);
-    state->match_whole = CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchWhole), nullptr, nullptr);
-    state->use_regex = CreateWindowExW(0, L"BUTTON", L"Use regular expressions", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptUseRegex), nullptr, nullptr);
-    state->min_size = CreateWindowExW(0, L"BUTTON", L"Min data size (bytes):", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSize), nullptr, nullptr);
-    state->min_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSizeEdit), nullptr, nullptr);
-    state->max_size = CreateWindowExW(0, L"BUTTON", L"Max data size (bytes):", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSize), nullptr, nullptr);
-    state->max_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSizeEdit), nullptr, nullptr);
-    state->options_standard = CreateWindowExW(0, L"BUTTON", L"Search Standard Hives", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptStandardHives), nullptr, nullptr);
-    state->options_registry = CreateWindowExW(0, L"BUTTON", L"Search REGISTRY", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegistryRoot), nullptr, nullptr);
-    state->options_trace = CreateWindowExW(0, L"BUTTON", L"Search Trace Values", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptTraceValues), nullptr, nullptr);
-    state->options_offline = CreateWindowExW(0, L"BUTTON", L"Search Offline Hives", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptOfflineHives), nullptr, nullptr);
-    state->options_reg_files = CreateWindowExW(0, L"BUTTON", L"Search .reg File Tabs", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegFiles), nullptr, nullptr);
-    state->options_remote = CreateWindowExW(0, L"BUTTON", L"Search Network Registry", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRemoteRegistry), nullptr, nullptr);
+      CreateWindowExW(0, L"BUTTON", L"Search options", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptionsGroup), nullptr, nullptr);
+      state->options_keys = CreateWindowExW(0, L"BUTTON", L"Search keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptKeys), nullptr, nullptr);
+      state->options_values = CreateWindowExW(0, L"BUTTON", L"Search values", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptValues), nullptr, nullptr);
+      state->options_data = CreateWindowExW(0, L"BUTTON", L"Search data", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptData), nullptr, nullptr);
+      state->options_data_types = CreateWindowExW(0, L"BUTTON", L"Data Types...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptDataTypes), nullptr, nullptr);
+      state->match_case = CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchCase), nullptr, nullptr);
+      state->match_whole = CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchWhole), nullptr, nullptr);
+      state->use_regex = CreateWindowExW(0, L"BUTTON", L"Use regular expressions", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptUseRegex), nullptr, nullptr);
+      state->min_size = CreateWindowExW(0, L"BUTTON", L"Min data size (bytes):", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSize), nullptr, nullptr);
+      state->min_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSizeEdit), nullptr, nullptr);
+      state->max_size = CreateWindowExW(0, L"BUTTON", L"Max data size (bytes):", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSize), nullptr, nullptr);
+      state->max_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSizeEdit), nullptr, nullptr);
+      state->options_standard = CreateWindowExW(0, L"BUTTON", L"Search Standard Hives", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptStandardHives), nullptr, nullptr);
+      state->options_registry = CreateWindowExW(0, L"BUTTON", L"Search REGISTRY", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegistryRoot), nullptr, nullptr);
+      state->options_trace = CreateWindowExW(0, L"BUTTON", L"Search Trace Values", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptTraceValues), nullptr, nullptr);
+      state->options_offline = CreateWindowExW(0, L"BUTTON", L"Search Offline Hives", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptOfflineHives), nullptr, nullptr);
+      state->options_reg_files = CreateWindowExW(0, L"BUTTON", L"Search .reg File Tabs", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegFiles), nullptr, nullptr);
+      state->options_remote = CreateWindowExW(0, L"BUTTON", L"Search Network Registry", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRemoteRegistry), nullptr, nullptr);
 
-    CreateWindowExW(0, L"STATIC", L"Modified in period:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedLabel), nullptr, nullptr);
-    CreateWindowExW(0, L"STATIC", L"-", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedDash), nullptr, nullptr);
-    state->modified_from = CreateWindowExW(0, DATETIMEPICK_CLASSW, L"", WS_CHILD | WS_VISIBLE | DTS_SHORTDATEFORMAT | DTS_SHOWNONE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedFrom), nullptr, nullptr);
-    state->modified_to = CreateWindowExW(0, DATETIMEPICK_CLASSW, L"", WS_CHILD | WS_VISIBLE | DTS_SHORTDATEFORMAT | DTS_SHOWNONE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedTo), nullptr, nullptr);
-    SendMessageW(state->modified_from, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(L"M/d/yyyy HH:mm"));
-    SendMessageW(state->modified_to, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(L"M/d/yyyy HH:mm"));
-    SendMessageW(state->modified_from, DTM_SETSYSTEMTIME, GDT_NONE, 0);
-    SendMessageW(state->modified_to, DTM_SETSYSTEMTIME, GDT_NONE, 0);
+      CreateWindowExW(0, L"STATIC", L"Modified in period:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedLabel), nullptr, nullptr);
+      CreateWindowExW(0, L"STATIC", L"-", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedDash), nullptr, nullptr);
+      state->modified_from = CreateWindowExW(0, DATETIMEPICK_CLASSW, L"", WS_CHILD | WS_VISIBLE | DTS_SHORTDATEFORMAT | DTS_SHOWNONE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedFrom), nullptr, nullptr);
+      state->modified_to = CreateWindowExW(0, DATETIMEPICK_CLASSW, L"", WS_CHILD | WS_VISIBLE | DTS_SHORTDATEFORMAT | DTS_SHOWNONE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedTo), nullptr, nullptr);
+      SendMessageW(state->modified_from, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(L"M/d/yyyy HH:mm"));
+      SendMessageW(state->modified_to, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(L"M/d/yyyy HH:mm"));
+      SendMessageW(state->modified_from, DTM_SETSYSTEMTIME, GDT_NONE, 0);
+      SendMessageW(state->modified_to, DTM_SETSYSTEMTIME, GDT_NONE, 0);
 
-    CreateWindowExW(0, L"BUTTON", L"Exclude keys", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeGroup), nullptr, nullptr);
-    state->exclude_enable = CreateWindowExW(0, L"BUTTON", L"Exclude keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeEnable), nullptr, nullptr);
-    state->exclude_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeEdit), nullptr, nullptr);
-    state->exclude_button = CreateWindowExW(0, L"BUTTON", L"Edit...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeButton), nullptr, nullptr);
+      CreateWindowExW(0, L"BUTTON", L"Exclude keys", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeGroup), nullptr, nullptr);
+      state->exclude_enable = CreateWindowExW(0, L"BUTTON", L"Exclude keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeEnable), nullptr, nullptr);
+      state->exclude_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeEdit), nullptr, nullptr);
+      state->exclude_button = CreateWindowExW(0, L"BUTTON", L"Edit...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kExcludeButton), nullptr, nullptr);
 
-    CreateWindowExW(0, L"BUTTON", L"Result options", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultGroup), nullptr, nullptr);
-    state->result_reuse = CreateWindowExW(0, L"BUTTON", L"Reuse last Find Results window", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultReuse), nullptr, nullptr);
-    state->result_new = CreateWindowExW(0, L"BUTTON", L"Open new Find Results window", WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultNew), nullptr, nullptr);
-    state->result_open_new_tab = CreateWindowExW(0, L"BUTTON", L"Open result in new tab", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultOpenNewTab), nullptr, nullptr);
-    state->result_limit_enable = CreateWindowExW(0, L"BUTTON", L"Limit results to", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultLimitEnable), nullptr, nullptr);
-    state->result_limit_edit = CreateWindowExW(0, L"EDIT", L"1000", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_NUMBER | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultLimitEdit), nullptr, nullptr);
+      CreateWindowExW(0, L"BUTTON", L"Result options", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultGroup), nullptr, nullptr);
+      state->result_reuse = CreateWindowExW(0, L"BUTTON", L"Reuse last Find Results window", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultReuse), nullptr, nullptr);
+      state->result_new = CreateWindowExW(0, L"BUTTON", L"Open new Find Results window", WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultNew), nullptr, nullptr);
+      state->result_open_new_tab = CreateWindowExW(0, L"BUTTON", L"Open result in new tab", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultOpenNewTab), nullptr, nullptr);
+      state->result_limit_enable = CreateWindowExW(0, L"BUTTON", L"Limit results to", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultLimitEnable), nullptr, nullptr);
+      state->result_limit_edit = CreateWindowExW(0, L"EDIT", L"1000", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_NUMBER | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kResultLimitEdit), nullptr, nullptr);
 
-    state->find_button = CreateWindowExW(0, L"BUTTON", L"Find", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindButton), nullptr, nullptr);
-    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
+      state->find_button = CreateWindowExW(0, L"BUTTON", L"Find", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindButton), nullptr, nullptr);
+      state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
 
-    for (HWND bordered : {state->scope_edit, state->min_size_edit,
-                          state->max_size_edit, state->exclude_edit,
-                          state->result_limit_edit}) {
-      appearance::AttachThemedBorder(bordered);
-    }
+      for (HWND bordered : {state->scope_edit, state->min_size_edit, state->max_size_edit, state->exclude_edit, state->result_limit_edit}) {
+        appearance::AttachThemedBorder(bordered);
+      }
 
-    appearance::SetControlFont(hwnd, font);
-    EnumChildWindows(
-        hwnd,
-        [](HWND child, LPARAM param) -> BOOL {
-          HFONT font_handle = reinterpret_cast<HFONT>(param);
-          appearance::SetControlFont(child, font_handle);
-          return TRUE;
-        },
-        reinterpret_cast<LPARAM>(font));
+      appearance::SetControlFont(hwnd, font);
+      EnumChildWindows(
+          hwnd,
+          [](HWND child, LPARAM param) -> BOOL {
+            HFONT font_handle = reinterpret_cast<HFONT>(param);
+            appearance::SetControlFont(child, font_handle);
+            return TRUE;
+          },
+          reinterpret_cast<LPARAM>(font)
+      );
 
-    state->history = LoadSearchHistory();
-    PopulateHistoryCombo(state->find_combo, state->history);
-    if (state->out && !state->out->criteria.query.empty()) {
-      SetWindowTextW(state->find_combo, state->out->criteria.query.c_str());
-    } else if (!state->history.empty()) {
-      SetWindowTextW(state->find_combo, state->history.front().c_str());
-    }
+      state->history = LoadSearchHistory();
+      PopulateHistoryCombo(state->find_combo, state->history);
+      if (state->out && !state->out->criteria.query.empty()) {
+        SetWindowTextW(state->find_combo, state->out->criteria.query.c_str());
+      } else if (!state->history.empty()) {
+        SetWindowTextW(state->find_combo, state->history.front().c_str());
+      }
 
-    auto roots = RegistryStore::DefaultRoots(state->sources.extra_hives);
-    state->root_names.clear();
-    state->root_selected.clear();
-    state->root_names.reserve(roots.size());
-    for (const auto& root : roots) {
-      state->root_names.push_back(root.path_name);
-    }
-    state->root_selected.assign(state->root_names.size(), true);
-    if (state->out && !state->out->root_paths.empty()) {
-      state->root_selected.assign(state->root_names.size(), false);
-      for (size_t i = 0; i < state->root_names.size(); ++i) {
-        for (const auto& path : state->out->root_paths) {
-          if (_wcsicmp(state->root_names[i].c_str(), path.c_str()) == 0) {
-            state->root_selected[i] = true;
-            break;
+      auto roots = RegistryStore::DefaultRoots(state->sources.extra_hives);
+      state->root_names.clear();
+      state->root_selected.clear();
+      state->root_names.reserve(roots.size());
+      for (const auto& root : roots) {
+        state->root_names.push_back(root.path_name);
+      }
+      state->root_selected.assign(state->root_names.size(), true);
+      if (state->out && !state->out->root_paths.empty()) {
+        state->root_selected.assign(state->root_names.size(), false);
+        for (size_t i = 0; i < state->root_names.size(); ++i) {
+          for (const auto& path : state->out->root_paths) {
+            if (_wcsicmp(state->root_names[i].c_str(), path.c_str()) == 0) {
+              state->root_selected[i] = true;
+              break;
+            }
           }
         }
       }
-    }
-    UpdateScopeComboText(state);
+      UpdateScopeComboText(state);
 
-    if (state->out) {
-      state->data_types = state->out->criteria.allowed_types;
-      state->recursive = state->out->criteria.recursive;
-    }
-    const SearchDialogResult* initial = state->out;
-    if (initial) {
-      SendMessageW(state->options_keys, BM_SETCHECK, initial->criteria.search_keys ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->options_values, BM_SETCHECK, initial->criteria.search_values ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->options_data, BM_SETCHECK, initial->criteria.search_data ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->match_case, BM_SETCHECK, initial->criteria.match_case ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->match_whole, BM_SETCHECK, initial->criteria.match_whole ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->use_regex, BM_SETCHECK, initial->criteria.use_regex ? BST_CHECKED : BST_UNCHECKED, 0);
-      if (initial->criteria.use_min_size) {
-        SendMessageW(state->min_size, BM_SETCHECK, BST_CHECKED, 0);
-        SetWindowTextW(state->min_size_edit, std::to_wstring(initial->criteria.min_size).c_str());
+      if (state->out) {
+        state->data_types = state->out->criteria.allowed_types;
+        state->recursive = state->out->criteria.recursive;
       }
-      if (initial->criteria.use_max_size) {
-        SendMessageW(state->max_size, BM_SETCHECK, BST_CHECKED, 0);
-        SetWindowTextW(state->max_size_edit, std::to_wstring(initial->criteria.max_size).c_str());
+      const SearchDialogResult* initial = state->out;
+      if (initial) {
+        SendMessageW(state->options_keys, BM_SETCHECK, initial->criteria.search_keys ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->options_values, BM_SETCHECK, initial->criteria.search_values ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->options_data, BM_SETCHECK, initial->criteria.search_data ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->match_case, BM_SETCHECK, initial->criteria.match_case ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->match_whole, BM_SETCHECK, initial->criteria.match_whole ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->use_regex, BM_SETCHECK, initial->criteria.use_regex ? BST_CHECKED : BST_UNCHECKED, 0);
+        if (initial->criteria.use_min_size) {
+          SendMessageW(state->min_size, BM_SETCHECK, BST_CHECKED, 0);
+          SetWindowTextW(state->min_size_edit, std::to_wstring(initial->criteria.min_size).c_str());
+        }
+        if (initial->criteria.use_max_size) {
+          SendMessageW(state->max_size, BM_SETCHECK, BST_CHECKED, 0);
+          SetWindowTextW(state->max_size_edit, std::to_wstring(initial->criteria.max_size).c_str());
+        }
+        if (initial->criteria.use_modified_from) {
+          SetDateTimeValue(state->modified_from, initial->criteria.modified_from);
+        }
+        if (initial->criteria.use_modified_to) {
+          SetDateTimeValue(state->modified_to, initial->criteria.modified_to);
+        }
+        bool standard_hives = initial->search_standard_hives;
+        bool registry_root = initial->search_registry_root;
+        bool trace_values = initial->search_trace_values;
+        if (!state->sources.registry_root) {
+          registry_root = false;
+        }
+        if (!state->sources.traces) {
+          trace_values = false;
+        }
+        SendMessageW(state->options_standard, BM_SETCHECK, standard_hives ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->options_registry, BM_SETCHECK, registry_root ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->options_trace, BM_SETCHECK, trace_values ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->options_offline, BM_SETCHECK, initial->search_offline_hives && state->sources.offline ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->options_reg_files, BM_SETCHECK, initial->search_reg_files && state->sources.reg_files ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->options_remote, BM_SETCHECK, initial->search_remote_registry && state->sources.remote ? BST_CHECKED : BST_UNCHECKED, 0);
+        bool scope_top = initial->scope == SearchScope::kEntireRegistry;
+        SendMessageW(state->scope_top, BM_SETCHECK, scope_top ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->scope_key, BM_SETCHECK, scope_top ? BST_UNCHECKED : BST_CHECKED, 0);
+        if (!initial->start_key.empty()) {
+          SetWindowTextW(state->scope_edit, initial->start_key.c_str());
+        }
+        bool new_tab = initial->result_mode == SearchResultMode::kNewTab;
+        SendMessageW(state->result_reuse, BM_SETCHECK, new_tab ? BST_UNCHECKED : BST_CHECKED, 0);
+        SendMessageW(state->result_new, BM_SETCHECK, new_tab ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->result_open_new_tab, BM_SETCHECK, initial->open_in_new_tab ? BST_CHECKED : BST_UNCHECKED, 0);
+        const bool limited = initial->criteria.max_results > 0;
+        SendMessageW(state->result_limit_enable, BM_SETCHECK, limited ? BST_CHECKED : BST_UNCHECKED, 0);
+        SetWindowTextW(state->result_limit_edit, std::to_wstring(limited ? initial->criteria.max_results : 1000).c_str());
+        SendMessageW(state->result_limit_edit, EM_SETSEL, 0, 0);
+        EnableWindow(state->result_limit_edit, limited);
+      } else {
+        SendMessageW(state->options_keys, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessageW(state->options_values, BM_SETCHECK, BST_CHECKED, 0);
+        SendMessageW(state->options_data, BM_SETCHECK, BST_CHECKED, 0);
+        SendMessageW(state->options_standard, BM_SETCHECK, BST_CHECKED, 0);
+        SendMessageW(state->options_registry, BM_SETCHECK, state->sources.registry_root ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->options_trace, BM_SETCHECK, state->sources.traces ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->scope_top, BM_SETCHECK, BST_CHECKED, 0);
+        SendMessageW(state->result_reuse, BM_SETCHECK, BST_CHECKED, 0);
+        SendMessageW(state->result_limit_enable, BM_SETCHECK, BST_CHECKED, 0);
       }
-      if (initial->criteria.use_modified_from) {
-        SetDateTimeValue(state->modified_from, initial->criteria.modified_from);
-      }
-      if (initial->criteria.use_modified_to) {
-        SetDateTimeValue(state->modified_to, initial->criteria.modified_to);
-      }
-      bool standard_hives = initial->search_standard_hives;
-      bool registry_root = initial->search_registry_root;
-      bool trace_values = initial->search_trace_values;
-      if (!state->sources.registry_root) {
-        registry_root = false;
-      }
-      if (!state->sources.traces) {
-        trace_values = false;
-      }
-      SendMessageW(state->options_standard, BM_SETCHECK, standard_hives ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->options_registry, BM_SETCHECK, registry_root ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->options_trace, BM_SETCHECK, trace_values ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->options_offline, BM_SETCHECK, initial->search_offline_hives && state->sources.offline ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->options_reg_files, BM_SETCHECK, initial->search_reg_files && state->sources.reg_files ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->options_remote, BM_SETCHECK, initial->search_remote_registry && state->sources.remote ? BST_CHECKED : BST_UNCHECKED, 0);
-      bool scope_top = initial->scope == SearchScope::kEntireRegistry;
-      SendMessageW(state->scope_top, BM_SETCHECK, scope_top ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->scope_key, BM_SETCHECK, scope_top ? BST_UNCHECKED : BST_CHECKED, 0);
-      if (!initial->start_key.empty()) {
-        SetWindowTextW(state->scope_edit, initial->start_key.c_str());
-      }
-      bool new_tab = initial->result_mode == SearchResultMode::kNewTab;
-      SendMessageW(state->result_reuse, BM_SETCHECK, new_tab ? BST_UNCHECKED : BST_CHECKED, 0);
-      SendMessageW(state->result_new, BM_SETCHECK, new_tab ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->result_open_new_tab, BM_SETCHECK, initial->open_in_new_tab ? BST_CHECKED : BST_UNCHECKED, 0);
-      const bool limited = initial->criteria.max_results > 0;
-      SendMessageW(state->result_limit_enable, BM_SETCHECK, limited ? BST_CHECKED : BST_UNCHECKED, 0);
-      SetWindowTextW(state->result_limit_edit,
-                     std::to_wstring(limited ? initial->criteria.max_results : 1000).c_str());
-      SendMessageW(state->result_limit_edit, EM_SETSEL, 0, 0);
-      EnableWindow(state->result_limit_edit, limited);
-    } else {
-      SendMessageW(state->options_keys, BM_SETCHECK, BST_UNCHECKED, 0);
-      SendMessageW(state->options_values, BM_SETCHECK, BST_CHECKED, 0);
-      SendMessageW(state->options_data, BM_SETCHECK, BST_CHECKED, 0);
-      SendMessageW(state->options_standard, BM_SETCHECK, BST_CHECKED, 0);
-      SendMessageW(state->options_registry, BM_SETCHECK, state->sources.registry_root ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->options_trace, BM_SETCHECK, state->sources.traces ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->scope_top, BM_SETCHECK, BST_CHECKED, 0);
-      SendMessageW(state->result_reuse, BM_SETCHECK, BST_CHECKED, 0);
-      SendMessageW(state->result_limit_enable, BM_SETCHECK, BST_CHECKED, 0);
-    }
-    SendMessageW(state->scope_recursive, BM_SETCHECK, state->recursive ? BST_CHECKED : BST_UNCHECKED, 0);
+      SendMessageW(state->scope_recursive, BM_SETCHECK, state->recursive ? BST_CHECKED : BST_UNCHECKED, 0);
 
-    UpdateDialogEnableState(state);
+      UpdateDialogEnableState(state);
 
-    Theme::Current().ApplyToChildren(hwnd);
-    LayoutDialog(hwnd, state, font);
-    return 0;
-  }
+      Theme::Current().ApplyToChildren(hwnd);
+      LayoutDialog(hwnd, state, font);
+      return 0;
+    }
   case WM_DESTROY:
     if (state && state->font) {
       DeleteObject(state->font);
@@ -789,275 +816,286 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     }
     appearance::ApplyDpiChange(hwnd, lparam);
     return 0;
-  case WM_SIZE: {
-    HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
-    LayoutDialog(hwnd, state, font);
-    return 0;
-  }
-  case WM_ERASEBKGND: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rect = {};
-    GetClientRect(hwnd, &rect);
-    FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
-    return 1;
-  }
-  case WM_SETTINGCHANGE: {
-    if (Theme::UpdateFromSystem()) {
-      Theme::Current().ApplyToWindow(hwnd);
-      Theme::Current().ApplyToChildren(hwnd);
-      InvalidateRect(hwnd, nullptr, TRUE);
+  case WM_SIZE:
+    {
+      HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
+      LayoutDialog(hwnd, state, font);
+      return 0;
     }
-    return 0;
-  }
-  case WM_CTLCOLORSTATIC: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_STATIC));
-  }
-  case WM_CTLCOLORBTN: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_BTN));
-  }
-  case WM_CTLCOLORLISTBOX: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_LISTBOX));
-  }
-  case WM_CTLCOLOREDIT: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_EDIT));
-  }
+  case WM_ERASEBKGND:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rect = {};
+      GetClientRect(hwnd, &rect);
+      FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
+      return 1;
+    }
+  case WM_SETTINGCHANGE:
+    {
+      if (Theme::UpdateFromSystem()) {
+        Theme::Current().ApplyToWindow(hwnd);
+        Theme::Current().ApplyToChildren(hwnd);
+        InvalidateRect(hwnd, nullptr, TRUE);
+      }
+      return 0;
+    }
+  case WM_CTLCOLORSTATIC:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_STATIC));
+    }
+  case WM_CTLCOLORBTN:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_BTN));
+    }
+  case WM_CTLCOLORLISTBOX:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_LISTBOX));
+    }
+  case WM_CTLCOLOREDIT:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_EDIT));
+    }
   case DM_GETDEFID:
     return MAKELRESULT(IDOK, DC_HASDEFID);
-  case WM_COMMAND: {
-    if (!state) {
-      return 0;
-    }
-    if (HIWORD(wparam) == CBN_DROPDOWN && LOWORD(wparam) == kScopeCombo) {
-      ShowRootSelectionMenu(hwnd, state);
-      SendMessageW(state->scope_combo, CB_SHOWDROPDOWN, FALSE, 0);
-      return 0;
-    }
-    if (HIWORD(wparam) == BN_CLICKED) {
+  case WM_COMMAND:
+    {
+      if (!state) {
+        return 0;
+      }
+      if (HIWORD(wparam) == CBN_DROPDOWN && LOWORD(wparam) == kScopeCombo) {
+        ShowRootSelectionMenu(hwnd, state);
+        SendMessageW(state->scope_combo, CB_SHOWDROPDOWN, FALSE, 0);
+        return 0;
+      }
+      if (HIWORD(wparam) == BN_CLICKED) {
+        switch (LOWORD(wparam)) {
+        case kScopeTop:
+        case kScopeKey:
+        case kOptData:
+        case kOptMinSize:
+        case kOptMaxSize:
+        case kOptStandardHives:
+        case kOptRegistryRoot:
+        case kOptTraceValues:
+        case kOptOfflineHives:
+        case kOptRegFiles:
+        case kOptRemoteRegistry:
+        case kExcludeEnable:
+        case kResultLimitEnable:
+          UpdateDialogEnableState(state);
+          break;
+        default:
+          break;
+        }
+      }
       switch (LOWORD(wparam)) {
-      case kScopeTop:
-      case kScopeKey:
-      case kOptData:
-      case kOptMinSize:
-      case kOptMaxSize:
-      case kOptStandardHives:
-      case kOptRegistryRoot:
-      case kOptTraceValues:
-      case kOptOfflineHives:
-      case kOptRegFiles:
-      case kOptRemoteRegistry:
-      case kExcludeEnable:
-      case kResultLimitEnable:
-        UpdateDialogEnableState(state);
-        break;
+      case kScopeBrowse:
+        {
+          std::wstring selected;
+          if (ShowBrowseKeyDialog(hwnd, &selected)) {
+            if (!selected.empty()) {
+              SetWindowTextW(state->scope_edit, selected.c_str());
+            }
+            SendMessageW(state->scope_key, BM_SETCHECK, BST_CHECKED, 0);
+            SendMessageW(state->scope_top, BM_SETCHECK, BST_UNCHECKED, 0);
+            UpdateDialogEnableState(state);
+          }
+          return 0;
+        }
+      case kOptDataTypes:
+        query_prompts::ShowDataTypes(hwnd, &state->data_types);
+        return 0;
+      case kExcludeButton:
+        {
+          std::vector<std::wstring> items =
+              SplitExcludePaths(util::WindowText(state->exclude_edit));
+          std::wstring multiline;
+          for (const auto& item : items) {
+            if (item.empty()) {
+              continue;
+            }
+            if (!multiline.empty()) {
+              multiline.append(L"\r\n");
+            }
+            multiline.append(item);
+          }
+          editors::TextRequest request;
+          request.title = L"Exclude Keys";
+          request.label = L"Each line should include one key.";
+          request.text = multiline;
+          request.multiline = true;
+          editors::TextResult result;
+          if (editors::EditText(hwnd, request, &result)) {
+            multiline = std::move(result.text);
+            std::vector<std::wstring> updated = SplitExcludePaths(multiline);
+            std::wstring joined = JoinExcludePaths(updated);
+            SetWindowTextW(state->exclude_edit, joined.c_str());
+          }
+          return 0;
+        }
+      case kFindButton:
+        {
+          wchar_t query[512] = {};
+          GetWindowTextW(state->find_combo, query, static_cast<int>(_countof(query)));
+          std::wstring query_text = query;
+          if (query_text.empty()) {
+            ui::ShowWarning(hwnd, L"Enter a search term.");
+            return 0;
+          }
+          bool keys = SendMessageW(state->options_keys, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          bool values = SendMessageW(state->options_values, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          bool data = SendMessageW(state->options_data, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          if (!keys && !values && !data) {
+            ui::ShowWarning(hwnd, L"Select at least one search option.");
+            return 0;
+          }
+          bool standard_hives = state->options_standard && SendMessageW(state->options_standard, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          bool registry_root = state->options_registry && SendMessageW(state->options_registry, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          bool trace_values = state->options_trace && SendMessageW(state->options_trace, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          bool offline_hives = state->sources.offline && SendMessageW(state->options_offline, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          bool reg_files = state->sources.reg_files && SendMessageW(state->options_reg_files, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          bool remote_registry = state->sources.remote && SendMessageW(state->options_remote, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          if (!state->sources.registry_root) {
+            registry_root = false;
+          }
+          if (!state->sources.traces) {
+            trace_values = false;
+          }
+          if (!standard_hives && !registry_root && !trace_values && !offline_hives && !reg_files && !remote_registry) {
+            ui::ShowWarning(hwnd, L"Select at least one search source.");
+            return 0;
+          }
+
+          SearchDialogResult result;
+          result.criteria.query = query_text;
+          result.criteria.search_keys = keys;
+          result.criteria.search_values = values;
+          result.criteria.search_data = data;
+          result.criteria.match_case = SendMessageW(state->match_case, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          result.criteria.match_whole = SendMessageW(state->match_whole, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          result.criteria.use_regex = SendMessageW(state->use_regex, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          if (data) {
+            result.criteria.allowed_types = state->data_types;
+            if (state->min_size && SendMessageW(state->min_size, BM_GETCHECK, 0, 0) == BST_CHECKED) {
+              wchar_t buffer[64] = {};
+              GetWindowTextW(state->min_size_edit, buffer, static_cast<int>(_countof(buffer)));
+              uint64_t value = 0;
+              if (!ParseUint64(buffer, &value)) {
+                ui::ShowWarning(hwnd, L"Enter a valid minimum data size.");
+                return 0;
+              }
+              result.criteria.use_min_size = true;
+              result.criteria.min_size = value;
+            }
+            if (state->max_size && SendMessageW(state->max_size, BM_GETCHECK, 0, 0) == BST_CHECKED) {
+              wchar_t buffer[64] = {};
+              GetWindowTextW(state->max_size_edit, buffer, static_cast<int>(_countof(buffer)));
+              uint64_t value = 0;
+              if (!ParseUint64(buffer, &value)) {
+                ui::ShowWarning(hwnd, L"Enter a valid maximum data size.");
+                return 0;
+              }
+              result.criteria.use_max_size = true;
+              result.criteria.max_size = value;
+            }
+          }
+          FILETIME modified_from = {};
+          FILETIME modified_to = {};
+          bool has_modified_from = GetDateTimeValue(state->modified_from, &modified_from);
+          bool has_modified_to = GetDateTimeValue(state->modified_to, &modified_to);
+          if (has_modified_from) {
+            result.criteria.use_modified_from = true;
+            result.criteria.modified_from = modified_from;
+          }
+          if (has_modified_to) {
+            result.criteria.use_modified_to = true;
+            result.criteria.modified_to = modified_to;
+          }
+          if (result.criteria.use_min_size && result.criteria.use_max_size && result.criteria.min_size > result.criteria.max_size) {
+            ui::ShowWarning(hwnd, L"Minimum data size can't exceed maximum data size.");
+            return 0;
+          }
+          if (has_modified_from && has_modified_to && CompareFileTime(&modified_from, &modified_to) > 0) {
+            ui::ShowWarning(hwnd, L"Modified date range is invalid.");
+            return 0;
+          }
+          result.search_standard_hives = standard_hives;
+          result.search_registry_root = registry_root;
+          result.search_trace_values = trace_values;
+          result.search_offline_hives = offline_hives;
+          result.search_reg_files = reg_files;
+          result.search_remote_registry = remote_registry;
+
+          bool scope_top = SendMessageW(state->scope_top, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          result.scope = scope_top ? SearchScope::kEntireRegistry : SearchScope::kCurrentKey;
+          state->recursive = SendMessageW(state->scope_recursive, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          result.criteria.recursive = scope_top ? true : state->recursive;
+          result.result_mode = SendMessageW(state->result_new, BM_GETCHECK, 0, 0) == BST_CHECKED ? SearchResultMode::kNewTab : SearchResultMode::kReuseTab;
+          result.open_in_new_tab = SendMessageW(state->result_open_new_tab, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          if (SendMessageW(state->result_limit_enable, BM_GETCHECK, 0, 0) == BST_CHECKED) {
+            wchar_t limit_text[32] = {};
+            GetWindowTextW(state->result_limit_edit, limit_text, static_cast<int>(_countof(limit_text)));
+            uint64_t limit = 0;
+            if (!ParseUint64(limit_text, &limit) || limit == 0) {
+              ui::ShowWarning(hwnd, L"Enter a valid result limit.");
+              return 0;
+            }
+            result.criteria.max_results = limit;
+          } else {
+            result.criteria.max_results = 0;
+          }
+
+          if (SendMessageW(state->exclude_enable, BM_GETCHECK, 0, 0) == BST_CHECKED) {
+            result.criteria.exclude_paths =
+                SplitExcludePaths(util::WindowText(state->exclude_edit));
+          }
+
+          result.root_paths.clear();
+          result.start_key.clear();
+          if (scope_top) {
+            if (standard_hives) {
+              for (size_t i = 0; i < state->root_selected.size(); ++i) {
+                if (state->root_selected[i] && i < state->root_names.size()) {
+                  result.root_paths.push_back(state->root_names[i]);
+                }
+              }
+              if (result.root_paths.empty()) {
+                ui::ShowWarning(hwnd, L"Select at least one top-level key.");
+                return 0;
+              }
+            }
+          } else {
+            result.start_key = util::WindowText(state->scope_edit);
+          }
+
+          UpdateHistoryList(&state->history, query_text);
+          SaveSearchHistory(state->history);
+
+          if (state->out) {
+            *state->out = result;
+          }
+          state->accepted = true;
+          appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
+          DestroyWindow(hwnd);
+          return 0;
+        }
+      case kCancelButton:
+        appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
+        DestroyWindow(hwnd);
+        return 0;
       default:
         break;
       }
-    }
-    switch (LOWORD(wparam)) {
-    case kScopeBrowse: {
-      std::wstring selected;
-      if (ShowBrowseKeyDialog(hwnd, &selected)) {
-        if (!selected.empty()) {
-          SetWindowTextW(state->scope_edit, selected.c_str());
-        }
-        SendMessageW(state->scope_key, BM_SETCHECK, BST_CHECKED, 0);
-        SendMessageW(state->scope_top, BM_SETCHECK, BST_UNCHECKED, 0);
-        UpdateDialogEnableState(state);
-      }
-      return 0;
-    }
-    case kOptDataTypes:
-      query_prompts::ShowDataTypes(hwnd, &state->data_types);
-      return 0;
-    case kExcludeButton: {
-      std::vector<std::wstring> items =
-          SplitExcludePaths(util::WindowText(state->exclude_edit));
-      std::wstring multiline;
-      for (const auto& item : items) {
-        if (item.empty()) {
-          continue;
-        }
-        if (!multiline.empty()) {
-          multiline.append(L"\r\n");
-        }
-        multiline.append(item);
-      }
-      editors::TextRequest request;
-      request.title = L"Exclude Keys";
-      request.label = L"Each line should include one key.";
-      request.text = multiline;
-      request.multiline = true;
-      editors::TextResult result;
-      if (editors::EditText(hwnd, request, &result)) {
-        multiline = std::move(result.text);
-        std::vector<std::wstring> updated = SplitExcludePaths(multiline);
-        std::wstring joined = JoinExcludePaths(updated);
-        SetWindowTextW(state->exclude_edit, joined.c_str());
-      }
-      return 0;
-    }
-    case kFindButton: {
-      wchar_t query[512] = {};
-      GetWindowTextW(state->find_combo, query, static_cast<int>(_countof(query)));
-      std::wstring query_text = query;
-      if (query_text.empty()) {
-        ui::ShowWarning(hwnd, L"Enter a search term.");
-        return 0;
-      }
-      bool keys = SendMessageW(state->options_keys, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      bool values = SendMessageW(state->options_values, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      bool data = SendMessageW(state->options_data, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      if (!keys && !values && !data) {
-        ui::ShowWarning(hwnd, L"Select at least one search option.");
-        return 0;
-      }
-      bool standard_hives = state->options_standard && SendMessageW(state->options_standard, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      bool registry_root = state->options_registry && SendMessageW(state->options_registry, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      bool trace_values = state->options_trace && SendMessageW(state->options_trace, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      bool offline_hives = state->sources.offline && SendMessageW(state->options_offline, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      bool reg_files = state->sources.reg_files && SendMessageW(state->options_reg_files, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      bool remote_registry = state->sources.remote && SendMessageW(state->options_remote, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      if (!state->sources.registry_root) {
-        registry_root = false;
-      }
-      if (!state->sources.traces) {
-        trace_values = false;
-      }
-      if (!standard_hives && !registry_root && !trace_values && !offline_hives && !reg_files && !remote_registry) {
-        ui::ShowWarning(hwnd, L"Select at least one search source.");
-        return 0;
-      }
-
-      SearchDialogResult result;
-      result.criteria.query = query_text;
-      result.criteria.search_keys = keys;
-      result.criteria.search_values = values;
-      result.criteria.search_data = data;
-      result.criteria.match_case = SendMessageW(state->match_case, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      result.criteria.match_whole = SendMessageW(state->match_whole, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      result.criteria.use_regex = SendMessageW(state->use_regex, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      if (data) {
-        result.criteria.allowed_types = state->data_types;
-        if (state->min_size && SendMessageW(state->min_size, BM_GETCHECK, 0, 0) == BST_CHECKED) {
-          wchar_t buffer[64] = {};
-          GetWindowTextW(state->min_size_edit, buffer, static_cast<int>(_countof(buffer)));
-          uint64_t value = 0;
-          if (!ParseUint64(buffer, &value)) {
-            ui::ShowWarning(hwnd, L"Enter a valid minimum data size.");
-            return 0;
-          }
-          result.criteria.use_min_size = true;
-          result.criteria.min_size = value;
-        }
-        if (state->max_size && SendMessageW(state->max_size, BM_GETCHECK, 0, 0) == BST_CHECKED) {
-          wchar_t buffer[64] = {};
-          GetWindowTextW(state->max_size_edit, buffer, static_cast<int>(_countof(buffer)));
-          uint64_t value = 0;
-          if (!ParseUint64(buffer, &value)) {
-            ui::ShowWarning(hwnd, L"Enter a valid maximum data size.");
-            return 0;
-          }
-          result.criteria.use_max_size = true;
-          result.criteria.max_size = value;
-        }
-      }
-      FILETIME modified_from = {};
-      FILETIME modified_to = {};
-      bool has_modified_from = GetDateTimeValue(state->modified_from, &modified_from);
-      bool has_modified_to = GetDateTimeValue(state->modified_to, &modified_to);
-      if (has_modified_from) {
-        result.criteria.use_modified_from = true;
-        result.criteria.modified_from = modified_from;
-      }
-      if (has_modified_to) {
-        result.criteria.use_modified_to = true;
-        result.criteria.modified_to = modified_to;
-      }
-      if (result.criteria.use_min_size && result.criteria.use_max_size && result.criteria.min_size > result.criteria.max_size) {
-        ui::ShowWarning(hwnd, L"Minimum data size can't exceed maximum data size.");
-        return 0;
-      }
-      if (has_modified_from && has_modified_to && CompareFileTime(&modified_from, &modified_to) > 0) {
-        ui::ShowWarning(hwnd, L"Modified date range is invalid.");
-        return 0;
-      }
-      result.search_standard_hives = standard_hives;
-      result.search_registry_root = registry_root;
-      result.search_trace_values = trace_values;
-      result.search_offline_hives = offline_hives;
-      result.search_reg_files = reg_files;
-      result.search_remote_registry = remote_registry;
-
-      bool scope_top = SendMessageW(state->scope_top, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      result.scope = scope_top ? SearchScope::kEntireRegistry : SearchScope::kCurrentKey;
-      state->recursive = SendMessageW(state->scope_recursive, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      result.criteria.recursive = scope_top ? true : state->recursive;
-      result.result_mode = SendMessageW(state->result_new, BM_GETCHECK, 0, 0) == BST_CHECKED ? SearchResultMode::kNewTab : SearchResultMode::kReuseTab;
-      result.open_in_new_tab = SendMessageW(state->result_open_new_tab, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      if (SendMessageW(state->result_limit_enable, BM_GETCHECK, 0, 0) == BST_CHECKED) {
-        wchar_t limit_text[32] = {};
-        GetWindowTextW(state->result_limit_edit, limit_text, static_cast<int>(_countof(limit_text)));
-        uint64_t limit = 0;
-        if (!ParseUint64(limit_text, &limit) || limit == 0) {
-          ui::ShowWarning(hwnd, L"Enter a valid result limit.");
-          return 0;
-        }
-        result.criteria.max_results = limit;
-      } else {
-        result.criteria.max_results = 0;
-      }
-
-      if (SendMessageW(state->exclude_enable, BM_GETCHECK, 0, 0) == BST_CHECKED) {
-        result.criteria.exclude_paths =
-            SplitExcludePaths(util::WindowText(state->exclude_edit));
-      }
-
-      result.root_paths.clear();
-      result.start_key.clear();
-      if (scope_top) {
-        if (standard_hives) {
-          for (size_t i = 0; i < state->root_selected.size(); ++i) {
-            if (state->root_selected[i] && i < state->root_names.size()) {
-              result.root_paths.push_back(state->root_names[i]);
-            }
-          }
-          if (result.root_paths.empty()) {
-            ui::ShowWarning(hwnd, L"Select at least one top-level key.");
-            return 0;
-          }
-        }
-      } else {
-        result.start_key = util::WindowText(state->scope_edit);
-      }
-
-      UpdateHistoryList(&state->history, query_text);
-      SaveSearchHistory(state->history);
-
-      if (state->out) {
-        *state->out = result;
-      }
-      state->accepted = true;
-      appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-      DestroyWindow(hwnd);
-      return 0;
-    }
-    case kCancelButton:
-      appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-      DestroyWindow(hwnd);
-      return 0;
-    default:
       break;
     }
-    break;
-  }
   case WM_CLOSE:
     if (state) {
       appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
@@ -1070,7 +1108,11 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
   return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
-HWND CreateSearchDialogWindow(HINSTANCE instance, HWND owner, SearchDialogState* state) {
+HWND CreateSearchDialogWindow(
+    HINSTANCE instance,
+    HWND owner,
+    SearchDialogState* state
+) {
   WNDCLASSW wc = {};
   wc.lpfnWndProc = SearchDialogProc;
   wc.hInstance = instance;
@@ -1084,11 +1126,18 @@ HWND CreateSearchDialogWindow(HINSTANCE instance, HWND owner, SearchDialogState*
 
 } // namespace
 
-bool ShowBrowseKeyDialog(HWND owner, std::wstring* selected_path) {
+bool ShowBrowseKeyDialog(
+    HWND owner,
+    std::wstring* selected_path
+) {
   return query_prompts::ShowRegistryKey(owner, selected_path);
 }
 
-bool ShowSearchDialog(HWND owner, SearchDialogResult* result, const SearchSources& available) {
+bool ShowSearchDialog(
+    HWND owner,
+    SearchDialogResult* result,
+    const SearchSources& available
+) {
   if (!result) {
     return false;
   }

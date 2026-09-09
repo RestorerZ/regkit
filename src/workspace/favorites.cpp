@@ -21,7 +21,9 @@ namespace {
 
 using util::FormatWin32Error;
 
-bool EnsureDirectory(const std::wstring& path) {
+bool EnsureDirectory(
+    const std::wstring& path
+) {
   if (path.empty()) {
     return false;
   }
@@ -32,7 +34,10 @@ bool EnsureDirectory(const std::wstring& path) {
   return CreateDirectoryW(path.c_str(), nullptr) != 0;
 }
 
-bool LoadFromFile(const std::wstring& path, std::vector<std::wstring>* favorites) {
+bool LoadFromFile(
+    const std::wstring& path,
+    std::vector<std::wstring>* favorites
+) {
   if (!favorites) {
     return false;
   }
@@ -53,7 +58,10 @@ bool LoadFromFile(const std::wstring& path, std::vector<std::wstring>* favorites
   return true;
 }
 
-bool SaveToFile(const std::wstring& path, const std::vector<std::wstring>& favorites) {
+bool SaveToFile(
+    const std::wstring& path,
+    const std::vector<std::wstring>& favorites
+) {
   if (path.empty()) {
     return false;
   }
@@ -81,7 +89,9 @@ std::wstring FavoritesStore::FavoritesPath() {
   return util::JoinPath(dir, L"favorites.txt");
 }
 
-bool FavoritesStore::Load(std::vector<std::wstring>* favorites) {
+bool FavoritesStore::Load(
+    std::vector<std::wstring>* favorites
+) {
   std::wstring path = FavoritesPath();
   if (path.empty()) {
     return false;
@@ -95,12 +105,16 @@ bool FavoritesStore::Load(std::vector<std::wstring>* favorites) {
   return true;
 }
 
-bool FavoritesStore::Save(const std::vector<std::wstring>& favorites) {
+bool FavoritesStore::Save(
+    const std::vector<std::wstring>& favorites
+) {
   std::wstring path = FavoritesPath();
   return SaveToFile(path, favorites);
 }
 
-bool FavoritesStore::Add(const std::wstring& path) {
+bool FavoritesStore::Add(
+    const std::wstring& path
+) {
   if (path.empty()) {
     return false;
   }
@@ -114,7 +128,9 @@ bool FavoritesStore::Add(const std::wstring& path) {
   return true;
 }
 
-bool FavoritesStore::Remove(const std::wstring& path) {
+bool FavoritesStore::Remove(
+    const std::wstring& path
+) {
   if (path.empty()) {
     return false;
   }
@@ -128,7 +144,9 @@ bool FavoritesStore::Remove(const std::wstring& path) {
   return true;
 }
 
-bool FavoritesStore::ImportFromFile(const std::wstring& path) {
+bool FavoritesStore::ImportFromFile(
+    const std::wstring& path
+) {
   if (path.empty()) {
     return false;
   }
@@ -153,7 +171,9 @@ bool FavoritesStore::ImportFromFile(const std::wstring& path) {
   return Save(favorites);
 }
 
-bool FavoritesStore::ExportToFile(const std::wstring& path) {
+bool FavoritesStore::ExportToFile(
+    const std::wstring& path
+) {
   if (path.empty()) {
     return false;
   }
@@ -162,7 +182,10 @@ bool FavoritesStore::ExportToFile(const std::wstring& path) {
   return SaveToFile(path, favorites);
 }
 
-bool FavoritesStore::ImportFromRegedit(size_t* imported_count, std::wstring* error) {
+bool FavoritesStore::ImportFromRegedit(
+    size_t* imported_count,
+    std::wstring* error
+) {
   if (imported_count) {
     *imported_count = 0;
   }

@@ -28,9 +28,15 @@ public:
   }
   ComPtr(const ComPtr&) = delete;
   ComPtr& operator=(const ComPtr&) = delete;
-  T** Receive() { return &ptr_; }
-  T* operator->() const { return ptr_; }
-  explicit operator bool() const { return ptr_ != nullptr; }
+  T** Receive() {
+    return &ptr_;
+  }
+  T* operator->() const {
+    return ptr_;
+  }
+  explicit operator bool() const {
+    return ptr_ != nullptr;
+  }
 
 private:
   T* ptr_ = nullptr;
@@ -43,14 +49,20 @@ public:
       CoTaskMemFree(text_);
     }
   }
-  PWSTR* Receive() { return &text_; }
-  PCWSTR Get() const { return text_; }
+  PWSTR* Receive() {
+    return &text_;
+  }
+  PCWSTR Get() const {
+    return text_;
+  }
 
 private:
   PWSTR text_ = nullptr;
 };
 
-std::vector<COMDLG_FILTERSPEC> ParseFilter(const wchar_t* filter) {
+std::vector<COMDLG_FILTERSPEC> ParseFilter(
+    const wchar_t* filter
+) {
   std::vector<COMDLG_FILTERSPEC> specs;
   if (!filter) {
     return specs;
@@ -69,16 +81,20 @@ std::vector<COMDLG_FILTERSPEC> ParseFilter(const wchar_t* filter) {
   return specs;
 }
 
-HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter,
-                   FILEOPENDIALOGOPTIONS extra_options,
-                   const wchar_t* default_extension,
-                   const wchar_t* suggested_name, std::wstring* path) {
+HRESULT ShowDialog(
+    HWND owner,
+    REFCLSID clsid,
+    const wchar_t* filter,
+    FILEOPENDIALOGOPTIONS extra_options,
+    const wchar_t* default_extension,
+    const wchar_t* suggested_name,
+    std::wstring* path
+) {
   if (!path) {
     return E_POINTER;
   }
   ComPtr<IFileDialog> dialog;
-  HRESULT hr = CoCreateInstance(clsid, nullptr, CLSCTX_INPROC_SERVER,
-                                IID_PPV_ARGS(dialog.Receive()));
+  HRESULT hr = CoCreateInstance(clsid, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(dialog.Receive()));
   if (FAILED(hr)) {
     return hr;
   }
@@ -128,30 +144,40 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter,
 
 } // namespace
 
-HRESULT ChooseFileToOpen(HWND owner, const wchar_t* filter, std::wstring* path) {
+HRESULT ChooseFileToOpen(
+    HWND owner,
+    const wchar_t* filter,
+    std::wstring* path
+) {
   return ShowDialog(owner, CLSID_FileOpenDialog, filter, 0, nullptr, nullptr, path);
 }
 
-HRESULT ChooseFileToSave(HWND owner, const wchar_t* filter,
-                         const wchar_t* default_extension,
-                         const wchar_t* suggested_name, std::wstring* path) {
-  return ShowDialog(owner, CLSID_FileSaveDialog, filter, 0, default_extension,
-                    suggested_name, path);
+HRESULT ChooseFileToSave(
+    HWND owner,
+    const wchar_t* filter,
+    const wchar_t* default_extension,
+    const wchar_t* suggested_name,
+    std::wstring* path
+) {
+  return ShowDialog(owner, CLSID_FileSaveDialog, filter, 0, default_extension, suggested_name, path);
 }
 
-HRESULT ChooseFolder(HWND owner, std::wstring* path) {
-  return ShowDialog(owner, CLSID_FileOpenDialog, nullptr, FOS_PICKFOLDERS,
-                    nullptr, nullptr, path);
+HRESULT ChooseFolder(
+    HWND owner,
+    std::wstring* path
+) {
+  return ShowDialog(owner, CLSID_FileOpenDialog, nullptr, FOS_PICKFOLDERS, nullptr, nullptr, path);
 }
 
-HRESULT ChooseComputer(HWND owner, std::wstring* name) {
+HRESULT ChooseComputer(
+    HWND owner,
+    std::wstring* name
+) {
   if (!name) {
     return E_POINTER;
   }
   ComPtr<IDsObjectPicker> picker;
-  HRESULT hr = CoCreateInstance(CLSID_DsObjectPicker, nullptr,
-                                CLSCTX_INPROC_SERVER, IID_IDsObjectPicker,
-                                reinterpret_cast<void**>(picker.Receive()));
+  HRESULT hr = CoCreateInstance(CLSID_DsObjectPicker, nullptr, CLSCTX_INPROC_SERVER, IID_IDsObjectPicker, reinterpret_cast<void**>(picker.Receive()));
   if (FAILED(hr)) {
     return hr;
   }
@@ -192,7 +218,8 @@ HRESULT ChooseComputer(HWND owner, std::wstring* name) {
 
   FORMATETC format = {};
   format.cfFormat = static_cast<CLIPFORMAT>(
-      RegisterClipboardFormatW(CFSTR_DSOP_DS_SELECTION_LIST));
+      RegisterClipboardFormatW(CFSTR_DSOP_DS_SELECTION_LIST)
+  );
   format.dwAspect = DVASPECT_CONTENT;
   format.lindex = -1;
   format.tymed = TYMED_HGLOBAL;
@@ -215,11 +242,16 @@ HRESULT ChooseComputer(HWND owner, std::wstring* name) {
   return name->empty() ? HRESULT_FROM_WIN32(ERROR_CANCELLED) : S_OK;
 }
 
-bool DialogCancelled(HRESULT hr) {
+bool DialogCancelled(
+    HRESULT hr
+) {
   return hr == HRESULT_FROM_WIN32(ERROR_CANCELLED);
 }
 
-HRESULT ShellOpen(HWND owner, const wchar_t* target) {
+HRESULT ShellOpen(
+    HWND owner,
+    const wchar_t* target
+) {
   if (!target || !*target) {
     return E_INVALIDARG;
   }
@@ -236,7 +268,9 @@ HRESULT ShellOpen(HWND owner, const wchar_t* target) {
   return S_OK;
 }
 
-HRESULT RevealInExplorer(const std::wstring& path) {
+HRESULT RevealInExplorer(
+    const std::wstring& path
+) {
   if (path.empty()) {
     return E_INVALIDARG;
   }
@@ -250,7 +284,9 @@ HRESULT RevealInExplorer(const std::wstring& path) {
   return hr;
 }
 
-std::wstring FormatDialogError(HRESULT hr) {
+std::wstring FormatDialogError(
+    HRESULT hr
+) {
   if (HRESULT_FACILITY(hr) == FACILITY_WIN32) {
     return util::FormatWin32Error(static_cast<DWORD>(HRESULT_CODE(hr)));
   }

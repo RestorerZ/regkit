@@ -5,7 +5,9 @@
 
 namespace regkit::record_fields {
 
-std::wstring Escape(const std::wstring& text) {
+std::wstring Escape(
+    const std::wstring& text
+) {
   std::wstring escaped;
   escaped.reserve(text.size());
   for (wchar_t character : text) {
@@ -30,7 +32,9 @@ std::wstring Escape(const std::wstring& text) {
   return escaped;
 }
 
-std::wstring Unescape(const std::wstring& text) {
+std::wstring Unescape(
+    const std::wstring& text
+) {
   std::wstring unescaped;
   unescaped.reserve(text.size());
   for (size_t index = 0; index < text.size(); ++index) {
@@ -62,7 +66,9 @@ std::wstring Unescape(const std::wstring& text) {
   return unescaped;
 }
 
-std::vector<std::wstring> Split(const std::wstring& line) {
+std::vector<std::wstring> Split(
+    const std::wstring& line
+) {
   std::vector<std::wstring> fields;
   size_t start = 0;
   for (;;) {
@@ -76,7 +82,9 @@ std::vector<std::wstring> Split(const std::wstring& line) {
   }
 }
 
-std::vector<std::wstring> Lines(const std::wstring& content) {
+std::vector<std::wstring> Lines(
+    const std::wstring& content
+) {
   std::vector<std::wstring> lines;
   size_t start = 0;
   while (start < content.size()) {

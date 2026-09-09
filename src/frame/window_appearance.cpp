@@ -14,7 +14,9 @@ void MainWindow::Impl::ShowThemePresetsDialog() {
   }
 
   appearance::ShowThemePresetEditor(
-      hwnd_, theme_presets_, active_theme_preset_,
+      hwnd_,
+      theme_presets_,
+      active_theme_preset_,
       [](void* context, const std::vector<ThemePreset>& presets, const std::wstring& active_name) {
         static_cast<MainWindow::Impl*>(context)->UpdateThemePresets(presets, active_name, true);
       },
@@ -30,7 +32,8 @@ void MainWindow::Impl::ShowThemePresetsDialog() {
         *name = std::move(result.text);
         return true;
       },
-      this);
+      this
+  );
 }
 
 } // namespace regkit

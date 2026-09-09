@@ -16,7 +16,9 @@
 namespace regkit::regfile {
 namespace {
 
-std::wstring Trim(std::wstring_view text) {
+std::wstring Trim(
+    std::wstring_view text
+) {
   size_t first = 0;
   while (first < text.size() && iswspace(text[first])) {
     ++first;
@@ -28,8 +30,11 @@ std::wstring Trim(std::wstring_view text) {
   return std::wstring(text.substr(first, last - first));
 }
 
-bool ParseQuoted(std::wstring_view text, std::wstring* output,
-                 size_t* closing = nullptr) {
+bool ParseQuoted(
+    std::wstring_view text,
+    std::wstring* output,
+    size_t* closing = nullptr
+) {
   if (!output || text.empty() || text.front() != L'"') {
     return false;
   }
@@ -76,7 +81,9 @@ bool ParseQuoted(std::wstring_view text, std::wstring* output,
   return false;
 }
 
-size_t FindAssignment(std::wstring_view text) {
+size_t FindAssignment(
+    std::wstring_view text
+) {
   if (text.empty() || text.front() != L'"') {
     return text.find(L'=');
   }
@@ -94,7 +101,9 @@ size_t FindAssignment(std::wstring_view text) {
   return std::wstring_view::npos;
 }
 
-DWORD TypeFromCode(unsigned long code) {
+DWORD TypeFromCode(
+    unsigned long code
+) {
   switch (code) {
   case 0x0:
     return REG_NONE;
@@ -125,11 +134,15 @@ DWORD TypeFromCode(unsigned long code) {
   }
 }
 
-DWORD TypeCode(DWORD type) {
+DWORD TypeCode(
+    DWORD type
+) {
   return value_format::NormalizeType(type);
 }
 
-std::wstring Escape(std::wstring_view text) {
+std::wstring Escape(
+    std::wstring_view text
+) {
   std::wstring output;
   output.reserve(text.size());
   for (wchar_t character : text) {
@@ -160,7 +173,9 @@ std::wstring Escape(std::wstring_view text) {
   return output;
 }
 
-std::wstring Hex(std::span<const BYTE> data) {
+std::wstring Hex(
+    std::span<const BYTE> data
+) {
   std::wstring output;
   output.reserve(data.size() * 3);
   for (size_t index = 0; index < data.size(); ++index) {
@@ -176,7 +191,10 @@ std::wstring Hex(std::span<const BYTE> data) {
 
 constexpr size_t kRegFileLineLimit = 80;
 
-void AppendWrapped(std::wstring* output, const std::wstring& line) {
+void AppendWrapped(
+    std::wstring* output,
+    const std::wstring& line
+) {
   size_t start = 0;
   size_t indent = 0;
   while (true) {
@@ -200,7 +218,9 @@ void AppendWrapped(std::wstring* output, const std::wstring& line) {
   }
 }
 
-bool IsCanonicalString(const std::vector<BYTE>& data) {
+bool IsCanonicalString(
+    const std::vector<BYTE>& data
+) {
   if (data.size() < sizeof(wchar_t) || data.size() % sizeof(wchar_t) != 0) {
     return false;
   }
@@ -217,7 +237,9 @@ bool IsCanonicalString(const std::vector<BYTE>& data) {
   return true;
 }
 
-std::wstring SerializeValue(const Value& value) {
+std::wstring SerializeValue(
+    const Value& value
+) {
   const DWORD type = value_format::NormalizeType(value.type);
   if (type == REG_SZ && value.type == REG_SZ &&
       IsCanonicalString(value.data)) {
@@ -244,7 +266,9 @@ std::wstring SerializeValue(const Value& value) {
 
 } // namespace
 
-void Writer::AppendRemovedKey(std::wstring_view path) {
+void Writer::AppendRemovedKey(
+    std::wstring_view path
+) {
   if (output_.size() >
       std::wstring_view(L"Windows Registry Editor Version 5.00\r\n\r\n")
           .size()) {
@@ -255,7 +279,9 @@ void Writer::AppendRemovedKey(std::wstring_view path) {
   output_ += L"]\r\n";
 }
 
-void Writer::AppendRemovedValues(const std::vector<std::wstring>& names) {
+void Writer::AppendRemovedValues(
+    const std::vector<std::wstring>& names
+) {
   for (const std::wstring& name : names) {
     std::wstring line;
     if (name.empty()) {
@@ -270,10 +296,14 @@ void Writer::AppendRemovedValues(const std::vector<std::wstring>& names) {
 }
 
 Writer::Writer()
-    : output_(L"Windows Registry Editor Version 5.00\r\n\r\n") {}
+    : output_(L"Windows Registry Editor Version 5.00\r\n\r\n") {
+}
 
-void Writer::AppendKey(std::wstring_view path,
-                       std::vector<const Value*> values, bool sorted) {
+void Writer::AppendKey(
+    std::wstring_view path,
+    std::vector<const Value*> values,
+    bool sorted
+) {
   if (output_.size() >
       std::wstring_view(L"Windows Registry Editor Version 5.00\r\n\r\n")
           .size()) {
@@ -283,13 +313,11 @@ void Writer::AppendKey(std::wstring_view path,
   output_.append(path);
   output_ += L"]\r\n";
   if (sorted) {
-  std::sort(values.begin(), values.end(),
-            [](const Value* left, const Value* right) {
+    std::sort(values.begin(), values.end(), [](const Value* left, const Value* right) {
               if (left->name.empty() != right->name.empty()) {
                 return left->name.empty();
               }
-              return _wcsicmp(left->name.c_str(), right->name.c_str()) < 0;
-            });
+              return _wcsicmp(left->name.c_str(), right->name.c_str()) < 0; });
   }
   for (const Value* value : values) {
     std::wstring line;
@@ -309,9 +337,13 @@ std::wstring Writer::Finish() && {
   return std::move(output_);
 }
 
-bool Parse(std::wstring_view content, Document* output,
-           const std::atomic_bool* cancel, bool* cancelled,
-           std::wstring* error) {
+bool Parse(
+    std::wstring_view content,
+    Document* output,
+    const std::atomic_bool* cancel,
+    bool* cancelled,
+    std::wstring* error
+) {
   if (!output) {
     return false;
   }
@@ -388,7 +420,8 @@ bool Parse(std::wstring_view content, Document* output,
     }
     if (line.front() == L'[' && line.back() == L']') {
       std::wstring path = Trim(
-          std::wstring_view(line).substr(1, line.size() - 2));
+          std::wstring_view(line).substr(1, line.size() - 2)
+      );
       bool removed = false;
       if (!path.empty() && path.front() == L'-') {
         removed = true;
@@ -415,9 +448,11 @@ bool Parse(std::wstring_view content, Document* output,
       return fail(line);
     }
     const std::wstring name_text = Trim(
-        std::wstring_view(line).substr(0, equals));
+        std::wstring_view(line).substr(0, equals)
+    );
     const std::wstring data_text = Trim(
-        std::wstring_view(line).substr(equals + 1));
+        std::wstring_view(line).substr(equals + 1)
+    );
     if (name_text.empty() || data_text.empty()) {
       return fail(line);
     }
@@ -444,7 +479,8 @@ bool Parse(std::wstring_view content, Document* output,
       value.data = value_format::StringData(text);
     } else if (registry_path::StartsWith(data_text, L"dword:")) {
       const std::wstring number_text = Trim(
-          std::wstring_view(data_text).substr(6));
+          std::wstring_view(data_text).substr(6)
+      );
       if (number_text.empty()) {
         return fail(line);
       }
@@ -482,7 +518,9 @@ bool Parse(std::wstring_view content, Document* output,
         return fail(line);
       }
       if (!value_format::ParseHex(
-              std::wstring_view(data_text).substr(colon + 1), &value.data)) {
+              std::wstring_view(data_text).substr(colon + 1),
+              &value.data
+          )) {
         return fail(line);
       }
     } else {
@@ -493,8 +531,13 @@ bool Parse(std::wstring_view content, Document* output,
   return true;
 }
 
-bool Load(const std::wstring& path, Document* output, std::wstring* error,
-          const std::atomic_bool* cancel, bool* cancelled) {
+bool Load(
+    const std::wstring& path,
+    Document* output,
+    std::wstring* error,
+    const std::atomic_bool* cancel,
+    bool* cancelled
+) {
   std::wstring content;
   if (!util::ReadTextFile(path, &content, nullptr, 32ull * 1024ull * 1024ull)) {
     if (error) {
@@ -505,7 +548,9 @@ bool Load(const std::wstring& path, Document* output, std::wstring* error,
   return Parse(content, output, cancel, cancelled, error);
 }
 
-std::wstring Serialize(const Document& document) {
+std::wstring Serialize(
+    const Document& document
+) {
   Writer writer;
   for (const auto& ordered_path : document.key_order) {
     auto key = document.keys.find(util::ToLower(ordered_path));

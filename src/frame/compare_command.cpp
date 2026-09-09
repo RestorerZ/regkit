@@ -9,8 +9,13 @@ using namespace command_detail;
 
 namespace {
 
-bool ResolveRemoteNode(const std::wstring& machine, HKEY hklm, HKEY hku,
-                       const std::wstring& base, RegistryNode* node) {
+bool ResolveRemoteNode(
+    const std::wstring& machine,
+    HKEY hklm,
+    HKEY hku,
+    const std::wstring& base,
+    RegistryNode* node
+) {
   if (!node) {
     return false;
   }
@@ -133,11 +138,15 @@ void MainWindow::Impl::StartCompareRegistries() {
     }
     if (source.type == CompareSourceType::kRegFile) {
       return search::compare::LoadRegFile(
-          source.file_path, base, source.recursive,
+          source.file_path,
+          base,
+          source.recursive,
           [this](const std::wstring& path) {
             return NormalizeRegistryPath(path);
           },
-          snapshot, error);
+          snapshot,
+          error
+      );
     }
     if (source.type == CompareSourceType::kOfflineHive) {
       HKEY hive = nullptr;
@@ -150,8 +159,12 @@ void MainWindow::Impl::StartCompareRegistries() {
       hive_node.root_name = FileNameOnly(source.file_path);
       hive_node.subkey = base;
       const bool ok = search::compare::CaptureRegistry(
-          base.empty() ? hive_node.root_name : base, hive_node,
-          source.recursive, snapshot, error);
+          base.empty() ? hive_node.root_name : base,
+          hive_node,
+          source.recursive,
+          snapshot,
+          error
+      );
       RegistryStore::RemoveOfflineRoot(hive);
       RegistryStore::CloseOfflineHive(hive, nullptr);
       if (!ok && error && error->empty()) {
@@ -185,8 +198,7 @@ void MainWindow::Impl::StartCompareRegistries() {
         *error = L"Network registry path not found.\n" + base;
       }
       if (ok) {
-        ok = search::compare::CaptureRegistry(base, node, source.recursive,
-                                              snapshot, error);
+        ok = search::compare::CaptureRegistry(base, node, source.recursive, snapshot, error);
       }
       if (hku) {
         RegCloseKey(hku);
@@ -203,7 +215,12 @@ void MainWindow::Impl::StartCompareRegistries() {
       return false;
     }
     return search::compare::CaptureRegistry(
-        base, node, source.recursive, snapshot, error);
+        base,
+        node,
+        source.recursive,
+        snapshot,
+        error
+    );
   };
 
   search::compare::Snapshot left_snapshot;
@@ -263,7 +280,9 @@ void MainWindow::Impl::StartCompareRegistries() {
   UpdateStatus();
 }
 
-search::Source MainWindow::Impl::TabSource(int index) const {
+search::Source MainWindow::Impl::TabSource(
+    int index
+) const {
   if (index < 0 || static_cast<size_t>(index) >= tabs_.size()) {
     return {};
   }
@@ -286,7 +305,9 @@ search::Source MainWindow::Impl::CurrentTabSource() const {
   return TabSource(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
 }
 
-int MainWindow::Impl::FindSourceTab(const search::Source& source) const {
+int MainWindow::Impl::FindSourceTab(
+    const search::Source& source
+) const {
   for (size_t i = 0; i < tabs_.size(); ++i) {
     const TabEntry& entry = tabs_[i];
     if (entry.kind == TabEntry::Kind::kSearch) {
@@ -305,10 +326,12 @@ int MainWindow::Impl::FindSourceTab(const search::Source& source) const {
   return -1;
 }
 
-void MainWindow::Impl::OpenSourceEntry(const search::Source& source,
-                                      const std::wstring& path,
-                                      const std::wstring& value_name,
-                                      bool new_tab) {
+void MainWindow::Impl::OpenSourceEntry(
+    const search::Source& source,
+    const std::wstring& path,
+    const std::wstring& value_name,
+    bool new_tab
+) {
   if (!tab_ || path.empty()) {
     return;
   }
@@ -332,37 +355,37 @@ void MainWindow::Impl::OpenSourceEntry(const search::Source& source,
       ActivateTabIndex(existing);
     }
     break;
-  case search::Source::Kind::kOffline: {
-    if (new_tab) {
-      OpenLocalRegistryTab();
-      if (!LoadOfflineRegistryFromPath(source.name, false)) {
-        return;
+  case search::Source::Kind::kOffline:
+    {
+      if (new_tab) {
+        OpenLocalRegistryTab();
+        if (!LoadOfflineRegistryFromPath(source.name, false)) {
+          return;
+        }
+      } else {
+        ActivateTabIndex(existing);
       }
-    } else {
-      ActivateTabIndex(existing);
-    }
-    std::wstring target = path;
-    if (!offline_mount_.empty()) {
-      for (const std::wstring& prefix : {offline_mount_,
-                                         FileNameOnly(source.name)}) {
-        if (prefix.empty()) {
-          continue;
+      std::wstring target = path;
+      if (!offline_mount_.empty()) {
+        for (const std::wstring& prefix : {offline_mount_, FileNameOnly(source.name)}) {
+          if (prefix.empty()) {
+            continue;
+          }
+          if (EqualsInsensitive(target, prefix)) {
+            target.clear();
+            break;
+          }
+          if (StartsWithInsensitive(target, prefix + L"\\")) {
+            target = target.substr(prefix.size() + 1);
+            break;
+          }
         }
-        if (EqualsInsensitive(target, prefix)) {
-          target.clear();
-          break;
-        }
-        if (StartsWithInsensitive(target, prefix + L"\\")) {
-          target = target.substr(prefix.size() + 1);
-          break;
-        }
+        const std::wstring mount = offline_root_name_ + L"\\" + offline_mount_;
+        target = target.empty() ? mount : mount + L"\\" + target;
       }
-      const std::wstring mount = offline_root_name_ + L"\\" + offline_mount_;
-      target = target.empty() ? mount : mount + L"\\" + target;
+      SelectTreePath(target);
+      break;
     }
-    SelectTreePath(target);
-    break;
-  }
   case search::Source::Kind::kRemote:
     if (new_tab) {
       OpenLocalRegistryTab();

@@ -7,25 +7,39 @@
 
 namespace regkit {
 
-MainWindow::MainWindow() : impl_(std::make_unique<Impl>()) {}
+MainWindow::MainWindow()
+    : impl_(std::make_unique<Impl>()) {
+}
 
 MainWindow::~MainWindow() = default;
 
-bool MainWindow::Create(HINSTANCE instance) {
+bool MainWindow::Create(
+    HINSTANCE instance
+) {
   return impl_->Create(instance);
 }
 
-void MainWindow::Show(int command) { impl_->Show(command); }
+void MainWindow::Show(
+    int command
+) {
+  impl_->Show(command);
+}
 
-bool MainWindow::OpenRegFileTab(const std::wstring& path) {
+bool MainWindow::OpenRegFileTab(
+    const std::wstring& path
+) {
   return impl_->OpenRegFileTab(path);
 }
 
-bool MainWindow::TranslateAccelerator(const MSG& message) {
+bool MainWindow::TranslateAccelerator(
+    const MSG& message
+) {
   return impl_->TranslateAccelerator(message);
 }
 
-void MainWindow::QueueExternalJump(const std::wstring& target) {
+void MainWindow::QueueExternalJump(
+    const std::wstring& target
+) {
   impl_->QueueExternalJump(target);
 }
 

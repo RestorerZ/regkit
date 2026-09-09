@@ -72,8 +72,7 @@ struct Settings {
   std::vector<bool> value_column_visible;
 };
 
-Settings ParseSettings(const std::wstring& content,
-                       Settings settings = {});
+Settings ParseSettings(const std::wstring& content, Settings settings = {});
 std::wstring SerializeSettings(const Settings& settings);
 bool LoadSettings(const std::wstring& path, Settings* settings);
 bool SaveSettings(const std::wstring& path, const Settings& settings);

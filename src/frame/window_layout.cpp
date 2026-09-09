@@ -8,7 +8,10 @@
 namespace regkit {
 using namespace window_detail;
 
-void MainWindow::Impl::ComputeSplitterLimits(int* min_width, int* max_width) const {
+void MainWindow::Impl::ComputeSplitterLimits(
+    int* min_width,
+    int* max_width
+) const {
   if (!min_width || !max_width || !hwnd_) {
     return;
   }
@@ -21,7 +24,10 @@ void MainWindow::Impl::ComputeSplitterLimits(int* min_width, int* max_width) con
   *max_width = max_tree;
 }
 
-void MainWindow::Impl::ComputeHistorySplitterLimits(int* min_height, int* max_height) const {
+void MainWindow::Impl::ComputeHistorySplitterLimits(
+    int* min_height,
+    int* max_height
+) const {
   if (!min_height || !max_height || !hwnd_) {
     return;
   }
@@ -220,21 +226,14 @@ void MainWindow::Impl::ApplyDragLayout() {
   if (show_history) {
     int history_width = content_right - content_left;
     defer(history_label_, content_left, history_top, history_width, history_label_height);
-    defer(history_close_btn_, content_left + history_width - close_inset - close_size,
-          history_top + (history_label_height - close_size) / 2, close_size, close_size);
-    defer(history_list_, content_left,
-          history_top + history_label_height - kPanelBorderOverlap,
-          history_width,
-          history_height - history_label_height + kPanelBorderOverlap);
+    defer(history_close_btn_, content_left + history_width - close_inset - close_size, history_top + (history_label_height - close_size) / 2, close_size, close_size);
+    defer(history_list_, content_left, history_top + history_label_height - kPanelBorderOverlap, history_width, history_height - history_label_height + kPanelBorderOverlap);
   }
 
   if (show_tree) {
     defer(tree_header_, content_left, y, tree_width, tree_header_height);
-    defer(tree_close_btn_, content_left + tree_width - close_inset - close_size,
-          y + (tree_header_height - close_size) / 2, close_size, close_size);
-    defer(browse_.tree().hwnd(), content_left,
-          y + tree_header_height - kPanelBorderOverlap,
-          tree_width, tree_content_height + kPanelBorderOverlap);
+    defer(tree_close_btn_, content_left + tree_width - close_inset - close_size, y + (tree_header_height - close_size) / 2, close_size, close_size);
+    defer(browse_.tree().hwnd(), content_left, y + tree_header_height - kPanelBorderOverlap, tree_width, tree_content_height + kPanelBorderOverlap);
     splitter_rect_.left = content_left + tree_width;
     splitter_rect_.right = splitter_rect_.left + kSplitterWidth;
     splitter_rect_.top = y;
@@ -299,8 +298,7 @@ void MainWindow::Impl::ApplyDragLayout() {
 
   LayoutValueGridToolbar();
   if (has_dirty_layout) {
-    RedrawWindow(hwnd_, &dirty_layout, nullptr,
-                 RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_UPDATENOW);
+    RedrawWindow(hwnd_, &dirty_layout, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_UPDATENOW);
   }
 }
 
@@ -318,7 +316,9 @@ void MainWindow::Impl::BeginHistorySplitterDrag() {
   SetCapture(hwnd_);
 }
 
-void MainWindow::Impl::UpdateSplitterTrack(int client_x) {
+void MainWindow::Impl::UpdateSplitterTrack(
+    int client_x
+) {
   if (!splitter_dragging_) {
     return;
   }
@@ -331,7 +331,9 @@ void MainWindow::Impl::UpdateSplitterTrack(int client_x) {
   ApplyDragLayout();
 }
 
-void MainWindow::Impl::UpdateHistorySplitterTrack(int client_y) {
+void MainWindow::Impl::UpdateHistorySplitterTrack(
+    int client_y
+) {
   if (!history_splitter_dragging_) {
     return;
   }
@@ -410,17 +412,20 @@ void MainWindow::Impl::ApplyViewVisibility() {
   LayoutControls(rect.right, rect.bottom);
 }
 
-void MainWindow::Impl::ApplyTabSelection(int index) {
+void MainWindow::Impl::ApplyTabSelection(
+    int index
+) {
   if (index < 0 || static_cast<size_t>(index) >= tabs_.size()) {
     return;
   }
   const TabEntry& entry = tabs_[static_cast<size_t>(index)];
   if (entry.kind == TabEntry::Kind::kRegistry) {
     switch (entry.registry_mode) {
-    case RegistryMode::kLocal: {
-      SwitchToLocalRegistry();
-      break;
-    }
+    case RegistryMode::kLocal:
+      {
+        SwitchToLocalRegistry();
+        break;
+      }
     case RegistryMode::kOffline:
       if (!entry.offline_path.empty()) {
         LoadOfflineRegistryFromPath(entry.offline_path, false);
@@ -517,7 +522,10 @@ void MainWindow::Impl::EnsureHiveListLoaded() {
   }
 }
 
-std::wstring MainWindow::Impl::LookupHivePath(const RegistryNode& node, bool* is_root) {
+std::wstring MainWindow::Impl::LookupHivePath(
+    const RegistryNode& node,
+    bool* is_root
+) {
   if (is_root) {
     *is_root = false;
   }
@@ -576,7 +584,11 @@ std::wstring MainWindow::Impl::LookupHivePath(const RegistryNode& node, bool* is
   return best_path;
 }
 
-int MainWindow::Impl::KeyIconIndex(const RegistryNode& node, bool* is_link, bool* is_hive_root) {
+int MainWindow::Impl::KeyIconIndex(
+    const RegistryNode& node,
+    bool* is_link,
+    bool* is_hive_root
+) {
   if (is_link) {
     *is_link = false;
   }
@@ -609,7 +621,9 @@ int MainWindow::Impl::KeyIconIndex(const RegistryNode& node, bool* is_link, bool
   return kFolderIconIndex;
 }
 
-std::wstring MainWindow::Impl::ResolveIconDir(bool use_light) const {
+std::wstring MainWindow::Impl::ResolveIconDir(
+    bool use_light
+) const {
   if (IsIconSetName(icon_set_, kIconSetPhosphor)) {
     return L"";
   }
@@ -636,7 +650,9 @@ std::wstring MainWindow::Impl::ResolveIconDir(bool use_light) const {
   return IsDirectoryPath(dir) ? dir : L"";
 }
 
-std::wstring MainWindow::Impl::ResolveIconPath(const wchar_t* filename) const {
+std::wstring MainWindow::Impl::ResolveIconPath(
+    const wchar_t* filename
+) const {
   if (!filename || !*filename || icon_dir_.empty()) {
     return L"";
   }
@@ -664,8 +680,7 @@ void MainWindow::Impl::ApplyGridToolbarIcons() {
   }
   const UINT dpi = win32::DpiForWindow(reference);
   const int size = util::ScaleForDpi(kToolbarGlyphSize, dpi);
-  HICON icon = LoadThemeIcon(L"grid.ico", IDI_ICON_LIGHT_GRID, IDI_ICON_DARK_GRID,
-                             kToolbarGlyphSize, dpi);
+  HICON icon = LoadThemeIcon(L"grid.ico", IDI_ICON_LIGHT_GRID, IDI_ICON_DARK_GRID, kToolbarGlyphSize, dpi);
   HIMAGELIST images = ImageList_Create(size, size, ILC_COLOR32, 1, 1);
   if (!images) {
     if (icon) {
@@ -690,7 +705,9 @@ void MainWindow::Impl::ApplyGridToolbarIcons() {
   value_grid_image_list_ = images;
 }
 
-void MainWindow::Impl::ApplyGridToolbarTheme(HWND toolbar) {
+void MainWindow::Impl::ApplyGridToolbarTheme(
+    HWND toolbar
+) {
   if (!toolbar) {
     return;
   }
@@ -699,12 +716,13 @@ void MainWindow::Impl::ApplyGridToolbarTheme(HWND toolbar) {
       reinterpret_cast<HWND>(SendMessageW(toolbar, TB_GETTOOLTIPS, 0, 0));
   if (tooltip) {
     AllowDarkModeForWindow(tooltip, Theme::UseDarkMode());
-    SetWindowTheme(tooltip, Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer",
-                   nullptr);
+    SetWindowTheme(tooltip, Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer", nullptr);
   }
 }
 
-int MainWindow::Impl::ValueGridToggleWidth(HWND header) const {
+int MainWindow::Impl::ValueGridToggleWidth(
+    HWND header
+) const {
   RECT client = {};
   if (!header || !GetClientRect(header, &client)) {
     return 0;
@@ -713,7 +731,10 @@ int MainWindow::Impl::ValueGridToggleWidth(HWND header) const {
   return std::min<int>(client.right - client.left, width);
 }
 
-void MainWindow::Impl::LayoutGridToolbar(HWND list, HWND toolbar) {
+void MainWindow::Impl::LayoutGridToolbar(
+    HWND list,
+    HWND toolbar
+) {
   HWND header = list ? ListView_GetHeader(list) : nullptr;
   if (!toolbar || !header || !IsWindowVisible(list)) {
     if (toolbar) {
@@ -736,8 +757,7 @@ void MainWindow::Impl::LayoutGridToolbar(HWND list, HWND toolbar) {
     return;
   }
   SendMessageW(toolbar, TB_SETBUTTONSIZE, 0, MAKELPARAM(width, height));
-  SetWindowPos(toolbar, HWND_TOP, left, header_rect.top, width, height,
-               SWP_NOACTIVATE | SWP_SHOWWINDOW);
+  SetWindowPos(toolbar, HWND_TOP, left, header_rect.top, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
 }
 
 void MainWindow::Impl::LayoutValueGridToolbar() {
@@ -746,13 +766,14 @@ void MainWindow::Impl::LayoutValueGridToolbar() {
 }
 
 void MainWindow::Impl::EnsureValueGridToolbar() {
-  EnsureGridToolbar(browse_.values().hwnd(), &value_grid_toolbar_,
-                    kValueGridButtonId);
-  EnsureGridToolbar(search_results_list_, &search_grid_toolbar_,
-                    kSearchGridButtonId);
+  EnsureGridToolbar(browse_.values().hwnd(), &value_grid_toolbar_, kValueGridButtonId);
+  EnsureGridToolbar(search_results_list_, &search_grid_toolbar_, kSearchGridButtonId);
 }
 
-void MainWindow::Impl::SetValueGridEnabled(bool enabled, bool persist) {
+void MainWindow::Impl::SetValueGridEnabled(
+    bool enabled,
+    bool persist
+) {
   show_value_grid_ = enabled;
   for (HWND list : {browse_.values().hwnd(), search_results_list_}) {
     if (list) {
@@ -760,20 +781,21 @@ void MainWindow::Impl::SetValueGridEnabled(bool enabled, bool persist) {
     }
   }
   if (value_grid_toolbar_) {
-    SendMessageW(value_grid_toolbar_, TB_CHECKBUTTON, kValueGridButtonId,
-                 MAKELPARAM(enabled ? TRUE : FALSE, 0));
+    SendMessageW(value_grid_toolbar_, TB_CHECKBUTTON, kValueGridButtonId, MAKELPARAM(enabled ? TRUE : FALSE, 0));
   }
   if (search_grid_toolbar_) {
-    SendMessageW(search_grid_toolbar_, TB_CHECKBUTTON, kSearchGridButtonId,
-                 MAKELPARAM(enabled ? TRUE : FALSE, 0));
+    SendMessageW(search_grid_toolbar_, TB_CHECKBUTTON, kSearchGridButtonId, MAKELPARAM(enabled ? TRUE : FALSE, 0));
   }
   if (persist) {
     SaveSettings();
   }
 }
 
-void MainWindow::Impl::EnsureGridToolbar(HWND list, HWND* toolbar_slot,
-                                         int command_id) {
+void MainWindow::Impl::EnsureGridToolbar(
+    HWND list,
+    HWND* toolbar_slot,
+    int command_id
+) {
   HWND header = list ? ListView_GetHeader(list) : nullptr;
   if (!header || !toolbar_slot) {
     return;
@@ -784,11 +806,20 @@ void MainWindow::Impl::EnsureGridToolbar(HWND list, HWND* toolbar_slot,
     return;
   }
   toolbar = CreateWindowExW(
-      0, TOOLBARCLASSNAMEW, L"Value-list grid",
+      0,
+      TOOLBARCLASSNAMEW,
+      L"Value-list grid",
       WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TBSTYLE_FLAT | TBSTYLE_TOOLTIPS |
           CCS_NODIVIDER | CCS_NOPARENTALIGN | CCS_NORESIZE,
-      0, 0, 0, 0, hwnd_,
-      reinterpret_cast<HMENU>(static_cast<INT_PTR>(command_id)), instance_, nullptr);
+      0,
+      0,
+      0,
+      0,
+      hwnd_,
+      reinterpret_cast<HMENU>(static_cast<INT_PTR>(command_id)),
+      instance_,
+      nullptr
+  );
   if (!toolbar) {
     return;
   }
@@ -796,8 +827,7 @@ void MainWindow::Impl::EnsureGridToolbar(HWND list, HWND* toolbar_slot,
   SendMessageW(toolbar, TB_SETMAXTEXTROWS, 0, 0);
   SendMessageW(toolbar, TB_SETEXTENDEDSTYLE, 0, TBSTYLE_EX_DOUBLEBUFFER);
   ApplyGridToolbarIcons();
-  const LRESULT string_index = SendMessageW(toolbar, TB_ADDSTRINGW, 0,
-                                            reinterpret_cast<LPARAM>(L"Grid lines"));
+  const LRESULT string_index = SendMessageW(toolbar, TB_ADDSTRINGW, 0, reinterpret_cast<LPARAM>(L"Grid lines"));
   TBBUTTON button = {};
   button.iBitmap = 0;
   button.idCommand = command_id;
@@ -806,12 +836,17 @@ void MainWindow::Impl::EnsureGridToolbar(HWND list, HWND* toolbar_slot,
   button.iString = static_cast<INT_PTR>(string_index);
   SendMessageW(toolbar, TB_ADDBUTTONSW, 1, reinterpret_cast<LPARAM>(&button));
   ApplyGridToolbarTheme(toolbar);
-  SendMessageW(toolbar, TB_CHECKBUTTON, command_id,
-               MAKELPARAM(show_value_grid_ ? TRUE : FALSE, 0));
+  SendMessageW(toolbar, TB_CHECKBUTTON, command_id, MAKELPARAM(show_value_grid_ ? TRUE : FALSE, 0));
   LayoutGridToolbar(list, toolbar);
 }
 
-HICON MainWindow::Impl::LoadThemeIcon(const wchar_t* filename, int light_id, int dark_id, int size, UINT dpi) const {
+HICON MainWindow::Impl::LoadThemeIcon(
+    const wchar_t* filename,
+    int light_id,
+    int dark_id,
+    int size,
+    UINT dpi
+) const {
   std::wstring path = ResolveIconPath(filename);
   HICON icon = nullptr;
   if (!path.empty()) {
@@ -823,7 +858,12 @@ HICON MainWindow::Impl::LoadThemeIcon(const wchar_t* filename, int light_id, int
   return icon;
 }
 
-ToolbarIcon MainWindow::Impl::MakeToolbarIcon(const wchar_t* filename, int light_id, int dark_id, bool use_light) const {
+ToolbarIcon MainWindow::Impl::MakeToolbarIcon(
+    const wchar_t* filename,
+    int light_id,
+    int dark_id,
+    bool use_light
+) const {
   ToolbarIcon icon;
   icon.resource_id = use_light ? light_id : dark_id;
   icon.path = ResolveIconPath(filename);
@@ -864,7 +904,9 @@ void MainWindow::Impl::ReloadThemeIcons() {
           MakeToolbarIcon(L"forward.ico", IDI_ICON_LIGHT_FORWARD, IDI_ICON_DARK_FORWARD, use_light),
           MakeToolbarIcon(L"up.ico", IDI_ICON_LIGHT_UP, IDI_ICON_DARK_UP, use_light),
       },
-      kToolbarIconSize, kToolbarGlyphSize);
+      kToolbarIconSize,
+      kToolbarGlyphSize
+  );
 
   BuildImageLists();
   if (browse_.tree().hwnd()) {
@@ -907,7 +949,10 @@ void MainWindow::Impl::ReloadThemeIcons() {
   }
 }
 
-void MainWindow::Impl::LayoutControls(int width, int height) {
+void MainWindow::Impl::LayoutControls(
+    int width,
+    int height
+) {
   if (width <= 0 || height <= 0) {
     return;
   }
@@ -1056,12 +1101,8 @@ void MainWindow::Impl::LayoutControls(int width, int height) {
   if (show_history) {
     int history_width = content_right - content_left;
     place(history_label_, content_left, history_top, history_width, history_label_height);
-    place(history_close_btn_, content_left + history_width - close_inset - close_size,
-          history_top + (history_label_height - close_size) / 2, close_size, close_size);
-    place(history_list_, content_left,
-          history_top + history_label_height - kPanelBorderOverlap,
-          history_width,
-          history_height - history_label_height + kPanelBorderOverlap);
+    place(history_close_btn_, content_left + history_width - close_inset - close_size, history_top + (history_label_height - close_size) / 2, close_size, close_size);
+    place(history_list_, content_left, history_top + history_label_height - kPanelBorderOverlap, history_width, history_height - history_label_height + kPanelBorderOverlap);
   }
 
   int splitter_bottom = show_history ? (history_top - history_gap) : history_top;
@@ -1087,11 +1128,8 @@ void MainWindow::Impl::LayoutControls(int width, int height) {
   int tree_content_height = std::max(0, content_height - (show_tree ? tree_header_height : 0));
   if (show_tree) {
     place(tree_header_, content_left, y, tree_width, tree_header_height);
-    place(tree_close_btn_, content_left + tree_width - close_inset - close_size,
-          y + (tree_header_height - close_size) / 2, close_size, close_size);
-    place(browse_.tree().hwnd(), content_left,
-          y + tree_header_height - kPanelBorderOverlap,
-          tree_width, tree_content_height + kPanelBorderOverlap);
+    place(tree_close_btn_, content_left + tree_width - close_inset - close_size, y + (tree_header_height - close_size) / 2, close_size, close_size);
+    place(browse_.tree().hwnd(), content_left, y + tree_header_height - kPanelBorderOverlap, tree_width, tree_content_height + kPanelBorderOverlap);
     splitter_rect_.left = content_left + tree_width;
     splitter_rect_.right = splitter_rect_.left + splitter_width;
     splitter_rect_.top = y;
@@ -1108,8 +1146,7 @@ void MainWindow::Impl::LayoutControls(int width, int height) {
 
   UpdateStatus();
   if (!dragging_splitter) {
-    RedrawWindow(hwnd_, nullptr, nullptr,
-                 RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_ERASE | RDW_UPDATENOW);
+    RedrawWindow(hwnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_ERASE | RDW_UPDATENOW);
   }
   drag_layout_valid_ = false;
 }

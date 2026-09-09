@@ -13,43 +13,78 @@ namespace {
 
 constexpr DWORD kTypeSelectTimeoutMs = 1000;
 
-bool EqualsInsensitive(const std::wstring& left,
-                       const std::wstring& right) {
+bool EqualsInsensitive(
+    const std::wstring& left,
+    const std::wstring& right
+) {
   return _wcsicmp(left.c_str(), right.c_str()) == 0;
 }
 
-bool StartsWithInsensitive(const std::wstring& text,
-                           const std::wstring& prefix) {
+bool StartsWithInsensitive(
+    const std::wstring& text,
+    const std::wstring& prefix
+) {
   return prefix.size() <= text.size() &&
          _wcsnicmp(text.c_str(), prefix.c_str(), prefix.size()) == 0;
 }
 
-int CompareInsensitive(const std::wstring& left,
-                       const std::wstring& right) {
+int CompareInsensitive(
+    const std::wstring& left,
+    const std::wstring& right
+) {
   return _wcsicmp(left.c_str(), right.c_str());
 }
 
 } // namespace
 
-bool Pane::Create(const CreateRequest& request) {
+bool Pane::Create(
+    const CreateRequest& request
+) {
   if (!request.parent || !request.instance) {
     return false;
   }
   address_ = CreateWindowExW(
-      0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
-      0, 0, 0, 0, request.parent,
+      0,
+      L"EDIT",
+      L"",
+      WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
+      0,
+      0,
+      0,
+      0,
+      request.parent,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.address_id)),
-      request.instance, nullptr);
+      request.instance,
+      nullptr
+  );
   go_button_ = CreateWindowExW(
-      0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0,
-      0, request.parent,
+      0,
+      L"BUTTON",
+      L"",
+      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+      0,
+      0,
+      0,
+      0,
+      request.parent,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.go_id)),
-      request.instance, nullptr);
+      request.instance,
+      nullptr
+  );
   filter_ = CreateWindowExW(
-      0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
-      0, 0, 0, 0, request.parent,
+      0,
+      L"EDIT",
+      L"",
+      WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
+      0,
+      0,
+      0,
+      0,
+      request.parent,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.filter_id)),
-      request.instance, nullptr);
+      request.instance,
+      nullptr
+  );
   tree_.Create(request.parent, request.instance, request.tree_id, false, true);
   values_.Create(request.parent, request.instance, request.values_id);
   if (!address_ || !go_button_ || !filter_ || !tree_.hwnd() ||
@@ -58,51 +93,69 @@ bool Pane::Create(const CreateRequest& request) {
   }
 
   if (request.address_proc &&
-      !SetWindowSubclass(address_, request.address_proc,
-                         request.address_subclass_id,
-                         request.callback_context)) {
+      !SetWindowSubclass(address_, request.address_proc, request.address_subclass_id, request.callback_context)) {
     return false;
   }
   if (request.filter_proc &&
-      !SetWindowSubclass(filter_, request.filter_proc,
-                         request.filter_subclass_id,
-                         request.callback_context)) {
+      !SetWindowSubclass(filter_, request.filter_proc, request.filter_subclass_id, request.callback_context)) {
     return false;
   }
   if (request.tree_proc &&
-      !SetWindowSubclass(tree_.hwnd(), request.tree_proc,
-                         request.tree_subclass_id,
-                         request.callback_context)) {
+      !SetWindowSubclass(tree_.hwnd(), request.tree_proc, request.tree_subclass_id, request.callback_context)) {
     return false;
   }
   if (request.values_proc &&
-      !SetWindowSubclass(values_.hwnd(), request.values_proc,
-                         request.values_subclass_id,
-                         request.callback_context)) {
+      !SetWindowSubclass(values_.hwnd(), request.values_proc, request.values_subclass_id, request.callback_context)) {
     return false;
   }
   return true;
 }
 
-HWND Pane::address() const noexcept { return address_; }
-HWND Pane::go_button() const noexcept { return go_button_; }
-HWND Pane::filter() const noexcept { return filter_; }
-RegistryTree& Pane::tree() noexcept { return tree_; }
-const RegistryTree& Pane::tree() const noexcept { return tree_; }
-ValueList& Pane::values() noexcept { return values_; }
-const ValueList& Pane::values() const noexcept { return values_; }
-RegistryNode* Pane::current_node() const noexcept { return current_node_; }
-void Pane::set_current_node(RegistryNode* node) noexcept {
+HWND Pane::address() const noexcept {
+  return address_;
+}
+HWND Pane::go_button() const noexcept {
+  return go_button_;
+}
+HWND Pane::filter() const noexcept {
+  return filter_;
+}
+RegistryTree& Pane::tree() noexcept {
+  return tree_;
+}
+const RegistryTree& Pane::tree() const noexcept {
+  return tree_;
+}
+ValueList& Pane::values() noexcept {
+  return values_;
+}
+const ValueList& Pane::values() const noexcept {
+  return values_;
+}
+RegistryNode* Pane::current_node() const noexcept {
+  return current_node_;
+}
+void Pane::set_current_node(
+    RegistryNode* node
+) noexcept {
   current_node_ = node;
 }
-std::vector<RegistryRootEntry>& Pane::roots() noexcept { return roots_; }
+std::vector<RegistryRootEntry>& Pane::roots() noexcept {
+  return roots_;
+}
 const std::vector<RegistryRootEntry>& Pane::roots() const noexcept {
   return roots_;
 }
-ColumnState& Pane::columns() noexcept { return columns_; }
-const ColumnState& Pane::columns() const noexcept { return columns_; }
+ColumnState& Pane::columns() noexcept {
+  return columns_;
+}
+const ColumnState& Pane::columns() const noexcept {
+  return columns_;
+}
 
-bool Pane::RecordNavigation(const std::wstring& path) {
+bool Pane::RecordNavigation(
+    const std::wstring& path
+) {
   if (path.empty()) {
     return false;
   }
@@ -119,7 +172,8 @@ bool Pane::RecordNavigation(const std::wstring& path) {
       static_cast<int>(navigation_history_.size())) {
     navigation_history_.erase(
         navigation_history_.begin() + navigation_index_ + 1,
-        navigation_history_.end());
+        navigation_history_.end()
+    );
   }
   navigation_history_.push_back(path);
   navigation_index_ = static_cast<int>(navigation_history_.size()) - 1;
@@ -158,7 +212,9 @@ std::optional<std::wstring> Pane::Up() {
   return path.substr(0, separator);
 }
 
-void Pane::UndoNavigation(int delta) {
+void Pane::UndoNavigation(
+    int delta
+) {
   navigation_index_ += delta;
   if (navigation_index_ < -1) {
     navigation_index_ = -1;
@@ -181,7 +237,9 @@ void Pane::ResetNavigation() {
   programmatic_navigation_ = false;
 }
 
-bool Pane::SelectValue(const std::wstring& name) {
+bool Pane::SelectValue(
+    const std::wstring& name
+) {
   if (!values_.hwnd()) {
     return false;
   }
@@ -190,19 +248,20 @@ bool Pane::SelectValue(const std::wstring& name) {
     if (!row || row->kind != rowkind::kValue || row->extra != name) {
       continue;
     }
-    ListView_SetItemState(values_.hwnd(), -1, 0,
-                          LVIS_SELECTED | LVIS_FOCUSED);
-    ListView_SetItemState(values_.hwnd(), static_cast<int>(index),
-                          LVIS_SELECTED | LVIS_FOCUSED,
-                          LVIS_SELECTED | LVIS_FOCUSED);
+    ListView_SetItemState(values_.hwnd(), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+    ListView_SetItemState(values_.hwnd(), static_cast<int>(index), LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
     ListView_EnsureVisible(values_.hwnd(), static_cast<int>(index), FALSE);
     return true;
   }
   return false;
 }
 
-void Pane::UpdateTypeBuffer(wchar_t ch, DWORD now, std::wstring* buffer,
-                            DWORD* tick) {
+void Pane::UpdateTypeBuffer(
+    wchar_t ch,
+    DWORD now,
+    std::wstring* buffer,
+    DWORD* tick
+) {
   if (!buffer || !tick) {
     return;
   }
@@ -219,7 +278,10 @@ void Pane::UpdateTypeBuffer(wchar_t ch, DWORD now, std::wstring* buffer,
   }
 }
 
-void Pane::TypeSelectValues(wchar_t ch, DWORD now) {
+void Pane::TypeSelectValues(
+    wchar_t ch,
+    DWORD now
+) {
   if (!values_.hwnd()) {
     return;
   }
@@ -250,15 +312,15 @@ void Pane::TypeSelectValues(wchar_t ch, DWORD now) {
   if (match < 0) {
     match = static_cast<int>(values_.RowCount() - 1);
   }
-  ListView_SetItemState(values_.hwnd(), -1, 0,
-                        LVIS_SELECTED | LVIS_FOCUSED);
-  ListView_SetItemState(values_.hwnd(), match,
-                        LVIS_SELECTED | LVIS_FOCUSED,
-                        LVIS_SELECTED | LVIS_FOCUSED);
+  ListView_SetItemState(values_.hwnd(), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+  ListView_SetItemState(values_.hwnd(), match, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
   ListView_EnsureVisible(values_.hwnd(), match, FALSE);
 }
 
-void Pane::TypeSelectTree(wchar_t ch, DWORD now) {
+void Pane::TypeSelectTree(
+    wchar_t ch,
+    DWORD now
+) {
   if (!tree_.hwnd()) {
     return;
   }
@@ -322,10 +384,8 @@ void Pane::TypeSelectTree(wchar_t ch, DWORD now) {
         const HTREEITEM item = items[(start + offset) % items.size()];
         const std::wstring item_text = text(item);
         const bool matched = exact
-                                 ? EqualsInsensitive(item_text,
-                                                     tree_type_buffer_)
-                                 : StartsWithInsensitive(item_text,
-                                                         tree_type_buffer_);
+                                 ? EqualsInsensitive(item_text, tree_type_buffer_)
+                                 : StartsWithInsensitive(item_text, tree_type_buffer_);
         if (matched) {
           return item;
         }
@@ -357,10 +417,11 @@ void Pane::TypeSelectTree(wchar_t ch, DWORD now) {
   }
 }
 
-void Pane::set_tree_type_select_descend(bool descend) noexcept {
+void Pane::set_tree_type_select_descend(
+    bool descend
+) noexcept {
   tree_type_buffer_.clear();
   tree_type_select_descend_ = descend;
 }
-
 
 } // namespace regkit::browse

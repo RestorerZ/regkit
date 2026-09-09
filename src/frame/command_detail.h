@@ -78,7 +78,9 @@ inline HMENU BuildCopyKeyPathMenu() {
 }
 constexpr wchar_t kOneKeyPerLineText[] = L"Each line should include one key.";
 
-inline std::vector<std::wstring> SplitLines(const std::wstring& text) {
+inline std::vector<std::wstring> SplitLines(
+    const std::wstring& text
+) {
   std::vector<std::wstring> lines;
   std::wstring current;
   for (wchar_t ch : text) {
@@ -104,7 +106,9 @@ inline std::vector<std::wstring> SplitLines(const std::wstring& text) {
   return lines;
 }
 
-inline std::wstring JoinLines(const std::vector<std::wstring>& lines) {
+inline std::wstring JoinLines(
+    const std::vector<std::wstring>& lines
+) {
   std::wstring out;
   for (size_t i = 0; i < lines.size(); ++i) {
     if (lines[i].empty()) {
@@ -118,7 +122,10 @@ inline std::wstring JoinLines(const std::vector<std::wstring>& lines) {
   return out;
 }
 
-inline const ListRow* SelectedValueRow(const ValueList& list, int* out_index) {
+inline const ListRow* SelectedValueRow(
+    const ValueList& list,
+    int* out_index
+) {
   if (!list.hwnd()) {
     return nullptr;
   }
@@ -132,7 +139,9 @@ inline const ListRow* SelectedValueRow(const ValueList& list, int* out_index) {
   return list.RowAt(index);
 }
 
-inline std::vector<ListRow> SelectedListRows(const ValueList& list) {
+inline std::vector<ListRow> SelectedListRows(
+    const ValueList& list
+) {
   std::vector<ListRow> rows;
   if (!list.hwnd()) {
     return rows;
@@ -148,7 +157,11 @@ inline std::vector<ListRow> SelectedListRows(const ValueList& list) {
   return rows;
 }
 
-inline bool GetValueEntry(const RegistryNode& node, const std::wstring& name, ValueEntry* out) {
+inline bool GetValueEntry(
+    const RegistryNode& node,
+    const std::wstring& name,
+    ValueEntry* out
+) {
   if (RegistryStore::QueryValue(node, name, out)) {
     return true;
   }
@@ -161,7 +174,10 @@ inline bool GetValueEntry(const RegistryNode& node, const std::wstring& name, Va
   return false;
 }
 
-inline bool SelectValueByName(ValueList& list, const std::wstring& name) {
+inline bool SelectValueByName(
+    ValueList& list,
+    const std::wstring& name
+) {
   for (size_t i = 0; i < list.RowCount(); ++i) {
     const ListRow* row = list.RowAt(static_cast<int>(i));
     if (!row || row->kind != rowkind::kValue) {
@@ -176,15 +192,28 @@ inline bool SelectValueByName(ValueList& list, const std::wstring& name) {
   return false;
 }
 
-inline bool PromptOpenFilePath(HWND owner, const wchar_t* filter, std::wstring* path) {
+inline bool PromptOpenFilePath(
+    HWND owner,
+    const wchar_t* filter,
+    std::wstring* path
+) {
   return ui::ReportFileDialogResult(owner, win32::ChooseFileToOpen(owner, filter, path));
 }
 
-inline bool PromptSaveFilePath(HWND owner, const wchar_t* filter, std::wstring* path) {
+inline bool PromptSaveFilePath(
+    HWND owner,
+    const wchar_t* filter,
+    std::wstring* path
+) {
   return ui::ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, filter, nullptr, nullptr, path));
 }
 
-inline bool GetListViewColumnInfo(HWND list, int display_index, int* subitem, int* width) {
+inline bool GetListViewColumnInfo(
+    HWND list,
+    int display_index,
+    int* subitem,
+    int* width
+) {
   if (subitem) {
     *subitem = -1;
   }
@@ -208,7 +237,9 @@ inline bool GetListViewColumnInfo(HWND list, int display_index, int* subitem, in
   return true;
 }
 
-inline std::wstring BuildSelectedListViewText(HWND list) {
+inline std::wstring BuildSelectedListViewText(
+    HWND list
+) {
   if (!list) {
     return L"";
   }
@@ -261,7 +292,9 @@ enum class CompareSourceType {
   kNetwork = 3,
 };
 
-inline const wchar_t* CompareSourceLabel(CompareSourceType type) {
+inline const wchar_t* CompareSourceLabel(
+    CompareSourceType type
+) {
   switch (type) {
   case CompareSourceType::kRegFile:
     return L"Reg File";
@@ -274,7 +307,9 @@ inline const wchar_t* CompareSourceLabel(CompareSourceType type) {
   }
 }
 
-inline CompareSourceType CompareSourceFromIndex(int index) {
+inline CompareSourceType CompareSourceFromIndex(
+    int index
+) {
   switch (index) {
   case 1:
     return CompareSourceType::kRegFile;
@@ -323,7 +358,10 @@ struct EditBorderState {
 
 using GetSystemMetricsForDpiFn = int(WINAPI*)(int, UINT);
 
-inline int GetMetricForDpi(int index, UINT dpi) {
+inline int GetMetricForDpi(
+    int index,
+    UINT dpi
+) {
   static GetSystemMetricsForDpiFn get_for_dpi = []() -> GetSystemMetricsForDpiFn {
     HMODULE user32 = GetModuleHandleW(L"user32.dll");
     if (!user32) {
@@ -338,7 +376,11 @@ inline int GetMetricForDpi(int index, UINT dpi) {
   return MulDiv(value, static_cast<int>(dpi), 96);
 }
 
-inline void UpdateEditBorderMetrics(HWND hwnd, EditBorderState* state, UINT dpi_override = 0) {
+inline void UpdateEditBorderMetrics(
+    HWND hwnd,
+    EditBorderState* state,
+    UINT dpi_override = 0
+) {
   if (!state) {
     return;
   }
@@ -356,87 +398,97 @@ inline void UpdateEditBorderMetrics(HWND hwnd, EditBorderState* state, UINT dpi_
   }
 }
 
-inline LRESULT CALLBACK EditBorderSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR data) {
+inline LRESULT CALLBACK EditBorderSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR data
+) {
   auto* state = reinterpret_cast<EditBorderState*>(data);
   switch (msg) {
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, EditBorderSubclassProc, id);
     delete state;
     break;
-  case WM_NCCALCSIZE: {
-    UpdateEditBorderMetrics(hwnd, state);
-    int x_edge = state ? state->x_edge : 1;
-    int y_edge = state ? state->y_edge : 1;
-    if (wparam) {
-      auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
-      InflateRect(&params->rgrc[0], -x_edge, -y_edge);
+  case WM_NCCALCSIZE:
+    {
+      UpdateEditBorderMetrics(hwnd, state);
+      int x_edge = state ? state->x_edge : 1;
+      int y_edge = state ? state->y_edge : 1;
+      if (wparam) {
+        auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
+        InflateRect(&params->rgrc[0], -x_edge, -y_edge);
+        return 0;
+      }
+      auto* rect = reinterpret_cast<RECT*>(lparam);
+      InflateRect(rect, -x_edge, -y_edge);
       return 0;
     }
-    auto* rect = reinterpret_cast<RECT*>(lparam);
-    InflateRect(rect, -x_edge, -y_edge);
-    return 0;
-  }
-  case WM_NCPAINT: {
-    LRESULT result = DefSubclassProc(hwnd, msg, wparam, lparam);
-    HDC hdc = GetWindowDC(hwnd);
-    if (!hdc) {
-      return result;
-    }
-    UpdateEditBorderMetrics(hwnd, state);
-    RECT rect = {};
-    GetClientRect(hwnd, &rect);
-    if (state) {
-      rect.right += 2 * state->x_edge;
-      rect.bottom += 2 * state->y_edge;
-      LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-      if ((style & WS_VSCROLL) == WS_VSCROLL) {
-        rect.right += state->x_scroll;
+  case WM_NCPAINT:
+    {
+      LRESULT result = DefSubclassProc(hwnd, msg, wparam, lparam);
+      HDC hdc = GetWindowDC(hwnd);
+      if (!hdc) {
+        return result;
       }
-      if ((style & WS_HSCROLL) == WS_HSCROLL) {
-        rect.bottom += state->y_scroll;
+      UpdateEditBorderMetrics(hwnd, state);
+      RECT rect = {};
+      GetClientRect(hwnd, &rect);
+      if (state) {
+        rect.right += 2 * state->x_edge;
+        rect.bottom += 2 * state->y_edge;
+        LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+        if ((style & WS_VSCROLL) == WS_VSCROLL) {
+          rect.right += state->x_scroll;
+        }
+        if ((style & WS_HSCROLL) == WS_HSCROLL) {
+          rect.bottom += state->y_scroll;
+        }
       }
-    }
 
-    const Theme& theme = Theme::Current();
-    RECT inner = rect;
-    InflateRect(&inner, -1, -1);
-    HPEN inner_pen = appearance::CachedPen(theme.BackgroundColor(), 1);
-    HGDIOBJ old_pen = SelectObject(hdc, inner_pen);
-    HGDIOBJ old_brush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
-    Rectangle(hdc, inner.left, inner.top, inner.right, inner.bottom);
-    SelectObject(hdc, old_brush);
-    SelectObject(hdc, old_pen);
+      const Theme& theme = Theme::Current();
+      RECT inner = rect;
+      InflateRect(&inner, -1, -1);
+      HPEN inner_pen = appearance::CachedPen(theme.BackgroundColor(), 1);
+      HGDIOBJ old_pen = SelectObject(hdc, inner_pen);
+      HGDIOBJ old_brush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
+      Rectangle(hdc, inner.left, inner.top, inner.right, inner.bottom);
+      SelectObject(hdc, old_brush);
+      SelectObject(hdc, old_pen);
 
-    bool enabled = IsWindowEnabled(hwnd) != FALSE;
-    COLORREF border = theme.BorderColor();
-    if (enabled) {
-      if (GetFocus() == hwnd) {
-        border = theme.FocusColor();
-      } else if (state && state->hot) {
-        border = theme.HoverColor();
+      bool enabled = IsWindowEnabled(hwnd) != FALSE;
+      COLORREF border = theme.BorderColor();
+      if (enabled) {
+        if (GetFocus() == hwnd) {
+          border = theme.FocusColor();
+        } else if (state && state->hot) {
+          border = theme.HoverColor();
+        }
       }
+      HPEN pen = appearance::CachedPen(border, 1);
+      old_pen = SelectObject(hdc, pen);
+      old_brush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
+      Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
+      SelectObject(hdc, old_brush);
+      SelectObject(hdc, old_pen);
+      ReleaseDC(hwnd, hdc);
+      return 0;
     }
-    HPEN pen = appearance::CachedPen(border, 1);
-    old_pen = SelectObject(hdc, pen);
-    old_brush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
-    Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
-    SelectObject(hdc, old_brush);
-    SelectObject(hdc, old_pen);
-    ReleaseDC(hwnd, hdc);
-    return 0;
-  }
-  case WM_MOUSEMOVE: {
-    if (state && !state->hot) {
-      state->hot = true;
-      TRACKMOUSEEVENT tme = {};
-      tme.cbSize = sizeof(tme);
-      tme.dwFlags = TME_LEAVE;
-      tme.hwndTrack = hwnd;
-      TrackMouseEvent(&tme);
-      SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+  case WM_MOUSEMOVE:
+    {
+      if (state && !state->hot) {
+        state->hot = true;
+        TRACKMOUSEEVENT tme = {};
+        tme.cbSize = sizeof(tme);
+        tme.dwFlags = TME_LEAVE;
+        tme.hwndTrack = hwnd;
+        TrackMouseEvent(&tme);
+        SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+      }
+      break;
     }
-    break;
-  }
   case WM_MOUSELEAVE:
     if (state && state->hot) {
       state->hot = false;
@@ -459,7 +511,10 @@ inline LRESULT CALLBACK EditBorderSubclassProc(HWND hwnd, UINT msg, WPARAM wpara
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-inline void ApplyEditCustomBorder(HWND parent, int id) {
+inline void ApplyEditCustomBorder(
+    HWND parent,
+    int id
+) {
   HWND ctrl = GetDlgItem(parent, id);
   if (!ctrl) {
     return;
@@ -484,7 +539,8 @@ inline void ApplyEditCustomBorder(HWND parent, int id) {
 }
 
 inline std::vector<std::wstring> ExtractRegFileKeys(
-    const regfile::Document& data) {
+    const regfile::Document& data
+) {
   std::vector<std::wstring> keys = data.key_order;
   if (keys.empty()) {
     keys.reserve(data.keys.size());
@@ -496,7 +552,10 @@ inline std::vector<std::wstring> ExtractRegFileKeys(
   return keys;
 }
 
-inline void ApplyDialogFonts(HWND hwnd, HFONT font) {
+inline void ApplyDialogFonts(
+    HWND hwnd,
+    HFONT font
+) {
   if (!font) {
     return;
   }
@@ -508,7 +567,8 @@ inline void ApplyDialogFonts(HWND hwnd, HFONT font) {
         SendMessageW(child, WM_SETFONT, reinterpret_cast<WPARAM>(font_handle), TRUE);
         return TRUE;
       },
-      reinterpret_cast<LPARAM>(font));
+      reinterpret_cast<LPARAM>(font)
+  );
 }
 
 inline HFONT CreateDefaultGuiFont() {
@@ -524,7 +584,10 @@ inline HFONT CreateDefaultGuiFont() {
   return font ? font : ui::DefaultUIFont();
 }
 
-inline int ControlHeight(HWND dlg, int id) {
+inline int ControlHeight(
+    HWND dlg,
+    int id
+) {
   HWND ctrl = GetDlgItem(dlg, id);
   if (!ctrl) {
     return 0;
@@ -540,7 +603,11 @@ inline int ControlHeight(HWND dlg, int id) {
   return height;
 }
 
-inline void SetComboHeights(HWND dlg, int id, int height) {
+inline void SetComboHeights(
+    HWND dlg,
+    int id,
+    int height
+) {
   HWND ctrl = GetDlgItem(dlg, id);
   if (!ctrl || height <= 0) {
     return;
@@ -564,7 +631,10 @@ inline void SetComboHeights(HWND dlg, int id, int height) {
   SetWindowPos(ctrl, nullptr, pt.x, pt.y, rect.right - rect.left, new_total, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-inline void PopulateCombo(HWND combo, const std::vector<std::wstring>& items) {
+inline void PopulateCombo(
+    HWND combo,
+    const std::vector<std::wstring>& items
+) {
   if (!combo) {
     return;
   }
@@ -574,7 +644,10 @@ inline void PopulateCombo(HWND combo, const std::vector<std::wstring>& items) {
   }
 }
 
-inline void SetComboSelection(HWND combo, const std::wstring& value) {
+inline void SetComboSelection(
+    HWND combo,
+    const std::wstring& value
+) {
   if (!combo) {
     return;
   }
@@ -594,22 +667,35 @@ inline void SetComboSelection(HWND combo, const std::wstring& value) {
   }
 }
 
-inline std::wstring ReadComboText(HWND combo) {
+inline std::wstring ReadComboText(
+    HWND combo
+) {
   return util::WindowText(combo);
 }
 
-inline std::wstring ReadDialogText(HWND dlg, int id) {
+inline std::wstring ReadDialogText(
+    HWND dlg,
+    int id
+) {
   return util::WindowText(GetDlgItem(dlg, id));
 }
 
-inline void SetDialogText(HWND dlg, int id, const std::wstring& text) {
+inline void SetDialogText(
+    HWND dlg,
+    int id,
+    const std::wstring& text
+) {
   HWND ctrl = GetDlgItem(dlg, id);
   if (ctrl) {
     SetWindowTextW(ctrl, text.c_str());
   }
 }
 
-inline void ToggleCompareControls(HWND dlg, bool left, CompareSourceType type) {
+inline void ToggleCompareControls(
+    HWND dlg,
+    bool left,
+    CompareSourceType type
+) {
   int root_id = left ? IDC_COMPARE_LEFT_ROOT : IDC_COMPARE_RIGHT_ROOT;
   int path_id = left ? IDC_COMPARE_LEFT_PATH : IDC_COMPARE_RIGHT_PATH;
   int file_id = left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE;
@@ -626,81 +712,87 @@ inline void ToggleCompareControls(HWND dlg, bool left, CompareSourceType type) {
   SetDialogText(dlg, label_id, network ? L"Computer:" : L"File:");
 }
 
-inline INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam) {
+inline INT_PTR CALLBACK CompareDialogProc(
+    HWND dlg,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* state = reinterpret_cast<CompareDialogState*>(GetWindowLongPtrW(dlg, DWLP_USER));
   switch (msg) {
-  case WM_INITDIALOG: {
-    state = reinterpret_cast<CompareDialogState*>(lparam);
-    SetWindowLongPtrW(dlg, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-    if (!state) {
+  case WM_INITDIALOG:
+    {
+      state = reinterpret_cast<CompareDialogState*>(lparam);
+      SetWindowLongPtrW(dlg, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
+      if (!state) {
+        return TRUE;
+      }
+      state->ui_font = CreateDefaultGuiFont();
+      ApplyDialogFonts(dlg, state->ui_font);
+      Theme::Current().ApplyToWindow(dlg);
+      Theme::Current().ApplyToChildren(dlg);
+      ApplyEditCustomBorder(dlg, IDC_COMPARE_LEFT_PATH);
+      ApplyEditCustomBorder(dlg, IDC_COMPARE_LEFT_FILE);
+      ApplyEditCustomBorder(dlg, IDC_COMPARE_RIGHT_PATH);
+      ApplyEditCustomBorder(dlg, IDC_COMPARE_RIGHT_FILE);
+
+      PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive", L"Network Registry"});
+      PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive", L"Network Registry"});
+      PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_LEFT_ROOT), state->data.registry_roots);
+      PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_RIGHT_ROOT), state->data.registry_roots);
+
+      SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), CompareSourceLabel(state->data.left.type));
+      SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), CompareSourceLabel(state->data.right.type));
+      SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_LEFT_ROOT), state->data.left.root);
+      SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_RIGHT_ROOT), state->data.right.root);
+      SetDialogText(dlg, IDC_COMPARE_LEFT_PATH, state->data.left.path);
+      SetDialogText(dlg, IDC_COMPARE_RIGHT_PATH, state->data.right.path);
+      SetDialogText(dlg, IDC_COMPARE_LEFT_FILE, state->data.left.file_path);
+      SetDialogText(dlg, IDC_COMPARE_RIGHT_FILE, state->data.right.file_path);
+      SetDialogText(dlg, IDC_COMPARE_LEFT_KEY, state->data.left.key_path);
+      SetDialogText(dlg, IDC_COMPARE_RIGHT_KEY, state->data.right.key_path);
+      CheckDlgButton(dlg, IDC_COMPARE_LEFT_RECURSIVE, state->data.left.recursive ? BST_CHECKED : BST_UNCHECKED);
+      CheckDlgButton(dlg, IDC_COMPARE_RIGHT_RECURSIVE, state->data.right.recursive ? BST_CHECKED : BST_UNCHECKED);
+
+      auto populate_file_keys = [&](bool left) {
+        std::wstring file_path = ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE);
+        if (file_path.empty()) {
+          return;
+        }
+        regfile::Document data;
+        std::wstring error;
+        if (!regfile::Load(file_path, &data, &error)) {
+          return;
+        }
+        std::vector<std::wstring> keys = ExtractRegFileKeys(data);
+        HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
+        PopulateCombo(combo, keys);
+        std::wstring current = ReadComboText(combo);
+        if (!current.empty()) {
+          SetComboSelection(combo, current);
+        } else if (!keys.empty()) {
+          SendMessageW(combo, CB_SETCURSEL, 0, 0);
+          SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, keys.front());
+        }
+      };
+      populate_file_keys(true);
+      populate_file_keys(false);
+
+      int edit_height = ControlHeight(dlg, IDC_COMPARE_LEFT_PATH);
+      if (edit_height > 0) {
+        SetComboHeights(dlg, IDC_COMPARE_LEFT_SOURCE, edit_height);
+        SetComboHeights(dlg, IDC_COMPARE_LEFT_ROOT, edit_height);
+        SetComboHeights(dlg, IDC_COMPARE_LEFT_KEY, edit_height);
+        SetComboHeights(dlg, IDC_COMPARE_RIGHT_SOURCE, edit_height);
+        SetComboHeights(dlg, IDC_COMPARE_RIGHT_ROOT, edit_height);
+        SetComboHeights(dlg, IDC_COMPARE_RIGHT_KEY, edit_height);
+      }
+
+      ToggleCompareControls(dlg, true, state->data.left.type);
+      ToggleCompareControls(dlg, false, state->data.right.type);
+      appearance::CenterWindow(dlg, GetWindow(dlg, GW_OWNER));
       return TRUE;
     }
-    state->ui_font = CreateDefaultGuiFont();
-    ApplyDialogFonts(dlg, state->ui_font);
-    Theme::Current().ApplyToWindow(dlg);
-    Theme::Current().ApplyToChildren(dlg);
-    ApplyEditCustomBorder(dlg, IDC_COMPARE_LEFT_PATH);
-    ApplyEditCustomBorder(dlg, IDC_COMPARE_LEFT_FILE);
-    ApplyEditCustomBorder(dlg, IDC_COMPARE_RIGHT_PATH);
-    ApplyEditCustomBorder(dlg, IDC_COMPARE_RIGHT_FILE);
-
-    PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive", L"Network Registry"});
-    PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive", L"Network Registry"});
-    PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_LEFT_ROOT), state->data.registry_roots);
-    PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_RIGHT_ROOT), state->data.registry_roots);
-
-    SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), CompareSourceLabel(state->data.left.type));
-    SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), CompareSourceLabel(state->data.right.type));
-    SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_LEFT_ROOT), state->data.left.root);
-    SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_RIGHT_ROOT), state->data.right.root);
-    SetDialogText(dlg, IDC_COMPARE_LEFT_PATH, state->data.left.path);
-    SetDialogText(dlg, IDC_COMPARE_RIGHT_PATH, state->data.right.path);
-    SetDialogText(dlg, IDC_COMPARE_LEFT_FILE, state->data.left.file_path);
-    SetDialogText(dlg, IDC_COMPARE_RIGHT_FILE, state->data.right.file_path);
-    SetDialogText(dlg, IDC_COMPARE_LEFT_KEY, state->data.left.key_path);
-    SetDialogText(dlg, IDC_COMPARE_RIGHT_KEY, state->data.right.key_path);
-    CheckDlgButton(dlg, IDC_COMPARE_LEFT_RECURSIVE, state->data.left.recursive ? BST_CHECKED : BST_UNCHECKED);
-    CheckDlgButton(dlg, IDC_COMPARE_RIGHT_RECURSIVE, state->data.right.recursive ? BST_CHECKED : BST_UNCHECKED);
-
-    auto populate_file_keys = [&](bool left) {
-      std::wstring file_path = ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE);
-      if (file_path.empty()) {
-        return;
-      }
-      regfile::Document data;
-      std::wstring error;
-      if (!regfile::Load(file_path, &data, &error)) {
-        return;
-      }
-      std::vector<std::wstring> keys = ExtractRegFileKeys(data);
-      HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
-      PopulateCombo(combo, keys);
-      std::wstring current = ReadComboText(combo);
-      if (!current.empty()) {
-        SetComboSelection(combo, current);
-      } else if (!keys.empty()) {
-        SendMessageW(combo, CB_SETCURSEL, 0, 0);
-        SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, keys.front());
-      }
-    };
-    populate_file_keys(true);
-    populate_file_keys(false);
-
-    int edit_height = ControlHeight(dlg, IDC_COMPARE_LEFT_PATH);
-    if (edit_height > 0) {
-      SetComboHeights(dlg, IDC_COMPARE_LEFT_SOURCE, edit_height);
-      SetComboHeights(dlg, IDC_COMPARE_LEFT_ROOT, edit_height);
-      SetComboHeights(dlg, IDC_COMPARE_LEFT_KEY, edit_height);
-      SetComboHeights(dlg, IDC_COMPARE_RIGHT_SOURCE, edit_height);
-      SetComboHeights(dlg, IDC_COMPARE_RIGHT_ROOT, edit_height);
-      SetComboHeights(dlg, IDC_COMPARE_RIGHT_KEY, edit_height);
-    }
-
-    ToggleCompareControls(dlg, true, state->data.left.type);
-    ToggleCompareControls(dlg, false, state->data.right.type);
-    appearance::CenterWindow(dlg, GetWindow(dlg, GW_OWNER));
-    return TRUE;
-  }
   case WM_DESTROY:
     if (state && state->ui_font) {
       DeleteObject(state->ui_font);
@@ -714,182 +806,183 @@ inline INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPA
       InvalidateRect(dlg, nullptr, TRUE);
     }
     return TRUE;
-  case WM_ERASEBKGND: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rect = {};
-    GetClientRect(dlg, &rect);
-    FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
-    return TRUE;
-  }
+  case WM_ERASEBKGND:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rect = {};
+      GetClientRect(dlg, &rect);
+      FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
+      return TRUE;
+    }
   case WM_CTLCOLORDLG:
   case WM_CTLCOLORSTATIC:
   case WM_CTLCOLOREDIT:
   case WM_CTLCOLORLISTBOX:
-  case WM_CTLCOLORBTN: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    int type = CTLCOLOR_STATIC;
-    if (msg == WM_CTLCOLOREDIT) {
-      type = CTLCOLOR_EDIT;
-    } else if (msg == WM_CTLCOLORLISTBOX) {
-      type = CTLCOLOR_LISTBOX;
-    } else if (msg == WM_CTLCOLORBTN) {
-      type = CTLCOLOR_BTN;
-    } else if (msg == WM_CTLCOLORDLG) {
-      type = CTLCOLOR_DLG;
+  case WM_CTLCOLORBTN:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      int type = CTLCOLOR_STATIC;
+      if (msg == WM_CTLCOLOREDIT) {
+        type = CTLCOLOR_EDIT;
+      } else if (msg == WM_CTLCOLORLISTBOX) {
+        type = CTLCOLOR_LISTBOX;
+      } else if (msg == WM_CTLCOLORBTN) {
+        type = CTLCOLOR_BTN;
+      } else if (msg == WM_CTLCOLORDLG) {
+        type = CTLCOLOR_DLG;
+      }
+      return reinterpret_cast<INT_PTR>(Theme::Current().ControlColor(hdc, target, type));
     }
-    return reinterpret_cast<INT_PTR>(Theme::Current().ControlColor(hdc, target, type));
-  }
-  case WM_COMMAND: {
-    if (!state) {
-      return TRUE;
-    }
-    int id = LOWORD(wparam);
-    int code = HIWORD(wparam);
-    if (code == CBN_SELCHANGE && (id == IDC_COMPARE_LEFT_SOURCE || id == IDC_COMPARE_RIGHT_SOURCE)) {
-      bool left = id == IDC_COMPARE_LEFT_SOURCE;
-      HWND combo = GetDlgItem(dlg, id);
-      int sel = combo ? static_cast<int>(SendMessageW(combo, CB_GETCURSEL, 0, 0)) : 0;
-      CompareSourceType type = CompareSourceFromIndex(sel);
-      ToggleCompareControls(dlg, left, type);
-      SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE,
-                    L"");
-      return TRUE;
-    }
-    if (code == BN_CLICKED && (id == IDC_COMPARE_LEFT_BROWSE || id == IDC_COMPARE_RIGHT_BROWSE)) {
-      bool left = id == IDC_COMPARE_LEFT_BROWSE;
-      HWND browse_source = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_SOURCE : IDC_COMPARE_RIGHT_SOURCE);
-      const CompareSourceType browse_type = CompareSourceFromIndex(
-          browse_source ? static_cast<int>(SendMessageW(browse_source, CB_GETCURSEL, 0, 0)) : 0);
-      std::wstring path;
-      if (browse_type == CompareSourceType::kNetwork) {
-        if (FAILED(win32::ChooseComputer(dlg, &path)) || path.empty()) {
+  case WM_COMMAND:
+    {
+      if (!state) {
+        return TRUE;
+      }
+      int id = LOWORD(wparam);
+      int code = HIWORD(wparam);
+      if (code == CBN_SELCHANGE && (id == IDC_COMPARE_LEFT_SOURCE || id == IDC_COMPARE_RIGHT_SOURCE)) {
+        bool left = id == IDC_COMPARE_LEFT_SOURCE;
+        HWND combo = GetDlgItem(dlg, id);
+        int sel = combo ? static_cast<int>(SendMessageW(combo, CB_GETCURSEL, 0, 0)) : 0;
+        CompareSourceType type = CompareSourceFromIndex(sel);
+        ToggleCompareControls(dlg, left, type);
+        SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, L"");
+        return TRUE;
+      }
+      if (code == BN_CLICKED && (id == IDC_COMPARE_LEFT_BROWSE || id == IDC_COMPARE_RIGHT_BROWSE)) {
+        bool left = id == IDC_COMPARE_LEFT_BROWSE;
+        HWND browse_source = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_SOURCE : IDC_COMPARE_RIGHT_SOURCE);
+        const CompareSourceType browse_type = CompareSourceFromIndex(
+            browse_source ? static_cast<int>(SendMessageW(browse_source, CB_GETCURSEL, 0, 0)) : 0
+        );
+        std::wstring path;
+        if (browse_type == CompareSourceType::kNetwork) {
+          if (FAILED(win32::ChooseComputer(dlg, &path)) || path.empty()) {
+            return TRUE;
+          }
+          SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, path);
+          return TRUE;
+        }
+        if (!PromptOpenFilePath(dlg, browse_type == CompareSourceType::kOfflineHive ? L"Registry Hive Files\0*.*\0\0" : L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0\0", &path)) {
           return TRUE;
         }
         SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, path);
-        return TRUE;
-      }
-      if (!PromptOpenFilePath(dlg,
-                              browse_type == CompareSourceType::kOfflineHive
-                                  ? L"Registry Hive Files\0*.*\0\0"
-                                  : L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0\0",
-                              &path)) {
-        return TRUE;
-      }
-      SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, path);
-      if (browse_type == CompareSourceType::kOfflineHive) {
-        return TRUE;
-      }
-      regfile::Document data;
-      std::wstring error;
-      if (regfile::Load(path, &data, &error)) {
-        std::vector<std::wstring> keys = ExtractRegFileKeys(data);
-        if (keys.empty()) {
-          ui::ShowError(dlg, L"No registry keys were found in the .reg file.");
+        if (browse_type == CompareSourceType::kOfflineHive) {
           return TRUE;
-        }
-        HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
-        PopulateCombo(combo, keys);
-        if (!keys.empty()) {
-          SendMessageW(combo, CB_SETCURSEL, 0, 0);
-          SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, keys.front());
-        }
-      } else if (!error.empty()) {
-        ui::ShowError(dlg, error);
-      }
-      return TRUE;
-    }
-    if (id == IDOK) {
-      CompareDialogResult result;
-      auto read_side = [&](bool left, CompareDialogSelection* out) -> bool {
-        out->recursive = IsDlgButtonChecked(dlg, left ? IDC_COMPARE_LEFT_RECURSIVE : IDC_COMPARE_RIGHT_RECURSIVE) == BST_CHECKED;
-        HWND source_combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_SOURCE : IDC_COMPARE_RIGHT_SOURCE);
-        int source_index = source_combo ? static_cast<int>(SendMessageW(source_combo, CB_GETCURSEL, 0, 0)) : 0;
-        out->type = CompareSourceFromIndex(source_index);
-        if (out->type == CompareSourceType::kRegistry ||
-            out->type == CompareSourceType::kNetwork) {
-          out->root = TrimWhitespace(ReadComboText(GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_ROOT : IDC_COMPARE_RIGHT_ROOT)));
-          out->path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_PATH : IDC_COMPARE_RIGHT_PATH));
-          if (out->root.empty()) {
-            ui::ShowError(dlg, L"Registry root is required.");
-            return false;
-          }
-          if (out->type == CompareSourceType::kNetwork) {
-            out->file_path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
-            if (out->file_path.empty()) {
-              ui::ShowError(dlg, L"Computer name is required.");
-              return false;
-            }
-          }
-          return true;
-        }
-        out->file_path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
-        out->key_path = TrimWhitespace(ReadComboText(GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY)));
-        if (out->file_path.empty()) {
-          ui::ShowError(dlg, out->type == CompareSourceType::kOfflineHive
-                                 ? L"Hive file path is required."
-                                 : L"Registry file path is required.");
-          return false;
-        }
-        if (out->type == CompareSourceType::kOfflineHive) {
-          return true;
         }
         regfile::Document data;
         std::wstring error;
-        if (!regfile::Load(out->file_path, &data, &error)) {
-          ui::ShowError(dlg, error.empty() ? L"Failed to read registry file." : error);
-          return false;
-        }
-        std::vector<std::wstring> keys = ExtractRegFileKeys(data);
-        if (keys.empty()) {
-          ui::ShowError(dlg, L"No registry keys were found in the .reg file.");
-          return false;
-        }
-        if (out->key_path.empty()) {
-          out->key_path = keys.front();
-        }
-        std::wstring key_lower = ToLower(out->key_path);
-        bool found = false;
-        for (const auto& key : keys) {
-          if (_wcsicmp(key.c_str(), out->key_path.c_str()) == 0) {
-            found = true;
-            break;
+        if (regfile::Load(path, &data, &error)) {
+          std::vector<std::wstring> keys = ExtractRegFileKeys(data);
+          if (keys.empty()) {
+            ui::ShowError(dlg, L"No registry keys were found in the .reg file.");
+            return TRUE;
           }
-          std::wstring key_check = ToLower(key);
-          if (StartsWithInsensitive(key_check, key_lower) || StartsWithInsensitive(key_lower, key_check)) {
-            found = true;
+          HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
+          PopulateCombo(combo, keys);
+          if (!keys.empty()) {
+            SendMessageW(combo, CB_SETCURSEL, 0, 0);
+            SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, keys.front());
           }
+        } else if (!error.empty()) {
+          ui::ShowError(dlg, error);
         }
-        if (!found) {
-          ui::ShowError(dlg, L"The selected key path wasn't found in the .reg file.");
-          return false;
-        }
-        return true;
-      };
-      if (!read_side(true, &result.left)) {
         return TRUE;
       }
-      if (!read_side(false, &result.right)) {
+      if (id == IDOK) {
+        CompareDialogResult result;
+        auto read_side = [&](bool left, CompareDialogSelection* out) -> bool {
+          out->recursive = IsDlgButtonChecked(dlg, left ? IDC_COMPARE_LEFT_RECURSIVE : IDC_COMPARE_RIGHT_RECURSIVE) == BST_CHECKED;
+          HWND source_combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_SOURCE : IDC_COMPARE_RIGHT_SOURCE);
+          int source_index = source_combo ? static_cast<int>(SendMessageW(source_combo, CB_GETCURSEL, 0, 0)) : 0;
+          out->type = CompareSourceFromIndex(source_index);
+          if (out->type == CompareSourceType::kRegistry ||
+              out->type == CompareSourceType::kNetwork) {
+            out->root = TrimWhitespace(ReadComboText(GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_ROOT : IDC_COMPARE_RIGHT_ROOT)));
+            out->path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_PATH : IDC_COMPARE_RIGHT_PATH));
+            if (out->root.empty()) {
+              ui::ShowError(dlg, L"Registry root is required.");
+              return false;
+            }
+            if (out->type == CompareSourceType::kNetwork) {
+              out->file_path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
+              if (out->file_path.empty()) {
+                ui::ShowError(dlg, L"Computer name is required.");
+                return false;
+              }
+            }
+            return true;
+          }
+          out->file_path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
+          out->key_path = TrimWhitespace(ReadComboText(GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY)));
+          if (out->file_path.empty()) {
+            ui::ShowError(dlg, out->type == CompareSourceType::kOfflineHive ? L"Hive file path is required." : L"Registry file path is required.");
+            return false;
+          }
+          if (out->type == CompareSourceType::kOfflineHive) {
+            return true;
+          }
+          regfile::Document data;
+          std::wstring error;
+          if (!regfile::Load(out->file_path, &data, &error)) {
+            ui::ShowError(dlg, error.empty() ? L"Failed to read registry file." : error);
+            return false;
+          }
+          std::vector<std::wstring> keys = ExtractRegFileKeys(data);
+          if (keys.empty()) {
+            ui::ShowError(dlg, L"No registry keys were found in the .reg file.");
+            return false;
+          }
+          if (out->key_path.empty()) {
+            out->key_path = keys.front();
+          }
+          std::wstring key_lower = ToLower(out->key_path);
+          bool found = false;
+          for (const auto& key : keys) {
+            if (_wcsicmp(key.c_str(), out->key_path.c_str()) == 0) {
+              found = true;
+              break;
+            }
+            std::wstring key_check = ToLower(key);
+            if (StartsWithInsensitive(key_check, key_lower) || StartsWithInsensitive(key_lower, key_check)) {
+              found = true;
+            }
+          }
+          if (!found) {
+            ui::ShowError(dlg, L"The selected key path wasn't found in the .reg file.");
+            return false;
+          }
+          return true;
+        };
+        if (!read_side(true, &result.left)) {
+          return TRUE;
+        }
+        if (!read_side(false, &result.right)) {
+          return TRUE;
+        }
+        state->data.left = result.left;
+        state->data.right = result.right;
+        EndDialog(dlg, IDOK);
         return TRUE;
       }
-      state->data.left = result.left;
-      state->data.right = result.right;
-      EndDialog(dlg, IDOK);
-      return TRUE;
+      if (id == IDCANCEL) {
+        EndDialog(dlg, IDCANCEL);
+        return TRUE;
+      }
+      break;
     }
-    if (id == IDCANCEL) {
-      EndDialog(dlg, IDCANCEL);
-      return TRUE;
-    }
-    break;
-  }
   default:
     break;
   }
   return FALSE;
 }
 
-inline bool ShowCompareDialog(HWND owner, const CompareDialogDefaults& defaults, CompareDialogResult* out) {
+inline bool ShowCompareDialog(
+    HWND owner,
+    const CompareDialogDefaults& defaults,
+    CompareDialogResult* out
+) {
   if (!out) {
     return false;
   }

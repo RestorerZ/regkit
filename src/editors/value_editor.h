@@ -46,9 +46,7 @@ struct FlaggedValueResult {
 };
 
 bool EditText(HWND owner, const TextRequest& request, TextResult* result);
-bool EditCustomValue(HWND owner, const CustomValueRequest& request,
-                     CustomValueResult* result);
-bool EditFlaggedValue(HWND owner, const FlaggedValueRequest& request,
-                      FlaggedValueResult* result);
+bool EditCustomValue(HWND owner, const CustomValueRequest& request, CustomValueResult* result);
+bool EditFlaggedValue(HWND owner, const FlaggedValueRequest& request, FlaggedValueResult* result);
 
 } // namespace regkit::editors

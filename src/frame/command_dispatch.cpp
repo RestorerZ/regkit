@@ -7,7 +7,9 @@
 
 namespace regkit::frame {
 
-CommandArea ClassifyCommand(int command_id) noexcept {
+CommandArea ClassifyCommand(
+    int command_id
+) noexcept {
   if ((command_id >= cmd::kFavoritesItemBase &&
        command_id <= cmd::kFavoritesItemMax) ||
       (command_id >= cmd::kTraceRecentBase &&
@@ -96,7 +98,10 @@ CommandArea ClassifyCommand(int command_id) noexcept {
   return CommandArea::kUnknown;
 }
 
-bool DispatchCommand(int command_id, const CommandContext& context) {
+bool DispatchCommand(
+    int command_id,
+    const CommandContext& context
+) {
   CommandHandler handler = nullptr;
   switch (ClassifyCommand(command_id)) {
   case CommandArea::kDynamic:

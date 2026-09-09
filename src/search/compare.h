@@ -44,21 +44,13 @@ struct Snapshot {
 using NormalizePath =
     std::function<std::wstring(const std::wstring& path)>;
 
-bool CaptureRegistry(const std::wstring& base_path,
-                     const RegistryNode& base_node, bool recursive,
-                     Snapshot* snapshot, std::wstring* error = nullptr,
-                     std::atomic_bool* cancel = nullptr);
+bool CaptureRegistry(const std::wstring& base_path, const RegistryNode& base_node, bool recursive, Snapshot* snapshot, std::wstring* error = nullptr, std::atomic_bool* cancel = nullptr);
 
-bool LoadRegFile(const std::wstring& file_path,
-                 const std::wstring& base_path, bool recursive,
-                 const NormalizePath& normalize, Snapshot* snapshot,
-                 std::wstring* error,
-                 std::atomic_bool* cancel = nullptr);
+bool LoadRegFile(const std::wstring& file_path, const std::wstring& base_path, bool recursive, const NormalizePath& normalize, Snapshot* snapshot, std::wstring* error, std::atomic_bool* cancel = nullptr);
 
 void SortRows(std::vector<Row>* rows, int column, bool ascending);
 
-std::vector<Row> Diff(const Snapshot& first, const Snapshot& second,
-                      std::atomic_bool* cancel = nullptr);
+std::vector<Row> Diff(const Snapshot& first, const Snapshot& second, std::atomic_bool* cancel = nullptr);
 
 std::wstring SerializeRows(const std::vector<Row>& rows);
 bool ParseRows(const std::wstring& content, std::vector<Row>* rows);

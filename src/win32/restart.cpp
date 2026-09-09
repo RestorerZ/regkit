@@ -11,12 +11,16 @@
 
 namespace regkit::win32 {
 
-bool ArgTakesValue(const std::wstring& arg) {
+bool ArgTakesValue(
+    const std::wstring& arg
+) {
   return _wcsicmp(arg.c_str(), kRestartParentArg) == 0 ||
          _wcsicmp(arg.c_str(), kRestartDataDirArg) == 0;
 }
 
-std::wstring RestartDataDir(const std::vector<std::wstring>& args) {
+std::wstring RestartDataDir(
+    const std::vector<std::wstring>& args
+) {
   for (size_t i = 0; i + 1 < args.size(); ++i) {
     if (_wcsicmp(args[i].c_str(), kRestartDataDirArg) == 0) {
       return args[i + 1];
@@ -45,7 +49,10 @@ std::wstring QuoteArgument(const std::wstring& arg);
 
 } // namespace
 
-std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid) {
+std::wstring RestartArguments(
+    const wchar_t* target_arg,
+    DWORD parent_pid
+) {
   std::wstring arguments;
   if (target_arg && *target_arg) {
     arguments = target_arg;
@@ -74,7 +81,9 @@ std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid) {
 
 namespace {
 
-bool IsInternalRestartArg(const std::wstring& arg) {
+bool IsInternalRestartArg(
+    const std::wstring& arg
+) {
   return _wcsicmp(arg.c_str(), kRestartSystemArg) == 0 ||
          _wcsicmp(arg.c_str(), kRestartTiArg) == 0 ||
          _wcsicmp(arg.c_str(), kRestartUserArg) == 0 ||
@@ -83,7 +92,9 @@ bool IsInternalRestartArg(const std::wstring& arg) {
          ArgTakesValue(arg);
 }
 
-std::wstring QuoteArgument(const std::wstring& arg) {
+std::wstring QuoteArgument(
+    const std::wstring& arg
+) {
   if (!arg.empty() &&
       arg.find_first_of(L" \t\"") == std::wstring::npos) {
     return arg;
@@ -112,8 +123,11 @@ std::wstring QuoteArgument(const std::wstring& arg) {
 
 } // namespace
 
-std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid,
-                              const std::vector<std::wstring>& original_args) {
+std::wstring RestartArguments(
+    const wchar_t* target_arg,
+    DWORD parent_pid,
+    const std::vector<std::wstring>& original_args
+) {
   std::wstring arguments = RestartArguments(target_arg, parent_pid);
   for (size_t i = 0; i < original_args.size(); ++i) {
     const std::wstring& arg = original_args[i];
@@ -131,7 +145,11 @@ std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid,
   return arguments;
 }
 
-HRESULT LaunchElevated(HWND owner, const std::wstring& exe, const std::wstring& arguments) {
+HRESULT LaunchElevated(
+    HWND owner,
+    const std::wstring& exe,
+    const std::wstring& arguments
+) {
   if (exe.empty()) {
     return E_INVALIDARG;
   }
@@ -152,7 +170,9 @@ HRESULT LaunchElevated(HWND owner, const std::wstring& exe, const std::wstring& 
   return S_OK;
 }
 
-DWORD RestartParentPid(const std::vector<std::wstring>& args) {
+DWORD RestartParentPid(
+    const std::vector<std::wstring>& args
+) {
   for (size_t i = 0; i + 1 < args.size(); ++i) {
     if (_wcsicmp(args[i].c_str(), kRestartParentArg) != 0) {
       continue;
@@ -174,7 +194,9 @@ DWORD RestartParentPid(const std::vector<std::wstring>& args) {
   return 0;
 }
 
-void WaitForParentExit(DWORD parent_pid) {
+void WaitForParentExit(
+    DWORD parent_pid
+) {
   if (parent_pid == 0 || parent_pid == GetCurrentProcessId()) {
     return;
   }

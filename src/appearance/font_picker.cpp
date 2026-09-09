@@ -32,14 +32,20 @@ constexpr UINT kFontDialogUpdatePreviewMessage = WM_APP + 101;
 LRESULT CALLBACK FontDialogGroupBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR ref_data);
 LRESULT CALLBACK FontDialogSampleSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR ref_data);
 
-bool IsSameFontChoice(const LOGFONTW& left, const LOGFONTW& right) {
+bool IsSameFontChoice(
+    const LOGFONTW& left,
+    const LOGFONTW& right
+) {
   return _wcsicmp(left.lfFaceName, right.lfFaceName) == 0 &&
          appearance::FontPointSize(left) == appearance::FontPointSize(right) &&
          left.lfWeight == right.lfWeight &&
          !!left.lfItalic == !!right.lfItalic;
 }
 
-void UpdateSamplePreview(HWND hwnd, FontDialogHookState* state) {
+void UpdateSamplePreview(
+    HWND hwnd,
+    FontDialogHookState* state
+) {
   if (!hwnd || !state) {
     return;
   }
@@ -53,8 +59,7 @@ void UpdateSamplePreview(HWND hwnd, FontDialogHookState* state) {
   LOGFONTW preview_font = state->preview_base_font;
 
   LOGFONTW selected = {};
-  SendMessageW(hwnd, WM_CHOOSEFONT_GETLOGFONT, 0,
-               reinterpret_cast<LPARAM>(&selected));
+  SendMessageW(hwnd, WM_CHOOSEFONT_GETLOGFONT, 0, reinterpret_cast<LPARAM>(&selected));
   if (selected.lfFaceName[0] != L'\0') {
     wcsncpy_s(preview_font.lfFaceName, selected.lfFaceName, _TRUNCATE);
     preview_font.lfWeight = selected.lfWeight;
@@ -85,7 +90,10 @@ void UpdateSamplePreview(HWND hwnd, FontDialogHookState* state) {
   }
 }
 
-void ApplyNativeDarkTheme(HWND hwnd, bool dark_mode) {
+void ApplyNativeDarkTheme(
+    HWND hwnd,
+    bool dark_mode
+) {
   if (!hwnd) {
     return;
   }
@@ -123,10 +131,14 @@ void ApplyNativeDarkTheme(HWND hwnd, bool dark_mode) {
         SetWindowTheme(child, theme_name, nullptr);
         return TRUE;
       },
-      static_cast<LPARAM>(dark_mode ? 1 : 0));
+      static_cast<LPARAM>(dark_mode ? 1 : 0)
+  );
 }
 
-void ApplyComboTheme(HWND combo, bool dark_mode) {
+void ApplyComboTheme(
+    HWND combo,
+    bool dark_mode
+) {
   if (!combo) {
     return;
   }
@@ -162,15 +174,17 @@ void ApplyComboTheme(HWND combo, bool dark_mode) {
       if ((list_ex_style & WS_EX_CLIENTEDGE) != 0) {
         SetWindowLongPtrW(info.hwndList, GWL_EXSTYLE, list_ex_style & ~WS_EX_CLIENTEDGE);
       }
-      SetWindowPos(info.hwndList, nullptr, 0, 0, 0, 0,
-                   SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+      SetWindowPos(info.hwndList, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
     }
     RedrawWindow(info.hwndList, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW | RDW_FRAME);
   }
   InvalidateRect(combo, nullptr, TRUE);
 }
 
-void PaintFontDialogGroupBox(HWND hwnd, HDC hdc) {
+void PaintFontDialogGroupBox(
+    HWND hwnd,
+    HDC hdc
+) {
   if (!hwnd || !hdc) {
     return;
   }
@@ -216,7 +230,14 @@ void PaintFontDialogGroupBox(HWND hwnd, HDC hdc) {
   }
 }
 
-LRESULT CALLBACK FontDialogGroupBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+LRESULT CALLBACK FontDialogGroupBoxSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR
+) {
   switch (msg) {
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, FontDialogGroupBoxSubclassProc, id);
@@ -224,22 +245,30 @@ LRESULT CALLBACK FontDialogGroupBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wpar
   case WM_ERASEBKGND:
     return 1;
   case WM_PRINTCLIENT:
-  case WM_PAINT: {
-    PAINTSTRUCT ps = {};
-    HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
-    PaintFontDialogGroupBox(hwnd, hdc);
-    if (msg == WM_PAINT) {
-      EndPaint(hwnd, &ps);
+  case WM_PAINT:
+    {
+      PAINTSTRUCT ps = {};
+      HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
+      PaintFontDialogGroupBox(hwnd, hdc);
+      if (msg == WM_PAINT) {
+        EndPaint(hwnd, &ps);
+      }
+      return 0;
     }
-    return 0;
-  }
   default:
     break;
   }
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-LRESULT CALLBACK FontDialogSampleSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+LRESULT CALLBACK FontDialogSampleSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR
+) {
   switch (msg) {
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, FontDialogSampleSubclassProc, id);
@@ -247,49 +276,54 @@ LRESULT CALLBACK FontDialogSampleSubclassProc(HWND hwnd, UINT msg, WPARAM wparam
   case WM_ERASEBKGND:
     return 1;
   case WM_SETTEXT:
-  case WM_SETFONT: {
-    LRESULT result = DefSubclassProc(hwnd, msg, wparam, lparam);
-    InvalidateRect(hwnd, nullptr, TRUE);
-    return result;
-  }
+  case WM_SETFONT:
+    {
+      LRESULT result = DefSubclassProc(hwnd, msg, wparam, lparam);
+      InvalidateRect(hwnd, nullptr, TRUE);
+      return result;
+    }
   case WM_PRINTCLIENT:
-  case WM_PAINT: {
-    PAINTSTRUCT ps = {};
-    HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
-    RECT rc = {};
-    GetClientRect(hwnd, &rc);
+  case WM_PAINT:
+    {
+      PAINTSTRUCT ps = {};
+      HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
+      RECT rc = {};
+      GetClientRect(hwnd, &rc);
 
-    FillRect(hdc, &rc, GetSysColorBrush(COLOR_WINDOW));
+      FillRect(hdc, &rc, GetSysColorBrush(COLOR_WINDOW));
 
-    HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
-    HGDIOBJ old_font = nullptr;
-    if (font) {
-      old_font = SelectObject(hdc, font);
+      HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
+      HGDIOBJ old_font = nullptr;
+      if (font) {
+        old_font = SelectObject(hdc, font);
+      }
+
+      wchar_t text[128] = {};
+      GetWindowTextW(hwnd, text, static_cast<int>(_countof(text)));
+      SetBkMode(hdc, TRANSPARENT);
+      SetTextColor(hdc, GetSysColor(COLOR_WINDOWTEXT));
+
+      RECT text_rect = rc;
+      DrawTextW(hdc, text, -1, &text_rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+
+      if (old_font) {
+        SelectObject(hdc, old_font);
+      }
+      if (msg == WM_PAINT) {
+        EndPaint(hwnd, &ps);
+      }
+      return 0;
     }
-
-    wchar_t text[128] = {};
-    GetWindowTextW(hwnd, text, static_cast<int>(_countof(text)));
-    SetBkMode(hdc, TRANSPARENT);
-    SetTextColor(hdc, GetSysColor(COLOR_WINDOWTEXT));
-
-    RECT text_rect = rc;
-    DrawTextW(hdc, text, -1, &text_rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
-
-    if (old_font) {
-      SelectObject(hdc, old_font);
-    }
-    if (msg == WM_PAINT) {
-      EndPaint(hwnd, &ps);
-    }
-    return 0;
-  }
   default:
     break;
   }
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-void ApplyFontDialogTheme(HWND hwnd, bool dark_mode) {
+void ApplyFontDialogTheme(
+    HWND hwnd,
+    bool dark_mode
+) {
   if (!hwnd) {
     return;
   }
@@ -322,60 +356,75 @@ void ApplyFontDialogTheme(HWND hwnd, bool dark_mode) {
   }
 }
 
-LRESULT CALLBACK FontDialogSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+LRESULT CALLBACK FontDialogSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR
+) {
   switch (msg) {
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, FontDialogSubclassProc, id);
     break;
-  case WM_CTLCOLORDLG: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, hwnd, CTLCOLOR_DLG));
-  }
+  case WM_CTLCOLORDLG:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, hwnd, CTLCOLOR_DLG));
+    }
   case WM_CTLCOLORSTATIC:
   case WM_CTLCOLOREDIT:
   case WM_CTLCOLORLISTBOX:
-  case WM_CTLCOLORBTN: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    if (target == GetDlgItem(hwnd, stc5)) {
-      break;
+  case WM_CTLCOLORBTN:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      if (target == GetDlgItem(hwnd, stc5)) {
+        break;
+      }
+      if (target == GetDlgItem(hwnd, grp2) || target == GetDlgItem(hwnd, grp1)) {
+        SetTextColor(hdc, Theme::Current().TextColor());
+        SetBkColor(hdc, Theme::Current().BackgroundColor());
+        SetBkMode(hdc, TRANSPARENT);
+        return reinterpret_cast<LRESULT>(Theme::Current().BackgroundBrush());
+      }
+      int type = CTLCOLOR_STATIC;
+      if (msg == WM_CTLCOLOREDIT) {
+        type = CTLCOLOR_EDIT;
+      } else if (msg == WM_CTLCOLORLISTBOX) {
+        type = CTLCOLOR_LISTBOX;
+      } else if (msg == WM_CTLCOLORBTN) {
+        type = CTLCOLOR_BTN;
+      }
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
     }
-    if (target == GetDlgItem(hwnd, grp2) || target == GetDlgItem(hwnd, grp1)) {
-      SetTextColor(hdc, Theme::Current().TextColor());
-      SetBkColor(hdc, Theme::Current().BackgroundColor());
-      SetBkMode(hdc, TRANSPARENT);
-      return reinterpret_cast<LRESULT>(Theme::Current().BackgroundBrush());
-    }
-    int type = CTLCOLOR_STATIC;
-    if (msg == WM_CTLCOLOREDIT) {
-      type = CTLCOLOR_EDIT;
-    } else if (msg == WM_CTLCOLORLISTBOX) {
-      type = CTLCOLOR_LISTBOX;
-    } else if (msg == WM_CTLCOLORBTN) {
-      type = CTLCOLOR_BTN;
-    }
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
-  }
   default:
     break;
   }
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-UINT_PTR CALLBACK FontDialogHookProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+UINT_PTR CALLBACK FontDialogHookProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   switch (msg) {
-  case WM_INITDIALOG: {
-    auto* choose = reinterpret_cast<CHOOSEFONTW*>(lparam);
-    auto* state = choose ? reinterpret_cast<FontDialogHookState*>(choose->lCustData) : nullptr;
-    bool dark_mode = state && state->dark_mode;
-    SetWindowLongPtrW(hwnd, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-    if (!GetWindowSubclass(hwnd, FontDialogSubclassProc, kFontDialogSubclassId, nullptr)) {
-      SetWindowSubclass(hwnd, FontDialogSubclassProc, kFontDialogSubclassId, 0);
+  case WM_INITDIALOG:
+    {
+      auto* choose = reinterpret_cast<CHOOSEFONTW*>(lparam);
+      auto* state = choose ? reinterpret_cast<FontDialogHookState*>(choose->lCustData) : nullptr;
+      bool dark_mode = state && state->dark_mode;
+      SetWindowLongPtrW(hwnd, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
+      if (!GetWindowSubclass(hwnd, FontDialogSubclassProc, kFontDialogSubclassId, nullptr)) {
+        SetWindowSubclass(hwnd, FontDialogSubclassProc, kFontDialogSubclassId, 0);
+      }
+      ApplyFontDialogTheme(hwnd, dark_mode);
+      PostMessageW(hwnd, kFontDialogUpdatePreviewMessage, 0, reinterpret_cast<LPARAM>(state));
+      return 0;
     }
-    ApplyFontDialogTheme(hwnd, dark_mode);
-    PostMessageW(hwnd, kFontDialogUpdatePreviewMessage, 0, reinterpret_cast<LPARAM>(state));
-    return 0;
-  }
   case kFontDialogUpdatePreviewMessage:
     UpdateSamplePreview(hwnd, reinterpret_cast<FontDialogHookState*>(lparam));
     return 0;
@@ -400,7 +449,13 @@ UINT_PTR CALLBACK FontDialogHookProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
 
 } // namespace
 
-bool ShowFontDialog(HWND owner, const LOGFONTW& default_font, bool use_default, const LOGFONTW& current, FontDialogResult* out) {
+bool ShowFontDialog(
+    HWND owner,
+    const LOGFONTW& default_font,
+    bool use_default,
+    const LOGFONTW& current,
+    FontDialogResult* out
+) {
   if (!out) {
     return false;
   }

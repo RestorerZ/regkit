@@ -6,7 +6,9 @@
 namespace regkit {
 using namespace window_detail;
 
-void MainWindow::Impl::ShowPermissionsDialog(const RegistryNode& node) {
+void MainWindow::Impl::ShowPermissionsDialog(
+    const RegistryNode& node
+) {
   ShowRegistryPermissions(hwnd_, node);
 }
 
@@ -16,7 +18,11 @@ constexpr wchar_t kRegeditImageOptionsKey[] =
     L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution "
     L"Options\\regedit.exe";
 
-bool BeginRestart(HWND owner, const wchar_t* target_arg, const wchar_t* failure) {
+bool BeginRestart(
+    HWND owner,
+    const wchar_t* target_arg,
+    const wchar_t* failure
+) {
   const std::wstring exe_path = util::GetModulePath();
   if (exe_path.empty()) {
     ui::ShowError(owner, L"Failed to locate the executable path.");
@@ -35,9 +41,12 @@ bool BeginRestart(HWND owner, const wchar_t* target_arg, const wchar_t* failure)
   return true;
 }
 
-bool BrokerRestart(HWND owner, const wchar_t* target_arg, const wchar_t* failure,
-                   bool (*launch)(const std::wstring&, const std::wstring&,
-                                  DWORD*, bool*)) {
+bool BrokerRestart(
+    HWND owner,
+    const wchar_t* target_arg,
+    const wchar_t* failure,
+    bool (*launch)(const std::wstring&, const std::wstring&, DWORD*, bool*)
+) {
   const std::wstring exe_path = util::GetModulePath();
   if (exe_path.empty()) {
     ui::ShowError(owner, L"Failed to locate the executable path.");
@@ -87,17 +96,14 @@ void MainWindow::Impl::PrepareSessionHandover() {
 bool MainWindow::Impl::RestartAsAdmin() {
   PrepareSessionHandover();
   if (util::IsProcessSystem() || util::IsProcessTrustedInstaller()) {
-    return BrokerRestart(hwnd_, kRestartAdminArg,
-                         L"Failed to restart with administrator rights.",
-                         util::LaunchProcessAsShellUser);
+    return BrokerRestart(hwnd_, kRestartAdminArg, L"Failed to restart with administrator rights.", util::LaunchProcessAsShellUser);
   }
   return BeginRestart(hwnd_, nullptr, L"Failed to restart with administrator rights.");
 }
 
 bool MainWindow::Impl::RestartAsUser() {
   PrepareSessionHandover();
-  return BrokerRestart(hwnd_, kRestartUserArg, L"Failed to restart as the signed-in user.",
-                       util::LaunchProcessAsShellUser);
+  return BrokerRestart(hwnd_, kRestartUserArg, L"Failed to restart as the signed-in user.", util::LaunchProcessAsShellUser);
 }
 
 bool MainWindow::Impl::RestartAsSystem() {
@@ -105,8 +111,7 @@ bool MainWindow::Impl::RestartAsSystem() {
   if (!util::IsProcessElevated()) {
     return BeginRestart(hwnd_, kRestartSystemArg, L"Failed to request SYSTEM restart.");
   }
-  return BrokerRestart(hwnd_, kRestartSystemArg, L"Failed to restart with SYSTEM rights.",
-                       util::LaunchProcessAsSystem);
+  return BrokerRestart(hwnd_, kRestartSystemArg, L"Failed to restart with SYSTEM rights.", util::LaunchProcessAsSystem);
 }
 
 bool MainWindow::Impl::RestartAsTrustedInstaller() {
@@ -114,8 +119,7 @@ bool MainWindow::Impl::RestartAsTrustedInstaller() {
   if (!util::IsProcessElevated()) {
     return BeginRestart(hwnd_, kRestartTiArg, L"Failed to request TrustedInstaller restart.");
   }
-  return BrokerRestart(hwnd_, kRestartTiArg, L"Failed to restart with TrustedInstaller rights.",
-                       util::LaunchProcessAsTrustedInstaller);
+  return BrokerRestart(hwnd_, kRestartTiArg, L"Failed to restart with TrustedInstaller rights.", util::LaunchProcessAsTrustedInstaller);
 }
 
 void MainWindow::Impl::SyncReplaceRegeditState() {
@@ -194,7 +198,9 @@ void MainWindow::Impl::SyncReplaceRegeditState() {
   replace_regedit_ = (_wcsicmp(path.c_str(), exe_path.c_str()) == 0);
 }
 
-void MainWindow::Impl::ReplaceRegedit(bool enable) {
+void MainWindow::Impl::ReplaceRegedit(
+    bool enable
+) {
   std::wstring exe_path = util::GetModulePath();
   if (exe_path.empty()) {
     ui::ShowError(hwnd_, L"Failed to locate the executable path.");
@@ -281,8 +287,7 @@ std::wstring MainWindow::Impl::ResolveSelectedHiveFilePath() {
   }
   RegistryNode target = *node;
   int index = browse_.values().hwnd()
-                  ? ListView_GetNextItem(browse_.values().hwnd(), -1,
-                                         LVNI_SELECTED)
+                  ? ListView_GetNextItem(browse_.values().hwnd(), -1, LVNI_SELECTED)
                   : -1;
   if (index >= 0) {
     const ListRow* row = browse_.values().RowAt(index);

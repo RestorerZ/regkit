@@ -18,15 +18,20 @@ namespace {
 constexpr wchar_t kRecordVersionTag[] = L"#regkit-search-2";
 constexpr uint64_t kMaxResultFileBytes = 256ull * 1024 * 1024;
 
-std::wstring FileTimeToString(const FILETIME& time) {
+std::wstring FileTimeToString(
+    const FILETIME& time
+) {
   const unsigned long long value =
       (static_cast<unsigned long long>(time.dwHighDateTime) << 32) |
       static_cast<unsigned long long>(time.dwLowDateTime);
   return std::to_wstring(value);
 }
 
-bool ParseNumber(const std::wstring& text, unsigned long long limit,
-                 unsigned long long* out) {
+bool ParseNumber(
+    const std::wstring& text,
+    unsigned long long limit,
+    unsigned long long* out
+) {
   if (!out || text.empty() ||
       text.find_first_not_of(L"0123456789") != std::wstring::npos) {
     return false;
@@ -41,13 +46,17 @@ bool ParseNumber(const std::wstring& text, unsigned long long limit,
   return true;
 }
 
-MatchField ToMatchField(int value) {
+MatchField ToMatchField(
+    int value
+) {
   return value < 0 || value > static_cast<int>(MatchField::kData)
              ? MatchField::kNone
              : static_cast<MatchField>(value);
 }
 
-Result ParseLegacyRecord(const std::vector<std::wstring>& fields) {
+Result ParseLegacyRecord(
+    const std::vector<std::wstring>& fields
+) {
   Result result;
   result.key_path = record_fields::Unescape(fields[0]);
   result.value_name = record_fields::Unescape(fields[2]);
@@ -72,8 +81,10 @@ Result ParseLegacyRecord(const std::vector<std::wstring>& fields) {
   return result;
 }
 
-bool ParseVersionedRecord(const std::vector<std::wstring>& fields,
-                          Result* out) {
+bool ParseVersionedRecord(
+    const std::vector<std::wstring>& fields,
+    Result* out
+) {
   if (!out) {
     return false;
   }
@@ -93,15 +104,11 @@ bool ParseVersionedRecord(const std::vector<std::wstring>& fields,
   if (!ParseNumber(fields[3], MAXDWORD, &type) ||
       !ParseNumber(fields[4], MAXDWORD, &data_size) ||
       !ParseNumber(fields[5], MAXULONGLONG, &modified) ||
-      !ParseNumber(fields[6], static_cast<unsigned long long>(MatchField::kData),
-                  &match_field) ||
+      !ParseNumber(fields[6], static_cast<unsigned long long>(MatchField::kData), &match_field) ||
       !ParseNumber(fields[7], UINT32_MAX, &match_start) ||
       !ParseNumber(fields[8], UINT32_MAX, &match_length) ||
-      !ParseNumber(fields[9],
-                  static_cast<unsigned long long>(ResultKind::kTraceValue),
-                  &kind) ||
-      !ParseNumber(fields[10], static_cast<unsigned long long>(DataState::kLoaded),
-                  &state)) {
+      !ParseNumber(fields[9], static_cast<unsigned long long>(ResultKind::kTraceValue), &kind) ||
+      !ParseNumber(fields[10], static_cast<unsigned long long>(DataState::kLoaded), &state)) {
     return false;
   }
 
@@ -127,8 +134,10 @@ bool ParseVersionedRecord(const std::vector<std::wstring>& fields,
 
 } // namespace
 
-bool ParseResults(const std::wstring& content,
-                  std::vector<Result>* out) {
+bool ParseResults(
+    const std::wstring& content,
+    std::vector<Result>* out
+) {
   if (!out) {
     return false;
   }
@@ -171,7 +180,9 @@ bool ParseResults(const std::wstring& content,
   return true;
 }
 
-std::wstring SerializeResults(const std::vector<Result>& results) {
+std::wstring SerializeResults(
+    const std::vector<Result>& results
+) {
   std::wstring content = kRecordVersionTag;
   content += L'\n';
   for (const auto& result : results) {
@@ -191,8 +202,10 @@ std::wstring SerializeResults(const std::vector<Result>& results) {
   return content;
 }
 
-bool LoadResults(const std::wstring& path,
-                 std::vector<Result>* results) {
+bool LoadResults(
+    const std::wstring& path,
+    std::vector<Result>* results
+) {
   if (!results || path.empty()) {
     return false;
   }
@@ -207,7 +220,8 @@ bool LoadResults(const std::wstring& path,
   }
   const std::string_view payload(
       reinterpret_cast<const char*>(bytes.data() + offset),
-      bytes.size() - offset);
+      bytes.size() - offset
+  );
   const std::wstring content = util::Utf8ToWide(payload);
   if (content.empty() && !payload.empty()) {
     return false;
@@ -215,8 +229,10 @@ bool LoadResults(const std::wstring& path,
   return ParseResults(content, results);
 }
 
-bool SaveResults(const std::wstring& path,
-                 const std::vector<Result>& results) {
+bool SaveResults(
+    const std::wstring& path,
+    const std::vector<Result>& results
+) {
   return !path.empty() &&
          util::WriteTextFile(path, SerializeResults(results), false);
 }

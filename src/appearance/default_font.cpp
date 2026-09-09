@@ -28,11 +28,15 @@ struct FontSettings {
   bool italic_set = false;
 };
 
-bool ParseBool(const std::wstring& value) {
+bool ParseBool(
+    const std::wstring& value
+) {
   return (_wcsicmp(value.c_str(), L"1") == 0 || _wcsicmp(value.c_str(), L"true") == 0 || _wcsicmp(value.c_str(), L"yes") == 0);
 }
 
-bool LoadFontSettings(FontSettings* out) {
+bool LoadFontSettings(
+    FontSettings* out
+) {
   if (!out) {
     return false;
   }
@@ -41,8 +45,7 @@ bool LoadFontSettings(FontSettings* out) {
     return false;
   }
   std::wstring content;
-  if (!util::ReadTextFile(util::JoinPath(folder, L"settings.ini"), &content,
-                          nullptr, 1024ull * 1024ull) ||
+  if (!util::ReadTextFile(util::JoinPath(folder, L"settings.ini"), &content, nullptr, 1024ull * 1024ull) ||
       content.empty()) {
     return false;
   }
@@ -89,7 +92,9 @@ bool LoadFontSettings(FontSettings* out) {
   return true;
 }
 
-std::wstring ReadFontSubstitute(const wchar_t* value_name) {
+std::wstring ReadFontSubstitute(
+    const wchar_t* value_name
+) {
   if (!value_name || !*value_name) {
     return L"";
   }
@@ -138,7 +143,9 @@ std::wstring ReadFontSubstitute(const wchar_t* value_name) {
 
 } // namespace
 
-LOGFONTW DefaultUIFontLogFont(UINT dpi) {
+LOGFONTW DefaultUIFontLogFont(
+    UINT dpi
+) {
   LOGFONTW lf = {};
   HFONT stock = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
   if (!stock || GetObjectW(stock, sizeof(lf), &lf) == 0) {
@@ -174,7 +181,9 @@ LOGFONTW DefaultUIFontLogFont() {
   return DefaultUIFontLogFont(static_cast<UINT>(appearance::SystemFontDpi()));
 }
 
-HFONT DefaultUIFont(UINT dpi) {
+HFONT DefaultUIFont(
+    UINT dpi
+) {
   LOGFONTW lf = DefaultUIFontLogFont(dpi);
   return CreateFontIndirectW(&lf);
 }

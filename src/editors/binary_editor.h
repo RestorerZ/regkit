@@ -22,7 +22,6 @@ struct BinaryResult {
   std::vector<BYTE> data;
 };
 
-bool EditBinary(HWND owner, const BinaryRequest& request,
-                BinaryResult* result);
+bool EditBinary(HWND owner, const BinaryRequest& request, BinaryResult* result);
 
 } // namespace regkit::editors

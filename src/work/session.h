@@ -67,7 +67,9 @@ public:
   LatestTask(const LatestTask&) = delete;
   LatestTask& operator=(const LatestTask&) = delete;
 
-  void Start(Processor processor) {
+  void Start(
+      Processor processor
+  ) {
     Stop();
     {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -84,9 +86,10 @@ public:
     }
   }
 
-
-  std::unique_ptr<Task> Submit(std::unique_ptr<Task> task,
-                               bool* accepted = nullptr) {
+  std::unique_ptr<Task> Submit(
+      std::unique_ptr<Task> task,
+      bool* accepted = nullptr
+  ) {
     if (accepted) {
       *accepted = false;
     }
@@ -133,9 +136,7 @@ private:
       Processor processor;
       {
         std::unique_lock<std::mutex> lock(mutex_);
-        ready_.wait(lock, [this]() {
-          return stopping_.load() || pending_ != nullptr;
-        });
+        ready_.wait(lock, [this]() { return stopping_.load() || pending_ != nullptr; });
         if (stopping_.load()) {
           return;
         }
@@ -173,7 +174,10 @@ public:
   DebouncedTask(const DebouncedTask&) = delete;
   DebouncedTask& operator=(const DebouncedTask&) = delete;
 
-  void Start(std::chrono::milliseconds delay, Handler handler) {
+  void Start(
+      std::chrono::milliseconds delay,
+      Handler handler
+  ) {
     Stop();
     {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -191,7 +195,9 @@ public:
     }
   }
 
-  void Submit(Task task) {
+  void Submit(
+      Task task
+  ) {
     {
       std::lock_guard<std::mutex> lock(mutex_);
       if (stopping_) {
@@ -225,8 +231,7 @@ private:
   void Run() {
     std::unique_lock<std::mutex> lock(mutex_);
     for (;;) {
-      changed_.wait(lock,
-                    [this]() { return stopping_ || pending_.has_value(); });
+      changed_.wait(lock, [this]() { return stopping_ || pending_.has_value(); });
       if (stopping_) {
         return;
       }
@@ -234,9 +239,7 @@ private:
       uint64_t observed = revision_;
       auto deadline = std::chrono::steady_clock::now() + delay_;
       while (!stopping_ &&
-             changed_.wait_until(lock, deadline, [this, observed]() {
-               return stopping_ || revision_ != observed;
-             })) {
+             changed_.wait_until(lock, deadline, [this, observed]() { return stopping_ || revision_ != observed; })) {
         if (stopping_) {
           return;
         }

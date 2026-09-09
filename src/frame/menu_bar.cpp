@@ -10,7 +10,9 @@
 namespace regkit {
 using namespace command_detail;
 
-std::wstring MainWindow::Impl::CommandShortcutText(int command_id) const {
+std::wstring MainWindow::Impl::CommandShortcutText(
+    int command_id
+) const {
   for (const auto& binding : frame::kShortcutBindings) {
     if (binding.command == command_id) {
       return binding.text;
@@ -19,7 +21,9 @@ std::wstring MainWindow::Impl::CommandShortcutText(int command_id) const {
   return L"";
 }
 
-std::wstring MainWindow::Impl::CommandTooltipText(int command_id) const {
+std::wstring MainWindow::Impl::CommandTooltipText(
+    int command_id
+) const {
   switch (command_id) {
   case cmd::kRegistryLocal:
     return L"Local Registry";
@@ -354,17 +358,13 @@ void MainWindow::Impl::BuildMenus() {
     if (!bundled_menu || entry.group != bundled_group) {
       bundled_group = entry.group;
       bundled_menu = CreatePopupMenu();
-      AppendMenuW(default_menu, MF_POPUP,
-                  reinterpret_cast<UINT_PTR>(bundled_menu),
-                  bundled_group.c_str());
+      AppendMenuW(default_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(bundled_menu), bundled_group.c_str());
     }
     UINT flags = MF_STRING;
     if (has_default_path(entry.path)) {
       flags |= MF_CHECKED;
     }
-    append_menu(bundled_menu, flags,
-                cmd::kDefaultBundledBase + static_cast<int>(i),
-                entry.label.c_str());
+    append_menu(bundled_menu, flags, cmd::kDefaultBundledBase + static_cast<int>(i), entry.label.c_str());
   }
   bool has_recent_default = false;
   int default_recent_limit = std::min(static_cast<int>(recent_default_paths_.items().size()), cmd::kDefaultRecentMax - cmd::kDefaultRecentBase + 1);
@@ -450,8 +450,10 @@ void MainWindow::Impl::RefreshBundledDefaultsCache() {
   std::error_code error;
   const std::filesystem::path root(defaults_dir);
   for (const auto& folder : std::filesystem::directory_iterator(
-           root, std::filesystem::directory_options::skip_permission_denied,
-           error)) {
+           root,
+           std::filesystem::directory_options::skip_permission_denied,
+           error
+       )) {
     if (!folder.is_directory(error)) {
       error.clear();
       continue;
@@ -459,7 +461,8 @@ void MainWindow::Impl::RefreshBundledDefaultsCache() {
     for (const auto& file : std::filesystem::directory_iterator(
              folder.path(),
              std::filesystem::directory_options::skip_permission_denied,
-             error)) {
+             error
+         )) {
       if (!file.is_regular_file(error) ||
           _wcsicmp(file.path().extension().c_str(), L".reg") != 0) {
         error.clear();
@@ -474,22 +477,22 @@ void MainWindow::Impl::RefreshBundledDefaultsCache() {
     error.clear();
   }
 
-  std::sort(bundled_defaults_.begin(), bundled_defaults_.end(),
-            [](const BundledDefault& left, const BundledDefault& right) {
+  std::sort(bundled_defaults_.begin(), bundled_defaults_.end(), [](const BundledDefault& left, const BundledDefault& right) {
               const int group =
                   _wcsicmp(left.group.c_str(), right.group.c_str());
               return group != 0
                          ? group < 0
                          : _wcsicmp(left.label.c_str(), right.label.c_str()) <
-                               0;
-            });
+                               0; });
   size_t bundled_limit = std::min(bundled_defaults_.size(), static_cast<size_t>(cmd::kDefaultBundledMax - cmd::kDefaultBundledBase + 1));
   if (bundled_defaults_.size() > bundled_limit) {
     bundled_defaults_.resize(bundled_limit);
   }
 }
 
-bool MainWindow::Impl::HandleMenuCommand(int command_id) {
+bool MainWindow::Impl::HandleMenuCommand(
+    int command_id
+) {
   frame::CommandContext context;
   context.context = this;
   context.dynamic = [](void* value, int id) {
@@ -530,7 +533,8 @@ MainWindow::Impl::SelectedValueDefaultChoices() const {
 }
 
 HMENU MainWindow::Impl::BuildResetDefaultMenu(
-    const std::vector<DefaultValueChoice>& choices) const {
+    const std::vector<DefaultValueChoice>& choices
+) const {
   HMENU menu = CreatePopupMenu();
   const int limit = cmd::kResetDefaultMax - cmd::kResetDefaultBase + 1;
   for (size_t i = 0; i < choices.size() && static_cast<int>(i) < limit; ++i) {
@@ -539,25 +543,25 @@ HMENU MainWindow::Impl::BuildResetDefaultMenu(
     if (!choices[i].present) {
       text.append(L" (Missing)");
     }
-    AppendMenuW(menu, MF_STRING, cmd::kResetDefaultBase + static_cast<int>(i),
-                text.c_str());
+    AppendMenuW(menu, MF_STRING, cmd::kResetDefaultBase + static_cast<int>(i), text.c_str());
   }
   return menu;
 }
 
-void MainWindow::Impl::AppendResetDefaultMenu(HMENU menu) {
+void MainWindow::Impl::AppendResetDefaultMenu(
+    HMENU menu
+) {
   const std::vector<DefaultValueChoice> choices = SelectedValueDefaultChoices();
   if (choices.size() < 2) {
-    AppendMenuW(menu, MF_STRING | (choices.empty() ? MF_GRAYED : 0),
-                cmd::kEditResetDefault, L"Reset to Default");
+    AppendMenuW(menu, MF_STRING | (choices.empty() ? MF_GRAYED : 0), cmd::kEditResetDefault, L"Reset to Default");
     return;
   }
-  AppendMenuW(menu, MF_POPUP,
-              reinterpret_cast<UINT_PTR>(BuildResetDefaultMenu(choices)),
-              L"Reset to Default");
+  AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildResetDefaultMenu(choices)), L"Reset to Default");
 }
 
-void MainWindow::Impl::RefreshResetDefaultMenu(HMENU menu) {
+void MainWindow::Impl::RefreshResetDefaultMenu(
+    HMENU menu
+) {
   const int count = GetMenuItemCount(menu);
   int position = -1;
   for (int i = 0; i < count; ++i) {

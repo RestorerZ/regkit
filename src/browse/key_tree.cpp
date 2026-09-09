@@ -19,19 +19,27 @@ constexpr wchar_t kRealGroupLabel[] = L"REGISTRY";
 
 using util::ToLower;
 
-
-void SuspendRedraw(HWND tree) {
+void SuspendRedraw(
+    HWND tree
+) {
   SendMessageW(tree, WM_SETREDRAW, FALSE, 0);
 }
 
-void ResumeRedraw(HWND tree) {
+void ResumeRedraw(
+    HWND tree
+) {
   SendMessageW(tree, WM_SETREDRAW, TRUE, 0);
-  RedrawWindow(tree, nullptr, nullptr,
-               RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+  RedrawWindow(tree, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
 }
 } // namespace
 
-void RegistryTree::Create(HWND parent, HINSTANCE instance, int control_id, bool show_border, bool allow_label_edit) {
+void RegistryTree::Create(
+    HWND parent,
+    HINSTANCE instance,
+    int control_id,
+    bool show_border,
+    bool allow_label_edit
+) {
   DWORD style = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS;
   if (show_border) {
     style |= WS_BORDER;
@@ -49,22 +57,30 @@ HWND RegistryTree::hwnd() const {
   return hwnd_;
 }
 
-void RegistryTree::SetImageList(HIMAGELIST image_list) {
+void RegistryTree::SetImageList(
+    HIMAGELIST image_list
+) {
   if (!hwnd_) {
     return;
   }
   TreeView_SetImageList(hwnd_, image_list, TVSIL_NORMAL);
 }
 
-void RegistryTree::SetIconResolver(std::function<int(const RegistryNode&)> resolver) {
+void RegistryTree::SetIconResolver(
+    std::function<int(const RegistryNode&)> resolver
+) {
   icon_resolver_ = std::move(resolver);
 }
 
-void RegistryTree::SetVirtualChildProvider(std::function<void(const RegistryNode&, const std::unordered_set<std::wstring>&, std::vector<std::wstring>*)> provider) {
+void RegistryTree::SetVirtualChildProvider(
+    std::function<void(const RegistryNode&, const std::unordered_set<std::wstring>&, std::vector<std::wstring>*)> provider
+) {
   virtual_child_provider_ = std::move(provider);
 }
 
-void RegistryTree::SetRootLabel(const std::wstring& label) {
+void RegistryTree::SetRootLabel(
+    const std::wstring& label
+) {
   if (label.empty()) {
     root_label_ = L"Computer";
     return;
@@ -72,11 +88,15 @@ void RegistryTree::SetRootLabel(const std::wstring& label) {
   root_label_ = label;
 }
 
-void RegistryTree::SetRegeditLayout(bool enabled) {
+void RegistryTree::SetRegeditLayout(
+    bool enabled
+) {
   regedit_layout_ = enabled;
 }
 
-void RegistryTree::PopulateRoots(const std::vector<RegistryRootEntry>& roots) {
+void RegistryTree::PopulateRoots(
+    const std::vector<RegistryRootEntry>& roots
+) {
   TreeView_DeleteAllItems(hwnd_);
   nodes_.clear();
   nodes_.reserve(roots.size() + 3);
@@ -182,7 +202,9 @@ void RegistryTree::PopulateRoots(const std::vector<RegistryRootEntry>& roots) {
   }
 }
 
-RegistryNode* RegistryTree::NodeFromItem(HTREEITEM item) {
+RegistryNode* RegistryTree::NodeFromItem(
+    HTREEITEM item
+) {
   if (!item) {
     return nullptr;
   }
@@ -195,7 +217,9 @@ RegistryNode* RegistryTree::NodeFromItem(HTREEITEM item) {
   return reinterpret_cast<RegistryNode*>(tvi.lParam);
 }
 
-void RegistryTree::OnItemExpanding(const NMTREEVIEWW* info) {
+void RegistryTree::OnItemExpanding(
+    const NMTREEVIEWW* info
+) {
   if (!info || info->action != TVE_EXPAND) {
     return;
   }
@@ -207,20 +231,26 @@ void RegistryTree::OnItemExpanding(const NMTREEVIEWW* info) {
   node->children_loaded = AddChildren(info->itemNew.hItem, node);
 }
 
-RegistryNode* RegistryTree::OnSelectionChanged(const NMTREEVIEWW* info) {
+RegistryNode* RegistryTree::OnSelectionChanged(
+    const NMTREEVIEWW* info
+) {
   if (!info) {
     return nullptr;
   }
   return NodeFromItem(info->itemNew.hItem);
 }
 
-RegistryNode* RegistryTree::StoreNode(std::unique_ptr<RegistryNode> node) {
+RegistryNode* RegistryTree::StoreNode(
+    std::unique_ptr<RegistryNode> node
+) {
   RegistryNode* stored = node.get();
   nodes_.emplace(stored, std::move(node));
   return stored;
 }
 
-void RegistryTree::ReleaseSubtree(HTREEITEM item) {
+void RegistryTree::ReleaseSubtree(
+    HTREEITEM item
+) {
   for (HTREEITEM child = TreeView_GetChild(hwnd_, item); child;
        child = TreeView_GetNextSibling(hwnd_, child)) {
     ReleaseSubtree(child);
@@ -230,7 +260,9 @@ void RegistryTree::ReleaseSubtree(HTREEITEM item) {
   }
 }
 
-void RegistryTree::DeleteChildren(HTREEITEM parent) {
+void RegistryTree::DeleteChildren(
+    HTREEITEM parent
+) {
   if (!hwnd_ || !parent) {
     return;
   }
@@ -252,7 +284,10 @@ void RegistryTree::DeleteChildren(HTREEITEM parent) {
   ResumeRedraw(hwnd_);
 }
 
-HTREEITEM RegistryTree::InsertChild(HTREEITEM parent, const std::wstring& name) {
+HTREEITEM RegistryTree::InsertChild(
+    HTREEITEM parent,
+    const std::wstring& name
+) {
   RegistryNode* parent_node = NodeFromItem(parent);
   if (!hwnd_ || !parent || !parent_node || !parent_node->children_loaded ||
       name.empty()) {
@@ -305,18 +340,29 @@ HTREEITEM RegistryTree::InsertChild(HTREEITEM parent, const std::wstring& name) 
   return item;
 }
 
-bool RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node) {
+bool RegistryTree::AddChildren(
+    HTREEITEM parent,
+    RegistryNode* node
+) {
   if (!node) {
     return false;
   }
   std::vector<std::wstring> children;
   const bool enumerated = RegistryStore::EnumKeyStreaming(
-      *node, false, false, true, nullptr, RegistryStore::ValueStreamCallback(),
+      *node,
+      false,
+      false,
+      true,
+      nullptr,
+      RegistryStore::ValueStreamCallback(),
       [&](const std::wstring& name) {
         children.push_back(name);
         return true;
       },
-      MAXDWORD, nullptr, false);
+      MAXDWORD,
+      nullptr,
+      false
+  );
   std::vector<std::wstring> virtual_children;
   if (virtual_child_provider_ && (enumerated || node->simulated)) {
     std::unordered_set<std::wstring> existing_lower;
@@ -377,7 +423,9 @@ bool RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node) {
   return enumerated;
 }
 
-void RegistryTree::OnGetDispInfo(NMTVDISPINFOW* info) {
+void RegistryTree::OnGetDispInfo(
+    NMTVDISPINFOW* info
+) {
   if (!info) {
     return;
   }
@@ -405,7 +453,9 @@ void RegistryTree::OnGetDispInfo(NMTVDISPINFOW* info) {
   }
 }
 
-bool RegistryTree::HasChildren(const RegistryNode& node) {
+bool RegistryTree::HasChildren(
+    const RegistryNode& node
+) {
   if (RegistryStore::HasSubKeys(node)) {
     return true;
   }

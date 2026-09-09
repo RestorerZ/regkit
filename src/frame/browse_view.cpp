@@ -188,8 +188,7 @@ void MainWindow::Impl::ApplyValueColumns() {
     SendMessageW(header, WM_SETREDRAW, TRUE, 0);
   }
   SendMessageW(list, WM_SETREDRAW, TRUE, 0);
-  RedrawWindow(list, nullptr, nullptr,
-               RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
+  RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
 }
 
 void MainWindow::Impl::ApplyHistoryColumns() {
@@ -232,8 +231,7 @@ void MainWindow::Impl::ApplyHistoryColumns() {
     SendMessageW(header, WM_SETREDRAW, TRUE, 0);
   }
   SendMessageW(history_list_, WM_SETREDRAW, TRUE, 0);
-  RedrawWindow(history_list_, nullptr, nullptr,
-               RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
+  RedrawWindow(history_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
 }
 
 void MainWindow::Impl::CreateSearchColumns() {
@@ -295,7 +293,9 @@ void MainWindow::Impl::RefreshCompareColumnTitles() {
   }
 }
 
-void MainWindow::Impl::ApplySearchColumns(bool compare) {
+void MainWindow::Impl::ApplySearchColumns(
+    bool compare
+) {
   if (!search_results_list_) {
     return;
   }
@@ -342,12 +342,13 @@ void MainWindow::Impl::ApplySearchColumns(bool compare) {
     SendMessageW(header, WM_SETREDRAW, TRUE, 0);
   }
   SendMessageW(search_results_list_, WM_SETREDRAW, TRUE, 0);
-  RedrawWindow(search_results_list_, nullptr, nullptr,
-               RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
+  RedrawWindow(search_results_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
   compare_columns_active_ = compare;
 }
 
-void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node) {
+void MainWindow::Impl::UpdateValueListForNode(
+    RegistryNode* node
+) {
   if (updating_value_list_) {
     return;
   }
@@ -452,7 +453,10 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node) {
   value_loader_.Submit(std::move(task));
 }
 
-void MainWindow::Impl::ScheduleValueListRename(LPARAM kind, const std::wstring& name) {
+void MainWindow::Impl::ScheduleValueListRename(
+    LPARAM kind,
+    const std::wstring& name
+) {
   pending_value_list_kind_ = kind;
   pending_value_list_name_ = name;
 }
@@ -488,21 +492,23 @@ void MainWindow::Impl::StartPendingValueListRename() {
   pending_value_list_name_.clear();
 }
 
-void MainWindow::Impl::AttachBorder(HWND control) {
+void MainWindow::Impl::AttachBorder(
+    HWND control
+) {
   if (!control || GetWindowSubclass(control, BorderProc, kBorderSubclassId, nullptr)) {
     return;
   }
-  if (!SetWindowSubclass(control, BorderProc, kBorderSubclassId,
-                         reinterpret_cast<DWORD_PTR>(this))) {
+  if (!SetWindowSubclass(control, BorderProc, kBorderSubclassId, reinterpret_cast<DWORD_PTR>(this))) {
     return;
   }
   const LONG_PTR style = GetWindowLongPtrW(control, GWL_STYLE);
   SetWindowLongPtrW(control, GWL_STYLE, style | WS_BORDER);
-  SetWindowPos(control, nullptr, 0, 0, 0, 0,
-               SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+  SetWindowPos(control, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 }
 
-void MainWindow::Impl::AttachHeader(HWND header) {
+void MainWindow::Impl::AttachHeader(
+    HWND header
+) {
   if (!header || GetWindowSubclass(header, HeaderProc, kHeaderSubclassId, nullptr)) {
     return;
   }
@@ -529,7 +535,9 @@ void MainWindow::Impl::FocusFirstValue() {
   ListView_EnsureVisible(list, 0, FALSE);
 }
 
-void MainWindow::Impl::EnsureValueRowData(ListRow* row) {
+void MainWindow::Impl::EnsureValueRowData(
+    ListRow* row
+) {
   if (!row || row->kind != rowkind::kValue || row->data_ready) {
     return;
   }
@@ -566,7 +574,9 @@ void MainWindow::Impl::EnsureValueRowData(ListRow* row) {
   browse_.values().InvalidateFilterCache(row);
 }
 
-void MainWindow::Impl::UpdateAddressBar(RegistryNode* node) {
+void MainWindow::Impl::UpdateAddressBar(
+    RegistryNode* node
+) {
   HWND address = browse_.address();
   if (!address) {
     return;

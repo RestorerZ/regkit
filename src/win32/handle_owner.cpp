@@ -5,7 +5,11 @@
 
 namespace util {
 
-ComInit::ComInit(DWORD flags) noexcept : hr_(CoInitializeEx(nullptr, flags)) {}
+ComInit::ComInit(
+    DWORD flags
+) noexcept
+    : hr_(CoInitializeEx(nullptr, flags)) {
+}
 
 ComInit::~ComInit() {
   if (SUCCEEDED(hr_)) {
@@ -17,17 +21,26 @@ bool ComInit::ok() const noexcept {
   return SUCCEEDED(hr_);
 }
 
-UniqueHKey::UniqueHKey(HKEY key) noexcept : key_(key) {}
+UniqueHKey::UniqueHKey(
+    HKEY key
+) noexcept
+    : key_(key) {
+}
 
 UniqueHKey::~UniqueHKey() {
   reset();
 }
 
-UniqueHKey::UniqueHKey(UniqueHKey&& other) noexcept : key_(other.key_) {
+UniqueHKey::UniqueHKey(
+    UniqueHKey&& other
+) noexcept
+    : key_(other.key_) {
   other.key_ = nullptr;
 }
 
-UniqueHKey& UniqueHKey::operator=(UniqueHKey&& other) noexcept {
+UniqueHKey& UniqueHKey::operator=(
+    UniqueHKey&& other
+) noexcept {
   if (this != &other) {
     reset();
     key_ = other.key_;
@@ -51,7 +64,9 @@ HKEY UniqueHKey::release() noexcept {
   return key;
 }
 
-void UniqueHKey::reset(HKEY key) noexcept {
+void UniqueHKey::reset(
+    HKEY key
+) noexcept {
   if (key_) {
     RegCloseKey(key_);
   }

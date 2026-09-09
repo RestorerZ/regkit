@@ -13,7 +13,6 @@
 namespace regkit::editors::binary_text {
 
 std::wstring Hex(std::span<const BYTE> data);
-std::wstring Preview(std::span<const BYTE> data, int group_bytes,
-                     bool unicode);
+std::wstring Preview(std::span<const BYTE> data, int group_bytes, bool unicode);
 
 } // namespace regkit::editors::binary_text

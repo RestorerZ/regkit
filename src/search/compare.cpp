@@ -18,17 +18,24 @@ namespace regkit::search::compare {
 
 namespace {
 
-bool Cancelled(const std::atomic_bool* cancel) {
+bool Cancelled(
+    const std::atomic_bool* cancel
+) {
   return cancel && cancel->load();
 }
 
-bool EqualsInsensitive(const std::wstring& left,
-                       const std::wstring& right) {
+bool EqualsInsensitive(
+    const std::wstring& left,
+    const std::wstring& right
+) {
   return _wcsicmp(left.c_str(), right.c_str()) == 0;
 }
 
-bool IsWithin(const std::wstring& path, const std::wstring& base,
-              bool recursive) {
+bool IsWithin(
+    const std::wstring& path,
+    const std::wstring& base,
+    bool recursive
+) {
   if (EqualsInsensitive(path, base)) {
     return true;
   }
@@ -39,8 +46,10 @@ bool IsWithin(const std::wstring& path, const std::wstring& base,
   return path[base.size()] == L'\\';
 }
 
-std::wstring Combine(const std::wstring& base,
-                     const std::wstring& relative) {
+std::wstring Combine(
+    const std::wstring& base,
+    const std::wstring& relative
+) {
   if (relative.empty()) {
     return base;
   }
@@ -50,16 +59,22 @@ std::wstring Combine(const std::wstring& base,
   return base + L"\\" + relative;
 }
 
-std::wstring DataText(const Value& value) {
+std::wstring DataText(
+    const Value& value
+) {
   if (value.data.empty()) {
     return L"";
   }
   return value_format::DisplayData(
-      value.type, value.data.data(),
-      static_cast<DWORD>(value.data.size()));
+      value.type,
+      value.data.data(),
+      static_cast<DWORD>(value.data.size())
+  );
 }
 
-std::wstring EntryText(const Value* value) {
+std::wstring EntryText(
+    const Value* value
+) {
   if (!value) {
     return L"(Missing)";
   }
@@ -69,8 +84,11 @@ std::wstring EntryText(const Value* value) {
 }
 
 template <typename Map>
-void AppendKeys(const Map& source, std::unordered_set<std::wstring>* seen,
-                std::vector<std::wstring>* target) {
+void AppendKeys(
+    const Map& source,
+    std::unordered_set<std::wstring>* seen,
+    std::vector<std::wstring>* target
+) {
   for (const auto& pair : source) {
     if (seen->insert(pair.first).second) {
       target->push_back(pair.first);
@@ -80,10 +98,14 @@ void AppendKeys(const Map& source, std::unordered_set<std::wstring>* seen,
 
 } // namespace
 
-bool CaptureRegistry(const std::wstring& base_path,
-                     const RegistryNode& base_node, bool recursive,
-                     Snapshot* snapshot, std::wstring* error,
-                     std::atomic_bool* cancel) {
+bool CaptureRegistry(
+    const std::wstring& base_path,
+    const RegistryNode& base_node,
+    bool recursive,
+    Snapshot* snapshot,
+    std::wstring* error,
+    std::atomic_bool* cancel
+) {
   if (!snapshot) {
     return false;
   }
@@ -107,7 +129,11 @@ bool CaptureRegistry(const std::wstring& base_path,
     bool reserved = false;
     std::vector<std::wstring> children;
     const bool enumerated = RegistryStore::EnumKeyStreaming(
-        node, true, true, recursive, &enumeration,
+        node,
+        true,
+        true,
+        recursive,
+        &enumeration,
         [&](const ValueInfo& value, const BYTE* data, DWORD size) {
           if (Cancelled(cancel)) {
             return false;
@@ -131,8 +157,10 @@ bool CaptureRegistry(const std::wstring& base_path,
                         [&](const std::wstring& name) {
                           children.push_back(name);
                           return true;
-                        })
-                  : RegistryStore::SubkeyStreamCallback());
+                        }
+                    )
+                  : RegistryStore::SubkeyStreamCallback()
+    );
     if (Cancelled(cancel)) {
       return false;
     }
@@ -157,10 +185,15 @@ bool CaptureRegistry(const std::wstring& base_path,
   return true;
 }
 
-bool LoadRegFile(const std::wstring& file_path,
-                 const std::wstring& base_path, bool recursive,
-                 const NormalizePath& normalize, Snapshot* snapshot,
-                 std::wstring* error, std::atomic_bool* cancel) {
+bool LoadRegFile(
+    const std::wstring& file_path,
+    const std::wstring& base_path,
+    bool recursive,
+    const NormalizePath& normalize,
+    Snapshot* snapshot,
+    std::wstring* error,
+    std::atomic_bool* cancel
+) {
   if (!snapshot || !normalize) {
     return false;
   }
@@ -228,7 +261,11 @@ bool LoadRegFile(const std::wstring& file_path,
   return true;
 }
 
-void SortRows(std::vector<Row>* rows, int column, bool ascending) {
+void SortRows(
+    std::vector<Row>* rows,
+    int column,
+    bool ascending
+) {
   if (!rows || rows->size() < 2) {
     return;
   }
@@ -244,16 +281,17 @@ void SortRows(std::vector<Row>* rows, int column, bool ascending) {
       return row.key_path;
     }
   };
-  std::stable_sort(rows->begin(), rows->end(),
-                   [&](const Row& left, const Row& right) {
+  std::stable_sort(rows->begin(), rows->end(), [&](const Row& left, const Row& right) {
                      const int result =
                          _wcsicmp(field(left).c_str(), field(right).c_str());
-                     return result != 0 && (ascending ? result < 0 : result > 0);
-                   });
+                     return result != 0 && (ascending ? result < 0 : result > 0); });
 }
 
-std::vector<Row> Diff(const Snapshot& first, const Snapshot& second,
-                         std::atomic_bool* cancel) {
+std::vector<Row> Diff(
+    const Snapshot& first,
+    const Snapshot& second,
+    std::atomic_bool* cancel
+) {
   std::vector<std::wstring> keys;
   keys.reserve(first.keys.size() + second.keys.size());
   std::unordered_set<std::wstring> seen;
@@ -268,11 +306,7 @@ std::vector<Row> Diff(const Snapshot& first, const Snapshot& second,
     }
     return second.keys.find(lower)->second.relative_path;
   };
-  std::sort(keys.begin(), keys.end(),
-            [&](const std::wstring& left, const std::wstring& right) {
-              return _wcsicmp(key_display(left).c_str(),
-                              key_display(right).c_str()) < 0;
-            });
+  std::sort(keys.begin(), keys.end(), [&](const std::wstring& left, const std::wstring& right) { return _wcsicmp(key_display(left).c_str(), key_display(right).c_str()) < 0; });
 
   std::vector<Row> results;
   for (const auto& key_name : keys) {
@@ -307,10 +341,7 @@ std::vector<Row> Diff(const Snapshot& first, const Snapshot& second,
     seen_values.reserve(values.capacity());
     AppendKeys(first_key->values, &seen_values, &values);
     AppendKeys(second_key->values, &seen_values, &values);
-    std::sort(values.begin(), values.end(),
-              [](const std::wstring& left, const std::wstring& right) {
-                return _wcsicmp(left.c_str(), right.c_str()) < 0;
-              });
+    std::sort(values.begin(), values.end(), [](const std::wstring& left, const std::wstring& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
 
     for (const auto& value_name : values) {
       if (Cancelled(cancel)) {
@@ -344,8 +375,9 @@ std::vector<Row> Diff(const Snapshot& first, const Snapshot& second,
   return results;
 }
 
-
-std::wstring SerializeRows(const std::vector<Row>& rows) {
+std::wstring SerializeRows(
+    const std::vector<Row>& rows
+) {
   std::wstring content = L"version=1\n";
   for (const Row& row : rows) {
     content += record_fields::Escape(row.key_path);
@@ -366,7 +398,10 @@ std::wstring SerializeRows(const std::vector<Row>& rows) {
   return content;
 }
 
-bool ParseRows(const std::wstring& content, std::vector<Row>* rows) {
+bool ParseRows(
+    const std::wstring& content,
+    std::vector<Row>* rows
+) {
   if (!rows) {
     return false;
   }
@@ -393,11 +428,17 @@ bool ParseRows(const std::wstring& content, std::vector<Row>* rows) {
   return true;
 }
 
-bool SaveRows(const std::wstring& path, const std::vector<Row>& rows) {
+bool SaveRows(
+    const std::wstring& path,
+    const std::vector<Row>& rows
+) {
   return !path.empty() && util::WriteTextFile(path, SerializeRows(rows), false);
 }
 
-bool LoadRows(const std::wstring& path, std::vector<Row>* rows) {
+bool LoadRows(
+    const std::wstring& path,
+    std::vector<Row>* rows
+) {
   if (!rows || path.empty()) {
     return false;
   }

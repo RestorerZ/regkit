@@ -9,7 +9,8 @@ using namespace window_detail;
 void MainWindow::Impl::MergeTraceEntries(
     TraceParseSession* session,
     const std::vector<KeyValueDialogEntry>& entries,
-    std::unordered_set<std::wstring>* affected_keys) {
+    std::unordered_set<std::wstring>* affected_keys
+) {
   if (!session || !session->data || entries.empty()) {
     return;
   }
@@ -29,7 +30,8 @@ void MainWindow::Impl::MergeTraceEntries(
 void MainWindow::Impl::MergeDefaultEntries(
     DefaultParseSession* session,
     const std::vector<KeyValueDialogEntry>& entries,
-    std::unordered_set<std::wstring>* affected_keys) {
+    std::unordered_set<std::wstring>* affected_keys
+) {
   if (!session || !session->data || entries.empty()) {
     return;
   }
@@ -48,7 +50,9 @@ void MainWindow::Impl::MergeDefaultEntries(
   defaults::Merge(session->data.get(), parsed, [](const std::wstring& path) { return MapControlSetToCurrent(path); }, affected_keys);
 }
 
-void MainWindow::Impl::StartTraceParseThread(TraceParseSession* session) {
+void MainWindow::Impl::StartTraceParseThread(
+    TraceParseSession* session
+) {
   if (!session || session->work.running()) {
     return;
   }
@@ -57,7 +61,9 @@ void MainWindow::Impl::StartTraceParseThread(TraceParseSession* session) {
   std::wstring source_lower = session->source_lower;
   session->work.Start(
       [this, session, hwnd, source, source_lower](
-          uint64_t generation, std::atomic_bool& cancel) {
+          uint64_t generation,
+          std::atomic_bool& cancel
+      ) {
         constexpr size_t kBatchSize = 256;
         constexpr DWORD kBatchMs = 50;
         auto post_batch = [&](std::vector<KeyValueDialogEntry>* entries, bool done, const std::wstring& error, bool cancelled) {
@@ -82,7 +88,8 @@ void MainWindow::Impl::StartTraceParseThread(TraceParseSession* session) {
         uint64_t last_post = GetTickCount64();
         std::wstring parse_error;
         const bool parsed = trace::LoadEntries(
-            source, TraceNormalizers(),
+            source,
+            TraceNormalizers(),
             [&](trace::Entry&& parsed_entry) {
               KeyValueDialogEntry entry;
               entry.key_path = std::move(parsed_entry.key_path);
@@ -99,10 +106,11 @@ void MainWindow::Impl::StartTraceParseThread(TraceParseSession* session) {
               }
               return !cancel.load();
             },
-            &parse_error, &cancel);
+            &parse_error,
+            &cancel
+        );
         if (!parsed) {
-          post_batch(nullptr, true, cancel.load() ? L"" : parse_error,
-                     cancel.load());
+          post_batch(nullptr, true, cancel.load() ? L"" : parse_error, cancel.load());
           return;
         }
         if (!entries.empty()) {
@@ -111,10 +119,13 @@ void MainWindow::Impl::StartTraceParseThread(TraceParseSession* session) {
         }
         trace::Sort(session->data.get());
         post_batch(nullptr, true, L"", false);
-      });
+      }
+  );
 }
 
-void MainWindow::Impl::StartDefaultParseThread(DefaultParseSession* session) {
+void MainWindow::Impl::StartDefaultParseThread(
+    DefaultParseSession* session
+) {
   if (!session || session->work.running()) {
     return;
   }
@@ -123,7 +134,9 @@ void MainWindow::Impl::StartDefaultParseThread(DefaultParseSession* session) {
   std::wstring source_lower = session->source_lower;
   session->work.Start(
       [this, session, hwnd, source, source_lower](
-          uint64_t generation, std::atomic_bool& cancel) {
+          uint64_t generation,
+          std::atomic_bool& cancel
+      ) {
         constexpr size_t kBatchSize = 256;
         constexpr DWORD kBatchMs = 50;
         auto post_batch = [&](std::vector<KeyValueDialogEntry>* entries, bool done, const std::wstring& error, bool cancelled) {
@@ -150,9 +163,12 @@ void MainWindow::Impl::StartDefaultParseThread(DefaultParseSession* session) {
                 [](const std::wstring& path) {
                   return NormalizeTraceKeyPathBasic(path);
                 },
-                nullptr, &parsed_entries, &parse_error, &cancel)) {
-          post_batch(nullptr, true, cancel.load() ? L"" : parse_error,
-                     cancel.load());
+                nullptr,
+                &parsed_entries,
+                &parse_error,
+                &cancel
+            )) {
+          post_batch(nullptr, true, cancel.load() ? L"" : parse_error, cancel.load());
           return;
         }
 
@@ -193,7 +209,8 @@ void MainWindow::Impl::StartDefaultParseThread(DefaultParseSession* session) {
           post_batch(&entries, false, L"", false);
         }
         post_batch(nullptr, true, L"", false);
-      });
+      }
+  );
 }
 
 } // namespace regkit

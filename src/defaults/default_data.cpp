@@ -9,9 +9,12 @@
 
 namespace regkit::defaults {
 
-void Merge(Data* data, const std::vector<Entry>& entries,
-           const AliasPath& alias,
-           std::unordered_set<std::wstring>* affected_keys) {
+void Merge(
+    Data* data,
+    const std::vector<Entry>& entries,
+    const AliasPath& alias,
+    std::unordered_set<std::wstring>* affected_keys
+) {
   if (!data || entries.empty()) {
     return;
   }

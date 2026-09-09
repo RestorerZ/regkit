@@ -15,11 +15,16 @@ namespace regkit::trace {
 
 namespace {
 
-std::wstring Lower(const std::wstring& text) {
+std::wstring Lower(
+    const std::wstring& text
+) {
   return util::ToLower(text);
 }
 
-bool IsChild(const std::wstring& path, const std::wstring& parent) {
+bool IsChild(
+    const std::wstring& path,
+    const std::wstring& parent
+) {
   return path.size() > parent.size() &&
          path.compare(0, parent.size(), parent) == 0 &&
          path[parent.size()] == L'\\';
@@ -27,8 +32,10 @@ bool IsChild(const std::wstring& path, const std::wstring& parent) {
 
 } // namespace
 
-bool IncludesKey(const Selection& selection,
-                 const std::wstring& key_lower) {
+bool IncludesKey(
+    const Selection& selection,
+    const std::wstring& key_lower
+) {
   if (selection.select_all || key_lower.empty()) {
     return true;
   }
@@ -52,9 +59,11 @@ bool IncludesKey(const Selection& selection,
   return true;
 }
 
-bool IncludesValue(const Selection& selection,
-                   const std::wstring& key_lower,
-                   const std::wstring& value_lower) {
+bool IncludesValue(
+    const Selection& selection,
+    const std::wstring& key_lower,
+    const std::wstring& value_lower
+) {
   if (selection.select_all) {
     return true;
   }
@@ -63,7 +72,10 @@ bool IncludesValue(const Selection& selection,
          key->second.find(value_lower) != key->second.end();
 }
 
-void NormalizeSelection(const Data& data, Selection* selection) {
+void NormalizeSelection(
+    const Data& data,
+    Selection* selection
+) {
   if (!selection || selection->select_all) {
     return;
   }
@@ -106,8 +118,11 @@ void NormalizeSelection(const Data& data, Selection* selection) {
   }
 }
 
-void Merge(Data* data, const std::vector<Entry>& entries,
-           std::unordered_set<std::wstring>* affected_keys) {
+void Merge(
+    Data* data,
+    const std::vector<Entry>& entries,
+    std::unordered_set<std::wstring>* affected_keys
+) {
   if (!data || entries.empty()) {
     return;
   }
@@ -156,7 +171,9 @@ void Merge(Data* data, const std::vector<Entry>& entries,
   }
 }
 
-void Sort(Data* data) {
+void Sort(
+    Data* data
+) {
   if (!data) {
     return;
   }
@@ -165,8 +182,7 @@ void Sort(Data* data) {
   };
   std::unique_lock<std::shared_mutex> lock(*data->mutex);
   std::sort(data->key_paths.begin(), data->key_paths.end(), less);
-  std::sort(data->display_key_paths.begin(),
-            data->display_key_paths.end(), less);
+  std::sort(data->display_key_paths.begin(), data->display_key_paths.end(), less);
 }
 
 } // namespace regkit::trace

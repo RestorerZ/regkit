@@ -11,7 +11,10 @@ namespace regkit {
 
 namespace {
 
-void AppendSearchField(std::wstring* out, const std::wstring& text) {
+void AppendSearchField(
+    std::wstring* out,
+    const std::wstring& text
+) {
   if (!out || text.empty()) {
     return;
   }
@@ -21,7 +24,9 @@ void AppendSearchField(std::wstring* out, const std::wstring& text) {
   out->append(util::ToLower(text));
 }
 
-std::wstring BuildSearchText(const ListRow& row) {
+std::wstring BuildSearchText(
+    const ListRow& row
+) {
   std::wstring text;
   size_t reserve = row.name.size() + row.type.size() + row.data.size() + row.default_data.size() + row.read_on_boot.size() + row.extra.size() + row.size.size() + row.date.size() + row.details.size() + row.comment.size() + 10;
   text.reserve(reserve);
@@ -40,7 +45,11 @@ std::wstring BuildSearchText(const ListRow& row) {
 
 } // namespace
 
-void ValueList::Create(HWND parent, HINSTANCE instance, int control_id) {
+void ValueList::Create(
+    HWND parent,
+    HINSTANCE instance,
+    int control_id
+) {
   hwnd_ = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_OWNERDATA | LVS_EDITLABELS, 0, 0, 100, 100, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(control_id)), instance, nullptr);
   DWORD ex_mask = LVS_EX_INFOTIP | LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_BORDERSELECT | LVS_EX_TRACKSELECT | LVS_EX_ONECLICKACTIVATE | LVS_EX_TWOCLICKACTIVATE | LVS_EX_UNDERLINEHOT;
   DWORD ex_style = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER;
@@ -53,7 +62,9 @@ HWND ValueList::hwnd() const {
   return hwnd_;
 }
 
-void ValueList::SetRows(std::vector<ListRow> rows) {
+void ValueList::SetRows(
+    std::vector<ListRow> rows
+) {
   rows_ = std::move(rows);
   filter_cache_.clear();
   filter_cache_valid_.clear();
@@ -62,7 +73,10 @@ void ValueList::SetRows(std::vector<ListRow> rows) {
   RebuildFilter();
 }
 
-int ValueList::AppendRow(ListRow row, bool force_visible) {
+int ValueList::AppendRow(
+    ListRow row,
+    bool force_visible
+) {
   const int row_index = static_cast<int>(rows_.size());
   rows_.emplace_back(std::move(row));
   filter_cache_.emplace_back();
@@ -82,14 +96,15 @@ int ValueList::AppendRow(ListRow row, bool force_visible) {
   visible_indices_.push_back(row_index);
   const int visible_index = static_cast<int>(visible_indices_.size() - 1);
   if (hwnd_) {
-    ListView_SetItemCountEx(hwnd_, static_cast<int>(visible_indices_.size()),
-                            LVSICF_NOINVALIDATEALL | LVSICF_NOSCROLL);
+    ListView_SetItemCountEx(hwnd_, static_cast<int>(visible_indices_.size()), LVSICF_NOINVALIDATEALL | LVSICF_NOSCROLL);
     ListView_RedrawItems(hwnd_, visible_index, visible_index);
   }
   return visible_index;
 }
 
-void ValueList::SetImageList(HIMAGELIST image_list) {
+void ValueList::SetImageList(
+    HIMAGELIST image_list
+) {
   ListView_SetImageList(hwnd_, image_list, LVSIL_SMALL);
 }
 
@@ -102,7 +117,9 @@ void ValueList::Clear() {
   RedrawWindow(hwnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
 }
 
-void ValueList::SetFilter(const std::wstring& text) {
+void ValueList::SetFilter(
+    const std::wstring& text
+) {
   if (filter_text_ == text) {
     return;
   }
@@ -147,7 +164,9 @@ void ValueList::InvalidateFilterCache() {
   std::fill(filter_cache_valid_.begin(), filter_cache_valid_.end(), false);
 }
 
-void ValueList::InvalidateFilterCache(const ListRow* row) {
+void ValueList::InvalidateFilterCache(
+    const ListRow* row
+) {
   if (!row || rows_.empty()) {
     return;
   }
@@ -170,7 +189,9 @@ size_t ValueList::RowCount() const {
   return visible_indices_.size();
 }
 
-const ListRow* ValueList::RowAt(int index) const {
+const ListRow* ValueList::RowAt(
+    int index
+) const {
   if (index < 0 || static_cast<size_t>(index) >= visible_indices_.size()) {
     return nullptr;
   }
@@ -181,7 +202,9 @@ const ListRow* ValueList::RowAt(int index) const {
   return &rows_[static_cast<size_t>(mapped)];
 }
 
-ListRow* ValueList::MutableRowAt(int index) {
+ListRow* ValueList::MutableRowAt(
+    int index
+) {
   if (index < 0 || static_cast<size_t>(index) >= visible_indices_.size()) {
     return nullptr;
   }

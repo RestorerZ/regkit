@@ -130,8 +130,7 @@ struct Result {
   DataState data_state = DataState::kNotApplicable;
 };
 
-bool IsExcludedPath(const std::wstring& path,
-                    const std::vector<std::wstring>& excludes);
+bool IsExcludedPath(const std::wstring& path, const std::vector<std::wstring>& excludes);
 bool IsKeyRow(const Result& result) noexcept;
 std::wstring_view DisplayName(const Result& result) noexcept;
 std::wstring TypeText(const Result& result);
@@ -141,8 +140,7 @@ using ProgressCallback =
 using ResultBatch = std::vector<Result>;
 using BatchCallback = std::function<bool(ResultBatch&&)>;
 
-bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
-         const BatchCallback& publish, const ProgressCallback& progress);
+bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCallback& publish, const ProgressCallback& progress);
 
 void SortResults(std::vector<Result>* results, int column, bool ascending);
 

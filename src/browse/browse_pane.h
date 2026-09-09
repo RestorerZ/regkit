@@ -85,8 +85,7 @@ public:
   void set_tree_type_select_descend(bool descend) noexcept;
 
 private:
-  static void UpdateTypeBuffer(wchar_t ch, DWORD now,
-                               std::wstring* buffer, DWORD* tick);
+  static void UpdateTypeBuffer(wchar_t ch, DWORD now, std::wstring* buffer, DWORD* tick);
 
   HWND address_ = nullptr;
   HWND go_button_ = nullptr;

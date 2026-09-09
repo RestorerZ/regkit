@@ -45,39 +45,51 @@ void EnsureConsole() {
   }
 }
 
-void WriteTo(HANDLE handle, const std::wstring& text) {
+void WriteTo(
+    HANDLE handle,
+    const std::wstring& text
+) {
   if (!handle || handle == INVALID_HANDLE_VALUE || text.empty()) {
     return;
   }
   DWORD written = 0;
   if (GetFileType(handle) == FILE_TYPE_CHAR) {
-    WriteConsoleW(handle, text.c_str(), static_cast<DWORD>(text.size()),
-                  &written, nullptr);
+    WriteConsoleW(handle, text.c_str(), static_cast<DWORD>(text.size()), &written, nullptr);
     return;
   }
   const std::string utf8 = util::WideToUtf8(text);
-  WriteFile(handle, utf8.data(), static_cast<DWORD>(utf8.size()), &written,
-            nullptr);
+  WriteFile(handle, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
 }
 
-void Print(const std::wstring& text) {
+void Print(
+    const std::wstring& text
+) {
   EnsureConsole();
   WriteTo(g_out, text + L"\r\n");
 }
 
-void PrintError(const std::wstring& text) {
+void PrintError(
+    const std::wstring& text
+) {
   EnsureConsole();
   const bool prefixed = text.rfind(L"ERROR: ", 0) == 0;
   WriteTo(g_err, (prefixed ? text : L"ERROR: " + text) + L"\r\n");
 }
 
-std::wstring SystemMessage(LONG status) {
+std::wstring SystemMessage(
+    LONG status
+) {
   wchar_t* buffer = nullptr;
   const DWORD length = FormatMessageW(
       FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
           FORMAT_MESSAGE_IGNORE_INSERTS,
-      nullptr, static_cast<DWORD>(status), 0,
-      reinterpret_cast<wchar_t*>(&buffer), 0, nullptr);
+      nullptr,
+      static_cast<DWORD>(status),
+      0,
+      reinterpret_cast<wchar_t*>(&buffer),
+      0,
+      nullptr
+  );
   std::wstring text = (length && buffer) ? buffer : L"The operation failed.";
   if (buffer) {
     LocalFree(buffer);
@@ -88,7 +100,9 @@ std::wstring SystemMessage(LONG status) {
   return text;
 }
 
-int Fail(LONG status) {
+int Fail(
+    LONG status
+) {
   if (status == ERROR_FILE_NOT_FOUND) {
     PrintError(L"The system was unable to find the specified registry key or value.");
   } else {
@@ -97,12 +111,18 @@ int Fail(LONG status) {
   return kFailed;
 }
 
-bool EqualsInsensitive(std::wstring_view left, const wchar_t* right) {
+bool EqualsInsensitive(
+    std::wstring_view left,
+    const wchar_t* right
+) {
   return left.size() == wcslen(right) &&
          _wcsnicmp(left.data(), right, left.size()) == 0;
 }
 
-bool IsSwitch(const std::wstring& text, const wchar_t* name) {
+bool IsSwitch(
+    const std::wstring& text,
+    const wchar_t* name
+) {
   if (text.empty() || (text[0] != L'/' && text[0] != L'-')) {
     return false;
   }
@@ -115,7 +135,9 @@ struct KeyRef {
   std::wstring display;
 };
 
-HKEY RootFromName(std::wstring_view name) {
+HKEY RootFromName(
+    std::wstring_view name
+) {
   struct Entry {
     const wchar_t* full;
     const wchar_t* shortcut;
@@ -138,17 +160,28 @@ HKEY RootFromName(std::wstring_view name) {
   return nullptr;
 }
 
-const wchar_t* RootName(HKEY root) {
-  if (root == HKEY_LOCAL_MACHINE) return L"HKEY_LOCAL_MACHINE";
-  if (root == HKEY_CURRENT_USER) return L"HKEY_CURRENT_USER";
-  if (root == HKEY_CLASSES_ROOT) return L"HKEY_CLASSES_ROOT";
-  if (root == HKEY_USERS) return L"HKEY_USERS";
-  if (root == HKEY_CURRENT_CONFIG) return L"HKEY_CURRENT_CONFIG";
-  if (root == HKEY_PERFORMANCE_DATA) return L"HKEY_PERFORMANCE_DATA";
+const wchar_t* RootName(
+    HKEY root
+) {
+  if (root == HKEY_LOCAL_MACHINE)
+    return L"HKEY_LOCAL_MACHINE";
+  if (root == HKEY_CURRENT_USER)
+    return L"HKEY_CURRENT_USER";
+  if (root == HKEY_CLASSES_ROOT)
+    return L"HKEY_CLASSES_ROOT";
+  if (root == HKEY_USERS)
+    return L"HKEY_USERS";
+  if (root == HKEY_CURRENT_CONFIG)
+    return L"HKEY_CURRENT_CONFIG";
+  if (root == HKEY_PERFORMANCE_DATA)
+    return L"HKEY_PERFORMANCE_DATA";
   return L"HKEY";
 }
 
-bool ParseKey(const std::wstring& text, KeyRef* key) {
+bool ParseKey(
+    const std::wstring& text,
+    KeyRef* key
+) {
   std::wstring_view view = text;
   while (!view.empty() && view.front() == L'\\') {
     view.remove_prefix(1);
@@ -192,7 +225,10 @@ const ValueType kTypes[] = {
     {L"REG_FULL_RESOURCE_DESCRIPTOR", REG_FULL_RESOURCE_DESCRIPTOR},
 };
 
-bool ParseType(const std::wstring& text, DWORD* type) {
+bool ParseType(
+    const std::wstring& text,
+    DWORD* type
+) {
   for (const ValueType& entry : kTypes) {
     if (EqualsInsensitive(text, entry.name)) {
       *type = entry.type;
@@ -203,72 +239,78 @@ bool ParseType(const std::wstring& text, DWORD* type) {
   return false;
 }
 
-bool BuildData(DWORD type, const std::wstring& text,
-               const std::wstring& separator, std::vector<BYTE>* data) {
+bool BuildData(
+    DWORD type,
+    const std::wstring& text,
+    const std::wstring& separator,
+    std::vector<BYTE>* data
+) {
   data->clear();
   switch (type) {
   case REG_SZ:
   case REG_EXPAND_SZ:
-  case REG_LINK: {
-    const size_t bytes = (text.size() + 1) * sizeof(wchar_t);
-    data->resize(bytes);
-    memcpy(data->data(), text.c_str(), bytes);
-    return true;
-  }
-  case REG_MULTI_SZ: {
-    std::vector<std::wstring> items;
-    const size_t step = separator.empty() ? 1 : separator.size();
-    size_t start = 0;
-    while (start <= text.size()) {
-      const size_t end = separator.empty() ? std::wstring::npos
-                                           : text.find(separator, start);
-      const std::wstring item =
-          text.substr(start, end == std::wstring::npos ? std::wstring::npos
-                                                       : end - start);
-      if (!item.empty()) {
-        items.push_back(item);
-      }
-      if (end == std::wstring::npos) {
-        break;
-      }
-      start = end + step;
-    }
-    *data = value_format::MultiStringData(items);
-    return true;
-  }
-  case REG_DWORD:
-  case REG_DWORD_BIG_ENDIAN:
-  case REG_QWORD: {
-    if (text.empty() || iswspace(text.front()) || text.front() == L'-' ||
-        text.front() == L'+') {
-      PrintError(L"Invalid numeric data: " + text);
-      return false;
-    }
-    wchar_t* stop = nullptr;
-    const int base = (text.rfind(L"0x", 0) == 0 || text.rfind(L"0X", 0) == 0) ? 16 : 10;
-    errno = 0;
-    const unsigned long long value = wcstoull(text.c_str(), &stop, base);
-    if (stop == text.c_str() || !stop || *stop != L'\0' || errno == ERANGE) {
-      PrintError(L"Invalid numeric data: " + text);
-      return false;
-    }
-    if (type == REG_QWORD) {
-      data->resize(sizeof(unsigned long long));
-      memcpy(data->data(), &value, sizeof(value));
+  case REG_LINK:
+    {
+      const size_t bytes = (text.size() + 1) * sizeof(wchar_t);
+      data->resize(bytes);
+      memcpy(data->data(), text.c_str(), bytes);
       return true;
     }
-    if (value > 0xFFFFFFFFull) {
-      PrintError(L"Numeric data out of range for a DWORD: " + text);
-      return false;
+  case REG_MULTI_SZ:
+    {
+      std::vector<std::wstring> items;
+      const size_t step = separator.empty() ? 1 : separator.size();
+      size_t start = 0;
+      while (start <= text.size()) {
+        const size_t end = separator.empty() ? std::wstring::npos
+                                             : text.find(separator, start);
+        const std::wstring item =
+            text.substr(start, end == std::wstring::npos ? std::wstring::npos : end - start);
+        if (!item.empty()) {
+          items.push_back(item);
+        }
+        if (end == std::wstring::npos) {
+          break;
+        }
+        start = end + step;
+      }
+      *data = value_format::MultiStringData(items);
+      return true;
     }
-    DWORD narrow = static_cast<DWORD>(value);
-    if (type == REG_DWORD_BIG_ENDIAN) {
-      narrow = _byteswap_ulong(narrow);
+  case REG_DWORD:
+  case REG_DWORD_BIG_ENDIAN:
+  case REG_QWORD:
+    {
+      if (text.empty() || iswspace(text.front()) || text.front() == L'-' ||
+          text.front() == L'+') {
+        PrintError(L"Invalid numeric data: " + text);
+        return false;
+      }
+      wchar_t* stop = nullptr;
+      const int base = (text.rfind(L"0x", 0) == 0 || text.rfind(L"0X", 0) == 0) ? 16 : 10;
+      errno = 0;
+      const unsigned long long value = wcstoull(text.c_str(), &stop, base);
+      if (stop == text.c_str() || !stop || *stop != L'\0' || errno == ERANGE) {
+        PrintError(L"Invalid numeric data: " + text);
+        return false;
+      }
+      if (type == REG_QWORD) {
+        data->resize(sizeof(unsigned long long));
+        memcpy(data->data(), &value, sizeof(value));
+        return true;
+      }
+      if (value > 0xFFFFFFFFull) {
+        PrintError(L"Numeric data out of range for a DWORD: " + text);
+        return false;
+      }
+      DWORD narrow = static_cast<DWORD>(value);
+      if (type == REG_DWORD_BIG_ENDIAN) {
+        narrow = _byteswap_ulong(narrow);
+      }
+      data->resize(sizeof(DWORD));
+      memcpy(data->data(), &narrow, sizeof(narrow));
+      return true;
     }
-    data->resize(sizeof(DWORD));
-    memcpy(data->data(), &narrow, sizeof(narrow));
-    return true;
-  }
   case REG_BINARY:
   case REG_NONE:
   default:
@@ -280,7 +322,9 @@ bool BuildData(DWORD type, const std::wstring& text,
   }
 }
 
-std::wstring TypeName(DWORD type) {
+std::wstring TypeName(
+    DWORD type
+) {
   for (const ValueType& entry : kTypes) {
     if (entry.type == type) {
       return entry.name;
@@ -289,61 +333,69 @@ std::wstring TypeName(DWORD type) {
   return value_format::TypeName(type);
 }
 
-std::wstring FormatData(DWORD type, const BYTE* data, DWORD size) {
+std::wstring FormatData(
+    DWORD type,
+    const BYTE* data,
+    DWORD size
+) {
   switch (type) {
   case REG_SZ:
   case REG_EXPAND_SZ:
-  case REG_LINK: {
-    std::wstring text(reinterpret_cast<const wchar_t*>(data),
-                      size / sizeof(wchar_t));
-    while (!text.empty() && text.back() == L'\0') {
-      text.pop_back();
-    }
-    return text;
-  }
-  case REG_MULTI_SZ: {
-    std::wstring joined;
-    for (const auto& item :
-         value_format::MultiStringItems(std::vector<BYTE>(data, data + size))) {
-      if (!joined.empty()) {
-        joined += L"\\0";
+  case REG_LINK:
+    {
+      std::wstring text(reinterpret_cast<const wchar_t*>(data), size / sizeof(wchar_t));
+      while (!text.empty() && text.back() == L'\0') {
+        text.pop_back();
       }
-      joined += item;
+      return text;
     }
-    return joined;
-  }
+  case REG_MULTI_SZ:
+    {
+      std::wstring joined;
+      for (const auto& item :
+           value_format::MultiStringItems(std::vector<BYTE>(data, data + size))) {
+        if (!joined.empty()) {
+          joined += L"\\0";
+        }
+        joined += item;
+      }
+      return joined;
+    }
   case REG_DWORD:
-  case REG_DWORD_BIG_ENDIAN: {
-    DWORD value = 0;
-    if (size >= sizeof(value)) {
-      memcpy(&value, data, sizeof(value));
+  case REG_DWORD_BIG_ENDIAN:
+    {
+      DWORD value = 0;
+      if (size >= sizeof(value)) {
+        memcpy(&value, data, sizeof(value));
+      }
+      if (type == REG_DWORD_BIG_ENDIAN) {
+        value = _byteswap_ulong(value);
+      }
+      wchar_t buffer[24] = {};
+      swprintf_s(buffer, L"0x%x", value);
+      return buffer;
     }
-    if (type == REG_DWORD_BIG_ENDIAN) {
-      value = _byteswap_ulong(value);
+  case REG_QWORD:
+    {
+      unsigned long long value = 0;
+      if (size >= sizeof(value)) {
+        memcpy(&value, data, sizeof(value));
+      }
+      wchar_t buffer[32] = {};
+      swprintf_s(buffer, L"0x%llx", value);
+      return buffer;
     }
-    wchar_t buffer[24] = {};
-    swprintf_s(buffer, L"0x%x", value);
-    return buffer;
-  }
-  case REG_QWORD: {
-    unsigned long long value = 0;
-    if (size >= sizeof(value)) {
-      memcpy(&value, data, sizeof(value));
+  default:
+    {
+      std::wstring hex;
+      hex.reserve(static_cast<size_t>(size) * 2);
+      static const wchar_t digits[] = L"0123456789ABCDEF";
+      for (DWORD i = 0; i < size; ++i) {
+        hex.push_back(digits[data[i] >> 4]);
+        hex.push_back(digits[data[i] & 0x0F]);
+      }
+      return hex;
     }
-    wchar_t buffer[32] = {};
-    swprintf_s(buffer, L"0x%llx", value);
-    return buffer;
-  }
-  default: {
-    std::wstring hex;
-    hex.reserve(static_cast<size_t>(size) * 2);
-    static const wchar_t digits[] = L"0123456789ABCDEF";
-    for (DWORD i = 0; i < size; ++i) {
-      hex.push_back(digits[data[i] >> 4]);
-      hex.push_back(digits[data[i] & 0x0F]);
-    }
-    return hex;
-  }
   }
 }
 
@@ -362,9 +414,13 @@ struct Options {
   REGSAM view = win32::kDefaultRegistryView;
 };
 
-bool ParseOptions(const std::vector<std::wstring>& args, size_t first,
-                  Options* options, std::vector<std::wstring>* positional,
-                  bool separator_switch = false) {
+bool ParseOptions(
+    const std::vector<std::wstring>& args,
+    size_t first,
+    Options* options,
+    std::vector<std::wstring>* positional,
+    bool separator_switch = false
+) {
   for (size_t i = first; i < args.size(); ++i) {
     const std::wstring& arg = args[i];
     auto next = [&](std::wstring* out) -> bool {
@@ -376,7 +432,8 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first,
       return true;
     };
     if (IsSwitch(arg, L"v")) {
-      if (!next(&options->value_name)) return false;
+      if (!next(&options->value_name))
+        return false;
       options->has_value = true;
     } else if (IsSwitch(arg, L"ve")) {
       options->default_value = true;
@@ -384,14 +441,17 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first,
     } else if (IsSwitch(arg, L"va")) {
       options->all_values = true;
     } else if (IsSwitch(arg, L"t")) {
-      if (!next(&options->type_text)) return false;
+      if (!next(&options->type_text))
+        return false;
     } else if (IsSwitch(arg, L"d")) {
-      if (!next(&options->data)) return false;
+      if (!next(&options->data))
+        return false;
       options->has_data = true;
     } else if (IsSwitch(arg, L"s")) {
       if (separator_switch) {
         std::wstring separator;
-        if (!next(&separator)) return false;
+        if (!next(&separator))
+          return false;
         options->separator = separator;
       } else {
         options->recurse = true;
@@ -412,8 +472,12 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first,
   return true;
 }
 
-bool CollectSubkeyNames(HKEY root, const std::wstring& subkey, REGSAM view,
-                        std::vector<std::wstring>* names) {
+bool CollectSubkeyNames(
+    HKEY root,
+    const std::wstring& subkey,
+    REGSAM view,
+    std::vector<std::wstring>* names
+) {
   HKEY handle = nullptr;
   if (RegOpenKeyExW(root, subkey.c_str(), 0, KEY_READ | view, &handle) !=
       ERROR_SUCCESS) {
@@ -423,8 +487,7 @@ bool CollectSubkeyNames(HKEY root, const std::wstring& subkey, REGSAM view,
   DWORD index = 0;
   while (true) {
     DWORD length = static_cast<DWORD>(std::size(name));
-    if (RegEnumKeyExW(handle, index, name, &length, nullptr, nullptr, nullptr,
-                      nullptr) != ERROR_SUCCESS) {
+    if (RegEnumKeyExW(handle, index, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
       break;
     }
     ++index;
@@ -434,8 +497,12 @@ bool CollectSubkeyNames(HKEY root, const std::wstring& subkey, REGSAM view,
   return true;
 }
 
-bool CollectValues(HKEY root, const std::wstring& subkey, REGSAM view,
-                   std::vector<RegistryValue>* values) {
+bool CollectValues(
+    HKEY root,
+    const std::wstring& subkey,
+    REGSAM view,
+    std::vector<RegistryValue>* values
+) {
   HKEY handle = nullptr;
   if (RegOpenKeyExW(root, subkey.c_str(), 0, KEY_READ | view, &handle) !=
       ERROR_SUCCESS) {
@@ -448,8 +515,7 @@ bool CollectValues(HKEY root, const std::wstring& subkey, REGSAM view,
     DWORD length = static_cast<DWORD>(std::size(name));
     DWORD size = static_cast<DWORD>(data.size());
     DWORD type = 0;
-    const LONG status = RegEnumValueW(handle, index, name, &length, nullptr,
-                                      &type, data.data(), &size);
+    const LONG status = RegEnumValueW(handle, index, name, &length, nullptr, &type, data.data(), &size);
     if (status == ERROR_MORE_DATA) {
       data.resize(size ? size : data.size() * 2);
       continue;
@@ -468,12 +534,21 @@ bool CollectValues(HKEY root, const std::wstring& subkey, REGSAM view,
   return true;
 }
 
-LONG OpenKey(const KeyRef& key, REGSAM access, REGSAM view, HKEY* handle) {
+LONG OpenKey(
+    const KeyRef& key,
+    REGSAM access,
+    REGSAM view,
+    HKEY* handle
+) {
   return RegOpenKeyExW(key.root, key.subkey.c_str(), 0, access | view, handle);
 }
 
-int QueryKey(const KeyRef& key, const Options& options, bool recurse,
-             bool* matched) {
+int QueryKey(
+    const KeyRef& key,
+    const Options& options,
+    bool recurse,
+    bool* matched
+) {
   HKEY handle = nullptr;
   LONG status = OpenKey(key, KEY_READ, options.view, &handle);
   if (status != ERROR_SUCCESS) {
@@ -497,8 +572,7 @@ int QueryKey(const KeyRef& key, const Options& options, bool recurse,
   while (true) {
     name_length = static_cast<DWORD>(std::size(name));
     size = static_cast<DWORD>(data.size());
-    status = RegEnumValueW(handle, index, name, &name_length, nullptr, &type,
-                           data.data(), &size);
+    status = RegEnumValueW(handle, index, name, &name_length, nullptr, &type, data.data(), &size);
     if (status == ERROR_MORE_DATA) {
       data.resize(size ? size : data.size() * 2);
       continue;
@@ -510,8 +584,7 @@ int QueryKey(const KeyRef& key, const Options& options, bool recurse,
     const std::wstring value_name(name, name_length);
     if (options.has_value) {
       if (options.default_value ? !value_name.empty()
-                                : _wcsicmp(value_name.c_str(),
-                                           options.value_name.c_str()) != 0) {
+                                : _wcsicmp(value_name.c_str(), options.value_name.c_str()) != 0) {
         continue;
       }
     }
@@ -521,13 +594,9 @@ int QueryKey(const KeyRef& key, const Options& options, bool recurse,
     entry.data.assign(data.begin(), data.begin() + size);
     entries.push_back(std::move(entry));
   }
-  std::stable_partition(entries.begin(), entries.end(),
-                        [](const Entry& entry) { return entry.name.empty(); });
+  std::stable_partition(entries.begin(), entries.end(), [](const Entry& entry) { return entry.name.empty(); });
   for (const Entry& entry : entries) {
-    Print(L"    " + (entry.name.empty() ? std::wstring(L"(Default)") : entry.name) +
-          L"    " + TypeName(entry.type) + L"    " +
-          FormatData(entry.type, entry.data.data(),
-                     static_cast<DWORD>(entry.data.size())));
+    Print(L"    " + (entry.name.empty() ? std::wstring(L"(Default)") : entry.name) + L"    " + TypeName(entry.type) + L"    " + FormatData(entry.type, entry.data.data(), static_cast<DWORD>(entry.data.size())));
     printed = true;
   }
   if (printed && matched) {
@@ -541,8 +610,7 @@ int QueryKey(const KeyRef& key, const Options& options, bool recurse,
   index = 0;
   while (true) {
     name_length = static_cast<DWORD>(std::size(name));
-    status = RegEnumKeyExW(handle, index, name, &name_length, nullptr, nullptr,
-                           nullptr, nullptr);
+    status = RegEnumKeyExW(handle, index, name, &name_length, nullptr, nullptr, nullptr, nullptr);
     if (status != ERROR_SUCCESS) {
       break;
     }
@@ -570,7 +638,9 @@ int QueryKey(const KeyRef& key, const Options& options, bool recurse,
   return kOk;
 }
 
-int CmdQuery(const std::vector<std::wstring>& args) {
+int CmdQuery(
+    const std::vector<std::wstring>& args
+) {
   Options options;
   std::vector<std::wstring> positional;
   if (!ParseOptions(args, 1, &options, &positional)) {
@@ -596,7 +666,9 @@ int CmdQuery(const std::vector<std::wstring>& args) {
   return result;
 }
 
-int CmdAdd(const std::vector<std::wstring>& args) {
+int CmdAdd(
+    const std::vector<std::wstring>& args
+) {
   Options options;
   std::vector<std::wstring> positional;
   if (!ParseOptions(args, 1, &options, &positional, true)) {
@@ -622,19 +694,14 @@ int CmdAdd(const std::vector<std::wstring>& args) {
         !ParseType(options.type_text, &value_type)) {
       return kFailed;
     }
-    if (!BuildData(value_type,
-                   options.has_data ? options.data : std::wstring(),
-                   options.separator, &value_data)) {
+    if (!BuildData(value_type, options.has_data ? options.data : std::wstring(), options.separator, &value_data)) {
       return kFailed;
     }
   }
 
   HKEY handle = nullptr;
   DWORD disposition = 0;
-  LONG status = RegCreateKeyExW(key.root, key.subkey.c_str(), 0, nullptr,
-                                REG_OPTION_NON_VOLATILE,
-                                KEY_WRITE | KEY_QUERY_VALUE | options.view,
-                                nullptr, &handle, &disposition);
+  LONG status = RegCreateKeyExW(key.root, key.subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_QUERY_VALUE | options.view, nullptr, &handle, &disposition);
   if (status != ERROR_SUCCESS) {
     return Fail(status);
   }
@@ -645,17 +712,14 @@ int CmdAdd(const std::vector<std::wstring>& args) {
     const DWORD type = value_type;
     if (!options.force) {
       DWORD existing = 0;
-      if (RegQueryValueExW(handle, name.c_str(), nullptr, &existing, nullptr,
-                           nullptr) == ERROR_SUCCESS) {
-        Print(L"Value " + (name.empty() ? std::wstring(L"(Default)") : name) +
-              L" already exists. Use /f to overwrite.");
+      if (RegQueryValueExW(handle, name.c_str(), nullptr, &existing, nullptr, nullptr) == ERROR_SUCCESS) {
+        Print(L"Value " + (name.empty() ? std::wstring(L"(Default)") : name) + L" already exists. Use /f to overwrite.");
         RegCloseKey(handle);
         return kFailed;
       }
     }
     const std::vector<BYTE>& data = value_data;
-    status = RegSetValueExW(handle, name.c_str(), 0, type, data.data(),
-                            static_cast<DWORD>(data.size()));
+    status = RegSetValueExW(handle, name.c_str(), 0, type, data.data(), static_cast<DWORD>(data.size()));
     if (status != ERROR_SUCCESS) {
       result = Fail(status);
     }
@@ -667,10 +731,13 @@ int CmdAdd(const std::vector<std::wstring>& args) {
   return result;
 }
 
-LONG DeleteTree(HKEY root, const std::wstring& subkey, REGSAM view) {
+LONG DeleteTree(
+    HKEY root,
+    const std::wstring& subkey,
+    REGSAM view
+) {
   HKEY handle = nullptr;
-  LONG status = RegOpenKeyExW(root, subkey.c_str(), 0,
-                              KEY_READ | KEY_WRITE | view, &handle);
+  LONG status = RegOpenKeyExW(root, subkey.c_str(), 0, KEY_READ | KEY_WRITE | view, &handle);
   if (status != ERROR_SUCCESS) {
     return status;
   }
@@ -679,8 +746,7 @@ LONG DeleteTree(HKEY root, const std::wstring& subkey, REGSAM view) {
   DWORD index = 0;
   while (true) {
     DWORD length = static_cast<DWORD>(std::size(name));
-    if (RegEnumKeyExW(handle, index, name, &length, nullptr, nullptr, nullptr,
-                      nullptr) != ERROR_SUCCESS) {
+    if (RegEnumKeyExW(handle, index, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
       break;
     }
     ++index;
@@ -693,7 +759,9 @@ LONG DeleteTree(HKEY root, const std::wstring& subkey, REGSAM view) {
   return RegDeleteKeyExW(root, subkey.c_str(), view, 0);
 }
 
-int CmdDelete(const std::vector<std::wstring>& args) {
+int CmdDelete(
+    const std::vector<std::wstring>& args
+) {
   Options options;
   std::vector<std::wstring> positional;
   if (!ParseOptions(args, 1, &options, &positional)) {
@@ -714,7 +782,8 @@ int CmdDelete(const std::vector<std::wstring>& args) {
 
   if (!options.force) {
     PrintError(
-        L"This operation deletes registry data. Rerun with /f to confirm.");
+        L"This operation deletes registry data. Rerun with /f to confirm."
+    );
     return kFailed;
   }
 
@@ -728,8 +797,7 @@ int CmdDelete(const std::vector<std::wstring>& args) {
       wchar_t name[16384] = {};
       while (true) {
         DWORD length = static_cast<DWORD>(std::size(name));
-        if (RegEnumValueW(handle, 0, name, &length, nullptr, nullptr, nullptr,
-                          nullptr) != ERROR_SUCCESS) {
+        if (RegEnumValueW(handle, 0, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
           break;
         }
         const LONG removed = RegDeleteValueW(handle, name);
@@ -764,17 +832,19 @@ int CmdDelete(const std::vector<std::wstring>& args) {
   return kOk;
 }
 
-LONG CopyTree(const KeyRef& from, const KeyRef& to, REGSAM view, bool recurse) {
+LONG CopyTree(
+    const KeyRef& from,
+    const KeyRef& to,
+    REGSAM view,
+    bool recurse
+) {
   HKEY source = nullptr;
-  LONG status = RegOpenKeyExW(from.root, from.subkey.c_str(), 0,
-                              KEY_READ | view, &source);
+  LONG status = RegOpenKeyExW(from.root, from.subkey.c_str(), 0, KEY_READ | view, &source);
   if (status != ERROR_SUCCESS) {
     return status;
   }
   HKEY target = nullptr;
-  status = RegCreateKeyExW(to.root, to.subkey.c_str(), 0, nullptr,
-                           REG_OPTION_NON_VOLATILE, KEY_WRITE | view, nullptr,
-                           &target, nullptr);
+  status = RegCreateKeyExW(to.root, to.subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE | view, nullptr, &target, nullptr);
   if (status != ERROR_SUCCESS) {
     RegCloseKey(source);
     return status;
@@ -787,8 +857,7 @@ LONG CopyTree(const KeyRef& from, const KeyRef& to, REGSAM view, bool recurse) {
     DWORD length = static_cast<DWORD>(std::size(name));
     DWORD size = static_cast<DWORD>(data.size());
     DWORD type = 0;
-    status = RegEnumValueW(source, index, name, &length, nullptr, &type,
-                           data.data(), &size);
+    status = RegEnumValueW(source, index, name, &length, nullptr, &type, data.data(), &size);
     if (status == ERROR_MORE_DATA) {
       data.resize(size ? size : data.size() * 2);
       continue;
@@ -810,8 +879,7 @@ LONG CopyTree(const KeyRef& from, const KeyRef& to, REGSAM view, bool recurse) {
   index = 0;
   while (recurse) {
     DWORD length = static_cast<DWORD>(std::size(name));
-    if (RegEnumKeyExW(source, index, name, &length, nullptr, nullptr, nullptr,
-                      nullptr) != ERROR_SUCCESS) {
+    if (RegEnumKeyExW(source, index, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
       break;
     }
     ++index;
@@ -833,15 +901,16 @@ LONG CopyTree(const KeyRef& from, const KeyRef& to, REGSAM view, bool recurse) {
   return ERROR_SUCCESS;
 }
 
-int CmdCopy(const std::vector<std::wstring>& args) {
+int CmdCopy(
+    const std::vector<std::wstring>& args
+) {
   Options options;
   std::vector<std::wstring> positional;
   if (!ParseOptions(args, 1, &options, &positional)) {
     return kFailed;
   }
   if (positional.size() != 2) {
-    PrintError(positional.size() < 2 ? L"reg copy requires a source and a destination key."
-                                     : L"Invalid syntax.");
+    PrintError(positional.size() < 2 ? L"reg copy requires a source and a destination key." : L"Invalid syntax.");
     return kFailed;
   }
   KeyRef from;
@@ -857,8 +926,12 @@ int CmdCopy(const std::vector<std::wstring>& args) {
   return kOk;
 }
 
-bool ExportKeyToFile(const KeyRef& key, const std::wstring& path,
-                     REGSAM view, std::wstring* error) {
+bool ExportKeyToFile(
+    const KeyRef& key,
+    const std::wstring& path,
+    REGSAM view,
+    std::wstring* error
+) {
   regfile::Writer writer;
   std::vector<KeyRef> pending{key};
   bool any = false;
@@ -866,16 +939,14 @@ bool ExportKeyToFile(const KeyRef& key, const std::wstring& path,
     const KeyRef current = pending.back();
     pending.pop_back();
     HKEY handle = nullptr;
-    if (RegOpenKeyExW(current.root, current.subkey.c_str(), 0, KEY_READ | view,
-                      &handle) != ERROR_SUCCESS) {
+    if (RegOpenKeyExW(current.root, current.subkey.c_str(), 0, KEY_READ | view, &handle) != ERROR_SUCCESS) {
       continue;
     }
     any = true;
 
     std::vector<RegistryValue> values;
     CollectValues(current.root, current.subkey, view, &values);
-    std::stable_partition(values.begin(), values.end(),
-                          [](const RegistryValue& value) { return value.name.empty(); });
+    std::stable_partition(values.begin(), values.end(), [](const RegistryValue& value) { return value.name.empty(); });
     std::vector<const regfile::Value*> pointers;
     pointers.reserve(values.size());
     for (const RegistryValue& value : values) {
@@ -888,8 +959,7 @@ bool ExportKeyToFile(const KeyRef& key, const std::wstring& path,
     std::vector<std::wstring> children;
     while (true) {
       DWORD length = static_cast<DWORD>(std::size(name));
-      if (RegEnumKeyExW(handle, index, name, &length, nullptr, nullptr, nullptr,
-                        nullptr) != ERROR_SUCCESS) {
+      if (RegEnumKeyExW(handle, index, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
         break;
       }
       ++index;
@@ -918,15 +988,16 @@ bool ExportKeyToFile(const KeyRef& key, const std::wstring& path,
   return true;
 }
 
-int CmdExport(const std::vector<std::wstring>& args) {
+int CmdExport(
+    const std::vector<std::wstring>& args
+) {
   Options options;
   std::vector<std::wstring> positional;
   if (!ParseOptions(args, 1, &options, &positional)) {
     return kFailed;
   }
   if (positional.size() != 2) {
-    PrintError(positional.size() < 2 ? L"reg export requires a key name and a file name."
-                                     : L"Invalid syntax.");
+    PrintError(positional.size() < 2 ? L"reg export requires a key name and a file name." : L"Invalid syntax.");
     return kFailed;
   }
   KeyRef key;
@@ -946,7 +1017,9 @@ int CmdExport(const std::vector<std::wstring>& args) {
   return kOk;
 }
 
-int CmdImport(const std::vector<std::wstring>& args) {
+int CmdImport(
+    const std::vector<std::wstring>& args
+) {
   if (args.size() < 2) {
     PrintError(L"reg import requires a file name.");
     return kFailed;
@@ -960,17 +1033,17 @@ int CmdImport(const std::vector<std::wstring>& args) {
   return kOk;
 }
 
-bool EnablePrivilege(const wchar_t* name) {
+bool EnablePrivilege(
+    const wchar_t* name
+) {
   HANDLE token = nullptr;
-  if (!OpenProcessToken(GetCurrentProcess(),
-                        TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
+  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
     return false;
   }
   TOKEN_PRIVILEGES privileges = {};
   privileges.PrivilegeCount = 1;
   privileges.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-  bool ok = LookupPrivilegeValueW(nullptr, name,
-                                  &privileges.Privileges[0].Luid) != FALSE;
+  bool ok = LookupPrivilegeValueW(nullptr, name, &privileges.Privileges[0].Luid) != FALSE;
   if (ok) {
     ok = AdjustTokenPrivileges(token, FALSE, &privileges, 0, nullptr, nullptr) &&
          GetLastError() == ERROR_SUCCESS;
@@ -979,7 +1052,9 @@ bool EnablePrivilege(const wchar_t* name) {
   return ok;
 }
 
-int CmdSave(const std::vector<std::wstring>& args) {
+int CmdSave(
+    const std::vector<std::wstring>& args
+) {
   Options options;
   std::vector<std::wstring> positional;
   if (!ParseOptions(args, 1, &options, &positional)) {
@@ -1020,8 +1095,7 @@ int CmdSave(const std::vector<std::wstring>& args) {
     }
     return Fail(status);
   }
-  if (existed && !MoveFileExW(staged.c_str(), positional[1].c_str(),
-                              MOVEFILE_REPLACE_EXISTING)) {
+  if (existed && !MoveFileExW(staged.c_str(), positional[1].c_str(), MOVEFILE_REPLACE_EXISTING)) {
     const LONG move_error = static_cast<LONG>(GetLastError());
     DeleteFileW(staged.c_str());
     return Fail(move_error);
@@ -1030,7 +1104,9 @@ int CmdSave(const std::vector<std::wstring>& args) {
   return kOk;
 }
 
-int CmdRestore(const std::vector<std::wstring>& args) {
+int CmdRestore(
+    const std::vector<std::wstring>& args
+) {
   Options options;
   std::vector<std::wstring> positional;
   if (!ParseOptions(args, 1, &options, &positional)) {
@@ -1062,7 +1138,9 @@ int CmdRestore(const std::vector<std::wstring>& args) {
   return kOk;
 }
 
-int CmdLoad(const std::vector<std::wstring>& args) {
+int CmdLoad(
+    const std::vector<std::wstring>& args
+) {
   if (args.size() < 3) {
     PrintError(L"reg load requires a key name and a file name.");
     return kFailed;
@@ -1081,7 +1159,9 @@ int CmdLoad(const std::vector<std::wstring>& args) {
   return kOk;
 }
 
-int CmdUnload(const std::vector<std::wstring>& args) {
+int CmdUnload(
+    const std::vector<std::wstring>& args
+) {
   if (args.size() < 2) {
     PrintError(L"reg unload requires a key name.");
     return kFailed;
@@ -1100,10 +1180,13 @@ int CmdUnload(const std::vector<std::wstring>& args) {
   return kOk;
 }
 
-bool OpenKeyStatus(const KeyRef& key, REGSAM view, LONG* status) {
+bool OpenKeyStatus(
+    const KeyRef& key,
+    REGSAM view,
+    LONG* status
+) {
   HKEY handle = nullptr;
-  *status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_READ | view,
-                          &handle);
+  *status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_READ | view, &handle);
   if (*status != ERROR_SUCCESS) {
     return false;
   }
@@ -1111,15 +1194,22 @@ bool OpenKeyStatus(const KeyRef& key, REGSAM view, LONG* status) {
   return true;
 }
 
-KeyRef ChildRef(const KeyRef& parent, const std::wstring& name) {
+KeyRef ChildRef(
+    const KeyRef& parent,
+    const std::wstring& name
+) {
   KeyRef child = parent;
   child.subkey = parent.subkey.empty() ? name : parent.subkey + L"\\" + name;
   child.display = parent.display + L"\\" + name;
   return child;
 }
 
-int CompareKeys(const KeyRef& left, const KeyRef& right,
-                const Options& options, bool* differs) {
+int CompareKeys(
+    const KeyRef& left,
+    const KeyRef& right,
+    const Options& options,
+    bool* differs
+) {
   LONG left_status = ERROR_SUCCESS;
   LONG right_status = ERROR_SUCCESS;
   const bool left_exists = OpenKeyStatus(left, options.view, &left_status);
@@ -1156,12 +1246,7 @@ int CompareKeys(const KeyRef& left, const KeyRef& right,
     const std::wstring wanted =
         options.default_value ? std::wstring() : options.value_name;
     auto keep_only = [&](std::vector<RegistryValue>* list) {
-      list->erase(std::remove_if(list->begin(), list->end(),
-                                 [&](const RegistryValue& value) {
-                                   return _wcsicmp(value.name.c_str(),
-                                                   wanted.c_str()) != 0;
-                                 }),
-                  list->end());
+      list->erase(std::remove_if(list->begin(), list->end(), [&](const RegistryValue& value) { return _wcsicmp(value.name.c_str(), wanted.c_str()) != 0; }), list->end());
     };
     keep_only(&left_values);
     keep_only(&right_values);
@@ -1183,12 +1268,8 @@ int CompareKeys(const KeyRef& left, const KeyRef& right,
       Print(L"< " + left.display + L"    " + value.name);
       *differs = true;
     } else if (other->type != value.type || other->data != value.data) {
-      Print(L"< " + left.display + L"    " + value.name + L"    " +
-            FormatData(value.type, value.data.data(),
-                       static_cast<DWORD>(value.data.size())));
-      Print(L"> " + right.display + L"    " + other->name + L"    " +
-            FormatData(other->type, other->data.data(),
-                       static_cast<DWORD>(other->data.size())));
+      Print(L"< " + left.display + L"    " + value.name + L"    " + FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size())));
+      Print(L"> " + right.display + L"    " + other->name + L"    " + FormatData(other->type, other->data.data(), static_cast<DWORD>(other->data.size())));
       *differs = true;
     }
   }
@@ -1214,18 +1295,10 @@ int CompareKeys(const KeyRef& left, const KeyRef& right,
     PrintError(L"The system was unable to open " + right.display + L".");
     return kFailed;
   }
-  std::sort(children.begin(), children.end(),
-            [](const std::wstring& a, const std::wstring& b) {
-              return _wcsicmp(a.c_str(), b.c_str()) < 0;
-            });
-  children.erase(std::unique(children.begin(), children.end(),
-                             [](const std::wstring& a, const std::wstring& b) {
-                               return _wcsicmp(a.c_str(), b.c_str()) == 0;
-                             }),
-                 children.end());
+  std::sort(children.begin(), children.end(), [](const std::wstring& a, const std::wstring& b) { return _wcsicmp(a.c_str(), b.c_str()) < 0; });
+  children.erase(std::unique(children.begin(), children.end(), [](const std::wstring& a, const std::wstring& b) { return _wcsicmp(a.c_str(), b.c_str()) == 0; }), children.end());
   for (const std::wstring& child : children) {
-    const int result = CompareKeys(ChildRef(left, child), ChildRef(right, child),
-                                   options, differs);
+    const int result = CompareKeys(ChildRef(left, child), ChildRef(right, child), options, differs);
     if (result == kFailed) {
       return kFailed;
     }
@@ -1233,7 +1306,9 @@ int CompareKeys(const KeyRef& left, const KeyRef& right,
   return kOk;
 }
 
-int CmdCompare(const std::vector<std::wstring>& args) {
+int CmdCompare(
+    const std::vector<std::wstring>& args
+) {
   Options options;
   std::vector<std::wstring> positional;
   if (!ParseOptions(args, 1, &options, &positional)) {
@@ -1261,8 +1336,7 @@ int CmdCompare(const std::vector<std::wstring>& args) {
   if (CompareKeys(left, right, options, &differs) == kFailed) {
     return kFailed;
   }
-  Print(differs ? L"Result Compared: Different"
-                : L"Result Compared: Identical");
+  Print(differs ? L"Result Compared: Different" : L"Result Compared: Identical");
   return differs ? 2 : kOk;
 }
 
@@ -1297,21 +1371,36 @@ void PrintUsage() {
       L"  regkit --help                   show this text\n"
       L"\n"
       L"Key names accept HKLM, HKCU, HKCR, HKU, HKCC and their full forms.\n"
-      L"reg flags isn't implemented, every other verb above is.");
+      L"reg flags isn't implemented, every other verb above is."
+  );
 }
 
-int RunVerb(const std::wstring& verb, const std::vector<std::wstring>& args) {
-  if (EqualsInsensitive(verb, L"query")) return CmdQuery(args);
-  if (EqualsInsensitive(verb, L"add")) return CmdAdd(args);
-  if (EqualsInsensitive(verb, L"delete")) return CmdDelete(args);
-  if (EqualsInsensitive(verb, L"copy")) return CmdCopy(args);
-  if (EqualsInsensitive(verb, L"export")) return CmdExport(args);
-  if (EqualsInsensitive(verb, L"import")) return CmdImport(args);
-  if (EqualsInsensitive(verb, L"save")) return CmdSave(args);
-  if (EqualsInsensitive(verb, L"restore")) return CmdRestore(args);
-  if (EqualsInsensitive(verb, L"load")) return CmdLoad(args);
-  if (EqualsInsensitive(verb, L"unload")) return CmdUnload(args);
-  if (EqualsInsensitive(verb, L"compare")) return CmdCompare(args);
+int RunVerb(
+    const std::wstring& verb,
+    const std::vector<std::wstring>& args
+) {
+  if (EqualsInsensitive(verb, L"query"))
+    return CmdQuery(args);
+  if (EqualsInsensitive(verb, L"add"))
+    return CmdAdd(args);
+  if (EqualsInsensitive(verb, L"delete"))
+    return CmdDelete(args);
+  if (EqualsInsensitive(verb, L"copy"))
+    return CmdCopy(args);
+  if (EqualsInsensitive(verb, L"export"))
+    return CmdExport(args);
+  if (EqualsInsensitive(verb, L"import"))
+    return CmdImport(args);
+  if (EqualsInsensitive(verb, L"save"))
+    return CmdSave(args);
+  if (EqualsInsensitive(verb, L"restore"))
+    return CmdRestore(args);
+  if (EqualsInsensitive(verb, L"load"))
+    return CmdLoad(args);
+  if (EqualsInsensitive(verb, L"unload"))
+    return CmdUnload(args);
+  if (EqualsInsensitive(verb, L"compare"))
+    return CmdCompare(args);
   if (EqualsInsensitive(verb, L"flags")) {
     PrintError(L"reg flags isn't implemented.");
     return kFailed;
@@ -1321,7 +1410,10 @@ int RunVerb(const std::wstring& verb, const std::vector<std::wstring>& args) {
 
 } // namespace
 
-bool Execute(const std::vector<std::wstring>& args, int* exit_code) {
+bool Execute(
+    const std::vector<std::wstring>& args,
+    int* exit_code
+) {
   if (args.empty() || !exit_code) {
     return false;
   }

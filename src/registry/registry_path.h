@@ -33,16 +33,12 @@ std::wstring Build(const RegistryNode& node);
 std::wstring BuildNative(const RegistryNode& node);
 
 std::wstring Clean(std::wstring_view path);
-std::wstring Normalize(std::wstring_view path,
-                       std::wstring_view current_user_sid = {});
-std::wstring Format(std::wstring_view normalized_path, Style style,
-                    std::wstring_view tree_root = L"Computer");
+std::wstring Normalize(std::wstring_view path, std::wstring_view current_user_sid = {});
+std::wstring Format(std::wstring_view normalized_path, Style style, std::wstring_view tree_root = L"Computer");
 bool ParseRoot(std::wstring_view path, RegistryNode* node);
 std::vector<std::wstring> Split(std::wstring_view path);
-std::wstring Join(const std::vector<std::wstring>& parts,
-                  size_t first_part = 0);
-std::wstring JoinPrefix(const std::vector<std::wstring>& parts,
-                        size_t part_count);
+std::wstring Join(const std::vector<std::wstring>& parts, size_t first_part = 0);
+std::wstring JoinPrefix(const std::vector<std::wstring>& parts, size_t part_count);
 std::wstring Parent(std::wstring_view path);
 std::wstring Leaf(std::wstring_view path);
 bool Equals(std::wstring_view left, std::wstring_view right);

@@ -15,8 +15,7 @@ namespace {
 #endif
 
 using NtOpenKey = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES);
-using NtOpenKeyEx = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES,
-                                     ULONG);
+using NtOpenKeyEx = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, ULONG);
 using NtDeleteKey = NTSTATUS(NTAPI*)(HANDLE);
 
 NtOpenKey ResolveNtOpenKey() {
@@ -29,21 +28,26 @@ NtOpenKey ResolveNtOpenKey() {
 NtOpenKeyEx ResolveNtOpenKeyEx() {
   HMODULE module = GetModuleHandleW(L"ntdll.dll");
   return module ? reinterpret_cast<NtOpenKeyEx>(
-                      GetProcAddress(module, "NtOpenKeyEx"))
+                      GetProcAddress(module, "NtOpenKeyEx")
+                  )
                 : nullptr;
 }
 
 NtDeleteKey ResolveNtDeleteKey() {
   HMODULE module = GetModuleHandleW(L"ntdll.dll");
   return module ? reinterpret_cast<NtDeleteKey>(
-                      GetProcAddress(module, "NtDeleteKey"))
+                      GetProcAddress(module, "NtDeleteKey")
+                  )
                 : nullptr;
 }
 
 } // namespace
 
-UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access,
-                                 bool open_link) {
+UniqueHKey OpenNativeRegistryKey(
+    const std::wstring& path,
+    REGSAM access,
+    bool open_link
+) {
   static const NtOpenKey open_key = ResolveNtOpenKey();
   static const NtOpenKeyEx open_key_ex = ResolveNtOpenKeyEx();
   if (path.empty() ||
@@ -61,12 +65,10 @@ UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access,
   name.Length = static_cast<USHORT>(path.size() * sizeof(wchar_t));
   name.MaximumLength = name.Length;
   OBJECT_ATTRIBUTES attributes = {};
-  InitializeObjectAttributes(&attributes, &name, OBJ_CASE_INSENSITIVE, nullptr,
-                             nullptr);
+  InitializeObjectAttributes(&attributes, &name, OBJ_CASE_INSENSITIVE, nullptr, nullptr);
   HANDLE handle = nullptr;
   const NTSTATUS status =
-      open_link ? open_key_ex(&handle, access, &attributes,
-                              REG_OPTION_OPEN_LINK)
+      open_link ? open_key_ex(&handle, access, &attributes, REG_OPTION_OPEN_LINK)
                 : open_key(&handle, access, &attributes);
   if (!NT_SUCCESS(status) || !handle) {
     return {};
@@ -78,7 +80,9 @@ UniqueHKey OpenNativeRegistryRoot() {
   return OpenNativeRegistryKey(L"\\REGISTRY", KEY_READ);
 }
 
-bool DeleteNativeRegistryKey(HKEY key) {
+bool DeleteNativeRegistryKey(
+    HKEY key
+) {
   static const NtDeleteKey delete_key = ResolveNtDeleteKey();
   return key && delete_key &&
          NT_SUCCESS(delete_key(reinterpret_cast<HANDLE>(key)));

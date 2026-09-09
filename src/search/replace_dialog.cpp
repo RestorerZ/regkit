@@ -75,7 +75,10 @@ struct ReplaceDialogState {
   bool owner_restored = false;
 };
 
-void UpdateValueDataOptions(HWND hwnd, const ReplaceDialogState* state) {
+void UpdateValueDataOptions(
+    HWND hwnd,
+    const ReplaceDialogState* state
+) {
   if (!state) {
     return;
   }
@@ -86,25 +89,31 @@ void UpdateValueDataOptions(HWND hwnd, const ReplaceDialogState* state) {
   EnableWindow(state->number_hex, enabled);
 }
 
-HFONT CreateDialogFont(HWND hwnd) {
+HFONT CreateDialogFont(
+    HWND hwnd
+) {
   return ui::DefaultUIFont(win32::DpiForWindow(hwnd));
 }
 
-
-int CheckBoxIdealWidth(HWND control, int fallback) {
+int CheckBoxIdealWidth(
+    HWND control,
+    int fallback
+) {
   SIZE ideal = {};
   if (control &&
-      SendMessageW(control, BCM_GETIDEALSIZE, 0,
-                   reinterpret_cast<LPARAM>(&ideal)) &&
+      SendMessageW(control, BCM_GETIDEALSIZE, 0, reinterpret_cast<LPARAM>(&ideal)) &&
       ideal.cx > 0) {
     return ideal.cx +
-           appearance::metrics::Scaled(kCheckBoxIdealPadding,
-                                       win32::DpiForWindow(control));
+           appearance::metrics::Scaled(kCheckBoxIdealPadding, win32::DpiForWindow(control));
   }
   return fallback;
 }
 
-void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
+void LayoutDialog(
+    HWND hwnd,
+    ReplaceDialogState* state,
+    HFONT font
+) {
   if (!hwnd || !state) {
     return;
   }
@@ -156,8 +165,7 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
   const int key_w = group_w - group_inset * 2 - key_label_w - label_gap * 2 - browse_w;
   appearance::Place(GetDlgItem(hwnd, kKeyLabel), gx, gy + label_inset, key_label_w, label_h);
   appearance::Place(state->key_edit, gx + key_label_w + label_gap, gy, key_w, line_h);
-  appearance::Place(state->key_browse, gx + key_label_w + label_gap * 2 + key_w, gy, browse_w,
-                    line_h);
+  appearance::Place(state->key_browse, gx + key_label_w + label_gap * 2 + key_w, gy, browse_w, line_h);
   y += where_h + block_gap;
 
   const int nested_w = group_w - group_inset * 2;
@@ -177,24 +185,18 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
   appearance::Place(state->search_values, col2_x, oy + row_pitch * 2, col_w, check_h);
   appearance::Place(state->search_data, ox, oy + row_pitch * 3, col_w, check_h);
   const int nested_y = oy + row_pitch * 4;
-  appearance::Place(GetDlgItem(hwnd, kValueDataGroup), ox, nested_y, nested_w,
-                    nested_h);
+  appearance::Place(GetDlgItem(hwnd, kValueDataGroup), ox, nested_y, nested_w, nested_h);
   const int ny = nested_y + group_top;
   const int half_w = (nested_w - group_inset * 2) / 2;
   const int half_x = ox + group_inset;
-  const int dec_w = CheckBoxIdealWidth(state->number_decimal,
-                                      Scaled(kNumberDecimalWidth, dpi));
-  const int hex_w = CheckBoxIdealWidth(state->number_hex,
-                                      Scaled(kNumberHexWidth, dpi));
-  appearance::Place(state->number_decimal, half_x + (half_w - dec_w) / 2, ny,
-                    dec_w, check_h);
-  appearance::Place(state->number_hex,
-                    half_x + half_w + (half_w - hex_w) / 2, ny, hex_w, check_h);
+  const int dec_w = CheckBoxIdealWidth(state->number_decimal, Scaled(kNumberDecimalWidth, dpi));
+  const int hex_w = CheckBoxIdealWidth(state->number_hex, Scaled(kNumberHexWidth, dpi));
+  appearance::Place(state->number_decimal, half_x + (half_w - dec_w) / 2, ny, dec_w, check_h);
+  appearance::Place(state->number_hex, half_x + half_w + (half_w - hex_w) / 2, ny, hex_w, check_h);
   y += options_h + block_gap;
 
   const int cancel_x = width - right_margin - button_w;
-  appearance::Place(state->replace_button, cancel_x - button_gap - replace_w, y, replace_w,
-                    button_h);
+  appearance::Place(state->replace_button, cancel_x - button_gap - replace_w, y, replace_w, button_h);
   appearance::Place(state->cancel_button, cancel_x, y, button_w, button_h);
   appearance::FitDialogHeight(hwnd, y + button_h + bottom_margin);
 
@@ -206,86 +208,94 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
   }
 }
 
-LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+LRESULT CALLBACK ReplaceDialogProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* state = reinterpret_cast<ReplaceDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
   switch (msg) {
-  case WM_NCCREATE: {
-    auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
-    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return DefWindowProcW(hwnd, msg, wparam, lparam);
-  }
-  case WM_CREATE: {
-    state = reinterpret_cast<ReplaceDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    if (!state) {
-      return -1;
+  case WM_NCCREATE:
+    {
+      auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+      SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+      return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
-    state->hwnd = hwnd;
-    SetWindowTextW(hwnd, L"Replace");
-    state->font = CreateDialogFont(hwnd);
-    HFONT font = state->font;
+  case WM_CREATE:
+    {
+      state = reinterpret_cast<ReplaceDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+      if (!state) {
+        return -1;
+      }
+      state->hwnd = hwnd;
+      SetWindowTextW(hwnd, L"Replace");
+      state->font = CreateDialogFont(hwnd);
+      HFONT font = state->font;
 
-    CreateWindowExW(0, L"STATIC", L"Find what:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindLabel), nullptr, nullptr);
-    state->find_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindEdit), nullptr, nullptr);
+      CreateWindowExW(0, L"STATIC", L"Find what:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindLabel), nullptr, nullptr);
+      state->find_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindEdit), nullptr, nullptr);
 
-    CreateWindowExW(0, L"STATIC", L"Replace with:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceLabel), nullptr, nullptr);
-    state->replace_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceEdit), nullptr, nullptr);
+      CreateWindowExW(0, L"STATIC", L"Replace with:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceLabel), nullptr, nullptr);
+      state->replace_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceEdit), nullptr, nullptr);
 
-    CreateWindowExW(0, L"BUTTON", L"Where to search", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kWhereGroup), nullptr, nullptr);
-    CreateWindowExW(0, L"STATIC", L"Key:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyLabel), nullptr, nullptr);
-    state->key_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyEdit), nullptr, nullptr);
-    state->key_browse = CreateWindowExW(0, L"BUTTON", L"Browse...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyBrowse), nullptr, nullptr);
+      CreateWindowExW(0, L"BUTTON", L"Where to search", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kWhereGroup), nullptr, nullptr);
+      CreateWindowExW(0, L"STATIC", L"Key:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyLabel), nullptr, nullptr);
+      state->key_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyEdit), nullptr, nullptr);
+      state->key_browse = CreateWindowExW(0, L"BUTTON", L"Browse...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyBrowse), nullptr, nullptr);
 
-    CreateWindowExW(0, L"BUTTON", L"Options", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptionsGroup), nullptr, nullptr);
-    state->recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kRecursive), nullptr, nullptr);
-    state->match_case = CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kMatchCase), nullptr, nullptr);
-    state->match_whole = CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kMatchWhole), nullptr, nullptr);
-    state->use_regex = CreateWindowExW(0, L"BUTTON", L"Use regular expressions", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kUseRegex), nullptr, nullptr);
-    state->search_keys = CreateWindowExW(0, L"BUTTON", L"Replace in key names", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchKeys), nullptr, nullptr);
-    state->search_values = CreateWindowExW(0, L"BUTTON", L"Replace in value names", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchValues), nullptr, nullptr);
-    state->search_data = CreateWindowExW(0, L"BUTTON", L"Replace in value data", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchData), nullptr, nullptr);
+      CreateWindowExW(0, L"BUTTON", L"Options", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptionsGroup), nullptr, nullptr);
+      state->recursive = CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kRecursive), nullptr, nullptr);
+      state->match_case = CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kMatchCase), nullptr, nullptr);
+      state->match_whole = CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kMatchWhole), nullptr, nullptr);
+      state->use_regex = CreateWindowExW(0, L"BUTTON", L"Use regular expressions", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kUseRegex), nullptr, nullptr);
+      state->search_keys = CreateWindowExW(0, L"BUTTON", L"Replace in key names", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchKeys), nullptr, nullptr);
+      state->search_values = CreateWindowExW(0, L"BUTTON", L"Replace in value names", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchValues), nullptr, nullptr);
+      state->search_data = CreateWindowExW(0, L"BUTTON", L"Replace in value data", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchData), nullptr, nullptr);
 
-    CreateWindowExW(0, L"BUTTON", L"Value Data", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kValueDataGroup), nullptr, nullptr);
-    state->number_decimal = CreateWindowExW(0, L"BUTTON", L"Numbers as decimal", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kNumberDecimal), nullptr, nullptr);
-    state->number_hex = CreateWindowExW(0, L"BUTTON", L"Numbers as hex", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kNumberHex), nullptr, nullptr);
+      CreateWindowExW(0, L"BUTTON", L"Value Data", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kValueDataGroup), nullptr, nullptr);
+      state->number_decimal = CreateWindowExW(0, L"BUTTON", L"Numbers as decimal", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kNumberDecimal), nullptr, nullptr);
+      state->number_hex = CreateWindowExW(0, L"BUTTON", L"Numbers as hex", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kNumberHex), nullptr, nullptr);
 
-    state->replace_button = CreateWindowExW(0, L"BUTTON", L"Replace", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceButton), nullptr, nullptr);
-    state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
+      state->replace_button = CreateWindowExW(0, L"BUTTON", L"Replace", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceButton), nullptr, nullptr);
+      state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
 
-    if (state->out) {
-      SetWindowTextW(state->find_edit, state->out->find_text.c_str());
-      SetWindowTextW(state->replace_edit, state->out->replace_text.c_str());
-      SetWindowTextW(state->key_edit, state->out->start_key.c_str());
-      SendMessageW(state->recursive, BM_SETCHECK, state->out->recursive ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->match_case, BM_SETCHECK, state->out->match_case ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->match_whole, BM_SETCHECK, state->out->match_whole ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->use_regex, BM_SETCHECK, state->out->use_regex ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->search_keys, BM_SETCHECK, state->out->replace_keys ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->search_values, BM_SETCHECK, state->out->replace_values ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->search_data, BM_SETCHECK, state->out->replace_data ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->number_decimal, BM_SETCHECK, state->out->number_decimal ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->number_hex, BM_SETCHECK, state->out->number_hex ? BST_CHECKED : BST_UNCHECKED, 0);
-    } else {
-      SendMessageW(state->recursive, BM_SETCHECK, BST_CHECKED, 0);
-      SendMessageW(state->search_values, BM_SETCHECK, BST_CHECKED, 0);
-      SendMessageW(state->search_data, BM_SETCHECK, BST_CHECKED, 0);
-      SendMessageW(state->number_decimal, BM_SETCHECK, BST_CHECKED, 0);
+      if (state->out) {
+        SetWindowTextW(state->find_edit, state->out->find_text.c_str());
+        SetWindowTextW(state->replace_edit, state->out->replace_text.c_str());
+        SetWindowTextW(state->key_edit, state->out->start_key.c_str());
+        SendMessageW(state->recursive, BM_SETCHECK, state->out->recursive ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->match_case, BM_SETCHECK, state->out->match_case ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->match_whole, BM_SETCHECK, state->out->match_whole ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->use_regex, BM_SETCHECK, state->out->use_regex ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->search_keys, BM_SETCHECK, state->out->replace_keys ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->search_values, BM_SETCHECK, state->out->replace_values ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->search_data, BM_SETCHECK, state->out->replace_data ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->number_decimal, BM_SETCHECK, state->out->number_decimal ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->number_hex, BM_SETCHECK, state->out->number_hex ? BST_CHECKED : BST_UNCHECKED, 0);
+      } else {
+        SendMessageW(state->recursive, BM_SETCHECK, BST_CHECKED, 0);
+        SendMessageW(state->search_values, BM_SETCHECK, BST_CHECKED, 0);
+        SendMessageW(state->search_data, BM_SETCHECK, BST_CHECKED, 0);
+        SendMessageW(state->number_decimal, BM_SETCHECK, BST_CHECKED, 0);
+      }
+      UpdateValueDataOptions(hwnd, state);
+
+      EnumChildWindows(
+          hwnd,
+          [](HWND child, LPARAM param) -> BOOL {
+            HFONT font_handle = reinterpret_cast<HFONT>(param);
+            appearance::SetControlFont(child, font_handle);
+            return TRUE;
+          },
+          reinterpret_cast<LPARAM>(font)
+      );
+
+      Theme::Current().ApplyToWindow(hwnd);
+      Theme::Current().ApplyToChildren(hwnd);
+      LayoutDialog(hwnd, state, font);
+      return 0;
     }
-    UpdateValueDataOptions(hwnd, state);
-
-    EnumChildWindows(
-        hwnd,
-        [](HWND child, LPARAM param) -> BOOL {
-          HFONT font_handle = reinterpret_cast<HFONT>(param);
-          appearance::SetControlFont(child, font_handle);
-          return TRUE;
-        },
-        reinterpret_cast<LPARAM>(font));
-
-    Theme::Current().ApplyToWindow(hwnd);
-    Theme::Current().ApplyToChildren(hwnd);
-    LayoutDialog(hwnd, state, font);
-    return 0;
-  }
   case WM_DESTROY:
     if (state && state->font) {
       DeleteObject(state->font);
@@ -298,102 +308,111 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
     }
     appearance::ApplyDpiChange(hwnd, lparam);
     return 0;
-  case WM_SIZE: {
-    HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
-    LayoutDialog(hwnd, state, font);
-    return 0;
-  }
-  case WM_ERASEBKGND: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rect = {};
-    GetClientRect(hwnd, &rect);
-    FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
-    return 1;
-  }
-  case WM_SETTINGCHANGE: {
-    if (Theme::UpdateFromSystem()) {
-      Theme::Current().ApplyToWindow(hwnd);
-      Theme::Current().ApplyToChildren(hwnd);
-      InvalidateRect(hwnd, nullptr, TRUE);
+  case WM_SIZE:
+    {
+      HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
+      LayoutDialog(hwnd, state, font);
+      return 0;
     }
-    return 0;
-  }
-  case WM_CTLCOLORSTATIC: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_STATIC));
-  }
-  case WM_CTLCOLOREDIT: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_EDIT));
-  }
-  case WM_CTLCOLORBTN: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_BTN));
-  }
+  case WM_ERASEBKGND:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rect = {};
+      GetClientRect(hwnd, &rect);
+      FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
+      return 1;
+    }
+  case WM_SETTINGCHANGE:
+    {
+      if (Theme::UpdateFromSystem()) {
+        Theme::Current().ApplyToWindow(hwnd);
+        Theme::Current().ApplyToChildren(hwnd);
+        InvalidateRect(hwnd, nullptr, TRUE);
+      }
+      return 0;
+    }
+  case WM_CTLCOLORSTATIC:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_STATIC));
+    }
+  case WM_CTLCOLOREDIT:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_EDIT));
+    }
+  case WM_CTLCOLORBTN:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_BTN));
+    }
   case DM_GETDEFID:
     return MAKELRESULT(IDOK, DC_HASDEFID);
-  case WM_COMMAND: {
-    if (!state) {
-      return 0;
-    }
-    switch (LOWORD(wparam)) {
-    case kSearchData:
-      UpdateValueDataOptions(hwnd, state);
-      return 0;
-    case kKeyBrowse: {
-      std::wstring selected;
-      if (ShowBrowseKeyDialog(hwnd, &selected)) {
-        if (!selected.empty()) {
-          SetWindowTextW(state->key_edit, selected.c_str());
-        }
-      }
-      return 0;
-    }
-    case kReplaceButton: {
-      const std::wstring find_value = util::WindowText(state->find_edit);
-      if (find_value.empty()) {
-        ui::ShowError(hwnd, L"Enter text to find.");
+  case WM_COMMAND:
+    {
+      if (!state) {
         return 0;
       }
-      const std::wstring replace_text = util::WindowText(state->replace_edit);
-      const std::wstring key_text = util::WindowText(state->key_edit);
-
-      if (state->out) {
-        state->out->find_text = find_value;
-        state->out->replace_text = replace_text;
-        state->out->start_key = key_text;
-        state->out->recursive = SendMessageW(state->recursive, BM_GETCHECK, 0, 0) == BST_CHECKED;
-        state->out->match_case = SendMessageW(state->match_case, BM_GETCHECK, 0, 0) == BST_CHECKED;
-        state->out->match_whole = SendMessageW(state->match_whole, BM_GETCHECK, 0, 0) == BST_CHECKED;
-        state->out->use_regex = SendMessageW(state->use_regex, BM_GETCHECK, 0, 0) == BST_CHECKED;
-        state->out->replace_keys = SendMessageW(state->search_keys, BM_GETCHECK, 0, 0) == BST_CHECKED;
-        state->out->replace_values = SendMessageW(state->search_values, BM_GETCHECK, 0, 0) == BST_CHECKED;
-        state->out->replace_data = SendMessageW(state->search_data, BM_GETCHECK, 0, 0) == BST_CHECKED;
-        state->out->number_decimal = SendMessageW(state->number_decimal, BM_GETCHECK, 0, 0) == BST_CHECKED;
-        state->out->number_hex = SendMessageW(state->number_hex, BM_GETCHECK, 0, 0) == BST_CHECKED;
-        if (!state->out->replace_keys && !state->out->replace_values &&
-            !state->out->replace_data) {
-          ui::ShowError(hwnd, L"Select what should be replaced.");
+      switch (LOWORD(wparam)) {
+      case kSearchData:
+        UpdateValueDataOptions(hwnd, state);
+        return 0;
+      case kKeyBrowse:
+        {
+          std::wstring selected;
+          if (ShowBrowseKeyDialog(hwnd, &selected)) {
+            if (!selected.empty()) {
+              SetWindowTextW(state->key_edit, selected.c_str());
+            }
+          }
           return 0;
         }
+      case kReplaceButton:
+        {
+          const std::wstring find_value = util::WindowText(state->find_edit);
+          if (find_value.empty()) {
+            ui::ShowError(hwnd, L"Enter text to find.");
+            return 0;
+          }
+          const std::wstring replace_text = util::WindowText(state->replace_edit);
+          const std::wstring key_text = util::WindowText(state->key_edit);
+
+          if (state->out) {
+            state->out->find_text = find_value;
+            state->out->replace_text = replace_text;
+            state->out->start_key = key_text;
+            state->out->recursive = SendMessageW(state->recursive, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            state->out->match_case = SendMessageW(state->match_case, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            state->out->match_whole = SendMessageW(state->match_whole, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            state->out->use_regex = SendMessageW(state->use_regex, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            state->out->replace_keys = SendMessageW(state->search_keys, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            state->out->replace_values = SendMessageW(state->search_values, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            state->out->replace_data = SendMessageW(state->search_data, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            state->out->number_decimal = SendMessageW(state->number_decimal, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            state->out->number_hex = SendMessageW(state->number_hex, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            if (!state->out->replace_keys && !state->out->replace_values &&
+                !state->out->replace_data) {
+              ui::ShowError(hwnd, L"Select what should be replaced.");
+              return 0;
+            }
+          }
+          state->accepted = true;
+          appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
+          DestroyWindow(hwnd);
+          return 0;
+        }
+      case kCancelButton:
+        appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
+        DestroyWindow(hwnd);
+        return 0;
+      default:
+        break;
       }
-      state->accepted = true;
-      appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-      DestroyWindow(hwnd);
-      return 0;
-    }
-    case kCancelButton:
-      appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-      DestroyWindow(hwnd);
-      return 0;
-    default:
       break;
     }
-    break;
-  }
   case WM_CLOSE:
     if (state) {
       appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
@@ -406,7 +425,11 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
   return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
-HWND CreateReplaceDialogWindow(HINSTANCE instance, HWND owner, ReplaceDialogState* state) {
+HWND CreateReplaceDialogWindow(
+    HINSTANCE instance,
+    HWND owner,
+    ReplaceDialogState* state
+) {
   WNDCLASSW wc = {};
   wc.lpfnWndProc = ReplaceDialogProc;
   wc.hInstance = instance;
@@ -420,7 +443,10 @@ HWND CreateReplaceDialogWindow(HINSTANCE instance, HWND owner, ReplaceDialogStat
 
 } // namespace
 
-bool ShowReplaceDialog(HWND owner, ReplaceDialogResult* result) {
+bool ShowReplaceDialog(
+    HWND owner,
+    ReplaceDialogResult* result
+) {
   if (!result) {
     return false;
   }

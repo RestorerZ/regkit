@@ -21,29 +21,31 @@ struct State {
   bool accepted = false;
 };
 
-INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
-                            LPARAM lparam) {
+INT_PTR CALLBACK DialogProc(
+    HWND dialog,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam
+) {
   auto* state = reinterpret_cast<State*>(
-      GetWindowLongPtrW(dialog, DWLP_USER));
+      GetWindowLongPtrW(dialog, DWLP_USER)
+  );
   if (message == WM_INITDIALOG) {
     state = reinterpret_cast<State*>(lparam);
-    SetWindowLongPtrW(dialog, DWLP_USER,
-                      reinterpret_cast<LONG_PTR>(state));
+    SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
     SetWindowTextW(dialog, L"Edit Comment");
     SetDlgItemTextW(dialog, IDC_EDIT, state->value.text.c_str());
-    CheckDlgButton(dialog, IDC_COMMENT_ALL,
-                   state->value.apply_to_same_name ? BST_CHECKED
-                                                   : BST_UNCHECKED);
+    CheckDlgButton(dialog, IDC_COMMENT_ALL, state->value.apply_to_same_name ? BST_CHECKED : BST_UNCHECKED);
     dialog_support::Initialize(dialog, &state->font, {IDC_EDIT});
     dialog_support::AllowNewlines(dialog, IDC_EDIT);
     using namespace appearance;
     state->resizer.Attach(dialog, {
-        {IDC_LABEL, kAnchorLeft | kAnchorTop | kAnchorRight},
-        {IDC_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-        {IDC_COMMENT_ALL, kAnchorLeft | kAnchorBottom},
-        {IDOK, kAnchorRight | kAnchorBottom},
-        {IDCANCEL, kAnchorRight | kAnchorBottom},
-    });
+                                      {IDC_LABEL, kAnchorLeft | kAnchorTop | kAnchorRight},
+                                      {IDC_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
+                                      {IDC_COMMENT_ALL, kAnchorLeft | kAnchorBottom},
+                                      {IDOK, kAnchorRight | kAnchorBottom},
+                                      {IDCANCEL, kAnchorRight | kAnchorBottom},
+                                  });
     return TRUE;
   }
   if (message == WM_DESTROY) {
@@ -62,7 +64,12 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
   }
   INT_PTR themed = 0;
   if (dialog_support::HandleThemeMessage(
-          dialog, message, wparam, lparam, &themed)) {
+          dialog,
+          message,
+          wparam,
+          lparam,
+          &themed
+      )) {
     return themed;
   }
   if (message != WM_COMMAND || !state) {
@@ -85,8 +92,11 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam,
 
 } // namespace
 
-bool EditComment(HWND owner, const CommentRequest& request,
-                 CommentResult* result) {
+bool EditComment(
+    HWND owner,
+    const CommentRequest& request,
+    CommentResult* result
+) {
   if (!result) {
     return false;
   }
@@ -94,8 +104,12 @@ bool EditComment(HWND owner, const CommentRequest& request,
   state.value.text = request.text;
   state.value.apply_to_same_name = request.apply_to_same_name;
   const INT_PTR dialog_result = DialogBoxParamW(
-      GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_COMMENT), owner,
-      DialogProc, reinterpret_cast<LPARAM>(&state));
+      GetModuleHandleW(nullptr),
+      MAKEINTRESOURCEW(IDD_COMMENT),
+      owner,
+      DialogProc,
+      reinterpret_cast<LPARAM>(&state)
+  );
   if (dialog_result != IDOK || !state.accepted) {
     return false;
   }

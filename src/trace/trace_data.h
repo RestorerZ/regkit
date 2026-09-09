@@ -36,8 +36,7 @@ struct Data {
   std::wstring label;
   std::wstring source_path;
   std::unordered_map<std::wstring, KeyValues> values_by_key;
-  std::unordered_map<std::wstring,
-                     std::unordered_map<std::wstring, std::wstring>>
+  std::unordered_map<std::wstring, std::unordered_map<std::wstring, std::wstring>>
       children_by_key;
   std::vector<std::wstring> key_paths;
   std::vector<std::wstring> display_key_paths;
@@ -46,14 +45,10 @@ struct Data {
       std::make_shared<std::shared_mutex>();
 };
 
-bool IncludesKey(const Selection& selection,
-                 const std::wstring& key_lower);
-bool IncludesValue(const Selection& selection,
-                   const std::wstring& key_lower,
-                   const std::wstring& value_lower);
+bool IncludesKey(const Selection& selection, const std::wstring& key_lower);
+bool IncludesValue(const Selection& selection, const std::wstring& key_lower, const std::wstring& value_lower);
 void NormalizeSelection(const Data& data, Selection* selection);
-void Merge(Data* data, const std::vector<Entry>& entries,
-           std::unordered_set<std::wstring>* affected_keys = nullptr);
+void Merge(Data* data, const std::vector<Entry>& entries, std::unordered_set<std::wstring>* affected_keys = nullptr);
 void Sort(Data* data);
 
 } // namespace regkit::trace

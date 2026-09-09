@@ -35,7 +35,9 @@ public:
   void OnItemExpanding(const NMTREEVIEWW* info);
   void OnGetDispInfo(NMTVDISPINFOW* info);
   RegistryNode* OnSelectionChanged(const NMTREEVIEWW* info);
-  bool IsGroupItem(HTREEITEM item) const noexcept {
+  bool IsGroupItem(
+      HTREEITEM item
+  ) const noexcept {
     return item && (item == standard_group_item_ || item == real_group_item_);
   }
 

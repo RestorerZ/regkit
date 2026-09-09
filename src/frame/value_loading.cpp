@@ -11,8 +11,7 @@ void MainWindow::Impl::StartValueListWorker() {
     return;
   }
   value_loader_.Start(
-      [this](std::unique_ptr<ValueListTask> task,
-             const std::atomic_bool& stopping) {
+      [this](std::unique_ptr<ValueListTask> task, const std::atomic_bool& stopping) {
         if (!task || stopping.load() ||
             task->generation != value_list_generation_.load()) {
           return;
@@ -65,13 +64,20 @@ void MainWindow::Impl::StartValueListWorker() {
 
         std::vector<std::wstring> subkeys;
         const bool subkeys_readable = RegistryStore::EnumKeyStreaming(
-            task->snapshot, false, false, true, nullptr,
+            task->snapshot,
+            false,
+            false,
+            true,
+            nullptr,
             RegistryStore::ValueStreamCallback(),
             [&](const std::wstring& name) {
               subkeys.push_back(name);
               return true;
             },
-            MAXDWORD, nullptr, false);
+            MAXDWORD,
+            nullptr,
+            false
+        );
         std::unordered_set<std::wstring> existing_keys;
         existing_keys.reserve(subkeys.size());
         for (const auto& name : subkeys) {
@@ -143,8 +149,7 @@ void MainWindow::Impl::StartValueListWorker() {
             }
             std::shared_lock<std::shared_mutex> trace_lock(*trace.data->mutex);
             if (!trace.selection ||
-                !trace::IncludesKey(*trace.selection,
-                                    task->trace_path_lower)) {
+                !trace::IncludesKey(*trace.selection, task->trace_path_lower)) {
               continue;
             }
             auto it = trace.data->values_by_key.find(task->trace_path_lower);
@@ -173,8 +178,7 @@ void MainWindow::Impl::StartValueListWorker() {
             }
             std::shared_lock<std::shared_mutex> defaults_lock(*defaults.data->mutex);
             if (!defaults.selection ||
-                !trace::IncludesKey(*defaults.selection,
-                                    task->default_path_lower)) {
+                !trace::IncludesKey(*defaults.selection, task->default_path_lower)) {
               continue;
             }
             auto it = defaults.data->values_by_key.find(task->default_path_lower);
@@ -183,7 +187,9 @@ void MainWindow::Impl::StartValueListWorker() {
             }
             default_keys.push_back(
                 {ShortDefaultLabel(defaults.label, defaults.source_path),
-                 it->second, defaults.selection.get()});
+                 it->second,
+                 defaults.selection.get()}
+            );
           }
         }
         auto resolve_default_data = [&](const std::wstring& value_name) -> std::wstring {
@@ -198,9 +204,7 @@ void MainWindow::Impl::StartValueListWorker() {
           std::vector<DefaultGroup> groups;
           for (const auto& match : default_keys) {
             if (match.selection &&
-                !trace::IncludesValue(*match.selection,
-                                      task->default_path_lower,
-                                      value_lower)) {
+                !trace::IncludesValue(*match.selection, task->default_path_lower, value_lower)) {
               continue;
             }
             auto it = match.values.values.find(value_lower);
@@ -208,8 +212,10 @@ void MainWindow::Impl::StartValueListWorker() {
                                     ? it->second.data
                                     : std::wstring(L"(Missing)");
             auto group = std::find_if(
-                groups.begin(), groups.end(),
-                [&](const DefaultGroup& entry) { return entry.text == text; });
+                groups.begin(),
+                groups.end(),
+                [&](const DefaultGroup& entry) { return entry.text == text; }
+            );
             if (group == groups.end()) {
               groups.push_back({std::move(text), match.label});
               continue;
@@ -300,9 +306,7 @@ void MainWindow::Impl::StartValueListWorker() {
           for (const auto& match : trace_matches) {
             if (match.values.values_lower.find(value_lower) != match.values.values_lower.end()) {
               if (match.selection &&
-                  !trace::IncludesValue(*match.selection,
-                                        task->trace_path_lower,
-                                        value_lower)) {
+                  !trace::IncludesValue(*match.selection, task->trace_path_lower, value_lower)) {
                 continue;
               }
               labels.push_back(match.label);
@@ -349,8 +353,7 @@ void MainWindow::Impl::StartValueListWorker() {
           if (EqualsInsensitive(value.name, L"SymbolicLinkValue")) {
             has_symbolic_value = true;
           }
-          ListRow row = MakeValueListRow(value.name, value.type, data,
-                                         data_size);
+          ListRow row = MakeValueListRow(value.name, value.type, data, data_size);
           row.default_data = resolve_default_data(value.name);
           if (!have_traces) {
             row.read_on_boot.clear();
@@ -422,9 +425,7 @@ void MainWindow::Impl::StartValueListWorker() {
             for (const auto& value_name : match.values.values_display) {
               std::wstring value_lower = ToLower(value_name);
               if (match.selection &&
-                  !trace::IncludesValue(*match.selection,
-                                        task->trace_path_lower,
-                                        value_lower)) {
+                  !trace::IncludesValue(*match.selection, task->trace_path_lower, value_lower)) {
                 continue;
               }
               if (existing_values.find(value_lower) != existing_values.end()) {
@@ -458,7 +459,8 @@ void MainWindow::Impl::StartValueListWorker() {
         if (PostMessageW(task->hwnd, frame::message_id::kValueListReady, static_cast<WPARAM>(task->generation), reinterpret_cast<LPARAM>(payload.get())) != 0) {
           ReleasePostedPayload(payload);
         }
-      });
+      }
+  );
 }
 
 void MainWindow::Impl::StartValuePreviewWorker() {
@@ -487,8 +489,10 @@ void MainWindow::Impl::StartValuePreviewWorker() {
             item.type = entry.type;
             item.size = static_cast<DWORD>(entry.data.size());
             item.preview = value_format::DisplayData(
-                entry.type, entry.data.data(),
-                std::min<DWORD>(item.size, kValuePreviewBytes));
+                entry.type,
+                entry.data.data(),
+                std::min<DWORD>(item.size, kValuePreviewBytes)
+            );
             if (item.preview.size() > kValuePreviewLimit) {
               item.preview.resize(kValuePreviewLimit);
             }
@@ -498,15 +502,17 @@ void MainWindow::Impl::StartValuePreviewWorker() {
         if (stopping.load() || task->generation != value_list_generation_.load()) {
           return;
         }
-        if (PostMessageW(task->hwnd, frame::message_id::kValuePreviewReady,
-                         static_cast<WPARAM>(task->generation),
-                         reinterpret_cast<LPARAM>(payload.get())) != 0) {
+        if (PostMessageW(task->hwnd, frame::message_id::kValuePreviewReady, static_cast<WPARAM>(task->generation), reinterpret_cast<LPARAM>(payload.get())) != 0) {
           payload.release();
         }
-      });
+      }
+  );
 }
 
-void MainWindow::Impl::QueueValuePreviews(int first, int last) {
+void MainWindow::Impl::QueueValuePreviews(
+    int first,
+    int last
+) {
   if (!browse_.current_node() || first < 0 || last < first) {
     return;
   }
@@ -541,8 +547,7 @@ void MainWindow::Impl::StartSearchPreviewWorker() {
     return;
   }
   search_preview_loader_.Start(
-      [this](std::unique_ptr<SearchPreviewTask> task,
-             const std::atomic_bool& stopping) {
+      [this](std::unique_ptr<SearchPreviewTask> task, const std::atomic_bool& stopping) {
         if (!task) {
           return;
         }
@@ -562,8 +567,10 @@ void MainWindow::Impl::StartSearchPreviewWorker() {
             item.type = entry.type;
             item.data_size = static_cast<DWORD>(entry.data.size());
             item.preview = value_format::DisplayData(
-                entry.type, entry.data.data(),
-                std::min<DWORD>(item.data_size, kValuePreviewBytes));
+                entry.type,
+                entry.data.data(),
+                std::min<DWORD>(item.data_size, kValuePreviewBytes)
+            );
             if (item.preview.size() > kValuePreviewLimit) {
               item.preview.resize(kValuePreviewLimit);
             }
@@ -573,15 +580,17 @@ void MainWindow::Impl::StartSearchPreviewWorker() {
         if (stopping.load()) {
           return;
         }
-        if (PostMessageW(task->hwnd, frame::message_id::kSearchPreviewReady,
-                         static_cast<WPARAM>(task->generation),
-                         reinterpret_cast<LPARAM>(payload.get())) != 0) {
+        if (PostMessageW(task->hwnd, frame::message_id::kSearchPreviewReady, static_cast<WPARAM>(task->generation), reinterpret_cast<LPARAM>(payload.get())) != 0) {
           payload.release();
         }
-      });
+      }
+  );
 }
 
-void MainWindow::Impl::QueueSearchPreviews(int first, int last) {
+void MainWindow::Impl::QueueSearchPreviews(
+    int first,
+    int last
+) {
   const int index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
   if (index < 0 || static_cast<size_t>(index) >= search_tabs_.size()) {
     return;
@@ -624,8 +633,7 @@ void MainWindow::Impl::StartSearchSortWorker() {
     return;
   }
   search_sort_loader_.Start(
-      [this](std::unique_ptr<SearchSortTask> task,
-             const std::atomic_bool& stopping) {
+      [this](std::unique_ptr<SearchSortTask> task, const std::atomic_bool& stopping) {
         if (!task) {
           return;
         }
@@ -639,16 +647,17 @@ void MainWindow::Impl::StartSearchSortWorker() {
           }
           row.data_state = search::DataState::kLoaded;
           ValueEntry entry;
-          if (!RegistryStore::QueryValue(task->nodes[i], row.value_name,
-                                         &entry)) {
+          if (!RegistryStore::QueryValue(task->nodes[i], row.value_name, &entry)) {
             row.data_text.clear();
             continue;
           }
           row.type = entry.type;
           row.data_size = static_cast<DWORD>(entry.data.size());
           std::wstring preview = value_format::DisplayData(
-              entry.type, entry.data.data(),
-              std::min<DWORD>(row.data_size, kValuePreviewBytes));
+              entry.type,
+              entry.data.data(),
+              std::min<DWORD>(row.data_size, kValuePreviewBytes)
+          );
           if (preview.size() > kValuePreviewLimit) {
             preview.resize(kValuePreviewLimit);
           }
@@ -662,15 +671,16 @@ void MainWindow::Impl::StartSearchSortWorker() {
         payload->generation = task->generation;
         payload->tab_index = task->tab_index;
         payload->rows = std::move(task->rows);
-        if (PostMessageW(task->hwnd, frame::message_id::kSearchSortReady,
-                         static_cast<WPARAM>(task->generation),
-                         reinterpret_cast<LPARAM>(payload.get())) != 0) {
+        if (PostMessageW(task->hwnd, frame::message_id::kSearchSortReady, static_cast<WPARAM>(task->generation), reinterpret_cast<LPARAM>(payload.get())) != 0) {
           payload.release();
         }
-      });
+      }
+  );
 }
 
-void MainWindow::Impl::QueueSearchSort(SearchTab* tab) {
+void MainWindow::Impl::QueueSearchSort(
+    SearchTab* tab
+) {
   if (!tab) {
     return;
   }
@@ -722,18 +732,16 @@ void MainWindow::Impl::StartSearchTabLoadWorker() {
 
         payload->ok = search::LoadResults(task->path, &payload->rows);
         if (payload->ok && task->sort_column >= 0) {
-          search::SortResults(&payload->rows, task->sort_column,
-                              task->sort_ascending);
+          search::SortResults(&payload->rows, task->sort_column, task->sort_ascending);
         }
         if (stopping.load()) {
           return;
         }
-        if (PostMessageW(task->hwnd, frame::message_id::kSearchTabLoadReady,
-                         static_cast<WPARAM>(task->generation),
-                         reinterpret_cast<LPARAM>(payload.get())) != 0) {
+        if (PostMessageW(task->hwnd, frame::message_id::kSearchTabLoadReady, static_cast<WPARAM>(task->generation), reinterpret_cast<LPARAM>(payload.get())) != 0) {
           payload.release();
         }
-      });
+      }
+  );
 }
 
 void MainWindow::Impl::StopValueListWorker() {

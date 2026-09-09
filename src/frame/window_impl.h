@@ -123,30 +123,18 @@ private:
   static LRESULT CALLBACK TreeViewProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
 
   LRESULT HandleMessage(UINT message, WPARAM wparam, LPARAM lparam);
-  std::optional<LRESULT> HandleLifecycleMessage(UINT message, WPARAM wparam,
-                                                LPARAM lparam);
-  std::optional<LRESULT> HandleLayoutInputMessage(UINT message, WPARAM wparam,
-                                                  LPARAM lparam);
-  std::optional<LRESULT> HandleWorkerMessage(UINT message, WPARAM wparam,
-                                             LPARAM lparam);
-  std::optional<LRESULT> HandleSearchWorkerMessage(UINT message, WPARAM wparam,
-                                                   LPARAM lparam);
-  std::optional<LRESULT> HandleLoadWorkerMessage(UINT message, WPARAM wparam,
-                                                 LPARAM lparam);
-  std::optional<LRESULT> HandleRegFileWorkerMessage(UINT message, WPARAM wparam,
-                                                    LPARAM lparam);
-  std::optional<LRESULT> HandleTraceWorkerMessage(UINT message, WPARAM wparam,
-                                                  LPARAM lparam);
-  std::optional<LRESULT> HandleDefaultWorkerMessage(UINT message, WPARAM wparam,
-                                                    LPARAM lparam);
-  std::optional<LRESULT> HandleValueWorkerMessage(UINT message, WPARAM wparam,
-                                                  LPARAM lparam);
-  std::optional<LRESULT> HandleExternalMessage(UINT message, WPARAM wparam,
-                                               LPARAM lparam);
-  std::optional<LRESULT> HandleAppearanceMessage(UINT message, WPARAM wparam,
-                                                 LPARAM lparam);
-  std::optional<LRESULT> HandleBrowseMessage(UINT message, WPARAM wparam,
-                                             LPARAM lparam);
+  std::optional<LRESULT> HandleLifecycleMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleLayoutInputMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleWorkerMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleSearchWorkerMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleLoadWorkerMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleRegFileWorkerMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleTraceWorkerMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleDefaultWorkerMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleValueWorkerMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleExternalMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleAppearanceMessage(UINT message, WPARAM wparam, LPARAM lparam);
+  std::optional<LRESULT> HandleBrowseMessage(UINT message, WPARAM wparam, LPARAM lparam);
   LRESULT HandleNotification(LPARAM lparam);
   LRESULT HandleTooltipNotification(NMHDR* header, LPARAM lparam);
   std::wstring ListCellFieldText(HWND list, int item, int display_subitem);
@@ -205,8 +193,7 @@ private:
   HBRUSH ValueHeaderSurfaceBrush() const;
   void LayoutValueGridToolbar();
   void SetValueGridEnabled(bool enabled, bool persist);
-  void PaintValueGridLines(HWND list, HDC hdc, const RECT& area, int first_line_y,
-                           int row_height);
+  void PaintValueGridLines(HWND list, HDC hdc, const RECT& area, int first_line_y, int row_height);
   void PaintValueGridTail(HWND list, HDC hdc);
   int ValueGridToggleWidth(HWND header) const;
   ToolbarIcon MakeToolbarIcon(const wchar_t* filename, int light_id, int dark_id, bool use_light) const;
@@ -240,7 +227,8 @@ private:
   void MergeTraceEntries(
       TraceParseSession* session,
       const std::vector<KeyValueDialogEntry>& entries,
-      std::unordered_set<std::wstring>* affected_keys);
+      std::unordered_set<std::wstring>* affected_keys
+  );
   void StopTraceParseSessions();
   void StartDefaultLoadWorker();
   void StopDefaultLoadWorker();
@@ -248,7 +236,8 @@ private:
   void MergeDefaultEntries(
       DefaultParseSession* session,
       const std::vector<KeyValueDialogEntry>& entries,
-      std::unordered_set<std::wstring>* affected_keys);
+      std::unordered_set<std::wstring>* affected_keys
+  );
   void StopDefaultParseSessions();
   void StopRegFileParseSessions();
   static void StartTraceDialogLoad(HWND hwnd, void* context);
@@ -273,8 +262,7 @@ private:
   void StartSearch(const SearchDialogResult& options);
   void StartReplace(const ReplaceDialogResult& options);
   void ApplyReplacePayload(ReplacePayload* payload);
-  void CommitReplacePayload(std::unique_ptr<ReplacePayload> payload,
-                            bool show_failures);
+  void CommitReplacePayload(std::unique_ptr<ReplacePayload> payload, bool show_failures);
   void StopReplace();
   void CancelSearch();
   bool IsSearchTabSelected() const;
@@ -434,8 +422,7 @@ private:
   bool InvertSelectionInFocusedList();
   bool IsCompareTabSelected() const;
   void StartCompareRegistries();
-  void OpenSourceEntry(const search::Source& source, const std::wstring& path,
-                       const std::wstring& value_name, bool new_tab);
+  void OpenSourceEntry(const search::Source& source, const std::wstring& path, const std::wstring& value_name, bool new_tab);
   int FindSourceTab(const search::Source& source) const;
   bool AppendHistoryCache(const HistoryEntry& entry);
   std::wstring CacheFolderPath() const;
@@ -491,11 +478,13 @@ private:
     std::vector<BYTE> data;
   };
   std::vector<DefaultValueChoice> CollectDefaultChoices(
-      const std::wstring& value_name) const;
+      const std::wstring& value_name
+  ) const;
   bool HandleResetDefaultCommand(int command_id);
   std::vector<DefaultValueChoice> SelectedValueDefaultChoices() const;
   HMENU BuildResetDefaultMenu(
-      const std::vector<DefaultValueChoice>& choices) const;
+      const std::vector<DefaultValueChoice>& choices
+  ) const;
   void AppendResetDefaultMenu(HMENU menu);
   void RefreshResetDefaultMenu(HMENU menu);
   std::wstring TreeStatePath() const;

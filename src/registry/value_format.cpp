@@ -12,7 +12,9 @@
 
 namespace regkit::value_format {
 
-DWORD NormalizeType(DWORD type) {
+DWORD NormalizeType(
+    DWORD type
+) {
   const DWORD base = type & 0xFFFF;
   switch (base) {
   case REG_NONE:
@@ -33,7 +35,9 @@ DWORD NormalizeType(DWORD type) {
   }
 }
 
-std::wstring TypeName(DWORD type) {
+std::wstring TypeName(
+    DWORD type
+) {
   const DWORD base = NormalizeType(type);
   const bool has_flags = base != type;
   const wchar_t* label = nullptr;
@@ -89,39 +93,44 @@ std::wstring TypeName(DWORD type) {
   return label;
 }
 
-std::wstring Data(DWORD type, const BYTE* data, DWORD size) {
+std::wstring Data(
+    DWORD type,
+    const BYTE* data,
+    DWORD size
+) {
   if (!data || size == 0) {
     return {};
   }
   switch (NormalizeType(type)) {
   case REG_SZ:
   case REG_EXPAND_SZ:
-  case REG_LINK: {
-    std::wstring text(reinterpret_cast<const wchar_t*>(data),
-                      size / sizeof(wchar_t));
-    while (!text.empty() && text.back() == L'\0') {
-      text.pop_back();
-    }
-    return text;
-  }
-  case REG_MULTI_SZ: {
-    std::wstring joined;
-    const wchar_t* current = reinterpret_cast<const wchar_t*>(data);
-    size_t remaining = size / sizeof(wchar_t);
-    while (remaining > 0 && *current) {
-      const size_t length = wcsnlen_s(current, remaining);
-      if (length == remaining) {
-        break;
+  case REG_LINK:
+    {
+      std::wstring text(reinterpret_cast<const wchar_t*>(data), size / sizeof(wchar_t));
+      while (!text.empty() && text.back() == L'\0') {
+        text.pop_back();
       }
-      if (!joined.empty()) {
-        joined += L' ';
-      }
-      joined.append(current, length);
-      current += length + 1;
-      remaining -= length + 1;
+      return text;
     }
-    return joined;
-  }
+  case REG_MULTI_SZ:
+    {
+      std::wstring joined;
+      const wchar_t* current = reinterpret_cast<const wchar_t*>(data);
+      size_t remaining = size / sizeof(wchar_t);
+      while (remaining > 0 && *current) {
+        const size_t length = wcsnlen_s(current, remaining);
+        if (length == remaining) {
+          break;
+        }
+        if (!joined.empty()) {
+          joined += L' ';
+        }
+        joined.append(current, length);
+        current += length + 1;
+        remaining -= length + 1;
+      }
+      return joined;
+    }
   case REG_DWORD:
     if (size >= sizeof(DWORD)) {
       DWORD value = 0;
@@ -157,7 +166,11 @@ std::wstring Data(DWORD type, const BYTE* data, DWORD size) {
   return util::ToHex(data, size, 0);
 }
 
-std::wstring DisplayData(DWORD type, const BYTE* data, DWORD size) {
+std::wstring DisplayData(
+    DWORD type,
+    const BYTE* data,
+    DWORD size
+) {
   const DWORD base_type = NormalizeType(type);
   std::wstring value = Data(type, data, size);
   if (value.empty()) {
@@ -167,12 +180,10 @@ std::wstring DisplayData(DWORD type, const BYTE* data, DWORD size) {
       value.front() == L'@') {
     std::wstring resolved(1024, L'\0');
     HRESULT result =
-        SHLoadIndirectString(value.c_str(), resolved.data(),
-                             static_cast<UINT>(resolved.size()), nullptr);
+        SHLoadIndirectString(value.c_str(), resolved.data(), static_cast<UINT>(resolved.size()), nullptr);
     if (result == HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER)) {
       resolved.assign(4096, L'\0');
-      result = SHLoadIndirectString(value.c_str(), resolved.data(),
-                                    static_cast<UINT>(resolved.size()), nullptr);
+      result = SHLoadIndirectString(value.c_str(), resolved.data(), static_cast<UINT>(resolved.size()), nullptr);
     }
     if (SUCCEEDED(result)) {
       while (!resolved.empty() && resolved.back() == L'\0') {
@@ -192,7 +203,10 @@ std::wstring DisplayData(DWORD type, const BYTE* data, DWORD size) {
   return value;
 }
 
-bool ParseHex(std::wstring_view text, std::vector<BYTE>* output) {
+bool ParseHex(
+    std::wstring_view text,
+    std::vector<BYTE>* output
+) {
   if (!output) {
     return false;
   }
@@ -226,25 +240,31 @@ bool ParseHex(std::wstring_view text, std::vector<BYTE>* output) {
   return high < 0;
 }
 
-std::vector<BYTE> StringData(std::wstring_view text) {
+std::vector<BYTE> StringData(
+    std::wstring_view text
+) {
   std::vector<BYTE> data((text.size() + 1) * sizeof(wchar_t));
   std::memcpy(data.data(), text.data(), text.size() * sizeof(wchar_t));
   return data;
 }
 
-bool DecodeString(std::span<const BYTE> data, std::wstring* output) {
+bool DecodeString(
+    std::span<const BYTE> data,
+    std::wstring* output
+) {
   if (!output || data.size() % sizeof(wchar_t) != 0) {
     return false;
   }
-  output->assign(reinterpret_cast<const wchar_t*>(data.data()),
-                 data.size() / sizeof(wchar_t));
+  output->assign(reinterpret_cast<const wchar_t*>(data.data()), data.size() / sizeof(wchar_t));
   while (!output->empty() && output->back() == L'\0') {
     output->pop_back();
   }
   return output->find(L'\0') == std::wstring::npos;
 }
 
-std::vector<std::wstring> MultiStringItems(const std::vector<BYTE>& data) {
+std::vector<std::wstring> MultiStringItems(
+    const std::vector<BYTE>& data
+) {
   std::vector<std::wstring> items;
   if (data.size() % sizeof(wchar_t) != 0) {
     return items;
@@ -263,7 +283,9 @@ std::vector<std::wstring> MultiStringItems(const std::vector<BYTE>& data) {
   return items;
 }
 
-std::vector<BYTE> MultiStringData(const std::vector<std::wstring>& items) {
+std::vector<BYTE> MultiStringData(
+    const std::vector<std::wstring>& items
+) {
   size_t characters = 1;
   for (const auto& item : items) {
     characters += item.size() + 1;
@@ -277,7 +299,9 @@ std::vector<BYTE> MultiStringData(const std::vector<std::wstring>& items) {
   return data;
 }
 
-std::wstring MultiStringText(const std::vector<BYTE>& data) {
+std::wstring MultiStringText(
+    const std::vector<BYTE>& data
+) {
   std::wstring text;
   for (const auto& item : MultiStringItems(data)) {
     text += item;
@@ -286,7 +310,9 @@ std::wstring MultiStringText(const std::vector<BYTE>& data) {
   return text;
 }
 
-std::vector<BYTE> MultiStringData(std::wstring_view lines) {
+std::vector<BYTE> MultiStringData(
+    std::wstring_view lines
+) {
   std::vector<std::wstring> items;
   size_t start = 0;
   while (start <= lines.size()) {

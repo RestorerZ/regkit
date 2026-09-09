@@ -9,7 +9,9 @@
 
 namespace regkit::search {
 
-Replacer::Replacer(const ReplaceOptions& options)
+Replacer::Replacer(
+    const ReplaceOptions& options
+)
     : query_(options.find_text), replacement_(options.replace_text),
       use_regex_(options.use_regex), match_case_(options.match_case),
       match_whole_(options.match_whole), valid_(!query_.empty()) {
@@ -31,8 +33,10 @@ bool Replacer::valid() const noexcept {
   return valid_;
 }
 
-bool Replacer::Replace(const std::wstring& text,
-                       std::wstring* result) const {
+bool Replacer::Replace(
+    const std::wstring& text,
+    std::wstring* result
+) const {
   if (!result || !valid_) {
     return false;
   }
@@ -57,9 +61,12 @@ bool Replacer::Replace(const std::wstring& text,
         match_case_
             ? text == query_
             : CompareStringOrdinal(
-                  text.c_str(), static_cast<int>(text.size()),
-                  query_.c_str(), static_cast<int>(query_.size()),
-                  TRUE) == CSTR_EQUAL;
+                  text.c_str(),
+                  static_cast<int>(text.size()),
+                  query_.c_str(),
+                  static_cast<int>(query_.size()),
+                  TRUE
+              ) == CSTR_EQUAL;
     if (!matched) {
       return false;
     }
@@ -90,9 +97,13 @@ bool Replacer::Replace(const std::wstring& text,
   bool matched = false;
   while (cursor < text.size()) {
     const int position = FindStringOrdinal(
-        FIND_FROMSTART, text.c_str() + cursor,
-        static_cast<int>(text.size() - cursor), query_.c_str(),
-        static_cast<int>(query_.size()), TRUE);
+        FIND_FROMSTART,
+        text.c_str() + cursor,
+        static_cast<int>(text.size() - cursor),
+        query_.c_str(),
+        static_cast<int>(query_.size()),
+        TRUE
+    );
     if (position < 0) {
       break;
     }

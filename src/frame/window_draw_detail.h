@@ -89,12 +89,18 @@ using win32::kRestartUserArg;
 using win32::kRestartAdminArg;
 using win32::kRestartTiArg;
 template <typename T>
-inline T ClampValue(T value, T low, T high) {
+inline T ClampValue(
+    T value,
+    T low,
+    T high
+) {
   return value < low ? low : (high < value ? high : value);
 }
 
 template <typename T>
-inline void ReleasePostedPayload(std::unique_ptr<T>& payload) {
+inline void ReleasePostedPayload(
+    std::unique_ptr<T>& payload
+) {
   (void)payload.release();
 }
 
@@ -189,7 +195,11 @@ struct ValueListPayload : work::MoveOnly {
 std::wstring NormalizeTraceKeyPathBasic(const std::wstring& text);
 std::wstring ResolveRegistryLinkPath(const std::wstring& path);
 
-inline bool GetChildRectInParent(HWND parent, HWND child, RECT* rect) {
+inline bool GetChildRectInParent(
+    HWND parent,
+    HWND child,
+    RECT* rect
+) {
   if (!parent || !child || !rect) {
     return false;
   }
@@ -200,7 +210,11 @@ inline bool GetChildRectInParent(HWND parent, HWND child, RECT* rect) {
   return true;
 }
 
-inline RECT AdjustTabDrawRect(const RECT& item_rect, int header_bottom, bool selected) {
+inline RECT AdjustTabDrawRect(
+    const RECT& item_rect,
+    int header_bottom,
+    bool selected
+) {
   RECT rect = item_rect;
   rect.left += kTabInsetX;
   rect.right -= kTabInsetX;
@@ -213,7 +227,10 @@ inline RECT AdjustTabDrawRect(const RECT& item_rect, int header_bottom, bool sel
   return rect;
 }
 
-inline bool CalcTabCloseRect(const RECT& tab_rect, RECT* close_rect) {
+inline bool CalcTabCloseRect(
+    const RECT& tab_rect,
+    RECT* close_rect
+) {
   if (!close_rect) {
     return false;
   }
@@ -230,7 +247,12 @@ inline bool CalcTabCloseRect(const RECT& tab_rect, RECT* close_rect) {
   return close_rect->left < close_rect->right;
 }
 
-inline void DrawCloseGlyph(HDC hdc, const RECT& rect, COLORREF color, UINT dpi) {
+inline void DrawCloseGlyph(
+    HDC hdc,
+    const RECT& rect,
+    COLORREF color,
+    UINT dpi
+) {
   const int radius = util::ScaleForDpi(3, dpi);
   const int pen_width = std::max(1, util::ScaleForDpi(1, dpi));
   const int center_x = (rect.left + rect.right) / 2;
@@ -243,13 +265,19 @@ inline void DrawCloseGlyph(HDC hdc, const RECT& rect, COLORREF color, UINT dpi) 
   SelectObject(hdc, old_pen);
 }
 
-inline int MappedSubItem(const std::vector<int>& map, int display_index) {
+inline int MappedSubItem(
+    const std::vector<int>& map,
+    int display_index
+) {
   return (display_index >= 0 && static_cast<size_t>(display_index) < map.size())
              ? map[static_cast<size_t>(display_index)]
              : display_index;
 }
 
-inline int GetListViewColumnSubItem(HWND list, int display_index) {
+inline int GetListViewColumnSubItem(
+    HWND list,
+    int display_index
+) {
   if (!list || display_index < 0) {
     return display_index;
   }
@@ -268,9 +296,13 @@ constexpr int kPanelCloseSize = 16;
 constexpr int kPanelCloseInset = 2;
 constexpr int kPanelBorderOverlap = 1;
 
-inline void DrawSearchMatchOverlay(HDC hdc, const RECT& cell,
-                                   std::wstring_view text, int start,
-                                   int length) {
+inline void DrawSearchMatchOverlay(
+    HDC hdc,
+    const RECT& cell,
+    std::wstring_view text,
+    int start,
+    int length
+) {
   if (text.empty() || start < 0 || length <= 0) {
     return;
   }
@@ -305,8 +337,7 @@ inline void DrawSearchMatchOverlay(HDC hdc, const RECT& cell,
       return;
     }
     SIZE fitted = {};
-    if (!GetTextExtentExPointW(hdc, text.data(), total, available - ellipsis.cx,
-                               &visible, nullptr, &fitted)) {
+    if (!GetTextExtentExPointW(hdc, text.data(), total, available - ellipsis.cx, &visible, nullptr, &fitted)) {
       return;
     }
   }
@@ -326,13 +357,14 @@ inline void DrawSearchMatchOverlay(HDC hdc, const RECT& cell,
   const int y = cell.top + (cell.bottom - cell.top - metrics.tmHeight) / 2;
   const int old_mode = SetBkMode(hdc, TRANSPARENT);
   const COLORREF old_color = SetTextColor(hdc, Theme::Current().FocusColor());
-  ExtTextOutW(hdc, x, y, ETO_CLIPPED, &cell, text.data() + start,
-              static_cast<UINT>(length), nullptr);
+  ExtTextOutW(hdc, x, y, ETO_CLIPPED, &cell, text.data() + start, static_cast<UINT>(length), nullptr);
   SetTextColor(hdc, old_color);
   SetBkMode(hdc, old_mode);
 }
 
-inline int SearchMatchSubItem(const search::Result& result) {
+inline int SearchMatchSubItem(
+    const search::Result& result
+) {
   if (result.match_length == 0) {
     return -1;
   }
@@ -348,7 +380,10 @@ inline int SearchMatchSubItem(const search::Result& result) {
   }
 }
 
-inline int FindListViewColumnBySubItem(HWND list, int subitem) {
+inline int FindListViewColumnBySubItem(
+    HWND list,
+    int subitem
+) {
   if (!list || subitem < 0) {
     return -1;
   }
@@ -362,7 +397,12 @@ inline int FindListViewColumnBySubItem(HWND list, int subitem) {
   return -1;
 }
 
-inline int FetchListViewItemText(HWND list, int index, int column, std::wstring* buffer) {
+inline int FetchListViewItemText(
+    HWND list,
+    int index,
+    int column,
+    std::wstring* buffer
+) {
   if (!list || !buffer) {
     return 0;
   }
@@ -383,7 +423,11 @@ inline int FetchListViewItemText(HWND list, int index, int column, std::wstring*
   return length;
 }
 
-inline int CalcListViewColumnFitWidth(HWND list, int column, int min_width) {
+inline int CalcListViewColumnFitWidth(
+    HWND list,
+    int column,
+    int min_width
+) {
   if (!list || column < 0) {
     return min_width;
   }
@@ -417,7 +461,9 @@ inline int CalcListViewColumnFitWidth(HWND list, int column, int min_width) {
   return width;
 }
 
-inline int FindLastVisibleColumn(const std::vector<bool>& visible) {
+inline int FindLastVisibleColumn(
+    const std::vector<bool>& visible
+) {
   for (int i = static_cast<int>(visible.size()) - 1; i >= 0; --i) {
     if (visible[static_cast<size_t>(i)]) {
       return i;

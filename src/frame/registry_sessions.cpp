@@ -10,8 +10,11 @@ using namespace window_detail;
 
 namespace {
 
-bool SaveHiveAtomically(HKEY root, const std::wstring& path,
-                        std::wstring* error) {
+bool SaveHiveAtomically(
+    HKEY root,
+    const std::wstring& path,
+    std::wstring* error
+) {
   const std::wstring temp =
       path + L"." + std::to_wstring(GetCurrentProcessId()) + L".part";
   DeleteFileW(temp.c_str());
@@ -19,8 +22,7 @@ bool SaveHiveAtomically(HKEY root, const std::wstring& path,
     DeleteFileW(temp.c_str());
     return false;
   }
-  if (!MoveFileExW(temp.c_str(), path.c_str(),
-                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+  if (!MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
     if (error) {
       *error = FormatWin32Error(GetLastError());
     }
@@ -44,7 +46,9 @@ void MainWindow::Impl::ReleaseRemoteRegistry() {
   remote_machine_.clear();
 }
 
-bool MainWindow::Impl::UnloadOfflineRegistry(std::wstring* error) {
+bool MainWindow::Impl::UnloadOfflineRegistry(
+    std::wstring* error
+) {
   if (error) {
     error->clear();
   }
@@ -85,8 +89,7 @@ bool MainWindow::Impl::UnloadOfflineRegistry(std::wstring* error) {
       const std::wstring label =
           i < offline_root_labels_.size() ? offline_root_labels_[i]
                                           : std::wstring(L"OfflineHive");
-      roots.push_back({offline_roots_[i], label,
-                       offline_root_name_ + L"\\" + label, L""});
+      roots.push_back({offline_roots_[i], label, offline_root_name_ + L"\\" + label, L""});
     }
     ApplyRegistryRoots(roots);
     return false;
@@ -102,7 +105,9 @@ bool MainWindow::Impl::UnloadOfflineRegistry(std::wstring* error) {
   return true;
 }
 
-void MainWindow::Impl::ApplyRegistryRoots(const std::vector<RegistryRootEntry>& roots) {
+void MainWindow::Impl::ApplyRegistryRoots(
+    const std::vector<RegistryRootEntry>& roots
+) {
   browse_.roots() = roots;
   ResetHiveListCache();
   browse_.set_current_node(nullptr);
@@ -118,7 +123,9 @@ void MainWindow::Impl::ApplyRegistryRoots(const std::vector<RegistryRootEntry>& 
   SelectDefaultTreeItem();
 }
 
-std::vector<std::wstring> MainWindow::Impl::BuildVisibleTreePathParts(const std::wstring& path) const {
+std::vector<std::wstring> MainWindow::Impl::BuildVisibleTreePathParts(
+    const std::wstring& path
+) const {
   std::vector<std::wstring> parts = registry_path::Split(path);
   if (parts.empty()) {
     return parts;
@@ -239,7 +246,9 @@ void MainWindow::Impl::SelectDefaultTreeItem() {
   }
 }
 
-void MainWindow::Impl::CaptureRegistryTabState(int index) {
+void MainWindow::Impl::CaptureRegistryTabState(
+    int index
+) {
   if (!browse_.tree().hwnd() || index < 0 ||
       static_cast<size_t>(index) >= tabs_.size()) {
     return;
@@ -299,7 +308,9 @@ void MainWindow::Impl::ResetRegistryTreeState() {
   RedrawWindow(browse_.tree().hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
 }
 
-void MainWindow::Impl::RestoreRegistryTabState(int index) {
+void MainWindow::Impl::RestoreRegistryTabState(
+    int index
+) {
   if (index < 0 || static_cast<size_t>(index) >= tabs_.size() || !browse_.tree().hwnd()) {
     return;
   }
@@ -329,8 +340,7 @@ void MainWindow::Impl::RestoreRegistryTabState(int index) {
     if (left.size() != right.size()) {
       return left.size() < right.size();
     }
-    return _wcsicmp(left.c_str(), right.c_str()) < 0;
-  });
+    return _wcsicmp(left.c_str(), right.c_str()) < 0; });
   for (const auto& path : expanded) {
     ExpandTreePath(path);
   }
@@ -349,7 +359,9 @@ void MainWindow::Impl::RestoreRegistryTabState(int index) {
   SelectDefaultTreeItem();
 }
 
-std::wstring MainWindow::Impl::LocalRegistryTabLabel(int index) const {
+std::wstring MainWindow::Impl::LocalRegistryTabLabel(
+    int index
+) const {
   if (index < 0 || static_cast<size_t>(index) >= tabs_.size()) {
     return L"Local Registry";
   }
@@ -395,7 +407,9 @@ void MainWindow::Impl::RefreshRegistryTabLabels() {
   InvalidateRect(tab_, nullptr, FALSE);
 }
 
-void MainWindow::Impl::AppendRealRegistryRoot(std::vector<RegistryRootEntry>* roots) {
+void MainWindow::Impl::AppendRealRegistryRoot(
+    std::vector<RegistryRootEntry>* roots
+) {
   if (!roots) {
     return;
   }
@@ -481,7 +495,9 @@ bool MainWindow::Impl::SwitchToRemoteRegistry() {
   return ConnectRemoteRegistry(machine);
 }
 
-bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name) {
+bool MainWindow::Impl::ConnectRemoteRegistry(
+    const std::wstring& name
+) {
   std::wstring machine = name;
   machine = NormalizeMachineName(machine);
   if (machine.empty()) {
@@ -501,7 +517,7 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name) {
 
   if (registry_mode_ == RegistryMode::kOffline) {
     if (!ConfirmOfflineChanges(L"The offline registry has unsaved changes.\n"
-                             L"Save before switching?")) {
+                               L"Save before switching?")) {
       if (hku) {
         RegCloseKey(hku);
       }
@@ -549,8 +565,15 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name) {
 
 bool MainWindow::Impl::SwitchToOfflineRegistry() {
   const int choice = ui::PromptChoice(
-      hwnd_, L"Load the offline registry from a single hive file, or from a folder of hives?",
-      L"Offline Registry", L"Hive File", L"Folder", L"Cancel", {90, 70, 70}, 470);
+      hwnd_,
+      L"Load the offline registry from a single hive file, or from a folder of hives?",
+      L"Offline Registry",
+      L"Hive File",
+      L"Folder",
+      L"Cancel",
+      {90, 70, 70},
+      470
+  );
   std::wstring hive_path;
   HRESULT hr = S_OK;
   if (choice == IDYES) {
@@ -566,10 +589,13 @@ bool MainWindow::Impl::SwitchToOfflineRegistry() {
   return LoadOfflineRegistryFromPath(hive_path, true);
 }
 
-bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, bool open_new_tab) {
+bool MainWindow::Impl::LoadOfflineRegistryFromPath(
+    const std::wstring& path,
+    bool open_new_tab
+) {
   if (registry_mode_ == RegistryMode::kOffline && !offline_roots_.empty()) {
     if (!ConfirmOfflineChanges(L"The offline registry has unsaved changes.\n"
-                             L"Save before switching?")) {
+                               L"Save before switching?")) {
       return false;
     }
     std::wstring error;
@@ -798,7 +824,11 @@ void MainWindow::Impl::ApplyQueuedExternalJump() {
   NavigateToExternalJump(target);
 }
 
-bool MainWindow::Impl::ResolveExternalJumpTarget(const std::wstring& target, std::wstring* key_path, std::wstring* value_name) const {
+bool MainWindow::Impl::ResolveExternalJumpTarget(
+    const std::wstring& target,
+    std::wstring* key_path,
+    std::wstring* value_name
+) const {
   if (!key_path || !value_name) {
     return false;
   }
@@ -817,12 +847,17 @@ bool MainWindow::Impl::ResolveExternalJumpTarget(const std::wstring& target, std
     }
     bool found = false;
     RegistryStore::EnumKeyStreaming(
-        candidate, true, false, false, nullptr,
+        candidate,
+        true,
+        false,
+        false,
+        nullptr,
         [&](const ValueInfo& value, const BYTE*, DWORD) {
           found = EqualsInsensitive(value.name, candidate_value);
           return !found;
         },
-        {});
+        {}
+    );
     return found;
   };
   if (ResolvePathToNode(normalized, &node)) {
@@ -870,7 +905,9 @@ bool MainWindow::Impl::ResolveExternalJumpTarget(const std::wstring& target, std
   return false;
 }
 
-bool MainWindow::Impl::NavigateToExternalJump(const std::wstring& target) {
+bool MainWindow::Impl::NavigateToExternalJump(
+    const std::wstring& target
+) {
   if (registry_mode_ != RegistryMode::kLocal && !SwitchToLocalRegistry()) {
     return false;
   }
@@ -903,7 +940,10 @@ void MainWindow::Impl::ActivateRegistryTab() {
   ApplyTabSelection(registry_tab);
 }
 
-bool MainWindow::Impl::NavigateToResolvedExternalJump(const std::wstring& key_path, const std::wstring& value_name) {
+bool MainWindow::Impl::NavigateToResolvedExternalJump(
+    const std::wstring& key_path,
+    const std::wstring& value_name
+) {
   if (key_path.empty()) {
     return false;
   }

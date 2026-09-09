@@ -24,8 +24,14 @@ namespace {
 
 constexpr UINT_PTR kSingleLineSubclassId = 2;
 
-LRESULT CALLBACK SingleLineProc(HWND window, UINT message, WPARAM wparam,
-                                LPARAM lparam, UINT_PTR, DWORD_PTR) {
+LRESULT CALLBACK SingleLineProc(
+    HWND window,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR,
+    DWORD_PTR
+) {
   if (message == WM_CHAR && (wparam == L'\r' || wparam == L'\n')) {
     return 0;
   }
@@ -48,8 +54,7 @@ LRESULT CALLBACK SingleLineProc(HWND window, UINT message, WPARAM wparam,
         character = L' ';
       }
     }
-    SendMessageW(window, EM_REPLACESEL, TRUE,
-                 reinterpret_cast<LPARAM>(text.c_str()));
+    SendMessageW(window, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(text.c_str()));
     return 0;
   }
   if (message == WM_NCDESTROY) {
@@ -58,7 +63,10 @@ LRESULT CALLBACK SingleLineProc(HWND window, UINT message, WPARAM wparam,
   return DefSubclassProc(window, message, wparam, lparam);
 }
 
-bool SizeGripRect(HWND dialog, RECT* rect) {
+bool SizeGripRect(
+    HWND dialog,
+    RECT* rect
+) {
   if (!rect || (GetWindowLongPtrW(dialog, GWL_STYLE) & WS_THICKFRAME) == 0) {
     return false;
   }
@@ -84,7 +92,10 @@ bool SizeGripRect(HWND dialog, RECT* rect) {
   return true;
 }
 
-void DrawSizeGrip(HWND dialog, HDC hdc) {
+void DrawSizeGrip(
+    HWND dialog,
+    HDC hdc
+) {
   RECT grip = {};
   if (!hdc || !SizeGripRect(dialog, &grip)) {
     return;
@@ -98,25 +109,26 @@ void DrawSizeGrip(HWND dialog, HDC hdc) {
   DrawFrameControl(hdc, &grip, DFC_SCROLL, DFCS_SCROLLSIZEGRIP);
 }
 
-void ThinBorder(HWND dialog, int id) {
+void ThinBorder(
+    HWND dialog,
+    int id
+) {
   const HWND edit = GetDlgItem(dialog, id);
   if (!edit) {
     return;
   }
-  SetWindowLongPtrW(edit, GWL_EXSTYLE,
-                    GetWindowLongPtrW(edit, GWL_EXSTYLE) &
-                        ~WS_EX_CLIENTEDGE);
-  SetWindowLongPtrW(edit, GWL_STYLE,
-                    GetWindowLongPtrW(edit, GWL_STYLE) | WS_BORDER);
-  SetWindowPos(edit, nullptr, 0, 0, 0, 0,
-               SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                   SWP_FRAMECHANGED);
+  SetWindowLongPtrW(edit, GWL_EXSTYLE, GetWindowLongPtrW(edit, GWL_EXSTYLE) & ~WS_EX_CLIENTEDGE);
+  SetWindowLongPtrW(edit, GWL_STYLE, GetWindowLongPtrW(edit, GWL_STYLE) | WS_BORDER);
+  SetWindowPos(edit, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 }
 
 } // namespace
 
-void Initialize(HWND dialog, HFONT* owned_font,
-                std::initializer_list<int> bordered_edits) {
+void Initialize(
+    HWND dialog,
+    HFONT* owned_font,
+    std::initializer_list<int> bordered_edits
+) {
   for (const int id : bordered_edits) {
     ThinBorder(dialog, id);
   }
@@ -139,28 +151,39 @@ void Initialize(HWND dialog, HFONT* owned_font,
           }
           return TRUE;
         },
-        reinterpret_cast<LPARAM>(font));
+        reinterpret_cast<LPARAM>(font)
+    );
   }
   Theme::Current().ApplyToWindow(dialog);
   Theme::Current().ApplyToChildren(dialog);
   regkit::appearance::CenterWindow(dialog, GetWindow(dialog, GW_OWNER));
 }
 
-void AllowNewlines(HWND dialog, int control_id) {
+void AllowNewlines(
+    HWND dialog,
+    int control_id
+) {
   if (HWND edit = GetDlgItem(dialog, control_id)) {
     RemoveWindowSubclass(edit, SingleLineProc, kSingleLineSubclassId);
   }
 }
 
-void ReleaseFont(HFONT* font) {
+void ReleaseFont(
+    HFONT* font
+) {
   if (font && *font) {
     DeleteObject(*font);
     *font = nullptr;
   }
 }
 
-bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam,
-                        LPARAM lparam, INT_PTR* result) {
+bool HandleThemeMessage(
+    HWND dialog,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    INT_PTR* result
+) {
   if (!result) {
     return false;
   }
@@ -176,8 +199,7 @@ bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam,
   if (message == WM_ERASEBKGND) {
     RECT rect = {};
     GetClientRect(dialog, &rect);
-    FillRect(reinterpret_cast<HDC>(wparam), &rect,
-             Theme::Current().BackgroundBrush());
+    FillRect(reinterpret_cast<HDC>(wparam), &rect, Theme::Current().BackgroundBrush());
     DrawSizeGrip(dialog, reinterpret_cast<HDC>(wparam));
     *result = TRUE;
     return true;
@@ -215,12 +237,17 @@ bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam,
     return false;
   }
   *result = reinterpret_cast<INT_PTR>(Theme::Current().ControlColor(
-      reinterpret_cast<HDC>(wparam), reinterpret_cast<HWND>(lparam),
-      color_type));
+      reinterpret_cast<HDC>(wparam),
+      reinterpret_cast<HWND>(lparam),
+      color_type
+  ));
   return true;
 }
 
-std::wstring ReadText(HWND dialog, int control_id) {
+std::wstring ReadText(
+    HWND dialog,
+    int control_id
+) {
   return util::WindowText(GetDlgItem(dialog, control_id));
 }
 

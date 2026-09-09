@@ -6,7 +6,10 @@
 namespace regkit {
 using namespace window_detail;
 
-void MainWindow::Impl::OnSize(int width, int height) {
+void MainWindow::Impl::OnSize(
+    int width,
+    int height
+) {
   LayoutControls(width, height);
 }
 
@@ -180,7 +183,10 @@ void MainWindow::Impl::SaveThemePresets() const {
   ThemePresetStore::Save(theme_presets_, nullptr);
 }
 
-bool MainWindow::Impl::ApplyThemePresetByName(const std::wstring& name, bool persist) {
+bool MainWindow::Impl::ApplyThemePresetByName(
+    const std::wstring& name,
+    bool persist
+) {
   if (theme_presets_.empty()) {
     return false;
   }
@@ -200,7 +206,11 @@ bool MainWindow::Impl::ApplyThemePresetByName(const std::wstring& name, bool per
   return true;
 }
 
-void MainWindow::Impl::UpdateThemePresets(const std::vector<ThemePreset>& presets, const std::wstring& active_name, bool apply_now) {
+void MainWindow::Impl::UpdateThemePresets(
+    const std::vector<ThemePreset>& presets,
+    const std::wstring& active_name,
+    bool apply_now
+) {
   theme_presets_ = presets;
   active_theme_preset_ = active_name;
   SaveThemePresets();

@@ -25,10 +25,8 @@ void ShowAbout(HWND owner);
 bool ConfirmRegFileMerge(HWND owner, const std::wstring& path);
 void ShowRegFileMergeSucceeded(HWND owner, const std::wstring& path);
 void ShowRegFileMergeFailed(HWND owner, const std::wstring& path, const std::wstring& detail);
-bool ConfirmDelete(HWND owner, const std::wstring& title, const std::wstring& name,
-                   const std::wstring& message = std::wstring());
-bool ConfirmDelete(HWND owner, const std::wstring& title, const std::vector<std::wstring>& names,
-                   const std::wstring& message = std::wstring());
+bool ConfirmDelete(HWND owner, const std::wstring& title, const std::wstring& name, const std::wstring& message = std::wstring());
+bool ConfirmDelete(HWND owner, const std::wstring& title, const std::vector<std::wstring>& names, const std::wstring& message = std::wstring());
 struct ChoiceButtonWidths {
   int yes = 70;
   int no = 70;

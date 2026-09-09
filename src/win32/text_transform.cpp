@@ -7,7 +7,9 @@
 
 namespace util {
 
-std::wstring WindowText(HWND window) {
+std::wstring WindowText(
+    HWND window
+) {
   const int length = window ? GetWindowTextLengthW(window) : 0;
   if (length <= 0) {
     return {};
@@ -18,7 +20,9 @@ std::wstring WindowText(HWND window) {
   return text;
 }
 
-std::wstring ToLower(std::wstring_view text) {
+std::wstring ToLower(
+    std::wstring_view text
+) {
   std::wstring result(text);
   if (!result.empty()) {
     CharLowerBuffW(result.data(), static_cast<DWORD>(result.size()));
@@ -26,7 +30,9 @@ std::wstring ToLower(std::wstring_view text) {
   return result;
 }
 
-std::wstring TrimWhitespace(const std::wstring& text) {
+std::wstring TrimWhitespace(
+    const std::wstring& text
+) {
   size_t first = 0;
   while (first < text.size() && iswspace(text[first])) {
     ++first;
@@ -38,7 +44,9 @@ std::wstring TrimWhitespace(const std::wstring& text) {
   return text.substr(first, last - first);
 }
 
-std::wstring ExpandEnvironmentStringsDynamic(const std::wstring& text) {
+std::wstring ExpandEnvironmentStringsDynamic(
+    const std::wstring& text
+) {
   if (text.empty()) {
     return {};
   }
@@ -58,7 +66,11 @@ std::wstring ExpandEnvironmentStringsDynamic(const std::wstring& text) {
   return expanded;
 }
 
-std::wstring ToHex(const BYTE* data, size_t size, size_t max_bytes) {
+std::wstring ToHex(
+    const BYTE* data,
+    size_t size,
+    size_t max_bytes
+) {
   if (!data || size == 0) {
     return {};
   }

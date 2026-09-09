@@ -20,13 +20,18 @@ public:
     }
   }
 
-  Handle Brush(COLORREF color)
+  Handle Brush(
+      COLORREF color
+  )
     requires std::is_same_v<Handle, HBRUSH>
   {
     return FindOrCreate(color, 0, [color] { return CreateSolidBrush(color); });
   }
 
-  Handle Pen(COLORREF color, int width)
+  Handle Pen(
+      COLORREF color,
+      int width
+  )
     requires std::is_same_v<Handle, HPEN>
   {
     return FindOrCreate(color, width, [color, width] { return CreatePen(PS_SOLID, width, color); });
@@ -40,7 +45,11 @@ private:
   };
 
   template <typename Factory>
-  Handle FindOrCreate(COLORREF color, int width, Factory&& factory) {
+  Handle FindOrCreate(
+      COLORREF color,
+      int width,
+      Factory&& factory
+  ) {
     for (const Entry& entry : entries_) {
       if (entry.handle && entry.color == color && entry.width == width) {
         return entry.handle;
@@ -70,11 +79,16 @@ ObjectCache<HPEN, 16> g_pens;
 
 } // namespace
 
-HBRUSH CachedBrush(COLORREF color) {
+HBRUSH CachedBrush(
+    COLORREF color
+) {
   return g_brushes.Brush(color);
 }
 
-HPEN CachedPen(COLORREF color, int width) {
+HPEN CachedPen(
+    COLORREF color,
+    int width
+) {
   return g_pens.Pen(color, width);
 }
 

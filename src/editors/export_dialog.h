@@ -17,7 +17,6 @@ struct ExportRequest {
 
 using ExportResult = ExportRequest;
 
-bool ChooseExport(HWND owner, const ExportRequest& request,
-                  ExportResult* result);
+bool ChooseExport(HWND owner, const ExportRequest& request, ExportResult* result);
 
 } // namespace regkit::editors

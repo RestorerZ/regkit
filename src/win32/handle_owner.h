@@ -46,14 +46,25 @@ template <typename T>
 class UniqueGdiObject {
 public:
   UniqueGdiObject() noexcept = default;
-  explicit UniqueGdiObject(T handle) noexcept : handle_(handle) {}
-  ~UniqueGdiObject() { reset(); }
+  explicit UniqueGdiObject(
+      T handle
+  ) noexcept
+      : handle_(handle) {
+  }
+  ~UniqueGdiObject() {
+    reset();
+  }
   UniqueGdiObject(const UniqueGdiObject&) = delete;
   UniqueGdiObject& operator=(const UniqueGdiObject&) = delete;
-  UniqueGdiObject(UniqueGdiObject&& other) noexcept : handle_(other.handle_) {
+  UniqueGdiObject(
+      UniqueGdiObject&& other
+  ) noexcept
+      : handle_(other.handle_) {
     other.handle_ = nullptr;
   }
-  UniqueGdiObject& operator=(UniqueGdiObject&& other) noexcept {
+  UniqueGdiObject& operator=(
+      UniqueGdiObject&& other
+  ) noexcept {
     if (this != &other) {
       reset();
       handle_ = other.handle_;
@@ -62,7 +73,9 @@ public:
     return *this;
   }
 
-  T get() const noexcept { return handle_; }
+  T get() const noexcept {
+    return handle_;
+  }
   T* put() noexcept {
     reset();
     return &handle_;
@@ -72,13 +85,17 @@ public:
     handle_ = nullptr;
     return handle;
   }
-  void reset(T handle = nullptr) noexcept {
+  void reset(
+      T handle = nullptr
+  ) noexcept {
     if (handle_) {
       DeleteObject(handle_);
     }
     handle_ = handle;
   }
-  explicit operator bool() const noexcept { return handle_ != nullptr; }
+  explicit operator bool() const noexcept {
+    return handle_ != nullptr;
+  }
 
 private:
   T handle_ = nullptr;

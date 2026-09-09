@@ -16,15 +16,21 @@ namespace regkit::trace {
 
 namespace {
 
-bool Cancelled(const std::atomic_bool* cancel) {
+bool Cancelled(
+    const std::atomic_bool* cancel
+) {
   return cancel && cancel->load();
 }
 
-std::wstring Lower(const std::wstring& text) {
+std::wstring Lower(
+    const std::wstring& text
+) {
   return util::ToLower(text);
 }
 
-std::wstring Trim(std::wstring text) {
+std::wstring Trim(
+    std::wstring text
+) {
   const auto first =
       std::find_if_not(text.begin(), text.end(), iswspace);
   const auto last =
@@ -32,13 +38,18 @@ std::wstring Trim(std::wstring text) {
   return first < last ? std::wstring(first, last) : std::wstring();
 }
 
-bool EqualsInsensitive(const std::wstring& left,
-                       const wchar_t* right) {
+bool EqualsInsensitive(
+    const std::wstring& left,
+    const wchar_t* right
+) {
   return _wcsicmp(left.c_str(), right) == 0;
 }
 
-bool Decode(std::string_view buffer, std::wstring* content,
-            std::wstring* error) {
+bool Decode(
+    std::string_view buffer,
+    std::wstring* content,
+    std::wstring* error
+) {
   if (!content) {
     return false;
   }
@@ -64,13 +75,14 @@ bool Decode(std::string_view buffer, std::wstring* content,
   return true;
 }
 
-void Finalize(Data* data) {
+void Finalize(
+    Data* data
+) {
   auto less = [](const std::wstring& left, const std::wstring& right) {
     return _wcsicmp(left.c_str(), right.c_str()) < 0;
   };
   std::sort(data->key_paths.begin(), data->key_paths.end(), less);
-  std::sort(data->display_key_paths.begin(),
-            data->display_key_paths.end(), less);
+  std::sort(data->display_key_paths.begin(), data->display_key_paths.end(), less);
 
   data->children_by_key.reserve(data->key_paths.size());
   for (const auto& path : data->key_paths) {
@@ -80,8 +92,7 @@ void Finalize(Data* data) {
     }
     std::wstring parent = parts.front();
     for (size_t index = 1; index < parts.size(); ++index) {
-      data->children_by_key[Lower(parent)].try_emplace(Lower(parts[index]),
-                                                       parts[index]);
+      data->children_by_key[Lower(parent)].try_emplace(Lower(parts[index]), parts[index]);
       parent += L"\\" + parts[index];
     }
   }
@@ -89,10 +100,13 @@ void Finalize(Data* data) {
 
 } // namespace
 
-bool ParseEntries(std::string_view buffer,
-                  const Normalizers& normalizers,
-                  const EntryCallback& callback, std::wstring* error,
-                  const std::atomic_bool* cancel) {
+bool ParseEntries(
+    std::string_view buffer,
+    const Normalizers& normalizers,
+    const EntryCallback& callback,
+    std::wstring* error,
+    const std::atomic_bool* cancel
+) {
   if (!normalizers.key || !normalizers.display || !callback) {
     return false;
   }
@@ -166,10 +180,15 @@ bool ParseEntries(std::string_view buffer,
   return true;
 }
 
-bool Parse(const std::wstring& label, const std::wstring& source,
-           std::string_view buffer, const Normalizers& normalizers,
-           Data* data, std::wstring* error,
-           const std::atomic_bool* cancel) {
+bool Parse(
+    const std::wstring& label,
+    const std::wstring& source,
+    std::string_view buffer,
+    const Normalizers& normalizers,
+    Data* data,
+    std::wstring* error,
+    const std::atomic_bool* cancel
+) {
   if (!data) {
     return false;
   }
@@ -177,7 +196,8 @@ bool Parse(const std::wstring& label, const std::wstring& source,
   parsed.label = label;
   parsed.source_path = source;
   const bool ok = ParseEntries(
-      buffer, normalizers,
+      buffer,
+      normalizers,
       [&](Entry&& entry) {
         const std::wstring key_lower = Lower(entry.key_path);
         auto [key, inserted] =
@@ -195,12 +215,15 @@ bool Parse(const std::wstring& label, const std::wstring& source,
           const std::wstring value_lower = Lower(entry.value_name);
           if (key->second.values_lower.insert(value_lower).second) {
             key->second.values_display.push_back(
-                std::move(entry.value_name));
+                std::move(entry.value_name)
+            );
           }
         }
         return !Cancelled(cancel);
       },
-      error, cancel);
+      error,
+      cancel
+  );
   if (!ok) {
     return false;
   }

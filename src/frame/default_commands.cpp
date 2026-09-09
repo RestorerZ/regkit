@@ -6,7 +6,13 @@
 namespace regkit {
 using namespace window_detail;
 
-bool MainWindow::Impl::AddDefaultFromFile(const std::wstring& label, const std::wstring& path, bool show_error, bool prompt_for_selection, bool update_ui) {
+bool MainWindow::Impl::AddDefaultFromFile(
+    const std::wstring& label,
+    const std::wstring& path,
+    bool show_error,
+    bool prompt_for_selection,
+    bool update_ui
+) {
   if (path.empty()) {
     return false;
   }
@@ -83,8 +89,8 @@ bool MainWindow::Impl::AddDefaultFromFile(const std::wstring& label, const std::
 
   session_ptr->added_to_active = true;
   active_defaults_.push_back(
-      {use_label, source, session_ptr->data,
-       std::make_shared<trace::Selection>(session_ptr->selection)});
+      {use_label, source, session_ptr->data, std::make_shared<trace::Selection>(session_ptr->selection)}
+  );
   if (update_ui) {
     SaveActiveDefaults();
     BuildMenus();
@@ -100,7 +106,10 @@ bool MainWindow::Impl::AddDefaultFromFile(const std::wstring& label, const std::
   return true;
 }
 
-bool MainWindow::Impl::LoadDefaultFromFile(const std::wstring& label, const std::wstring& path) {
+bool MainWindow::Impl::LoadDefaultFromFile(
+    const std::wstring& label,
+    const std::wstring& path
+) {
   return AddDefaultFromFile(label, path, true, true, true);
 }
 
@@ -139,16 +148,22 @@ void MainWindow::Impl::NormalizeRecentDefaultList() {
   recent_default_paths_.Normalize();
 }
 
-void MainWindow::Impl::AddRecentTracePath(const std::wstring& path) {
+void MainWindow::Impl::AddRecentTracePath(
+    const std::wstring& path
+) {
   recent_trace_paths_.Add(path);
 }
 
-void MainWindow::Impl::AddRecentDefaultPath(const std::wstring& path) {
+void MainWindow::Impl::AddRecentDefaultPath(
+    const std::wstring& path
+) {
   recent_default_paths_.Add(path);
 }
 
 std::vector<MainWindow::Impl::DefaultValueChoice>
-MainWindow::Impl::CollectDefaultChoices(const std::wstring& value_name) const {
+MainWindow::Impl::CollectDefaultChoices(
+    const std::wstring& value_name
+) const {
   std::vector<DefaultValueChoice> choices;
   const RegistryNode* node = browse_.current_node();
   if (!node || active_defaults_.empty()) {

@@ -10,7 +10,9 @@ namespace regkit::workspace {
 
 namespace {
 
-const wchar_t* KindTag(PersistedTab::Kind kind) {
+const wchar_t* KindTag(
+    PersistedTab::Kind kind
+) {
   switch (kind) {
   case PersistedTab::Kind::kSearch:
     return L"search";
@@ -21,8 +23,11 @@ const wchar_t* KindTag(PersistedTab::Kind kind) {
   }
 }
 
-void AppendField(std::wstring* content, const wchar_t* key,
-                 const std::wstring& value) {
+void AppendField(
+    std::wstring* content,
+    const wchar_t* key,
+    const std::wstring& value
+) {
   if (value.empty()) {
     return;
   }
@@ -31,7 +36,11 @@ void AppendField(std::wstring* content, const wchar_t* key,
   content->append(record_fields::Escape(value));
 }
 
-void AppendNumber(std::wstring* content, const wchar_t* key, int value) {
+void AppendNumber(
+    std::wstring* content,
+    const wchar_t* key,
+    int value
+) {
   if (value == 0) {
     return;
   }
@@ -40,8 +49,11 @@ void AppendNumber(std::wstring* content, const wchar_t* key, int value) {
   content->append(std::to_wstring(value));
 }
 
-void ParseLegacyRegistryTab(const std::vector<std::wstring>& fields,
-                            int source_version, PersistedTab* tab) {
+void ParseLegacyRegistryTab(
+    const std::vector<std::wstring>& fields,
+    int source_version,
+    PersistedTab* tab
+) {
   if (fields.size() >= 4) {
     tab->selected_path = record_fields::Unescape(fields[3]);
   }
@@ -60,8 +72,10 @@ void ParseLegacyRegistryTab(const std::vector<std::wstring>& fields,
   }
 }
 
-void ParseTaggedFields(const std::vector<std::wstring>& fields,
-                       PersistedTab* tab) {
+void ParseTaggedFields(
+    const std::vector<std::wstring>& fields,
+    PersistedTab* tab
+) {
   for (size_t index = 3; index < fields.size(); ++index) {
     const std::wstring& field = fields[index];
     const size_t separator = field.find(L'=');
@@ -110,7 +124,9 @@ void ParseTaggedFields(const std::vector<std::wstring>& fields,
 
 } // namespace
 
-TabState ParseTabs(const std::wstring& content) {
+TabState ParseTabs(
+    const std::wstring& content
+) {
   TabState state;
   for (const std::wstring& line : record_fields::Lines(content)) {
     if (line.empty()) {
@@ -157,7 +173,9 @@ TabState ParseTabs(const std::wstring& content) {
   return state;
 }
 
-std::wstring SerializeTabs(const TabState& state) {
+std::wstring SerializeTabs(
+    const TabState& state
+) {
   std::wstring content = L"version=" +
                          std::to_wstring(TabState::kCurrentVersion) +
                          L"\nactive=" + std::to_wstring(state.active_index) +
@@ -193,14 +211,18 @@ std::wstring SerializeTabs(const TabState& state) {
       content.push_back(L'\t');
       content.append(L"srcn=");
       content.append(record_fields::Escape(
-          i < tab.source_names.size() ? tab.source_names[i] : std::wstring()));
+          i < tab.source_names.size() ? tab.source_names[i] : std::wstring()
+      ));
     }
     content.push_back(L'\n');
   }
   return content;
 }
 
-bool LoadTabs(const std::wstring& path, TabState* state) {
+bool LoadTabs(
+    const std::wstring& path,
+    TabState* state
+) {
   if (!state) {
     return false;
   }
@@ -212,7 +234,10 @@ bool LoadTabs(const std::wstring& path, TabState* state) {
   return true;
 }
 
-bool SaveTabs(const std::wstring& path, const TabState& state) {
+bool SaveTabs(
+    const std::wstring& path,
+    const TabState& state
+) {
   return !path.empty() &&
          util::WriteTextFile(path, SerializeTabs(state), false);
 }

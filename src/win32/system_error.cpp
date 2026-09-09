@@ -7,14 +7,22 @@
 
 namespace util {
 
-std::wstring FormatWin32Error(DWORD code) {
+std::wstring FormatWin32Error(
+    DWORD code
+) {
   if (code == ERROR_SUCCESS) {
     return {};
   }
   wchar_t buffer[512] = {};
   DWORD length = FormatMessageW(
-      FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, code,
-      0, buffer, static_cast<DWORD>(std::size(buffer)), nullptr);
+      FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+      nullptr,
+      code,
+      0,
+      buffer,
+      static_cast<DWORD>(std::size(buffer)),
+      nullptr
+  );
   if (length == 0) {
     return L"Unknown error.";
   }

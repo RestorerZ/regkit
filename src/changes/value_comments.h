@@ -43,8 +43,7 @@ public:
   name_entries() const noexcept;
   std::unordered_map<std::wstring, CommentEntry>& name_entries() noexcept;
 
-  static std::wstring ValueKey(const std::wstring& path,
-                               const std::wstring& name, DWORD type);
+  static std::wstring ValueKey(const std::wstring& path, const std::wstring& name, DWORD type);
   static std::wstring NameKey(const std::wstring& name, DWORD type);
 
 private:

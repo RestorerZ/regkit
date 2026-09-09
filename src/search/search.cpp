@@ -25,28 +25,36 @@
 
 namespace regkit::search {
 
-bool SameSource(const Source& first, const Source& second) noexcept {
+bool SameSource(
+    const Source& first,
+    const Source& second
+) noexcept {
   return first.kind == second.kind &&
          _wcsicmp(first.name.c_str(), second.name.c_str()) == 0;
 }
 
-std::wstring SourceLabel(const Source& source) {
+std::wstring SourceLabel(
+    const Source& source
+) {
   switch (source.kind) {
   case Source::Kind::kRemote:
     return source.name.empty() ? L"Network Registry" : source.name;
   case Source::Kind::kOffline:
-  case Source::Kind::kRegFile: {
-    const size_t slash = source.name.find_last_of(L"\\/");
-    return slash == std::wstring::npos ? source.name
-                                       : source.name.substr(slash + 1);
-  }
+  case Source::Kind::kRegFile:
+    {
+      const size_t slash = source.name.find_last_of(L"\\/");
+      return slash == std::wstring::npos ? source.name
+                                         : source.name.substr(slash + 1);
+    }
   default:
     break;
   }
   return L"Local Registry";
 }
 
-Matcher::Matcher(const TextOptions& options)
+Matcher::Matcher(
+    const TextOptions& options
+)
     : query_(options.query), use_regex_(options.use_regex),
       match_case_(options.match_case), match_whole_(options.match_whole),
       valid_(!query_.empty()) {
@@ -68,7 +76,9 @@ bool Matcher::valid() const noexcept {
   return valid_;
 }
 
-Match Matcher::Find(std::wstring_view text) const {
+Match Matcher::Find(
+    std::wstring_view text
+) const {
   Match location;
   if (!valid_ || text.empty()) {
     return location;
@@ -95,9 +105,12 @@ Match Matcher::Find(std::wstring_view text) const {
         match_case_
             ? text == query_
             : CompareStringOrdinal(
-                  text.data(), static_cast<int>(text.size()),
-                  query_.c_str(), static_cast<int>(query_.size()),
-                  TRUE) == CSTR_EQUAL;
+                  text.data(),
+                  static_cast<int>(text.size()),
+                  query_.c_str(),
+                  static_cast<int>(query_.size()),
+                  TRUE
+              ) == CSTR_EQUAL;
     if (matched) {
       location.matched = true;
       location.start = 0;
@@ -117,8 +130,13 @@ Match Matcher::Find(std::wstring_view text) const {
   }
 
   const int position = FindStringOrdinal(
-      FIND_FROMSTART, text.data(), static_cast<int>(text.size()),
-      query_.c_str(), static_cast<int>(query_.size()), TRUE);
+      FIND_FROMSTART,
+      text.data(),
+      static_cast<int>(text.size()),
+      query_.c_str(),
+      static_cast<int>(query_.size()),
+      TRUE
+  );
   if (position >= 0) {
     location.matched = true;
     location.start = static_cast<size_t>(position);
@@ -127,7 +145,10 @@ Match Matcher::Find(std::wstring_view text) const {
   return location;
 }
 
-bool IsExcludedPath(const std::wstring& path, const std::vector<std::wstring>& excludes) {
+bool IsExcludedPath(
+    const std::wstring& path,
+    const std::vector<std::wstring>& excludes
+) {
   if (excludes.empty()) {
     return false;
   }
@@ -145,11 +166,15 @@ bool IsExcludedPath(const std::wstring& path, const std::vector<std::wstring>& e
   return false;
 }
 
-bool IsKeyRow(const Result& result) noexcept {
+bool IsKeyRow(
+    const Result& result
+) noexcept {
   return result.kind == ResultKind::kKey || result.kind == ResultKind::kTraceKey;
 }
 
-std::wstring_view DisplayName(const Result& result) noexcept {
+std::wstring_view DisplayName(
+    const Result& result
+) noexcept {
   if (IsKeyRow(result)) {
     return std::wstring_view();
   }
@@ -157,7 +182,9 @@ std::wstring_view DisplayName(const Result& result) noexcept {
                                    : std::wstring_view(result.value_name);
 }
 
-std::wstring TypeText(const Result& result) {
+std::wstring TypeText(
+    const Result& result
+) {
   if (IsKeyRow(result)) {
     return L"Key";
   }
@@ -169,7 +196,10 @@ std::wstring TypeText(const Result& result) {
 
 namespace {
 
-int CompareText(std::wstring_view left, std::wstring_view right) {
+int CompareText(
+    std::wstring_view left,
+    std::wstring_view right
+) {
   if (left.empty()) {
     return right.empty() ? 0 : 1;
   }
@@ -177,8 +207,12 @@ int CompareText(std::wstring_view left, std::wstring_view right) {
     return -1;
   }
   const int result = CompareStringOrdinal(
-      left.data(), static_cast<int>(left.size()), right.data(),
-      static_cast<int>(right.size()), TRUE);
+      left.data(),
+      static_cast<int>(left.size()),
+      right.data(),
+      static_cast<int>(right.size()),
+      TRUE
+  );
   if (result == CSTR_LESS_THAN) {
     return -1;
   }
@@ -188,14 +222,21 @@ int CompareText(std::wstring_view left, std::wstring_view right) {
   return 0;
 }
 
-int CompareNumeric(uint64_t left, uint64_t right) {
+int CompareNumeric(
+    uint64_t left,
+    uint64_t right
+) {
   if (left == right) {
     return 0;
   }
   return left < right ? -1 : 1;
 }
 
-int CompareResult(const Result& left, const Result& right, int column) {
+int CompareResult(
+    const Result& left,
+    const Result& right,
+    int column
+) {
   switch (column) {
   case 0:
     return CompareText(left.key_path, right.key_path);
@@ -210,7 +251,8 @@ int CompareResult(const Result& left, const Result& right, int column) {
         (static_cast<uint64_t>(left.modified.dwHighDateTime) << 32) |
             left.modified.dwLowDateTime,
         (static_cast<uint64_t>(right.modified.dwHighDateTime) << 32) |
-            right.modified.dwLowDateTime);
+            right.modified.dwLowDateTime
+    );
   default:
     return CompareText(left.key_path, right.key_path);
   }
@@ -218,12 +260,15 @@ int CompareResult(const Result& left, const Result& right, int column) {
 
 } // namespace
 
-void SortResults(std::vector<Result>* results, int column, bool ascending) {
+void SortResults(
+    std::vector<Result>* results,
+    int column,
+    bool ascending
+) {
   if (!results || results->size() < 2) {
     return;
   }
   if (column == 2) {
-
     std::map<std::pair<ResultKind, DWORD>, std::wstring> labels;
     auto label_of = [&labels](const Result& row) -> const std::wstring& {
       const auto key = std::make_pair(row.kind, row.type);
@@ -236,27 +281,21 @@ void SortResults(std::vector<Result>* results, int column, bool ascending) {
     for (const auto& row : *results) {
       label_of(row);
     }
-    std::stable_sort(results->begin(), results->end(),
-                     [&labels, ascending](const Result& left, const Result& right) {
+    std::stable_sort(results->begin(), results->end(), [&labels, ascending](const Result& left, const Result& right) {
                        const std::wstring& left_text =
                            labels.find(std::make_pair(left.kind, left.type))->second;
                        const std::wstring& right_text =
                            labels.find(std::make_pair(right.kind, right.type))->second;
                        const int result = CompareText(left_text, right_text);
-                       return result != 0 && (ascending ? result < 0 : result > 0);
-                     });
+                       return result != 0 && (ascending ? result < 0 : result > 0); });
     return;
   }
-  std::stable_sort(results->begin(), results->end(),
-                   [column, ascending](const Result& left, const Result& right) {
+  std::stable_sort(results->begin(), results->end(), [column, ascending](const Result& left, const Result& right) {
                      const int result = CompareResult(left, right, column);
-                     return result != 0 && (ascending ? result < 0 : result > 0);
-                   });
+                     return result != 0 && (ascending ? result < 0 : result > 0); });
 }
 
 namespace {
-
-
 
 struct RootContext {
   HKEY root = nullptr;
@@ -274,7 +313,9 @@ struct NodeTask {
   std::wstring subkey;
 };
 
-std::wstring BuildDisplayPath(const NodeTask& task) {
+std::wstring BuildDisplayPath(
+    const NodeTask& task
+) {
   if (!task.context) {
     return task.subkey;
   }
@@ -292,7 +333,9 @@ std::wstring BuildDisplayPath(const NodeTask& task) {
   return path;
 }
 
-std::wstring_view TaskLeaf(const NodeTask& task) {
+std::wstring_view TaskLeaf(
+    const NodeTask& task
+) {
   if (task.subkey.empty()) {
     return task.context ? std::wstring_view(task.context->display_root)
                         : std::wstring_view();
@@ -304,9 +347,9 @@ std::wstring_view TaskLeaf(const NodeTask& task) {
   return std::wstring_view(task.subkey).substr(slash + 1);
 }
 
-
-
-std::wstring BuildMirrorPath(const NodeTask& task) {
+std::wstring BuildMirrorPath(
+    const NodeTask& task
+) {
   const RootContext* context = task.context;
   if (!context || context->mirror_root.empty()) {
     return std::wstring();
@@ -314,9 +357,7 @@ std::wstring BuildMirrorPath(const NodeTask& task) {
   const std::wstring& prefix = context->mirror_prefix;
   const std::wstring& subkey = task.subkey;
   if (subkey.size() < prefix.size() ||
-      CompareStringOrdinal(subkey.c_str(), static_cast<int>(prefix.size()),
-                           prefix.c_str(), static_cast<int>(prefix.size()),
-                           TRUE) != CSTR_EQUAL) {
+      CompareStringOrdinal(subkey.c_str(), static_cast<int>(prefix.size()), prefix.c_str(), static_cast<int>(prefix.size()), TRUE) != CSTR_EQUAL) {
     return std::wstring();
   }
   if (subkey.size() > prefix.size() && subkey[prefix.size()] != L'\\') {
@@ -330,28 +371,30 @@ std::wstring BuildMirrorPath(const NodeTask& task) {
   return path;
 }
 
-bool UserClassesOverrides(const std::wstring& relative,
-                          const std::wstring* value_name) {
+bool UserClassesOverrides(
+    const std::wstring& relative,
+    const std::wstring* value_name
+) {
   std::wstring path = L"SOFTWARE\\Classes";
   if (!relative.empty()) {
     path.push_back(L'\\');
     path.append(relative);
   }
   HKEY key = nullptr;
-  if (RegOpenKeyExW(HKEY_CURRENT_USER, path.c_str(), 0, KEY_QUERY_VALUE,
-                    &key) != ERROR_SUCCESS) {
+  if (RegOpenKeyExW(HKEY_CURRENT_USER, path.c_str(), 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
     return false;
   }
   bool overrides = true;
   if (value_name) {
-    overrides = RegQueryValueExW(key, value_name->c_str(), nullptr, nullptr,
-                                 nullptr, nullptr) == ERROR_SUCCESS;
+    overrides = RegQueryValueExW(key, value_name->c_str(), nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS;
   }
   RegCloseKey(key);
   return overrides;
 }
 
-RegistryNode TaskNode(const NodeTask& task) {
+RegistryNode TaskNode(
+    const NodeTask& task
+) {
   RegistryNode node;
   if (task.context) {
     node.root = task.context->root;
@@ -371,14 +414,15 @@ RegistryNode TaskNode(const NodeTask& task) {
   return node;
 }
 
-
 struct HexQuery {
   bool hex_only = false;
   bool parsed = false;
   bool digits_only = false;
   std::vector<BYTE> bytes;
 };
-HexQuery ParseHexQuery(const std::wstring& query) {
+HexQuery ParseHexQuery(
+    const std::wstring& query
+) {
   HexQuery result;
   std::wstring digits;
   digits.reserve(query.size());
@@ -435,7 +479,11 @@ HexQuery ParseHexQuery(const std::wstring& query) {
   return result;
 }
 
-bool BuildStringView(const BYTE* data, DWORD size, std::wstring_view* view) {
+bool BuildStringView(
+    const BYTE* data,
+    DWORD size,
+    std::wstring_view* view
+) {
   if (!view) {
     return false;
   }
@@ -455,7 +503,9 @@ bool BuildStringView(const BYTE* data, DWORD size, std::wstring_view* view) {
   return true;
 }
 
-bool IsBinaryType(DWORD base_type) {
+bool IsBinaryType(
+    DWORD base_type
+) {
   return base_type == REG_BINARY || base_type == REG_RESOURCE_LIST || base_type == REG_FULL_RESOURCE_DESCRIPTOR || base_type == REG_RESOURCE_REQUIREMENTS_LIST || base_type == REG_NONE;
 }
 
@@ -465,10 +515,14 @@ struct DataMatch {
   std::wstring data_text;
 };
 
-DataMatch MatchValueData(const Matcher& matcher,
-                         const HexQuery& hex_query, DWORD type,
-                         const BYTE* data, DWORD size,
-                         std::wstring* scratch) {
+DataMatch MatchValueData(
+    const Matcher& matcher,
+    const HexQuery& hex_query,
+    DWORD type,
+    const BYTE* data,
+    DWORD size,
+    std::wstring* scratch
+) {
   DataMatch result;
   if (!data || size == 0) {
     return result;
@@ -509,7 +563,9 @@ DataMatch MatchValueData(const Matcher& matcher,
           }
         } else {
           const std::boyer_moore_horspool_searcher searcher(
-              hex_query.bytes.begin(), hex_query.bytes.end());
+              hex_query.bytes.begin(),
+              hex_query.bytes.end()
+          );
           const BYTE* found = std::search(begin, end, searcher);
           hit = found == end ? nullptr : found;
         }
@@ -552,12 +608,10 @@ DataMatch MatchValueData(const Matcher& matcher,
 
     if (size >= sizeof(wchar_t) && (size % sizeof(wchar_t)) == 0 &&
         (reinterpret_cast<uintptr_t>(data) % alignof(wchar_t)) == 0) {
-      const std::wstring_view wide(reinterpret_cast<const wchar_t*>(data),
-                                   size / sizeof(wchar_t));
+      const std::wstring_view wide(reinterpret_cast<const wchar_t*>(data), size / sizeof(wchar_t));
       const Match match = matcher.Find(wide);
       if (match.matched) {
-        accept_bytes(match.start * sizeof(wchar_t),
-                     match.length * sizeof(wchar_t));
+        accept_bytes(match.start * sizeof(wchar_t), match.length * sizeof(wchar_t));
         return result;
       }
     }
@@ -575,7 +629,10 @@ DataMatch MatchValueData(const Matcher& matcher,
   return result;
 }
 
-bool IsTypeAllowed(const Criteria& criteria, DWORD type) {
+bool IsTypeAllowed(
+    const Criteria& criteria,
+    DWORD type
+) {
   if (criteria.allowed_types.empty()) {
     return true;
   }
@@ -587,7 +644,10 @@ bool IsTypeAllowed(const Criteria& criteria, DWORD type) {
   return false;
 }
 
-bool IsSizeAllowed(const Criteria& criteria, DWORD size) {
+bool IsSizeAllowed(
+    const Criteria& criteria,
+    DWORD size
+) {
   if (criteria.use_min_size && size < criteria.min_size) {
     return false;
   }
@@ -597,7 +657,10 @@ bool IsSizeAllowed(const Criteria& criteria, DWORD size) {
   return true;
 }
 
-bool IsKeyInRange(const Criteria& criteria, const FILETIME& last_write) {
+bool IsKeyInRange(
+    const Criteria& criteria,
+    const FILETIME& last_write
+) {
   if (!criteria.use_modified_from && !criteria.use_modified_to) {
     return true;
   }
@@ -619,8 +682,6 @@ bool IsKeyInRange(const Criteria& criteria, const FILETIME& last_write) {
 
 } // namespace
 
-
-
 namespace {
 
 constexpr size_t kResultBatchSize = 128;
@@ -631,8 +692,9 @@ constexpr unsigned int kLocalWorkerLimit = 4;
 constexpr unsigned int kRemoteWorkerLimit = 2;
 constexpr unsigned int kOfflineWorkerLimit = 4;
 
-
-unsigned int WorkerPolicy(const Criteria& criteria) {
+unsigned int WorkerPolicy(
+    const Criteria& criteria
+) {
   if (!criteria.recursive) {
     return 1u;
   }
@@ -664,8 +726,12 @@ unsigned int WorkerPolicy(const Criteria& criteria) {
 
 } // namespace
 
-bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
-         const BatchCallback& publish, const ProgressCallback& progress) {
+bool Run(
+    const Criteria& criteria,
+    std::atomic_bool* cancel_flag,
+    const BatchCallback& publish,
+    const ProgressCallback& progress
+) {
   if (criteria.query.empty() || criteria.start_nodes.empty()) {
     return false;
   }
@@ -694,10 +760,6 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
   std::condition_variable cv;
   std::vector<NodeTask> stack;
   stack.reserve(criteria.start_nodes.size());
-
-
-
-
 
   const wchar_t kClassesSubkey[] = L"SOFTWARE\\Classes";
   std::wstring merged_classes_root;
@@ -806,7 +868,6 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
     }
   };
 
-
   const uint64_t max_results = criteria.max_results;
   uint64_t emitted = 0;
 
@@ -878,9 +939,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
         }
 
         const size_t take = std::min(kNodeChunkSize, stack.size());
-        local.insert(local.end(),
-                     std::make_move_iterator(stack.end() - take),
-                     std::make_move_iterator(stack.end()));
+        local.insert(local.end(), std::make_move_iterator(stack.end() - take), std::make_move_iterator(stack.end()));
         stack.erase(stack.end() - take, stack.end());
         active += 1;
       }
@@ -899,8 +958,6 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
           return display_path;
         };
 
-
-
         const bool classes_direct =
             entry.context && entry.context->machine_classes &&
             !entry.context->base_subkey.empty();
@@ -916,7 +973,8 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
               entry.subkey.size() > prefix
                   ? entry.subkey.substr(prefix + 1)
                   : std::wstring(),
-              value_name);
+              value_name
+          );
         };
 
         std::wstring mirror_path;
@@ -955,8 +1013,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
         };
 
         children.clear();
-        auto value_cb = [&](const ValueInfo& value, const BYTE* data,
-                            DWORD data_size) -> bool {
+        auto value_cb = [&](const ValueInfo& value, const BYTE* data, DWORD data_size) -> bool {
           if (should_stop()) {
             return false;
           }
@@ -973,8 +1030,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
 
           DataMatch data_match;
           if (!name_match.matched && criteria.search_data) {
-            data_match = MatchValueData(matcher, hex_query, value.type, data,
-                                        data_size, &widen_scratch);
+            data_match = MatchValueData(matcher, hex_query, value.type, data, data_size, &widen_scratch);
           }
           if (!name_match.matched && !data_match.matched) {
             return true;
@@ -1000,7 +1056,6 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
                   static_cast<uint32_t>(data_match.match.length);
             }
           } else {
-
             result.data_state = DataState::kNotLoaded;
           }
           if (name_match.matched) {
@@ -1008,7 +1063,6 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
             result.match_start = static_cast<uint32_t>(name_match.start);
             result.match_length = static_cast<uint32_t>(name_match.length);
           }
-
 
           const bool shadowed =
               (classes_direct || !mirror_text().empty()) &&
@@ -1046,13 +1100,19 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
 
         const RegistryNode node = TaskNode(entry);
         const bool enumerated = RegistryStore::EnumKeyStreaming(
-            node, want_values, criteria.search_data, want_subkeys, &enum_result,
+            node,
+            want_values,
+            criteria.search_data,
+            want_subkeys,
+            &enum_result,
             want_values ? RegistryStore::ValueStreamCallback(value_cb)
                         : RegistryStore::ValueStreamCallback(),
             want_subkeys ? RegistryStore::SubkeyStreamCallback(subkey_cb)
                          : RegistryStore::SubkeyStreamCallback(),
-            enum_max_data, &scratch, false);
-
+            enum_max_data,
+            &scratch,
+            false
+        );
 
         if (enumerated && enum_result.info_valid && criteria.search_keys &&
             is_key_in_range()) {
@@ -1072,7 +1132,6 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
             result.match_start =
                 static_cast<uint32_t>(path_start + key_match.start);
             result.match_length = static_cast<uint32_t>(key_match.length);
-
 
             const bool shadowed =
                 (classes_direct || !mirror_text().empty()) &&
@@ -1099,8 +1158,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
 
         if (!should_stop() && want_subkeys && !children.empty()) {
           std::lock_guard<std::mutex> lock(mutex);
-          stack.insert(stack.end(), std::make_move_iterator(children.begin()),
-                       std::make_move_iterator(children.end()));
+          stack.insert(stack.end(), std::make_move_iterator(children.begin()), std::make_move_iterator(children.end()));
           total_keys.fetch_add(static_cast<uint64_t>(children.size()));
           cv.notify_all();
         }
@@ -1132,8 +1190,9 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
   }
   worker_count = std::min(worker_count, WorkerPolicy(criteria));
   worker_count = static_cast<unsigned int>(std::min<size_t>(
-      worker_count, std::max<size_t>(1, criteria.start_nodes.size() * 4)));
-
+      worker_count,
+      std::max<size_t>(1, criteria.start_nodes.size() * 4)
+  ));
 
   std::vector<std::thread> workers;
   workers.reserve(worker_count > 0 ? worker_count - 1 : 0);

@@ -14,20 +14,9 @@
 
 namespace regkit::appearance {
 
-using ThemePresetApply = void (*)(void* context,
-                                  const std::vector<ThemePreset>& presets,
-                                  const std::wstring& active_name);
-using ThemePresetNamePrompt = bool (*)(void* context,
-                                       HWND owner,
-                                       const wchar_t* title,
-                                       const std::wstring& initial,
-                                       std::wstring* name);
+using ThemePresetApply = void (*)(void* context, const std::vector<ThemePreset>& presets, const std::wstring& active_name);
+using ThemePresetNamePrompt = bool (*)(void* context, HWND owner, const wchar_t* title, const std::wstring& initial, std::wstring* name);
 
-void ShowThemePresetEditor(HWND owner,
-                           const std::vector<ThemePreset>& presets,
-                           const std::wstring& active_name,
-                           ThemePresetApply apply,
-                           ThemePresetNamePrompt prompt_name,
-                           void* context);
+void ShowThemePresetEditor(HWND owner, const std::vector<ThemePreset>& presets, const std::wstring& active_name, ThemePresetApply apply, ThemePresetNamePrompt prompt_name, void* context);
 
 } // namespace regkit::appearance

@@ -96,7 +96,9 @@ constexpr UINT_PTR kStatusBarSubclassId = 3;
 constexpr UINT_PTR kTreeViewSubclassId = 4;
 constexpr UINT_PTR kEditShortcutSubclassId = 5;
 
-LRESULT DrawThemedButton(const NMCUSTOMDRAW* draw) {
+LRESULT DrawThemedButton(
+    const NMCUSTOMDRAW* draw
+) {
   if (!draw || !draw->hdr.hwndFrom) {
     return CDRF_DODEFAULT;
   }
@@ -244,7 +246,10 @@ LRESULT DrawThemedButton(const NMCUSTOMDRAW* draw) {
   return CDRF_SKIPDEFAULT;
 }
 
-void PaintGroupBox(HWND hwnd, HDC hdc) {
+void PaintGroupBox(
+    HWND hwnd,
+    HDC hdc
+) {
   if (!hwnd || !hdc) {
     return;
   }
@@ -306,197 +311,231 @@ void PaintGroupBox(HWND hwnd, HDC hdc) {
   }
 }
 
-LRESULT CALLBACK GroupBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+LRESULT CALLBACK GroupBoxSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR
+) {
   switch (msg) {
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, GroupBoxSubclassProc, id);
     break;
-  case WM_ENABLE: {
-    const LRESULT result = DefSubclassProc(hwnd, msg, wparam, lparam);
-    HWND parent = GetParent(hwnd);
-    RECT rc = {};
-    if (parent && GetWindowRect(hwnd, &rc)) {
-      MapWindowPoints(nullptr, parent, reinterpret_cast<POINT*>(&rc), 2);
-      RedrawWindow(parent, &rc, nullptr,
-                   RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
-    } else {
-      InvalidateRect(hwnd, nullptr, TRUE);
+  case WM_ENABLE:
+    {
+      const LRESULT result = DefSubclassProc(hwnd, msg, wparam, lparam);
+      HWND parent = GetParent(hwnd);
+      RECT rc = {};
+      if (parent && GetWindowRect(hwnd, &rc)) {
+        MapWindowPoints(nullptr, parent, reinterpret_cast<POINT*>(&rc), 2);
+        RedrawWindow(parent, &rc, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+      } else {
+        InvalidateRect(hwnd, nullptr, TRUE);
+      }
+      return result;
     }
-    return result;
-  }
   case WM_ERASEBKGND:
     return 1;
   case WM_PRINTCLIENT:
-  case WM_PAINT: {
-    PAINTSTRUCT ps = {};
-    HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
-    PaintGroupBox(hwnd, hdc);
-    if (msg == WM_PAINT) {
-      EndPaint(hwnd, &ps);
+  case WM_PAINT:
+    {
+      PAINTSTRUCT ps = {};
+      HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
+      PaintGroupBox(hwnd, hdc);
+      if (msg == WM_PAINT) {
+        EndPaint(hwnd, &ps);
+      }
+      return 0;
     }
-    return 0;
-  }
   default:
     break;
   }
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-LRESULT CALLBACK StatusBarSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+LRESULT CALLBACK StatusBarSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR
+) {
   switch (msg) {
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, StatusBarSubclassProc, id);
     break;
-  case WM_ERASEBKGND: {
-    if (!Theme::UseDarkMode() && Theme::Mode() != ThemeMode::kCustom) {
-      break;
+  case WM_ERASEBKGND:
+    {
+      if (!Theme::UseDarkMode() && Theme::Mode() != ThemeMode::kCustom) {
+        break;
+      }
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rc = {};
+      GetClientRect(hwnd, &rc);
+      FillRect(hdc, &rc, Theme::Current().BackgroundBrush());
+      return 1;
     }
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rc = {};
-    GetClientRect(hwnd, &rc);
-    FillRect(hdc, &rc, Theme::Current().BackgroundBrush());
-    return 1;
-  }
   case WM_PRINTCLIENT:
-  case WM_PAINT: {
-    if (!Theme::UseDarkMode() && Theme::Mode() != ThemeMode::kCustom) {
-      break;
-    }
-    PAINTSTRUCT ps = {};
-    HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
-    const Theme& theme = Theme::Current();
-    COLORREF status_bg = theme.SurfaceColor();
-    COLORREF status_text = theme.TextColor();
-    COLORREF status_border = theme.BorderColor();
-    RECT rc = {};
-    GetClientRect(hwnd, &rc);
-    HBRUSH bg_brush = appearance::CachedBrush(status_bg);
-    FillRect(hdc, &rc, bg_brush);
-
-    int borders[3] = {0, 0, 0};
-    SendMessageW(hwnd, SB_GETBORDERS, 0, reinterpret_cast<LPARAM>(&borders));
-
-    HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
-    HFONT old_font = nullptr;
-    if (font) {
-      old_font = reinterpret_cast<HFONT>(SelectObject(hdc, font));
-    }
-    SetBkMode(hdc, TRANSPARENT);
-    SetTextColor(hdc, status_text);
-
-    int parts = static_cast<int>(SendMessageW(hwnd, SB_GETPARTS, 0, 0));
-    if (parts <= 0) {
-      parts = 1;
-    }
-    for (int i = 0; i < parts; ++i) {
-      RECT part = {};
-      if (!SendMessageW(hwnd, SB_GETRECT, i, reinterpret_cast<LPARAM>(&part))) {
-        part = rc;
+  case WM_PAINT:
+    {
+      if (!Theme::UseDarkMode() && Theme::Mode() != ThemeMode::kCustom) {
+        break;
       }
-      if (i < parts - 1) {
-        HPEN pen = appearance::CachedPen(status_border, 1);
-        HPEN old_pen = reinterpret_cast<HPEN>(SelectObject(hdc, pen));
-        MoveToEx(hdc, part.right - 1, part.top + 2, nullptr);
-        LineTo(hdc, part.right - 1, part.bottom - 2);
-        SelectObject(hdc, old_pen);
+      PAINTSTRUCT ps = {};
+      HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
+      const Theme& theme = Theme::Current();
+      COLORREF status_bg = theme.SurfaceColor();
+      COLORREF status_text = theme.TextColor();
+      COLORREF status_border = theme.BorderColor();
+      RECT rc = {};
+      GetClientRect(hwnd, &rc);
+      HBRUSH bg_brush = appearance::CachedBrush(status_bg);
+      FillRect(hdc, &rc, bg_brush);
+
+      int borders[3] = {0, 0, 0};
+      SendMessageW(hwnd, SB_GETBORDERS, 0, reinterpret_cast<LPARAM>(&borders));
+
+      HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
+      HFONT old_font = nullptr;
+      if (font) {
+        old_font = reinterpret_cast<HFONT>(SelectObject(hdc, font));
       }
-      wchar_t text[256] = {};
-      LRESULT length = SendMessageW(hwnd, SB_GETTEXTLENGTH, i, 0);
-      if (length > 0) {
-        SendMessageW(hwnd, SB_GETTEXT, i, reinterpret_cast<LPARAM>(text));
+      SetBkMode(hdc, TRANSPARENT);
+      SetTextColor(hdc, status_text);
+
+      int parts = static_cast<int>(SendMessageW(hwnd, SB_GETPARTS, 0, 0));
+      if (parts <= 0) {
+        parts = 1;
       }
-      RECT text_rect = part;
-      text_rect.left += borders[2] + 4;
-      text_rect.right -= borders[2] + 4;
-      DrawTextW(hdc, text, -1, &text_rect, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
-    }
-
-    LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-    if ((style & SBARS_SIZEGRIP) == SBARS_SIZEGRIP) {
-      HTHEME status_theme = OpenThemeData(hwnd, VSCLASS_STATUS);
-      if (status_theme) {
-        SIZE grip = {};
-        GetThemePartSize(status_theme, hdc, SP_GRIPPER, 0, &rc, TS_DRAW, &grip);
-        RECT grip_rc = rc;
-        grip_rc.left = grip_rc.right - grip.cx;
-        grip_rc.top = grip_rc.bottom - grip.cy;
-        DrawThemeBackground(status_theme, hdc, SP_GRIPPER, 0, &grip_rc, nullptr);
-        CloseThemeData(status_theme);
+      for (int i = 0; i < parts; ++i) {
+        RECT part = {};
+        if (!SendMessageW(hwnd, SB_GETRECT, i, reinterpret_cast<LPARAM>(&part))) {
+          part = rc;
+        }
+        if (i < parts - 1) {
+          HPEN pen = appearance::CachedPen(status_border, 1);
+          HPEN old_pen = reinterpret_cast<HPEN>(SelectObject(hdc, pen));
+          MoveToEx(hdc, part.right - 1, part.top + 2, nullptr);
+          LineTo(hdc, part.right - 1, part.bottom - 2);
+          SelectObject(hdc, old_pen);
+        }
+        wchar_t text[256] = {};
+        LRESULT length = SendMessageW(hwnd, SB_GETTEXTLENGTH, i, 0);
+        if (length > 0) {
+          SendMessageW(hwnd, SB_GETTEXT, i, reinterpret_cast<LPARAM>(text));
+        }
+        RECT text_rect = part;
+        text_rect.left += borders[2] + 4;
+        text_rect.right -= borders[2] + 4;
+        DrawTextW(hdc, text, -1, &text_rect, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
       }
-    }
 
-    HPEN border_pen = appearance::CachedPen(status_border, 1);
-    HPEN old_pen = reinterpret_cast<HPEN>(SelectObject(hdc, border_pen));
-    MoveToEx(hdc, rc.left, rc.top, nullptr);
-    LineTo(hdc, rc.right, rc.top);
-    SelectObject(hdc, old_pen);
+      LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+      if ((style & SBARS_SIZEGRIP) == SBARS_SIZEGRIP) {
+        HTHEME status_theme = OpenThemeData(hwnd, VSCLASS_STATUS);
+        if (status_theme) {
+          SIZE grip = {};
+          GetThemePartSize(status_theme, hdc, SP_GRIPPER, 0, &rc, TS_DRAW, &grip);
+          RECT grip_rc = rc;
+          grip_rc.left = grip_rc.right - grip.cx;
+          grip_rc.top = grip_rc.bottom - grip.cy;
+          DrawThemeBackground(status_theme, hdc, SP_GRIPPER, 0, &grip_rc, nullptr);
+          CloseThemeData(status_theme);
+        }
+      }
 
-    if (old_font) {
-      SelectObject(hdc, old_font);
-    }
+      HPEN border_pen = appearance::CachedPen(status_border, 1);
+      HPEN old_pen = reinterpret_cast<HPEN>(SelectObject(hdc, border_pen));
+      MoveToEx(hdc, rc.left, rc.top, nullptr);
+      LineTo(hdc, rc.right, rc.top);
+      SelectObject(hdc, old_pen);
 
-    if (msg == WM_PAINT) {
-      EndPaint(hwnd, &ps);
+      if (old_font) {
+        SelectObject(hdc, old_font);
+      }
+
+      if (msg == WM_PAINT) {
+        EndPaint(hwnd, &ps);
+      }
+      return 0;
     }
-    return 0;
-  }
   default:
     break;
   }
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-LRESULT CALLBACK TreeViewSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+LRESULT CALLBACK TreeViewSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR
+) {
   switch (msg) {
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, TreeViewSubclassProc, id);
     break;
-  case WM_ERASEBKGND: {
-    if (!Theme::UseDarkMode()) {
+  case WM_ERASEBKGND:
+    {
+      if (!Theme::UseDarkMode()) {
+        break;
+      }
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rc = {};
+      GetClientRect(hwnd, &rc);
+      FillRect(hdc, &rc, Theme::Current().PanelBrush());
+      return 1;
+    }
+  case WM_PRINTCLIENT:
+    {
+      if (!Theme::UseDarkMode()) {
+        break;
+      }
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      RECT rc = {};
+      GetClientRect(hwnd, &rc);
+      FillRect(hdc, &rc, Theme::Current().PanelBrush());
       break;
     }
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rc = {};
-    GetClientRect(hwnd, &rc);
-    FillRect(hdc, &rc, Theme::Current().PanelBrush());
-    return 1;
-  }
-  case WM_PRINTCLIENT: {
-    if (!Theme::UseDarkMode()) {
-      break;
-    }
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    RECT rc = {};
-    GetClientRect(hwnd, &rc);
-    FillRect(hdc, &rc, Theme::Current().PanelBrush());
-    break;
-  }
   default:
     break;
   }
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-LRESULT CALLBACK EditShortcutSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+LRESULT CALLBACK EditShortcutSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR
+) {
   switch (msg) {
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, EditShortcutSubclassProc, id);
     break;
-  case WM_KEYDOWN: {
-    const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-    const bool alt = (GetKeyState(VK_MENU) & 0x8000) != 0;
-    if (!ctrl || alt) {
+  case WM_KEYDOWN:
+    {
+      const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+      const bool alt = (GetKeyState(VK_MENU) & 0x8000) != 0;
+      if (!ctrl || alt) {
+        break;
+      }
+      switch (wparam) {
+      case 'A':
+        SendMessageW(hwnd, EM_SETSEL, 0, -1);
+        return 0;
+      default:
+        break;
+      }
       break;
     }
-    switch (wparam) {
-    case 'A':
-      SendMessageW(hwnd, EM_SETSEL, 0, -1);
-      return 0;
-    default:
-      break;
-    }
-    break;
-  }
   default:
     break;
   }
@@ -547,7 +586,9 @@ FlushMenuThemesFn GetFlushMenuThemes() {
   return fn;
 }
 
-void ConfigureDarkModeSupport(PreferredAppMode mode) {
+void ConfigureDarkModeSupport(
+    PreferredAppMode mode
+) {
   static bool configured = false;
   static PreferredAppMode configured_mode = PreferredAppMode::kDefault;
   if (configured && configured_mode == mode) {
@@ -575,7 +616,11 @@ bool ReadSystemDarkMode() {
   return false;
 }
 
-void PaintComboBox(HWND hwnd, HDC hdc, ComboBoxThemeState* state) {
+void PaintComboBox(
+    HWND hwnd,
+    HDC hdc,
+    ComboBoxThemeState* state
+) {
   RECT rect = {};
   GetClientRect(hwnd, &rect);
   int width = rect.right - rect.left;
@@ -712,7 +757,14 @@ void PaintComboBox(HWND hwnd, HDC hdc, ComboBoxThemeState* state) {
   }
 }
 
-LRESULT CALLBACK ComboBoxThemeSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR ref_data) {
+LRESULT CALLBACK ComboBoxThemeSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR ref_data
+) {
   auto* state = reinterpret_cast<ComboBoxThemeState*>(ref_data);
   LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
   LONG_PTR cb_style = style & CBS_DROPDOWNLIST;
@@ -724,29 +776,31 @@ LRESULT CALLBACK ComboBoxThemeSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, L
     break;
   case WM_CTLCOLORSTATIC:
   case WM_CTLCOLOREDIT:
-  case WM_CTLCOLORLISTBOX: {
-    HDC hdc = reinterpret_cast<HDC>(wparam);
-    HWND target = reinterpret_cast<HWND>(lparam);
-    int type = CTLCOLOR_STATIC;
-    if (msg == WM_CTLCOLOREDIT) {
-      type = CTLCOLOR_EDIT;
-    } else if (msg == WM_CTLCOLORLISTBOX) {
-      type = CTLCOLOR_LISTBOX;
+  case WM_CTLCOLORLISTBOX:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wparam);
+      HWND target = reinterpret_cast<HWND>(lparam);
+      int type = CTLCOLOR_STATIC;
+      if (msg == WM_CTLCOLOREDIT) {
+        type = CTLCOLOR_EDIT;
+      } else if (msg == WM_CTLCOLORLISTBOX) {
+        type = CTLCOLOR_LISTBOX;
+      }
+      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
     }
-    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
-  }
-  case WM_MOUSEMOVE: {
-    if (state && !state->hot) {
-      state->hot = true;
-      TRACKMOUSEEVENT tme = {};
-      tme.cbSize = sizeof(tme);
-      tme.dwFlags = TME_LEAVE;
-      tme.hwndTrack = hwnd;
-      TrackMouseEvent(&tme);
-      InvalidateRect(hwnd, nullptr, FALSE);
+  case WM_MOUSEMOVE:
+    {
+      if (state && !state->hot) {
+        state->hot = true;
+        TRACKMOUSEEVENT tme = {};
+        tme.cbSize = sizeof(tme);
+        tme.dwFlags = TME_LEAVE;
+        tme.hwndTrack = hwnd;
+        TrackMouseEvent(&tme);
+        InvalidateRect(hwnd, nullptr, FALSE);
+      }
+      break;
     }
-    break;
-  }
   case WM_MOUSELEAVE:
     if (state && state->hot) {
       state->hot = false;
@@ -763,52 +817,66 @@ LRESULT CALLBACK ComboBoxThemeSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, L
       break;
     }
     return 1;
-  case WM_PAINT: {
-    if (is_simple) {
-      break;
-    }
-    PAINTSTRUCT ps = {};
-    HDC hdc = BeginPaint(hwnd, &ps);
-    LONG_PTR dropdown_style = style & CBS_DROPDOWNLIST;
-    if (dropdown_style != CBS_DROPDOWN) {
-      HDC buffered = nullptr;
-      HPAINTBUFFER buffer = BeginBufferedPaint(
-          hdc, &ps.rcPaint, BPBF_COMPATIBLEBITMAP, nullptr, &buffered);
-      PaintComboBox(hwnd, buffered ? buffered : hdc, state);
-      if (buffer) {
-        EndBufferedPaint(buffer, TRUE);
+  case WM_PAINT:
+    {
+      if (is_simple) {
+        break;
       }
-    } else {
-      PaintComboBox(hwnd, hdc, state);
+      PAINTSTRUCT ps = {};
+      HDC hdc = BeginPaint(hwnd, &ps);
+      LONG_PTR dropdown_style = style & CBS_DROPDOWNLIST;
+      if (dropdown_style != CBS_DROPDOWN) {
+        HDC buffered = nullptr;
+        HPAINTBUFFER buffer = BeginBufferedPaint(
+            hdc,
+            &ps.rcPaint,
+            BPBF_COMPATIBLEBITMAP,
+            nullptr,
+            &buffered
+        );
+        PaintComboBox(hwnd, buffered ? buffered : hdc, state);
+        if (buffer) {
+          EndBufferedPaint(buffer, TRUE);
+        }
+      } else {
+        PaintComboBox(hwnd, hdc, state);
+      }
+      EndPaint(hwnd, &ps);
+      return 0;
     }
-    EndPaint(hwnd, &ps);
-    return 0;
-  }
   default:
     break;
   }
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-LRESULT CALLBACK ThemeWindowSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+LRESULT CALLBACK ThemeWindowSubclassProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR id,
+    DWORD_PTR
+) {
   switch (msg) {
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, ThemeWindowSubclassProc, id);
     break;
-  case WM_NOTIFY: {
-    auto* hdr = reinterpret_cast<NMHDR*>(lparam);
-    if (hdr && hdr->code == NM_CUSTOMDRAW) {
-      auto* draw = reinterpret_cast<NMCUSTOMDRAW*>(lparam);
-      wchar_t class_name[32] = {};
-      if (GetClassNameW(hdr->hwndFrom, class_name, static_cast<int>(_countof(class_name))) && wcscmp(class_name, WC_BUTTON) == 0) {
-        LRESULT result = DrawThemedButton(draw);
-        if (result != CDRF_DODEFAULT) {
-          return result;
+  case WM_NOTIFY:
+    {
+      auto* hdr = reinterpret_cast<NMHDR*>(lparam);
+      if (hdr && hdr->code == NM_CUSTOMDRAW) {
+        auto* draw = reinterpret_cast<NMCUSTOMDRAW*>(lparam);
+        wchar_t class_name[32] = {};
+        if (GetClassNameW(hdr->hwndFrom, class_name, static_cast<int>(_countof(class_name))) && wcscmp(class_name, WC_BUTTON) == 0) {
+          LRESULT result = DrawThemedButton(draw);
+          if (result != CDRF_DODEFAULT) {
+            return result;
+          }
         }
       }
+      break;
     }
-    break;
-  }
   default:
     break;
   }
@@ -866,7 +934,10 @@ Theme& Theme::Current() {
   return g_use_dark_mode ? Dark() : Light();
 }
 
-void Theme::SetCustomColors(const ThemeColors& colors, bool is_dark) {
+void Theme::SetCustomColors(
+    const ThemeColors& colors,
+    bool is_dark
+) {
   g_custom_colors = colors;
   g_custom_is_dark = is_dark;
   Theme& custom = Custom();
@@ -883,7 +954,9 @@ void Theme::SetCustomColors(const ThemeColors& colors, bool is_dark) {
   }
 }
 
-void Theme::SetMode(ThemeMode mode) {
+void Theme::SetMode(
+    ThemeMode mode
+) {
   g_theme_mode = mode;
   if (mode == ThemeMode::kCustom) {
     g_use_dark_mode = g_custom_is_dark;
@@ -929,7 +1002,11 @@ void Theme::InitializeDarkModeSupport() {
   ConfigureDarkModeSupport(g_use_dark_mode ? PreferredAppMode::kForceDark : PreferredAppMode::kForceLight);
 }
 
-Theme::Theme(const ThemeColors& colors, bool is_dark) : colors_(colors), is_dark_(is_dark) {
+Theme::Theme(
+    const ThemeColors& colors,
+    bool is_dark
+)
+    : colors_(colors), is_dark_(is_dark) {
   background_brush_.reset(CreateSolidBrush(colors_.background));
   panel_brush_.reset(CreateSolidBrush(colors_.panel));
   surface_brush_.reset(CreateSolidBrush(colors_.surface));
@@ -937,7 +1014,9 @@ Theme::Theme(const ThemeColors& colors, bool is_dark) : colors_(colors), is_dark
   header_brush_.reset(CreateSolidBrush(colors_.header));
 }
 
-void Theme::ApplyToWindow(HWND hwnd) const {
+void Theme::ApplyToWindow(
+    HWND hwnd
+) const {
   AllowDarkModeForWindow(hwnd, is_dark_);
   EnableImmersiveDarkMode(hwnd, is_dark_);
   const wchar_t* theme = is_dark_ ? L"DarkMode_Explorer" : L"Explorer";
@@ -947,7 +1026,9 @@ void Theme::ApplyToWindow(HWND hwnd) const {
   }
 }
 
-void Theme::ApplyToChildren(HWND hwnd) const {
+void Theme::ApplyToChildren(
+    HWND hwnd
+) const {
   if (!hwnd) {
     return;
   }
@@ -981,10 +1062,13 @@ void Theme::ApplyToChildren(HWND hwnd) const {
         }
         return TRUE;
       },
-      reinterpret_cast<LPARAM>(this));
+      reinterpret_cast<LPARAM>(this)
+  );
 }
 
-void Theme::ApplyToTreeView(HWND hwnd) const {
+void Theme::ApplyToTreeView(
+    HWND hwnd
+) const {
   if (!hwnd) {
     return;
   }
@@ -999,7 +1083,9 @@ void Theme::ApplyToTreeView(HWND hwnd) const {
   }
 }
 
-void Theme::ApplyToListView(HWND hwnd) const {
+void Theme::ApplyToListView(
+    HWND hwnd
+) const {
   if (!hwnd) {
     return;
   }
@@ -1024,7 +1110,9 @@ void Theme::ApplyToListView(HWND hwnd) const {
   }
 }
 
-void Theme::ApplyToTabControl(HWND hwnd) const {
+void Theme::ApplyToTabControl(
+    HWND hwnd
+) const {
   if (!hwnd) {
     return;
   }
@@ -1034,7 +1122,9 @@ void Theme::ApplyToTabControl(HWND hwnd) const {
   InvalidateRect(hwnd, nullptr, TRUE);
 }
 
-void Theme::ApplyToToolbar(HWND hwnd) const {
+void Theme::ApplyToToolbar(
+    HWND hwnd
+) const {
   if (!hwnd) {
     return;
   }
@@ -1043,14 +1133,15 @@ void Theme::ApplyToToolbar(HWND hwnd) const {
   SetWindowTheme(hwnd, theme_name, nullptr);
 }
 
-void Theme::ApplyToComboBox(HWND hwnd) const {
+void Theme::ApplyToComboBox(
+    HWND hwnd
+) const {
   if (!hwnd) {
     return;
   }
   if (!GetWindowSubclass(hwnd, ComboBoxThemeSubclassProc, 1, nullptr)) {
     auto state = std::make_unique<ComboBoxThemeState>();
-    if (SetWindowSubclass(hwnd, ComboBoxThemeSubclassProc, 1,
-                          reinterpret_cast<DWORD_PTR>(state.get()))) {
+    if (SetWindowSubclass(hwnd, ComboBoxThemeSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state.get()))) {
       state.release();
     }
   }
@@ -1064,7 +1155,9 @@ void Theme::ApplyToComboBox(HWND hwnd) const {
   InvalidateRect(hwnd, nullptr, TRUE);
 }
 
-void Theme::ApplyToStatusBar(HWND hwnd) const {
+void Theme::ApplyToStatusBar(
+    HWND hwnd
+) const {
   if (!hwnd) {
     return;
   }
@@ -1145,7 +1238,11 @@ COLORREF Theme::FocusColor() const {
   return colors_.focus;
 }
 
-HBRUSH Theme::ControlColor(HDC hdc, HWND target, int type) const {
+HBRUSH Theme::ControlColor(
+    HDC hdc,
+    HWND target,
+    int type
+) const {
   if (!hdc) {
     return nullptr;
   }
@@ -1158,16 +1255,17 @@ HBRUSH Theme::ControlColor(HDC hdc, HWND target, int type) const {
     SetTextColor(hdc, TextColor());
     SetBkColor(hdc, SurfaceColor());
     return SurfaceBrush();
-  case CTLCOLOR_BTN: {
-    COLORREF text = TextColor();
-    if (target && !IsWindowEnabled(target)) {
-      text = MutedTextColor();
+  case CTLCOLOR_BTN:
+    {
+      COLORREF text = TextColor();
+      if (target && !IsWindowEnabled(target)) {
+        text = MutedTextColor();
+      }
+      SetTextColor(hdc, text);
+      SetBkColor(hdc, SurfaceColor());
+      SetBkMode(hdc, TRANSPARENT);
+      return BackgroundBrush();
     }
-    SetTextColor(hdc, text);
-    SetBkColor(hdc, SurfaceColor());
-    SetBkMode(hdc, TRANSPARENT);
-    return BackgroundBrush();
-  }
   case CTLCOLOR_DLG:
   case CTLCOLOR_STATIC:
   default:
@@ -1178,7 +1276,10 @@ HBRUSH Theme::ControlColor(HDC hdc, HWND target, int type) const {
   }
 }
 
-void EnableImmersiveDarkMode(HWND hwnd, bool enabled) {
+void EnableImmersiveDarkMode(
+    HWND hwnd,
+    bool enabled
+) {
   if (!hwnd) {
     return;
   }
@@ -1189,7 +1290,10 @@ void EnableImmersiveDarkMode(HWND hwnd, bool enabled) {
   }
 }
 
-void AllowDarkModeForWindow(HWND hwnd, bool enabled) {
+void AllowDarkModeForWindow(
+    HWND hwnd,
+    bool enabled
+) {
   if (!hwnd) {
     return;
   }

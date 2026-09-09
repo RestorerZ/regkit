@@ -57,15 +57,25 @@
 #include "resource.h"
 
 namespace regkit::window_detail {
-inline bool PromptOpenFile(HWND owner, const wchar_t* filter, std::wstring* path) {
+inline bool PromptOpenFile(
+    HWND owner,
+    const wchar_t* filter,
+    std::wstring* path
+) {
   return ui::ReportFileDialogResult(owner, win32::ChooseFileToOpen(owner, filter, path));
 }
 
-inline bool PromptSaveFile(HWND owner, const wchar_t* filter, std::wstring* path) {
+inline bool PromptSaveFile(
+    HWND owner,
+    const wchar_t* filter,
+    std::wstring* path
+) {
   return ui::ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, filter, nullptr, nullptr, path));
 }
 
-inline std::wstring TrimTrailingSeparators(const std::wstring& path) {
+inline std::wstring TrimTrailingSeparators(
+    const std::wstring& path
+) {
   std::wstring result = path;
   while (!result.empty() && (result.back() == L'\\' || result.back() == L'/')) {
     result.pop_back();
@@ -73,7 +83,9 @@ inline std::wstring TrimTrailingSeparators(const std::wstring& path) {
   return result;
 }
 
-inline bool IsDirectoryPath(const std::wstring& path) {
+inline bool IsDirectoryPath(
+    const std::wstring& path
+) {
   DWORD attrs = GetFileAttributesW(path.c_str());
   return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0;
 }
@@ -85,11 +97,16 @@ constexpr wchar_t kIconSetLucide[] = L"lucide";
 constexpr wchar_t kIconSetMaterialSymbols[] = L"materialsymbols";
 constexpr wchar_t kIconSetCustom[] = L"custom";
 
-inline bool IsIconSetName(const std::wstring& value, const wchar_t* name) {
+inline bool IsIconSetName(
+    const std::wstring& value,
+    const wchar_t* name
+) {
   return _wcsicmp(value.c_str(), name) == 0;
 }
 
-inline bool IsKnownIconSetName(const std::wstring& value) {
+inline bool IsKnownIconSetName(
+    const std::wstring& value
+) {
   return IsIconSetName(value, kIconSetDefault) ||
          IsIconSetName(value, kIconSetPhosphor) ||
          IsIconSetName(value, kIconSetLucide) ||
@@ -146,7 +163,9 @@ inline std::wstring AssetsIconsRoot() {
 constexpr wchar_t kOfflineHiveFilter[] =
     L"Registry Hive Files\0*.dat;*.hiv;*.hive;*.sav;SYSTEM;SOFTWARE;SAM;SECURITY;DEFAULT;NTUSER.DAT;USRCLASS.DAT\0All Files (*.*)\0*.*\0";
 
-inline bool HasRegExtension(const std::wstring& path) {
+inline bool HasRegExtension(
+    const std::wstring& path
+) {
   size_t dot = path.find_last_of(L'.');
   if (dot == std::wstring::npos) {
     return false;
@@ -155,7 +174,9 @@ inline bool HasRegExtension(const std::wstring& path) {
   return _wcsicmp(ext.c_str(), L".reg") == 0;
 }
 
-inline std::wstring EnsureRegExtension(std::wstring path) {
+inline std::wstring EnsureRegExtension(
+    std::wstring path
+) {
   if (path.empty() || HasRegExtension(path)) {
     return path;
   }
@@ -163,7 +184,9 @@ inline std::wstring EnsureRegExtension(std::wstring path) {
   return path;
 }
 
-inline bool IsWhitespaceOnly(const std::wstring& text) {
+inline bool IsWhitespaceOnly(
+    const std::wstring& text
+) {
   for (wchar_t ch : text) {
     if (!iswspace(static_cast<wint_t>(ch))) {
       return false;
@@ -172,7 +195,9 @@ inline bool IsWhitespaceOnly(const std::wstring& text) {
   return true;
 }
 
-inline std::wstring NormalizeMachineName(const std::wstring& text) {
+inline std::wstring NormalizeMachineName(
+    const std::wstring& text
+) {
   std::wstring trimmed = TrimWhitespace(text);
   while (!trimmed.empty() && (trimmed.back() == L'\\' || trimmed.back() == L'/')) {
     trimmed.pop_back();
@@ -186,23 +211,33 @@ inline std::wstring NormalizeMachineName(const std::wstring& text) {
   return L"\\\\" + trimmed;
 }
 
-inline std::wstring StripMachinePrefix(const std::wstring& machine) {
+inline std::wstring StripMachinePrefix(
+    const std::wstring& machine
+) {
   if (machine.rfind(L"\\\\", 0) == 0) {
     return machine.substr(2);
   }
   return machine;
 }
 
-inline bool FileExists(const std::wstring& path) {
+inline bool FileExists(
+    const std::wstring& path
+) {
   DWORD attrs = GetFileAttributesW(path.c_str());
   return attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-inline bool EqualsInsensitive(const std::wstring& left, const std::wstring& right) {
+inline bool EqualsInsensitive(
+    const std::wstring& left,
+    const std::wstring& right
+) {
   return _wcsicmp(left.c_str(), right.c_str()) == 0;
 }
 
-inline bool StartsWithInsensitive(const std::wstring& text, const std::wstring& prefix) {
+inline bool StartsWithInsensitive(
+    const std::wstring& text,
+    const std::wstring& prefix
+) {
   if (prefix.empty()) {
     return true;
   }
@@ -212,7 +247,10 @@ inline bool StartsWithInsensitive(const std::wstring& text, const std::wstring& 
   return CompareStringOrdinal(text.c_str(), static_cast<int>(prefix.size()), prefix.c_str(), static_cast<int>(prefix.size()), TRUE) == CSTR_EQUAL;
 }
 
-inline bool WindowClassEquals(HWND hwnd, const wchar_t* class_name) {
+inline bool WindowClassEquals(
+    HWND hwnd,
+    const wchar_t* class_name
+) {
   if (!hwnd || !class_name) {
     return false;
   }
@@ -237,7 +275,10 @@ struct RegFileParsePayload : work::MoveOnly {
   bool cancelled = false;
 };
 
-inline VirtualRegistryKey* EnsureVirtualKey(VirtualRegistryKey* root, const std::wstring& subkey) {
+inline VirtualRegistryKey* EnsureVirtualKey(
+    VirtualRegistryKey* root,
+    const std::wstring& subkey
+) {
   if (!root) {
     return nullptr;
   }
@@ -259,7 +300,13 @@ inline VirtualRegistryKey* EnsureVirtualKey(VirtualRegistryKey* root, const std:
   return current;
 }
 
-inline bool ParseRegFileToVirtualRoots(const std::wstring& path, std::vector<ParsedRegFileRoot>* roots, std::wstring* error, const std::atomic_bool* cancel, bool* cancelled) {
+inline bool ParseRegFileToVirtualRoots(
+    const std::wstring& path,
+    std::vector<ParsedRegFileRoot>* roots,
+    std::wstring* error,
+    const std::atomic_bool* cancel,
+    bool* cancelled
+) {
   if (!roots) {
     return false;
   }

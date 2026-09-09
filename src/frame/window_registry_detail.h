@@ -58,7 +58,9 @@
 #include "resource.h"
 
 namespace regkit::window_detail {
-inline std::wstring ResolveDevicePath(const std::wstring& path) {
+inline std::wstring ResolveDevicePath(
+    const std::wstring& path
+) {
   if (!StartsWithInsensitive(path, L"\\Device\\")) {
     return path;
   }
@@ -93,7 +95,9 @@ inline std::wstring ResolveDevicePath(const std::wstring& path) {
   return path;
 }
 
-inline std::wstring NormalizeHiveFilePath(const std::wstring& raw_path) {
+inline std::wstring NormalizeHiveFilePath(
+    const std::wstring& raw_path
+) {
   if (raw_path.empty()) {
     return raw_path;
   }
@@ -142,7 +146,11 @@ inline std::wstring CurrentControlSetSegment() {
   return cached;
 }
 
-inline std::wstring ReplaceControlSetSegment(const std::wstring& path, const std::wstring& from, const std::wstring& to) {
+inline std::wstring ReplaceControlSetSegment(
+    const std::wstring& path,
+    const std::wstring& from,
+    const std::wstring& to
+) {
   if (path.empty() || from.empty() || to.empty()) {
     return L"";
   }
@@ -168,7 +176,9 @@ inline std::wstring ReplaceControlSetSegment(const std::wstring& path, const std
   return L"";
 }
 
-inline std::wstring NormalizeCurrentControlSet(const std::wstring& path) {
+inline std::wstring NormalizeCurrentControlSet(
+    const std::wstring& path
+) {
   std::wstring current = CurrentControlSetSegment();
   if (current.empty()) {
     return path;
@@ -177,7 +187,9 @@ inline std::wstring NormalizeCurrentControlSet(const std::wstring& path) {
   return replaced.empty() ? path : replaced;
 }
 
-inline bool IsControlSetSegment(const std::wstring& text) {
+inline bool IsControlSetSegment(
+    const std::wstring& text
+) {
   constexpr wchar_t kPrefix[] = L"ControlSet";
   size_t prefix_len = wcslen(kPrefix);
   if (text.size() <= prefix_len || !StartsWithInsensitive(text, kPrefix)) {
@@ -191,7 +203,9 @@ inline bool IsControlSetSegment(const std::wstring& text) {
   return true;
 }
 
-inline std::wstring MapControlSetToCurrent(const std::wstring& path) {
+inline std::wstring MapControlSetToCurrent(
+    const std::wstring& path
+) {
   std::wstring current = CurrentControlSetSegment();
   if (current.empty()) {
     return L"";
@@ -221,7 +235,10 @@ inline std::wstring MapControlSetToCurrent(const std::wstring& path) {
   return L"";
 }
 
-inline std::wstring CleanTraceKeyText(const std::wstring& text, const std::wstring& sid) {
+inline std::wstring CleanTraceKeyText(
+    const std::wstring& text,
+    const std::wstring& sid
+) {
   std::wstring path = text;
   if (!sid.empty()) {
     const std::wstring marker = L"<CURRENT_USER_SID>";
@@ -246,7 +263,9 @@ inline std::wstring CleanTraceKeyText(const std::wstring& text, const std::wstri
   return path;
 }
 
-inline std::wstring NormalizeTraceKeyPathBasic(const std::wstring& text) {
+inline std::wstring NormalizeTraceKeyPathBasic(
+    const std::wstring& text
+) {
   const std::wstring sid = util::GetCurrentUserSidString();
   std::wstring path = CleanTraceKeyText(text, sid);
   if (path.empty()) {
@@ -266,7 +285,9 @@ inline std::wstring NormalizeTraceKeyPathBasic(const std::wstring& text) {
   return L"";
 }
 
-inline std::wstring NormalizeTraceKeyPath(const std::wstring& text) {
+inline std::wstring NormalizeTraceKeyPath(
+    const std::wstring& text
+) {
   std::wstring path = NormalizeTraceKeyPathBasic(text);
   if (path.empty()) {
     return path;
@@ -274,7 +295,9 @@ inline std::wstring NormalizeTraceKeyPath(const std::wstring& text) {
   return ResolveRegistryLinkPath(path);
 }
 
-inline std::wstring NormalizeTraceSelectionPath(const std::wstring& text) {
+inline std::wstring NormalizeTraceSelectionPath(
+    const std::wstring& text
+) {
   std::wstring sid = util::GetCurrentUserSidString();
   std::wstring path = CleanTraceKeyText(text, sid);
   if (path.empty()) {
@@ -312,7 +335,11 @@ inline LinkTargetCache& GetLinkTargetCache() {
   return cache;
 }
 
-inline bool ParseRegistryRoot(const std::wstring& input, RegistryNode* node, std::wstring* root_label) {
+inline bool ParseRegistryRoot(
+    const std::wstring& input,
+    RegistryNode* node,
+    std::wstring* root_label
+) {
   if (!node || !root_label) {
     return false;
   }
@@ -323,7 +350,11 @@ inline bool ParseRegistryRoot(const std::wstring& input, RegistryNode* node, std
   return true;
 }
 
-inline bool QueryLinkTargetCached(const std::wstring& path, const RegistryNode& node, std::wstring* target) {
+inline bool QueryLinkTargetCached(
+    const std::wstring& path,
+    const RegistryNode& node,
+    std::wstring* target
+) {
   if (!target) {
     return false;
   }
@@ -355,7 +386,9 @@ inline bool QueryLinkTargetCached(const std::wstring& path, const RegistryNode& 
   return false;
 }
 
-inline std::wstring ResolveRegistryLinkPath(const std::wstring& path) {
+inline std::wstring ResolveRegistryLinkPath(
+    const std::wstring& path
+) {
   if (path.empty()) {
     return path;
   }
@@ -414,12 +447,16 @@ inline std::wstring ResolveRegistryLinkPath(const std::wstring& path) {
   return current;
 }
 
-inline std::wstring FileNameOnly(const std::wstring& path) {
+inline std::wstring FileNameOnly(
+    const std::wstring& path
+) {
   size_t pos = path.find_last_of(L"\\/");
   return (pos == std::wstring::npos) ? path : path.substr(pos + 1);
 }
 
-inline std::vector<std::wstring> SplitLabelWords(const std::wstring& text) {
+inline std::vector<std::wstring> SplitLabelWords(
+    const std::wstring& text
+) {
   std::vector<std::wstring> words;
   std::wstring word;
   for (wchar_t character : text) {
@@ -438,12 +475,16 @@ inline std::vector<std::wstring> SplitLabelWords(const std::wstring& text) {
   return words;
 }
 
-inline bool IsReleaseWord(const std::wstring& word) {
+inline bool IsReleaseWord(
+    const std::wstring& word
+) {
   return word.size() == 4 && iswdigit(word[0]) && iswdigit(word[1]) &&
          (word[2] == L'H' || word[2] == L'h') && iswdigit(word[3]);
 }
 
-inline std::wstring ShortWindowsName(const std::wstring& folder) {
+inline std::wstring ShortWindowsName(
+    const std::wstring& folder
+) {
   const std::vector<std::wstring> words = SplitLabelWords(folder);
   if (words.empty() || words[0].size() < 2 ||
       (words[0][0] != L'W' && words[0][0] != L'w')) {
@@ -457,8 +498,10 @@ inline std::wstring ShortWindowsName(const std::wstring& folder) {
   return text;
 }
 
-inline std::wstring ShortDefaultLabel(const std::wstring& label,
-                               const std::wstring& source_path) {
+inline std::wstring ShortDefaultLabel(
+    const std::wstring& label,
+    const std::wstring& source_path
+) {
   const size_t leaf = source_path.find_last_of(L"\\/");
   if (leaf != std::wstring::npos && leaf > 0) {
     const size_t parent = source_path.find_last_of(L"\\/", leaf - 1);
@@ -469,9 +512,22 @@ inline std::wstring ShortDefaultLabel(const std::wstring& label,
     }
   }
   static const wchar_t* const kHiveWords[] = {
-      L"HKLM", L"HKCU", L"HKU", L"HKCR", L"HKCC",
-      L"HKEY", L"LOCAL", L"MACHINE", L"USER", L"USERS",
-      L"CURRENT", L"SYSTEM", L"SOFTWARE", L"DEFAULT", L"CLASSES"};
+      L"HKLM",
+      L"HKCU",
+      L"HKU",
+      L"HKCR",
+      L"HKCC",
+      L"HKEY",
+      L"LOCAL",
+      L"MACHINE",
+      L"USER",
+      L"USERS",
+      L"CURRENT",
+      L"SYSTEM",
+      L"SOFTWARE",
+      L"DEFAULT",
+      L"CLASSES"
+  };
   const std::vector<std::wstring> words = SplitLabelWords(label);
   size_t first = 0;
   while (first < words.size()) {
@@ -498,7 +554,9 @@ inline std::wstring ShortDefaultLabel(const std::wstring& label,
   return text;
 }
 
-inline std::wstring FileBaseName(const std::wstring& path) {
+inline std::wstring FileBaseName(
+    const std::wstring& path
+) {
   size_t pos = path.find_last_of(L"\\/");
   std::wstring name = (pos == std::wstring::npos) ? path : path.substr(pos + 1);
   size_t dot = name.find_last_of(L'.');
@@ -513,12 +571,19 @@ struct OfflineHiveCandidate {
   std::wstring label;
 };
 
-inline bool IsFilePath(const std::wstring& path) {
+inline bool IsFilePath(
+    const std::wstring& path
+) {
   DWORD attrs = GetFileAttributesW(path.c_str());
   return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY) == 0;
 }
 
-inline void AddOfflineHiveCandidate(std::vector<OfflineHiveCandidate>* out, std::unordered_set<std::wstring>* seen, const std::wstring& path, const std::wstring& label) {
+inline void AddOfflineHiveCandidate(
+    std::vector<OfflineHiveCandidate>* out,
+    std::unordered_set<std::wstring>* seen,
+    const std::wstring& path,
+    const std::wstring& label
+) {
   if (!out || !seen || !IsFilePath(path)) {
     return;
   }
@@ -536,7 +601,10 @@ inline void AddOfflineHiveCandidate(std::vector<OfflineHiveCandidate>* out, std:
   out->push_back({path, use_label});
 }
 
-inline std::wstring TopLevelFolderLabel(const std::wstring& base, const std::wstring& folder) {
+inline std::wstring TopLevelFolderLabel(
+    const std::wstring& base,
+    const std::wstring& folder
+) {
   std::wstring prefix = base;
   if (!prefix.empty() && prefix.back() != L'\\' && prefix.back() != L'/') {
     prefix.push_back(L'\\');
@@ -554,7 +622,12 @@ inline std::wstring TopLevelFolderLabel(const std::wstring& base, const std::wst
   return FileBaseName(folder);
 }
 
-inline void CollectUserHiveCandidates(const std::wstring& folder, const std::wstring& base, std::vector<OfflineHiveCandidate>* out, std::unordered_set<std::wstring>* seen) {
+inline void CollectUserHiveCandidates(
+    const std::wstring& folder,
+    const std::wstring& base,
+    std::vector<OfflineHiveCandidate>* out,
+    std::unordered_set<std::wstring>* seen
+) {
   std::wstring label = TopLevelFolderLabel(base, folder);
   std::wstring ntuser = util::JoinPath(folder, L"NTUSER.DAT");
   AddOfflineHiveCandidate(out, seen, ntuser, label);
@@ -563,7 +636,12 @@ inline void CollectUserHiveCandidates(const std::wstring& folder, const std::wst
   AddOfflineHiveCandidate(out, seen, usrclass, class_label);
 }
 
-inline void CollectUserHivesRecursive(const std::wstring& folder, const std::wstring& base, std::vector<OfflineHiveCandidate>* out, std::unordered_set<std::wstring>* seen) {
+inline void CollectUserHivesRecursive(
+    const std::wstring& folder,
+    const std::wstring& base,
+    std::vector<OfflineHiveCandidate>* out,
+    std::unordered_set<std::wstring>* seen
+) {
   WIN32_FIND_DATAW data = {};
   std::wstring search = util::JoinPath(folder, L"*");
   HANDLE find = FindFirstFileW(search.c_str(), &data);
@@ -587,7 +665,9 @@ inline void CollectUserHivesRecursive(const std::wstring& folder, const std::wst
   FindClose(find);
 }
 
-inline bool ShouldIncludeOfflineHiveFile(const std::wstring& name) {
+inline bool ShouldIncludeOfflineHiveFile(
+    const std::wstring& name
+) {
   size_t dot = name.find_last_of(L'.');
   if (dot == std::wstring::npos) {
     return true;
@@ -596,7 +676,11 @@ inline bool ShouldIncludeOfflineHiveFile(const std::wstring& name) {
   return _wcsicmp(ext.c_str(), L".dat") == 0;
 }
 
-inline void CollectLooseHivesInFolder(const std::wstring& folder, std::vector<OfflineHiveCandidate>* out, std::unordered_set<std::wstring>* seen) {
+inline void CollectLooseHivesInFolder(
+    const std::wstring& folder,
+    std::vector<OfflineHiveCandidate>* out,
+    std::unordered_set<std::wstring>* seen
+) {
   WIN32_FIND_DATAW data = {};
   std::wstring search = util::JoinPath(folder, L"*");
   HANDLE find = FindFirstFileW(search.c_str(), &data);
@@ -617,7 +701,10 @@ inline void CollectLooseHivesInFolder(const std::wstring& folder, std::vector<Of
   FindClose(find);
 }
 
-inline void CollectOfflineHivesInFolder(const std::wstring& folder, std::vector<OfflineHiveCandidate>* out) {
+inline void CollectOfflineHivesInFolder(
+    const std::wstring& folder,
+    std::vector<OfflineHiveCandidate>* out
+) {
   if (!out) {
     return;
   }
@@ -639,7 +726,11 @@ inline void CollectOfflineHivesInFolder(const std::wstring& folder, std::vector<
   CollectUserHivesRecursive(folder, folder, out, &seen);
 }
 
-inline std::wstring ResolveOfflineRootName(const std::wstring& path, bool is_dir, const RegistryNode* current_node) {
+inline std::wstring ResolveOfflineRootName(
+    const std::wstring& path,
+    bool is_dir,
+    const RegistryNode* current_node
+) {
   std::wstring base = FileBaseName(path);
   if (is_dir) {
     if (EqualsInsensitive(base, L"HKEY_USERS") || EqualsInsensitive(base, L"HKU")) {

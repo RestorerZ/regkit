@@ -17,24 +17,33 @@ struct StableListSelection {
   std::wstring focused;
 };
 
-void AppendIdentityPart(std::wstring* key, const std::wstring& part) {
+void AppendIdentityPart(
+    std::wstring* key,
+    const std::wstring& part
+) {
   key->push_back(L'|');
   key->append(std::to_wstring(part.size()));
   key->push_back(L':');
   key->append(part);
 }
 
-std::wstring ValueRowIdentity(const ListRow& row) {
+std::wstring ValueRowIdentity(
+    const ListRow& row
+) {
   std::wstring key = std::to_wstring(static_cast<long long>(row.kind));
   AppendIdentityPart(&key, row.extra);
   return key;
 }
 
-std::wstring SearchResultIdentity(const search::Result& result) {
+std::wstring SearchResultIdentity(
+    const search::Result& result
+) {
   return std::to_wstring(result.row_id);
 }
 
-std::wstring HistoryEntryIdentity(const HistoryEntry& entry) {
+std::wstring HistoryEntryIdentity(
+    const HistoryEntry& entry
+) {
   std::wstring key = std::to_wstring(entry.timestamp);
   AppendIdentityPart(&key, entry.action);
   AppendIdentityPart(&key, entry.key_path);
@@ -43,7 +52,10 @@ std::wstring HistoryEntryIdentity(const HistoryEntry& entry) {
 }
 
 template <typename KeyAt>
-StableListSelection CaptureListSelection(HWND list, KeyAt key_at) {
+StableListSelection CaptureListSelection(
+    HWND list,
+    KeyAt key_at
+) {
   StableListSelection state;
   if (!list) {
     return state;
@@ -64,8 +76,11 @@ StableListSelection CaptureListSelection(HWND list, KeyAt key_at) {
 }
 
 template <typename KeyAt>
-void RestoreListSelection(HWND list, const StableListSelection& state,
-                          KeyAt key_at) {
+void RestoreListSelection(
+    HWND list,
+    const StableListSelection& state,
+    KeyAt key_at
+) {
   if (!list) {
     return;
   }
@@ -99,7 +114,10 @@ void RestoreListSelection(HWND list, const StableListSelection& state,
 
 } // namespace
 
-void MainWindow::Impl::SortValueList(int column, bool toggle) {
+void MainWindow::Impl::SortValueList(
+    int column,
+    bool toggle
+) {
   if (column < 0 || static_cast<size_t>(column) >= browse_.columns().items.size()) {
     return;
   }
@@ -120,10 +138,12 @@ void MainWindow::Impl::SortValueList(int column, bool toggle) {
   }
 
   StableListSelection selection = CaptureListSelection(
-      browse_.values().hwnd(), [this](int index) {
+      browse_.values().hwnd(),
+      [this](int index) {
         const ListRow* row = browse_.values().RowAt(index);
         return row ? ValueRowIdentity(*row) : std::wstring();
-      });
+      }
+  );
   auto& rows = browse_.values().rows();
   if (browse_.columns().sort_column == kValueColData) {
     bool needs_data = false;
@@ -145,11 +165,9 @@ void MainWindow::Impl::SortValueList(int column, bool toggle) {
   updating_value_list_ = true;
   SortValueRows(&rows, browse_.columns().sort_column, browse_.columns().sort_ascending);
   browse_.values().RebuildFilter();
-  RestoreListSelection(browse_.values().hwnd(), selection,
-                       [this](int index) {
+  RestoreListSelection(browse_.values().hwnd(), selection, [this](int index) {
                          const ListRow* row = browse_.values().RowAt(index);
-                         return row ? ValueRowIdentity(*row) : std::wstring();
-                       });
+                         return row ? ValueRowIdentity(*row) : std::wstring(); });
   updating_value_list_ = was_updating;
   if (!was_updating) {
     UpdateStatus();
@@ -158,7 +176,10 @@ void MainWindow::Impl::SortValueList(int column, bool toggle) {
   UpdateListViewSort(browse_.values().hwnd(), browse_.columns().sort_column, browse_.columns().sort_ascending);
 }
 
-void MainWindow::Impl::SortHistoryList(int column, bool toggle) {
+void MainWindow::Impl::SortHistoryList(
+    int column,
+    bool toggle
+) {
   if (!history_list_ || column < 0) {
     return;
   }
@@ -189,7 +210,9 @@ void MainWindow::Impl::SortHistoryList(int column, bool toggle) {
   UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
 }
 
-void MainWindow::Impl::SortSearchTabResults(SearchTab* tab) {
+void MainWindow::Impl::SortSearchTabResults(
+    SearchTab* tab
+) {
   if (!tab || tab->sort_column < 0) {
     if (tab) {
       tab->sort_dirty = false;
@@ -197,12 +220,10 @@ void MainWindow::Impl::SortSearchTabResults(SearchTab* tab) {
     return;
   }
   if (tab->is_compare) {
-    search::compare::SortRows(&tab->compare_rows, tab->sort_column,
-                              tab->sort_ascending);
+    search::compare::SortRows(&tab->compare_rows, tab->sort_column, tab->sort_ascending);
     tab->sort_dirty = false;
     return;
   }
-
 
   if (tab->sort_column == 3) {
     bool unresolved = false;
@@ -222,7 +243,10 @@ void MainWindow::Impl::SortSearchTabResults(SearchTab* tab) {
   tab->sort_dirty = false;
 }
 
-void MainWindow::Impl::SortSearchResults(int column, bool toggle) {
+void MainWindow::Impl::SortSearchResults(
+    int column,
+    bool toggle
+) {
   if (!search_results_list_ || column < 0) {
     return;
   }
@@ -256,7 +280,9 @@ void MainWindow::Impl::SortSearchResults(int column, bool toggle) {
   RedrawWindow(search_results_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
 }
 
-void MainWindow::Impl::ClearHistoryItems(bool delete_cache) {
+void MainWindow::Impl::ClearHistoryItems(
+    bool delete_cache
+) {
   if (!history_list_) {
     return;
   }
@@ -300,8 +326,7 @@ void MainWindow::Impl::RebuildHistoryList() {
     return;
   }
   const int count = static_cast<int>(change_history_.entries().size());
-  ListView_SetItemCountEx(history_list_, count,
-                          LVSICF_NOINVALIDATEALL | LVSICF_NOSCROLL);
+  ListView_SetItemCountEx(history_list_, count, LVSICF_NOINVALIDATEALL | LVSICF_NOSCROLL);
   RedrawWindow(history_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
   if (history_sort_column_ == 0 && history_sort_ascending_ && count > 0) {
     ListView_EnsureVisible(history_list_, count - 1, FALSE);
@@ -313,7 +338,9 @@ void MainWindow::Impl::ResetNavigationState() {
   UpdateNavigationButtons();
 }
 
-void MainWindow::Impl::UpdateTabText(const std::wstring& text) {
+void MainWindow::Impl::UpdateTabText(
+    const std::wstring& text
+) {
   if (!tab_) {
     return;
   }
@@ -379,7 +406,9 @@ void MainWindow::Impl::ClearOfflineDirty() {
   }
 }
 
-bool MainWindow::Impl::ConfirmCloseTab(int tab_index) {
+bool MainWindow::Impl::ConfirmCloseTab(
+    int tab_index
+) {
   if (!tab_ || tab_index < 0 || static_cast<size_t>(tab_index) >= tabs_.size()) {
     return false;
   }
@@ -410,7 +439,9 @@ bool MainWindow::Impl::ConfirmCloseTab(int tab_index) {
                                L"Save before closing the tab?");
 }
 
-bool MainWindow::Impl::ConfirmOfflineChanges(const wchar_t* message) {
+bool MainWindow::Impl::ConfirmOfflineChanges(
+    const wchar_t* message
+) {
   const int index = CurrentRegistryTabIndex();
   if (index < 0 || static_cast<size_t>(index) >= tabs_.size()) {
     return true;
@@ -434,7 +465,9 @@ bool MainWindow::Impl::ConfirmOfflineChanges(const wchar_t* message) {
   return false;
 }
 
-void MainWindow::Impl::CloseTab(int tab_index) {
+void MainWindow::Impl::CloseTab(
+    int tab_index
+) {
   if (!tab_) {
     return;
   }
@@ -447,9 +480,7 @@ void MainWindow::Impl::CloseTab(int tab_index) {
     return;
   }
   const int registry_tab_count =
-      static_cast<int>(std::count_if(tabs_.begin(), tabs_.end(), [](const TabEntry& entry) {
-        return entry.kind == TabEntry::Kind::kRegistry;
-      }));
+      static_cast<int>(std::count_if(tabs_.begin(), tabs_.end(), [](const TabEntry& entry) { return entry.kind == TabEntry::Kind::kRegistry; }));
   if (registry_tab_count <= 1 &&
       static_cast<size_t>(tab_index) < tabs_.size() &&
       tabs_[static_cast<size_t>(tab_index)].kind == TabEntry::Kind::kRegistry) {
@@ -487,13 +518,16 @@ void MainWindow::Impl::CloseTab(int tab_index) {
   UpdateStatus();
 }
 
-void MainWindow::Impl::SelectTabAfterClose(int closed_index, int previous_index) {
+void MainWindow::Impl::SelectTabAfterClose(
+    int closed_index,
+    int previous_index
+) {
   const int count = tab_ ? TabCtrl_GetItemCount(tab_) : 0;
   if (count <= 0) {
     return;
   }
   const bool closed_active = previous_index == closed_index;
-  const int next = closed_active ? std::min(closed_index, count - 1)
+  const int next = closed_active                   ? std::min(closed_index, count - 1)
                    : previous_index > closed_index ? previous_index - 1
                                                    : previous_index;
   TabCtrl_SetCurSel(tab_, next);
@@ -502,7 +536,9 @@ void MainWindow::Impl::SelectTabAfterClose(int closed_index, int previous_index)
   }
 }
 
-void MainWindow::Impl::SelectTabIndex(int index) {
+void MainWindow::Impl::SelectTabIndex(
+    int index
+) {
   if (!tab_) {
     return;
   }
@@ -550,7 +586,11 @@ int MainWindow::Impl::CurrentRegistryTabIndex() const {
   return FindFirstRegistryTabIndex();
 }
 
-void MainWindow::Impl::UpdateRegistryTabEntry(RegistryMode mode, const std::wstring& offline_path, const std::wstring& remote_machine) {
+void MainWindow::Impl::UpdateRegistryTabEntry(
+    RegistryMode mode,
+    const std::wstring& offline_path,
+    const std::wstring& remote_machine
+) {
   int index = CurrentRegistryTabIndex();
   if (index < 0 || static_cast<size_t>(index) >= tabs_.size()) {
     return;
@@ -624,17 +664,17 @@ void MainWindow::Impl::BuildAccelerators() {
   std::vector<ACCEL> accels;
   accels.reserve(_countof(frame::kShortcutBindings) + 9);
   for (const auto& binding : frame::kShortcutBindings) {
-    accels.push_back({static_cast<BYTE>(FVIRTKEY | binding.modifiers), binding.key,
-                      static_cast<WORD>(binding.command)});
+    accels.push_back({static_cast<BYTE>(FVIRTKEY | binding.modifiers), binding.key, static_cast<WORD>(binding.command)});
   }
   for (int i = 0; i < 9; ++i) {
-    accels.push_back({FVIRTKEY | FCONTROL, static_cast<WORD>('1' + i),
-                      static_cast<WORD>(cmd::kTabSelectBase + i)});
+    accels.push_back({FVIRTKEY | FCONTROL, static_cast<WORD>('1' + i), static_cast<WORD>(cmd::kTabSelectBase + i)});
   }
   accelerators_ = CreateAcceleratorTableW(accels.data(), static_cast<int>(accels.size()));
 }
 
-void MainWindow::Impl::ActivateTabIndex(int index) {
+void MainWindow::Impl::ActivateTabIndex(
+    int index
+) {
   if (!tab_ || index < 0 || index >= TabCtrl_GetItemCount(tab_) ||
       index == TabCtrl_GetCurSel(tab_)) {
     return;
@@ -646,7 +686,9 @@ void MainWindow::Impl::ActivateTabIndex(int index) {
   UpdateStatus();
 }
 
-bool MainWindow::Impl::HandleTabCommand(int command_id) {
+bool MainWindow::Impl::HandleTabCommand(
+    int command_id
+) {
   if (!tab_) {
     return true;
   }
@@ -746,7 +788,10 @@ bool MainWindow::Impl::InvertSelectionInFocusedList() {
   return true;
 }
 
-void MainWindow::Impl::UpdateTabHotState(HWND hwnd, POINT pt) {
+void MainWindow::Impl::UpdateTabHotState(
+    HWND hwnd,
+    POINT pt
+) {
   int new_hot = -1;
   int new_close_hot = -1;
 
@@ -768,7 +813,10 @@ void MainWindow::Impl::UpdateTabHotState(HWND hwnd, POINT pt) {
   }
 }
 
-bool MainWindow::Impl::GetTabCloseRect(int index, RECT* rect) const {
+bool MainWindow::Impl::GetTabCloseRect(
+    int index,
+    RECT* rect
+) const {
   if (!tab_ || !rect || index < 0) {
     return false;
   }
@@ -788,7 +836,13 @@ bool MainWindow::Impl::GetTabCloseRect(int index, RECT* rect) const {
   return CalcTabCloseRect(close_area, rect);
 }
 
-void MainWindow::Impl::DrawTabItem(HDC hdc, int index, const RECT& item_rect, int header_bottom, bool selected) {
+void MainWindow::Impl::DrawTabItem(
+    HDC hdc,
+    int index,
+    const RECT& item_rect,
+    int header_bottom,
+    bool selected
+) {
   const Theme& theme = Theme::Current();
   RECT draw_rect = AdjustTabDrawRect(item_rect, header_bottom, selected);
 
@@ -854,7 +908,10 @@ void MainWindow::Impl::DrawTabItem(HDC hdc, int index, const RECT& item_rect, in
   }
 }
 
-void MainWindow::Impl::PaintTabControl(HWND hwnd, HDC hdc) {
+void MainWindow::Impl::PaintTabControl(
+    HWND hwnd,
+    HDC hdc
+) {
   RECT client = {};
   GetClientRect(hwnd, &client);
   const Theme& theme = Theme::Current();

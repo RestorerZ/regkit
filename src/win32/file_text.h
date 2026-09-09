@@ -17,14 +17,18 @@ namespace util {
 std::string WideToUtf8(const std::wstring& text);
 std::wstring Utf8ToWide(std::string_view text);
 bool ReadFileBytes(
-    const std::wstring& path, std::vector<BYTE>* output,
+    const std::wstring& path,
+    std::vector<BYTE>* output,
     uint64_t max_bytes = 64ull * 1024ull * 1024ull,
-    DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE);
+    DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
+);
 bool ReadTextFile(
-    const std::wstring& path, std::wstring* output, bool* utf16 = nullptr,
+    const std::wstring& path,
+    std::wstring* output,
+    bool* utf16 = nullptr,
     uint64_t max_bytes = 64ull * 1024ull * 1024ull,
-    DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE);
-bool WriteTextFile(const std::wstring& path, const std::wstring& text,
-                   bool utf16);
+    DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
+);
+bool WriteTextFile(const std::wstring& path, const std::wstring& text, bool utf16);
 
 } // namespace util

@@ -59,13 +59,9 @@ private:
 HistoryDocument ParseHistory(const std::wstring& content);
 std::wstring SerializeHistoryEntry(const HistoryEntry& entry);
 bool AppendHistoryFile(const std::wstring& path, const HistoryEntry& entry);
-bool WriteHistoryFile(const std::wstring& path,
-                      const std::vector<HistoryEntry>& entries);
-bool PrepareRevert(const HistoryEntry& entry, const QueryValue& query_value,
-                   HistoryEntry* prepared);
-bool FindNearestExistingPath(const std::wstring& path,
-                             const PathExists& path_exists,
-                             std::wstring* nearest_path);
+bool WriteHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>& entries);
+bool PrepareRevert(const HistoryEntry& entry, const QueryValue& query_value, HistoryEntry* prepared);
+bool FindNearestExistingPath(const std::wstring& path, const PathExists& path_exists, std::wstring* nearest_path);
 
 } // namespace changes
 } // namespace regkit

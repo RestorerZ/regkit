@@ -16,17 +16,8 @@ bool IsProcessElevated();
 bool IsProcessSystem();
 bool IsUacEnabled();
 bool IsProcessTrustedInstaller();
-bool LaunchProcessAsSystem(const std::wstring& command_line,
-                           const std::wstring& work_dir,
-                           DWORD* error_code = nullptr,
-                           bool* impersonation_lost = nullptr);
-bool LaunchProcessAsShellUser(const std::wstring& command_line,
-                              const std::wstring& work_dir,
-                              DWORD* error_code = nullptr,
-                              bool* impersonation_lost = nullptr);
-bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line,
-                                     const std::wstring& work_dir,
-                                     DWORD* error_code = nullptr,
-                                     bool* impersonation_lost = nullptr);
+bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code = nullptr, bool* impersonation_lost = nullptr);
+bool LaunchProcessAsShellUser(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code = nullptr, bool* impersonation_lost = nullptr);
+bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code = nullptr, bool* impersonation_lost = nullptr);
 
 } // namespace util

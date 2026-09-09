@@ -9,18 +9,21 @@
 
 namespace regkit::workspace {
 
-RecentItems::RecentItems(size_t maximum) noexcept : maximum_(maximum) {}
+RecentItems::RecentItems(
+    size_t maximum
+) noexcept
+    : maximum_(maximum) {
+}
 
-void RecentItems::Add(const std::wstring& path) {
+void RecentItems::Add(
+    const std::wstring& path
+) {
   std::wstring cleaned = util::TrimWhitespace(path);
   if (cleaned.empty()) {
     return;
   }
   const auto existing =
-      std::find_if(items_.begin(), items_.end(),
-                   [&](const std::wstring& item) {
-                     return _wcsicmp(item.c_str(), cleaned.c_str()) == 0;
-                   });
+      std::find_if(items_.begin(), items_.end(), [&](const std::wstring& item) { return _wcsicmp(item.c_str(), cleaned.c_str()) == 0; });
   if (existing != items_.end()) {
     items_.erase(existing);
   }
@@ -30,7 +33,9 @@ void RecentItems::Add(const std::wstring& path) {
   }
 }
 
-void RecentItems::Replace(std::vector<std::wstring> paths) {
+void RecentItems::Replace(
+    std::vector<std::wstring> paths
+) {
   items_ = std::move(paths);
   Normalize();
 }
@@ -44,10 +49,7 @@ void RecentItems::Normalize() {
       continue;
     }
     const bool duplicate =
-        std::any_of(normalized.begin(), normalized.end(),
-                    [&](const std::wstring& existing) {
-                      return _wcsicmp(existing.c_str(), cleaned.c_str()) == 0;
-                    });
+        std::any_of(normalized.begin(), normalized.end(), [&](const std::wstring& existing) { return _wcsicmp(existing.c_str(), cleaned.c_str()) == 0; });
     if (!duplicate) {
       normalized.push_back(std::move(cleaned));
       if (normalized.size() == maximum_) {

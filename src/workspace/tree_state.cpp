@@ -27,17 +27,17 @@ void TreeState::Normalize() {
       normalized.push_back(path);
     }
   }
-  std::sort(normalized.begin(), normalized.end(),
-            [](const std::wstring& left, const std::wstring& right) {
+  std::sort(normalized.begin(), normalized.end(), [](const std::wstring& left, const std::wstring& right) {
               if (left.size() != right.size()) {
                 return left.size() < right.size();
               }
-              return _wcsicmp(left.c_str(), right.c_str()) < 0;
-            });
+              return _wcsicmp(left.c_str(), right.c_str()) < 0; });
   expanded_paths.swap(normalized);
 }
 
-TreeState ParseTreeState(const std::wstring& content) {
+TreeState ParseTreeState(
+    const std::wstring& content
+) {
   TreeState state;
   for (const std::wstring& line : record_fields::Lines(content)) {
     if (line.empty() || line.front() == L'#') {
@@ -60,7 +60,9 @@ TreeState ParseTreeState(const std::wstring& content) {
   return state;
 }
 
-std::wstring SerializeTreeState(const TreeState& state) {
+std::wstring SerializeTreeState(
+    const TreeState& state
+) {
   std::wstring content;
   if (!state.selected_path.empty()) {
     content.append(L"selected=");
@@ -77,7 +79,10 @@ std::wstring SerializeTreeState(const TreeState& state) {
   return content;
 }
 
-bool LoadTreeState(const std::wstring& path, TreeState* state) {
+bool LoadTreeState(
+    const std::wstring& path,
+    TreeState* state
+) {
   if (!state) {
     return false;
   }
@@ -90,7 +95,10 @@ bool LoadTreeState(const std::wstring& path, TreeState* state) {
   return true;
 }
 
-bool SaveTreeState(const std::wstring& path, const TreeState& state) {
+bool SaveTreeState(
+    const std::wstring& path,
+    const TreeState& state
+) {
   return !path.empty() &&
          util::WriteTextFile(path, SerializeTreeState(state), false);
 }

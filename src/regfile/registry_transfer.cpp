@@ -43,7 +43,11 @@ std::wstring GetRegExePath() {
   return util::JoinPath(system_dir, L"reg.exe");
 }
 
-bool RunRegCommand(const std::wstring& args, DWORD* exit_code, std::wstring* error) {
+bool RunRegCommand(
+    const std::wstring& args,
+    DWORD* exit_code,
+    std::wstring* error
+) {
   std::wstring reg = GetRegExePath();
   if (reg.empty()) {
     if (error) {
@@ -64,7 +68,8 @@ bool RunRegCommand(const std::wstring& args, DWORD* exit_code, std::wstring* err
   bool capture_output = CreatePipe(&read_pipe, &write_pipe, &security, 0) != FALSE;
   auto attribute_list = [&]() {
     return reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
-        attribute_storage.data());
+        attribute_storage.data()
+    );
   };
   auto drop_capture = [&]() {
     if (attribute_list_ready) {
@@ -91,9 +96,7 @@ bool RunRegCommand(const std::wstring& args, DWORD* exit_code, std::wstring* err
   DWORD flags = CREATE_NO_WINDOW;
   if (capture_output) {
     SetHandleInformation(read_pipe, HANDLE_FLAG_INHERIT, 0);
-    null_input = CreateFileW(L"NUL", GENERIC_READ,
-                             FILE_SHARE_READ | FILE_SHARE_WRITE, &security,
-                             OPEN_EXISTING, 0, nullptr);
+    null_input = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &security, OPEN_EXISTING, 0, nullptr);
     SIZE_T attribute_size = 0;
     InitializeProcThreadAttributeList(nullptr, 1, 0, &attribute_size);
     if (null_input == INVALID_HANDLE_VALUE || attribute_size == 0) {
@@ -103,13 +106,9 @@ bool RunRegCommand(const std::wstring& args, DWORD* exit_code, std::wstring* err
       inherited[0] = write_pipe;
       inherited[1] = null_input;
       attribute_list_ready =
-          InitializeProcThreadAttributeList(attribute_list(), 1, 0,
-                                            &attribute_size) != FALSE;
+          InitializeProcThreadAttributeList(attribute_list(), 1, 0, &attribute_size) != FALSE;
       if (attribute_list_ready &&
-          UpdateProcThreadAttribute(attribute_list(), 0,
-                                    PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                    inherited, sizeof(inherited), nullptr,
-                                    nullptr)) {
+          UpdateProcThreadAttribute(attribute_list(), 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, inherited, sizeof(inherited), nullptr, nullptr)) {
         six.lpAttributeList = attribute_list();
         flags |= EXTENDED_STARTUPINFO_PRESENT;
       } else {
@@ -133,9 +132,17 @@ bool RunRegCommand(const std::wstring& args, DWORD* exit_code, std::wstring* err
   six.StartupInfo.cb = sizeof(six);
   const bool extended = (flags & EXTENDED_STARTUPINFO_PRESENT) != 0;
   const BOOL created = CreateProcessW(
-      reg.c_str(), cmdline.data(), nullptr, nullptr,
-      capture_output ? TRUE : FALSE, flags, nullptr, nullptr,
-      extended ? &six.StartupInfo : &si, &pi);
+      reg.c_str(),
+      cmdline.data(),
+      nullptr,
+      nullptr,
+      capture_output ? TRUE : FALSE,
+      flags,
+      nullptr,
+      nullptr,
+      extended ? &six.StartupInfo : &si,
+      &pi
+  );
   if (attribute_list_ready) {
     DeleteProcThreadAttributeList(attribute_list());
     attribute_list_ready = false;
@@ -196,13 +203,14 @@ bool RunRegCommand(const std::wstring& args, DWORD* exit_code, std::wstring* err
   return code == 0;
 }
 
-std::wstring NormalizeExportKeyPath(const std::wstring& key_path, std::wstring* error) {
+std::wstring NormalizeExportKeyPath(
+    const std::wstring& key_path,
+    std::wstring* error
+) {
   const std::wstring path =
       registry_path::Normalize(key_path, util::GetCurrentUserSidString());
   const size_t split = path.find(L'\\');
-  const std::wstring_view root(path.data(),
-                               split == std::wstring::npos ? path.size()
-                                                           : split);
+  const std::wstring_view root(path.data(), split == std::wstring::npos ? path.size() : split);
   const bool standard =
       registry_path::Equals(root, L"HKEY_LOCAL_MACHINE") ||
       registry_path::Equals(root, L"HKEY_CURRENT_USER") ||
@@ -221,11 +229,17 @@ std::wstring NormalizeExportKeyPath(const std::wstring& key_path, std::wstring* 
 constexpr wchar_t kRegFileFilter[] =
     L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0";
 
-bool PromptOpenFile(HWND owner, const wchar_t* filter, std::wstring* path) {
+bool PromptOpenFile(
+    HWND owner,
+    const wchar_t* filter,
+    std::wstring* path
+) {
   return ui::ReportFileDialogResult(owner, win32::ChooseFileToOpen(owner, filter, path));
 }
 
-std::wstring SanitizeFileName(const std::wstring& name) {
+std::wstring SanitizeFileName(
+    const std::wstring& name
+) {
   std::wstring out;
   out.reserve(name.size());
   for (wchar_t ch : name) {
@@ -247,15 +261,23 @@ std::wstring SanitizeFileName(const std::wstring& name) {
   return out;
 }
 
-bool PromptSaveRegFile(HWND owner, const std::wstring& default_name, std::wstring* path) {
+bool PromptSaveRegFile(
+    HWND owner,
+    const std::wstring& default_name,
+    std::wstring* path
+) {
   const std::wstring name = default_name.empty() ? L"RegistryExport.reg" : default_name;
   return ui::ReportFileDialogResult(
-      owner, win32::ChooseFileToSave(owner, kRegFileFilter, L"reg", name.c_str(), path));
+      owner,
+      win32::ChooseFileToSave(owner, kRegFileFilter, L"reg", name.c_str(), path)
+  );
 }
 
 std::wstring EnsureRegExtension(std::wstring path);
 
-std::wstring ExportDefaultNameFromKeyPath(const std::wstring& key_path) {
+std::wstring ExportDefaultNameFromKeyPath(
+    const std::wstring& key_path
+) {
   std::wstring trimmed = key_path;
   while (!trimmed.empty() && (trimmed.back() == L'\\' || trimmed.back() == L'/')) {
     trimmed.pop_back();
@@ -281,7 +303,11 @@ std::wstring ExportDefaultNameFromKeyPath(const std::wstring& key_path) {
   return file_name;
 }
 
-bool FilterExportedRegFile(const std::wstring& source, const std::wstring& target, std::wstring* error) {
+bool FilterExportedRegFile(
+    const std::wstring& source,
+    const std::wstring& target,
+    std::wstring* error
+) {
   std::wstring content;
   bool utf16 = false;
   if (!util::ReadTextFile(source, &content, &utf16)) {
@@ -334,9 +360,11 @@ bool FilterExportedRegFile(const std::wstring& source, const std::wstring& targe
   return true;
 }
 
-bool AppendRegContent(const std::wstring& content,
-                      regfile::Document* output,
-                      std::wstring* error) {
+bool AppendRegContent(
+    const std::wstring& content,
+    regfile::Document* output,
+    std::wstring* error
+) {
   if (!output) {
     return false;
   }
@@ -366,9 +394,12 @@ bool AppendRegContent(const std::wstring& content,
   return true;
 }
 
-bool FilterRegFileValues(const std::wstring& content,
-                         const std::vector<std::wstring>& values,
-                         regfile::Document* output, std::wstring* error) {
+bool FilterRegFileValues(
+    const std::wstring& content,
+    const std::vector<std::wstring>& values,
+    regfile::Document* output,
+    std::wstring* error
+) {
   if (!output || !regfile::Parse(content, output) ||
       output->key_order.empty()) {
     if (error) {
@@ -408,7 +439,9 @@ bool FilterRegFileValues(const std::wstring& content,
   return true;
 }
 
-std::wstring MakeTempRegPath(std::wstring* error) {
+std::wstring MakeTempRegPath(
+    std::wstring* error
+) {
   static std::atomic<unsigned long> serial{0};
   std::wstring folder = util::GetAppDataFolder();
   if (!folder.empty()) {
@@ -422,15 +455,19 @@ std::wstring MakeTempRegPath(std::wstring* error) {
     return {};
   }
   wchar_t name[64] = {};
-  swprintf_s(name, L"export_%lu_%llu_%lu.reg",
-             GetCurrentProcessId(), GetTickCount64(),
-             serial.fetch_add(1) + 1);
+  swprintf_s(name, L"export_%lu_%llu_%lu.reg", GetCurrentProcessId(), GetTickCount64(), serial.fetch_add(1) + 1);
   std::wstring path = util::JoinPath(folder, name);
   DeleteFileW(path.c_str());
   return path;
 }
 
-bool ExportKeyToContent(const std::wstring& key_path, bool include_subkeys, std::wstring* content, bool* utf16, std::wstring* error) {
+bool ExportKeyToContent(
+    const std::wstring& key_path,
+    bool include_subkeys,
+    std::wstring* content,
+    bool* utf16,
+    std::wstring* error
+) {
   if (!content) {
     return false;
   }
@@ -489,7 +526,9 @@ bool ExportKeyToContent(const std::wstring& key_path, bool include_subkeys, std:
   return true;
 }
 
-std::wstring EnsureRegExtension(std::wstring path) {
+std::wstring EnsureRegExtension(
+    std::wstring path
+) {
   if (path.empty()) {
     return path;
   }
@@ -505,23 +544,22 @@ std::wstring EnsureRegExtension(std::wstring path) {
   return path;
 }
 
-bool AdjustHivePrivilege(const wchar_t* name, bool enable,
-                         TOKEN_PRIVILEGES* previous) {
+bool AdjustHivePrivilege(
+    const wchar_t* name,
+    bool enable,
+    TOKEN_PRIVILEGES* previous
+) {
   HANDLE token = nullptr;
-  if (!OpenProcessToken(GetCurrentProcess(),
-                        TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
+  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
     return false;
   }
   TOKEN_PRIVILEGES privileges = {};
   privileges.PrivilegeCount = 1;
   privileges.Privileges[0].Attributes = enable ? SE_PRIVILEGE_ENABLED : 0;
-  bool ok = LookupPrivilegeValueW(nullptr, name,
-                                  &privileges.Privileges[0].Luid) != FALSE;
+  bool ok = LookupPrivilegeValueW(nullptr, name, &privileges.Privileges[0].Luid) != FALSE;
   if (ok) {
     DWORD previous_size = previous ? sizeof(TOKEN_PRIVILEGES) : 0;
-    ok = AdjustTokenPrivileges(token, FALSE, &privileges, previous_size,
-                               previous,
-                               previous ? &previous_size : nullptr) &&
+    ok = AdjustTokenPrivileges(token, FALSE, &privileges, previous_size, previous, previous ? &previous_size : nullptr) &&
          GetLastError() == ERROR_SUCCESS;
   }
   CloseHandle(token);
@@ -542,17 +580,14 @@ public:
 
   ~HivePrivilegeScope() {
     HANDLE token = nullptr;
-    if (!OpenProcessToken(GetCurrentProcess(),
-                          TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
       return;
     }
     if (backup_held_) {
-      AdjustTokenPrivileges(token, FALSE, &previous_backup_,
-                            sizeof(previous_backup_), nullptr, nullptr);
+      AdjustTokenPrivileges(token, FALSE, &previous_backup_, sizeof(previous_backup_), nullptr, nullptr);
     }
     if (restore_held_) {
-      AdjustTokenPrivileges(token, FALSE, &previous_restore_,
-                            sizeof(previous_restore_), nullptr, nullptr);
+      AdjustTokenPrivileges(token, FALSE, &previous_restore_, sizeof(previous_restore_), nullptr, nullptr);
     }
     CloseHandle(token);
   }
@@ -566,7 +601,10 @@ private:
 
 } // namespace
 
-bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error) {
+bool ImportRegFileFromPath(
+    const std::wstring& path,
+    std::wstring* error
+) {
   if (path.empty()) {
     return false;
   }
@@ -575,7 +613,11 @@ bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error) {
   return RunRegCommand(args, nullptr, error);
 }
 
-bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error) {
+bool ExportRegFile(
+    HWND owner,
+    const std::wstring& key_path,
+    std::wstring* error
+) {
   editors::ExportRequest request;
   request.path = ExportDefaultNameFromKeyPath(key_path);
   editors::ExportResult options;
@@ -622,7 +664,13 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error
   return true;
 }
 
-bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const std::vector<std::wstring>& value_names, const std::vector<std::wstring>& subkey_names, std::wstring* error) {
+bool ExportRegFileSelection(
+    HWND owner,
+    const std::wstring& base_key_path,
+    const std::vector<std::wstring>& value_names,
+    const std::vector<std::wstring>& subkey_names,
+    std::wstring* error
+) {
   if (value_names.empty() && subkey_names.empty()) {
     if (error) {
       *error = L"No data to export.";
@@ -707,8 +755,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
     return false;
   }
 
-  if (!util::WriteTextFile(path, regfile::Serialize(output_document),
-                           output_utf16)) {
+  if (!util::WriteTextFile(path, regfile::Serialize(output_document), output_utf16)) {
     if (error) {
       *error = L"Failed to write exported registry file.";
     }
@@ -717,7 +764,10 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
   return true;
 }
 
-bool IsMountedHive(HKEY root, const std::wstring& subkey) {
+bool IsMountedHive(
+    HKEY root,
+    const std::wstring& subkey
+) {
   if (subkey.empty() || subkey.find(L'\\') != std::wstring::npos) {
     return false;
   }
@@ -732,17 +782,14 @@ bool IsMountedHive(HKEY root, const std::wstring& subkey) {
   native += subkey;
 
   HKEY key = nullptr;
-  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-                    L"SYSTEM\\CurrentControlSet\\Control\\hivelist", 0,
-                    KEY_QUERY_VALUE | win32::kDefaultRegistryView, &key) != ERROR_SUCCESS) {
+  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\hivelist", 0, KEY_QUERY_VALUE | win32::kDefaultRegistryView, &key) != ERROR_SUCCESS) {
     return false;
   }
   bool found = false;
   wchar_t name[512] = {};
   for (DWORD index = 0; !found; ++index) {
     DWORD length = static_cast<DWORD>(_countof(name));
-    if (RegEnumValueW(key, index, name, &length, nullptr, nullptr, nullptr,
-                      nullptr) != ERROR_SUCCESS) {
+    if (RegEnumValueW(key, index, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
       break;
     }
     found = _wcsicmp(name, native.c_str()) == 0;
@@ -751,7 +798,11 @@ bool IsMountedHive(HKEY root, const std::wstring& subkey) {
   return found;
 }
 
-bool LoadHive(HWND owner, HKEY* root, std::wstring* error) {
+bool LoadHive(
+    HWND owner,
+    HKEY* root,
+    std::wstring* error
+) {
   if (!root) {
     return false;
   }
@@ -779,7 +830,12 @@ bool LoadHive(HWND owner, HKEY* root, std::wstring* error) {
   return true;
 }
 
-bool UnloadHive(HWND owner, HKEY root, const std::wstring& subkey, std::wstring* error) {
+bool UnloadHive(
+    HWND owner,
+    HKEY root,
+    const std::wstring& subkey,
+    std::wstring* error
+) {
   std::wstring target = subkey;
   if (target.empty()) {
     editors::TextRequest request;
