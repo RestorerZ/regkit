@@ -131,6 +131,14 @@ void MainWindow::Impl::StopRegFileParseSessions() {
 }
 
 void MainWindow::Impl::MarkTreeStateDirty() {
+  if (!save_tree_state_ || !hwnd_ || !browse_.tree().hwnd() ||
+      !IsWindow(browse_.tree().hwnd())) {
+    return;
+  }
+  SetTimer(hwnd_, kTreeStateTimerId, 400, nullptr);
+}
+
+void MainWindow::Impl::CaptureTreeStateNow() {
   if (!save_tree_state_ || !browse_.tree().hwnd() || !IsWindow(browse_.tree().hwnd())) {
     return;
   }

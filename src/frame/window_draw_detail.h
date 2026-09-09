@@ -80,6 +80,7 @@ constexpr int kValueGridButtonId = 116;
 constexpr int kSearchGridButtonId = 117;
 constexpr int kFilterClearId = 118;
 constexpr UINT_PTR kStatusMessageTimerId = 41;
+constexpr UINT_PTR kTreeStateTimerId = 42;
 constexpr int kValueGridButtonWidth = 22;
 constexpr int kToolbarIconSize = 16;
 constexpr int kToolbarGlyphSize = 16;

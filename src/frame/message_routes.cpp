@@ -979,6 +979,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message,
       UpdateStatus();
       return 0;
     }
+    if (wparam == kTreeStateTimerId) {
+      KillTimer(hwnd_, kTreeStateTimerId);
+      CaptureTreeStateNow();
+      return 0;
+    }
     break;
   case WM_COPYDATA: {
     auto* data = reinterpret_cast<const COPYDATASTRUCT*>(lparam);

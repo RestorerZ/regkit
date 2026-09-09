@@ -502,6 +502,7 @@ private:
   void StartTreeStateWorker();
   void StopTreeStateWorker();
   void MarkTreeStateDirty();
+  void CaptureTreeStateNow();
   void SaveTreeStateFile(const std::wstring& selected, const std::vector<std::wstring>& expanded) const;
   void CaptureTreeState(std::wstring* selected_path, std::vector<std::wstring>* expanded_paths) const;
   void RestoreTreeState();

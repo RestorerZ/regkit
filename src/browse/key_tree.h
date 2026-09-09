@@ -31,6 +31,7 @@ public:
   void PopulateRoots(const std::vector<RegistryRootEntry>& roots);
   RegistryNode* NodeFromItem(HTREEITEM item);
   void DeleteChildren(HTREEITEM parent);
+  HTREEITEM InsertChild(HTREEITEM parent, const std::wstring& name);
   void OnItemExpanding(const NMTREEVIEWW* info);
   void OnGetDispInfo(NMTVDISPINFOW* info);
   RegistryNode* OnSelectionChanged(const NMTREEVIEWW* info);

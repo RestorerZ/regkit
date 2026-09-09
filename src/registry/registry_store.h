@@ -22,6 +22,8 @@ struct RegistryNode {
   std::wstring root_name;
   bool children_loaded = false;
   bool simulated = false;
+  signed char has_children = -1;
+  int icon = -1;
 };
 
 enum class RegistryRootGroup {

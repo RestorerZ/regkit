@@ -187,16 +187,18 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id) {
         if (parent_item) {
           TreeView_SelectItem(browse_.tree().hwnd(), parent_item);
         }
-        RefreshTreeSelection();
+        HTREEITEM target = browse_.tree().InsertChild(parent_item, name);
+        if (!target) {
+          RefreshTreeSelection();
+        }
         RefreshMatchingTreeNodes();
 
-        HTREEITEM target = nullptr;
-        if (parent_item) {
+        if (!target && parent_item) {
           target = FindChildByText(browse_.tree().hwnd(), parent_item, name);
-          if (target) {
-            TreeView_SelectItem(browse_.tree().hwnd(), target);
-            TreeView_EnsureVisible(browse_.tree().hwnd(), target);
-          }
+        }
+        if (target) {
+          TreeView_SelectItem(browse_.tree().hwnd(), target);
+          TreeView_EnsureVisible(browse_.tree().hwnd(), target);
         }
         if (!target && !path.empty()) {
           if (SelectTreePath(path)) {
