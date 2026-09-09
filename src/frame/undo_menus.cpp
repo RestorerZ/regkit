@@ -729,19 +729,18 @@ void MainWindow::Impl::RestoreValueSelection() {
     return;
   }
   ListView_SetItemState(list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+  const std::unordered_set<std::wstring> wanted(names.begin(), names.end());
   bool first = true;
-  for (const std::wstring& name : names) {
-    for (size_t row_index = 0; row_index < browse_.values().RowCount(); ++row_index) {
-      const ListRow* row = browse_.values().RowAt(static_cast<int>(row_index));
-      if (!row || row->kind != rowkind::kValue || row->extra != name) {
-        continue;
-      }
-      ListView_SetItemState(list, static_cast<int>(row_index),
-                            LVIS_SELECTED | (first ? LVIS_FOCUSED : 0),
-                            LVIS_SELECTED | LVIS_FOCUSED);
-      first = false;
-      break;
+  const int rows = static_cast<int>(browse_.values().RowCount());
+  for (int row_index = 0; row_index < rows; ++row_index) {
+    const ListRow* row = browse_.values().RowAt(row_index);
+    if (!row || row->kind != rowkind::kValue || !wanted.count(row->extra)) {
+      continue;
     }
+    ListView_SetItemState(list, row_index,
+                          LVIS_SELECTED | (first ? LVIS_FOCUSED : 0),
+                          LVIS_SELECTED | LVIS_FOCUSED);
+    first = false;
   }
   const int current_top = ListView_GetTopIndex(list);
   if (top > 0 && top != current_top) {

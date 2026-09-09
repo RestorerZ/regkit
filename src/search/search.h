@@ -51,6 +51,25 @@ enum class Provider : uint8_t {
   kVirtual,
 };
 
+struct Source {
+  enum class Kind : uint8_t {
+    kLocal = 0,
+    kRemote = 1,
+    kOffline = 2,
+    kRegFile = 3,
+  };
+  Kind kind = Kind::kLocal;
+  std::wstring name;
+};
+
+bool SameSource(const Source& first, const Source& second) noexcept;
+std::wstring SourceLabel(const Source& source);
+
+struct StartNode {
+  RegistryNode node;
+  uint16_t source = 0;
+};
+
 struct Criteria {
   std::wstring query;
   bool search_keys = true;
@@ -69,7 +88,7 @@ struct Criteria {
   bool use_modified_to = false;
   FILETIME modified_to = {};
   std::vector<DWORD> allowed_types;
-  std::vector<RegistryNode> start_nodes;
+  std::vector<StartNode> start_nodes;
   std::vector<std::wstring> exclude_paths;
   uint64_t max_results = 1000;
   Provider provider = Provider::kLocal;
@@ -104,6 +123,7 @@ struct Result {
   FILETIME modified = {};
   uint64_t row_id = 0;
   uint32_t match_start = 0;
+  uint16_t source = 0;
   uint32_t match_length = 0;
   MatchField match_field = MatchField::kNone;
   ResultKind kind = ResultKind::kValue;

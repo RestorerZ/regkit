@@ -4,6 +4,7 @@
 #include "regfile/registry_transfer.h"
 #include "appearance/feedback.h"
 
+#include <atomic>
 #include <cwchar>
 #include <cwctype>
 #include <unordered_set>
@@ -407,6 +408,28 @@ bool FilterRegFileValues(const std::wstring& content,
   return true;
 }
 
+std::wstring MakeTempRegPath(std::wstring* error) {
+  static std::atomic<unsigned long> serial{0};
+  std::wstring folder = util::GetAppDataFolder();
+  if (!folder.empty()) {
+    folder = util::JoinPath(folder, L"cache");
+    SHCreateDirectoryExW(nullptr, folder.c_str(), nullptr);
+  }
+  if (folder.empty()) {
+    if (error) {
+      *error = L"Failed to locate the RegKit data folder.";
+    }
+    return {};
+  }
+  wchar_t name[64] = {};
+  swprintf_s(name, L"export_%lu_%llu_%lu.reg",
+             GetCurrentProcessId(), GetTickCount64(),
+             serial.fetch_add(1) + 1);
+  std::wstring path = util::JoinPath(folder, name);
+  DeleteFileW(path.c_str());
+  return path;
+}
+
 bool ExportKeyToContent(const std::wstring& key_path, bool include_subkeys, std::wstring* content, bool* utf16, std::wstring* error) {
   if (!content) {
     return false;
@@ -416,23 +439,10 @@ bool ExportKeyToContent(const std::wstring& key_path, bool include_subkeys, std:
     return false;
   }
 
-  wchar_t temp_dir[MAX_PATH] = {};
-  if (!GetTempPathW(_countof(temp_dir), temp_dir)) {
-    if (error) {
-      *error = L"Failed to locate temp path.";
-    }
+  const std::wstring temp_path = MakeTempRegPath(error);
+  if (temp_path.empty()) {
     return false;
   }
-  wchar_t temp_file[MAX_PATH] = {};
-  if (!GetTempFileNameW(temp_dir, L"rkx", 0, temp_file)) {
-    if (error) {
-      *error = L"Failed to create temp file.";
-    }
-    return false;
-  }
-  std::wstring temp_path = std::wstring(temp_file) + L".reg";
-  DeleteFileW(temp_file);
-  DeleteFileW(temp_path.c_str());
 
   std::wstring args = L"export \"" + normalized + L"\" \"" + temp_path + L"\" /y ";
   args += win32::RegExeViewSwitch(win32::kDefaultRegistryView);
@@ -444,17 +454,11 @@ bool ExportKeyToContent(const std::wstring& key_path, bool include_subkeys, std:
   std::wstring read_path = temp_path;
   std::wstring filtered_path;
   if (!include_subkeys) {
-    wchar_t filtered_file[MAX_PATH] = {};
-    if (!GetTempFileNameW(temp_dir, L"rkf", 0, filtered_file)) {
+    filtered_path = MakeTempRegPath(error);
+    if (filtered_path.empty()) {
       DeleteFileW(temp_path.c_str());
-      if (error) {
-        *error = L"Failed to create temp file.";
-      }
       return false;
     }
-    filtered_path = std::wstring(filtered_file) + L".reg";
-    DeleteFileW(filtered_file);
-    DeleteFileW(filtered_path.c_str());
     if (!FilterExportedRegFile(temp_path, filtered_path, error)) {
       DeleteFileW(temp_path.c_str());
       DeleteFileW(filtered_path.c_str());
@@ -588,23 +592,10 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error
   std::wstring target_path = options.path;
   std::wstring temp_path;
   if (!options.include_subkeys) {
-    wchar_t temp_dir[MAX_PATH] = {};
-    if (!GetTempPathW(_countof(temp_dir), temp_dir)) {
-      if (error) {
-        *error = L"Failed to locate temp path.";
-      }
+    temp_path = MakeTempRegPath(error);
+    if (temp_path.empty()) {
       return false;
     }
-    wchar_t temp_file[MAX_PATH] = {};
-    if (!GetTempFileNameW(temp_dir, L"rkx", 0, temp_file)) {
-      if (error) {
-        *error = L"Failed to create temp file.";
-      }
-      return false;
-    }
-    temp_path = std::wstring(temp_file) + L".reg";
-    DeleteFileW(temp_file);
-    DeleteFileW(temp_path.c_str());
     target_path = temp_path;
   }
 

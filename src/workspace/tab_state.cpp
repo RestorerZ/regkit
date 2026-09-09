@@ -100,6 +100,10 @@ void ParseTaggedFields(const std::vector<std::wstring>& fields,
       tab->second_source_kind = _wtoi(value.c_str());
     } else if (key == L"s2f") {
       tab->second_source_file = value;
+    } else if (key == L"srck") {
+      tab->source_kinds.push_back(_wtoi(value.c_str()));
+    } else if (key == L"srcn") {
+      tab->source_names.push_back(value);
     }
   }
 }
@@ -182,6 +186,15 @@ std::wstring SerializeTabs(const TabState& state) {
     AppendField(&content, L"s1f=", tab.first_source_file);
     AppendNumber(&content, L"s2k=", tab.second_source_kind);
     AppendField(&content, L"s2f=", tab.second_source_file);
+    for (size_t i = 0; i < tab.source_kinds.size(); ++i) {
+      content.push_back(L'\t');
+      content.append(L"srck=");
+      content.append(std::to_wstring(tab.source_kinds[i]));
+      content.push_back(L'\t');
+      content.append(L"srcn=");
+      content.append(record_fields::Escape(
+          i < tab.source_names.size() ? tab.source_names[i] : std::wstring()));
+    }
     content.push_back(L'\n');
   }
   return content;

@@ -470,6 +470,7 @@ void MainWindow::Impl::CloseTab(int tab_index) {
     }
     ReleaseRegFileRoots(&entry);
   }
+  const int previous_index = TabCtrl_GetCurSel(tab_);
   tabs_.erase(tabs_.begin() + tab_index);
   TabCtrl_DeleteItem(tab_, tab_index);
 
@@ -479,16 +480,26 @@ void MainWindow::Impl::CloseTab(int tab_index) {
     --active_search_tab_index_;
   }
 
-  int new_count = TabCtrl_GetItemCount(tab_);
-  if (new_count > 0) {
-    int new_index = std::min(tab_index, new_count - 1);
-    TabCtrl_SetCurSel(tab_, new_index);
-    ApplyTabSelection(new_index);
-  }
+  SelectTabAfterClose(tab_index, previous_index);
   RefreshRegistryTabLabels();
   ApplyViewVisibility();
   UpdateSearchResultsView();
   UpdateStatus();
+}
+
+void MainWindow::Impl::SelectTabAfterClose(int closed_index, int previous_index) {
+  const int count = tab_ ? TabCtrl_GetItemCount(tab_) : 0;
+  if (count <= 0) {
+    return;
+  }
+  const bool closed_active = previous_index == closed_index;
+  const int next = closed_active ? std::min(closed_index, count - 1)
+                   : previous_index > closed_index ? previous_index - 1
+                                                   : previous_index;
+  TabCtrl_SetCurSel(tab_, next);
+  if (closed_active) {
+    ApplyTabSelection(next);
+  }
 }
 
 void MainWindow::Impl::SelectTabIndex(int index) {

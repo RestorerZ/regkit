@@ -11,7 +11,7 @@ namespace regkit {
 
 namespace {
 constexpr int kFolderIconIndex = 0;
-constexpr wchar_t kStandardGroupLabel[] = L"Standart Hives";
+constexpr wchar_t kStandardGroupLabel[] = L"Standard Hives";
 constexpr wchar_t kRealGroupLabel[] = L"REGISTRY";
 #ifndef TVS_EX_DOUBLEBUFFER
 #define TVS_EX_DOUBLEBUFFER 0x0004

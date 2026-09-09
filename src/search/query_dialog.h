@@ -30,6 +30,7 @@ struct SearchSources {
   bool offline = false;
   bool reg_files = false;
   bool remote = false;
+  bool extra_hives = false;
 };
 
 struct SearchDialogResult {
@@ -39,9 +40,9 @@ struct SearchDialogResult {
   bool search_standard_hives = true;
   bool search_registry_root = true;
   bool search_trace_values = true;
-  bool include_offline_hives = false;
-  bool include_reg_files = false;
-  bool include_remote_registry = false;
+  bool search_offline_hives = false;
+  bool search_reg_files = false;
+  bool search_remote_registry = false;
   SearchScope scope = SearchScope::kEntireRegistry;
   SearchResultMode result_mode = SearchResultMode::kNewTab;
   bool open_in_new_tab = false;

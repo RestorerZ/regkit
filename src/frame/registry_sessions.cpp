@@ -748,9 +748,7 @@ bool MainWindow::Impl::SaveOfflineRegistry() {
 }
 
 void MainWindow::Impl::NavigateToAddress() {
-  wchar_t buffer[512] = {};
-  GetWindowTextW(browse_.address(), buffer, static_cast<int>(_countof(buffer)));
-  std::wstring path = NormalizeRegistryPath(buffer);
+  std::wstring path = NormalizeRegistryPath(util::WindowText(browse_.address()));
   if (path.empty()) {
     return;
   }

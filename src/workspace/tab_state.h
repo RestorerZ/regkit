@@ -32,6 +32,8 @@ struct PersistedTab {
   std::wstring first_source_file;
   int second_source_kind = 0;
   std::wstring second_source_file;
+  std::vector<int> source_kinds;
+  std::vector<std::wstring> source_names;
 };
 
 struct TabState {

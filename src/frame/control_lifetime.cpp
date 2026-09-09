@@ -1328,6 +1328,13 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
           FormatCellFileTime(result.modified, buffer, capacity);
         }
         break;
+      case 6:
+        if (buffer && capacity > 0 && result.source < tab->sources.size()) {
+          lstrcpynW(buffer,
+                    search::SourceLabel(tab->sources[result.source]).c_str(),
+                    capacity);
+        }
+        break;
       default:
         break;
       }

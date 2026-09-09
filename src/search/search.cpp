@@ -25,6 +25,27 @@
 
 namespace regkit::search {
 
+bool SameSource(const Source& first, const Source& second) noexcept {
+  return first.kind == second.kind &&
+         _wcsicmp(first.name.c_str(), second.name.c_str()) == 0;
+}
+
+std::wstring SourceLabel(const Source& source) {
+  switch (source.kind) {
+  case Source::Kind::kRemote:
+    return source.name.empty() ? L"Network Registry" : source.name;
+  case Source::Kind::kOffline:
+  case Source::Kind::kRegFile: {
+    const size_t slash = source.name.find_last_of(L"\\/");
+    return slash == std::wstring::npos ? source.name
+                                       : source.name.substr(slash + 1);
+  }
+  default:
+    break;
+  }
+  return L"Local Registry";
+}
+
 Matcher::Matcher(const TextOptions& options)
     : query_(options.query), use_regex_(options.use_regex),
       match_case_(options.match_case), match_whole_(options.match_whole),
@@ -239,6 +260,7 @@ namespace {
 
 struct RootContext {
   HKEY root = nullptr;
+  uint16_t source = 0;
   std::wstring root_name;
   std::wstring display_root;
   std::wstring base_subkey;
@@ -616,7 +638,8 @@ unsigned int WorkerPolicy(const Criteria& criteria) {
   }
   Provider provider = criteria.provider;
   if (provider == Provider::kLocal) {
-    for (const auto& node : criteria.start_nodes) {
+    for (const auto& start : criteria.start_nodes) {
+      const RegistryNode& node = start.node;
       if (RegistryStore::IsVirtualRoot(node.root)) {
         provider = Provider::kVirtual;
         break;
@@ -681,7 +704,8 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
   bool machine_in_scope = false;
   bool user_in_scope = false;
   if (criteria.provider == Provider::kLocal) {
-    for (const auto& node : criteria.start_nodes) {
+    for (const auto& start : criteria.start_nodes) {
+      const RegistryNode& node = start.node;
       if (!node.subkey.empty()) {
         continue;
       }
@@ -697,7 +721,8 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
   }
   const bool mirror_classes = !merged_classes_root.empty();
 
-  for (const auto& node : criteria.start_nodes) {
+  for (const auto& start : criteria.start_nodes) {
+    const RegistryNode& node = start.node;
     RegistryNode root_only = node;
     root_only.subkey.clear();
     const std::wstring display_root = registry_path::Build(root_only);
@@ -722,6 +747,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
     for (size_t i = 0; i < store_count; ++i) {
       auto context = std::make_unique<RootContext>();
       context->root = stores[i].root;
+      context->source = start.source;
       context->display_root = display_root;
       if (stores[i].base) {
         context->base_subkey = stores[i].base;
@@ -955,6 +981,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
           }
 
           Result result;
+          result.source = entry.context ? entry.context->source : 0;
           result.key_path = path_text();
           result.value_name = value.name;
           result.type = value.type;
@@ -1033,6 +1060,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag,
           const Match key_match = matcher.Find(leaf);
           if (key_match.matched) {
             Result result;
+            result.source = entry.context ? entry.context->source : 0;
             result.key_path = path_text();
             result.kind = ResultKind::kKey;
             result.data_state = DataState::kNotApplicable;

@@ -343,6 +343,7 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id) {
       return tab.kind == TabEntry::Kind::kRegFile && !tab.reg_file_roots.empty();
     });
     sources.remote = remote_hklm_ != nullptr;
+    sources.extra_hives = show_extra_hives_;
     if (ShowSearchDialog(hwnd_, &options, sources)) {
       last_search_ = options;
       StartSearch(options);

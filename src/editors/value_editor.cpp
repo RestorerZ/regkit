@@ -450,6 +450,12 @@ bool ConvertValueData(DWORD from, const std::vector<BYTE>& data, DWORD to,
     return type == REG_DWORD || type == REG_DWORD_BIG_ENDIAN || type == REG_QWORD;
   };
   auto is_raw = [](DWORD type) { return type == REG_BINARY || type == REG_NONE; };
+  auto is_readable = [](const std::wstring& text) {
+    return !text.empty() &&
+           std::none_of(text.begin(), text.end(), [](wchar_t ch) {
+             return iswcntrl(ch) && ch != L'\t' && ch != L'\r' && ch != L'\n';
+           });
+  };
 
   if (is_text(src) && is_text(dst)) {
     *out = data;
@@ -496,8 +502,18 @@ bool ConvertValueData(DWORD from, const std::vector<BYTE>& data, DWORD to,
     *out = data;
     return true;
   }
-  if (is_raw(src) && (is_text(dst) || dst == REG_MULTI_SZ)) {
-    if (data.empty() || data.size() % sizeof(wchar_t) != 0) {
+  if (is_raw(src) && dst == REG_MULTI_SZ) {
+    const std::vector<std::wstring> items = value_format::MultiStringItems(data);
+    if (items.empty() ||
+        !std::all_of(items.begin(), items.end(), is_readable)) {
+      return false;
+    }
+    *out = data;
+    return true;
+  }
+  if (is_raw(src) && is_text(dst)) {
+    std::wstring text;
+    if (!value_format::DecodeString(data, &text) || !is_readable(text)) {
       return false;
     }
     *out = data;
@@ -507,41 +523,50 @@ bool ConvertValueData(DWORD from, const std::vector<BYTE>& data, DWORD to,
 }
 
 void PopulateTraceValueEditors(HWND dlg, TraceValueDialogState* state) {
-  if (!dlg || !state || state->data.empty()) {
+  if (!dlg || !state) {
     return;
   }
+  const std::vector<BYTE>& data = state->data;
+  const bool filled = !data.empty();
   switch (value_format::NormalizeType(state->type)) {
   case REG_SZ:
   case REG_LINK:
-    SetDlgItemTextW(dlg, IDC_REG_SZ_EDIT, RegDataToString(state->data).c_str());
+    SetDlgItemTextW(dlg, IDC_REG_SZ_EDIT,
+                    filled ? RegDataToString(data).c_str() : L"");
     break;
   case REG_EXPAND_SZ:
-    SetDlgItemTextW(dlg, IDC_REG_EXPAND_EDIT, RegDataToString(state->data).c_str());
+    SetDlgItemTextW(dlg, IDC_REG_EXPAND_EDIT,
+                    filled ? RegDataToString(data).c_str() : L"");
     break;
   case REG_MULTI_SZ:
     SetDlgItemTextW(dlg, IDC_REG_MULTI_EDIT,
-                    value_format::MultiStringText(state->data).c_str());
+                    filled ? value_format::MultiStringText(data).c_str() : L"");
     break;
   case REG_DWORD:
     SetDlgItemTextW(dlg, IDC_REG_DWORD_EDIT,
-                    FormatNumberValue(ReadUnsignedFromBytes(state->data, sizeof(DWORD)),
-                                      state->dword_base).c_str());
+                    filled ? FormatNumberValue(ReadUnsignedFromBytes(data, sizeof(DWORD)),
+                                               state->dword_base).c_str()
+                           : L"");
     break;
   case REG_DWORD_BIG_ENDIAN:
     SetDlgItemTextW(dlg, IDC_REG_DWORD_EDIT,
-                    FormatNumberValue(ReadUnsignedFromBytesBigEndian(state->data, sizeof(DWORD)),
-                                      state->dword_base).c_str());
+                    filled ? FormatNumberValue(ReadUnsignedFromBytesBigEndian(data, sizeof(DWORD)),
+                                               state->dword_base).c_str()
+                           : L"");
     break;
   case REG_QWORD:
     SetDlgItemTextW(dlg, IDC_REG_QWORD_EDIT,
-                    FormatNumberValue(ReadUnsignedFromBytes(state->data, sizeof(unsigned long long)),
-                                      state->qword_base).c_str());
+                    filled ? FormatNumberValue(ReadUnsignedFromBytes(data, sizeof(unsigned long long)),
+                                               state->qword_base).c_str()
+                           : L"");
     break;
   case REG_NONE:
-    SetDlgItemTextW(dlg, IDC_REG_NONE_EDIT, binary_text::Hex(state->data).c_str());
+    SetDlgItemTextW(dlg, IDC_REG_NONE_EDIT, binary_text::Hex(data).c_str());
+    UpdateBinaryPreviewEx(dlg, &state->none, kNoneIds);
     break;
   default:
-    SetDlgItemTextW(dlg, IDC_REG_BINARY_EDIT, binary_text::Hex(state->data).c_str());
+    SetDlgItemTextW(dlg, IDC_REG_BINARY_EDIT, binary_text::Hex(data).c_str());
+    UpdateBinaryPreviewEx(dlg, &state->binary, kBinaryIds);
     break;
   }
 }

@@ -138,7 +138,7 @@ bool CaptureRegistry(const std::wstring& base_path,
     }
     if (!enumerated) {
       if (error) {
-        *error = L"Could not read the registry key: " +
+        *error = L"Could not read the registry key.\n" +
                  (relative.empty() ? base_path : base_path + L"\\" + relative);
       }
       return false;

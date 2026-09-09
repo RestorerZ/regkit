@@ -2,9 +2,44 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/command_detail.h"
+#include "win32/system_error.h"
 
 namespace regkit {
 using namespace command_detail;
+
+namespace {
+
+bool ResolveRemoteNode(const std::wstring& machine, HKEY hklm, HKEY hku,
+                       const std::wstring& base, RegistryNode* node) {
+  if (!node) {
+    return false;
+  }
+  std::wstring rest = base;
+  const std::wstring prefix = machine + L"\\";
+  if (StartsWithInsensitive(rest, prefix)) {
+    rest = rest.substr(prefix.size());
+  }
+  const size_t slash = rest.find(L'\\');
+  const std::wstring root_name =
+      slash == std::wstring::npos ? rest : rest.substr(0, slash);
+  if (EqualsInsensitive(root_name, L"HKEY_LOCAL_MACHINE") ||
+      EqualsInsensitive(root_name, L"HKLM")) {
+    node->root = hklm;
+  } else if (EqualsInsensitive(root_name, L"HKEY_USERS") ||
+             EqualsInsensitive(root_name, L"HKU")) {
+    node->root = hku;
+  }
+  if (!node->root) {
+    return false;
+  }
+  node->root_name = machine + L"\\" + root_name;
+  node->subkey =
+      slash == std::wstring::npos ? std::wstring() : rest.substr(slash + 1);
+  KeyInfo info = {};
+  return RegistryStore::QueryKeyInfo(*node, &info);
+}
+
+} // namespace
 
 void MainWindow::Impl::StartCompareRegistries() {
   CompareDialogDefaults defaults;
@@ -51,7 +86,8 @@ void MainWindow::Impl::StartCompareRegistries() {
     if (!out_base) {
       return false;
     }
-    if (sel.type == CompareSourceType::kRegistry) {
+    if (sel.type == CompareSourceType::kRegistry ||
+        sel.type == CompareSourceType::kNetwork) {
       std::wstring base;
       if (!sel.path.empty()) {
         std::wstring normalized_path = NormalizeRegistryPath(sel.path);
@@ -119,17 +155,50 @@ void MainWindow::Impl::StartCompareRegistries() {
       RegistryStore::RemoveOfflineRoot(hive);
       RegistryStore::CloseOfflineHive(hive, nullptr);
       if (!ok && error && error->empty()) {
-        *error = L"Failed to read the hive file: " + source.file_path;
+        *error = L"Failed to read the hive file.\n" + source.file_path;
       }
       return ok;
     }
 
     RegistryNode node;
+    if (source.type == CompareSourceType::kNetwork) {
+      const std::wstring machine = TrimWhitespace(source.file_path);
+      if (machine.empty()) {
+        if (error) {
+          *error = L"Select a computer to compare against.";
+        }
+        return false;
+      }
+      HKEY hklm = nullptr;
+      const LONG connected =
+          RegConnectRegistryW(machine.c_str(), HKEY_LOCAL_MACHINE, &hklm);
+      if (connected != ERROR_SUCCESS) {
+        if (error) {
+          *error = util::FormatWin32Error(connected);
+        }
+        return false;
+      }
+      HKEY hku = nullptr;
+      RegConnectRegistryW(machine.c_str(), HKEY_USERS, &hku);
+      bool ok = ResolveRemoteNode(machine, hklm, hku, base, &node);
+      if (!ok && error) {
+        *error = L"Network registry path not found.\n" + base;
+      }
+      if (ok) {
+        ok = search::compare::CaptureRegistry(base, node, source.recursive,
+                                              snapshot, error);
+      }
+      if (hku) {
+        RegCloseKey(hku);
+      }
+      RegCloseKey(hklm);
+      return ok;
+    }
     KeyInfo info = {};
     if (!ResolvePathToNode(base, &node) ||
         !RegistryStore::QueryKeyInfo(node, &info)) {
       if (error) {
-        *error = L"Registry path not found: " + base;
+        *error = L"Registry path not found.\n" + base;
       }
       return false;
     }
@@ -158,24 +227,25 @@ void MainWindow::Impl::StartCompareRegistries() {
       search::compare::Diff(left_snapshot, right_snapshot);
   std::wstring tab_label = L"Registry Comparision";
 
-  auto source_ref = [](const CompareDialogSelection& sel) {
-    CompareSource source;
-    if (sel.type == CompareSourceType::kRegFile) {
-      source.kind = CompareSource::Kind::kRegFile;
-      source.file_path = sel.file_path;
-    } else if (sel.type == CompareSourceType::kOfflineHive) {
-      source.kind = CompareSource::Kind::kOfflineHive;
-      source.file_path = sel.file_path;
+  auto source_ref = [this](const CompareDialogSelection& sel) {
+    switch (sel.type) {
+    case CompareSourceType::kRegFile:
+      return search::Source{search::Source::Kind::kRegFile, sel.file_path};
+    case CompareSourceType::kOfflineHive:
+      return search::Source{search::Source::Kind::kOffline, sel.file_path};
+    case CompareSourceType::kNetwork:
+      return search::Source{search::Source::Kind::kRemote, sel.file_path};
+    default:
+      break;
     }
-    return source;
+    return search::Source{};
   };
 
   SearchTab tab;
   tab.label = std::move(tab_label);
   tab.compare_rows = std::move(rows);
   tab.is_compare = true;
-  tab.first_source = source_ref(selection.left);
-  tab.second_source = source_ref(selection.right);
+  tab.sources = {source_ref(selection.left), source_ref(selection.right)};
   search_tabs_.push_back(std::move(tab));
   int search_index = static_cast<int>(search_tabs_.size() - 1);
   TCITEMW item = {};
@@ -193,65 +263,79 @@ void MainWindow::Impl::StartCompareRegistries() {
   UpdateStatus();
 }
 
-int MainWindow::Impl::FindCompareSourceTab(const CompareSource& source) const {
+search::Source MainWindow::Impl::TabSource(int index) const {
+  if (index < 0 || static_cast<size_t>(index) >= tabs_.size()) {
+    return {};
+  }
+  const TabEntry& entry = tabs_[static_cast<size_t>(index)];
+  if (entry.kind == TabEntry::Kind::kRegFile) {
+    return {search::Source::Kind::kRegFile, entry.reg_file_path};
+  }
+  if (entry.kind == TabEntry::Kind::kRegistry) {
+    if (entry.registry_mode == RegistryMode::kOffline) {
+      return {search::Source::Kind::kOffline, entry.offline_path};
+    }
+    if (entry.registry_mode == RegistryMode::kRemote) {
+      return {search::Source::Kind::kRemote, entry.remote_machine};
+    }
+  }
+  return {};
+}
+
+search::Source MainWindow::Impl::CurrentTabSource() const {
+  return TabSource(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
+}
+
+int MainWindow::Impl::FindSourceTab(const search::Source& source) const {
   for (size_t i = 0; i < tabs_.size(); ++i) {
     const TabEntry& entry = tabs_[i];
-    switch (source.kind) {
-    case CompareSource::Kind::kRegFile:
-      if (entry.kind == TabEntry::Kind::kRegFile &&
-          EqualsInsensitive(entry.reg_file_path, source.file_path)) {
-        return static_cast<int>(i);
-      }
-      break;
-    case CompareSource::Kind::kOfflineHive:
-      if (entry.kind == TabEntry::Kind::kRegistry &&
-          entry.registry_mode == RegistryMode::kOffline &&
-          EqualsInsensitive(entry.offline_path, source.file_path)) {
-        return static_cast<int>(i);
-      }
-      break;
-    case CompareSource::Kind::kRegistry:
-    default:
-      if (entry.kind == TabEntry::Kind::kRegistry &&
-          entry.registry_mode != RegistryMode::kOffline) {
-        return static_cast<int>(i);
-      }
-      break;
+    if (entry.kind == TabEntry::Kind::kSearch) {
+      continue;
+    }
+    const search::Source candidate = TabSource(static_cast<int>(i));
+    if (candidate.kind != source.kind) {
+      continue;
+    }
+    if (source.kind == search::Source::Kind::kLocal ||
+        source.name.empty() ||
+        EqualsInsensitive(candidate.name, source.name)) {
+      return static_cast<int>(i);
     }
   }
   return -1;
 }
 
-void MainWindow::Impl::OpenCompareEntry(const CompareSource& source,
-                                        const std::wstring& path,
-                                        const std::wstring& value_name,
-                                        bool new_tab) {
+void MainWindow::Impl::OpenSourceEntry(const search::Source& source,
+                                      const std::wstring& path,
+                                      const std::wstring& value_name,
+                                      bool new_tab) {
   if (!tab_ || path.empty()) {
     return;
   }
-  const int existing = FindCompareSourceTab(source);
+  const int existing = FindSourceTab(source);
   if (!new_tab && existing < 0) {
     return;
   }
   switch (source.kind) {
-  case CompareSource::Kind::kRegFile:
+  case search::Source::Kind::kRegFile:
     pending_compare_key_path_ = path;
     pending_compare_value_name_ = value_name;
     if (new_tab) {
-      if (!OpenRegFileTab(source.file_path, true)) {
+      if (!OpenRegFileTab(source.name, true)) {
         pending_compare_key_path_.clear();
         pending_compare_value_name_.clear();
         return;
       }
+    } else if (existing == TabCtrl_GetCurSel(tab_)) {
+      SyncRegFileTabSelection();
     } else {
       ActivateTabIndex(existing);
-      SyncRegFileTabSelection();
     }
     break;
-  case CompareSource::Kind::kOfflineHive: {
+  case search::Source::Kind::kOffline: {
     if (new_tab) {
       OpenLocalRegistryTab();
-      if (!LoadOfflineRegistryFromPath(source.file_path, false)) {
+      if (!LoadOfflineRegistryFromPath(source.name, false)) {
         return;
       }
     } else {
@@ -260,7 +344,7 @@ void MainWindow::Impl::OpenCompareEntry(const CompareSource& source,
     std::wstring target = path;
     if (!offline_mount_.empty()) {
       for (const std::wstring& prefix : {offline_mount_,
-                                         FileNameOnly(source.file_path)}) {
+                                         FileNameOnly(source.name)}) {
         if (prefix.empty()) {
           continue;
         }
@@ -279,7 +363,18 @@ void MainWindow::Impl::OpenCompareEntry(const CompareSource& source,
     SelectTreePath(target);
     break;
   }
-  case CompareSource::Kind::kRegistry:
+  case search::Source::Kind::kRemote:
+    if (new_tab) {
+      OpenLocalRegistryTab();
+      if (!ConnectRemoteRegistry(source.name)) {
+        return;
+      }
+    } else {
+      ActivateTabIndex(existing);
+    }
+    SelectTreePath(path);
+    break;
+  case search::Source::Kind::kLocal:
   default:
     if (new_tab) {
       OpenLocalRegistryTab();

@@ -4,6 +4,27 @@
 #include "frame/window_detail.h"
 
 namespace regkit {
+
+namespace {
+
+search::Source::Kind ToSourceKind(int value) {
+  return value < 0 || value > static_cast<int>(search::Source::Kind::kRegFile)
+             ? search::Source::Kind::kLocal
+             : static_cast<search::Source::Kind>(value);
+}
+
+search::Source::Kind LegacyCompareKind(int value) {
+  switch (value) {
+  case 1:
+    return search::Source::Kind::kRegFile;
+  case 2:
+    return search::Source::Kind::kOffline;
+  default:
+    return search::Source::Kind::kLocal;
+  }
+}
+
+} // namespace
 using namespace window_detail;
 
 void MainWindow::Impl::AppendHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data) {
@@ -357,12 +378,21 @@ void MainWindow::Impl::LoadTabs() {
         search_tab.results_loaded =
             search_tab.is_compare ? search_tab.compare_cache_file.empty()
                                   : search_tab.cache_file.empty();
-        search_tab.first_source.kind =
-            static_cast<CompareSource::Kind>(saved.first_source_kind);
-        search_tab.first_source.file_path = std::move(saved.first_source_file);
-        search_tab.second_source.kind =
-            static_cast<CompareSource::Kind>(saved.second_source_kind);
-        search_tab.second_source.file_path = std::move(saved.second_source_file);
+        for (size_t s = 0; s < saved.source_kinds.size(); ++s) {
+          search::Source source;
+          source.kind = ToSourceKind(saved.source_kinds[s]);
+          if (s < saved.source_names.size()) {
+            source.name = std::move(saved.source_names[s]);
+          }
+          search_tab.sources.push_back(std::move(source));
+        }
+        if (search_tab.sources.empty() && search_tab.is_compare) {
+          search_tab.sources = {
+              {LegacyCompareKind(saved.first_source_kind),
+               std::move(saved.first_source_file)},
+              {LegacyCompareKind(saved.second_source_kind),
+               std::move(saved.second_source_file)}};
+        }
         search_tabs_.push_back(std::move(search_tab));
         const int search_index = static_cast<int>(search_tabs_.size() - 1);
         TCITEMW item = {};
@@ -445,6 +475,7 @@ bool MainWindow::Impl::SaveTabs() {
 bool MainWindow::Impl::SaveSessionTabs() {
   return SaveTabState(SessionCachePath(), workspace::kSaveTabsAll);
 }
+
 
 int MainWindow::Impl::TabSaveKind(const TabEntry& entry) const {
   if (entry.kind == TabEntry::Kind::kRegFile) {
@@ -546,12 +577,12 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds) {
       saved.kind = workspace::PersistedTab::Kind::kSearch;
       saved.label = std::move(label);
       saved.is_compare = search_tab.is_compare;
+      for (const search::Source& source : search_tab.sources) {
+        saved.source_kinds.push_back(static_cast<int>(source.kind));
+        saved.source_names.push_back(source.name);
+      }
       if (search_tab.is_compare) {
         saved.compare_cache_file = std::move(file_name);
-        saved.first_source_kind = static_cast<int>(search_tab.first_source.kind);
-        saved.first_source_file = search_tab.first_source.file_path;
-        saved.second_source_kind = static_cast<int>(search_tab.second_source.kind);
-        saved.second_source_file = search_tab.second_source.file_path;
       } else {
         saved.search_cache_file = std::move(file_name);
       }

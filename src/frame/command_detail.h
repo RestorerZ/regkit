@@ -38,6 +38,7 @@
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "win32/process_rights.h"
+#include "win32/file_dialog.h"
 #include "win32/shell_paths.h"
 #include "resource.h"
 
@@ -257,12 +258,15 @@ enum class CompareSourceType {
   kRegistry = 0,
   kRegFile = 1,
   kOfflineHive = 2,
+  kNetwork = 3,
 };
 
 inline const wchar_t* CompareSourceLabel(CompareSourceType type) {
   switch (type) {
   case CompareSourceType::kRegFile:
     return L"Reg File";
+  case CompareSourceType::kNetwork:
+    return L"Network Registry";
   case CompareSourceType::kOfflineHive:
     return L"Offline Hive";
   default:
@@ -276,6 +280,8 @@ inline CompareSourceType CompareSourceFromIndex(int index) {
     return CompareSourceType::kRegFile;
   case 2:
     return CompareSourceType::kOfflineHive;
+  case 3:
+    return CompareSourceType::kNetwork;
   default:
     return CompareSourceType::kRegistry;
   }
@@ -607,14 +613,17 @@ inline void ToggleCompareControls(HWND dlg, bool left, CompareSourceType type) {
   int root_id = left ? IDC_COMPARE_LEFT_ROOT : IDC_COMPARE_RIGHT_ROOT;
   int path_id = left ? IDC_COMPARE_LEFT_PATH : IDC_COMPARE_RIGHT_PATH;
   int file_id = left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE;
+  int label_id = left ? IDC_COMPARE_LEFT_FILE_LABEL : IDC_COMPARE_RIGHT_FILE_LABEL;
   int browse_id = left ? IDC_COMPARE_LEFT_BROWSE : IDC_COMPARE_RIGHT_BROWSE;
   int key_id = left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY;
-  bool reg = type == CompareSourceType::kRegistry;
-  EnableWindow(GetDlgItem(dlg, root_id), reg);
-  EnableWindow(GetDlgItem(dlg, path_id), reg);
-  EnableWindow(GetDlgItem(dlg, file_id), !reg);
-  EnableWindow(GetDlgItem(dlg, browse_id), !reg);
-  EnableWindow(GetDlgItem(dlg, key_id), !reg);
+  const bool network = type == CompareSourceType::kNetwork;
+  const bool local = type == CompareSourceType::kRegistry;
+  EnableWindow(GetDlgItem(dlg, root_id), local || network);
+  EnableWindow(GetDlgItem(dlg, path_id), local || network);
+  EnableWindow(GetDlgItem(dlg, file_id), !local);
+  EnableWindow(GetDlgItem(dlg, browse_id), !local);
+  EnableWindow(GetDlgItem(dlg, key_id), !local && !network);
+  SetDialogText(dlg, label_id, network ? L"Computer:" : L"File:");
 }
 
 inline INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -635,8 +644,8 @@ inline INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPA
     ApplyEditCustomBorder(dlg, IDC_COMPARE_RIGHT_PATH);
     ApplyEditCustomBorder(dlg, IDC_COMPARE_RIGHT_FILE);
 
-    PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive"});
-    PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive"});
+    PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive", L"Network Registry"});
+    PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive", L"Network Registry"});
     PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_LEFT_ROOT), state->data.registry_roots);
     PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_RIGHT_ROOT), state->data.registry_roots);
 
@@ -743,6 +752,8 @@ inline INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPA
       int sel = combo ? static_cast<int>(SendMessageW(combo, CB_GETCURSEL, 0, 0)) : 0;
       CompareSourceType type = CompareSourceFromIndex(sel);
       ToggleCompareControls(dlg, left, type);
+      SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE,
+                    L"");
       return TRUE;
     }
     if (code == BN_CLICKED && (id == IDC_COMPARE_LEFT_BROWSE || id == IDC_COMPARE_RIGHT_BROWSE)) {
@@ -751,6 +762,13 @@ inline INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPA
       const CompareSourceType browse_type = CompareSourceFromIndex(
           browse_source ? static_cast<int>(SendMessageW(browse_source, CB_GETCURSEL, 0, 0)) : 0);
       std::wstring path;
+      if (browse_type == CompareSourceType::kNetwork) {
+        if (FAILED(win32::ChooseComputer(dlg, &path)) || path.empty()) {
+          return TRUE;
+        }
+        SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, path);
+        return TRUE;
+      }
       if (!PromptOpenFilePath(dlg,
                               browse_type == CompareSourceType::kOfflineHive
                                   ? L"Registry Hive Files\0*.*\0\0"
@@ -788,12 +806,20 @@ inline INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPA
         HWND source_combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_SOURCE : IDC_COMPARE_RIGHT_SOURCE);
         int source_index = source_combo ? static_cast<int>(SendMessageW(source_combo, CB_GETCURSEL, 0, 0)) : 0;
         out->type = CompareSourceFromIndex(source_index);
-        if (out->type == CompareSourceType::kRegistry) {
+        if (out->type == CompareSourceType::kRegistry ||
+            out->type == CompareSourceType::kNetwork) {
           out->root = TrimWhitespace(ReadComboText(GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_ROOT : IDC_COMPARE_RIGHT_ROOT)));
           out->path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_PATH : IDC_COMPARE_RIGHT_PATH));
           if (out->root.empty()) {
             ui::ShowError(dlg, L"Registry root is required.");
             return false;
+          }
+          if (out->type == CompareSourceType::kNetwork) {
+            out->file_path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
+            if (out->file_path.empty()) {
+              ui::ShowError(dlg, L"Computer name is required.");
+              return false;
+            }
           }
           return true;
         }

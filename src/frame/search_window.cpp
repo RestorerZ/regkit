@@ -78,20 +78,21 @@ bool MainWindow::Impl::CreateRegistryPath(const std::wstring& path) {
   if (node.subkey.empty()) {
     return true;
   }
-  std::vector<std::wstring> parts = registry_path::Split(node.subkey);
+  const std::vector<std::wstring> parts = registry_path::Split(node.subkey);
   RegistryNode current = node;
   current.subkey.clear();
   bool created = false;
   for (const auto& part : parts) {
-    if (!RegistryStore::CreateKey(current, part)) {
-      return false;
+    RegistryNode child = current;
+    child.subkey = current.subkey.empty() ? part : current.subkey + L"\\" + part;
+    KeyInfo info = {};
+    if (!RegistryStore::QueryKeyInfo(child, &info)) {
+      if (!RegistryStore::CreateKey(current, part)) {
+        return false;
+      }
+      created = true;
     }
-    created = true;
-    if (current.subkey.empty()) {
-      current.subkey = part;
-    } else {
-      current.subkey += L"\\" + part;
-    }
+    current = std::move(child);
   }
   if (created) {
     MarkOfflineDirty();
@@ -405,7 +406,10 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
     return;
   }
 
-  bool want_registry = options.search_standard_hives || options.search_registry_root;
+  bool want_registry =
+      options.search_standard_hives || options.search_registry_root ||
+      options.search_offline_hives || options.search_reg_files ||
+      options.search_remote_registry;
   bool want_trace = options.search_trace_values && !active_traces_.empty();
   std::wstring registry_scope_path;
   std::wstring scope_path;
@@ -422,32 +426,46 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
     }
   }
 
-  std::vector<RegistryNode> start_nodes;
+  std::vector<search::StartNode> start_nodes;
+  std::vector<search::Source> sources(1);
   bool remote_nodes = false;
+  auto source_index = [&](search::Source::Kind kind,
+                          const std::wstring& name) -> uint16_t {
+    const search::Source wanted{kind, name};
+    for (size_t i = 0; i < sources.size(); ++i) {
+      if (search::SameSource(sources[i], wanted)) {
+        return static_cast<uint16_t>(i);
+      }
+    }
+    sources.push_back(wanted);
+    return static_cast<uint16_t>(sources.size() - 1);
+  };
   if (want_registry) {
     if (options.scope == SearchScope::kCurrentKey) {
+      const search::Source current = CurrentTabSource();
+      const uint16_t source = source_index(current.kind, current.name);
       if (!registry_scope_path.empty()) {
         RegistryNode node;
         if (ResolvePathToNode(registry_scope_path, &node)) {
-          start_nodes.push_back(node);
+          start_nodes.push_back({node, source});
         } else {
           std::wstring normalized = NormalizeRegistryPath(registry_scope_path);
           if (!normalized.empty() && ResolvePathToNode(normalized, &node)) {
-            start_nodes.push_back(node);
+            start_nodes.push_back({node, source});
           } else {
             ui::ShowError(hwnd_, L"Starting key path wasn't found.");
             return;
           }
         }
       } else if (browse_.current_node()) {
-        start_nodes.push_back(*browse_.current_node());
+        start_nodes.push_back({*browse_.current_node(), source});
       } else {
         ui::ShowError(hwnd_, L"Select a starting key first.");
         return;
       }
     } else {
       std::unordered_set<std::wstring> seen;
-      auto add_root = [&](const RegistryRootEntry& entry) {
+      auto add_root = [&](const RegistryRootEntry& entry, uint16_t source) {
         std::wstring key = ToLower(entry.path_name.empty() ? entry.display_name : entry.path_name);
         if (key.empty()) {
           return;
@@ -460,7 +478,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
         node.root = entry.root;
         node.root_name = entry.path_name;
         node.subkey = entry.subkey_prefix;
-        start_nodes.push_back(std::move(node));
+        start_nodes.push_back({std::move(node), source});
       };
 
       std::vector<RegistryRootEntry> local_roots =
@@ -470,7 +488,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
         for (const auto& path : options.root_paths) {
           for (const auto& root : local_roots) {
             if (_wcsicmp(root.path_name.c_str(), path.c_str()) == 0 || _wcsicmp(root.display_name.c_str(), path.c_str()) == 0) {
-              add_root(root);
+              add_root(root, 0);
               break;
             }
           }
@@ -478,7 +496,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
         if (start_nodes.empty()) {
           for (const auto& root : local_roots) {
             if (root.group == RegistryRootGroup::kStandard) {
-              add_root(root);
+              add_root(root, 0);
             }
           }
         }
@@ -486,12 +504,22 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
       if (options.search_registry_root) {
         for (const auto& root : local_roots) {
           if (root.group == RegistryRootGroup::kReal) {
-            add_root(root);
+            add_root(root, 0);
             break;
           }
         }
       }
-      if (options.include_offline_hives) {
+      if (options.search_offline_hives && !offline_roots_.empty()) {
+        std::wstring offline_path;
+        for (const auto& tab : tabs_) {
+          if (tab.kind == TabEntry::Kind::kRegistry &&
+              tab.registry_mode == RegistryMode::kOffline) {
+            offline_path = tab.offline_path;
+            break;
+          }
+        }
+        const uint16_t source =
+            source_index(search::Source::Kind::kOffline, offline_path);
         for (size_t i = 0; i < offline_roots_.size(); ++i) {
           RegistryRootEntry entry;
           entry.root = offline_roots_[i];
@@ -499,14 +527,16 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
                                    ? offline_root_labels_[i]
                                    : L"OfflineHive";
           entry.path_name = offline_root_name_ + L"\\" + entry.display_name;
-          add_root(entry);
+          add_root(entry, source);
         }
       }
-      if (options.include_reg_files) {
+      if (options.search_reg_files) {
         for (const auto& tab : tabs_) {
-          if (tab.kind != TabEntry::Kind::kRegFile) {
+          if (tab.kind != TabEntry::Kind::kRegFile || tab.reg_file_roots.empty()) {
             continue;
           }
+          const uint16_t source =
+              source_index(search::Source::Kind::kRegFile, tab.reg_file_path);
           for (const auto& root : tab.reg_file_roots) {
             if (!root.root) {
               continue;
@@ -515,23 +545,25 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
             entry.root = root.root;
             entry.display_name = root.name;
             entry.path_name = root.name;
-            add_root(entry);
+            add_root(entry, source);
           }
         }
       }
-      if (options.include_remote_registry && remote_hklm_) {
+      if (options.search_remote_registry && remote_hklm_) {
         const std::wstring prefix = remote_machine_ + L"\\";
+        const uint16_t source =
+            source_index(search::Source::Kind::kRemote, remote_machine_);
         remote_nodes = true;
-        add_root({remote_hklm_, L"HKEY_LOCAL_MACHINE", prefix + L"HKEY_LOCAL_MACHINE", L""});
+        add_root({remote_hklm_, L"HKEY_LOCAL_MACHINE", prefix + L"HKEY_LOCAL_MACHINE", L""}, source);
         if (remote_hku_) {
-          add_root({remote_hku_, L"HKEY_USERS", prefix + L"HKEY_USERS", L""});
+          add_root({remote_hku_, L"HKEY_USERS", prefix + L"HKEY_USERS", L""}, source);
         }
       }
     }
   }
 
   if (want_registry && start_nodes.empty()) {
-    ui::ShowError(hwnd_, L"Select at least one top-level key.");
+    ui::ShowError(hwnd_, L"No keys to search in the selected sources.");
     return;
   }
   if (!want_registry && !want_trace) {
@@ -578,6 +610,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
     tab.last_ui_count = 0;
     tab.is_compare = false;
     tab.sort_dirty = false;
+    tab.sources = sources;
     tab.open_in_new_tab = options.open_in_new_tab;
     TCITEMW item = {};
     item.mask = TCIF_TEXT;
@@ -587,6 +620,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
     SearchTab tab;
     tab.label = label;
     tab.is_compare = false;
+    tab.sources = sources;
     tab.open_in_new_tab = options.open_in_new_tab;
     search_tabs_.push_back(std::move(tab));
     search_index = static_cast<int>(search_tabs_.size() - 1);
@@ -1153,7 +1187,9 @@ void MainWindow::Impl::StopReplace() {
 }
 
 void MainWindow::Impl::CancelSearch() {
-  search_session_.CancelAndJoin();
+  search_session_.Cancel();
+  search_queue_space_.notify_all();
+  search_session_.Join();
   search_running_ = false;
   search_preview_request_posted_ = false;
   search_start_tick_ = 0;
@@ -1191,7 +1227,7 @@ void MainWindow::Impl::CloseSearchTab(int tab_index) {
     return;
   }
 
-  bool was_active = TabCtrl_GetCurSel(tab_) == tab_index;
+  const int previous_index = TabCtrl_GetCurSel(tab_);
 
   search_tabs_.erase(search_tabs_.begin() + search_index);
   tabs_.erase(tabs_.begin() + tab_index);
@@ -1207,11 +1243,7 @@ void MainWindow::Impl::CloseSearchTab(int tab_index) {
     --active_search_tab_index_;
   }
 
-  int new_count = TabCtrl_GetItemCount(tab_);
-  if (was_active && new_count > 0) {
-    int next = std::min(tab_index, new_count - 1);
-    SelectTabIndex(next);
-  }
+  SelectTabAfterClose(tab_index, previous_index);
   UpdateTabWidth();
   UpdateSearchResultsView();
   ApplyViewVisibility();

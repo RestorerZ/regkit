@@ -76,16 +76,6 @@ private:
     kPowerShellProvider,
     kEscaped,
   };
-  struct CompareSource {
-    enum class Kind {
-      kRegistry,
-      kRegFile,
-      kOfflineHive,
-    };
-    Kind kind = Kind::kRegistry;
-    std::wstring file_path;
-  };
-
   struct TabEntry;
   struct SearchTab;
   struct SearchTabLoadPayload;
@@ -225,6 +215,7 @@ private:
   void ApplyValueColumns();
   void ApplyHistoryColumns();
   void ApplySearchColumns(bool compare);
+  void RefreshCompareColumnTitles();
   void UpdateValueListForNode(RegistryNode* node);
   void AttachBorder(HWND control);
   void AttachHeader(HWND header);
@@ -289,6 +280,7 @@ private:
   void UpdateSearchResultsView();
   void SortSearchTabResults(SearchTab* tab);
   void CloseSearchTab(int tab_index);
+  void SelectTabAfterClose(int closed_index, int previous_index);
   bool SwitchToLocalRegistry();
   bool SwitchToRemoteRegistry();
   bool ConnectRemoteRegistry(const std::wstring& machine);
@@ -422,6 +414,8 @@ private:
   void ApplyViewVisibility();
   void SelectTabIndex(int index);
   void ApplyTabSelection(int index);
+  search::Source CurrentTabSource() const;
+  search::Source TabSource(int index) const;
   void SyncRegFileTabSelection();
   void ResetHiveListCache();
   void EnsureHiveListLoaded();
@@ -439,9 +433,9 @@ private:
   bool InvertSelectionInFocusedList();
   bool IsCompareTabSelected() const;
   void StartCompareRegistries();
-  void OpenCompareEntry(const CompareSource& source, const std::wstring& path,
-                        const std::wstring& value_name, bool new_tab);
-  int FindCompareSourceTab(const CompareSource& source) const;
+  void OpenSourceEntry(const search::Source& source, const std::wstring& path,
+                       const std::wstring& value_name, bool new_tab);
+  int FindSourceTab(const search::Source& source) const;
   bool AppendHistoryCache(const HistoryEntry& entry);
   std::wstring CacheFolderPath() const;
   std::wstring HistoryCachePath() const;
@@ -585,6 +579,7 @@ private:
   std::vector<int> search_column_widths_;
   std::vector<bool> search_column_visible_;
   std::vector<ColumnInfo> compare_columns_;
+  std::vector<std::wstring> compare_column_titles_;
   std::vector<int> compare_column_widths_;
   std::vector<bool> compare_column_visible_;
   bool compare_columns_active_ = false;
@@ -731,8 +726,7 @@ private:
     bool results_loaded = true;
     uint64_t generation = 0;
     bool is_compare = false;
-    CompareSource first_source;
-    CompareSource second_source;
+    std::vector<search::Source> sources;
     size_t last_ui_count = 0;
     int sort_column = -1;
     bool sort_ascending = true;

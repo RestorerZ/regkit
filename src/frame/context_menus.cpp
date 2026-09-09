@@ -485,13 +485,17 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
   std::wstring first_key_path;
   std::wstring second_key_path;
   std::wstring row_value_name;
-  CompareSource first_source;
-  CompareSource second_source;
+  search::Source first_source;
+  search::Source second_source;
   const bool compare_row = IsCompareTabSelected();
   if (compare_row) {
     const SearchTab& compare_tab = search_tabs_[static_cast<size_t>(search_index)];
-    first_source = compare_tab.first_source;
-    second_source = compare_tab.second_source;
+    if (!compare_tab.sources.empty()) {
+      first_source = compare_tab.sources.front();
+    }
+    if (compare_tab.sources.size() > 1) {
+      second_source = compare_tab.sources[1];
+    }
     if (static_cast<size_t>(index) < compare_tab.compare_rows.size()) {
       const auto& row = compare_tab.compare_rows[static_cast<size_t>(index)];
       first_key_path = row.first_key_path;
@@ -503,6 +507,13 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
   }
 
   const search::Result* result = SearchResultAt(index);
+  search::Source row_source;
+  if (!compare_row && result) {
+    const SearchTab& result_tab = search_tabs_[static_cast<size_t>(search_index)];
+    if (result->source < result_tab.sources.size()) {
+      row_source = result_tab.sources[result->source];
+    }
+  }
   const bool is_key_row = !result || search::IsKeyRow(*result);
   if (!is_key_row && result) {
     row_value_name = result->value_name;
@@ -572,15 +583,17 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
     const UINT first_flags = MF_STRING | (first_key_path.empty() ? MF_GRAYED : 0);
     const UINT second_flags = MF_STRING | (second_key_path.empty() ? MF_GRAYED : 0);
     const UINT first_open_flags =
-        first_flags | (FindCompareSourceTab(first_source) < 0 ? MF_GRAYED : 0);
+        first_flags | (FindSourceTab(first_source) < 0 ? MF_GRAYED : 0);
     const UINT second_open_flags =
-        second_flags | (FindCompareSourceTab(second_source) < 0 ? MF_GRAYED : 0);
+        second_flags | (FindSourceTab(second_source) < 0 ? MF_GRAYED : 0);
     AppendMenuW(menu, first_open_flags, kSearchOpenKey, L"Open First Entry");
     AppendMenuW(menu, first_flags, kSearchOpenKeyNewTab, L"Open First Entry in New Tab");
     AppendMenuW(menu, second_open_flags, kSearchOpenSecondKey, L"Open Second Entry");
     AppendMenuW(menu, second_flags, kSearchOpenSecondKeyNewTab, L"Open Second Entry in New Tab");
   } else {
-    AppendMenuW(menu, MF_STRING, kSearchOpenKey, L"Open Key");
+    const UINT open_flags =
+        MF_STRING | (FindSourceTab(row_source) < 0 ? MF_GRAYED : 0);
+    AppendMenuW(menu, open_flags, kSearchOpenKey, L"Open Key");
     AppendMenuW(menu, MF_STRING, kSearchOpenKeyNewTab, L"Open Key in New Tab");
   }
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
@@ -613,28 +626,12 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
     return;
   }
 
-  auto open_path = [&](const std::wstring& path, bool new_tab) {
-    if (!tab_ || path.empty()) {
-      return;
-    }
-    if (new_tab) {
-      OpenLocalRegistryTab();
-    } else {
-      ActivateRegistryTab();
-    }
-    ApplyViewVisibility();
-    UpdateStatus();
-    SelectTreePath(path);
-    if (!row_value_name.empty()) {
-      SelectValueWhenReady(row_value_name);
-    }
-  };
   auto open_key = [&](bool new_tab) {
-    if (compare_row && !first_key_path.empty()) {
-      OpenCompareEntry(first_source, first_key_path, row_value_name, new_tab);
+    if (compare_row) {
+      OpenSourceEntry(first_source, first_key_path, row_value_name, new_tab);
       return;
     }
-    open_path(key_path, new_tab);
+    OpenSourceEntry(row_source, key_path, row_value_name, new_tab);
   };
   auto focus_key = [&]() {
     open_key(false);
@@ -678,11 +675,11 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
     open_key(true);
     return;
   case kSearchOpenSecondKey:
-    OpenCompareEntry(second_source, second_key_path, row_value_name,
-                     SearchResultOpensInNewTab());
+    OpenSourceEntry(second_source, second_key_path, row_value_name,
+                    SearchResultOpensInNewTab());
     return;
   case kSearchOpenSecondKeyNewTab:
-    OpenCompareEntry(second_source, second_key_path, row_value_name, true);
+    OpenSourceEntry(second_source, second_key_path, row_value_name, true);
     return;
   case kSearchModify:
     run_on_value(cmd::kEditModify);

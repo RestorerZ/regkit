@@ -97,7 +97,7 @@ inline void ReleasePostedPayload(std::unique_ptr<T>& payload) {
   (void)payload.release();
 }
 
-constexpr wchar_t kStandardGroupLabel[] = L"Standart Hives";
+constexpr wchar_t kStandardGroupLabel[] = L"Standard Hives";
 constexpr wchar_t kRealGroupLabel[] = L"REGISTRY";
 
 constexpr DWORD kSearchResultsMaxMs = 15;

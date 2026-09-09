@@ -247,6 +247,7 @@ void MainWindow::Impl::CreateSearchColumns() {
       {L"Data", 360, LVCFMT_LEFT},
       {L"Size", 80, LVCFMT_RIGHT},
       {L"Date Modified", 150, LVCFMT_LEFT},
+      {L"Source", 150, LVCFMT_LEFT},
   };
   search_column_widths_.clear();
   search_column_visible_.clear();
@@ -262,6 +263,7 @@ void MainWindow::Impl::CreateSearchColumns() {
       {L"First Entry", 320, LVCFMT_LEFT},
       {L"Second Entry", 320, LVCFMT_LEFT},
   };
+  compare_column_titles_ = {compare_columns_[2].title, compare_columns_[3].title};
   compare_column_widths_.clear();
   compare_column_visible_.clear();
   compare_column_widths_.reserve(compare_columns_.size());
@@ -275,9 +277,30 @@ void MainWindow::Impl::CreateSearchColumns() {
   AttachHeader(header);
 }
 
+void MainWindow::Impl::RefreshCompareColumnTitles() {
+  if (compare_columns_.size() < 4 || compare_column_titles_.size() < 2) {
+    return;
+  }
+  const int index = tab_ ? SearchIndexFromTab(TabCtrl_GetCurSel(tab_)) : -1;
+  const SearchTab* tab =
+      index >= 0 && static_cast<size_t>(index) < search_tabs_.size()
+          ? &search_tabs_[static_cast<size_t>(index)]
+          : nullptr;
+  for (size_t side = 0; side < 2; ++side) {
+    std::wstring title = compare_column_titles_[side];
+    if (tab && tab->is_compare && side < tab->sources.size()) {
+      title += L" (" + search::SourceLabel(tab->sources[side]) + L")";
+    }
+    compare_columns_[side + 2].title = std::move(title);
+  }
+}
+
 void MainWindow::Impl::ApplySearchColumns(bool compare) {
   if (!search_results_list_) {
     return;
+  }
+  if (compare) {
+    RefreshCompareColumnTitles();
   }
   const auto& columns = compare ? compare_columns_ : search_columns_;
   auto& widths = compare ? compare_column_widths_ : search_column_widths_;

@@ -114,6 +114,13 @@ bool ParseVersionedRecord(const std::vector<std::wstring>& fields,
   result.match_length = static_cast<uint32_t>(match_length);
   result.kind = static_cast<ResultKind>(kind);
   result.data_state = static_cast<DataState>(state);
+  if (fields.size() > 11) {
+    unsigned long long source = 0;
+    if (!ParseNumber(fields[11], UINT16_MAX, &source)) {
+      return false;
+    }
+    result.source = static_cast<uint16_t>(source);
+  }
   *out = std::move(result);
   return true;
 }
@@ -148,7 +155,8 @@ bool ParseResults(const std::wstring& content,
     const auto fields = record_fields::Split(line);
     if (versioned) {
       Result record;
-      if (fields.size() != 11 || !ParseVersionedRecord(fields, &record)) {
+      if (fields.size() < 11 || fields.size() > 12 ||
+          !ParseVersionedRecord(fields, &record)) {
         return false;
       }
       results.push_back(std::move(record));
@@ -177,7 +185,8 @@ std::wstring SerializeResults(const std::vector<Result>& results) {
     content += std::to_wstring(result.match_start) + L'\t';
     content += std::to_wstring(result.match_length) + L'\t';
     content += std::to_wstring(static_cast<int>(result.kind)) + L'\t';
-    content += std::to_wstring(static_cast<int>(result.data_state)) + L'\n';
+    content += std::to_wstring(static_cast<int>(result.data_state)) + L'\t';
+    content += std::to_wstring(result.source) + L'\n';
   }
   return content;
 }

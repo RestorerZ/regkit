@@ -956,50 +956,49 @@ void ShowAbout(HWND owner) {
 }
 
 bool ConfirmRegFileMerge(HWND owner, const std::wstring& path) {
-  std::wstring message = L"Adding information can unintentionally change or delete values and\n"
-                         L"cause components to stop working correctly. If you don't trust the\n"
-                         L"source of this information in ";
-  message += path;
-  message += L",\ndon't add it to the registry.\n\n"
-             L"Are you sure you want to continue?";
+  const std::wstring message =
+      L"Adding information can unintentionally change or delete values and\n"
+      L"cause components to stop working correctly. If you don't trust the\n"
+      L"source of this information, don't add it to the registry.\n\n"
+      L"Are you sure you want to continue?";
   int result = IDCANCEL;
-  if (ShowChoiceDialog(owner, kAppTitle, message, L"Yes", L"No", L"", &result, IDI_WARNING, 560, 200)) {
+  if (ShowChoiceDialog(owner, kAppTitle, message, L"Yes", L"No", L"", &result, IDI_WARNING, 560, 232, {}, path)) {
     return result == IDYES;
   }
   int clicked = 0;
-  if (ShowTaskDialog(owner, kAppTitle, message, TDCBF_YES_BUTTON | TDCBF_NO_BUTTON, &clicked, TD_WARNING_ICON)) {
+  const std::wstring plain = message + L"\n\n" + path;
+  if (ShowTaskDialog(owner, kAppTitle, plain, TDCBF_YES_BUTTON | TDCBF_NO_BUTTON, &clicked, TD_WARNING_ICON)) {
     return clicked == IDYES;
   }
   return false;
 }
 
 void ShowRegFileMergeSucceeded(HWND owner, const std::wstring& path) {
-  std::wstring message = L"The keys and values contained in\n";
-  message += path;
-  message += L" have been successfully added to\nthe registry.";
+  const std::wstring message =
+      L"The keys and values it contains have been added to the registry.";
   int result = IDCANCEL;
-  if (ShowChoiceDialog(owner, kAppTitle, message, L"OK", L"", L"", &result, IDI_INFORMATION, 350, 150)) {
+  if (ShowChoiceDialog(owner, kAppTitle, message, L"OK", L"", L"", &result, IDI_INFORMATION, 520, 182, {}, path)) {
     return;
   }
-  if (!ShowTaskDialog(owner, kAppTitle, message, TDCBF_OK_BUTTON, nullptr, TD_INFORMATION_ICON)) {
-    ShowInfo(owner, message);
+  const std::wstring plain = message + L"\n\n" + path;
+  if (!ShowTaskDialog(owner, kAppTitle, plain, TDCBF_OK_BUTTON, nullptr, TD_INFORMATION_ICON)) {
+    ShowInfo(owner, plain);
   }
 }
 
 void ShowRegFileMergeFailed(HWND owner, const std::wstring& path, const std::wstring& detail) {
-  std::wstring message = L"Can't import ";
-  message += path;
-  message += L".";
+  std::wstring message = L"The registry file couldn't be imported.";
   if (!detail.empty()) {
     message += L"\n\n";
     message += detail;
   }
   int result = IDCANCEL;
-  if (ShowChoiceDialog(owner, kAppTitle, message, L"OK", L"", L"", &result, IDI_ERROR, 520, 180)) {
+  if (ShowChoiceDialog(owner, kAppTitle, message, L"OK", L"", L"", &result, IDI_ERROR, 520, 212, {}, path)) {
     return;
   }
-  if (!ShowTaskDialog(owner, kAppTitle, message, TDCBF_OK_BUTTON, nullptr, TD_ERROR_ICON)) {
-    ShowError(owner, message);
+  const std::wstring plain = message + L"\n\n" + path;
+  if (!ShowTaskDialog(owner, kAppTitle, plain, TDCBF_OK_BUTTON, nullptr, TD_ERROR_ICON)) {
+    ShowError(owner, plain);
   }
 }
 
