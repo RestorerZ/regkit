@@ -311,6 +311,19 @@ LRESULT CALLBACK GroupBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM
   case WM_NCDESTROY:
     RemoveWindowSubclass(hwnd, GroupBoxSubclassProc, id);
     break;
+  case WM_ENABLE: {
+    const LRESULT result = DefSubclassProc(hwnd, msg, wparam, lparam);
+    HWND parent = GetParent(hwnd);
+    RECT rc = {};
+    if (parent && GetWindowRect(hwnd, &rc)) {
+      MapWindowPoints(nullptr, parent, reinterpret_cast<POINT*>(&rc), 2);
+      RedrawWindow(parent, &rc, nullptr,
+                   RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+    } else {
+      InvalidateRect(hwnd, nullptr, TRUE);
+    }
+    return result;
+  }
   case WM_ERASEBKGND:
     return 1;
   case WM_PRINTCLIENT:

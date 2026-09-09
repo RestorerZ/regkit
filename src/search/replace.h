@@ -19,6 +19,8 @@ struct ReplaceOptions {
   bool replace_keys = false;
   bool replace_values = true;
   bool replace_data = true;
+  bool number_decimal = true;
+  bool number_hex = false;
 };
 
 class Replacer {

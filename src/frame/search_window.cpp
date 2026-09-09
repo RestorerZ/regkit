@@ -977,8 +977,8 @@ void WriteNumber(uint64_t value, size_t width, bool big_endian,
 }
 
 DataReplace ReplaceValueData(const search::Replacer& matcher, DWORD type,
-                             const std::vector<BYTE>& data,
-                             std::vector<BYTE>* out) {
+                             const std::vector<BYTE>& data, bool number_decimal,
+                             bool number_hex, std::vector<BYTE>* out) {
   const DWORD base = value_format::NormalizeType(type);
   switch (base) {
   case REG_SZ:
@@ -1021,10 +1021,18 @@ DataReplace ReplaceValueData(const search::Replacer& matcher, DWORD type,
     const std::wstring decimal = std::to_wstring(number);
     const std::wstring bare_hex = PaddedHex(number, width);
     const std::wstring prefixed_hex = L"0x" + bare_hex;
-    const struct {
+    struct NumberForm {
       const std::wstring* text;
       int base;
-    } forms[] = {{&decimal, 10}, {&prefixed_hex, 16}, {&bare_hex, 16}};
+    };
+    std::vector<NumberForm> forms;
+    if (number_decimal) {
+      forms.push_back({&decimal, 10});
+    }
+    if (number_hex) {
+      forms.push_back({&prefixed_hex, 16});
+      forms.push_back({&bare_hex, 16});
+    }
 
     for (const auto& form : forms) {
       std::wstring updated;
@@ -1176,8 +1184,9 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
             }
 
             std::vector<BYTE> new_data;
-            const DataReplace outcome =
-                ReplaceValueData(matcher, value.type, value.data, &new_data);
+            const DataReplace outcome = ReplaceValueData(
+                matcher, value.type, value.data, options.number_decimal,
+                options.number_hex, &new_data);
             if (outcome == DataReplace::kRejected) {
               ++payload->rejected;
               continue;

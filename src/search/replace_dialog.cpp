@@ -15,6 +15,7 @@
 #include "appearance/theme.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 
@@ -22,6 +23,9 @@ namespace {
 
 constexpr wchar_t kDialogClass[] = L"RegKitReplaceDialog";
 constexpr int kReplaceButtonWidth = 80;
+constexpr int kNumberDecimalWidth = 144;
+constexpr int kNumberHexWidth = 116;
+constexpr int kCheckBoxIdealPadding = 12;
 
 enum ControlId {
   kFindLabel = 100,
@@ -40,6 +44,9 @@ enum ControlId {
   kSearchKeys = 125,
   kSearchValues = 126,
   kSearchData = 127,
+  kValueDataGroup = 128,
+  kNumberDecimal = 129,
+  kNumberHex = 130,
   kReplaceButton = IDOK,
   kCancelButton = IDCANCEL,
 };
@@ -57,6 +64,8 @@ struct ReplaceDialogState {
   HWND search_keys = nullptr;
   HWND search_values = nullptr;
   HWND search_data = nullptr;
+  HWND number_decimal = nullptr;
+  HWND number_hex = nullptr;
   HWND replace_button = nullptr;
   HWND cancel_button = nullptr;
   HWND owner = nullptr;
@@ -66,10 +75,34 @@ struct ReplaceDialogState {
   bool owner_restored = false;
 };
 
+void UpdateValueDataOptions(HWND hwnd, const ReplaceDialogState* state) {
+  if (!state) {
+    return;
+  }
+  const bool enabled =
+      SendMessageW(state->search_data, BM_GETCHECK, 0, 0) == BST_CHECKED;
+  EnableWindow(GetDlgItem(hwnd, kValueDataGroup), enabled);
+  EnableWindow(state->number_decimal, enabled);
+  EnableWindow(state->number_hex, enabled);
+}
+
 HFONT CreateDialogFont(HWND hwnd) {
   return ui::DefaultUIFont(win32::DpiForWindow(hwnd));
 }
 
+
+int CheckBoxIdealWidth(HWND control, int fallback) {
+  SIZE ideal = {};
+  if (control &&
+      SendMessageW(control, BCM_GETIDEALSIZE, 0,
+                   reinterpret_cast<LPARAM>(&ideal)) &&
+      ideal.cx > 0) {
+    return ideal.cx +
+           appearance::metrics::Scaled(kCheckBoxIdealPadding,
+                                       win32::DpiForWindow(control));
+  }
+  return fallback;
+}
 
 void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
   if (!hwnd || !state) {
@@ -127,7 +160,10 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
                     line_h);
   y += where_h + block_gap;
 
-  const int options_h = group_top + row_pitch * 3 + check_h + group_bottom;
+  const int nested_w = group_w - group_inset * 2;
+  const int nested_h = group_top + check_h + group_bottom;
+  const int options_h =
+      group_top + row_pitch * 4 + nested_h + group_bottom;
   appearance::Place(GetDlgItem(hwnd, kOptionsGroup), x, y, group_w, options_h);
   const int ox = x + group_inset;
   const int oy = y + group_top;
@@ -140,6 +176,20 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font) {
   appearance::Place(state->search_keys, ox, oy + row_pitch * 2, col_w, check_h);
   appearance::Place(state->search_values, col2_x, oy + row_pitch * 2, col_w, check_h);
   appearance::Place(state->search_data, ox, oy + row_pitch * 3, col_w, check_h);
+  const int nested_y = oy + row_pitch * 4;
+  appearance::Place(GetDlgItem(hwnd, kValueDataGroup), ox, nested_y, nested_w,
+                    nested_h);
+  const int ny = nested_y + group_top;
+  const int half_w = (nested_w - group_inset * 2) / 2;
+  const int half_x = ox + group_inset;
+  const int dec_w = CheckBoxIdealWidth(state->number_decimal,
+                                      Scaled(kNumberDecimalWidth, dpi));
+  const int hex_w = CheckBoxIdealWidth(state->number_hex,
+                                      Scaled(kNumberHexWidth, dpi));
+  appearance::Place(state->number_decimal, half_x + (half_w - dec_w) / 2, ny,
+                    dec_w, check_h);
+  appearance::Place(state->number_hex,
+                    half_x + half_w + (half_w - hex_w) / 2, ny, hex_w, check_h);
   y += options_h + block_gap;
 
   const int cancel_x = width - right_margin - button_w;
@@ -194,6 +244,10 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
     state->search_values = CreateWindowExW(0, L"BUTTON", L"Replace in value names", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchValues), nullptr, nullptr);
     state->search_data = CreateWindowExW(0, L"BUTTON", L"Replace in value data", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchData), nullptr, nullptr);
 
+    CreateWindowExW(0, L"BUTTON", L"Value Data", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kValueDataGroup), nullptr, nullptr);
+    state->number_decimal = CreateWindowExW(0, L"BUTTON", L"Numbers as decimal", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kNumberDecimal), nullptr, nullptr);
+    state->number_hex = CreateWindowExW(0, L"BUTTON", L"Numbers as hex", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kNumberHex), nullptr, nullptr);
+
     state->replace_button = CreateWindowExW(0, L"BUTTON", L"Replace", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceButton), nullptr, nullptr);
     state->cancel_button = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
 
@@ -208,11 +262,15 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
       SendMessageW(state->search_keys, BM_SETCHECK, state->out->replace_keys ? BST_CHECKED : BST_UNCHECKED, 0);
       SendMessageW(state->search_values, BM_SETCHECK, state->out->replace_values ? BST_CHECKED : BST_UNCHECKED, 0);
       SendMessageW(state->search_data, BM_SETCHECK, state->out->replace_data ? BST_CHECKED : BST_UNCHECKED, 0);
+      SendMessageW(state->number_decimal, BM_SETCHECK, state->out->number_decimal ? BST_CHECKED : BST_UNCHECKED, 0);
+      SendMessageW(state->number_hex, BM_SETCHECK, state->out->number_hex ? BST_CHECKED : BST_UNCHECKED, 0);
     } else {
       SendMessageW(state->recursive, BM_SETCHECK, BST_CHECKED, 0);
       SendMessageW(state->search_values, BM_SETCHECK, BST_CHECKED, 0);
       SendMessageW(state->search_data, BM_SETCHECK, BST_CHECKED, 0);
+      SendMessageW(state->number_decimal, BM_SETCHECK, BST_CHECKED, 0);
     }
+    UpdateValueDataOptions(hwnd, state);
 
     EnumChildWindows(
         hwnd,
@@ -282,6 +340,9 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
       return 0;
     }
     switch (LOWORD(wparam)) {
+    case kSearchData:
+      UpdateValueDataOptions(hwnd, state);
+      return 0;
     case kKeyBrowse: {
       std::wstring selected;
       if (ShowBrowseKeyDialog(hwnd, &selected)) {
@@ -292,17 +353,13 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
       return 0;
     }
     case kReplaceButton: {
-      wchar_t find_text[512] = {};
-      GetWindowTextW(state->find_edit, find_text, static_cast<int>(_countof(find_text)));
-      std::wstring find_value = find_text;
+      const std::wstring find_value = util::WindowText(state->find_edit);
       if (find_value.empty()) {
         ui::ShowError(hwnd, L"Enter text to find.");
         return 0;
       }
-      wchar_t replace_text[512] = {};
-      GetWindowTextW(state->replace_edit, replace_text, static_cast<int>(_countof(replace_text)));
-      wchar_t key_text[512] = {};
-      GetWindowTextW(state->key_edit, key_text, static_cast<int>(_countof(key_text)));
+      const std::wstring replace_text = util::WindowText(state->replace_edit);
+      const std::wstring key_text = util::WindowText(state->key_edit);
 
       if (state->out) {
         state->out->find_text = find_value;
@@ -315,6 +372,8 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
         state->out->replace_keys = SendMessageW(state->search_keys, BM_GETCHECK, 0, 0) == BST_CHECKED;
         state->out->replace_values = SendMessageW(state->search_values, BM_GETCHECK, 0, 0) == BST_CHECKED;
         state->out->replace_data = SendMessageW(state->search_data, BM_GETCHECK, 0, 0) == BST_CHECKED;
+        state->out->number_decimal = SendMessageW(state->number_decimal, BM_GETCHECK, 0, 0) == BST_CHECKED;
+        state->out->number_hex = SendMessageW(state->number_hex, BM_GETCHECK, 0, 0) == BST_CHECKED;
         if (!state->out->replace_keys && !state->out->replace_values &&
             !state->out->replace_data) {
           ui::ShowError(hwnd, L"Select what should be replaced.");
