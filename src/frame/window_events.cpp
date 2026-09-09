@@ -454,6 +454,11 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(HWND hwnd, UINT message, WPARAM 
     InvalidateListViewTail(hwnd);
   }
 
+  if (message == WM_KEYDOWN && wparam == VK_RETURN && self &&
+      hwnd == self->browse_.values().hwnd()) {
+    self->value_activate_from_key_ = true;
+  }
+
   if (self && self->show_value_grid_ &&
       (hwnd == self->browse_.values().hwnd() ||
        hwnd == self->search_results_list_) &&
@@ -522,11 +527,6 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(HWND hwnd, UINT message, WPARAM 
       if (!same_cell) {
         SendMessageW(self->value_tooltip_, TTM_POP, 0, 0);
       }
-    }
-  }
-  if (message == WM_KEYDOWN && self && hwnd == self->browse_.values().hwnd()) {
-    if (wparam == VK_RETURN) {
-      self->value_activate_from_key_ = true;
     }
   }
   if (message == WM_CHAR && self && hwnd == self->browse_.values().hwnd()) {
