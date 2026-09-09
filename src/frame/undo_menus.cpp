@@ -4,6 +4,7 @@
 #include "frame/window_detail.h"
 
 namespace regkit {
+
 using namespace window_detail;
 
 void MainWindow::Impl::PushUndo(changes::UndoOperation operation) {
@@ -634,6 +635,8 @@ void MainWindow::Impl::ClearValueFilter(bool focus_values) {
   if (GetWindowTextLengthW(browse_.filter()) > 0) {
     SetWindowTextW(browse_.filter(), L"");
   }
+  browse_.values().SetFilter(std::wstring());
+  UpdateStatus();
   if (focus_values && browse_.values().hwnd()) {
     SetFocus(browse_.values().hwnd());
   }
@@ -712,6 +715,43 @@ void MainWindow::Impl::SelectValueWhenReady(const std::wstring& name) {
   }
   if (!value_list_loading_ && SelectValueByName(name)) {
     pending_value_name_.clear();
+  }
+}
+
+void MainWindow::Impl::RestoreValueSelection() {
+  HWND list = browse_.values().hwnd();
+  std::vector<std::wstring> names;
+  names.swap(pending_value_selection_);
+  const int top = pending_value_top_index_;
+  pending_value_top_index_ = 0;
+  pending_value_selection_key_.clear();
+  if (!list) {
+    return;
+  }
+  ListView_SetItemState(list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+  bool first = true;
+  for (const std::wstring& name : names) {
+    for (size_t row_index = 0; row_index < browse_.values().RowCount(); ++row_index) {
+      const ListRow* row = browse_.values().RowAt(static_cast<int>(row_index));
+      if (!row || row->kind != rowkind::kValue || row->extra != name) {
+        continue;
+      }
+      ListView_SetItemState(list, static_cast<int>(row_index),
+                            LVIS_SELECTED | (first ? LVIS_FOCUSED : 0),
+                            LVIS_SELECTED | LVIS_FOCUSED);
+      first = false;
+      break;
+    }
+  }
+  const int current_top = ListView_GetTopIndex(list);
+  if (top > 0 && top != current_top) {
+    RECT bounds = {};
+    if (ListView_GetItemRect(list, 0, &bounds, LVIR_BOUNDS)) {
+      const int height = bounds.bottom - bounds.top;
+      if (height > 0) {
+        ListView_Scroll(list, 0, (top - current_top) * height);
+      }
+    }
   }
 }
 

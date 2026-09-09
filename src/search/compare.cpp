@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "search/compare.h"
+#include "records/escaped_fields.h"
+#include "win32/file_text.h"
 #include "win32/text_transform.h"
 
 #include "regfile/reg_file.h"
@@ -340,6 +342,70 @@ std::vector<Row> Diff(const Snapshot& first, const Snapshot& second,
     }
   }
   return results;
+}
+
+
+std::wstring SerializeRows(const std::vector<Row>& rows) {
+  std::wstring content = L"version=1\n";
+  for (const Row& row : rows) {
+    content += record_fields::Escape(row.key_path);
+    content += L'\t';
+    content += record_fields::Escape(row.first_key_path);
+    content += L'\t';
+    content += record_fields::Escape(row.second_key_path);
+    content += L'\t';
+    content += record_fields::Escape(row.value_name);
+    content += L'\t';
+    content += record_fields::Escape(row.first_text);
+    content += L'\t';
+    content += record_fields::Escape(row.second_text);
+    content += L'\t';
+    content += (row.is_key ? L"1" : L"0");
+    content += L'\n';
+  }
+  return content;
+}
+
+bool ParseRows(const std::wstring& content, std::vector<Row>* rows) {
+  if (!rows) {
+    return false;
+  }
+  std::vector<Row> parsed;
+  for (const std::wstring& line : record_fields::Lines(content)) {
+    if (line.empty() || line.rfind(L"version=", 0) == 0) {
+      continue;
+    }
+    const auto fields = record_fields::Split(line);
+    if (fields.size() < 7) {
+      continue;
+    }
+    Row row;
+    row.key_path = record_fields::Unescape(fields[0]);
+    row.first_key_path = record_fields::Unescape(fields[1]);
+    row.second_key_path = record_fields::Unescape(fields[2]);
+    row.value_name = record_fields::Unescape(fields[3]);
+    row.first_text = record_fields::Unescape(fields[4]);
+    row.second_text = record_fields::Unescape(fields[5]);
+    row.is_key = _wtoi(fields[6].c_str()) != 0;
+    parsed.push_back(std::move(row));
+  }
+  *rows = std::move(parsed);
+  return true;
+}
+
+bool SaveRows(const std::wstring& path, const std::vector<Row>& rows) {
+  return !path.empty() && util::WriteTextFile(path, SerializeRows(rows), false);
+}
+
+bool LoadRows(const std::wstring& path, std::vector<Row>* rows) {
+  if (!rows || path.empty()) {
+    return false;
+  }
+  std::wstring content;
+  if (!util::ReadTextFile(path, &content)) {
+    return false;
+  }
+  return ParseRows(content, rows);
 }
 
 } // namespace regkit::search::compare

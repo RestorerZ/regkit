@@ -80,7 +80,7 @@ bool BrokerRestart(HWND owner, const wchar_t* target_arg, const wchar_t* failure
 
 void MainWindow::Impl::PrepareSessionHandover() {
   CaptureRegistryTabState(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
-  SaveTabs();
+  SaveSessionTabs();
   SaveSettings();
 }
 

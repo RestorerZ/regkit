@@ -124,7 +124,45 @@ void MainWindow::Impl::ReleaseRegFileRoots(TabEntry* entry) {
   entry->reg_file_roots.clear();
 }
 
-bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path) {
+
+void MainWindow::Impl::StartRegFileParse(const std::wstring& path,
+                                        const std::wstring& session_key) {
+  if (path.empty() || session_key.empty() ||
+      reg_file_parse_sessions_.find(session_key) != reg_file_parse_sessions_.end()) {
+    return;
+  }
+  auto session = std::make_unique<RegFileParseSession>();
+  session->source_path = path;
+  session->source_lower = session_key;
+  HWND hwnd = hwnd_;
+  RegFileParseSession* session_ptr = session.get();
+  session->work.Start([this, session_ptr, hwnd](uint64_t generation,
+                                                std::atomic_bool& cancel) {
+    auto payload = std::make_unique<RegFileParsePayload>();
+    payload->generation = generation;
+    payload->source_path = session_ptr->source_path;
+    payload->source_lower = session_ptr->source_lower;
+    std::wstring parse_error;
+    std::vector<ParsedRegFileRoot> parsed_roots;
+    bool cancelled = false;
+    if (!ParseRegFileToVirtualRoots(payload->source_path, &parsed_roots,
+                                    &parse_error, &cancel, &cancelled)) {
+      if (!cancelled && parse_error.empty()) {
+        parse_error = L"Failed to read registry file.";
+      }
+    }
+    payload->roots = std::move(parsed_roots);
+    payload->error = std::move(parse_error);
+    payload->cancelled = cancelled;
+    if (!hwnd || !IsWindow(hwnd) || !PostMessageW(hwnd, frame::message_id::kRegFileLoadReady, 0, reinterpret_cast<LPARAM>(payload.get()))) {
+      return;
+    }
+    ReleasePostedPayload(payload);
+  });
+  reg_file_parse_sessions_.emplace(session_key, std::move(session));
+}
+
+bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path, bool force_new_tab) {
   if (!tab_ || path.empty()) {
     return false;
   }
@@ -136,45 +174,7 @@ bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path) {
   if (label.empty()) {
     label = L"Registry File";
   }
-  std::wstring path_lower = ToLower(path);
-  auto start_parse = [&]() {
-    if (reg_file_parse_sessions_.find(path_lower) != reg_file_parse_sessions_.end()) {
-      return;
-    }
-    auto session = std::make_unique<RegFileParseSession>();
-    session->source_path = path;
-    session->source_lower = path_lower;
-    HWND hwnd = hwnd_;
-    RegFileParseSession* session_ptr = session.get();
-    session->work.Start([this, session_ptr, hwnd](
-                            uint64_t generation,
-                            std::atomic_bool& cancel) {
-      auto payload = std::make_unique<RegFileParsePayload>();
-      payload->generation = generation;
-      payload->source_path = session_ptr->source_path;
-      payload->source_lower = session_ptr->source_lower;
-      std::wstring parse_error;
-      std::vector<ParsedRegFileRoot> parsed_roots;
-      bool cancelled = false;
-      if (!ParseRegFileToVirtualRoots(payload->source_path, &parsed_roots,
-                                      &parse_error, &cancel,
-                                      &cancelled)) {
-        if (!cancelled && parse_error.empty()) {
-          parse_error = L"Failed to read registry file.";
-        }
-      }
-      payload->roots = std::move(parsed_roots);
-      payload->error = std::move(parse_error);
-      payload->cancelled = cancelled;
-      if (!hwnd || !IsWindow(hwnd) || !PostMessageW(hwnd, frame::message_id::kRegFileLoadReady, 0, reinterpret_cast<LPARAM>(payload.get()))) {
-        return;
-      }
-      ReleasePostedPayload(payload);
-    });
-    reg_file_parse_sessions_.emplace(path_lower, std::move(session));
-  };
-
-  for (size_t i = 0; i < tabs_.size(); ++i) {
+  for (size_t i = 0; !force_new_tab && i < tabs_.size(); ++i) {
     TabEntry& entry = tabs_[i];
     if (entry.kind != TabEntry::Kind::kRegFile) {
       continue;
@@ -183,6 +183,10 @@ bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path) {
       entry.reg_file_path = path;
       entry.reg_file_label = label;
       entry.reg_file_loading = true;
+      if (entry.reg_file_session_key.empty()) {
+        entry.reg_file_session_key =
+            ToLower(path) + L"|" + std::to_wstring(++reg_file_session_serial_);
+      }
       TCITEMW item = {};
       item.mask = TCIF_TEXT;
       item.pszText = const_cast<wchar_t*>(label.c_str());
@@ -191,7 +195,7 @@ bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path) {
       SyncRegFileTabSelection();
       ApplyViewVisibility();
       UpdateStatus();
-      start_parse();
+      StartRegFileParse(path, entry.reg_file_session_key);
       AppendHistoryEntry(L"Open .reg file " + FileNameOnly(path), L"", path);
       return true;
     }
@@ -206,15 +210,18 @@ bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path) {
   entry.kind = TabEntry::Kind::kRegFile;
   entry.reg_file_path = path;
   entry.reg_file_label = label;
+  entry.reg_file_session_key =
+      ToLower(path) + L"|" + std::to_wstring(++reg_file_session_serial_);
   entry.reg_file_dirty = false;
   entry.reg_file_loading = true;
+  const std::wstring session_key = entry.reg_file_session_key;
   tabs_.push_back(std::move(entry));
   UpdateTabWidth();
   SelectTabIndex(index);
   SyncRegFileTabSelection();
   ApplyViewVisibility();
   UpdateStatus();
-  start_parse();
+  StartRegFileParse(path, session_key);
   AppendHistoryEntry(L"Open .reg file " + FileNameOnly(path), L"", path);
   return true;
 }

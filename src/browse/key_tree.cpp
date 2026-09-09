@@ -250,7 +250,7 @@ bool RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node) {
     existing_lower.insert(ToLower(name));
   }
   std::vector<std::wstring> virtual_children;
-  if (virtual_child_provider_) {
+  if (virtual_child_provider_ && (enumerated || node->simulated)) {
     virtual_child_provider_(*node, existing_lower, &virtual_children);
   }
 

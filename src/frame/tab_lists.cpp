@@ -461,9 +461,8 @@ void MainWindow::Impl::CloseTab(int tab_index) {
 
   if (IsRegFileTabIndex(tab_index)) {
     TabEntry& entry = tabs_[static_cast<size_t>(tab_index)];
-    if (entry.reg_file_loading && !entry.reg_file_path.empty()) {
-      std::wstring lower = ToLower(entry.reg_file_path);
-      auto it = reg_file_parse_sessions_.find(lower);
+    if (entry.reg_file_loading && !entry.reg_file_session_key.empty()) {
+      auto it = reg_file_parse_sessions_.find(entry.reg_file_session_key);
       if (it != reg_file_parse_sessions_.end() && it->second) {
         it->second->work.CancelAndJoin();
         reg_file_parse_sessions_.erase(it);

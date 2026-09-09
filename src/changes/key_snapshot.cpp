@@ -77,19 +77,18 @@ bool RestoreKey(const RegistryNode& parent, const KeySnapshot& snapshot) {
                                       snapshot.link_target)) {
       return false;
     }
-    if (snapshot.security.empty()) {
-      return true;
+    if (!snapshot.security.empty()) {
+      RegistryStore::WriteKeySecurity(ChildNode(parent, snapshot.name),
+                                      snapshot.security);
     }
-    return RegistryStore::WriteKeySecurity(ChildNode(parent, snapshot.name),
-                                           snapshot.security);
+    return true;
   }
   if (!RegistryStore::CreateKey(parent, snapshot.name)) {
     return false;
   }
   const RegistryNode node = ChildNode(parent, snapshot.name);
-  if (!snapshot.security.empty() &&
-      !RegistryStore::WriteKeySecurity(node, snapshot.security)) {
-    return false;
+  if (!snapshot.security.empty()) {
+    RegistryStore::WriteKeySecurity(node, snapshot.security);
   }
   for (const ValueEntry& value : snapshot.values) {
     if (!RegistryStore::SetValue(node, value.name, value.type,

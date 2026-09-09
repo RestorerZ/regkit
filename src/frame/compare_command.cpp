@@ -158,10 +158,24 @@ void MainWindow::Impl::StartCompareRegistries() {
       search::compare::Diff(left_snapshot, right_snapshot);
   std::wstring tab_label = L"Registry Comparision";
 
+  auto source_ref = [](const CompareDialogSelection& sel) {
+    CompareSource source;
+    if (sel.type == CompareSourceType::kRegFile) {
+      source.kind = CompareSource::Kind::kRegFile;
+      source.file_path = sel.file_path;
+    } else if (sel.type == CompareSourceType::kOfflineHive) {
+      source.kind = CompareSource::Kind::kOfflineHive;
+      source.file_path = sel.file_path;
+    }
+    return source;
+  };
+
   SearchTab tab;
   tab.label = std::move(tab_label);
   tab.compare_rows = std::move(rows);
   tab.is_compare = true;
+  tab.first_source = source_ref(selection.left);
+  tab.second_source = source_ref(selection.right);
   search_tabs_.push_back(std::move(tab));
   int search_index = static_cast<int>(search_tabs_.size() - 1);
   TCITEMW item = {};
@@ -177,6 +191,109 @@ void MainWindow::Impl::StartCompareRegistries() {
   UpdateSearchResultsView();
   ApplyViewVisibility();
   UpdateStatus();
+}
+
+int MainWindow::Impl::FindCompareSourceTab(const CompareSource& source) const {
+  for (size_t i = 0; i < tabs_.size(); ++i) {
+    const TabEntry& entry = tabs_[i];
+    switch (source.kind) {
+    case CompareSource::Kind::kRegFile:
+      if (entry.kind == TabEntry::Kind::kRegFile &&
+          EqualsInsensitive(entry.reg_file_path, source.file_path)) {
+        return static_cast<int>(i);
+      }
+      break;
+    case CompareSource::Kind::kOfflineHive:
+      if (entry.kind == TabEntry::Kind::kRegistry &&
+          entry.registry_mode == RegistryMode::kOffline &&
+          EqualsInsensitive(entry.offline_path, source.file_path)) {
+        return static_cast<int>(i);
+      }
+      break;
+    case CompareSource::Kind::kRegistry:
+    default:
+      if (entry.kind == TabEntry::Kind::kRegistry &&
+          entry.registry_mode != RegistryMode::kOffline) {
+        return static_cast<int>(i);
+      }
+      break;
+    }
+  }
+  return -1;
+}
+
+void MainWindow::Impl::OpenCompareEntry(const CompareSource& source,
+                                        const std::wstring& path,
+                                        const std::wstring& value_name,
+                                        bool new_tab) {
+  if (!tab_ || path.empty()) {
+    return;
+  }
+  const int existing = FindCompareSourceTab(source);
+  if (!new_tab && existing < 0) {
+    return;
+  }
+  switch (source.kind) {
+  case CompareSource::Kind::kRegFile:
+    pending_compare_key_path_ = path;
+    pending_compare_value_name_ = value_name;
+    if (new_tab) {
+      if (!OpenRegFileTab(source.file_path, true)) {
+        pending_compare_key_path_.clear();
+        pending_compare_value_name_.clear();
+        return;
+      }
+    } else {
+      ActivateTabIndex(existing);
+      SyncRegFileTabSelection();
+    }
+    break;
+  case CompareSource::Kind::kOfflineHive: {
+    if (new_tab) {
+      OpenLocalRegistryTab();
+      if (!LoadOfflineRegistryFromPath(source.file_path, false)) {
+        return;
+      }
+    } else {
+      ActivateTabIndex(existing);
+    }
+    std::wstring target = path;
+    if (!offline_mount_.empty()) {
+      for (const std::wstring& prefix : {offline_mount_,
+                                         FileNameOnly(source.file_path)}) {
+        if (prefix.empty()) {
+          continue;
+        }
+        if (EqualsInsensitive(target, prefix)) {
+          target.clear();
+          break;
+        }
+        if (StartsWithInsensitive(target, prefix + L"\\")) {
+          target = target.substr(prefix.size() + 1);
+          break;
+        }
+      }
+      const std::wstring mount = offline_root_name_ + L"\\" + offline_mount_;
+      target = target.empty() ? mount : mount + L"\\" + target;
+    }
+    SelectTreePath(target);
+    break;
+  }
+  case CompareSource::Kind::kRegistry:
+  default:
+    if (new_tab) {
+      OpenLocalRegistryTab();
+    } else {
+      ActivateTabIndex(existing);
+    }
+    SelectTreePath(path);
+    break;
+  }
+  ApplyViewVisibility();
+  UpdateStatus();
+  if (!value_name.empty() && pending_compare_key_path_.empty()) {
+    SelectValueWhenReady(value_name);
+  }
 }
 
 } // namespace regkit

@@ -85,7 +85,6 @@ Settings ParseSettings(const std::wstring& content, Settings settings) {
     else REGKIT_BOOL(L"view_extra_hives",               show_extra_hives)
     else REGKIT_BOOL(L"view_value_grid",                show_value_grid)
     else REGKIT_BOOL(L"save_tree_state",                save_tree_state)
-    else REGKIT_BOOL(L"save_tabs",                      save_tabs)
     else REGKIT_BOOL(L"always_run_as_admin",            always_run_as_admin)
     else REGKIT_BOOL(L"always_run_as_system",           always_run_as_system)
     else REGKIT_BOOL(L"always_run_as_trustedinstaller", always_run_as_trustedinstaller)
@@ -114,6 +113,14 @@ Settings ParseSettings(const std::wstring& content, Settings settings) {
     else if (_wcsicmp(key.c_str(), L"window_maximized") == 0) {
       settings.window_maximized = Boolean(value);
       settings.window_placement_present = true;
+    }
+    else if (_wcsicmp(key.c_str(), L"save_tabs") == 0) {
+      settings.save_tabs = Boolean(value);
+      settings.save_tab_kinds = settings.save_tabs ? kSaveTabsAll : 0;
+    }
+    else if (_wcsicmp(key.c_str(), L"save_tab_types") == 0) {
+      settings.save_tab_kinds = _wtoi(value.c_str()) & kSaveTabsAll;
+      settings.save_tabs = settings.save_tab_kinds != 0;
     }
     else if (_wcsicmp(key.c_str(), L"tree_width") == 0) {
       const int width = _wtoi(value.c_str());
@@ -215,6 +222,7 @@ std::wstring SerializeSettings(const Settings& settings) {
   BooleanLine(&content, L"view_value_grid", settings.show_value_grid);
   BooleanLine(&content, L"save_tree_state", settings.save_tree_state);
   BooleanLine(&content, L"save_tabs", settings.save_tabs);
+  NumberLine(&content, L"save_tab_types", settings.save_tab_kinds);
   BooleanLine(&content, L"auto_check_updates", settings.auto_check_updates);
   BooleanLine(&content, L"default_reset_enabled",
               settings.default_reset_enabled);

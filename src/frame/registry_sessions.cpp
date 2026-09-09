@@ -3,6 +3,8 @@
 
 #include "frame/window_detail.h"
 
+#include "win32/file_dialog.h"
+
 namespace regkit {
 using namespace window_detail;
 
@@ -248,15 +250,23 @@ void MainWindow::Impl::CaptureRegistryTabState(int index) {
   }
   CaptureTreeState(&entry.selected_path, &entry.expanded_paths);
   entry.selected_value.clear();
-  if (browse_.values().hwnd()) {
-    const int selected =
-        ListView_GetNextItem(browse_.values().hwnd(), -1, LVNI_SELECTED);
-    if (selected >= 0) {
-      const ListRow* row = browse_.values().RowAt(selected);
-      if (row && row->kind == rowkind::kValue) {
+  entry.selected_values.clear();
+  entry.value_top_index = 0;
+  HWND list = browse_.values().hwnd();
+  if (!list) {
+    return;
+  }
+  entry.value_top_index = ListView_GetTopIndex(list);
+  int item = ListView_GetNextItem(list, -1, LVNI_SELECTED);
+  while (item >= 0) {
+    const ListRow* row = browse_.values().RowAt(item);
+    if (row && row->kind == rowkind::kValue) {
+      if (entry.selected_value.empty()) {
         entry.selected_value = row->extra;
       }
+      entry.selected_values.push_back(row->extra);
     }
+    item = ListView_GetNextItem(list, item, LVNI_SELECTED);
   }
 }
 
@@ -325,9 +335,15 @@ void MainWindow::Impl::RestoreRegistryTabState(int index) {
     ExpandTreePath(path);
   }
   if (!entry.selected_path.empty() && SelectTreePath(entry.selected_path)) {
-    if (!entry.selected_value.empty()) {
-      SelectValueAfterRefresh(entry.selected_value);
+    pending_value_selection_ = entry.selected_values;
+    if (pending_value_selection_.empty() && !entry.selected_value.empty()) {
+      pending_value_selection_.push_back(entry.selected_value);
     }
+    pending_value_top_index_ = entry.value_top_index;
+    pending_value_selection_key_ =
+        pending_value_selection_.empty() && pending_value_top_index_ == 0
+            ? std::wstring()
+            : entry.selected_path;
     return;
   }
   SelectDefaultTreeItem();
@@ -380,7 +396,7 @@ void MainWindow::Impl::RefreshRegistryTabLabels() {
 }
 
 void MainWindow::Impl::AppendRealRegistryRoot(std::vector<RegistryRootEntry>* roots) {
-  if (!roots || registry_mode_ != RegistryMode::kLocal) {
+  if (!roots) {
     return;
   }
   if (!registry_root_.get()) {
@@ -446,16 +462,27 @@ bool MainWindow::Impl::SwitchToLocalRegistry() {
 }
 
 bool MainWindow::Impl::SwitchToRemoteRegistry() {
-  std::wstring machine = remote_machine_;
-  editors::TextRequest request;
-  request.title = L"Connect to Remote Registry";
-  request.label = L"Computer name (e.g. \\\\MACHINE):";
-  request.text = machine;
-  editors::TextResult text_result;
-  if (!editors::EditText(hwnd_, request, &text_result)) {
+  std::wstring machine;
+  const HRESULT picked = win32::ChooseComputer(hwnd_, &machine);
+  if (win32::DialogCancelled(picked)) {
     return false;
   }
-  machine = std::move(text_result.text);
+  if (FAILED(picked)) {
+    editors::TextRequest request;
+    request.title = L"Connect to Remote Registry";
+    request.label = L"Computer name (e.g. \\\\MACHINE):";
+    request.text = remote_machine_;
+    editors::TextResult text_result;
+    if (!editors::EditText(hwnd_, request, &text_result)) {
+      return false;
+    }
+    machine = std::move(text_result.text);
+  }
+  return ConnectRemoteRegistry(machine);
+}
+
+bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name) {
+  std::wstring machine = name;
   machine = NormalizeMachineName(machine);
   if (machine.empty()) {
     ui::ShowError(hwnd_, L"Computer name is required.");

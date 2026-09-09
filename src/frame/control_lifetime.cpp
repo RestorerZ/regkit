@@ -1532,8 +1532,8 @@ bool MainWindow::Impl::OnCreate() {
   browse_.tree().PopulateRoots(browse_.roots());
 
   int initial_tab = tab_ ? TabCtrl_GetCurSel(tab_) : -1;
-  if (initial_tab >= 0 && !IsSearchTabIndex(initial_tab) && !IsRegFileTabIndex(initial_tab)) {
-    RestoreRegistryTabState(initial_tab);
+  if (initial_tab >= 0) {
+    ApplyTabSelection(initial_tab);
   } else {
     SelectDefaultTreeItem();
   }
@@ -1757,7 +1757,7 @@ void MainWindow::Impl::OnDestroy() {
   }
   if (clear_tabs_on_exit_) {
     ClearTabsCache();
-  } else if (save_tabs_ && !SaveTabs()) {
+  } else if (save_tab_kinds_ != 0 && !SaveTabs()) {
     ui::ShowError(hwnd_, L"The open tabs couldn't be saved for the next session.");
   }
   ClearHistoryItems(false);

@@ -485,9 +485,13 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
   std::wstring first_key_path;
   std::wstring second_key_path;
   std::wstring row_value_name;
+  CompareSource first_source;
+  CompareSource second_source;
   const bool compare_row = IsCompareTabSelected();
   if (compare_row) {
     const SearchTab& compare_tab = search_tabs_[static_cast<size_t>(search_index)];
+    first_source = compare_tab.first_source;
+    second_source = compare_tab.second_source;
     if (static_cast<size_t>(index) < compare_tab.compare_rows.size()) {
       const auto& row = compare_tab.compare_rows[static_cast<size_t>(index)];
       first_key_path = row.first_key_path;
@@ -567,9 +571,13 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
   if (compare_row) {
     const UINT first_flags = MF_STRING | (first_key_path.empty() ? MF_GRAYED : 0);
     const UINT second_flags = MF_STRING | (second_key_path.empty() ? MF_GRAYED : 0);
-    AppendMenuW(menu, first_flags, kSearchOpenKey, L"Open First Entry");
+    const UINT first_open_flags =
+        first_flags | (FindCompareSourceTab(first_source) < 0 ? MF_GRAYED : 0);
+    const UINT second_open_flags =
+        second_flags | (FindCompareSourceTab(second_source) < 0 ? MF_GRAYED : 0);
+    AppendMenuW(menu, first_open_flags, kSearchOpenKey, L"Open First Entry");
     AppendMenuW(menu, first_flags, kSearchOpenKeyNewTab, L"Open First Entry in New Tab");
-    AppendMenuW(menu, second_flags, kSearchOpenSecondKey, L"Open Second Entry");
+    AppendMenuW(menu, second_open_flags, kSearchOpenSecondKey, L"Open Second Entry");
     AppendMenuW(menu, second_flags, kSearchOpenSecondKeyNewTab, L"Open Second Entry in New Tab");
   } else {
     AppendMenuW(menu, MF_STRING, kSearchOpenKey, L"Open Key");
@@ -622,8 +630,11 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
     }
   };
   auto open_key = [&](bool new_tab) {
-    open_path(compare_row && !first_key_path.empty() ? first_key_path : key_path,
-              new_tab);
+    if (compare_row && !first_key_path.empty()) {
+      OpenCompareEntry(first_source, first_key_path, row_value_name, new_tab);
+      return;
+    }
+    open_path(key_path, new_tab);
   };
   auto focus_key = [&]() {
     open_key(false);
@@ -667,10 +678,11 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt) {
     open_key(true);
     return;
   case kSearchOpenSecondKey:
-    open_path(second_key_path, SearchResultOpensInNewTab());
+    OpenCompareEntry(second_source, second_key_path, row_value_name,
+                     SearchResultOpensInNewTab());
     return;
   case kSearchOpenSecondKeyNewTab:
-    open_path(second_key_path, true);
+    OpenCompareEntry(second_source, second_key_path, row_value_name, true);
     return;
   case kSearchModify:
     run_on_value(cmd::kEditModify);

@@ -16,6 +16,7 @@ HRESULT ChooseFileToSave(HWND owner, const wchar_t* filter,
                          const wchar_t* default_extension,
                          const wchar_t* suggested_name, std::wstring* path);
 HRESULT ChooseFolder(HWND owner, std::wstring* path);
+HRESULT ChooseComputer(HWND owner, std::wstring* name);
 
 bool DialogCancelled(HRESULT hr);
 std::wstring FormatDialogError(HRESULT hr);

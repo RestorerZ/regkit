@@ -4,6 +4,7 @@
 #include "frame/window_detail.h"
 
 namespace regkit {
+
 using namespace window_detail;
 
 std::wstring MainWindow::Impl::NormalizeRegistryPath(const std::wstring& input) const {
@@ -303,7 +304,17 @@ void MainWindow::Impl::SyncRegFileTabSelection() {
   if (static_cast<size_t>(index) >= tabs_.size()) {
     return;
   }
-  const TabEntry& entry = tabs_[static_cast<size_t>(index)];
+  TabEntry& entry = tabs_[static_cast<size_t>(index)];
+  if (entry.reg_file_roots.empty() && !entry.reg_file_path.empty() &&
+      !entry.reg_file_loading) {
+    if (entry.reg_file_session_key.empty()) {
+      entry.reg_file_session_key =
+          ToLower(entry.reg_file_path) + L"|" +
+          std::to_wstring(++reg_file_session_serial_);
+    }
+    entry.reg_file_loading = true;
+    StartRegFileParse(entry.reg_file_path, entry.reg_file_session_key);
+  }
   registry_mode_ = RegistryMode::kLocal;
   std::vector<RegistryRootEntry> roots;
   roots.reserve(entry.reg_file_roots.size());
@@ -321,6 +332,16 @@ void MainWindow::Impl::SyncRegFileTabSelection() {
   }
   ApplyRegistryRoots(roots);
   RestoreRegistryTabState(index);
+  if (!pending_compare_key_path_.empty() && !entry.reg_file_roots.empty()) {
+    const std::wstring path = std::move(pending_compare_key_path_);
+    const std::wstring value_name = std::move(pending_compare_value_name_);
+    pending_compare_key_path_.clear();
+    pending_compare_value_name_.clear();
+    SelectTreePath(path);
+    if (!value_name.empty()) {
+      SelectValueWhenReady(value_name);
+    }
+  }
 }
 
 void MainWindow::Impl::UpdateSearchResultsView() {
@@ -402,6 +423,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
   }
 
   std::vector<RegistryNode> start_nodes;
+  bool remote_nodes = false;
   if (want_registry) {
     if (options.scope == SearchScope::kCurrentKey) {
       if (!registry_scope_path.empty()) {
@@ -430,6 +452,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
         if (key.empty()) {
           return;
         }
+        key.append(L"|").append(std::to_wstring(reinterpret_cast<uintptr_t>(entry.root)));
         if (!seen.insert(key).second) {
           return;
         }
@@ -440,9 +463,12 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
         start_nodes.push_back(std::move(node));
       };
 
+      std::vector<RegistryRootEntry> local_roots =
+          RegistryStore::DefaultRoots(show_extra_hives_);
+      AppendRealRegistryRoot(&local_roots);
       if (options.search_standard_hives) {
         for (const auto& path : options.root_paths) {
-          for (const auto& root : browse_.roots()) {
+          for (const auto& root : local_roots) {
             if (_wcsicmp(root.path_name.c_str(), path.c_str()) == 0 || _wcsicmp(root.display_name.c_str(), path.c_str()) == 0) {
               add_root(root);
               break;
@@ -450,7 +476,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
           }
         }
         if (start_nodes.empty()) {
-          for (const auto& root : browse_.roots()) {
+          for (const auto& root : local_roots) {
             if (root.group == RegistryRootGroup::kStandard) {
               add_root(root);
             }
@@ -458,11 +484,47 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
         }
       }
       if (options.search_registry_root) {
-        for (const auto& root : browse_.roots()) {
-          if (_wcsicmp(root.path_name.c_str(), L"REGISTRY") == 0 || _wcsicmp(root.display_name.c_str(), L"REGISTRY") == 0) {
+        for (const auto& root : local_roots) {
+          if (root.group == RegistryRootGroup::kReal) {
             add_root(root);
             break;
           }
+        }
+      }
+      if (options.include_offline_hives) {
+        for (size_t i = 0; i < offline_roots_.size(); ++i) {
+          RegistryRootEntry entry;
+          entry.root = offline_roots_[i];
+          entry.display_name = i < offline_root_labels_.size()
+                                   ? offline_root_labels_[i]
+                                   : L"OfflineHive";
+          entry.path_name = offline_root_name_ + L"\\" + entry.display_name;
+          add_root(entry);
+        }
+      }
+      if (options.include_reg_files) {
+        for (const auto& tab : tabs_) {
+          if (tab.kind != TabEntry::Kind::kRegFile) {
+            continue;
+          }
+          for (const auto& root : tab.reg_file_roots) {
+            if (!root.root) {
+              continue;
+            }
+            RegistryRootEntry entry;
+            entry.root = root.root;
+            entry.display_name = root.name;
+            entry.path_name = root.name;
+            add_root(entry);
+          }
+        }
+      }
+      if (options.include_remote_registry && remote_hklm_) {
+        const std::wstring prefix = remote_machine_ + L"\\";
+        remote_nodes = true;
+        add_root({remote_hklm_, L"HKEY_LOCAL_MACHINE", prefix + L"HKEY_LOCAL_MACHINE", L""});
+        if (remote_hku_) {
+          add_root({remote_hku_, L"HKEY_USERS", prefix + L"HKEY_USERS", L""});
         }
       }
     }
@@ -564,16 +626,13 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
   UpdateStatus();
 
   std::vector<ActiveTrace> traces = active_traces_;
-  switch (registry_mode_) {
-  case RegistryMode::kRemote:
-    criteria.provider = search::Provider::kRemote;
-    break;
-  case RegistryMode::kOffline:
-    criteria.provider = search::Provider::kOffline;
-    break;
-  default:
-    criteria.provider = search::Provider::kLocal;
-    break;
+  if (options.scope == SearchScope::kEntireRegistry) {
+    criteria.provider = remote_nodes ? search::Provider::kRemote : search::Provider::kLocal;
+  } else {
+    criteria.provider = registry_mode_ == RegistryMode::kRemote ? search::Provider::kRemote
+                        : registry_mode_ == RegistryMode::kOffline
+                            ? search::Provider::kOffline
+                            : search::Provider::kLocal;
   }
   std::vector<std::wstring> exclude_paths = criteria.exclude_paths;
   std::wstring scope_lower = ToLower(scope_path);

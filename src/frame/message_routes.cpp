@@ -6,6 +6,7 @@
 #include "regfile/registry_transfer.h"
 
 namespace regkit {
+
 using namespace window_detail;
 
 namespace {
@@ -587,7 +588,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleRegFileWorkerMessage(UINT message
       if (entry.kind != TabEntry::Kind::kRegFile) {
         continue;
       }
-      if (EqualsInsensitive(entry.reg_file_path, owned->source_path)) {
+      if (entry.reg_file_session_key == owned->source_lower) {
         tab_index = static_cast<int>(i);
         break;
       }
@@ -903,6 +904,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message,
     retained_value_name_.clear();
     retained_value_key_path_.clear();
     retained_value_index_ = -1;
+    if (!pending_value_selection_key_.empty() && browse_.current_node() &&
+        EqualsInsensitive(registry_path::Build(*browse_.current_node()),
+                          pending_value_selection_key_)) {
+      RestoreValueSelection();
+    }
     if (!pending_value_name_.empty()) {
       SelectValueByName(pending_value_name_);
       pending_value_name_.clear();

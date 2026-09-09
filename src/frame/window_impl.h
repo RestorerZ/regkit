@@ -40,6 +40,7 @@
 #include "changes/undo_stack.h"
 #include "changes/value_comments.h"
 #include "workspace/recent_items.h"
+#include "workspace/settings.h"
 #include "workspace/tree_state.h"
 #include "work/session.h"
 #include "win32/handle_owner.h"
@@ -54,7 +55,8 @@ public:
   ~Impl();
   bool Create(HINSTANCE instance);
   void Show(int cmd_show);
-  bool OpenRegFileTab(const std::wstring& path);
+  bool OpenRegFileTab(const std::wstring& path, bool force_new_tab = false);
+  void StartRegFileParse(const std::wstring& path, const std::wstring& session_key);
   bool TranslateAccelerator(const MSG& msg);
   void QueueExternalJump(const std::wstring& target);
 
@@ -74,6 +76,16 @@ private:
     kPowerShellProvider,
     kEscaped,
   };
+  struct CompareSource {
+    enum class Kind {
+      kRegistry,
+      kRegFile,
+      kOfflineHive,
+    };
+    Kind kind = Kind::kRegistry;
+    std::wstring file_path;
+  };
+
   struct TabEntry;
   struct SearchTab;
   struct SearchTabLoadPayload;
@@ -279,6 +291,7 @@ private:
   void CloseSearchTab(int tab_index);
   bool SwitchToLocalRegistry();
   bool SwitchToRemoteRegistry();
+  bool ConnectRemoteRegistry(const std::wstring& machine);
   bool SwitchToOfflineRegistry();
   bool SaveOfflineRegistry();
   bool LoadOfflineRegistryFromPath(const std::wstring& path, bool open_new_tab);
@@ -325,6 +338,7 @@ private:
   bool SelectChildKey(const RegistryNode& parent, const std::wstring& name);
   bool SelectValueByName(const std::wstring& name);
   void SelectValueAfterRefresh(const std::wstring& name);
+  void RestoreValueSelection();
   void SelectValueWhenReady(const std::wstring& name);
   void SelectListRowAtIndex(HWND list, int index);
   void FocusAddressBarForExternalJump(bool defer_if_needed);
@@ -425,6 +439,9 @@ private:
   bool InvertSelectionInFocusedList();
   bool IsCompareTabSelected() const;
   void StartCompareRegistries();
+  void OpenCompareEntry(const CompareSource& source, const std::wstring& path,
+                        const std::wstring& value_name, bool new_tab);
+  int FindCompareSourceTab(const CompareSource& source) const;
   bool AppendHistoryCache(const HistoryEntry& entry);
   std::wstring CacheFolderPath() const;
   std::wstring HistoryCachePath() const;
@@ -432,6 +449,10 @@ private:
   std::wstring SearchTabCachePath(const std::wstring& file) const;
   void LoadTabs();
   bool SaveTabs();
+  bool SaveSessionTabs();
+  bool SaveTabState(const std::wstring& path, int kinds);
+  int TabSaveKind(const TabEntry& entry) const;
+  std::wstring SessionCachePath() const;
   void ClearTabsCache();
   bool EnsureSearchTabResultsLoaded(int search_index);
   void StartStartupCacheLoad(bool include_tree_state);
@@ -656,7 +677,7 @@ private:
   std::wstring status_message_;
   bool is_replaying_ = false;
   bool clear_history_on_exit_ = false;
-  bool save_tabs_ = true;
+  int save_tab_kinds_ = workspace::kSaveTabsAll;
   bool clear_tabs_on_exit_ = false;
   bool hive_list_loaded_ = false;
   std::vector<ThemePreset> theme_presets_;
@@ -668,10 +689,15 @@ private:
   int pending_value_command_ = 0;
   std::wstring retained_value_name_;
   std::wstring pending_value_name_;
+  std::vector<std::wstring> pending_value_selection_;
+  std::wstring pending_value_selection_key_;
+  int pending_value_top_index_ = 0;
   int retained_value_index_ = -1;
   std::wstring retained_value_key_path_;
   std::wstring queued_external_jump_target_;
   bool jump_ui_batch_active_ = false;
+  std::wstring pending_compare_key_path_;
+  std::wstring pending_compare_value_name_;
   std::wstring pending_external_value_key_path_;
   std::wstring pending_external_value_name_;
   std::unordered_map<std::wstring, std::wstring> hive_list_;
@@ -698,12 +724,15 @@ private:
     std::vector<search::Result> results;
     std::vector<search::compare::Row> compare_rows;
     uint64_t next_row_id = 1;
+    std::wstring compare_cache_file;
     bool load_pending = false;
     uint64_t load_generation = 0;
     std::wstring cache_file;
     bool results_loaded = true;
     uint64_t generation = 0;
     bool is_compare = false;
+    CompareSource first_source;
+    CompareSource second_source;
     size_t last_ui_count = 0;
     int sort_column = -1;
     bool sort_ascending = true;
@@ -725,10 +754,13 @@ private:
     std::wstring remote_machine;
     std::wstring selected_path;
     std::wstring selected_value;
+    std::vector<std::wstring> selected_values;
+    int value_top_index = 0;
     std::vector<std::wstring> expanded_paths;
     bool offline_dirty = false;
     std::wstring reg_file_path;
     std::wstring reg_file_label;
+    std::wstring reg_file_session_key;
     struct RegFileRoot {
       HKEY root = nullptr;
       std::wstring name;
@@ -940,6 +972,7 @@ private:
   work::Session default_load_session_;
   std::unordered_map<std::wstring, std::unique_ptr<DefaultParseSession>> default_parse_sessions_;
   std::unordered_map<std::wstring, std::unique_ptr<RegFileParseSession>> reg_file_parse_sessions_;
+  uint64_t reg_file_session_serial_ = 0;
   uint64_t last_trace_refresh_tick_ = 0;
   uint64_t last_default_refresh_tick_ = 0;
   changes::ValueComments value_comments_;

@@ -230,6 +230,18 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id) {
   }
   case cmd::kEditCopy: {
     HWND focus = GetFocus();
+    if (focus == browse_.tree().hwnd() && browse_.current_node() &&
+        !browse_.current_node()->subkey.empty()) {
+      const RegistryNode& node = *browse_.current_node();
+      RegistryNode parent = node;
+      parent.subkey = registry_path::Parent(node.subkey);
+      clipboard_.kind = ClipboardItem::Kind::kKey;
+      clipboard_.source_parent = parent;
+      clipboard_.name = LeafName(node);
+      clipboard_.key_snapshot = changes::CaptureKey(node);
+      ui::CopyTextToClipboard(hwnd_, registry_path::Build(node));
+      return true;
+    }
     if (focus == browse_.values().hwnd() || focus == search_results_list_ || focus == history_list_) {
       HWND list = focus;
       int selected = ListView_GetSelectedCount(list);
@@ -323,9 +335,15 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id) {
     return true;
   case cmd::kEditFind: {
     SearchDialogResult options = last_search_;
-    bool trace_available = HasActiveTraces();
-    bool registry_available = std::any_of(browse_.roots().begin(), browse_.roots().end(), [](const RegistryRootEntry& entry) { return _wcsicmp(entry.path_name.c_str(), L"REGISTRY") == 0; });
-    if (ShowSearchDialog(hwnd_, &options, trace_available, registry_available)) {
+    SearchSources sources;
+    sources.traces = HasActiveTraces();
+    sources.registry_root = registry_root_.get() != nullptr;
+    sources.offline = !offline_roots_.empty();
+    sources.reg_files = std::any_of(tabs_.begin(), tabs_.end(), [](const TabEntry& tab) {
+      return tab.kind == TabEntry::Kind::kRegFile && !tab.reg_file_roots.empty();
+    });
+    sources.remote = remote_hklm_ != nullptr;
+    if (ShowSearchDialog(hwnd_, &options, sources)) {
       last_search_ = options;
       StartSearch(options);
     }
@@ -384,6 +402,8 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id) {
       changes::KeySnapshot snapshot = clipboard_.key_snapshot;
       snapshot.name = unique;
       if (!changes::RestoreKey(*browse_.current_node(), snapshot)) {
+        RefreshTreeSelection();
+        UpdateValueListForNode(browse_.current_node());
         ui::ShowError(hwnd_, L"Failed to paste key.");
       } else {
         AppendHistoryEntry(L"Create key " + unique, L"", L"");

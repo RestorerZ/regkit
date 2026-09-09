@@ -430,8 +430,13 @@ void MainWindow::Impl::ApplyTabSelection(int index) {
       if (!entry.remote_machine.empty()) {
         remote_machine_ = entry.remote_machine;
       }
-      if (registry_mode_ != RegistryMode::kRemote) {
-        SwitchToRemoteRegistry();
+      if (registry_mode_ != RegistryMode::kRemote ||
+          !EqualsInsensitive(remote_machine_, entry.remote_machine)) {
+        if (entry.remote_machine.empty()) {
+          SwitchToRemoteRegistry();
+        } else {
+          ConnectRemoteRegistry(entry.remote_machine);
+        }
       }
       break;
     }

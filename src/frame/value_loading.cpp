@@ -63,7 +63,15 @@ void MainWindow::Impl::StartValueListWorker() {
           return metadata.image_index;
         };
 
-        auto subkeys = RegistryStore::EnumSubKeyNames(task->snapshot, false);
+        std::vector<std::wstring> subkeys;
+        const bool subkeys_readable = RegistryStore::EnumKeyStreaming(
+            task->snapshot, false, false, true, nullptr,
+            RegistryStore::ValueStreamCallback(),
+            [&](const std::wstring& name) {
+              subkeys.push_back(name);
+              return true;
+            },
+            MAXDWORD, nullptr, false);
         std::unordered_set<std::wstring> existing_keys;
         existing_keys.reserve(subkeys.size());
         for (const auto& name : subkeys) {
@@ -76,6 +84,9 @@ void MainWindow::Impl::StartValueListWorker() {
           }
           out->clear();
           if (!task->show_simulated_keys) {
+            return;
+          }
+          if (!subkeys_readable && !node.simulated) {
             return;
           }
           if (task->trace_data_list.empty()) {

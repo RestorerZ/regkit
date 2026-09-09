@@ -226,7 +226,8 @@ void MainWindow::Impl::BuildMenus() {
   bool is_ti = util::IsProcessTrustedInstaller();
   const bool is_high = is_system || is_ti;
   UINT user_flags =
-      MF_STRING | ((is_high || (is_elevated && util::IsUacEnabled())) ? 0 : MF_GRAYED);
+      MF_STRING |
+      (((is_high || is_elevated) && util::IsUacEnabled()) ? 0 : MF_GRAYED);
   AppendMenuW(options_menu, user_flags, cmd::kOptionsRestartUser, L"Restart as User");
   UINT admin_flags = MF_STRING | ((is_elevated && !is_high) ? MF_GRAYED : 0);
   AppendMenuW(options_menu, admin_flags, cmd::kOptionsRestartAdmin, L"Restart as Admin");
@@ -241,7 +242,23 @@ void MainWindow::Impl::BuildMenus() {
   UINT replace_flags = MF_STRING | ((is_elevated || is_system || is_ti) ? 0 : MF_GRAYED);
   AppendMenuW(options_menu, replace_flags | (replace_regedit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReplaceRegedit, L"Replace Regedit");
   AppendMenuW(options_menu, MF_STRING | (single_instance_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsSingleInstance, L"Single Instance");
-  AppendMenuW(options_menu, MF_STRING | (save_tabs_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsSaveTabs, L"Save Tabs");
+  HMENU save_tabs_menu = CreatePopupMenu();
+  auto kind_flags = [&](int kind) -> UINT {
+    return MF_STRING |
+           ((save_tab_kinds_ & kind) != 0 ? MF_CHECKED : MF_UNCHECKED);
+  };
+  const bool all_kinds =
+      (save_tab_kinds_ & workspace::kSaveTabsAll) == workspace::kSaveTabsAll;
+  AppendMenuW(save_tabs_menu, MF_STRING | (all_kinds ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsSaveTabs, L"All Tabs");
+  AppendMenuW(save_tabs_menu, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsLocal), cmd::kOptionsSaveTabsLocal, L"Local Registry Tabs");
+  AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsOffline), cmd::kOptionsSaveTabsOffline, L"Offline Hive Tabs");
+  AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsRemote), cmd::kOptionsSaveTabsRemote, L"Network Registry Tabs");
+  AppendMenuW(save_tabs_menu, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsSearch), cmd::kOptionsSaveTabsSearch, L"Find Results");
+  AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsCompare), cmd::kOptionsSaveTabsCompare, L"Comparison Results");
+  AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsRegFile), cmd::kOptionsSaveTabsRegFile, L".reg File Tabs");
+  AppendMenuW(options_menu, MF_POPUP | (save_tab_kinds_ != 0 ? MF_CHECKED : MF_UNCHECKED), reinterpret_cast<UINT_PTR>(save_tabs_menu), L"Save Tabs");
   AppendMenuW(options_menu, MF_STRING | (read_only_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReadOnly, L"Read Only Mode");
   AppendMenuW(options_menu, MF_STRING | (save_tree_state_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewSaveTreeState, L"Save Previous Tree State");
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(options_menu), L"Options");

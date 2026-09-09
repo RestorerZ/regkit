@@ -54,6 +54,12 @@ CommandArea ClassifyCommand(int command_id) noexcept {
   case cmd::kTreeToggleExpand:
   case cmd::kTreeExpandAll:
   case cmd::kOptionsSaveTabs:
+  case cmd::kOptionsSaveTabsLocal:
+  case cmd::kOptionsSaveTabsOffline:
+  case cmd::kOptionsSaveTabsRemote:
+  case cmd::kOptionsSaveTabsSearch:
+  case cmd::kOptionsSaveTabsCompare:
+  case cmd::kOptionsSaveTabsRegFile:
   case cmd::kOptionsReadOnly:
   case cmd::kOptionsCompareRegistries:
     return CommandArea::kView;

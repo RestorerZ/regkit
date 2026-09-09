@@ -54,6 +54,9 @@ enum ControlId {
   kOptStandardHives = 133,
   kOptRegistryRoot = 134,
   kOptTraceValues = 135,
+  kOptOfflineHives = 136,
+  kOptRegFiles = 137,
+  kOptRemoteRegistry = 138,
   kModifiedLabel = 140,
   kModifiedFrom = 141,
   kModifiedDash = 142,
@@ -88,6 +91,9 @@ struct SearchDialogState {
   HWND options_standard = nullptr;
   HWND options_registry = nullptr;
   HWND options_trace = nullptr;
+  HWND options_offline = nullptr;
+  HWND options_reg_files = nullptr;
+  HWND options_remote = nullptr;
   HWND match_case = nullptr;
   HWND match_whole = nullptr;
   HWND use_regex = nullptr;
@@ -110,8 +116,7 @@ struct SearchDialogState {
   HWND owner = nullptr;
   HFONT font = nullptr;
   SearchDialogResult* out = nullptr;
-  bool trace_available = false;
-  bool registry_available = true;
+  SearchSources sources;
   bool accepted = false;
   bool recursive = true;
   std::vector<std::wstring> history;
@@ -424,12 +429,11 @@ void UpdateDialogEnableState(SearchDialogState* state) {
   EnableWindow(state->result_limit_edit, limit_checked);
   EnableWindow(state->exclude_button, exclude_checked);
 
-  if (state->options_trace) {
-    EnableWindow(state->options_trace, state->trace_available);
-  }
-  if (state->options_registry) {
-    EnableWindow(state->options_registry, state->registry_available);
-  }
+  EnableWindow(state->options_trace, state->sources.traces);
+  EnableWindow(state->options_registry, state->sources.registry_root);
+  EnableWindow(state->options_offline, state->sources.offline);
+  EnableWindow(state->options_reg_files, state->sources.reg_files);
+  EnableWindow(state->options_remote, state->sources.remote);
 }
 
 void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
@@ -491,7 +495,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
                     Scaled(140, dpi), check_h);
   y += where_h + block_gap;
 
-  const int options_h = group_top + row_pitch * 5 + check_h + group_bottom;
+  const int options_h = group_top + row_pitch * 8 + check_h + group_bottom;
   appearance::Place(GetDlgItem(hwnd, kOptionsGroup), x, y, group_w, options_h);
   gy = y + group_top;
   const int left_x = x + group_inset;
@@ -505,6 +509,9 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font) {
   appearance::Place(state->options_standard, left_x, option_row(3), hive_col_w, check_h);
   appearance::Place(state->options_registry, left_x, option_row(4), hive_col_w, check_h);
   appearance::Place(state->options_trace, left_x, option_row(5), hive_col_w, check_h);
+  appearance::Place(state->options_offline, left_x, option_row(6), hive_col_w, check_h);
+  appearance::Place(state->options_reg_files, left_x, option_row(7), hive_col_w, check_h);
+  appearance::Place(state->options_remote, left_x, option_row(8), hive_col_w, check_h);
 
   const int size_label_w = Scaled(180, dpi);
   const int size_edit_x = right_x + Scaled(188, dpi);
@@ -620,6 +627,9 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     state->options_standard = CreateWindowExW(0, L"BUTTON", L"Search Standard Hives", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptStandardHives), nullptr, nullptr);
     state->options_registry = CreateWindowExW(0, L"BUTTON", L"Search REGISTRY", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegistryRoot), nullptr, nullptr);
     state->options_trace = CreateWindowExW(0, L"BUTTON", L"Search Trace Values", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptTraceValues), nullptr, nullptr);
+    state->options_offline = CreateWindowExW(0, L"BUTTON", L"Include Offline Hives", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptOfflineHives), nullptr, nullptr);
+    state->options_reg_files = CreateWindowExW(0, L"BUTTON", L"Include .reg File Tabs", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegFiles), nullptr, nullptr);
+    state->options_remote = CreateWindowExW(0, L"BUTTON", L"Include Network Registry", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRemoteRegistry), nullptr, nullptr);
 
     CreateWindowExW(0, L"STATIC", L"Modified in period:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedLabel), nullptr, nullptr);
     CreateWindowExW(0, L"STATIC", L"-", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kModifiedDash), nullptr, nullptr);
@@ -719,15 +729,18 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
       bool standard_hives = initial->search_standard_hives;
       bool registry_root = initial->search_registry_root;
       bool trace_values = initial->search_trace_values;
-      if (!state->registry_available) {
+      if (!state->sources.registry_root) {
         registry_root = false;
       }
-      if (!state->trace_available) {
+      if (!state->sources.traces) {
         trace_values = false;
       }
       SendMessageW(state->options_standard, BM_SETCHECK, standard_hives ? BST_CHECKED : BST_UNCHECKED, 0);
       SendMessageW(state->options_registry, BM_SETCHECK, registry_root ? BST_CHECKED : BST_UNCHECKED, 0);
       SendMessageW(state->options_trace, BM_SETCHECK, trace_values ? BST_CHECKED : BST_UNCHECKED, 0);
+      SendMessageW(state->options_offline, BM_SETCHECK, initial->include_offline_hives && state->sources.offline ? BST_CHECKED : BST_UNCHECKED, 0);
+      SendMessageW(state->options_reg_files, BM_SETCHECK, initial->include_reg_files && state->sources.reg_files ? BST_CHECKED : BST_UNCHECKED, 0);
+      SendMessageW(state->options_remote, BM_SETCHECK, initial->include_remote_registry && state->sources.remote ? BST_CHECKED : BST_UNCHECKED, 0);
       bool scope_top = initial->scope == SearchScope::kEntireRegistry;
       SendMessageW(state->scope_top, BM_SETCHECK, scope_top ? BST_CHECKED : BST_UNCHECKED, 0);
       SendMessageW(state->scope_key, BM_SETCHECK, scope_top ? BST_UNCHECKED : BST_CHECKED, 0);
@@ -749,8 +762,8 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
       SendMessageW(state->options_values, BM_SETCHECK, BST_CHECKED, 0);
       SendMessageW(state->options_data, BM_SETCHECK, BST_CHECKED, 0);
       SendMessageW(state->options_standard, BM_SETCHECK, BST_CHECKED, 0);
-      SendMessageW(state->options_registry, BM_SETCHECK, state->registry_available ? BST_CHECKED : BST_UNCHECKED, 0);
-      SendMessageW(state->options_trace, BM_SETCHECK, state->trace_available ? BST_CHECKED : BST_UNCHECKED, 0);
+      SendMessageW(state->options_registry, BM_SETCHECK, state->sources.registry_root ? BST_CHECKED : BST_UNCHECKED, 0);
+      SendMessageW(state->options_trace, BM_SETCHECK, state->sources.traces ? BST_CHECKED : BST_UNCHECKED, 0);
       SendMessageW(state->scope_top, BM_SETCHECK, BST_CHECKED, 0);
       SendMessageW(state->result_reuse, BM_SETCHECK, BST_CHECKED, 0);
       SendMessageW(state->result_limit_enable, BM_SETCHECK, BST_CHECKED, 0);
@@ -836,6 +849,9 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
       case kOptStandardHives:
       case kOptRegistryRoot:
       case kOptTraceValues:
+      case kOptOfflineHives:
+      case kOptRegFiles:
+      case kOptRemoteRegistry:
       case kExcludeEnable:
       case kResultLimitEnable:
         UpdateDialogEnableState(state);
@@ -906,13 +922,16 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
       bool standard_hives = state->options_standard && SendMessageW(state->options_standard, BM_GETCHECK, 0, 0) == BST_CHECKED;
       bool registry_root = state->options_registry && SendMessageW(state->options_registry, BM_GETCHECK, 0, 0) == BST_CHECKED;
       bool trace_values = state->options_trace && SendMessageW(state->options_trace, BM_GETCHECK, 0, 0) == BST_CHECKED;
-      if (!state->registry_available) {
+      bool offline_hives = state->sources.offline && SendMessageW(state->options_offline, BM_GETCHECK, 0, 0) == BST_CHECKED;
+      bool reg_files = state->sources.reg_files && SendMessageW(state->options_reg_files, BM_GETCHECK, 0, 0) == BST_CHECKED;
+      bool remote_registry = state->sources.remote && SendMessageW(state->options_remote, BM_GETCHECK, 0, 0) == BST_CHECKED;
+      if (!state->sources.registry_root) {
         registry_root = false;
       }
-      if (!state->trace_available) {
+      if (!state->sources.traces) {
         trace_values = false;
       }
-      if (!standard_hives && !registry_root && !trace_values) {
+      if (!standard_hives && !registry_root && !trace_values && !offline_hives && !reg_files && !remote_registry) {
         ui::ShowWarning(hwnd, L"Select at least one search source.");
         return 0;
       }
@@ -973,6 +992,9 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
       result.search_standard_hives = standard_hives;
       result.search_registry_root = registry_root;
       result.search_trace_values = trace_values;
+      result.include_offline_hives = offline_hives;
+      result.include_reg_files = reg_files;
+      result.include_remote_registry = remote_registry;
 
       bool scope_top = SendMessageW(state->scope_top, BM_GETCHECK, 0, 0) == BST_CHECKED;
       result.scope = scope_top ? SearchScope::kEntireRegistry : SearchScope::kCurrentKey;
@@ -1060,7 +1082,7 @@ HWND CreateSearchDialogWindow(HINSTANCE instance, HWND owner, SearchDialogState*
   wc.lpszClassName = kDialogClass;
   RegisterClassW(&wc);
 
-  return CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kDialogClass, L"Find", WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, appearance::metrics::Scaled(600, win32::DpiForWindow(owner)), appearance::metrics::Scaled(634, win32::DpiForWindow(owner)), owner, nullptr, instance, state);
+  return CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kDialogClass, L"Find", WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, appearance::metrics::Scaled(600, win32::DpiForWindow(owner)), appearance::metrics::Scaled(700, win32::DpiForWindow(owner)), owner, nullptr, instance, state);
 }
 
 } // namespace
@@ -1069,7 +1091,7 @@ bool ShowBrowseKeyDialog(HWND owner, std::wstring* selected_path) {
   return query_prompts::ShowRegistryKey(owner, selected_path);
 }
 
-bool ShowSearchDialog(HWND owner, SearchDialogResult* result, bool trace_available, bool registry_available) {
+bool ShowSearchDialog(HWND owner, SearchDialogResult* result, const SearchSources& available) {
   if (!result) {
     return false;
   }
@@ -1077,8 +1099,7 @@ bool ShowSearchDialog(HWND owner, SearchDialogResult* result, bool trace_availab
   SearchDialogState state;
   state.out = result;
   state.owner = owner;
-  state.trace_available = trace_available;
-  state.registry_available = registry_available;
+  state.sources = available;
   HWND hwnd = CreateSearchDialogWindow(instance, owner, &state);
   if (!hwnd) {
     return false;

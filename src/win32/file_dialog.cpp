@@ -6,6 +6,7 @@
 #include "win32/handle_owner.h"
 #include "win32/system_error.h"
 
+#include <objsel.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
@@ -141,6 +142,77 @@ HRESULT ChooseFileToSave(HWND owner, const wchar_t* filter,
 HRESULT ChooseFolder(HWND owner, std::wstring* path) {
   return ShowDialog(owner, CLSID_FileOpenDialog, nullptr, FOS_PICKFOLDERS,
                     nullptr, nullptr, path);
+}
+
+HRESULT ChooseComputer(HWND owner, std::wstring* name) {
+  if (!name) {
+    return E_POINTER;
+  }
+  ComPtr<IDsObjectPicker> picker;
+  HRESULT hr = CoCreateInstance(CLSID_DsObjectPicker, nullptr,
+                                CLSCTX_INPROC_SERVER, IID_IDsObjectPicker,
+                                reinterpret_cast<void**>(picker.Receive()));
+  if (FAILED(hr)) {
+    return hr;
+  }
+
+  DSOP_SCOPE_INIT_INFO scope = {};
+  scope.cbSize = sizeof(scope);
+  scope.flType = DSOP_SCOPE_TYPE_UPLEVEL_JOINED_DOMAIN |
+                 DSOP_SCOPE_TYPE_DOWNLEVEL_JOINED_DOMAIN |
+                 DSOP_SCOPE_TYPE_ENTERPRISE_DOMAIN |
+                 DSOP_SCOPE_TYPE_GLOBAL_CATALOG |
+                 DSOP_SCOPE_TYPE_EXTERNAL_UPLEVEL_DOMAIN |
+                 DSOP_SCOPE_TYPE_EXTERNAL_DOWNLEVEL_DOMAIN |
+                 DSOP_SCOPE_TYPE_WORKGROUP |
+                 DSOP_SCOPE_TYPE_USER_ENTERED_UPLEVEL_SCOPE |
+                 DSOP_SCOPE_TYPE_USER_ENTERED_DOWNLEVEL_SCOPE;
+  scope.flScope = DSOP_SCOPE_FLAG_STARTING_SCOPE |
+                  DSOP_SCOPE_FLAG_DEFAULT_FILTER_COMPUTERS;
+  scope.FilterFlags.Uplevel.flBothModes = DSOP_FILTER_COMPUTERS;
+  scope.FilterFlags.flDownlevel = DSOP_DOWNLEVEL_FILTER_COMPUTERS;
+
+  DSOP_INIT_INFO init = {};
+  init.cbSize = sizeof(init);
+  init.cDsScopeInfos = 1;
+  init.aDsScopeInfos = &scope;
+  hr = picker->Initialize(&init);
+  if (FAILED(hr)) {
+    return hr;
+  }
+
+  ComPtr<IDataObject> selection;
+  hr = picker->InvokeDialog(owner, selection.Receive());
+  if (FAILED(hr)) {
+    return hr;
+  }
+  if (hr == S_FALSE || !selection) {
+    return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+  }
+
+  FORMATETC format = {};
+  format.cfFormat = static_cast<CLIPFORMAT>(
+      RegisterClipboardFormatW(CFSTR_DSOP_DS_SELECTION_LIST));
+  format.dwAspect = DVASPECT_CONTENT;
+  format.lindex = -1;
+  format.tymed = TYMED_HGLOBAL;
+  STGMEDIUM medium = {};
+  hr = selection->GetData(&format, &medium);
+  if (FAILED(hr)) {
+    return hr;
+  }
+  if (auto* list =
+          static_cast<PDS_SELECTION_LIST>(GlobalLock(medium.hGlobal))) {
+    if (list->cItems > 0 && list->aDsSelection[0].pwzName) {
+      *name = list->aDsSelection[0].pwzName;
+    }
+    GlobalUnlock(medium.hGlobal);
+  }
+  ReleaseStgMedium(&medium);
+  if (!name->empty() && name->back() == L'$') {
+    name->pop_back();
+  }
+  return name->empty() ? HRESULT_FROM_WIN32(ERROR_CANCELLED) : S_OK;
 }
 
 bool DialogCancelled(HRESULT hr) {

@@ -201,6 +201,14 @@ std::wstring MainWindow::Impl::TabsCachePath() const {
   return util::JoinPath(folder, L"tabs.ini");
 }
 
+std::wstring MainWindow::Impl::SessionCachePath() const {
+  std::wstring folder = CacheFolderPath();
+  if (folder.empty()) {
+    return L"";
+  }
+  return util::JoinPath(folder, L"session.ini");
+}
+
 std::wstring MainWindow::Impl::SearchTabCachePath(const std::wstring& file) const {
   std::wstring folder = CacheFolderPath();
   if (folder.empty()) {
@@ -221,6 +229,14 @@ bool MainWindow::Impl::EnsureSearchTabResultsLoaded(int search_index) {
     return true;
   }
   tab.last_ui_count = 0;
+  if (tab.is_compare) {
+    tab.results_loaded = true;
+    if (!tab.compare_cache_file.empty()) {
+      search::compare::LoadRows(SearchTabCachePath(tab.compare_cache_file),
+                                &tab.compare_rows);
+    }
+    return true;
+  }
   if (tab.cache_file.empty()) {
     tab.results_loaded = true;
     return true;
@@ -280,28 +296,31 @@ void MainWindow::Impl::ApplySearchTabLoad(SearchTabLoadPayload* payload) {
 }
 
 void MainWindow::Impl::ClearTabsCache() {
-  std::wstring tabs_path = TabsCachePath();
-  if (!tabs_path.empty()) {
-    DeleteFileW(tabs_path.c_str());
+  for (const std::wstring& path : {TabsCachePath(), SessionCachePath()}) {
+    if (!path.empty()) {
+      DeleteFileW(path.c_str());
+    }
   }
   std::wstring folder = CacheFolderPath();
   if (folder.empty()) {
     return;
   }
-  std::wstring pattern = util::JoinPath(folder, L"search_*.tsv");
-  WIN32_FIND_DATAW data = {};
-  HANDLE find = FindFirstFileW(pattern.c_str(), &data);
-  if (find == INVALID_HANDLE_VALUE) {
-    return;
-  }
-  do {
-    if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+  for (const wchar_t* pattern_name : {L"search_*.tsv", L"compare_*.tsv"}) {
+    std::wstring pattern = util::JoinPath(folder, pattern_name);
+    WIN32_FIND_DATAW data = {};
+    HANDLE find = FindFirstFileW(pattern.c_str(), &data);
+    if (find == INVALID_HANDLE_VALUE) {
       continue;
     }
-    std::wstring path = util::JoinPath(folder, data.cFileName);
-    DeleteFileW(path.c_str());
-  } while (FindNextFileW(find, &data) != 0);
-  FindClose(find);
+    do {
+      if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        continue;
+      }
+      std::wstring path = util::JoinPath(folder, data.cFileName);
+      DeleteFileW(path.c_str());
+    } while (FindNextFileW(find, &data) != 0);
+    FindClose(find);
+  }
 }
 
 void MainWindow::Impl::LoadTabs() {
@@ -316,48 +335,83 @@ void MainWindow::Impl::LoadTabs() {
   int active_index = 0;
   bool loaded = false;
   const bool restore_session = win32::RestoreSessionRequested();
-  if (save_tabs_ || restore_session) {
-    workspace::TabState state;
+  const std::wstring session_path = SessionCachePath();
+  workspace::TabState state;
+  if (restore_session && workspace::LoadTabs(session_path, &state)) {
+    loaded = true;
+    DeleteFileW(session_path.c_str());
+  } else if (save_tab_kinds_ != 0) {
     loaded = workspace::LoadTabs(TabsCachePath(), &state);
-    if (loaded && restore_session && !save_tabs_) {
-      DeleteFileW(TabsCachePath().c_str());
-    }
-    if (loaded) {
-      active_index = state.active_index;
-      for (workspace::PersistedTab& saved : state.tabs) {
-        std::wstring label = std::move(saved.label);
-        if (saved.kind == workspace::PersistedTab::Kind::kRegistry) {
-          if (label.empty()) {
-            label = L"Local Registry";
-          }
-          TCITEMW item = {};
-          item.mask = TCIF_TEXT;
-          item.pszText = label.data();
-          TabCtrl_InsertItem(tab_, TabCtrl_GetItemCount(tab_), &item);
-          TabEntry entry;
-          entry.kind = TabEntry::Kind::kRegistry;
-          entry.registry_mode = RegistryMode::kLocal;
-          entry.selected_path = std::move(saved.selected_path);
-          entry.selected_value = std::move(saved.selected_value);
-          entry.expanded_paths = std::move(saved.expanded_paths);
-          tabs_.push_back(std::move(entry));
-        } else {
-          SearchTab search_tab;
-          search_tab.label = label.empty() ? L"Find" : std::move(label);
-          search_tab.cache_file = std::move(saved.search_cache_file);
-          search_tab.results_loaded = search_tab.cache_file.empty();
-          search_tab.is_compare =
-              StartsWithInsensitive(search_tab.label, L"Compare:");
-          search_tabs_.push_back(std::move(search_tab));
-          const int search_index =
-              static_cast<int>(search_tabs_.size() - 1);
-          TCITEMW item = {};
-          item.mask = TCIF_TEXT;
-          item.pszText = search_tabs_.back().label.data();
-          TabCtrl_InsertItem(tab_, TabCtrl_GetItemCount(tab_), &item);
-          tabs_.push_back({TabEntry::Kind::kSearch, search_index});
-        }
+  }
+  if (loaded) {
+    active_index = state.active_index;
+    for (workspace::PersistedTab& saved : state.tabs) {
+      std::wstring label = std::move(saved.label);
+      if (saved.kind == workspace::PersistedTab::Kind::kSearch) {
+        SearchTab search_tab;
+        search_tab.label = label.empty() ? L"Find" : std::move(label);
+        search_tab.cache_file = std::move(saved.search_cache_file);
+        search_tab.compare_cache_file = std::move(saved.compare_cache_file);
+        search_tab.is_compare = saved.is_compare ||
+                                StartsWithInsensitive(search_tab.label, L"Compare:");
+        search_tab.results_loaded =
+            search_tab.is_compare ? search_tab.compare_cache_file.empty()
+                                  : search_tab.cache_file.empty();
+        search_tab.first_source.kind =
+            static_cast<CompareSource::Kind>(saved.first_source_kind);
+        search_tab.first_source.file_path = std::move(saved.first_source_file);
+        search_tab.second_source.kind =
+            static_cast<CompareSource::Kind>(saved.second_source_kind);
+        search_tab.second_source.file_path = std::move(saved.second_source_file);
+        search_tabs_.push_back(std::move(search_tab));
+        const int search_index = static_cast<int>(search_tabs_.size() - 1);
+        TCITEMW item = {};
+        item.mask = TCIF_TEXT;
+        item.pszText = search_tabs_.back().label.data();
+        TabCtrl_InsertItem(tab_, TabCtrl_GetItemCount(tab_), &item);
+        tabs_.push_back({TabEntry::Kind::kSearch, search_index});
+        continue;
       }
+      if (saved.kind == workspace::PersistedTab::Kind::kRegFile) {
+        if (label.empty()) {
+          label = FileNameOnly(saved.source_path);
+        }
+        TCITEMW item = {};
+        item.mask = TCIF_TEXT;
+        item.pszText = label.data();
+        TabCtrl_InsertItem(tab_, TabCtrl_GetItemCount(tab_), &item);
+        TabEntry entry;
+        entry.kind = TabEntry::Kind::kRegFile;
+        entry.reg_file_path = std::move(saved.source_path);
+        entry.reg_file_label = label;
+        entry.selected_path = std::move(saved.selected_path);
+        entry.selected_value = std::move(saved.selected_value);
+        entry.selected_values = std::move(saved.selected_values);
+        entry.value_top_index = saved.value_top_index;
+        entry.expanded_paths = std::move(saved.expanded_paths);
+        tabs_.push_back(std::move(entry));
+        continue;
+      }
+      if (label.empty()) {
+        label = L"Local Registry";
+      }
+      TCITEMW item = {};
+      item.mask = TCIF_TEXT;
+      item.pszText = label.data();
+      TabCtrl_InsertItem(tab_, TabCtrl_GetItemCount(tab_), &item);
+      TabEntry entry;
+      entry.kind = TabEntry::Kind::kRegistry;
+      entry.registry_mode = static_cast<RegistryMode>(saved.registry_mode);
+      entry.offline_path = entry.registry_mode == RegistryMode::kOffline
+                               ? std::move(saved.source_path)
+                               : std::wstring();
+      entry.remote_machine = std::move(saved.remote_machine);
+      entry.selected_path = std::move(saved.selected_path);
+      entry.selected_value = std::move(saved.selected_value);
+      entry.selected_values = std::move(saved.selected_values);
+      entry.value_top_index = saved.value_top_index;
+      entry.expanded_paths = std::move(saved.expanded_paths);
+      tabs_.push_back(std::move(entry));
     }
   }
 
@@ -385,13 +439,34 @@ void MainWindow::Impl::LoadTabs() {
 }
 
 bool MainWindow::Impl::SaveTabs() {
-  if (!tab_) {
+  return SaveTabState(TabsCachePath(), save_tab_kinds_);
+}
+
+bool MainWindow::Impl::SaveSessionTabs() {
+  return SaveTabState(SessionCachePath(), workspace::kSaveTabsAll);
+}
+
+int MainWindow::Impl::TabSaveKind(const TabEntry& entry) const {
+  if (entry.kind == TabEntry::Kind::kRegFile) {
+    return workspace::kSaveTabsRegFile;
+  }
+  if (entry.kind == TabEntry::Kind::kSearch) {
+    const size_t index = static_cast<size_t>(entry.search_index);
+    return entry.search_index >= 0 && index < search_tabs_.size() &&
+                   search_tabs_[index].is_compare
+               ? workspace::kSaveTabsCompare
+               : workspace::kSaveTabsSearch;
+  }
+  return entry.registry_mode == RegistryMode::kOffline ? workspace::kSaveTabsOffline
+         : entry.registry_mode == RegistryMode::kRemote ? workspace::kSaveTabsRemote
+                                                        : workspace::kSaveTabsLocal;
+}
+
+bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds) {
+  if (!tab_ || path.empty()) {
     return true;
   }
-  int current_registry_tab = CurrentRegistryTabIndex();
-  if (current_registry_tab >= 0 && !IsSearchTabIndex(current_registry_tab) && !IsRegFileTabIndex(current_registry_tab)) {
-    CaptureRegistryTabState(current_registry_tab);
-  }
+  CaptureRegistryTabState(TabCtrl_GetCurSel(tab_));
   std::wstring folder = CacheFolderPath();
   if (folder.empty()) {
     return false;
@@ -417,7 +492,8 @@ bool MainWindow::Impl::SaveTabs() {
       break;
     }
     const auto& entry = tabs_[static_cast<size_t>(i)];
-    if (entry.kind == TabEntry::Kind::kRegFile) {
+    const int entry_kind = TabSaveKind(entry);
+    if ((kinds & entry_kind) == 0) {
       continue;
     }
     if (i == active_index) {
@@ -438,19 +514,29 @@ bool MainWindow::Impl::SaveTabs() {
         continue;
       }
       SearchTab& search_tab = search_tabs_[static_cast<size_t>(search_index)];
-      std::wstring file_name = search_tab.cache_file;
+      std::wstring& stored_name = search_tab.is_compare
+                                      ? search_tab.compare_cache_file
+                                      : search_tab.cache_file;
+      std::wstring file_name = stored_name;
       if (file_name.empty()) {
+        const wchar_t* prefix = search_tab.is_compare ? L"compare_" : L"search_";
         do {
-          file_name = L"search_" + std::to_wstring(search_file_index++) + L".tsv";
+          file_name = prefix + std::to_wstring(search_file_index++) + L".tsv";
         } while (referenced_files.find(file_name) != referenced_files.end() || reserved_files.find(file_name) != reserved_files.end());
-        search_tab.cache_file = file_name;
+        stored_name = file_name;
         reserved_files.insert(file_name);
       }
-      if (search_tab.results_loaded &&
-          !search::SaveResults(SearchTabCachePath(file_name),
-                               search_tab.results)) {
-        saved_all = false;
-        continue;
+      if (search_tab.results_loaded) {
+        const bool written =
+            search_tab.is_compare
+                ? search::compare::SaveRows(SearchTabCachePath(file_name),
+                                            search_tab.compare_rows)
+                : search::SaveResults(SearchTabCachePath(file_name),
+                                      search_tab.results);
+        if (!written) {
+          saved_all = false;
+          continue;
+        }
       }
       referenced_files.insert(file_name);
       if (label.empty()) {
@@ -459,7 +545,30 @@ bool MainWindow::Impl::SaveTabs() {
       workspace::PersistedTab saved;
       saved.kind = workspace::PersistedTab::Kind::kSearch;
       saved.label = std::move(label);
-      saved.search_cache_file = std::move(file_name);
+      saved.is_compare = search_tab.is_compare;
+      if (search_tab.is_compare) {
+        saved.compare_cache_file = std::move(file_name);
+        saved.first_source_kind = static_cast<int>(search_tab.first_source.kind);
+        saved.first_source_file = search_tab.first_source.file_path;
+        saved.second_source_kind = static_cast<int>(search_tab.second_source.kind);
+        saved.second_source_file = search_tab.second_source.file_path;
+      } else {
+        saved.search_cache_file = std::move(file_name);
+      }
+      state.tabs.push_back(std::move(saved));
+    } else if (entry.kind == TabEntry::Kind::kRegFile) {
+      if (entry.reg_file_path.empty()) {
+        continue;
+      }
+      workspace::PersistedTab saved;
+      saved.kind = workspace::PersistedTab::Kind::kRegFile;
+      saved.label = label.empty() ? entry.reg_file_label : std::move(label);
+      saved.source_path = entry.reg_file_path;
+      saved.selected_path = entry.selected_path;
+      saved.selected_value = entry.selected_value;
+      saved.selected_values = entry.selected_values;
+      saved.value_top_index = entry.value_top_index;
+      saved.expanded_paths = entry.expanded_paths;
       state.tabs.push_back(std::move(saved));
     } else {
       const TabEntry& registry_entry = tabs_[static_cast<size_t>(i)];
@@ -475,7 +584,12 @@ bool MainWindow::Impl::SaveTabs() {
       saved.label = std::move(label);
       saved.selected_path = registry_entry.selected_path;
       saved.selected_value = registry_entry.selected_value;
+      saved.selected_values = registry_entry.selected_values;
+      saved.value_top_index = registry_entry.value_top_index;
       saved.expanded_paths = registry_entry.expanded_paths;
+      saved.registry_mode = static_cast<int>(registry_entry.registry_mode);
+      saved.source_path = registry_entry.offline_path;
+      saved.remote_machine = registry_entry.remote_machine;
       state.tabs.push_back(std::move(saved));
     }
     ++saved_index;
@@ -484,12 +598,23 @@ bool MainWindow::Impl::SaveTabs() {
     saved_active_index = 0;
   }
   state.active_index = saved_active_index;
-  const bool saved = workspace::SaveTabs(TabsCachePath(), state) && saved_all;
+  const bool saved = workspace::SaveTabs(path, state) && saved_all;
 
-  std::wstring pattern = util::JoinPath(folder, L"search_*.tsv");
-  WIN32_FIND_DATAW data = {};
-  HANDLE find = FindFirstFileW(pattern.c_str(), &data);
-  if (find != INVALID_HANDLE_VALUE) {
+  for (const auto& search_tab : search_tabs_) {
+    if (!search_tab.cache_file.empty()) {
+      referenced_files.insert(search_tab.cache_file);
+    }
+    if (!search_tab.compare_cache_file.empty()) {
+      referenced_files.insert(search_tab.compare_cache_file);
+    }
+  }
+  for (const wchar_t* pattern_name : {L"search_*.tsv", L"compare_*.tsv"}) {
+    std::wstring pattern = util::JoinPath(folder, pattern_name);
+    WIN32_FIND_DATAW data = {};
+    HANDLE find = FindFirstFileW(pattern.c_str(), &data);
+    if (find == INVALID_HANDLE_VALUE) {
+      continue;
+    }
     do {
       if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         continue;
@@ -689,7 +814,8 @@ void MainWindow::Impl::LoadSettings() {
   settings.show_extra_hives = show_extra_hives_;
   settings.show_value_grid = show_value_grid_;
   settings.save_tree_state = save_tree_state_;
-  settings.save_tabs = save_tabs_;
+  settings.save_tab_kinds = save_tab_kinds_;
+  settings.save_tabs = save_tab_kinds_ != 0;
   settings.always_run_as_admin = always_run_as_admin_;
   settings.always_run_as_system = always_run_as_system_;
   settings.always_run_as_trustedinstaller = always_run_as_trustedinstaller_;
@@ -733,7 +859,7 @@ void MainWindow::Impl::LoadSettings() {
   show_extra_hives_ = settings.show_extra_hives;
   show_value_grid_ = settings.show_value_grid;
   save_tree_state_ = settings.save_tree_state;
-  save_tabs_ = settings.save_tabs;
+  save_tab_kinds_ = settings.save_tab_kinds;
   always_run_as_admin_ = settings.always_run_as_admin;
   always_run_as_system_ = settings.always_run_as_system;
   always_run_as_trustedinstaller_ = settings.always_run_as_trustedinstaller;
@@ -800,7 +926,8 @@ void MainWindow::Impl::SaveSettings() const {
   settings.show_extra_hives = show_extra_hives_;
   settings.show_value_grid = show_value_grid_;
   settings.save_tree_state = save_tree_state_;
-  settings.save_tabs = save_tabs_;
+  settings.save_tab_kinds = save_tab_kinds_;
+  settings.save_tabs = save_tab_kinds_ != 0;
   settings.always_run_as_admin = always_run_as_admin_;
   settings.always_run_as_system = always_run_as_system_;
   settings.always_run_as_trustedinstaller = always_run_as_trustedinstaller_;

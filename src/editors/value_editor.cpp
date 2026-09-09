@@ -546,6 +546,29 @@ void PopulateTraceValueEditors(HWND dlg, TraceValueDialogState* state) {
   }
 }
 
+int TraceEditorId(DWORD type) {
+  switch (type) {
+  case REG_EXPAND_SZ:
+    return IDC_REG_EXPAND_EDIT;
+  case REG_MULTI_SZ:
+    return IDC_REG_MULTI_EDIT;
+  case REG_DWORD:
+  case REG_DWORD_BIG_ENDIAN:
+    return IDC_REG_DWORD_EDIT;
+  case REG_QWORD:
+    return IDC_REG_QWORD_EDIT;
+  case REG_BINARY:
+  case REG_RESOURCE_LIST:
+  case REG_FULL_RESOURCE_DESCRIPTOR:
+  case REG_RESOURCE_REQUIREMENTS_LIST:
+    return IDC_REG_BINARY_EDIT;
+  case REG_NONE:
+    return IDC_REG_NONE_EDIT;
+  default:
+    return IDC_REG_SZ_EDIT;
+  }
+}
+
 bool SerializeTraceEditor(HWND dlg, TraceValueDialogState* state, DWORD type,
                           std::vector<BYTE>* out) {
   if (!state || !out) {
@@ -777,12 +800,21 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
       if (type == previous) {
         return TRUE;
       }
+      const bool empty_editor =
+          ReadDialogText(dlg, TraceEditorId(previous)).empty();
       std::vector<BYTE> current;
-      if (!SerializeTraceEditor(dlg, state, previous, &current)) {
+      if (!empty_editor && !SerializeTraceEditor(dlg, state, previous, &current)) {
         ui::ShowError(
             dlg,
             L"The current data is not valid, so the type cannot be changed.");
         SelectTraceType(dlg, state, previous);
+        return TRUE;
+      }
+      if (empty_editor || current.empty()) {
+        state->type = type;
+        state->data.clear();
+        SelectTraceType(dlg, state, type);
+        PopulateTraceValueEditors(dlg, state);
         return TRUE;
       }
       std::vector<BYTE> carried;

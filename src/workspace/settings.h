@@ -8,6 +8,16 @@
 
 namespace regkit::workspace {
 
+inline constexpr int kSaveTabsLocal = 1;
+inline constexpr int kSaveTabsOffline = 2;
+inline constexpr int kSaveTabsRemote = 4;
+inline constexpr int kSaveTabsSearch = 8;
+inline constexpr int kSaveTabsCompare = 16;
+inline constexpr int kSaveTabsRegFile = 32;
+inline constexpr int kSaveTabsAll = kSaveTabsLocal | kSaveTabsOffline |
+                                    kSaveTabsRemote | kSaveTabsSearch |
+                                    kSaveTabsCompare | kSaveTabsRegFile;
+
 struct Settings {
   static constexpr int kCurrentVersion = 1;
   int source_version = 1;
@@ -27,6 +37,7 @@ struct Settings {
   bool show_value_grid = false;
   bool save_tree_state = true;
   bool save_tabs = true;
+  int save_tab_kinds = kSaveTabsAll;
   bool always_run_as_admin = false;
   bool always_run_as_system = false;
   bool always_run_as_trustedinstaller = false;

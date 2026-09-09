@@ -58,7 +58,7 @@ constexpr int kDataTypesButtonHeight = appearance::metrics::kButtonHeight;
 constexpr int kDataTypesButtonGap = appearance::metrics::kButtonGap;
 constexpr int kDataTypesColGap = appearance::metrics::kBlockGap;
 constexpr int kDataTypesColCount = 3;
-constexpr int kDataTypesColWidth = 270;
+constexpr int kDataTypesColWidth = 310;
 constexpr int kDataTypesRowHeight = appearance::metrics::kCheckHeight;
 constexpr int kDataTypesRowStep = appearance::metrics::kRowPitch;
 

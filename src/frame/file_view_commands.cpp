@@ -470,8 +470,21 @@ bool MainWindow::Impl::HandleViewCommand(int command_id) {
     BuildMenus();
     return true;
   case cmd::kOptionsSaveTabs:
-    save_tabs_ = !save_tabs_;
-    if (!save_tabs_) {
+  case cmd::kOptionsSaveTabsLocal:
+  case cmd::kOptionsSaveTabsOffline:
+  case cmd::kOptionsSaveTabsRemote:
+  case cmd::kOptionsSaveTabsSearch:
+  case cmd::kOptionsSaveTabsCompare:
+  case cmd::kOptionsSaveTabsRegFile: {
+    if (command_id == cmd::kOptionsSaveTabs) {
+      save_tab_kinds_ =
+          (save_tab_kinds_ & workspace::kSaveTabsAll) == workspace::kSaveTabsAll
+              ? 0
+              : workspace::kSaveTabsAll;
+    } else {
+      save_tab_kinds_ ^= 1 << (command_id - cmd::kOptionsSaveTabsLocal);
+    }
+    if (save_tab_kinds_ == 0) {
       ClearTabsCache();
     } else {
       SaveTabs();
@@ -479,6 +492,7 @@ bool MainWindow::Impl::HandleViewCommand(int command_id) {
     SaveSettings();
     BuildMenus();
     return true;
+  }
   case cmd::kOptionsReadOnly:
     read_only_ = !read_only_;
     SaveSettings();

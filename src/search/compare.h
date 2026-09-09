@@ -60,4 +60,9 @@ void SortRows(std::vector<Row>* rows, int column, bool ascending);
 std::vector<Row> Diff(const Snapshot& first, const Snapshot& second,
                       std::atomic_bool* cancel = nullptr);
 
+std::wstring SerializeRows(const std::vector<Row>& rows);
+bool ParseRows(const std::wstring& content, std::vector<Row>* rows);
+bool SaveRows(const std::wstring& path, const std::vector<Row>& rows);
+bool LoadRows(const std::wstring& path, std::vector<Row>* rows);
+
 } // namespace regkit::search::compare
