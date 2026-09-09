@@ -330,6 +330,7 @@ bool Parse(std::wstring_view content, Document* output,
 
   std::vector<std::wstring> lines;
   std::wstring continued;
+  bool continuing = false;
   size_t start = 0;
   while (start < content.size()) {
     if (stopped()) {
@@ -344,6 +345,10 @@ bool Parse(std::wstring_view content, Document* output,
       line.pop_back();
     }
     start = end + 1;
+    if (continuing) {
+      const size_t first = line.find_first_not_of(L" \t");
+      line.erase(0, first == std::wstring::npos ? line.size() : first);
+    }
     continued += line;
     while (!continued.empty() &&
            (continued.back() == L' ' || continued.back() == L'\t')) {
@@ -351,8 +356,10 @@ bool Parse(std::wstring_view content, Document* output,
     }
     if (!continued.empty() && continued.back() == L'\\') {
       continued.pop_back();
+      continuing = true;
       continue;
     }
+    continuing = false;
     lines.push_back(std::move(continued));
     continued.clear();
   }

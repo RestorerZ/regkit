@@ -109,6 +109,7 @@ private:
     std::vector<Change> changes;
     int failures = 0;
     int partial_renames = 0;
+    int rejected = 0;
     bool cancelled = false;
   };
 

@@ -882,6 +882,185 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options) {
   search_tabs_[static_cast<size_t>(search_index)].generation = generation;
 }
 
+namespace {
+
+enum class DataReplace { kUnchanged, kChanged, kRejected };
+
+bool ParseUnsignedText(const std::wstring& text, int base, uint64_t* out) {
+  std::wstring trimmed = TrimWhitespace(text);
+  if (trimmed.empty() || trimmed.front() == L'-' || trimmed.front() == L'+') {
+    return false;
+  }
+  if (trimmed.size() > 2 && trimmed[0] == L'0' &&
+      (trimmed[1] == L'x' || trimmed[1] == L'X')) {
+    base = 16;
+    trimmed.erase(0, 2);
+  }
+  if (trimmed.empty()) {
+    return false;
+  }
+  errno = 0;
+  wchar_t* stop = nullptr;
+  const unsigned long long parsed = wcstoull(trimmed.c_str(), &stop, base);
+  if (!stop || *stop != L'\0' || errno == ERANGE) {
+    return false;
+  }
+  *out = parsed;
+  return true;
+}
+
+std::wstring PaddedHex(uint64_t value, size_t width) {
+  static constexpr wchar_t kDigits[] = L"0123456789ABCDEF";
+  std::wstring text(width * 2, L'0');
+  for (size_t index = 0; index < width * 2; ++index) {
+    text[width * 2 - 1 - index] = kDigits[(value >> (index * 4)) & 0xF];
+  }
+  return text;
+}
+
+bool ParseHexBytesStrict(const std::wstring& text, std::vector<BYTE>* out) {
+  out->clear();
+  auto separator = [](wchar_t c) {
+    return c == L' ' || c == L'\t' || c == L',';
+  };
+  size_t index = 0;
+  while (index < text.size()) {
+    while (index < text.size() && separator(text[index])) {
+      ++index;
+    }
+    if (index >= text.size()) {
+      break;
+    }
+    const size_t start = index;
+    while (index < text.size() && !separator(text[index])) {
+      ++index;
+    }
+    if (index - start != 2) {
+      return false;
+    }
+    int value = 0;
+    for (size_t offset = 0; offset < 2; ++offset) {
+      const wchar_t c = text[start + offset];
+      int digit = 0;
+      if (c >= L'0' && c <= L'9') {
+        digit = c - L'0';
+      } else if (c >= L'a' && c <= L'f') {
+        digit = 10 + (c - L'a');
+      } else if (c >= L'A' && c <= L'F') {
+        digit = 10 + (c - L'A');
+      } else {
+        return false;
+      }
+      value = value * 16 + digit;
+    }
+    out->push_back(static_cast<BYTE>(value));
+  }
+  return true;
+}
+
+uint64_t ReadNumber(const std::vector<BYTE>& data, size_t width, bool big_endian) {
+  uint64_t value = 0;
+  for (size_t i = 0; i < width; ++i) {
+    const uint64_t byte = data[big_endian ? i : width - 1 - i];
+    value = (value << 8) | byte;
+  }
+  return value;
+}
+
+void WriteNumber(uint64_t value, size_t width, bool big_endian,
+                 std::vector<BYTE>* out) {
+  out->assign(width, 0);
+  for (size_t i = 0; i < width; ++i) {
+    const BYTE byte = static_cast<BYTE>((value >> (8 * i)) & 0xFF);
+    (*out)[big_endian ? width - 1 - i : i] = byte;
+  }
+}
+
+DataReplace ReplaceValueData(const search::Replacer& matcher, DWORD type,
+                             const std::vector<BYTE>& data,
+                             std::vector<BYTE>* out) {
+  const DWORD base = value_format::NormalizeType(type);
+  switch (base) {
+  case REG_SZ:
+  case REG_EXPAND_SZ:
+  case REG_LINK: {
+    const std::wstring text = value_format::Data(
+        type, data.data(), static_cast<DWORD>(data.size()));
+    std::wstring updated;
+    if (!matcher.Replace(text, &updated) || updated == text) {
+      return DataReplace::kUnchanged;
+    }
+    *out = value_format::StringData(updated);
+    return DataReplace::kChanged;
+  }
+  case REG_MULTI_SZ: {
+    std::vector<std::wstring> parts = value_format::MultiStringItems(data);
+    bool changed = false;
+    for (auto& part : parts) {
+      std::wstring updated;
+      if (matcher.Replace(part, &updated) && updated != part) {
+        part = std::move(updated);
+        changed = true;
+      }
+    }
+    if (!changed) {
+      return DataReplace::kUnchanged;
+    }
+    *out = value_format::MultiStringData(parts);
+    return DataReplace::kChanged;
+  }
+  case REG_DWORD:
+  case REG_DWORD_BIG_ENDIAN:
+  case REG_QWORD: {
+    const bool big_endian = base == REG_DWORD_BIG_ENDIAN;
+    const size_t width = base == REG_QWORD ? sizeof(uint64_t) : sizeof(DWORD);
+    if (data.size() < width) {
+      return DataReplace::kUnchanged;
+    }
+    const uint64_t number = ReadNumber(data, width, big_endian);
+    const std::wstring decimal = std::to_wstring(number);
+    const std::wstring bare_hex = PaddedHex(number, width);
+    const std::wstring prefixed_hex = L"0x" + bare_hex;
+    const struct {
+      const std::wstring* text;
+      int base;
+    } forms[] = {{&decimal, 10}, {&prefixed_hex, 16}, {&bare_hex, 16}};
+
+    for (const auto& form : forms) {
+      std::wstring updated;
+      if (!matcher.Replace(*form.text, &updated) || updated == *form.text) {
+        continue;
+      }
+      uint64_t parsed = 0;
+      if (!ParseUnsignedText(updated, form.base, &parsed)) {
+        return DataReplace::kRejected;
+      }
+      if (width == sizeof(DWORD) && parsed > MAXDWORD) {
+        return DataReplace::kRejected;
+      }
+      WriteNumber(parsed, width, big_endian, out);
+      return DataReplace::kChanged;
+    }
+    return DataReplace::kUnchanged;
+  }
+  default: {
+    const std::wstring text = util::ToHex(data.data(), data.size(), 0);
+    std::wstring updated;
+    if (!matcher.Replace(text, &updated) || updated == text) {
+      return DataReplace::kUnchanged;
+    }
+    std::vector<BYTE> bytes;
+    if (!ParseHexBytesStrict(updated, &bytes)) {
+      return DataReplace::kRejected;
+    }
+    *out = std::move(bytes);
+    return DataReplace::kChanged;
+  }
+  }
+}
+
+} // namespace
+
 void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
   if (read_only_) {
     ui::ShowWarning(hwnd_, L"Read only mode is enabled.");
@@ -992,38 +1171,18 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options) {
               }
             }
 
-            if (!options.replace_data || (value.type != REG_SZ &&
-                                          value.type != REG_EXPAND_SZ &&
-                                          value.type != REG_MULTI_SZ)) {
+            if (!options.replace_data || value.data.empty()) {
               continue;
             }
 
-            std::vector<BYTE> new_data = value.data;
-            bool changed = false;
-            if (value.type == REG_MULTI_SZ) {
-              auto parts = value_format::MultiStringItems(value.data);
-              for (auto& part : parts) {
-                std::wstring updated;
-                if (matcher.Replace(part, &updated) && updated != part) {
-                  part = std::move(updated);
-                  changed = true;
-                }
-              }
-              if (changed) {
-                new_data = value_format::MultiStringData(parts);
-              }
-            } else {
-              const std::wstring text = value_format::Data(
-                  value.type, value.data.data(),
-                  static_cast<DWORD>(value.data.size()));
-              std::wstring updated;
-              if (matcher.Replace(text, &updated) && updated != text) {
-                new_data = value_format::StringData(updated);
-                changed = true;
-              }
+            std::vector<BYTE> new_data;
+            const DataReplace outcome =
+                ReplaceValueData(matcher, value.type, value.data, &new_data);
+            if (outcome == DataReplace::kRejected) {
+              ++payload->rejected;
+              continue;
             }
-
-            if (!changed) {
+            if (outcome == DataReplace::kUnchanged) {
               continue;
             }
             if (!RegistryStore::SetValue(node, current_name, value.type,
@@ -1154,16 +1313,24 @@ void MainWindow::Impl::CommitReplacePayload(
     if (payload->failures > 0) {
       summary += L", " + std::to_wstring(payload->failures) + L" failed";
     }
+    if (payload->rejected > 0) {
+      summary += L", " + std::to_wstring(payload->rejected) + L" skipped";
+    }
     if (payload->cancelled) {
       summary += L" (cancelled)";
     }
     SetStatusMessage(summary);
   }
-  if (show_failures && payload->failures > 0) {
+  if (show_failures && (payload->failures > 0 || payload->rejected > 0)) {
     std::wstring message =
         L"Replace finished with some failures.\nReplaced: " +
         std::to_wstring(payload->changes.size()) + L"\nFailed: " +
         std::to_wstring(payload->failures);
+    if (payload->rejected > 0) {
+      message += L"\nSkipped: " + std::to_wstring(payload->rejected) +
+                 L" value(s) because the replacement was not valid for the "
+                 L"value type.";
+    }
     if (payload->partial_renames > 0) {
       message += L"\n" + std::to_wstring(payload->partial_renames) +
                  L" value(s) were copied to the new name but the old name "

@@ -719,6 +719,23 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
   return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
+std::wstring NormalizeLineBreaks(const std::wstring& text) {
+  std::wstring output;
+  output.reserve(text.size());
+  for (size_t index = 0; index < text.size(); ++index) {
+    const wchar_t c = text[index];
+    if (c == L'\r') {
+      continue;
+    }
+    if (c == L'\n') {
+      output.append(L"\r\n");
+      continue;
+    }
+    output.push_back(c);
+  }
+  return output;
+}
+
 bool ShowErrorDialog(HWND owner, const std::wstring& title,
                      const std::wstring& message) {
   WNDCLASSW wc = {};
@@ -742,6 +759,10 @@ bool ShowErrorDialog(HWND owner, const std::wstring& title,
            (state.detail.front() == L'\n' || state.detail.front() == L'\r')) {
       state.detail.erase(state.detail.begin());
     }
+    state.detail = NormalizeLineBreaks(state.detail);
+  }
+  if (!state.message.empty() && state.message.back() == L'\r') {
+    state.message.pop_back();
   }
   const UINT dpi = win32::DpiForWindow(owner);
   const int width = appearance::metrics::Scaled(state.detail.empty() ? 320 : 520, dpi);
