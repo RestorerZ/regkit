@@ -297,7 +297,3 @@ These levels can bypass protections, use them only when you understand the possi
 - Restart as TI: uses SYSTEM to start/query the TI service, duplicates its token, then launches RegKit with that token
 
 SYSTEM rights are for example needed for reading keys such as `HKLM\SAM\SAM`, `HKLM\SECURITY\Policy`, TI rights are for example needed to write in keys like `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing`.
-
-## Credits
-
-[Registry Finder](https://registry-finder.com/) was used for UI inspiration and [TotalRegistry](https://github.com/zodiacon/TotalRegistry) for feature inspiration.
