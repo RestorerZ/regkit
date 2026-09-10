@@ -84,10 +84,10 @@ constexpr UINT_PTR kTreeStateTimerId = 42;
 constexpr int kValueGridButtonWidth = 22;
 constexpr int kToolbarIconSize = 16;
 constexpr int kToolbarGlyphSize = 16;
-using win32::kRestartSystemArg;
-using win32::kRestartUserArg;
 using win32::kRestartAdminArg;
+using win32::kRestartSystemArg;
 using win32::kRestartTiArg;
+using win32::kRestartUserArg;
 template <typename T>
 inline T ClampValue(
     T value,

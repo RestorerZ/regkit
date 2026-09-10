@@ -33,10 +33,10 @@
 
 namespace {
 
+using regkit::win32::kRestartAdminArg;
 using regkit::win32::kRestartSystemArg;
 using regkit::win32::kRestartTiArg;
 using regkit::win32::kRestartUserArg;
-using regkit::win32::kRestartAdminArg;
 constexpr ULONG_PTR kExternalJumpCopyDataId = 0x52474A54;
 constexpr wchar_t kRegKitWindowProperty[] = L"RegKitMainWindow";
 

@@ -1,0 +1,15 @@
+BasedOnStyle: LLVM
+
+AlignAfterOpenBracket: BlockIndent
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortFunctionsOnASingleLine: None
+BinPackArguments: false
+BinPackParameters: false
+ColumnLimit: 0
+IndentCaseBlocks: true
+InsertNewlineAtEOF: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+PointerAlignment: Left
+ReflowComments: false
+SortIncludes: Never
