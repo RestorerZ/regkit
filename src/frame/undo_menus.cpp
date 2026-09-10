@@ -676,8 +676,8 @@ void MainWindow::Impl::ClearValueFilter(
   }
   browse_.values().SetFilter(std::wstring());
   UpdateStatus();
-  if (focus_values && browse_.values().hwnd()) {
-    SetFocus(browse_.values().hwnd());
+  if (focus_values) {
+    FocusPane(browse_.values().hwnd());
   }
 }
 
@@ -759,9 +759,7 @@ void MainWindow::Impl::SelectValueWhenReady(
     const std::wstring& name
 ) {
   pending_value_name_ = name;
-  if (browse_.values().hwnd()) {
-    SetFocus(browse_.values().hwnd());
-  }
+  FocusPane(browse_.values().hwnd());
   if (!value_list_loading_ && SelectValueByName(name)) {
     pending_value_name_.clear();
   }

@@ -483,9 +483,7 @@ void MainWindow::Impl::StartPendingValueListRename() {
   }
   if (index >= 0 && IsWindowVisible(browse_.values().hwnd())) {
     SetFocus(browse_.values().hwnd());
-    ListView_SetItemState(browse_.values().hwnd(), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-    ListView_SetItemState(browse_.values().hwnd(), index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-    ListView_EnsureVisible(browse_.values().hwnd(), index, FALSE);
+    SelectListRowAtIndex(browse_.values().hwnd(), index);
     ListView_EditLabel(browse_.values().hwnd(), index);
   }
   pending_value_list_kind_ = 0;
@@ -530,9 +528,7 @@ void MainWindow::Impl::FocusFirstValue() {
     return;
   }
   SetFocus(list);
-  ListView_SetItemState(list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-  ListView_SetItemState(list, 0, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-  ListView_EnsureVisible(list, 0, FALSE);
+  SelectListRowAtIndex(list, 0);
 }
 
 void MainWindow::Impl::EnsureValueRowData(

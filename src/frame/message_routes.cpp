@@ -964,9 +964,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(
           const int command = pending_value_command_;
           pending_value_command_ = 0;
           if (selected && command != 0) {
-            if (browse_.values().hwnd()) {
-              SetFocus(browse_.values().hwnd());
-            }
+            FocusPane(browse_.values().hwnd());
             PostMessageW(hwnd_, WM_COMMAND, MAKEWPARAM(command, 0), 0);
           }
         }
@@ -1066,7 +1064,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(
   case WM_SETFOCUS:
     if (last_focus_ && IsWindow(last_focus_) && IsChild(hwnd_, last_focus_) &&
         IsWindowVisible(last_focus_) && IsWindowEnabled(last_focus_)) {
-      SetFocus(last_focus_);
+      FocusPane(last_focus_);
       return 0;
     }
     break;

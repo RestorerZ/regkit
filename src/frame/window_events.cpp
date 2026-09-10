@@ -168,10 +168,16 @@ void MainWindow::Impl::FocusPane(
     return;
   }
   SetFocus(pane);
-  if (pane == browse_.values().hwnd() &&
-      ListView_GetNextItem(pane, -1, LVNI_FOCUSED) < 0) {
-    FocusFirstValue();
+  if (pane != browse_.values().hwnd() && pane != search_results_list_ &&
+      pane != history_list_) {
+    return;
   }
+  if (ListView_GetItemCount(pane) <= 0 ||
+      ListView_GetNextItem(pane, -1, LVNI_FOCUSED) >= 0 ||
+      ListView_GetSelectedCount(pane) > 0) {
+    return;
+  }
+  SelectListRowAtIndex(pane, 0);
 }
 
 bool MainWindow::Impl::TranslateAccelerator(
