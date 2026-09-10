@@ -419,6 +419,7 @@ private:
   bool CreateRegistryPath(const std::wstring& path);
   bool SelectAllInFocusedList();
   void CyclePaneFocus(bool forward);
+  void FocusPane(HWND pane);
   bool InvertSelectionInFocusedList();
   bool IsCompareTabSelected() const;
   void StartCompareRegistries();

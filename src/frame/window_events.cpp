@@ -158,7 +158,20 @@ void MainWindow::Impl::CyclePaneFocus(
   }
   const int next = current < 0 ? (forward ? 0 : count - 1)
                                : (current + (forward ? 1 : count - 1)) % count;
-  SetFocus(visible[next]);
+  FocusPane(visible[next]);
+}
+
+void MainWindow::Impl::FocusPane(
+    HWND pane
+) {
+  if (!pane) {
+    return;
+  }
+  SetFocus(pane);
+  if (pane == browse_.values().hwnd() &&
+      ListView_GetNextItem(pane, -1, LVNI_FOCUSED) < 0) {
+    FocusFirstValue();
+  }
 }
 
 bool MainWindow::Impl::TranslateAccelerator(
@@ -230,7 +243,7 @@ bool MainWindow::Impl::TranslateAccelerator(
                     : tree_ready                    ? tree
                                                     : nullptr;
         if (next) {
-          SetFocus(next);
+          FocusPane(next);
           return true;
         }
       }
