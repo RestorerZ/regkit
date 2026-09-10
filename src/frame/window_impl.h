@@ -497,6 +497,7 @@ private:
   void CaptureTreeState(std::wstring* selected_path, std::vector<std::wstring>* expanded_paths) const;
   void RestoreTreeState();
   bool ExpandTreePath(const std::wstring& path);
+  void ExpandTreePaths(const std::vector<std::wstring>& paths);
   HTREEITEM FindTreeItem(const std::wstring& path);
   void RefreshTreeItem(HTREEITEM item);
   void RefreshTreePath(const std::wstring& path);

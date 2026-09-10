@@ -1384,7 +1384,11 @@ LRESULT MainWindow::Impl::HandleSearchNotification(
         break;
       case 6:
         if (buffer && capacity > 0 && result.source < tab->sources.size()) {
-          lstrcpynW(buffer, search::SourceLabel(tab->sources[result.source]).c_str(), capacity);
+          std::wstring label = search::SourceLabel(tab->sources[result.source]);
+          if (const wchar_t* field = search::MatchFieldLabel(result.match_field)) {
+            label.append(L" (").append(field).append(L")");
+          }
+          lstrcpynW(buffer, label.c_str(), capacity);
         }
         break;
       default:

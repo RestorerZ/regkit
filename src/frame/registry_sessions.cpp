@@ -323,27 +323,7 @@ void MainWindow::Impl::RestoreRegistryTabState(
     SelectDefaultTreeItem();
     return;
   }
-  std::vector<std::wstring> expanded;
-  expanded.reserve(entry.expanded_paths.size());
-  std::unordered_set<std::wstring> seen;
-  seen.reserve(entry.expanded_paths.size());
-  for (const auto& path : entry.expanded_paths) {
-    if (path.empty()) {
-      continue;
-    }
-    std::wstring key = ToLower(path);
-    if (seen.insert(key).second) {
-      expanded.push_back(path);
-    }
-  }
-  std::sort(expanded.begin(), expanded.end(), [](const std::wstring& left, const std::wstring& right) {
-    if (left.size() != right.size()) {
-      return left.size() < right.size();
-    }
-    return _wcsicmp(left.c_str(), right.c_str()) < 0; });
-  for (const auto& path : expanded) {
-    ExpandTreePath(path);
-  }
+  ExpandTreePaths(entry.expanded_paths);
   if (!entry.selected_path.empty() && SelectTreePath(entry.selected_path)) {
     pending_value_selection_ = entry.selected_values;
     if (pending_value_selection_.empty() && !entry.selected_value.empty()) {

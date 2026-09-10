@@ -248,15 +248,16 @@ RegistryNode* RegistryTree::StoreNode(
   return stored;
 }
 
-void RegistryTree::ReleaseSubtree(
-    HTREEITEM item
+void RegistryTree::CollectSubtree(
+    HTREEITEM item,
+    std::vector<RegistryNode*>* nodes
 ) {
   for (HTREEITEM child = TreeView_GetChild(hwnd_, item); child;
        child = TreeView_GetNextSibling(hwnd_, child)) {
-    ReleaseSubtree(child);
+    CollectSubtree(child, nodes);
   }
   if (RegistryNode* node = NodeFromItem(item)) {
-    nodes_.erase(node);
+    nodes->push_back(node);
   }
 }
 
@@ -274,14 +275,18 @@ void RegistryTree::DeleteChildren(
     node->has_children = -1;
     node->icon = -1;
   }
+  std::vector<RegistryNode*> released;
   SuspendRedraw(hwnd_);
   while (child) {
     HTREEITEM next = TreeView_GetNextSibling(hwnd_, child);
-    ReleaseSubtree(child);
+    CollectSubtree(child, &released);
     TreeView_DeleteItem(hwnd_, child);
     child = next;
   }
   ResumeRedraw(hwnd_);
+  for (RegistryNode* node : released) {
+    nodes_.erase(node);
+  }
 }
 
 HTREEITEM RegistryTree::InsertChild(

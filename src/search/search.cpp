@@ -52,6 +52,22 @@ std::wstring SourceLabel(
   return L"Local Registry";
 }
 
+const wchar_t* MatchFieldLabel(
+    MatchField field
+) noexcept {
+  switch (field) {
+  case MatchField::kPath:
+    return L"Key";
+  case MatchField::kName:
+    return L"Value";
+  case MatchField::kData:
+    return L"Data";
+  default:
+    break;
+  }
+  return nullptr;
+}
+
 Matcher::Matcher(
     const TextOptions& options
 )
@@ -1049,8 +1065,8 @@ bool Run(
           if (data_match.matched) {
             result.data_text = std::move(data_match.data_text);
             result.data_state = DataState::kLoaded;
+            result.match_field = MatchField::kData;
             if (data_match.match.matched) {
-              result.match_field = MatchField::kData;
               result.match_start = static_cast<uint32_t>(data_match.match.start);
               result.match_length =
                   static_cast<uint32_t>(data_match.match.length);

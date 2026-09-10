@@ -45,7 +45,7 @@ private:
   RegistryNode* StoreNode(std::unique_ptr<RegistryNode> node);
   bool AddChildren(HTREEITEM parent, RegistryNode* node);
   bool HasChildren(const RegistryNode& node);
-  void ReleaseSubtree(HTREEITEM item);
+  void CollectSubtree(HTREEITEM item, std::vector<RegistryNode*>* nodes);
 
   HWND hwnd_ = nullptr;
   HTREEITEM root_item_ = nullptr;

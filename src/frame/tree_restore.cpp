@@ -224,9 +224,7 @@ void MainWindow::Impl::RestoreTreeState() {
   }
   workspace::TreeState state = saved_tree_state_;
   state.Normalize();
-  for (const auto& path : state.expanded_paths) {
-    ExpandTreePath(path);
-  }
+  ExpandTreePaths(state.expanded_paths);
   if (!state.selected_path.empty()) {
     SelectTreePath(state.selected_path);
   }
@@ -284,6 +282,49 @@ bool MainWindow::Impl::ExpandTreePath(
   }
   TreeView_Expand(browse_.tree().hwnd(), item, TVE_EXPAND);
   return true;
+}
+
+void MainWindow::Impl::ExpandTreePaths(
+    const std::vector<std::wstring>& paths
+) {
+  HWND tree = browse_.tree().hwnd();
+  if (!tree || paths.empty()) {
+    return;
+  }
+  std::unordered_set<std::wstring> wanted;
+  wanted.reserve(paths.size());
+  for (const auto& path : paths) {
+    std::wstring lower = ToLower(path);
+    while (!lower.empty()) {
+      if (!wanted.insert(lower).second) {
+        break;
+      }
+      const size_t separator = lower.rfind(L'\\');
+      lower = separator == std::wstring::npos ? std::wstring()
+                                              : lower.substr(0, separator);
+    }
+  }
+  if (wanted.empty()) {
+    return;
+  }
+  std::vector<HTREEITEM> pending;
+  if (HTREEITEM root = TreeView_GetRoot(tree)) {
+    pending.push_back(root);
+  }
+  while (!pending.empty()) {
+    HTREEITEM item = pending.back();
+    pending.pop_back();
+    RegistryNode* node = browse_.tree().NodeFromItem(item);
+    if (node &&
+        wanted.find(ToLower(registry_path::Build(*node))) == wanted.end()) {
+      continue;
+    }
+    TreeView_Expand(tree, item, TVE_EXPAND);
+    for (HTREEITEM child = TreeView_GetChild(tree, item); child;
+         child = TreeView_GetNextSibling(tree, child)) {
+      pending.push_back(child);
+    }
+  }
 }
 
 } // namespace regkit

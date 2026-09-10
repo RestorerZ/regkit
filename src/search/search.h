@@ -101,6 +101,8 @@ enum class MatchField : uint8_t {
   kData,
 };
 
+const wchar_t* MatchFieldLabel(MatchField field) noexcept;
+
 enum class ResultKind : uint8_t {
   kKey,
   kValue,

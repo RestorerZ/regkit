@@ -245,7 +245,7 @@ void MainWindow::Impl::CreateSearchColumns() {
       {L"Data", 360, LVCFMT_LEFT},
       {L"Size", 80, LVCFMT_RIGHT},
       {L"Date Modified", 150, LVCFMT_LEFT},
-      {L"Source", 150, LVCFMT_LEFT},
+      {L"Source", 190, LVCFMT_LEFT},
   };
   search_column_widths_.clear();
   search_column_visible_.clear();
