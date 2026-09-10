@@ -341,6 +341,12 @@ HTREEITEM RegistryTree::InsertChild(
   HTREEITEM item = TreeView_InsertItem(hwnd_, &insert);
   if (item) {
     parent_node->has_children = 1;
+    TVITEMW parent_state = {};
+    parent_state.mask = TVIF_CHILDREN;
+    parent_state.hItem = parent;
+    parent_state.cChildren = 1;
+    TreeView_SetItem(hwnd_, &parent_state);
+    TreeView_Expand(hwnd_, parent, TVE_EXPAND);
   }
   return item;
 }
