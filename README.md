@@ -183,13 +183,13 @@ It includes built in presets and a theme editor to customize colors, presets can
 
 ![](https://github.com/nohuto/regkit/blob/main/assets/images/default-light-w7.png?raw=true)
 
-#### Ayu Dark
+#### Gruvbox Dark
 
-![](https://github.com/nohuto/regkit/blob/main/assets/images/ayu-dark.png?raw=true)
+![](https://github.com/nohuto/regkit/blob/main/assets/images/gruvbox-dark.png?raw=true)
 
-#### Kanagawa Dragon
+#### Kanagawa Wave
 
-![](https://github.com/nohuto/regkit/blob/main/assets/images/kanagawa-dragon.png?raw=true)
+![](https://github.com/nohuto/regkit/blob/main/assets/images/kanagawa-wave.png?raw=true)
 
 ## Icon Sets
 
