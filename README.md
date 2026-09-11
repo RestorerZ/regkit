@@ -240,8 +240,9 @@ RegKit displays keys as symbolic links when the registry reports a link (done by
 
 Examples:
 - `HKLM\SYSTEM\CurrentControlSet` -> `HKLM\SYSTEM\ControlSet00x`
-- `HKEY_CURRENT_USER` -> `HKEY_USERS\<CurrentUserSID>`
 - `HKEY_CURRENT_CONFIG` -> `HKLM\SYSTEM\CurrentControlSet\Hardware Profiles\Current`
+- `HKU\S-1-5-18` -> `HKU\.DEFAULT`
+- `HKLM\SOFTWARE\Wow6432Node\Classes` -> `HKLM\SOFTWARE\Classes\Wow6432Node`
 
 ### Database Icon <img src="https://github.com/nohuto/regkit/blob/main/assets/icons/lucide/light/database.ico?raw=true" width="16" height="16">
 
