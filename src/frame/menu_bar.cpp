@@ -199,7 +199,7 @@ void MainWindow::Impl::BuildMenus() {
   if (registry_mode_ != RegistryMode::kLocal) {
     extra_flags |= MF_GRAYED;
   }
-  AppendMenuW(view_menu, extra_flags, cmd::kViewExtraHives, L"Show Extra Hives");
+  AppendMenuW(view_menu, extra_flags, cmd::kViewExtraHives, L"Show Extra Root Keys");
   AppendMenuW(view_menu, MF_SEPARATOR, 0, nullptr);
   UINT hive_flags = MF_STRING |
                     (ResolveSelectedHiveFilePath().empty() ? MF_GRAYED : 0);

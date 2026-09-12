@@ -147,13 +147,15 @@ std::vector<std::wstring> MainWindow::Impl::BuildVisibleTreePathParts(
   };
   if (!parts.empty() && EqualsInsensitive(parts.front(), L"Registry")) {
     parts.front() = (parts.size() > 1 && is_standard_root(parts[1]))
-                        ? kStandardGroupLabel
+                        ? kRootKeysGroupLabel
                         : kRealGroupLabel;
   } else if (!parts.empty() && EqualsInsensitive(parts.front(), L"Real Registry")) {
     parts.front() = kRealGroupLabel;
     if (parts.size() > 1 && EqualsInsensitive(parts[1], kRealGroupLabel)) {
       parts.erase(parts.begin() + 1);
     }
+  } else if (!parts.empty() && EqualsInsensitive(parts.front(), L"Standard Hives")) {
+    parts.front() = kRootKeysGroupLabel;
   }
 
   if (registry_mode_ == RegistryMode::kRemote && !remote_machine_.empty()) {
@@ -178,11 +180,11 @@ std::vector<std::wstring> MainWindow::Impl::BuildVisibleTreePathParts(
   }
 
   if (!parts.empty()) {
-    if (!EqualsInsensitive(parts.front(), kStandardGroupLabel) && !EqualsInsensitive(parts.front(), kRealGroupLabel)) {
+    if (!EqualsInsensitive(parts.front(), kRootKeysGroupLabel) && !EqualsInsensitive(parts.front(), kRealGroupLabel)) {
       if (EqualsInsensitive(parts.front(), L"REGISTRY")) {
         parts.insert(parts.begin(), kRealGroupLabel);
       } else {
-        parts.insert(parts.begin(), kStandardGroupLabel);
+        parts.insert(parts.begin(), kRootKeysGroupLabel);
       }
     }
   }
@@ -219,7 +221,7 @@ void MainWindow::Impl::SelectDefaultTreeItem() {
     tvi.pszText = text;
     tvi.cchTextMax = static_cast<int>(_countof(text));
     if (TreeView_GetItem(browse_.tree().hwnd(), &tvi)) {
-      if (_wcsicmp(text, kStandardGroupLabel) == 0) {
+      if (_wcsicmp(text, kRootKeysGroupLabel) == 0) {
         standard_group = group;
         break;
       }

@@ -104,7 +104,7 @@ inline void ReleasePostedPayload(
   (void)payload.release();
 }
 
-constexpr wchar_t kStandardGroupLabel[] = L"Standard Hives";
+constexpr wchar_t kRootKeysGroupLabel[] = L"Root Keys";
 constexpr wchar_t kRealGroupLabel[] = L"REGISTRY";
 
 constexpr DWORD kSearchResultsMaxMs = 15;

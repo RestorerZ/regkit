@@ -11,7 +11,7 @@ namespace regkit {
 
 namespace {
 constexpr int kFolderIconIndex = 0;
-constexpr wchar_t kStandardGroupLabel[] = L"Standard Hives";
+constexpr wchar_t kRootKeysGroupLabel[] = L"Root Keys";
 constexpr wchar_t kRealGroupLabel[] = L"REGISTRY";
 #ifndef TVS_EX_DOUBLEBUFFER
 #define TVS_EX_DOUBLEBUFFER 0x0004
@@ -129,7 +129,7 @@ void RegistryTree::PopulateRoots(
     standard_group.hParent = root_item_;
     standard_group.hInsertAfter = TVI_LAST;
     standard_group.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
-    standard_group.item.pszText = const_cast<wchar_t*>(kStandardGroupLabel);
+    standard_group.item.pszText = const_cast<wchar_t*>(kRootKeysGroupLabel);
     standard_group.item.iImage = kFolderIconIndex;
     standard_group.item.iSelectedImage = kFolderIconIndex;
     standard_group.item.lParam = 0;

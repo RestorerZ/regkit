@@ -264,9 +264,9 @@ void UpdateScopeComboText(
   }
   std::wstring text;
   if (selected == 0) {
-    text = L"No top-level keys";
+    text = L"No top level keys";
   } else if (selected == total) {
-    text = L"All top-level keys";
+    text = L"All top level keys";
   } else if (selected == 1) {
     text = first;
   } else {
@@ -638,7 +638,7 @@ LRESULT CALLBACK SearchDialogProc(
       state->find_combo = CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWN | CBS_AUTOHSCROLL, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindCombo), nullptr, nullptr);
 
       CreateWindowExW(0, L"BUTTON", L"Where to search", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kWhereGroup), nullptr, nullptr);
-      state->scope_top = CreateWindowExW(0, L"BUTTON", L"Top-level keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeTop), nullptr, nullptr);
+      state->scope_top = CreateWindowExW(0, L"BUTTON", L"Top level keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeTop), nullptr, nullptr);
       state->scope_key = CreateWindowExW(0, L"BUTTON", L"Specific Key", WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeKey), nullptr, nullptr);
       state->scope_combo = CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | CBS_HASSTRINGS, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeCombo), nullptr, nullptr);
       state->scope_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kScopeEdit), nullptr, nullptr);
@@ -658,7 +658,7 @@ LRESULT CALLBACK SearchDialogProc(
       state->min_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSizeEdit), nullptr, nullptr);
       state->max_size = CreateWindowExW(0, L"BUTTON", L"Max data size (bytes):", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSize), nullptr, nullptr);
       state->max_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSizeEdit), nullptr, nullptr);
-      state->options_standard = CreateWindowExW(0, L"BUTTON", L"Search Standard Hives", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptStandardHives), nullptr, nullptr);
+      state->options_standard = CreateWindowExW(0, L"BUTTON", L"Search Root Keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptStandardHives), nullptr, nullptr);
       state->options_registry = CreateWindowExW(0, L"BUTTON", L"Search REGISTRY", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegistryRoot), nullptr, nullptr);
       state->options_trace = CreateWindowExW(0, L"BUTTON", L"Search Trace Values", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptTraceValues), nullptr, nullptr);
       state->options_offline = CreateWindowExW(0, L"BUTTON", L"Search Offline Hives", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptOfflineHives), nullptr, nullptr);
@@ -1074,7 +1074,7 @@ LRESULT CALLBACK SearchDialogProc(
                 }
               }
               if (result.root_paths.empty()) {
-                ui::ShowWarning(hwnd, L"Select at least one top-level key.");
+                ui::ShowWarning(hwnd, L"Select at least one top level key.");
                 return 0;
               }
             }

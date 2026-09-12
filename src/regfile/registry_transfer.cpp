@@ -219,7 +219,7 @@ std::wstring NormalizeExportKeyPath(
       registry_path::Equals(root, L"HKEY_CURRENT_CONFIG");
   if (!standard) {
     if (error) {
-      *error = L"Export supports standard hives only.";
+      *error = L"Export supports the standard root keys only.";
     }
     return {};
   }
