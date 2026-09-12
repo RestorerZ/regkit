@@ -74,7 +74,7 @@ public:
     KeyInfo info;
     bool info_valid = false;
   };
-  static bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, KeyEnumResult* out_info, const ValueStreamCallback& value_callback, const SubkeyStreamCallback& subkey_callback, DWORD max_data_size = MAXDWORD, EnumerationScratch* scratch = nullptr, bool ordered = true);
+  static bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, KeyEnumResult* out_info, const ValueStreamCallback& value_callback, const SubkeyStreamCallback& subkey_callback, DWORD max_data_size = MAXDWORD, EnumerationScratch* scratch = nullptr, bool ordered = true, bool open_link = false);
   static bool IsOfflineRoot(HKEY root);
   static bool QueryValue(const RegistryNode& node, const std::wstring& value_name, ValueEntry* out);
   static bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);

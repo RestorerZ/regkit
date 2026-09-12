@@ -207,12 +207,14 @@ bool EnumKeyStreaming(
     const RegistryStore::SubkeyStreamCallback& subkey_callback,
     DWORD max_data_size,
     EnumerationScratch* scratch,
-    bool ordered
+    bool ordered,
+    bool open_link
 ) {
   (void)ordered;
   EnumerationScratch local;
   EnumerationScratch& buffers = scratch ? *scratch : local;
-  util::UniqueHKey key = OpenKey(node, KEY_READ);
+  util::UniqueHKey key =
+      open_link ? OpenKeyNoFollow(node, KEY_READ) : OpenKey(node, KEY_READ);
   if (!key.get()) {
     return false;
   }

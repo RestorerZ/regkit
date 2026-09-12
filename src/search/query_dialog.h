@@ -38,7 +38,7 @@ struct SearchDialogResult {
   std::wstring start_key;
   std::vector<std::wstring> root_paths;
   bool search_standard_hives = true;
-  bool search_registry_root = true;
+  bool search_registry_root = false;
   bool search_trace_values = true;
   bool search_offline_hives = false;
   bool search_reg_files = false;

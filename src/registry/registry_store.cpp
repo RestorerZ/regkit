@@ -185,7 +185,8 @@ bool RegistryStore::EnumKeyStreaming(
     const SubkeyStreamCallback& subkey_callback,
     DWORD max_data_size,
     EnumerationScratch* scratch,
-    bool ordered
+    bool ordered,
+    bool open_link
 ) {
   if (out_info) {
     out_info->info = {};
@@ -233,7 +234,8 @@ bool RegistryStore::EnumKeyStreaming(
             subkey_callback,
             max_data_size,
             scratch,
-            ordered
+            ordered,
+            open_link
         );
       }
   );

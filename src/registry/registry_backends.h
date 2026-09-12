@@ -24,7 +24,8 @@ bool EnumKeyStreaming(
     const RegistryStore::SubkeyStreamCallback& subkey_callback,
     DWORD max_data_size,
     EnumerationScratch* scratch,
-    bool ordered
+    bool ordered,
+    bool open_link = false
 );
 bool QueryValue(const RegistryNode& node, const std::wstring& value_name, ValueEntry* out);
 bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target, DWORD* error);

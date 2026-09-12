@@ -49,6 +49,7 @@ enum ControlId {
   kOptMatchCase = 125,
   kOptMatchWhole = 126,
   kOptUseRegex = 127,
+  kOptSkipLinks = 128,
   kOptMinSize = 129,
   kOptMinSizeEdit = 130,
   kOptMaxSize = 131,
@@ -99,6 +100,7 @@ struct SearchDialogState {
   HWND match_case = nullptr;
   HWND match_whole = nullptr;
   HWND use_regex = nullptr;
+  HWND skip_links = nullptr;
   HWND min_size = nullptr;
   HWND min_size_edit = nullptr;
   HWND max_size = nullptr;
@@ -558,7 +560,8 @@ void LayoutDialog(
   appearance::Place(state->match_case, right_x, option_row(2), Scaled(140, dpi), check_h);
   appearance::Place(state->match_whole, right_x, option_row(3), Scaled(160, dpi), check_h);
   appearance::Place(state->use_regex, right_x, option_row(4), Scaled(190, dpi), check_h);
-  appearance::Place(state->options_data_types, right_x, option_row(5) - check_inset + Scaled(5, dpi), Scaled(120, dpi), line_h);
+  appearance::Place(state->skip_links, right_x, option_row(5), Scaled(190, dpi), check_h);
+  appearance::Place(state->options_data_types, right_x, option_row(6) - check_inset + Scaled(5, dpi), Scaled(120, dpi), line_h);
   y += options_h + block_gap;
 
   const int modified_label_w = Scaled(150, dpi);
@@ -650,6 +653,7 @@ LRESULT CALLBACK SearchDialogProc(
       state->match_case = CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchCase), nullptr, nullptr);
       state->match_whole = CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchWhole), nullptr, nullptr);
       state->use_regex = CreateWindowExW(0, L"BUTTON", L"Use regular expressions", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptUseRegex), nullptr, nullptr);
+      state->skip_links = CreateWindowExW(0, L"BUTTON", L"Skip symbolic links", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptSkipLinks), nullptr, nullptr);
       state->min_size = CreateWindowExW(0, L"BUTTON", L"Min data size (bytes):", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSize), nullptr, nullptr);
       state->min_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSizeEdit), nullptr, nullptr);
       state->max_size = CreateWindowExW(0, L"BUTTON", L"Max data size (bytes):", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMaxSize), nullptr, nullptr);
@@ -741,6 +745,7 @@ LRESULT CALLBACK SearchDialogProc(
         SendMessageW(state->match_case, BM_SETCHECK, initial->criteria.match_case ? BST_CHECKED : BST_UNCHECKED, 0);
         SendMessageW(state->match_whole, BM_SETCHECK, initial->criteria.match_whole ? BST_CHECKED : BST_UNCHECKED, 0);
         SendMessageW(state->use_regex, BM_SETCHECK, initial->criteria.use_regex ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->skip_links, BM_SETCHECK, initial->criteria.skip_links ? BST_CHECKED : BST_UNCHECKED, 0);
         if (initial->criteria.use_min_size) {
           SendMessageW(state->min_size, BM_SETCHECK, BST_CHECKED, 0);
           SetWindowTextW(state->min_size_edit, std::to_wstring(initial->criteria.min_size).c_str());
@@ -790,7 +795,7 @@ LRESULT CALLBACK SearchDialogProc(
         SendMessageW(state->options_values, BM_SETCHECK, BST_CHECKED, 0);
         SendMessageW(state->options_data, BM_SETCHECK, BST_CHECKED, 0);
         SendMessageW(state->options_standard, BM_SETCHECK, BST_CHECKED, 0);
-        SendMessageW(state->options_registry, BM_SETCHECK, state->sources.registry_root ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(state->options_registry, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessageW(state->options_trace, BM_SETCHECK, state->sources.traces ? BST_CHECKED : BST_UNCHECKED, 0);
         SendMessageW(state->scope_top, BM_SETCHECK, BST_CHECKED, 0);
         SendMessageW(state->result_reuse, BM_SETCHECK, BST_CHECKED, 0);
@@ -982,6 +987,7 @@ LRESULT CALLBACK SearchDialogProc(
           result.criteria.match_case = SendMessageW(state->match_case, BM_GETCHECK, 0, 0) == BST_CHECKED;
           result.criteria.match_whole = SendMessageW(state->match_whole, BM_GETCHECK, 0, 0) == BST_CHECKED;
           result.criteria.use_regex = SendMessageW(state->use_regex, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          result.criteria.skip_links = SendMessageW(state->skip_links, BM_GETCHECK, 0, 0) == BST_CHECKED;
           if (data) {
             result.criteria.allowed_types = state->data_types;
             if (state->min_size && SendMessageW(state->min_size, BM_GETCHECK, 0, 0) == BST_CHECKED) {

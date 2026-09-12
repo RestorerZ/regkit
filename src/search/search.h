@@ -79,6 +79,7 @@ struct Criteria {
   bool match_whole = false;
   bool use_regex = false;
   bool recursive = true;
+  bool skip_links = false;
   bool use_min_size = false;
   uint64_t min_size = 0;
   bool use_max_size = false;

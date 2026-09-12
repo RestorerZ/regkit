@@ -1033,7 +1033,8 @@ bool Run(
           if (should_stop()) {
             return false;
           }
-          if (!IsTypeAllowed(criteria, value.type) ||
+          if ((criteria.skip_links && value.type == REG_LINK) ||
+              !IsTypeAllowed(criteria, value.type) ||
               !IsSizeAllowed(criteria, data_size) || !is_key_in_range()) {
             return true;
           }
@@ -1127,7 +1128,8 @@ bool Run(
                          : RegistryStore::SubkeyStreamCallback(),
             enum_max_data,
             &scratch,
-            false
+            false,
+            criteria.skip_links
         );
 
         if (enumerated && enum_result.info_valid && criteria.search_keys &&
