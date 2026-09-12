@@ -14,6 +14,10 @@ namespace {
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 #endif
 
+#ifndef OBJ_OPENLINK
+#define OBJ_OPENLINK 0x00000100L
+#endif
+
 using NtOpenKey = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES);
 using NtOpenKeyEx = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, ULONG);
 using NtDeleteKey = NTSTATUS(NTAPI*)(HANDLE);
@@ -65,7 +69,9 @@ UniqueHKey OpenNativeRegistryKey(
   name.Length = static_cast<USHORT>(path.size() * sizeof(wchar_t));
   name.MaximumLength = name.Length;
   OBJECT_ATTRIBUTES attributes = {};
-  InitializeObjectAttributes(&attributes, &name, OBJ_CASE_INSENSITIVE, nullptr, nullptr);
+  const ULONG object_flags =
+      OBJ_CASE_INSENSITIVE | (open_link ? OBJ_OPENLINK : 0ul);
+  InitializeObjectAttributes(&attributes, &name, object_flags, nullptr, nullptr);
   HANDLE handle = nullptr;
   const NTSTATUS status =
       open_link ? open_key_ex(&handle, access, &attributes, REG_OPTION_OPEN_LINK)

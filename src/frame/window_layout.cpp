@@ -548,7 +548,7 @@ std::wstring MainWindow::Impl::LookupHivePath(
         nt_path = L"\\REGISTRY\\USER\\" + sid;
       }
     } else if (equals_root(L"HKCC") || equals_root(L"HKEY_CURRENT_CONFIG")) {
-      nt_path = L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Hardware\\Profiles\\Current";
+      nt_path = L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Hardware Profiles\\Current";
     } else if (equals_root(L"HKCR") || equals_root(L"HKEY_CLASSES_ROOT")) {
       nt_path = L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes";
     }
