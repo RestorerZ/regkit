@@ -47,6 +47,10 @@ constexpr wchar_t kInstallEditContextMenuArg[] =
     L"--install-edit-context-menu";
 constexpr wchar_t kUninstallEditContextMenuArg[] =
     L"--uninstall-edit-context-menu";
+constexpr wchar_t kInstallRegeditReplacementArg[] =
+    L"--install-regedit-replacement";
+constexpr wchar_t kUninstallRegeditReplacementArg[] =
+    L"--uninstall-regedit-replacement";
 
 using util::FormatWin32Error;
 using util::TrimWhitespace;
@@ -127,7 +131,14 @@ std::wstring BaseName(
 bool IsRegeditLaunchArg(
     const std::wstring& arg
 ) {
-  if (arg.empty()) {
+  const bool drive_absolute =
+      arg.size() >= 3 && iswalpha(arg[0]) && arg[1] == L':' &&
+      (arg[2] == L'\\' || arg[2] == L'/');
+  const bool unc_absolute =
+      arg.size() >= 3 &&
+      ((arg[0] == L'\\' && arg[1] == L'\\') ||
+       (arg[0] == L'/' && arg[1] == L'/'));
+  if (!drive_absolute && !unc_absolute) {
     return false;
   }
   std::wstring name = BaseName(arg);
@@ -200,7 +211,8 @@ bool ReadRegeditLastKey(
   DWORD type = 0;
   DWORD size = 0;
   result = RegQueryValueExW(key, L"LastKey", nullptr, &type, nullptr, &size);
-  if (result != ERROR_SUCCESS || (type != REG_SZ && type != REG_EXPAND_SZ) || size < sizeof(wchar_t)) {
+  if (result != ERROR_SUCCESS || (type != REG_SZ && type != REG_EXPAND_SZ) ||
+      size < sizeof(wchar_t) || size % sizeof(wchar_t) != 0) {
     RegCloseKey(key);
     return false;
   }
@@ -291,24 +303,6 @@ bool ResolveExternalJumpTarget(
   return ReadRegeditLastKey(out);
 }
 
-std::wstring ProcessImagePath(
-    DWORD process_id
-) {
-  HANDLE process =
-      OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id);
-  if (!process) {
-    return {};
-  }
-  wchar_t buffer[MAX_PATH * 2] = {};
-  DWORD length = static_cast<DWORD>(std::size(buffer));
-  const BOOL ok = QueryFullProcessImageNameW(process, 0, buffer, &length);
-  CloseHandle(process);
-  if (!ok) {
-    return {};
-  }
-  return std::wstring(buffer, length);
-}
-
 bool IsOwnRegKitWindow(
     HWND hwnd
 ) {
@@ -324,17 +318,12 @@ bool IsOwnRegKitWindow(
       our_session != their_session) {
     return false;
   }
-  const std::wstring theirs = ProcessImagePath(process_id);
+  const std::wstring theirs = util::GetProcessImagePath(process_id);
   if (theirs.empty()) {
     return false;
   }
-  wchar_t ours[MAX_PATH * 2] = {};
-  const DWORD length =
-      GetModuleFileNameW(nullptr, ours, static_cast<DWORD>(std::size(ours)));
-  if (length == 0 || length >= std::size(ours)) {
-    return false;
-  }
-  return _wcsicmp(theirs.c_str(), ours) == 0;
+  const std::wstring ours = util::GetModulePath();
+  return !ours.empty() && _wcsicmp(theirs.c_str(), ours.c_str()) == 0;
 }
 
 BOOL CALLBACK FindRegKitWindowProc(
@@ -660,15 +649,24 @@ int WINAPI wWinMain(
 ) {
   const auto args = GetCommandLineArgs();
   if (HasCommandLineArg(args, kInstallEditContextMenuArg) ||
-      HasCommandLineArg(args, kUninstallEditContextMenuArg)) {
+      HasCommandLineArg(args, kUninstallEditContextMenuArg) ||
+      HasCommandLineArg(args, kInstallRegeditReplacementArg) ||
+      HasCommandLineArg(args, kUninstallRegeditReplacementArg)) {
     const std::wstring exe_path = util::GetModulePath();
     if (exe_path.empty()) {
       return 1;
     }
-    const LONG result =
-        HasCommandLineArg(args, kInstallEditContextMenuArg)
-            ? regkit::win32::SetRegFileEditMenu(exe_path, true)
-            : regkit::win32::RemoveRegFileEditMenuIfOwned(exe_path);
+    LONG result = ERROR_SUCCESS;
+    if (HasCommandLineArg(args, kInstallEditContextMenuArg)) {
+      result = regkit::win32::SetRegFileEditMenu(exe_path, true);
+    } else if (HasCommandLineArg(args, kUninstallEditContextMenuArg)) {
+      result = regkit::win32::RemoveRegFileEditMenuIfOwned(exe_path);
+    } else {
+      result = regkit::win32::SetRegeditReplacement(
+          exe_path,
+          HasCommandLineArg(args, kInstallRegeditReplacementArg)
+      );
+    }
     return result == ERROR_SUCCESS ? 0 : 1;
   }
 

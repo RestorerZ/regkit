@@ -167,6 +167,9 @@ constexpr int kDefaultBundledMax = 2799;
 constexpr int kResetDefaultBase = 2900;
 constexpr int kResetDefaultMax = 2959;
 
+constexpr int kRegeditFavoriteBase = 3000;
+constexpr int kRegeditFavoriteMax = 3999;
+
 constexpr int kResearchItemBase = 2800;
 constexpr int kResearchItemMax = 2821;
 

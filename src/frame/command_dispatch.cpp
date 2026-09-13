@@ -17,7 +17,9 @@ CommandArea ClassifyCommand(
       (command_id >= cmd::kDefaultRecentBase &&
        command_id <= cmd::kDefaultRecentMax) ||
       (command_id >= cmd::kDefaultBundledBase &&
-       command_id <= cmd::kDefaultBundledMax)) {
+       command_id <= cmd::kDefaultBundledMax) ||
+      (command_id >= cmd::kRegeditFavoriteBase &&
+       command_id <= cmd::kRegeditFavoriteMax)) {
     return CommandArea::kDynamic;
   }
   if (command_id >= cmd::kResearchItemBase &&

@@ -12,6 +12,7 @@
 namespace util {
 
 std::wstring GetCurrentUserSidString();
+std::wstring GetProcessImagePath(DWORD process_id);
 bool IsProcessElevated();
 bool IsProcessSystem();
 bool IsUacEnabled();

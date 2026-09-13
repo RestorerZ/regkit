@@ -11,26 +11,6 @@ using namespace window_detail;
 
 namespace {
 
-std::wstring ProcessImagePathOf(
-    DWORD pid
-) {
-  std::wstring path;
-  HANDLE process =
-      OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-  if (!process) {
-    return path;
-  }
-  path.assign(1024, L'\0');
-  DWORD size = static_cast<DWORD>(path.size());
-  if (QueryFullProcessImageNameW(process, 0, path.data(), &size)) {
-    path.resize(size);
-  } else {
-    path.clear();
-  }
-  CloseHandle(process);
-  return path;
-}
-
 bool IsSiblingRegKitWindow(
     HWND sender
 ) {
@@ -42,8 +22,8 @@ bool IsSiblingRegKitWindow(
   if (sender_pid == GetCurrentProcessId()) {
     return true;
   }
-  const std::wstring sender_image = ProcessImagePathOf(sender_pid);
-  const std::wstring own_image = ProcessImagePathOf(GetCurrentProcessId());
+  const std::wstring sender_image = util::GetProcessImagePath(sender_pid);
+  const std::wstring own_image = util::GetModulePath();
   return !sender_image.empty() && !own_image.empty() &&
          _wcsicmp(sender_image.c_str(), own_image.c_str()) == 0;
 }
@@ -1062,7 +1042,9 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(
         return TRUE;
       }
       if (deferred_startup_complete_) {
-        NavigateToExternalJump(target);
+        if (!NavigateToExternalJump(target)) {
+          ui::ShowWarning(hwnd_, L"Registry path not found:\n" + target);
+        }
       } else {
         QueueExternalJump(target);
       }
@@ -1183,6 +1165,18 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(
                                     ? MF_GRAYED
                                     : MF_ENABLED;
         EnableMenuItem(menu, cmd::kOptionsHiveFileDir, MF_BYCOMMAND | hive_state);
+      }
+      return 0;
+    }
+  case WM_MENUSELECT:
+    {
+      HMENU menu = reinterpret_cast<HMENU>(lparam);
+      const UINT flags = HIWORD(wparam);
+      const UINT position = LOWORD(wparam);
+      if ((flags & MF_POPUP) != 0 && menu &&
+          GetSubMenu(menu, static_cast<int>(position)) ==
+              regedit_favorites_menu_) {
+        RefreshRegeditFavoritesMenu();
       }
       return 0;
     }

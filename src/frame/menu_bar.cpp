@@ -268,8 +268,6 @@ void MainWindow::Impl::BuildMenus() {
   AppendMenuW(options_menu, MF_POPUP | (save_tab_kinds_ != 0 ? MF_CHECKED : MF_UNCHECKED), reinterpret_cast<UINT_PTR>(save_tabs_menu), L"Save Tabs");
   AppendMenuW(options_menu, MF_STRING | (read_only_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReadOnly, L"Read Only Mode");
   AppendMenuW(options_menu, MF_STRING | (save_tree_state_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewSaveTreeState, L"Save Previous Tree State");
-  AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(options_menu), L"Options");
-
   HMENU favorites_menu = CreatePopupMenu();
   AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesAdd, L"Add to Favorites...");
   AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesRemove, L"Remove Favorite");
@@ -285,7 +283,11 @@ void MainWindow::Impl::BuildMenus() {
       AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesItemBase + i, favorites_cache_[static_cast<size_t>(i)].c_str());
     }
   }
+  regedit_favorites_menu_ = favorites_menu;
+  regedit_favorites_static_count_ = GetMenuItemCount(favorites_menu);
+  regedit_favorites_.clear();
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(favorites_menu), L"F&avorites");
+  AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(options_menu), L"Options");
 
   HMENU window_menu = CreatePopupMenu();
   append_menu(window_menu, MF_STRING | (single_instance_ ? MF_GRAYED : 0), cmd::kWindowNew, L"New Window");
@@ -438,6 +440,39 @@ void MainWindow::Impl::RefreshFavoritesCache() {
   favorites_cache_.clear();
   FavoritesStore::Load(&favorites_cache_);
   favorites_loaded_ = true;
+}
+
+void MainWindow::Impl::RefreshRegeditFavoritesMenu() {
+  if (!regedit_favorites_menu_) {
+    return;
+  }
+  while (GetMenuItemCount(regedit_favorites_menu_) >
+         regedit_favorites_static_count_) {
+    DeleteMenu(
+        regedit_favorites_menu_, regedit_favorites_static_count_, MF_BYPOSITION
+    );
+  }
+  regedit_favorites_.clear();
+  FavoritesStore::LoadRegedit(&regedit_favorites_);
+  const size_t limit = std::min(
+      regedit_favorites_.size(),
+      static_cast<size_t>(
+          cmd::kRegeditFavoriteMax - cmd::kRegeditFavoriteBase + 1
+      )
+  );
+  if (limit == 0) {
+    return;
+  }
+  AppendMenuW(regedit_favorites_menu_, MF_SEPARATOR, 0, nullptr);
+  for (size_t i = 0; i < limit; ++i) {
+    AppendMenuW(
+        regedit_favorites_menu_,
+        MF_STRING,
+        cmd::kRegeditFavoriteBase + static_cast<UINT>(i),
+        regedit_favorites_[i].name.c_str()
+    );
+  }
+  regedit_favorites_.resize(limit);
 }
 
 void MainWindow::Impl::RefreshBundledDefaultsCache() {

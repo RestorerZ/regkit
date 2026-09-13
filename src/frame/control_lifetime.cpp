@@ -105,7 +105,8 @@ LRESULT MainWindow::Impl::HandleNotification(
   if (header->hwndFrom == tab_) {
     return HandleTabNotification(header, lparam);
   }
-  if (header->hwndFrom == browse_.tree().hwnd()) {
+  if (header->hwndFrom == browse_.tree().hwnd() ||
+      header->hwndFrom == regedit_compat_tree_.hwnd()) {
     return HandleTreeNotification(header, lparam);
   }
   if (header->hwndFrom == browse_.values().hwnd()) {
@@ -470,6 +471,30 @@ LRESULT MainWindow::Impl::HandleTreeNotification(
     NMHDR* header,
     LPARAM lparam
 ) {
+  if (header->hwndFrom == regedit_compat_tree_.hwnd()) {
+    if (header->code == TVN_ITEMEXPANDINGW) {
+      regedit_compat_tree_.OnItemExpanding(
+          reinterpret_cast<NMTREEVIEWW*>(lparam)
+      );
+      return 0;
+    }
+    if (header->code == TVN_GETDISPINFOW) {
+      regedit_compat_tree_.OnGetDispInfo(
+          reinterpret_cast<NMTVDISPINFOW*>(lparam)
+      );
+      return 0;
+    }
+    if (header->code == TVN_SELCHANGEDW) {
+      RegistryNode* node = regedit_compat_tree_.OnSelectionChanged(
+          reinterpret_cast<NMTREEVIEWW*>(lparam)
+      );
+      if (node) {
+        NavigateToExternalJump(registry_path::Build(*node));
+      }
+      return 0;
+    }
+    return 0;
+  }
   if (header->hwndFrom == browse_.tree().hwnd()) {
     if (header->code == TVN_ITEMEXPANDINGW) {
       browse_.tree().OnItemExpanding(reinterpret_cast<NMTREEVIEWW*>(lparam));
@@ -1491,6 +1516,37 @@ bool MainWindow::Impl::OnCreate() {
   if (!browse_.Create(browse_request)) {
     return false;
   }
+  regedit_compat_tree_.Create(
+      hwnd_, instance_, kRegeditCompatTreeId, false, false
+  );
+  if (!regedit_compat_tree_.hwnd()) {
+    return false;
+  }
+  regedit_compat_tree_.SetRegeditLayout(true);
+  regedit_compat_tree_.SetRootLabel(L"Computer");
+  regedit_compat_tree_.PopulateRoots(RegistryStore::DefaultRoots(false));
+  if (!SetWindowSubclass(
+          regedit_compat_tree_.hwnd(),
+          TreeViewProc,
+          kTreeViewSubclassId,
+          reinterpret_cast<DWORD_PTR>(this)
+  )) {
+    return false;
+  }
+  TreeView_SelectItem(
+      regedit_compat_tree_.hwnd(),
+      TreeView_GetRoot(regedit_compat_tree_.hwnd())
+  );
+  SetWindowPos(
+      regedit_compat_tree_.hwnd(),
+      HWND_TOP,
+      -32000,
+      -32000,
+      1,
+      1,
+      SWP_NOACTIVATE
+  );
+  ShowWindow(regedit_compat_tree_.hwnd(), SW_HIDE);
 
   value_tooltip_ = CreateWindowExW(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr, WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, hwnd_, nullptr, instance_, nullptr);
   if (value_tooltip_) {

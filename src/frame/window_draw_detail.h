@@ -79,6 +79,7 @@ constexpr int kFilterEditId = 115;
 constexpr int kValueGridButtonId = 116;
 constexpr int kSearchGridButtonId = 117;
 constexpr int kFilterClearId = 118;
+constexpr int kRegeditCompatTreeId = 119;
 constexpr UINT_PTR kStatusMessageTimerId = 41;
 constexpr UINT_PTR kTreeStateTimerId = 42;
 constexpr int kValueGridButtonWidth = 22;

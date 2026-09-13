@@ -294,6 +294,9 @@ std::wstring Clean(
   }
   path = std::move(collapsed);
 
+  if (StartsWith(path, L"reg:")) {
+    path = Trim(std::wstring_view(path).substr(4));
+  }
   if (StartsWith(path, L"Registry::")) {
     path.erase(0, 10);
   }

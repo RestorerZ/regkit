@@ -803,7 +803,9 @@ void MainWindow::Impl::ApplyQueuedExternalJump() {
   }
   std::wstring target = std::move(queued_external_jump_target_);
   queued_external_jump_target_.clear();
-  NavigateToExternalJump(target);
+  if (!NavigateToExternalJump(target)) {
+    ui::ShowWarning(hwnd_, L"Registry path not found:\n" + target);
+  }
 }
 
 bool MainWindow::Impl::ResolveExternalJumpTarget(

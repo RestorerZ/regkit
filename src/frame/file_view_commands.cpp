@@ -9,6 +9,15 @@ using namespace command_detail;
 bool MainWindow::Impl::HandleDynamicCommand(
     int command_id
 ) {
+  if (command_id >= cmd::kRegeditFavoriteBase &&
+      command_id <= cmd::kRegeditFavoriteMax) {
+    const size_t index =
+        static_cast<size_t>(command_id - cmd::kRegeditFavoriteBase);
+    if (index < regedit_favorites_.size()) {
+      NavigateToExternalJump(regedit_favorites_[index].path);
+      return true;
+    }
+  }
   if (command_id >= cmd::kFavoritesItemBase && command_id <= cmd::kFavoritesItemMax) {
     if (!favorites_loaded_) {
       RefreshFavoritesCache();

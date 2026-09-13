@@ -16,10 +16,6 @@ void MainWindow::Impl::ShowPermissionsDialog(
 
 namespace {
 
-constexpr wchar_t kRegeditImageOptionsKey[] =
-    L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution "
-    L"Options\\regedit.exe";
-
 bool BeginRestart(
     HWND owner,
     const wchar_t* target_arg,
@@ -125,51 +121,7 @@ bool MainWindow::Impl::RestartAsTrustedInstaller() {
 }
 
 void MainWindow::Impl::SyncReplaceRegeditState() {
-  std::wstring exe_path = util::GetModulePath();
-  if (exe_path.empty()) {
-    replace_regedit_ = false;
-    return;
-  }
-
-  std::wstring debugger;
-  if (!util::ReadRegistryString(
-          HKEY_LOCAL_MACHINE,
-          kRegeditImageOptionsKey,
-          L"Debugger",
-          &debugger
-      ) ||
-      debugger.empty()) {
-    replace_regedit_ = false;
-    return;
-  }
-
-  const wchar_t* start = debugger.c_str();
-  while (*start && iswspace(*start)) {
-    ++start;
-  }
-  std::wstring path;
-  if (*start == L'\"') {
-    ++start;
-    const wchar_t* end = wcschr(start, L'\"');
-    if (end) {
-      path.assign(start, static_cast<size_t>(end - start));
-    } else {
-      path.assign(start);
-    }
-  } else {
-    const wchar_t* end = start;
-    while (*end && !iswspace(*end)) {
-      ++end;
-    }
-    path.assign(start, static_cast<size_t>(end - start));
-  }
-
-  if (path.empty()) {
-    replace_regedit_ = false;
-    return;
-  }
-
-  replace_regedit_ = (_wcsicmp(path.c_str(), exe_path.c_str()) == 0);
+  replace_regedit_ = win32::IsRegeditReplacementRegistered(util::GetModulePath());
 }
 
 void MainWindow::Impl::ReplaceRegedit(
@@ -181,67 +133,34 @@ void MainWindow::Impl::ReplaceRegedit(
     return;
   }
 
-  HKEY base = nullptr;
-  DWORD base_disp = 0;
-  LONG result = RegCreateKeyExW(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options", 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, nullptr, &base, &base_disp);
-  if (result != ERROR_SUCCESS) {
-    ui::ShowError(hwnd_, FormatWin32Error(result));
-    return;
-  }
-
-  std::wstring subkey = L"regedit.exe";
-  if (enable) {
-    HKEY app_key = nullptr;
-    DWORD disposition = 0;
-    result = RegCreateKeyExW(base, subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, nullptr, &app_key, &disposition);
-    if (result != ERROR_SUCCESS) {
-      RegCloseKey(base);
-      ui::ShowError(hwnd_, FormatWin32Error(result));
-      return;
-    }
-    std::wstring debugger = L"\"" + exe_path + L"\"";
-    result = RegSetValueExW(app_key, L"Debugger", 0, REG_SZ, reinterpret_cast<const BYTE*>(debugger.c_str()), static_cast<DWORD>((debugger.size() + 1) * sizeof(wchar_t)));
-    RegCloseKey(app_key);
-    RegCloseKey(base);
-    if (result != ERROR_SUCCESS) {
-      ui::ShowError(hwnd_, FormatWin32Error(result));
-      return;
-    }
-    replace_regedit_ = true;
-  } else {
-    HKEY app_key = nullptr;
-    result = RegOpenKeyExW(base, subkey.c_str(), 0, KEY_READ | KEY_WRITE, &app_key);
-    if (result != ERROR_SUCCESS) {
-      RegCloseKey(base);
-      if (result == ERROR_FILE_NOT_FOUND) {
-        replace_regedit_ = false;
-        BuildMenus();
-        return;
-      }
-      ui::ShowError(hwnd_, FormatWin32Error(result));
-      return;
-    }
-    result = RegDeleteValueW(app_key, L"Debugger");
-    if (result != ERROR_SUCCESS && result != ERROR_FILE_NOT_FOUND) {
-      RegCloseKey(app_key);
-      RegCloseKey(base);
-      ui::ShowError(hwnd_, FormatWin32Error(result));
-      SyncReplaceRegeditState();
-      BuildMenus();
-      return;
-    }
-    DWORD subkeys = 0;
-    DWORD values = 0;
-    if (RegQueryInfoKeyW(app_key, nullptr, nullptr, nullptr, &subkeys, nullptr, nullptr, &values, nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS && subkeys == 0 && values == 0) {
-      RegCloseKey(app_key);
-      RegDeleteKeyW(base, subkey.c_str());
+  bool conflict = false;
+  LONG result = win32::SetRegeditReplacement(exe_path, enable, &conflict);
+  if (result != ERROR_SUCCESS && conflict && enable) {
+    const int choice = ui::PromptChoice(
+        hwnd_,
+        L"Regedit already has a Debugger entry owned by another program.\n\n"
+        L"Override the existing entry?",
+        L"Replace Regedit",
+        L"Override",
+        L"",
+        L"Cancel",
+        {80, 70, 70}
+    );
+    if (choice == IDYES) {
+      result = win32::SetRegeditReplacement(
+          exe_path, true, nullptr, true
+      );
+      conflict = false;
     } else {
-      RegCloseKey(app_key);
+      result = ERROR_CANCELLED;
     }
-    RegCloseKey(base);
-    replace_regedit_ = false;
   }
-
+  if (result != ERROR_SUCCESS) {
+    if (result != ERROR_CANCELLED) {
+      ui::ShowError(hwnd_, FormatWin32Error(result));
+    }
+  }
+  SyncReplaceRegeditState();
   BuildMenus();
 }
 

@@ -64,6 +64,7 @@ MessageArea ClassifyMessage(
   case WM_CTLCOLORSTATIC:
   case WM_CTLCOLOREDIT:
   case WM_INITMENUPOPUP:
+  case WM_MENUSELECT:
   case WM_DRAWITEM:
   case WM_MEASUREITEM:
     return MessageArea::kAppearance;

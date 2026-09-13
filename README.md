@@ -24,7 +24,7 @@ RegKit adds functionality that standard regedit doesn't support:
 - Local/remote/offline registry
 - Undo/redo, copy/paste (entire keys), replace, performant 'Find'
 - Find can search Root Keys, the real REGISTRY root, and Trace values independently
-- Address bar accepts multiple registry path formats (abbreviated HK*, full root, regedit address bar, `.reg` header, PowerShell drive/provider, escaped)
+- Address bar accepts multiple registry path formats (abbreviated HK*, full root, regedit address bar, `.reg` header, `reg:` link, PowerShell drive/provider, escaped)
 - Copy Key Path As menu for the same formats (to copy/paste into the address bar)
 - Copy Value Name / Copy Value Data from value context menus
 - Tab control
@@ -164,6 +164,8 @@ Using `reg` here is optional, means both `regkit reg query` & `regkit query` wor
 | `regkit --edit-reg file.reg` | Open a `.reg` file in a tab |
 | `regkit --install-edit-context-menu` | Add the `Edit with RegKit` context menu entry |
 | `regkit --uninstall-edit-context-menu` | Remove `Edit with RegKit` context menu entry |
+| `regkit --install-regedit-replacement` | Replace Regedit with this RegKit executable |
+| `regkit --uninstall-regedit-replacement` | Remove this RegKit executable's Regedit replacement |
 | `regkit --restart-system` | Relaunch under the SYSTEM account |
 | `regkit --restart-ti` | Relaunch under TrustedInstaller |
 | `regkit --help` | Print usage text |

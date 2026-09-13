@@ -70,21 +70,31 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}"; ValueType: str
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\DefaultIcon"; ValueType: string; ValueData: """{app}\{#AppExeName}"",0"
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\SupportedTypes"; ValueType: string; ValueName: ".reg"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\shell\open\command"; ValueType: string; ValueData: """{app}\{#AppExeName}"" ""%1"""
-Root: HKLM; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\regedit.exe"; ValueType: string; ValueName: "Debugger"; ValueData: """{app}\{#AppExeName}"""; Flags: uninsdeletevalue uninsdeletekeyifempty; Tasks: replace_regedit
-
 [Code]
-const
-  IfeoRegeditKey = 'Software\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\regedit.exe';
+procedure InstallRegeditReplacement;
+var
+  ResultCode: Integer;
+begin
+  if not WizardIsTaskSelected('replace_regedit') then
+    exit;
+  if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--install-regedit-replacement', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then begin
+    RaiseException('Regedit replacement could not be installed. Another program may already own its Debugger entry.');
+  end;
+end;
 
 procedure RemoveRegeditReplacement;
 var
-  Debugger: string;
+  ResultCode: Integer;
 begin
-  if not RegQueryStringValue(HKLM, IfeoRegeditKey, 'Debugger', Debugger) then
-    exit;
-  if CompareText(RemoveQuotes(Trim(Debugger)), ExpandConstant('{app}\{#AppExeName}')) = 0 then begin
-    RegDeleteValue(HKLM, IfeoRegeditKey, 'Debugger');
-    RegDeleteKeyIfEmpty(HKLM, IfeoRegeditKey);
+  if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--uninstall-regedit-replacement', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then begin
+    RaiseException('Regedit replacement could not be removed. Uninstallation was stopped to avoid leaving Regedit redirected to a deleted file.');
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then begin
+    InstallRegeditReplacement;
   end;
 end;
 

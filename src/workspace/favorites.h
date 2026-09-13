@@ -8,6 +8,11 @@
 
 namespace regkit::workspace {
 
+struct NamedFavorite {
+  std::wstring name;
+  std::wstring path;
+};
+
 class FavoritesStore {
 public:
   static std::wstring FavoritesPath();
@@ -17,6 +22,10 @@ public:
   static bool Remove(const std::wstring& path);
   static bool ImportFromFile(const std::wstring& path);
   static bool ExportToFile(const std::wstring& path);
+  static bool LoadRegedit(
+      std::vector<NamedFavorite>* favorites,
+      std::wstring* error = nullptr
+  );
   static bool ImportFromRegedit(size_t* imported_count, std::wstring* error);
 };
 

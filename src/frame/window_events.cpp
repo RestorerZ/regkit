@@ -637,6 +637,19 @@ LRESULT CALLBACK MainWindow::Impl::TreeViewProc(
     DWORD_PTR ref_data
 ) {
   auto* self = reinterpret_cast<MainWindow::Impl*>(ref_data);
+  if (message == TVM_SELECTITEM && wparam == TVGN_CARET && self &&
+      hwnd == self->regedit_compat_tree_.hwnd()) {
+    const HTREEITEM item = reinterpret_cast<HTREEITEM>(lparam);
+    const bool unchanged = TreeView_GetSelection(hwnd) == item;
+    const LRESULT result = DefSubclassProc(hwnd, message, wparam, lparam);
+    if (unchanged) {
+      RegistryNode* node = self->regedit_compat_tree_.NodeFromItem(item);
+      if (node) {
+        self->NavigateToExternalJump(registry_path::Build(*node));
+      }
+    }
+    return result;
+  }
   if (message == WM_SETFOCUS && self) {
     self->last_focus_ = hwnd;
   }

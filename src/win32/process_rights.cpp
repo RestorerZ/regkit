@@ -358,6 +358,31 @@ bool OpenServiceProcessToken(
 
 namespace util {
 
+std::wstring GetProcessImagePath(
+    DWORD process_id
+) {
+  ScopedHandle process(
+      OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id)
+  );
+  if (!process) {
+    return {};
+  }
+  for (DWORD capacity = MAX_PATH; capacity <= 32768; capacity *= 2) {
+    std::wstring path(capacity, L'\0');
+    DWORD length = capacity;
+    if (QueryFullProcessImageNameW(
+            process.get(), 0, path.data(), &length
+        )) {
+      path.resize(length);
+      return path;
+    }
+    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+      return {};
+    }
+  }
+  return {};
+}
+
 std::wstring GetCurrentUserSidString() {
   static const std::wstring cached = []() -> std::wstring {
     std::wstring sid_string;

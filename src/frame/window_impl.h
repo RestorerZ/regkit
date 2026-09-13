@@ -40,6 +40,7 @@
 #include "changes/undo_stack.h"
 #include "changes/value_comments.h"
 #include "workspace/recent_items.h"
+#include "workspace/favorites.h"
 #include "workspace/settings.h"
 #include "workspace/tree_state.h"
 #include "work/session.h"
@@ -340,6 +341,7 @@ private:
   bool LoadDefaultFromPrompt();
   void ClearDefaults();
   void RefreshFavoritesCache();
+  void RefreshRegeditFavoritesMenu();
   void RefreshBundledDefaultsCache();
   void BuildMenus();
   void BuildAccelerators();
@@ -563,6 +565,7 @@ private:
   HWND status_bar_ = nullptr;
   HWND search_progress_ = nullptr;
   browse::Pane browse_;
+  RegistryTree regedit_compat_tree_;
   HIMAGELIST tree_images_ = nullptr;
   HIMAGELIST list_images_ = nullptr;
   std::vector<int> value_column_subitems_;
@@ -968,6 +971,9 @@ private:
   changes::ValueComments value_comments_;
   util::UniqueHKey registry_root_;
   std::vector<std::wstring> favorites_cache_;
+  std::vector<workspace::NamedFavorite> regedit_favorites_;
+  HMENU regedit_favorites_menu_ = nullptr;
+  int regedit_favorites_static_count_ = 0;
   bool favorites_loaded_ = false;
 
   struct BundledDefault {
