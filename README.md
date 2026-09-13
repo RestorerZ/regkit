@@ -277,18 +277,18 @@ These are the exact builds for each file:
 
 | Release | Edition | Architecture | Build |
 | --- | --- | --- | --- |
-| [Windows Vista RTM](https://github.com/nohuto/regkit/tree/main/assets/defaults/WVista%20Business%20x64%20-%206.0.6000.16386) | Business | x64 | `6.0.6000.16386` |
-| [Windows 7 RTM](https://github.com/nohuto/regkit/tree/main/assets/defaults/W7%20Professional%20x64%20-%206.1.7600.16385) | Pro | x64 | `6.1.7600.16385` |
-| [Windows 8](https://github.com/nohuto/regkit/tree/main/assets/defaults/W8%20Pro%20x64%20-%206.2.9200.16384) | Pro | x64 | `6.2.9200.16384` |
-| [Windows 8.1](https://github.com/nohuto/regkit/tree/main/assets/defaults/W8.1%20Pro%20x64%20-%206.3.9600.16384) | Pro | x64 | `6.3.9600.16384` |
-| [Windows 10 21H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/W10%2021H2%20Home%20x64%20-%2010.0.19044.3086) | Home | x64 | `10.0.19044.3086` |
-| [Windows 10 22H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/W10%2022H2%20Home%20x64%20-%2010.0.19045.6456) | Home | x64 | `10.0.19045.6456` |
-| [Windows 11 21H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/W11%2021H2%20Home%20x64%20-%2010.0.22000.978) | Home | x64 | `10.0.22000.978` |
-| [Windows 11 22H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/W11%2022H2%20Home%20x64%20-%2010.0.22621.963) | Home | x64 | `10.0.22621.963` |
-| [Windows 11 23H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/W11%2023H2%20Home%20x64%20-%2010.0.22631.6060) | Home | x64 | `10.0.22631.6060` |
-| [Windows 11 24H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/W11%2024H2%20Home%20x64%20-%2010.0.26100.9168) | Home | x64 | `10.0.26100.9168` |
-| [Windows 11 25H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/W11%2025H2%20Home%20x64%20-%2010.0.26200.8037) | Home | x64 | `10.0.26200.8037` |
-| [Windows 11 26H1](https://github.com/nohuto/regkit/tree/main/assets/defaults/W11%2026H1%20Home%20x64%20-%2010.0.28000.2704) | Home | x64 | `10.0.28000.2704` |
+| [Windows Vista RTM](https://github.com/nohuto/regkit/tree/main/assets/defaults/6.0-WVista%20Business%20x64%20-%206.0.6000.16386) | Business | x64 | `6.0.6000.16386` |
+| [Windows 7 RTM](https://github.com/nohuto/regkit/tree/main/assets/defaults/6.1-W7%20Professional%20x64%20-%206.1.7600.16385) | Pro | x64 | `6.1.7600.16385` |
+| [Windows 8](https://github.com/nohuto/regkit/tree/main/assets/defaults/6.2-W8%20Pro%20x64%20-%206.2.9200.16384) | Pro | x64 | `6.2.9200.16384` |
+| [Windows 8.1](https://github.com/nohuto/regkit/tree/main/assets/defaults/6.3-W8.1%20Pro%20x64%20-%206.3.9600.16384) | Pro | x64 | `6.3.9600.16384` |
+| [Windows 10 21H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/10-W10%2021H2%20Home%20x64%20-%2010.0.19044.3086) | Home | x64 | `10.0.19044.3086` |
+| [Windows 10 22H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/10-W10%2022H2%20Home%20x64%20-%2010.0.19045.6456) | Home | x64 | `10.0.19045.6456` |
+| [Windows 11 21H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/10-W11%2021H2%20Home%20x64%20-%2010.0.22000.978) | Home | x64 | `10.0.22000.978` |
+| [Windows 11 22H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/10-W11%2022H2%20Home%20x64%20-%2010.0.22621.963) | Home | x64 | `10.0.22621.963` |
+| [Windows 11 23H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/10-W11%2023H2%20Home%20x64%20-%2010.0.22631.6060) | Home | x64 | `10.0.22631.6060` |
+| [Windows 11 24H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/10-W11%2024H2%20Home%20x64%20-%2010.0.26100.9168) | Home | x64 | `10.0.26100.9168` |
+| [Windows 11 25H2](https://github.com/nohuto/regkit/tree/main/assets/defaults/10-W11%2025H2%20Home%20x64%20-%2010.0.26200.8037) | Home | x64 | `10.0.26200.8037` |
+| [Windows 11 26H1](https://github.com/nohuto/regkit/tree/main/assets/defaults/10-W11%2026H1%20Home%20x64%20-%2010.0.28000.2704) | Home | x64 | `10.0.28000.2704` |
 
 ## Rights and Elevation
 
