@@ -11,9 +11,9 @@ namespace regkit::win32 {
 namespace {
 
 constexpr wchar_t kEditMenuKey[] =
-    L"Software\\Classes\\SystemFileAssociations\\.reg\\shell\\RegKit.Edit";
+    L"Software\\Classes\\regfile\\shell\\RegKit.Edit";
 constexpr wchar_t kEditMenuCommandKey[] =
-    L"Software\\Classes\\SystemFileAssociations\\.reg\\shell\\RegKit.Edit\\command";
+    L"Software\\Classes\\regfile\\shell\\RegKit.Edit\\command";
 
 std::wstring EditMenuCommand(
     const std::wstring& exe_path
@@ -28,7 +28,14 @@ std::wstring EditMenuIcon(
 }
 
 LONG DeleteEditMenu() {
-  const LONG result = RegDeleteTreeW(HKEY_CURRENT_USER, kEditMenuKey);
+  LONG result = RegDeleteTreeW(HKEY_CURRENT_USER, kEditMenuKey);
+  if (result == ERROR_FILE_NOT_FOUND || result == ERROR_PATH_NOT_FOUND) {
+    return ERROR_SUCCESS;
+  }
+  if (result != ERROR_SUCCESS) {
+    return result;
+  }
+  result = RegDeleteKeyW(HKEY_CURRENT_USER, kEditMenuKey);
   return result == ERROR_FILE_NOT_FOUND || result == ERROR_PATH_NOT_FOUND
              ? ERROR_SUCCESS
              : result;

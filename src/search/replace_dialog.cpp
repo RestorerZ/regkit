@@ -23,6 +23,7 @@ namespace {
 
 constexpr wchar_t kDialogClass[] = L"RegKitReplaceDialog";
 constexpr int kReplaceButtonWidth = 80;
+constexpr int kFindReplaceLabelWidth = 100;
 constexpr int kNumberDecimalWidth = 144;
 constexpr int kNumberHexWidth = 116;
 constexpr int kCheckBoxIdealPadding = 12;
@@ -141,7 +142,7 @@ void LayoutDialog(
   const int bottom_margin = Scaled(kDialogButtonBottomMargin, dpi);
   const int width = client.right - client.left;
   const int x = margin;
-  const int label_w = Scaled(90, dpi);
+  const int label_w = Scaled(kFindReplaceLabelWidth, dpi);
   const int key_label_w = Scaled(32, dpi);
   const int browse_w = Scaled(90, dpi);
   int y = margin;
