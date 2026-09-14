@@ -6,8 +6,7 @@
 #include "win32/window_metrics.h"
 
 #include "appearance/dialog_layout.h"
-#include "appearance/icon_loader.h"
-#include "appearance/list_header.h"
+#include "appearance/list_view_support.h"
 #include "appearance/theme.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
@@ -28,108 +27,8 @@ namespace {
 
 constexpr UINT_PTR kSingleLineSubclassId = 2;
 constexpr UINT_PTR kListViewSubclassId = 3;
-constexpr UINT_PTR kListHeaderSubclassId = 4;
 constexpr int kTooltipMaxWidth = 600;
-constexpr int kMenuSizeToFit = 1;
-constexpr int kMenuSizeAll = 2;
-constexpr int kMenuColumnBase = 16;
-
 constexpr int kGridToggleId = 4200;
-constexpr int kGridGlyphSize = 16;
-constexpr int kGridButtonWidth = 22;
-
-bool grid_lines = true;
-COLORREF grid_color = CLR_INVALID;
-std::wstring grid_icon_path;
-GridLinesSink grid_sink = nullptr;
-void* grid_sink_context = nullptr;
-
-struct GridList {
-  HWND dialog = nullptr;
-  HWND list = nullptr;
-  HWND toolbar = nullptr;
-};
-
-std::vector<GridList> grid_lists;
-
-void PlaceGridToggle(
-    const GridList& entry
-) {
-  const HWND header = entry.list ? ListView_GetHeader(entry.list) : nullptr;
-  if (!entry.toolbar || !header) {
-    return;
-  }
-  RECT header_rect = {};
-  RECT client = {};
-  if (!GetWindowRect(header, &header_rect) || !GetClientRect(header, &client)) {
-    return;
-  }
-  MapWindowPoints(nullptr, entry.dialog, reinterpret_cast<POINT*>(&header_rect), 2);
-  const int width = std::min<int>(client.right - client.left, MulDiv(kGridButtonWidth, static_cast<int>(win32::DpiForWindow(header)), 96));
-  const int height = header_rect.bottom - header_rect.top;
-  if (width <= 0 || height <= 0) {
-    return;
-  }
-  SendMessageW(entry.toolbar, TB_SETBUTTONSIZE, 0, MAKELPARAM(width, height));
-  SetWindowPos(entry.toolbar, HWND_TOP, header_rect.right - width, header_rect.top, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
-}
-
-HWND CreateGridToggle(
-    HWND dialog,
-    HWND list
-) {
-  const UINT dpi = win32::DpiForWindow(list);
-  const HWND toolbar = CreateWindowExW(
-      0,
-      TOOLBARCLASSNAMEW,
-      L"Grid lines",
-      WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TBSTYLE_FLAT | TBSTYLE_TOOLTIPS |
-          CCS_NODIVIDER | CCS_NOPARENTALIGN | CCS_NORESIZE,
-      0,
-      0,
-      0,
-      0,
-      dialog,
-      reinterpret_cast<HMENU>(static_cast<INT_PTR>(kGridToggleId)),
-      GetModuleHandleW(nullptr),
-      nullptr
-  );
-  if (!toolbar) {
-    return nullptr;
-  }
-  SendMessageW(toolbar, TB_BUTTONSTRUCTSIZE, sizeof(TBBUTTON), 0);
-  SendMessageW(toolbar, TB_SETMAXTEXTROWS, 0, 0);
-  SendMessageW(toolbar, TB_SETEXTENDEDSTYLE, 0, TBSTYLE_EX_DOUBLEBUFFER);
-
-  const int size = util::ScaleForDpi(kGridGlyphSize, dpi);
-  HICON icon = grid_icon_path.empty() ? nullptr : util::LoadIconFromFile(grid_icon_path, kGridGlyphSize, dpi);
-  if (!icon) {
-    icon = util::LoadIconResource(Theme::UseDarkMode() ? IDI_ICON_LIGHT_GRID : IDI_ICON_DARK_GRID, kGridGlyphSize, dpi);
-  }
-  if (HIMAGELIST images = ImageList_Create(size, size, ILC_COLOR32, 1, 1)) {
-    ImageList_SetBkColor(images, CLR_NONE);
-    util::ImageListAddOrBlank(images, icon, size);
-    auto* previous = reinterpret_cast<HIMAGELIST>(SendMessageW(toolbar, TB_SETIMAGELIST, 0, reinterpret_cast<LPARAM>(images)));
-    if (previous) {
-      ImageList_Destroy(previous);
-    }
-  }
-  if (icon) {
-    DestroyIcon(icon);
-  }
-
-  const LRESULT label = SendMessageW(toolbar, TB_ADDSTRINGW, 0, reinterpret_cast<LPARAM>(L"Grid lines"));
-  TBBUTTON button = {};
-  button.iBitmap = 0;
-  button.idCommand = kGridToggleId;
-  button.fsState = TBSTATE_ENABLED;
-  button.fsStyle = BTNS_CHECK;
-  button.iString = static_cast<INT_PTR>(label);
-  SendMessageW(toolbar, TB_ADDBUTTONSW, 1, reinterpret_cast<LPARAM>(&button));
-  Theme::Current().ApplyToToolbar(toolbar);
-  SendMessageW(toolbar, TB_CHECKBUTTON, kGridToggleId, MAKELPARAM(grid_lines ? TRUE : FALSE, 0));
-  return toolbar;
-}
 
 LRESULT CALLBACK SingleLineProc(
     HWND window,
@@ -166,43 +65,6 @@ LRESULT CALLBACK SingleLineProc(
   }
   if (message == WM_NCDESTROY) {
     RemoveWindowSubclass(window, SingleLineProc, kSingleLineSubclassId);
-  }
-  return DefSubclassProc(window, message, wparam, lparam);
-}
-
-LRESULT CALLBACK ListHeaderProc(
-    HWND window,
-    UINT message,
-    WPARAM wparam,
-    LPARAM lparam,
-    UINT_PTR,
-    DWORD_PTR
-) {
-  if (message == WM_ERASEBKGND) {
-    return 1;
-  }
-  if (message == WM_PAINT) {
-    appearance::PaintListHeader(window, nullptr);
-    return 0;
-  }
-  if (message == WM_CONTEXTMENU) {
-    POINT screen = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-    if (screen.x == -1 && screen.y == -1) {
-      RECT rect = {};
-      GetWindowRect(window, &rect);
-      screen.x = rect.left + 20;
-      screen.y = rect.bottom;
-    }
-    ShowColumnMenu(GetParent(window), screen);
-    return 0;
-  }
-  if (message == WM_THEMECHANGED) {
-    appearance::ReleaseListHeaderTheme(window);
-    InvalidateRect(window, nullptr, TRUE);
-  }
-  if (message == WM_NCDESTROY) {
-    appearance::ReleaseListHeaderTheme(window);
-    RemoveWindowSubclass(window, ListHeaderProc, kListHeaderSubclassId);
   }
   return DefSubclassProc(window, message, wparam, lparam);
 }
@@ -357,7 +219,6 @@ bool HandleThemeMessage(
     return false;
   }
   if (message == WM_SETTINGCHANGE) {
-    grid_color = CLR_INVALID;
     if (Theme::UpdateFromSystem()) {
       Theme::Current().ApplyToWindow(dialog);
       Theme::Current().ApplyToChildren(dialog);
@@ -429,11 +290,7 @@ void SetupListView(
   if (!list) {
     return;
   }
-  const DWORD mask = LVS_EX_INFOTIP | LVS_EX_LABELTIP | LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT |
-                     LVS_EX_DOUBLEBUFFER | LVS_EX_BORDERSELECT | LVS_EX_TRACKSELECT |
-                     LVS_EX_ONECLICKACTIVATE | LVS_EX_TWOCLICKACTIVATE | LVS_EX_UNDERLINEHOT;
-  const DWORD style = LVS_EX_LABELTIP | LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | extra_styles;
-  ListView_SetExtendedListViewStyleEx(list, mask, style);
+  appearance::ConfigureListView(list, LVS_EX_LABELTIP | extra_styles);
 
   const UINT dpi = win32::DpiForWindow(list);
   int index = 0;
@@ -447,89 +304,33 @@ void SetupListView(
     ++index;
   }
 
-  SendMessageW(list, WM_CHANGEUISTATE, MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS), 0);
   if (HWND tooltip = ListView_GetToolTips(list)) {
     SendMessageW(tooltip, TTM_SETMAXTIPWIDTH, 0, MulDiv(kTooltipMaxWidth, static_cast<int>(dpi), 96));
   }
   if (!GetWindowSubclass(list, ListViewProc, kListViewSubclassId, nullptr)) {
     SetWindowSubclass(list, ListViewProc, kListViewSubclassId, 0);
   }
-  GridList entry;
-  entry.dialog = GetParent(list);
-  entry.list = list;
-  entry.toolbar = CreateGridToggle(entry.dialog, list);
-  grid_lists.push_back(entry);
-  PlaceGridToggle(entry);
+  appearance::RegisterListView(GetParent(list), list, kGridToggleId);
   RefreshListViewTheme(list);
-}
-
-void SetGridLines(
-    bool enabled
-) {
-  grid_lines = enabled;
-  grid_lists.erase(
-      std::remove_if(grid_lists.begin(), grid_lists.end(), [](const GridList& entry) { return !IsWindow(entry.list); }),
-      grid_lists.end()
-  );
-  for (const GridList& entry : grid_lists) {
-    if (entry.toolbar) {
-      SendMessageW(entry.toolbar, TB_CHECKBUTTON, kGridToggleId, MAKELPARAM(enabled ? TRUE : FALSE, 0));
-    }
-    InvalidateRect(entry.list, nullptr, TRUE);
-  }
-}
-
-void SetGridIcon(
-    const std::wstring& path
-) {
-  grid_icon_path = path;
-}
-
-void SetGridLinesSink(
-    GridLinesSink sink,
-    void* context
-) {
-  grid_sink = sink;
-  grid_sink_context = context;
 }
 
 void LayoutGridToggles(
     HWND dialog
 ) {
-  for (const GridList& entry : grid_lists) {
-    if (entry.dialog == dialog) {
-      PlaceGridToggle(entry);
-    }
-  }
+  appearance::LayoutListViews(dialog);
 }
 
 bool HandleGridToggle(
-    HWND,
+    HWND dialog,
     int command_id
 ) {
-  if (command_id != kGridToggleId) {
-    return false;
-  }
-  const bool enabled = !grid_lines;
-  if (grid_sink) {
-    grid_sink(grid_sink_context, enabled);
-  } else {
-    SetGridLines(enabled);
-  }
-  return true;
+  return appearance::HandleListViewCommand(dialog, command_id);
 }
 
 void ReleaseDialogLists(
     HWND dialog
 ) {
-  grid_lists.erase(
-      std::remove_if(grid_lists.begin(), grid_lists.end(), [dialog](const GridList& entry) { return entry.dialog == dialog; }),
-      grid_lists.end()
-  );
-}
-
-bool GridLines() {
-  return grid_lines;
+  appearance::ReleaseListViews(dialog);
 }
 
 void RefreshListViewTheme(
@@ -538,16 +339,7 @@ void RefreshListViewTheme(
   if (!list) {
     return;
   }
-  Theme::Current().ApplyToListView(list);
-  HWND header = ListView_GetHeader(list);
-  if (header && !GetWindowSubclass(header, ListHeaderProc, kListHeaderSubclassId, nullptr)) {
-    SetWindowSubclass(header, ListHeaderProc, kListHeaderSubclassId, 0);
-  }
-  if (header) {
-    appearance::ReleaseListHeaderTheme(header);
-    InvalidateRect(header, nullptr, TRUE);
-  }
-  InvalidateRect(list, nullptr, TRUE);
+  appearance::RefreshListView(list);
 }
 
 bool HandleListViewNotify(
@@ -558,20 +350,11 @@ bool HandleListViewNotify(
   if (!header || !result || header->code != NM_CUSTOMDRAW) {
     return false;
   }
-  for (const GridList& entry : grid_lists) {
-    if (entry.toolbar == header->hwndFrom) {
-      SetWindowLongPtrW(
-          dialog,
-          DWLP_MSGRESULT,
-          appearance::PaintGridToolbar(
-              entry.toolbar,
-              reinterpret_cast<NMTBCUSTOMDRAW*>(const_cast<NMHDR*>(header)),
-              appearance::ListSurfaceBrush(entry.list)
-          )
-      );
-      *result = TRUE;
-      return true;
-    }
+  LRESULT feature_result = 0;
+  if (appearance::HandleListViewNotify(dialog, header, &feature_result)) {
+    SetWindowLongPtrW(dialog, DWLP_MSGRESULT, feature_result);
+    *result = TRUE;
+    return true;
   }
   wchar_t class_name[32] = {};
   GetClassNameW(header->hwndFrom, class_name, static_cast<int>(_countof(class_name)));
@@ -581,90 +364,9 @@ bool HandleListViewNotify(
   const HWND list = header->hwndFrom;
   auto* draw = reinterpret_cast<NMLVCUSTOMDRAW*>(const_cast<NMHDR*>(header));
   LRESULT drawn = ui::HandleThemedListViewCustomDraw(list, draw);
-  if (grid_lines) {
-    if (grid_color == CLR_INVALID) {
-      grid_color = appearance::HeaderDividerColor(ListView_GetHeader(list));
-    }
-    switch (draw->nmcd.dwDrawStage) {
-    case CDDS_PREPAINT:
-      drawn |= CDRF_NOTIFYPOSTPAINT;
-      break;
-    case CDDS_ITEMPREPAINT:
-      drawn |= CDRF_NOTIFYPOSTPAINT;
-      break;
-    case CDDS_ITEMPOSTPAINT:
-      {
-        RECT row = {};
-        if (ListView_GetItemRect(list, static_cast<int>(draw->nmcd.dwItemSpec), &row, LVIR_BOUNDS)) {
-          appearance::PaintListGrid(list, draw->nmcd.hdc, row, row.bottom - 1, row.bottom - row.top, grid_color);
-        }
-        break;
-      }
-    case CDDS_POSTPAINT:
-      appearance::PaintListGridTail(list, draw->nmcd.hdc, grid_color);
-      break;
-    default:
-      break;
-    }
-  }
+  drawn = appearance::HandleListGridCustomDraw(list, draw, drawn);
   SetWindowLongPtrW(dialog, DWLP_MSGRESULT, drawn);
   *result = TRUE;
-  return true;
-}
-
-bool ShowColumnMenu(
-    HWND list,
-    POINT screen
-) {
-  HWND header = list ? ListView_GetHeader(list) : nullptr;
-  const int count = header ? Header_GetItemCount(header) : 0;
-  if (count <= 0) {
-    return false;
-  }
-  POINT client = screen;
-  ScreenToClient(header, &client);
-  HDHITTESTINFO hit = {};
-  hit.pt = client;
-  const int column = static_cast<int>(SendMessageW(header, HDM_HITTEST, 0, reinterpret_cast<LPARAM>(&hit)));
-
-  HMENU menu = CreatePopupMenu();
-  if (!menu) {
-    return false;
-  }
-  AppendMenuW(menu, MF_STRING | (column >= 0 ? 0 : MF_GRAYED), kMenuSizeToFit, L"Size column to fit");
-  AppendMenuW(menu, MF_STRING, kMenuSizeAll, L"Size all columns to fit");
-  AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-  std::vector<int> widths(static_cast<size_t>(count));
-  for (int i = 0; i < count; ++i) {
-    wchar_t title[128] = {};
-    HDITEMW item = {};
-    item.mask = HDI_TEXT;
-    item.pszText = title;
-    item.cchTextMax = static_cast<int>(_countof(title));
-    Header_GetItem(header, i, &item);
-    widths[static_cast<size_t>(i)] = ListView_GetColumnWidth(list, i);
-    const bool visible = widths[static_cast<size_t>(i)] > 0;
-    AppendMenuW(menu, MF_STRING | (visible ? MF_CHECKED : MF_UNCHECKED) | (i == 0 ? MF_GRAYED : 0), static_cast<UINT_PTR>(kMenuColumnBase + i), title);
-  }
-
-  const int chosen = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen.x, screen.y, 0, list, nullptr);
-  DestroyMenu(menu);
-  if (chosen == kMenuSizeToFit && column >= 0) {
-    ListView_SetColumnWidth(list, column, LVSCW_AUTOSIZE_USEHEADER);
-    return true;
-  }
-  if (chosen == kMenuSizeAll) {
-    for (int i = 0; i < count; ++i) {
-      if (widths[static_cast<size_t>(i)] > 0) {
-        ListView_SetColumnWidth(list, i, LVSCW_AUTOSIZE_USEHEADER);
-      }
-    }
-    return true;
-  }
-  if (chosen >= kMenuColumnBase) {
-    const int index = chosen - kMenuColumnBase;
-    ListView_SetColumnWidth(list, index, widths[static_cast<size_t>(index)] > 0 ? 0 : LVSCW_AUTOSIZE_USEHEADER);
-  }
   return true;
 }
 

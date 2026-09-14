@@ -94,6 +94,18 @@ void PaintListHeader(
     arrow_size.cy = 8;
   }
 
+  POINT cursor = {};
+  int hot_item = -1;
+  if (GetCursorPos(&cursor)) {
+    ScreenToClient(header, &cursor);
+    HDHITTESTINFO hit = {};
+    hit.pt = cursor;
+    hot_item = static_cast<int>(
+        SendMessageW(header, HDM_HITTEST, 0, reinterpret_cast<LPARAM>(&hit))
+    );
+  }
+  const bool pressed = GetCapture() == header && GetKeyState(VK_LBUTTON) < 0;
+
   const int count = Header_GetItemCount(header);
   for (int i = 0; i < count; ++i) {
     RECT rect = {};
@@ -115,10 +127,14 @@ void PaintListHeader(
     const bool sorted_up = (item.fmt & HDF_SORTUP) != 0;
     const bool sorted_down = (item.fmt & HDF_SORTDOWN) != 0;
 
-    FillRect(hdc, &rect, surface);
-
-    RECT divider = {rect.right - 1, rect.top, rect.right, rect.bottom};
-    FillRect(hdc, &divider, CachedBrush(theme.BorderColor()));
+    const int state = i == hot_item ? (pressed ? HIS_PRESSED : HIS_HOT) : HIS_NORMAL;
+    if (state == HIS_NORMAL || !header_theme) {
+      FillRect(hdc, &rect, surface);
+      RECT divider = {rect.right - 1, rect.top, rect.right, rect.bottom};
+      FillRect(hdc, &divider, CachedBrush(theme.BorderColor()));
+    } else {
+      DrawThemeBackground(header_theme, hdc, HP_HEADERITEM, state, &rect, nullptr);
+    }
 
     RECT text_rect = rect;
     text_rect.left += kHeaderTextPadding;

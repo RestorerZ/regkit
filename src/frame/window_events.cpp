@@ -527,54 +527,10 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(
     self->value_activate_from_key_ = true;
   }
 
-  if (self && self->show_value_grid_ &&
-      (hwnd == self->browse_.values().hwnd() ||
-       hwnd == self->search_results_list_) &&
-      (message == WM_HSCROLL || message == WM_MOUSEWHEEL ||
-       message == WM_MOUSEHWHEEL || message == LVM_SCROLL ||
-       message == LVM_ENSUREVISIBLE || message == WM_KEYDOWN)) {
-    const int before = GetScrollPos(hwnd, SB_HORZ);
-    const LRESULT result = DefSubclassProc(hwnd, message, wparam, lparam);
-    if (GetScrollPos(hwnd, SB_HORZ) != before) {
-      InvalidateRect(hwnd, nullptr, TRUE);
-    }
-    return result;
-  }
   if (message == WM_NCDESTROY) {
     RemovePropW(hwnd, kListScrollProp);
   }
 
-  if (message == WM_NOTIFY && self) {
-    auto* note = reinterpret_cast<NMHDR*>(lparam);
-    if (note && note->code == NM_CUSTOMDRAW &&
-        note->hwndFrom == ListView_GetHeader(hwnd)) {
-      auto* draw = reinterpret_cast<NMCUSTOMDRAW*>(lparam);
-      if (draw->dwDrawStage == CDDS_PREPAINT) {
-        RECT header_rect = {};
-        if (GetClientRect(note->hwndFrom, &header_rect)) {
-          FillRect(draw->hdc, &header_rect, appearance::CachedBrush(ListView_GetBkColor(hwnd)));
-        }
-        return CDRF_NOTIFYITEMDRAW | CDRF_NOTIFYPOSTPAINT;
-      }
-      if (draw->dwDrawStage == CDDS_POSTPAINT) {
-        RECT header_rect = {};
-        RECT last = {};
-        const int count = Header_GetItemCount(note->hwndFrom);
-        if (GetClientRect(note->hwndFrom, &header_rect) && count > 0 &&
-            Header_GetItemRect(note->hwndFrom, count - 1, &last) &&
-            last.right < header_rect.right) {
-          header_rect.left = last.right;
-          FillRect(draw->hdc, &header_rect, appearance::CachedBrush(ListView_GetBkColor(hwnd)));
-        }
-        return CDRF_DODEFAULT;
-      }
-      if (draw->dwDrawStage == CDDS_ITEMPREPAINT &&
-          self->PaintHeaderItem(note->hwndFrom, draw)) {
-        return CDRF_SKIPDEFAULT;
-      }
-      return CDRF_DODEFAULT;
-    }
-  }
   if (message == WM_MOUSEMOVE && self && self->value_tooltip_ &&
       (hwnd == self->browse_.values().hwnd() ||
        hwnd == self->search_results_list_)) {
@@ -680,97 +636,6 @@ LRESULT CALLBACK MainWindow::Impl::TreeViewProc(
     if (ch == L'\b' || (iswprint(ch) && ch != L'\r' && ch != L'\n' && ch != L'\t')) {
       self->HandleTypeToSelectTree(ch);
       return 0;
-    }
-  }
-  return DefSubclassProc(hwnd, message, wparam, lparam);
-}
-
-#ifndef DCX_USESTYLE
-#define DCX_USESTYLE 0x00010000
-#endif
-#ifndef DCX_NODELETERGN
-#define DCX_NODELETERGN 0x00040000
-#endif
-#ifndef HRGN_FULL
-#define HRGN_FULL reinterpret_cast<HRGN>(1)
-#endif
-
-LRESULT CALLBACK MainWindow::Impl::BorderProc(
-    HWND hwnd,
-    UINT message,
-    WPARAM wparam,
-    LPARAM lparam,
-    UINT_PTR id,
-    DWORD_PTR
-) {
-  if (message == WM_NCDESTROY) {
-    RemoveWindowSubclass(hwnd, BorderProc, id);
-    return DefSubclassProc(hwnd, message, wparam, lparam);
-  }
-  if (message != WM_NCPAINT) {
-    return DefSubclassProc(hwnd, message, wparam, lparam);
-  }
-  const LRESULT result = DefSubclassProc(hwnd, message, wparam, lparam);
-  HRGN region = reinterpret_cast<HRGN>(wparam);
-  UINT flags = DCX_WINDOW | DCX_CACHE | DCX_USESTYLE;
-  if (region == HRGN_FULL) {
-    region = nullptr;
-  } else if (region) {
-    flags |= DCX_INTERSECTRGN | DCX_NODELETERGN;
-  }
-  HDC hdc = GetDCEx(hwnd, region, flags);
-  if (!hdc) {
-    return result;
-  }
-  RECT frame = {};
-  if (GetWindowRect(hwnd, &frame)) {
-    OffsetRect(&frame, -frame.left, -frame.top);
-    FrameRect(hdc, &frame, appearance::CachedBrush(Theme::Current().BorderColor()));
-  }
-  ReleaseDC(hwnd, hdc);
-  return result;
-}
-
-LRESULT CALLBACK MainWindow::Impl::HeaderProc(
-    HWND hwnd,
-    UINT message,
-    WPARAM wparam,
-    LPARAM lparam,
-    UINT_PTR subclass_id,
-    DWORD_PTR ref_data
-) {
-  auto* self = reinterpret_cast<MainWindow::Impl*>(ref_data);
-  HWND value_header = self ? ListView_GetHeader(self->browse_.values().hwnd()) : nullptr;
-
-  if (message == WM_SIZE && hwnd == value_header) {
-    self->LayoutValueGridToolbar();
-  }
-  if (message == WM_NCDESTROY) {
-    RemoveWindowSubclass(hwnd, HeaderProc, subclass_id);
-  }
-  if (message == WM_CONTEXTMENU) {
-    if (self) {
-      HWND history_header = ListView_GetHeader(self->history_list_);
-      HWND search_header = ListView_GetHeader(self->search_results_list_);
-      POINT screen_pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-      if (screen_pt.x == -1 && screen_pt.y == -1) {
-        RECT rect = {};
-        GetWindowRect(hwnd, &rect);
-        screen_pt.x = rect.left + 12;
-        screen_pt.y = rect.bottom - 4;
-      }
-      if (hwnd == value_header) {
-        self->ShowValueHeaderMenu(screen_pt);
-        return 0;
-      }
-      if (hwnd == history_header) {
-        self->ShowHistoryHeaderMenu(screen_pt);
-        return 0;
-      }
-      if (hwnd == search_header) {
-        self->ShowSearchHeaderMenu(screen_pt);
-        return 0;
-      }
     }
   }
   return DefSubclassProc(hwnd, message, wparam, lparam);

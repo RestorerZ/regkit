@@ -126,8 +126,6 @@ private:
   static LRESULT CALLBACK AddressEditProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
   static LRESULT CALLBACK FilterEditProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
   static LRESULT CALLBACK TabProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
-  static LRESULT CALLBACK BorderProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
-  static LRESULT CALLBACK HeaderProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
   static LRESULT CALLBACK ListViewProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
   static LRESULT CALLBACK TreeViewProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
 
@@ -153,7 +151,6 @@ private:
   LRESULT HandleTabNotification(NMHDR* header, LPARAM lparam);
   LRESULT HandleTreeNotification(NMHDR* header, LPARAM lparam);
   LRESULT HandleHeaderNotification(NMHDR* header, LPARAM lparam);
-  bool PaintHeaderItem(HWND header, NMCUSTOMDRAW* draw);
   LRESULT HandleValueNotification(NMHDR* header, LPARAM lparam);
   LRESULT HandleHistoryNotification(NMHDR* header, LPARAM lparam);
   LRESULT HandleSearchNotification(NMHDR* header, LPARAM lparam);
@@ -194,17 +191,9 @@ private:
   std::wstring ResolveIconDir(bool use_light) const;
   std::wstring ResolveIconPath(const wchar_t* filename) const;
   HICON LoadThemeIcon(const wchar_t* filename, int light_id, int dark_id, int size, UINT dpi) const;
-  void EnsureValueGridToolbar();
   void ApplyGridToolbarIcons();
-  void LayoutGridToolbar(HWND list, HWND toolbar);
-  void EnsureGridToolbar(HWND list, HWND* toolbar_slot, int command_id);
-  void ApplyGridToolbarTheme(HWND toolbar);
-  HBRUSH ValueHeaderSurfaceBrush() const;
   void LayoutValueGridToolbar();
   void SetValueGridEnabled(bool enabled, bool persist);
-  void PaintValueGridLines(HWND list, HDC hdc, const RECT& area, int first_line_y, int row_height);
-  void PaintValueGridTail(HWND list, HDC hdc);
-  int ValueGridToggleWidth(HWND header) const;
   ToolbarIcon MakeToolbarIcon(const wchar_t* filename, int light_id, int dark_id, bool use_light) const;
   void CreateValueColumns();
   void CreateHistoryColumns();
@@ -215,7 +204,6 @@ private:
   void RefreshCompareColumnTitles();
   bool IsCompareResultColumnAvailable() const;
   void UpdateValueListForNode(RegistryNode* node);
-  void AttachBorder(HWND control);
   void AttachHeader(HWND header);
   void ResetValueFilter();
   void FocusFirstValue();
@@ -640,16 +628,12 @@ private:
   int drag_tree_header_height_ = 0;
   int drag_history_label_height_ = 0;
   HICON address_go_icon_ = nullptr;
-  HWND value_grid_toolbar_ = nullptr;
-  HWND search_grid_toolbar_ = nullptr;
   HWND value_tooltip_ = nullptr;
   HWND value_tip_list_ = nullptr;
   int value_tip_item_ = -1;
   int value_tip_subitem_ = -1;
   std::wstring value_tooltip_text_;
-  HIMAGELIST value_grid_image_list_ = nullptr;
   bool show_value_grid_ = false;
-  COLORREF grid_line_color_ = CLR_INVALID;
   bool auto_check_updates_ = false;
   bool default_reset_enabled_ = false;
   HMENU reset_default_menu_ = nullptr;

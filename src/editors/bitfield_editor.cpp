@@ -5,6 +5,7 @@
 
 #include "appearance/dialog_layout.h"
 #include "appearance/feedback.h"
+#include "appearance/list_view_support.h"
 #include "appearance/theme.h"
 #include "editors/bitfield_definition_editor.h"
 #include "editors/dialog_support.h"
@@ -56,6 +57,8 @@ struct Editor {
   bool filtering = false;
   bool updating_combo = false;
   bool accepted = false;
+  int sort_column = 0;
+  bool sort_ascending = false;
   std::vector<Definition> choices;
   int choice = 0;
   HFONT ui_font = nullptr;
@@ -68,6 +71,93 @@ struct Editor {
     return choices[static_cast<size_t>(choice)];
   }
 };
+
+const std::wstring& RowMeaning(const Field& field, uint64_t value);
+
+bool BitForRow(
+    HWND list,
+    int row,
+    unsigned* bit
+) {
+  LPARAM data = 0;
+  if (!bit || appearance::ListViewItemData(list, row, &data) < 0 || data < 0) {
+    return false;
+  }
+  *bit = static_cast<unsigned>(data);
+  return true;
+}
+
+int RowForBit(
+    HWND list,
+    unsigned bit
+) {
+  return appearance::FindListViewItemByData(list, static_cast<LPARAM>(bit));
+}
+
+int CompareText(
+    const std::wstring& left,
+    const std::wstring& right
+) {
+  return _wcsicmp(left.c_str(), right.c_str());
+}
+
+int CALLBACK CompareBitRows(
+    LPARAM left_data,
+    LPARAM right_data,
+    int column,
+    void* context
+) {
+  auto* editor = static_cast<Editor*>(context);
+  const unsigned left = static_cast<unsigned>(left_data);
+  const unsigned right = static_cast<unsigned>(right_data);
+  if (!editor || left >= editor->width || right >= editor->width) {
+    return 0;
+  }
+  int result = 0;
+  if (column == 0 || column == kColumnMask) {
+    result = left < right ? -1 : left > right ? 1 : 0;
+  } else if (column == kColumnState) {
+    const bool left_set = ((editor->value >> left) & 1ull) != 0;
+    const bool right_set = ((editor->value >> right) & 1ull) != 0;
+    result = left_set == right_set ? 0 : left_set ? 1 : -1;
+  } else {
+    const Field* left_field = editor->definition().FieldForBit(left);
+    const Field* right_field = editor->definition().FieldForBit(right);
+    if (column == kColumnField) {
+      result = CompareText(
+          left_field ? left_field->name : std::wstring(),
+          right_field ? right_field->name : std::wstring()
+      );
+    } else if (column == kColumnValue) {
+      const uint64_t left_value = left_field ? left_field->Extract(editor->value) : 0;
+      const uint64_t right_value = right_field ? right_field->Extract(editor->value) : 0;
+      result = left_value < right_value ? -1 : left_value > right_value ? 1 : 0;
+    } else if (column == kColumnMeaning) {
+      result = CompareText(
+          left_field ? RowMeaning(*left_field, editor->value) : std::wstring(),
+          right_field ? RowMeaning(*right_field, editor->value) : std::wstring()
+      );
+    }
+  }
+  return result != 0 ? result : (left < right ? -1 : left > right ? 1 : 0);
+}
+
+void SortBitRows(
+    HWND list,
+    Editor* editor,
+    int column,
+    bool toggle
+) {
+  appearance::SortListViewItems(
+      list,
+      column,
+      toggle,
+      &editor->sort_column,
+      &editor->sort_ascending,
+      CompareBitRows,
+      editor
+  );
+}
 
 uint64_t ReadWindow(
     const Editor& editor
@@ -166,7 +256,10 @@ void SetRowText(
     const Editor& editor,
     int row
 ) {
-  const unsigned bit = editor.width - 1 - static_cast<unsigned>(row);
+  unsigned bit = 0;
+  if (!BitForRow(list, row, &bit) || bit >= editor.width) {
+    return;
+  }
   const bool set = (editor.value >> bit) & 1ull;
   ListView_SetItemText(list, row, kColumnState, const_cast<wchar_t*>(set ? L"1" : L"0"));
   const Field* field = editor.definition().FieldForBit(bit);
@@ -191,7 +284,10 @@ void RefreshFieldRows(
   const HWND list = GetDlgItem(dialog, IDC_BITFIELD_LIST);
   for (const unsigned bit : field.bits) {
     if (bit < editor.width) {
-      SetRowText(list, editor, static_cast<int>(editor.width - 1 - bit));
+      const int row = RowForBit(list, bit);
+      if (row >= 0) {
+        SetRowText(list, editor, row);
+      }
     }
   }
 }
@@ -208,9 +304,10 @@ void FillList(
     const unsigned bit = editor->width - 1 - row;
     const std::wstring bit_text = std::to_wstring(bit);
     LVITEMW item = {};
-    item.mask = LVIF_TEXT;
+    item.mask = LVIF_TEXT | LVIF_PARAM;
     item.iItem = static_cast<int>(row);
     item.pszText = const_cast<wchar_t*>(bit_text.c_str());
+    item.lParam = static_cast<LPARAM>(bit);
     ListView_InsertItem(list, &item);
     const std::wstring mask = MaskText(editor->width, 1ull << bit);
     ListView_SetItemText(list, static_cast<int>(row), kColumnMask, const_cast<wchar_t*>(mask.c_str()));
@@ -220,6 +317,7 @@ void FillList(
     }
   }
   SendMessageW(list, WM_SETREDRAW, TRUE, 0);
+  SortBitRows(list, editor, editor->sort_column, false);
   RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
   editor->updating = false;
   UpdateValueText(dialog, *editor);
@@ -265,7 +363,10 @@ void SelectRow(
     return;
   }
   const HWND list = GetDlgItem(dialog, IDC_BITFIELD_LIST);
-  const int row = static_cast<int>(editor.width - 1 - bit);
+  const int row = RowForBit(list, bit);
+  if (row < 0) {
+    return;
+  }
   ListView_SetItemState(list, row, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
   ListView_EnsureVisible(list, row, FALSE);
 }
@@ -446,8 +547,11 @@ void SetBit(
   } else {
     editor->value &= ~(1ull << bit);
   }
-  const int row = static_cast<int>(editor->width - 1 - bit);
   const HWND list = GetDlgItem(dialog, IDC_BITFIELD_LIST);
+  const int row = RowForBit(list, bit);
+  if (row < 0) {
+    return;
+  }
   editor->updating = true;
   ListView_SetCheckState(list, row, set);
   editor->updating = false;
@@ -477,7 +581,10 @@ void ApplyState(
   const HWND list = GetDlgItem(dialog, IDC_BITFIELD_LIST);
   editor->updating = true;
   for (const unsigned owned : field.bits) {
-    ListView_SetCheckState(list, static_cast<int>(editor->width - 1 - owned), (editor->value >> owned) & 1ull);
+    const int row = RowForBit(list, owned);
+    if (row >= 0) {
+      ListView_SetCheckState(list, row, (editor->value >> owned) & 1ull);
+    }
   }
   editor->updating = false;
   RefreshFieldRows(dialog, *editor, field);
@@ -544,7 +651,11 @@ void ShowRowMenu(
   if (row < 0 || static_cast<unsigned>(row) >= editor->width) {
     return;
   }
-  const unsigned bit = editor->width - 1 - static_cast<unsigned>(row);
+  unsigned bit = 0;
+  if (!BitForRow(GetDlgItem(dialog, IDC_BITFIELD_LIST), row, &bit) ||
+      bit >= editor->width) {
+    return;
+  }
   const bool set = (editor->value >> bit) & 1ull;
   const Definition& definition = editor->definition();
   const Field* field = definition.FieldForBit(bit);
@@ -648,17 +759,17 @@ void HandleItemChanged(
   if (old_image == 0 || new_image == 0 || old_image == new_image) {
     return;
   }
-  if (info->iItem < 0 || static_cast<unsigned>(info->iItem) >= editor->width) {
+  unsigned bit = 0;
+  const HWND list = GetDlgItem(dialog, IDC_BITFIELD_LIST);
+  if (!BitForRow(list, info->iItem, &bit) || bit >= editor->width) {
     return;
   }
-  const unsigned bit = editor->width - 1 - static_cast<unsigned>(info->iItem);
   const bool set = new_image == INDEXTOSTATEIMAGEMASK(2);
   if (set) {
     editor->value |= 1ull << bit;
   } else {
     editor->value &= ~(1ull << bit);
   }
-  const HWND list = GetDlgItem(dialog, IDC_BITFIELD_LIST);
   if (const Field* field = editor->definition().FieldForBit(bit)) {
     RefreshFieldRows(dialog, *editor, *field);
   } else {
@@ -782,6 +893,17 @@ INT_PTR CALLBACK DialogProc(
   }
   if (message == WM_NOTIFY && editor) {
     auto* header = reinterpret_cast<NMHDR*>(lparam);
+    if (header->idFrom == IDC_BITFIELD_LIST &&
+        header->code == LVN_COLUMNCLICK) {
+      auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
+      SortBitRows(
+          GetDlgItem(dialog, IDC_BITFIELD_LIST),
+          editor,
+          info->iSubItem,
+          true
+      );
+      return TRUE;
+    }
     if (header->idFrom == IDC_BITFIELD_LIST && header->code == LVN_ITEMCHANGED) {
       HandleItemChanged(dialog, editor, reinterpret_cast<NMLISTVIEW*>(lparam));
       return TRUE;

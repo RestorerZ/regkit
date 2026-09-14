@@ -1298,9 +1298,8 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(
         BuildMenus();
         return 0;
       }
-      if (HIWORD(wparam) == 0 && (LOWORD(wparam) == kValueGridButtonId ||
-                                  LOWORD(wparam) == kSearchGridButtonId)) {
-        SetValueGridEnabled(!show_value_grid_, true);
+      if (HIWORD(wparam) == 0 &&
+          appearance::HandleListViewCommand(hwnd_, LOWORD(wparam))) {
         return 0;
       }
       if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == kAddressGoId) {
@@ -1336,18 +1335,6 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(
   case WM_CONTEXTMENU:
     {
       HWND source = reinterpret_cast<HWND>(wparam);
-      HWND header_hwnd = ListView_GetHeader(browse_.values().hwnd());
-      if (source == header_hwnd) {
-        POINT screen_pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-        if (screen_pt.x == -1 && screen_pt.y == -1) {
-          RECT rect = {};
-          GetWindowRect(header_hwnd, &rect);
-          screen_pt.x = rect.left + 12;
-          screen_pt.y = rect.bottom - 4;
-        }
-        ShowValueHeaderMenu(screen_pt);
-        return 0;
-      }
       if (source == browse_.tree().hwnd()) {
         POINT screen_pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
         if (screen_pt.x == -1 && screen_pt.y == -1) {

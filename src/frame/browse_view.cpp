@@ -181,10 +181,9 @@ void MainWindow::Impl::ApplyValueColumns() {
       }
     }
   }
-  UpdateListViewSort(list, browse_.columns().sort_column, browse_.columns().sort_ascending);
+  appearance::UpdateListViewSort(list, browse_.columns().sort_column, browse_.columns().sort_ascending);
   if (header) {
     AttachHeader(header);
-    EnsureValueGridToolbar();
     SendMessageW(header, WM_SETREDRAW, TRUE, 0);
   }
   SendMessageW(list, WM_SETREDRAW, TRUE, 0);
@@ -224,7 +223,7 @@ void MainWindow::Impl::ApplyHistoryColumns() {
     ListView_InsertColumn(history_list_, insert_index++, &col);
   }
 
-  UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
+  appearance::UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
   header = ListView_GetHeader(history_list_);
   if (header) {
     AttachHeader(header);
@@ -509,27 +508,39 @@ void MainWindow::Impl::StartPendingValueListRename() {
   pending_value_list_name_.clear();
 }
 
-void MainWindow::Impl::AttachBorder(
-    HWND control
-) {
-  if (!control || GetWindowSubclass(control, BorderProc, kBorderSubclassId, nullptr)) {
-    return;
-  }
-  if (!SetWindowSubclass(control, BorderProc, kBorderSubclassId, reinterpret_cast<DWORD_PTR>(this))) {
-    return;
-  }
-  const LONG_PTR style = GetWindowLongPtrW(control, GWL_STYLE);
-  SetWindowLongPtrW(control, GWL_STYLE, style | WS_BORDER);
-  SetWindowPos(control, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-}
-
 void MainWindow::Impl::AttachHeader(
     HWND header
 ) {
-  if (!header || GetWindowSubclass(header, HeaderProc, kHeaderSubclassId, nullptr)) {
+  if (!header) {
     return;
   }
-  SetWindowSubclass(header, HeaderProc, kHeaderSubclassId, reinterpret_cast<DWORD_PTR>(this));
+  HWND list = GetParent(header);
+  int command = 0;
+  if (list == browse_.values().hwnd()) {
+    command = kValueGridButtonId;
+  } else if (list == search_results_list_) {
+    command = kSearchGridButtonId;
+  } else if (list == history_list_) {
+    command = kHistoryGridButtonId;
+  } else {
+    return;
+  }
+  appearance::RegisterListView(
+      hwnd_,
+      list,
+      command,
+      [](HWND target, POINT screen, void* context) {
+        auto* self = static_cast<MainWindow::Impl*>(context);
+        if (target == self->browse_.values().hwnd()) {
+          self->ShowValueHeaderMenu(screen);
+        } else if (target == self->history_list_) {
+          self->ShowHistoryHeaderMenu(screen);
+        } else if (target == self->search_results_list_) {
+          self->ShowSearchHeaderMenu(screen);
+        }
+      },
+      this
+  );
 }
 
 void MainWindow::Impl::ResetValueFilter() {

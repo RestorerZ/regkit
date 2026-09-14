@@ -403,7 +403,7 @@ void MainWindow::Impl::UpdateSearchResultsView() {
   if (tab.sort_column > max_sort_col) {
     tab.sort_column = -1;
   }
-  UpdateListViewSort(search_results_list_, tab.sort_column, tab.sort_ascending);
+  appearance::UpdateListViewSort(search_results_list_, tab.sort_column, tab.sort_ascending);
   size_t count = compare ? tab.compare_rows.size() : tab.results.size();
   size_t old_count = tab.last_ui_count;
   if (force_redraw || count != old_count) {

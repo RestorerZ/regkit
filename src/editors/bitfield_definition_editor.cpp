@@ -5,6 +5,7 @@
 
 #include "appearance/dialog_layout.h"
 #include "appearance/feedback.h"
+#include "appearance/list_view_support.h"
 #include "appearance/theme.h"
 #include "editors/dialog_support.h"
 #include "win32/file_dialog.h"
@@ -34,8 +35,9 @@ struct FieldEditor {
   Field field;
   const Definition* parent = nullptr;
   int editing = -1;
-  std::vector<unsigned> bits;
   bool accepted = false;
+  int sort_column = 0;
+  bool sort_ascending = true;
   HFONT ui_font = nullptr;
   appearance::DialogResizer resizer;
 };
@@ -51,6 +53,8 @@ struct Editor {
   bool loading = false;
   bool filtering = false;
   bool updating_combo = false;
+  int field_sort_column = 0;
+  bool field_sort_ascending = true;
   HFONT ui_font = nullptr;
   appearance::DialogResizer resizer;
 
@@ -58,6 +62,91 @@ struct Editor {
     return file.definitions[static_cast<size_t>(selected)];
   }
 };
+
+std::wstring StatesText(const Field& field);
+
+int CompareText(
+    const std::wstring& left,
+    const std::wstring& right
+) {
+  return _wcsicmp(left.c_str(), right.c_str());
+}
+
+int CALLBACK CompareFieldBits(
+    LPARAM left_data,
+    LPARAM right_data,
+    int column,
+    void* context
+) {
+  auto* state = static_cast<FieldEditor*>(context);
+  const unsigned left = static_cast<unsigned>(left_data);
+  const unsigned right = static_cast<unsigned>(right_data);
+  int result = 0;
+  if (column == 0 || column == 1) {
+    result = left < right ? -1 : left > right ? 1 : 0;
+  } else if (column == 2 && state && state->parent) {
+    const int left_owner = state->parent->FieldIndexForBit(left);
+    const int right_owner = state->parent->FieldIndexForBit(right);
+    const std::wstring left_name = left_owner >= 0
+                                       ? state->parent->fields[static_cast<size_t>(left_owner)].name
+                                       : std::wstring();
+    const std::wstring right_name = right_owner >= 0
+                                        ? state->parent->fields[static_cast<size_t>(right_owner)].name
+                                        : std::wstring();
+    result = CompareText(left_name, right_name);
+  }
+  return result != 0 ? result : (left < right ? -1 : left > right ? 1 : 0);
+}
+
+int CALLBACK CompareDefinitionFields(
+    LPARAM left_data,
+    LPARAM right_data,
+    int column,
+    void* context
+) {
+  auto* state = static_cast<Editor*>(context);
+  if (!state || left_data < 0 || right_data < 0) {
+    return 0;
+  }
+  const Definition& definition = state->definition();
+  const size_t left_index = static_cast<size_t>(left_data);
+  const size_t right_index = static_cast<size_t>(right_data);
+  if (left_index >= definition.fields.size() || right_index >= definition.fields.size()) {
+    return 0;
+  }
+  const Field& left = definition.fields[left_index];
+  const Field& right = definition.fields[right_index];
+  int result = 0;
+  switch (column) {
+  case 0:
+    result = CompareText(left.name, right.name);
+    break;
+  case 1:
+    result = std::lexicographical_compare(left.bits.begin(), left.bits.end(), right.bits.begin(), right.bits.end())
+                 ? -1
+                 : std::lexicographical_compare(right.bits.begin(), right.bits.end(), left.bits.begin(), left.bits.end()) ? 1 : 0;
+    break;
+  case 2:
+    result = CompareText(StatesText(left), StatesText(right));
+    break;
+  case 3:
+    result = CompareText(left.meaning, right.meaning);
+    break;
+  default:
+    break;
+  }
+  return result != 0 ? result : (left_index < right_index ? -1 : left_index > right_index ? 1 : 0);
+}
+
+int SelectedFieldIndex(
+    HWND list
+) {
+  LPARAM data = -1;
+  const int row = ListView_GetNextItem(list, -1, LVNI_SELECTED);
+  return appearance::ListViewItemData(list, row, &data) >= 0
+             ? static_cast<int>(data)
+             : -1;
+}
 
 std::wstring BitsText(
     const Field& field
@@ -159,9 +248,10 @@ INT_PTR CALLBACK FieldDialogProc(
       }
       const std::wstring text = std::to_wstring(bit);
       LVITEMW item = {};
-      item.mask = LVIF_TEXT;
-      item.iItem = static_cast<int>(state->bits.size());
+      item.mask = LVIF_TEXT | LVIF_PARAM;
+      item.iItem = ListView_GetItemCount(list);
       item.pszText = const_cast<wchar_t*>(text.c_str());
+      item.lParam = static_cast<LPARAM>(bit);
       ListView_InsertItem(list, &item);
       wchar_t mask[32] = {};
       swprintf_s(mask, L"0x%0*llX", static_cast<int>(state->parent->bit_width / 4), 1ull << bit);
@@ -171,8 +261,16 @@ INT_PTR CALLBACK FieldDialogProc(
       }
       const bool checked = std::find(state->field.bits.begin(), state->field.bits.end(), bit) != state->field.bits.end();
       ListView_SetCheckState(list, item.iItem, checked);
-      state->bits.push_back(bit);
     }
+    appearance::SortListViewItems(
+        list,
+        state->sort_column,
+        false,
+        &state->sort_column,
+        &state->sort_ascending,
+        CompareFieldBits,
+        state
+    );
     if (!state->field.states.empty()) {
       SetDlgItemTextW(dialog, IDC_FIELD_STATES, dialog_support::ToDisplayText(StatesText(state->field)).c_str());
       SendDlgItemMessageW(dialog, IDC_FIELD_STATES, EM_SETREADONLY, TRUE, 0);
@@ -207,8 +305,22 @@ INT_PTR CALLBACK FieldDialogProc(
     return TRUE;
   }
   if (message == WM_NOTIFY && state) {
+    auto* header = reinterpret_cast<NMHDR*>(lparam);
+    if (header->idFrom == IDC_FIELD_BITS && header->code == LVN_COLUMNCLICK) {
+      auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
+      appearance::SortListViewItems(
+          GetDlgItem(dialog, IDC_FIELD_BITS),
+          info->iSubItem,
+          true,
+          &state->sort_column,
+          &state->sort_ascending,
+          CompareFieldBits,
+          state
+      );
+      return TRUE;
+    }
     INT_PTR drawn = 0;
-    if (dialog_support::HandleListViewNotify(dialog, reinterpret_cast<NMHDR*>(lparam), &drawn)) {
+    if (dialog_support::HandleListViewNotify(dialog, header, &drawn)) {
       return drawn;
     }
   }
@@ -243,11 +355,15 @@ INT_PTR CALLBACK FieldDialogProc(
         }
       }
       const HWND list = GetDlgItem(dialog, IDC_FIELD_BITS);
-      for (size_t row = 0; row < state->bits.size(); ++row) {
-        if (ListView_GetCheckState(list, static_cast<int>(row))) {
-          result.bits.push_back(state->bits[row]);
+      const int count = ListView_GetItemCount(list);
+      for (int row = 0; row < count; ++row) {
+        LPARAM bit = 0;
+        if (ListView_GetCheckState(list, row) &&
+            appearance::ListViewItemData(list, row, &bit) >= 0) {
+          result.bits.push_back(static_cast<unsigned>(bit));
         }
       }
+      std::sort(result.bits.begin(), result.bits.end());
       if (result.bits.empty()) {
         ui::ShowError(dialog, L"Select at least one bit.");
         return TRUE;
@@ -273,17 +389,19 @@ INT_PTR CALLBACK FieldDialogProc(
 
 void RefreshFieldList(
     HWND dialog,
-    const Definition& definition
+    Editor* state
 ) {
+  const Definition& definition = state->definition();
   const HWND list = GetDlgItem(dialog, IDC_DEF_LIST);
   SendMessageW(list, WM_SETREDRAW, FALSE, 0);
   ListView_DeleteAllItems(list);
   for (size_t i = 0; i < definition.fields.size(); ++i) {
     const Field& field = definition.fields[i];
     LVITEMW item = {};
-    item.mask = LVIF_TEXT;
+    item.mask = LVIF_TEXT | LVIF_PARAM;
     item.iItem = static_cast<int>(i);
     item.pszText = const_cast<wchar_t*>(field.name.c_str());
+    item.lParam = static_cast<LPARAM>(i);
     ListView_InsertItem(list, &item);
     const std::wstring bits = BitsText(field);
     ListView_SetItemText(list, item.iItem, 1, const_cast<wchar_t*>(bits.c_str()));
@@ -292,6 +410,15 @@ void RefreshFieldList(
     const std::wstring meaning = dialog_support::SingleLine(field.meaning);
     ListView_SetItemText(list, item.iItem, 3, const_cast<wchar_t*>(meaning.c_str()));
   }
+  appearance::SortListViewItems(
+      list,
+      state->field_sort_column,
+      false,
+      &state->field_sort_column,
+      &state->field_sort_ascending,
+      CompareDefinitionFields,
+      state
+  );
   SendMessageW(list, WM_SETREDRAW, TRUE, 0);
   RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
 }
@@ -340,7 +467,7 @@ void ShowDefinition(
   SetDlgItemTextW(dialog, IDC_DEF_COMMENT, dialog_support::ToDisplayText(definition.comment).c_str());
   SetDlgItemInt(dialog, IDC_DEF_OFFSET, definition.byte_offset, FALSE);
   SelectWidth(dialog, definition.bit_width);
-  RefreshFieldList(dialog, definition);
+  RefreshFieldList(dialog, state);
   state->loading = false;
 }
 
@@ -558,7 +685,7 @@ void ChangeWidth(
         ),
         definition.fields.end()
     );
-    RefreshFieldList(dialog, definition);
+    RefreshFieldList(dialog, state);
   }
   definition.bit_width = width;
   bitfield::BuildLookup(&definition);
@@ -571,7 +698,7 @@ void AddOrEditField(
     bool create
 ) {
   const HWND list = GetDlgItem(dialog, IDC_DEF_LIST);
-  const int selected = create ? -1 : ListView_GetNextItem(list, -1, LVNI_SELECTED);
+  const int selected = create ? -1 : SelectedFieldIndex(list);
   if (!create && selected < 0) {
     return;
   }
@@ -596,7 +723,7 @@ void AddOrEditField(
   }
   definition = std::move(draft);
   state->dirty = true;
-  RefreshFieldList(dialog, definition);
+  RefreshFieldList(dialog, state);
 }
 
 void RemoveField(
@@ -604,7 +731,7 @@ void RemoveField(
     Editor* state
 ) {
   const HWND list = GetDlgItem(dialog, IDC_DEF_LIST);
-  const int selected = ListView_GetNextItem(list, -1, LVNI_SELECTED);
+  const int selected = SelectedFieldIndex(list);
   if (selected < 0) {
     return;
   }
@@ -612,7 +739,7 @@ void RemoveField(
   definition.fields.erase(definition.fields.begin() + selected);
   bitfield::BuildLookup(&definition);
   state->dirty = true;
-  RefreshFieldList(dialog, definition);
+  RefreshFieldList(dialog, state);
 }
 
 void AddDefinition(
@@ -833,6 +960,19 @@ INT_PTR CALLBACK DefinitionDialogProc(
   }
   if (message == WM_NOTIFY && state) {
     auto* header = reinterpret_cast<NMHDR*>(lparam);
+    if (header->idFrom == IDC_DEF_LIST && header->code == LVN_COLUMNCLICK) {
+      auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
+      appearance::SortListViewItems(
+          GetDlgItem(dialog, IDC_DEF_LIST),
+          info->iSubItem,
+          true,
+          &state->field_sort_column,
+          &state->field_sort_ascending,
+          CompareDefinitionFields,
+          state
+      );
+      return TRUE;
+    }
     if (header->idFrom == IDC_DEF_LIST && header->code == NM_DBLCLK) {
       AddOrEditField(dialog, state, false);
       return TRUE;
@@ -858,7 +998,6 @@ INT_PTR CALLBACK DefinitionDialogProc(
     return TRUE;
   }
   if (id == IDC_DEF_SELECT) {
-    const HWND combo = GetDlgItem(dialog, IDC_DEF_SELECT);
     if (code == CBN_EDITCHANGE) {
       if (state->updating_combo) {
         return TRUE;

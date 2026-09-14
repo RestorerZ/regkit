@@ -94,15 +94,12 @@ void MainWindow::Impl::PaintMenuBarSeparator() {
 
 void MainWindow::Impl::ApplyThemeToChildren() {
   const Theme& theme = Theme::Current();
-  grid_line_color_ = CLR_INVALID;
 
   theme.ApplyToToolbar(toolbar_.hwnd());
   theme.ApplyToTreeView(browse_.tree().hwnd());
-  theme.ApplyToListView(browse_.values().hwnd());
-  ApplyGridToolbarTheme(value_grid_toolbar_);
-  ApplyGridToolbarTheme(search_grid_toolbar_);
-  theme.ApplyToListView(history_list_);
-  theme.ApplyToListView(search_results_list_);
+  appearance::RefreshListView(browse_.values().hwnd());
+  appearance::RefreshListView(history_list_);
+  appearance::RefreshListView(search_results_list_);
   theme.ApplyToTabControl(tab_);
   theme.ApplyToStatusBar(status_bar_);
 

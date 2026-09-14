@@ -389,13 +389,11 @@ void MainWindow::Impl::ApplyViewVisibility() {
   ShowWindow(tree_close_btn_, show_tree ? SW_SHOW : SW_HIDE);
   ShowWindow(browse_.tree().hwnd(), show_tree ? SW_SHOW : SW_HIDE);
   ShowWindow(browse_.values().hwnd(), show_value ? SW_SHOW : SW_HIDE);
-  if (value_grid_toolbar_) {
-    ShowWindow(value_grid_toolbar_, show_value ? SW_SHOW : SW_HIDE);
-  }
   ShowWindow(history_label_, show_history ? SW_SHOW : SW_HIDE);
   ShowWindow(history_close_btn_, show_history ? SW_SHOW : SW_HIDE);
   ShowWindow(history_list_, show_history ? SW_SHOW : SW_HIDE);
   ShowWindow(search_results_list_, show_search ? SW_SHOW : SW_HIDE);
+  appearance::LayoutListViews(hwnd_);
   if (show_search && search_results_list_) {
     LONG_PTR style = GetWindowLongPtrW(search_results_list_, GWL_STYLE);
     if (style & LVS_SINGLESEL) {
@@ -676,107 +674,17 @@ bool MainWindow::Impl::ShouldUseLightIcons() const {
 }
 
 void MainWindow::Impl::ApplyGridToolbarIcons() {
-  editors::dialog_support::SetGridIcon(ResolveIconPath(L"grid.ico"));
-  editors::dialog_support::SetGridLinesSink(
+  appearance::SetListGridIcon(ResolveIconPath(L"grid.ico"));
+  appearance::SetListGridChangedCallback(
       [](void* context, bool enabled) {
         static_cast<MainWindow::Impl*>(context)->SetValueGridEnabled(enabled, true);
       },
       this
   );
-  HWND reference = value_grid_toolbar_ ? value_grid_toolbar_ : search_grid_toolbar_;
-  if (!reference) {
-    return;
-  }
-  const UINT dpi = win32::DpiForWindow(reference);
-  const int size = util::ScaleForDpi(kToolbarGlyphSize, dpi);
-  HICON icon = LoadThemeIcon(L"grid.ico", IDI_ICON_LIGHT_GRID, IDI_ICON_DARK_GRID, kToolbarGlyphSize, dpi);
-  HIMAGELIST images = ImageList_Create(size, size, ILC_COLOR32, 1, 1);
-  if (!images) {
-    if (icon) {
-      DestroyIcon(icon);
-    }
-    return;
-  }
-  ImageList_SetBkColor(images, CLR_NONE);
-  util::ImageListAddOrBlank(images, icon, size);
-  if (icon) {
-    DestroyIcon(icon);
-  }
-  for (HWND toolbar : {value_grid_toolbar_, search_grid_toolbar_}) {
-    if (toolbar) {
-      SendMessageW(toolbar, TB_SETIMAGELIST, 0, reinterpret_cast<LPARAM>(images));
-      InvalidateRect(toolbar, nullptr, TRUE);
-    }
-  }
-  if (value_grid_image_list_) {
-    ImageList_Destroy(value_grid_image_list_);
-  }
-  value_grid_image_list_ = images;
-}
-
-void MainWindow::Impl::ApplyGridToolbarTheme(
-    HWND toolbar
-) {
-  if (!toolbar) {
-    return;
-  }
-  Theme::Current().ApplyToToolbar(toolbar);
-  HWND tooltip =
-      reinterpret_cast<HWND>(SendMessageW(toolbar, TB_GETTOOLTIPS, 0, 0));
-  if (tooltip) {
-    AllowDarkModeForWindow(tooltip, Theme::UseDarkMode());
-    SetWindowTheme(tooltip, Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer", nullptr);
-  }
-}
-
-int MainWindow::Impl::ValueGridToggleWidth(
-    HWND header
-) const {
-  RECT client = {};
-  if (!header || !GetClientRect(header, &client)) {
-    return 0;
-  }
-  const int width = util::ScaleForDpi(kValueGridButtonWidth, win32::DpiForWindow(header));
-  return std::min<int>(client.right - client.left, width);
-}
-
-void MainWindow::Impl::LayoutGridToolbar(
-    HWND list,
-    HWND toolbar
-) {
-  HWND header = list ? ListView_GetHeader(list) : nullptr;
-  if (!toolbar || !header || !IsWindowVisible(list)) {
-    if (toolbar) {
-      ShowWindow(toolbar, SW_HIDE);
-    }
-    return;
-  }
-  RECT header_rect = {};
-  if (!GetWindowRect(header, &header_rect)) {
-    return;
-  }
-  MapWindowPoints(nullptr, hwnd_, reinterpret_cast<POINT*>(&header_rect), 2);
-  const int width = ValueGridToggleWidth(header);
-  const int height = header_rect.bottom - header_rect.top;
-  const int left = header_rect.right - width;
-  RECT current = {};
-  if (GetChildRectInParent(hwnd_, toolbar, &current) && current.left == left &&
-      current.top == header_rect.top && current.right - current.left == width &&
-      current.bottom - current.top == height && IsWindowVisible(toolbar)) {
-    return;
-  }
-  SendMessageW(toolbar, TB_SETBUTTONSIZE, 0, MAKELPARAM(width, height));
-  SetWindowPos(toolbar, HWND_TOP, left, header_rect.top, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
 }
 
 void MainWindow::Impl::LayoutValueGridToolbar() {
-  LayoutGridToolbar(browse_.values().hwnd(), value_grid_toolbar_);
-  LayoutGridToolbar(search_results_list_, search_grid_toolbar_);
-}
-
-void MainWindow::Impl::EnsureValueGridToolbar() {
-  EnsureGridToolbar(browse_.values().hwnd(), &value_grid_toolbar_, kValueGridButtonId);
-  EnsureGridToolbar(search_results_list_, &search_grid_toolbar_, kSearchGridButtonId);
+  appearance::LayoutListViews(hwnd_);
 }
 
 void MainWindow::Impl::SetValueGridEnabled(
@@ -784,70 +692,10 @@ void MainWindow::Impl::SetValueGridEnabled(
     bool persist
 ) {
   show_value_grid_ = enabled;
-  editors::dialog_support::SetGridLines(enabled);
-  for (HWND list : {browse_.values().hwnd(), search_results_list_}) {
-    if (list) {
-      RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE);
-    }
-  }
-  if (value_grid_toolbar_) {
-    SendMessageW(value_grid_toolbar_, TB_CHECKBUTTON, kValueGridButtonId, MAKELPARAM(enabled ? TRUE : FALSE, 0));
-  }
-  if (search_grid_toolbar_) {
-    SendMessageW(search_grid_toolbar_, TB_CHECKBUTTON, kSearchGridButtonId, MAKELPARAM(enabled ? TRUE : FALSE, 0));
-  }
+  appearance::SetListGridEnabled(enabled);
   if (persist) {
     SaveSettings();
   }
-}
-
-void MainWindow::Impl::EnsureGridToolbar(
-    HWND list,
-    HWND* toolbar_slot,
-    int command_id
-) {
-  HWND header = list ? ListView_GetHeader(list) : nullptr;
-  if (!header || !toolbar_slot) {
-    return;
-  }
-  HWND& toolbar = *toolbar_slot;
-  if (toolbar && IsWindow(toolbar)) {
-    LayoutGridToolbar(list, toolbar);
-    return;
-  }
-  toolbar = CreateWindowExW(
-      0,
-      TOOLBARCLASSNAMEW,
-      L"Value-list grid",
-      WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TBSTYLE_FLAT | TBSTYLE_TOOLTIPS |
-          CCS_NODIVIDER | CCS_NOPARENTALIGN | CCS_NORESIZE,
-      0,
-      0,
-      0,
-      0,
-      hwnd_,
-      reinterpret_cast<HMENU>(static_cast<INT_PTR>(command_id)),
-      instance_,
-      nullptr
-  );
-  if (!toolbar) {
-    return;
-  }
-  SendMessageW(toolbar, TB_BUTTONSTRUCTSIZE, sizeof(TBBUTTON), 0);
-  SendMessageW(toolbar, TB_SETMAXTEXTROWS, 0, 0);
-  SendMessageW(toolbar, TB_SETEXTENDEDSTYLE, 0, TBSTYLE_EX_DOUBLEBUFFER);
-  ApplyGridToolbarIcons();
-  const LRESULT string_index = SendMessageW(toolbar, TB_ADDSTRINGW, 0, reinterpret_cast<LPARAM>(L"Grid lines"));
-  TBBUTTON button = {};
-  button.iBitmap = 0;
-  button.idCommand = command_id;
-  button.fsState = TBSTATE_ENABLED;
-  button.fsStyle = BTNS_CHECK;
-  button.iString = static_cast<INT_PTR>(string_index);
-  SendMessageW(toolbar, TB_ADDBUTTONSW, 1, reinterpret_cast<LPARAM>(&button));
-  ApplyGridToolbarTheme(toolbar);
-  SendMessageW(toolbar, TB_CHECKBUTTON, command_id, MAKELPARAM(show_value_grid_ ? TRUE : FALSE, 0));
-  LayoutGridToolbar(list, toolbar);
 }
 
 HICON MainWindow::Impl::LoadThemeIcon(

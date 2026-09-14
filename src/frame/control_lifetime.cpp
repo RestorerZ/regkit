@@ -3,6 +3,7 @@
 
 #include "frame/window_detail.h"
 
+#include "appearance/dialog_layout.h"
 #include "appearance/list_header.h"
 
 namespace regkit {
@@ -66,8 +67,11 @@ LRESULT MainWindow::Impl::HandleNotification(
       header->code == TTN_SHOW) {
     return HandleTooltipNotification(header, lparam);
   }
-  if (header->hwndFrom == toolbar_.hwnd() || header->hwndFrom == value_grid_toolbar_ ||
-      header->hwndFrom == search_grid_toolbar_) {
+  LRESULT list_result = 0;
+  if (appearance::HandleListViewNotify(hwnd_, header, &list_result)) {
+    return list_result;
+  }
+  if (header->hwndFrom == toolbar_.hwnd()) {
     return HandleToolbarNotification(header, lparam);
   }
   if (header->hwndFrom == tab_) {
@@ -288,26 +292,16 @@ LRESULT MainWindow::Impl::HandleTooltipNotification(
   return 0;
 }
 
-HBRUSH MainWindow::Impl::ValueHeaderSurfaceBrush() const {
-  return appearance::ListSurfaceBrush(browse_.values().hwnd());
-}
-
 LRESULT MainWindow::Impl::HandleToolbarNotification(
     NMHDR* header,
     LPARAM lparam
 ) {
-  const bool is_grid_bar = header->hwndFrom == value_grid_toolbar_ ||
-                           header->hwndFrom == search_grid_toolbar_;
-  if ((header->hwndFrom == toolbar_.hwnd() || is_grid_bar) &&
-      header->code == NM_CUSTOMDRAW) {
+  if (header->hwndFrom == toolbar_.hwnd() && header->code == NM_CUSTOMDRAW) {
     auto* draw = reinterpret_cast<NMTBCUSTOMDRAW*>(lparam);
-    if (!draw || (!is_grid_bar && !Theme::UseDarkMode())) {
+    if (!draw || !Theme::UseDarkMode()) {
       return CDRF_DODEFAULT;
     }
     HWND bar = header->hwndFrom;
-    if (is_grid_bar) {
-      return appearance::PaintGridToolbar(bar, draw, ValueHeaderSurfaceBrush());
-    }
     const Theme& theme = Theme::Current();
     switch (draw->nmcd.dwDrawStage) {
     case CDDS_PREPAINT:
@@ -652,66 +646,6 @@ LRESULT MainWindow::Impl::HandleHeaderNotification(
   return 0;
 }
 
-bool MainWindow::Impl::PaintHeaderItem(
-    HWND header,
-    NMCUSTOMDRAW* draw
-) {
-  HTHEME theme = OpenThemeData(header, VSCLASS_HEADER);
-  if (!theme) {
-    return false;
-  }
-  int state = HIS_NORMAL;
-  if (draw->uItemState & CDIS_SELECTED) {
-    state = HIS_PRESSED;
-  } else if (draw->uItemState & CDIS_HOT) {
-    state = HIS_HOT;
-  }
-  if (state == HIS_NORMAL) {
-    if (grid_line_color_ == CLR_INVALID) {
-      grid_line_color_ = appearance::HeaderDividerColor(header);
-    }
-    FillRect(draw->hdc, &draw->rc, appearance::CachedBrush(ListView_GetBkColor(GetParent(header))));
-    RECT divider = {draw->rc.right - 1, draw->rc.top, draw->rc.right, draw->rc.bottom};
-    FillRect(draw->hdc, &divider, appearance::CachedBrush(grid_line_color_));
-  } else {
-    DrawThemeBackground(theme, draw->hdc, HP_HEADERITEM, state, &draw->rc, nullptr);
-  }
-
-  wchar_t text[128] = {};
-  HDITEMW item = {};
-  item.mask = HDI_TEXT | HDI_FORMAT;
-  item.pszText = text;
-  item.cchTextMax = static_cast<int>(_countof(text));
-  Header_GetItem(header, static_cast<int>(draw->dwItemSpec), &item);
-
-  if (item.fmt & (HDF_SORTUP | HDF_SORTDOWN)) {
-    const int arrow_state = (item.fmt & HDF_SORTUP) ? HSAS_SORTEDUP : HSAS_SORTEDDOWN;
-    SIZE size = {};
-    if (SUCCEEDED(GetThemePartSize(theme, draw->hdc, HP_HEADERSORTARROW, arrow_state, nullptr, TS_TRUE, &size))) {
-      RECT arrow = draw->rc;
-      arrow.bottom = arrow.top + size.cy;
-      DrawThemeBackground(theme, draw->hdc, HP_HEADERSORTARROW, arrow_state, &arrow, nullptr);
-    }
-  }
-
-  RECT text_rect = draw->rc;
-  text_rect.left += kHeaderTextPadding;
-  text_rect.right -= kHeaderTextPadding;
-  UINT format = DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS;
-  if (item.fmt & HDF_RIGHT) {
-    format |= DT_RIGHT;
-  } else if (item.fmt & HDF_CENTER) {
-    format |= DT_CENTER;
-  }
-  const int saved = SaveDC(draw->hdc);
-  SetBkMode(draw->hdc, TRANSPARENT);
-  SetTextColor(draw->hdc, Theme::Current().TextColor());
-  DrawTextW(draw->hdc, text, -1, &text_rect, format);
-  RestoreDC(draw->hdc, saved);
-  CloseThemeData(theme);
-  return true;
-}
-
 LRESULT MainWindow::Impl::HandleValueNotification(
     NMHDR* header,
     LPARAM lparam
@@ -921,60 +855,24 @@ LRESULT MainWindow::Impl::HandleValueNotification(
     if (!draw) {
       return CDRF_DODEFAULT;
     }
+    LRESULT result = CDRF_DODEFAULT;
     switch (draw->nmcd.dwDrawStage) {
     case CDDS_PREPAINT:
-      return show_value_grid_ ? (CDRF_NOTIFYITEMDRAW | CDRF_NOTIFYPOSTPAINT)
-                              : CDRF_NOTIFYITEMDRAW;
+      result = CDRF_NOTIFYITEMDRAW;
+      break;
     case CDDS_ITEMPREPAINT:
       draw->nmcd.uItemState &= ~CDIS_FOCUS;
-      return show_value_grid_ ? CDRF_NOTIFYPOSTPAINT : CDRF_DODEFAULT;
-    case CDDS_ITEMPOSTPAINT:
-      {
-        RECT row = {};
-        if (ListView_GetItemRect(browse_.values().hwnd(), static_cast<int>(draw->nmcd.dwItemSpec), &row, LVIR_BOUNDS)) {
-          PaintValueGridLines(browse_.values().hwnd(), draw->nmcd.hdc, row, row.bottom - 1, row.bottom - row.top);
-        }
-        return CDRF_DODEFAULT;
-      }
-    case CDDS_POSTPAINT:
-      PaintValueGridTail(browse_.values().hwnd(), draw->nmcd.hdc);
-      return CDRF_DODEFAULT;
+      break;
     default:
-      return CDRF_DODEFAULT;
+      break;
     }
+    return appearance::HandleListGridCustomDraw(
+        browse_.values().hwnd(),
+        draw,
+        result
+    );
   }
   return 0;
-}
-
-void MainWindow::Impl::PaintValueGridLines(
-    HWND list,
-    HDC hdc,
-    const RECT& area,
-    int first_line_y,
-    int row_height
-) {
-  HWND header = list ? ListView_GetHeader(list) : nullptr;
-  if (!header) {
-    return;
-  }
-  if (grid_line_color_ == CLR_INVALID) {
-    grid_line_color_ = appearance::HeaderDividerColor(header);
-  }
-  appearance::PaintListGrid(list, hdc, area, first_line_y, row_height, grid_line_color_);
-}
-
-void MainWindow::Impl::PaintValueGridTail(
-    HWND list,
-    HDC hdc
-) {
-  HWND header = list ? ListView_GetHeader(list) : nullptr;
-  if (!header) {
-    return;
-  }
-  if (grid_line_color_ == CLR_INVALID) {
-    grid_line_color_ = appearance::HeaderDividerColor(header);
-  }
-  appearance::PaintListGridTail(list, hdc, grid_line_color_);
 }
 
 search::Result* MainWindow::Impl::SearchResultAt(
@@ -1029,32 +927,37 @@ LRESULT MainWindow::Impl::HandleSearchListCustomDraw(
   const int item = static_cast<int>(draw->nmcd.dwItemSpec);
   switch (draw->nmcd.dwDrawStage) {
   case CDDS_PREPAINT:
-    return show_value_grid_ ? (CDRF_NOTIFYITEMDRAW | CDRF_NOTIFYPOSTPAINT)
-                            : CDRF_NOTIFYITEMDRAW;
+    return appearance::HandleListGridCustomDraw(
+        search_results_list_,
+        draw,
+        CDRF_NOTIFYITEMDRAW
+    );
   case CDDS_ITEMPREPAINT:
     {
       draw->nmcd.uItemState &= ~CDIS_FOCUS;
-      LRESULT stage = show_value_grid_ ? CDRF_NOTIFYPOSTPAINT : CDRF_DODEFAULT;
+      LRESULT stage = CDRF_DODEFAULT;
       const search::Result* result = SearchResultAt(item);
       if (result && result->match_length > 0) {
         stage |= CDRF_NOTIFYSUBITEMDRAW;
       }
-      return stage;
+      return appearance::HandleListGridCustomDraw(
+          search_results_list_,
+          draw,
+          stage
+      );
     }
   case CDDS_ITEMPOSTPAINT:
-    {
-      RECT row = {};
-      if (show_value_grid_ &&
-          ListView_GetItemRect(search_results_list_, item, &row, LVIR_BOUNDS)) {
-        PaintValueGridLines(search_results_list_, draw->nmcd.hdc, row, row.bottom - 1, row.bottom - row.top);
-      }
-      return CDRF_DODEFAULT;
-    }
+    return appearance::HandleListGridCustomDraw(
+        search_results_list_,
+        draw,
+        CDRF_DODEFAULT
+    );
   case CDDS_POSTPAINT:
-    if (show_value_grid_) {
-      PaintValueGridTail(search_results_list_, draw->nmcd.hdc);
-    }
-    return CDRF_DODEFAULT;
+    return appearance::HandleListGridCustomDraw(
+        search_results_list_,
+        draw,
+        CDRF_DODEFAULT
+    );
   case CDDS_ITEMPREPAINT | CDDS_SUBITEM:
     {
       search::Result* result = SearchResultAt(item);
@@ -1171,13 +1074,14 @@ LRESULT MainWindow::Impl::HandleHistoryNotification(
     if (!draw) {
       return CDRF_DODEFAULT;
     }
+    LRESULT result = CDRF_DODEFAULT;
     if (draw->nmcd.dwDrawStage == CDDS_PREPAINT) {
-      return CDRF_NOTIFYITEMDRAW;
+      result = CDRF_NOTIFYITEMDRAW;
     }
     if (draw->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
       draw->nmcd.uItemState &= ~CDIS_FOCUS;
     }
-    return CDRF_DODEFAULT;
+    return appearance::HandleListGridCustomDraw(history_list_, draw, result);
   }
   return 0;
 }
@@ -1439,6 +1343,7 @@ bool MainWindow::Impl::OnCreate() {
   if (!browse_.Create(browse_request)) {
     return false;
   }
+  appearance::ConfigureListView(browse_.values().hwnd());
   regedit_compat_tree_.Create(
       hwnd_,
       instance_,
@@ -1520,10 +1425,8 @@ bool MainWindow::Impl::OnCreate() {
   }
   history_list_ = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_OWNERDATA, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kHistoryListId)), instance_, nullptr);
 
-  DWORD ex_mask = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_BORDERSELECT | LVS_EX_TRACKSELECT | LVS_EX_ONECLICKACTIVATE | LVS_EX_TWOCLICKACTIVATE | LVS_EX_UNDERLINEHOT;
-  DWORD ex_style = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER;
-  ListView_SetExtendedListViewStyleEx(history_list_, ex_mask, ex_style);
-  ListView_SetExtendedListViewStyleEx(search_results_list_, ex_mask, ex_style);
+  appearance::ConfigureListView(history_list_);
+  appearance::ConfigureListView(search_results_list_);
   if (value_tooltip_) {
     TOOLINFOW tip = {};
     tip.cbSize = sizeof(tip);
@@ -1540,16 +1443,13 @@ bool MainWindow::Impl::OnCreate() {
   SetWindowSubclass(history_list_, ListViewProc, kListViewSubclassId, reinterpret_cast<DWORD_PTR>(this));
   SetWindowSubclass(search_results_list_, ListViewProc, kListViewSubclassId, reinterpret_cast<DWORD_PTR>(this));
 
-  AttachBorder(browse_.values().hwnd());
-  AttachBorder(tree_header_);
-  AttachBorder(browse_.tree().hwnd());
-  AttachBorder(history_label_);
-  AttachBorder(history_list_);
-  AttachBorder(search_results_list_);
-  AttachBorder(browse_.address());
-  AttachBorder(browse_.go_button());
+  appearance::AttachThemedBorder(tree_header_);
+  appearance::AttachThemedBorder(browse_.tree().hwnd());
+  appearance::AttachThemedBorder(history_label_);
+  appearance::AttachThemedBorder(browse_.address());
+  appearance::AttachThemedBorder(browse_.go_button());
   UpdateGoButtonState();
-  AttachBorder(browse_.filter());
+  appearance::AttachThemedBorder(browse_.filter());
 
   ApplyUIFontToControls();
 
@@ -1788,6 +1688,8 @@ void MainWindow::Impl::ApplyStartupCachePayload(
 }
 
 void MainWindow::Impl::OnDestroy() {
+  appearance::SetListGridChangedCallback(nullptr, nullptr);
+  appearance::ReleaseListViews(hwnd_);
   if (hwnd_) {
     RemovePropW(hwnd_, kRegKitWindowProperty);
   }
@@ -1854,10 +1756,6 @@ void MainWindow::Impl::OnDestroy() {
   if (address_go_icon_) {
     DestroyIcon(address_go_icon_);
     address_go_icon_ = nullptr;
-  }
-  if (value_grid_image_list_) {
-    ImageList_Destroy(value_grid_image_list_);
-    value_grid_image_list_ = nullptr;
   }
   if (address_autocomplete_) {
     address_autocomplete_->Release();

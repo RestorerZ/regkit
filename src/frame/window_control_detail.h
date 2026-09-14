@@ -5,6 +5,7 @@
 
 #include "frame/window_registry_detail.h"
 #include "appearance/font_metrics.h"
+#include "appearance/list_view_support.h"
 
 #include "frame/window_impl.h"
 
@@ -466,38 +467,6 @@ inline bool ListViewScrolledHorizontally(
   }
   SetPropW(list, kListScrollProp, reinterpret_cast<HANDLE>(position));
   return true;
-}
-
-inline void UpdateListViewSort(
-    HWND list,
-    int column,
-    bool ascending
-) {
-  if (!list) {
-    return;
-  }
-  HWND header = ListView_GetHeader(list);
-  if (!header) {
-    return;
-  }
-  int count = Header_GetItemCount(header);
-  for (int i = 0; i < count; ++i) {
-    HDITEMW item = {};
-    item.mask = HDI_FORMAT;
-    if (!Header_GetItem(header, i, &item)) {
-      continue;
-    }
-    const int current = item.fmt & (HDF_SORTUP | HDF_SORTDOWN);
-    int wanted = 0;
-    if (column >= 0 && GetListViewColumnSubItem(list, i) == column) {
-      wanted = ascending ? HDF_SORTUP : HDF_SORTDOWN;
-    }
-    if (current == wanted) {
-      continue;
-    }
-    item.fmt = (item.fmt & ~(HDF_SORTUP | HDF_SORTDOWN)) | wanted;
-    Header_SetItem(header, i, &item);
-  }
 }
 
 inline HFONT CreateUIFont() {

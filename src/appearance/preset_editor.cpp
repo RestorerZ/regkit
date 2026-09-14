@@ -14,7 +14,7 @@
 #include "win32/window_metrics.h"
 #include "appearance/default_font.h"
 #include "appearance/feedback.h"
-#include "appearance/list_header.h"
+#include "appearance/list_view_support.h"
 #include "win32/file_dialog.h"
 
 namespace regkit {
@@ -37,7 +37,6 @@ constexpr int kGroupBoxCaptionHeight = 18;
 constexpr int kGroupBoxPadding = 10;
 constexpr int kEditColorButtonWidth = 120;
 constexpr int kTemplateButtonWidth = 130;
-constexpr UINT_PTR kThemePresetHeaderSubclassId = 1;
 constexpr UINT_PTR kThemePresetListViewSubclassId = 2;
 
 enum ControlId {
@@ -54,6 +53,7 @@ enum ControlId {
   kTemplateComboId = 5011,
   kApplyTemplateId = 5012,
   kApplyId = 5013,
+  kColorGridId = 5014,
 };
 
 struct ColorField {
@@ -275,73 +275,6 @@ int CompareColorValue(
   return 0;
 }
 
-int GetListViewColumnSubItem(
-    HWND list,
-    int display_index
-) {
-  if (!list || display_index < 0) {
-    return -1;
-  }
-  LVCOLUMNW col = {};
-  col.mask = LVCF_SUBITEM;
-  if (!ListView_GetColumn(list, display_index, &col)) {
-    return -1;
-  }
-  return col.iSubItem;
-}
-
-void UpdateListViewSort(
-    HWND list,
-    int column,
-    bool ascending
-) {
-  if (!list) {
-    return;
-  }
-  HWND header = ListView_GetHeader(list);
-  if (!header) {
-    return;
-  }
-  int count = Header_GetItemCount(header);
-  for (int i = 0; i < count; ++i) {
-    HDITEMW item = {};
-    item.mask = HDI_FORMAT;
-    if (!Header_GetItem(header, i, &item)) {
-      continue;
-    }
-    item.fmt &= ~(HDF_SORTUP | HDF_SORTDOWN);
-    if (column >= 0 && GetListViewColumnSubItem(list, i) == column) {
-      item.fmt |= ascending ? HDF_SORTUP : HDF_SORTDOWN;
-    }
-    Header_SetItem(header, i, &item);
-  }
-}
-
-LRESULT CALLBACK ThemePresetHeaderProc(
-    HWND hwnd,
-    UINT message,
-    WPARAM wparam,
-    LPARAM lparam,
-    UINT_PTR,
-    DWORD_PTR
-) {
-  if (message == WM_ERASEBKGND) {
-    return 1;
-  }
-  if (message == WM_PAINT) {
-    appearance::PaintListHeader(hwnd, nullptr);
-    return 0;
-  }
-  if (message == WM_THEMECHANGED) {
-    appearance::ReleaseListHeaderTheme(hwnd);
-    InvalidateRect(hwnd, nullptr, TRUE);
-  }
-  if (message == WM_NCDESTROY) {
-    appearance::ReleaseListHeaderTheme(hwnd);
-  }
-  return DefSubclassProc(hwnd, message, wparam, lparam);
-}
-
 LRESULT CALLBACK ThemePresetListViewProc(
     HWND hwnd,
     UINT message,
@@ -370,15 +303,12 @@ void SetupPresetListView(
   if (!list) {
     return;
   }
-  DWORD ex_mask = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_BORDERSELECT | LVS_EX_TRACKSELECT | LVS_EX_ONECLICKACTIVATE | LVS_EX_TWOCLICKACTIVATE | LVS_EX_UNDERLINEHOT;
-  DWORD ex_style = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER;
-  ListView_SetExtendedListViewStyleEx(list, ex_mask, ex_style);
+  appearance::ConfigureListView(list);
   LVCOLUMNW col = {};
   col.mask = LVCF_WIDTH | LVCF_FMT;
   col.fmt = LVCFMT_LEFT;
   col.cx = 120;
   ListView_InsertColumn(list, 0, &col);
-  SendMessageW(list, WM_CHANGEUISTATE, MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS), 0);
   if (!GetWindowSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId, nullptr)) {
     SetWindowSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId, 0);
   }
@@ -391,41 +321,32 @@ void SetupColorListView(
   if (!list) {
     return;
   }
-  DWORD ex_mask = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_BORDERSELECT | LVS_EX_TRACKSELECT | LVS_EX_ONECLICKACTIVATE | LVS_EX_TWOCLICKACTIVATE | LVS_EX_UNDERLINEHOT;
-  DWORD ex_style = LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER;
-  ListView_SetExtendedListViewStyleEx(list, ex_mask, ex_style);
+  appearance::ConfigureListView(list);
   LVCOLUMNW col = {};
-  col.mask = LVCF_TEXT | LVCF_WIDTH;
+  col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
   col.cx = 150;
   col.pszText = const_cast<wchar_t*>(L"Color");
+  col.iSubItem = 0;
   ListView_InsertColumn(list, 0, &col);
   col.cx = 90;
   col.pszText = const_cast<wchar_t*>(L"Hex");
+  col.iSubItem = 1;
   ListView_InsertColumn(list, 1, &col);
-  SendMessageW(list, WM_CHANGEUISTATE, MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS), 0);
   if (!GetWindowSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId, nullptr)) {
     SetWindowSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId, 0);
   }
   Theme::Current().ApplyToListView(list);
-  HWND header = ListView_GetHeader(list);
-  if (header && !GetWindowSubclass(header, ThemePresetHeaderProc, kThemePresetHeaderSubclassId, nullptr)) {
-    SetWindowSubclass(header, ThemePresetHeaderProc, kThemePresetHeaderSubclassId, 0);
-  }
+  appearance::RegisterListView(GetParent(list), list, kColorGridId);
 }
-
-struct ColorSortContext {
-  const ThemePreset* preset = nullptr;
-  int column = 0;
-  bool ascending = true;
-};
 
 int CALLBACK CompareColorListItems(
     LPARAM left_param,
     LPARAM right_param,
-    LPARAM sort_param
+    int column,
+    void* context
 ) {
-  auto* ctx = reinterpret_cast<ColorSortContext*>(sort_param);
-  if (!ctx || !ctx->preset) {
+  auto* preset = static_cast<ThemePreset*>(context);
+  if (!preset) {
     return 0;
   }
   int left_index = static_cast<int>(left_param);
@@ -434,17 +355,14 @@ int CALLBACK CompareColorListItems(
     return 0;
   }
   int result = 0;
-  if (ctx->column == 0) {
+  if (column == 0) {
     result = CompareTextInsensitive(kColorFields[left_index].label, kColorFields[right_index].label);
-  } else if (ctx->column == 1) {
-    COLORREF left = ctx->preset->colors.*(kColorFields[left_index].member);
-    COLORREF right = ctx->preset->colors.*(kColorFields[right_index].member);
+  } else if (column == 1) {
+    COLORREF left = preset->colors.*(kColorFields[left_index].member);
+    COLORREF right = preset->colors.*(kColorFields[right_index].member);
     result = CompareColorValue(left, right);
   }
-  if (result == 0) {
-    return 0;
-  }
-  return ctx->ascending ? result : -result;
+  return result;
 }
 
 int GetSelectedColorField(
@@ -495,7 +413,7 @@ void FillColorList(
   int selected_field = GetSelectedColorField(list);
   ListView_DeleteAllItems(list);
   if (!preset) {
-    UpdateListViewSort(list, state->color_sort_column, state->color_sort_ascending);
+    appearance::UpdateListViewSort(list, state->color_sort_column, state->color_sort_ascending);
     return;
   }
   for (size_t i = 0; i < std::size(kColorFields); ++i) {
@@ -513,16 +431,15 @@ void FillColorList(
     }
   }
   if (state->color_sort_column >= 0) {
-    ColorSortContext ctx = {};
-    ctx.preset = preset;
-    ctx.column = state->color_sort_column;
-    ctx.ascending = state->color_sort_ascending;
-    ListView_SortItemsEx(list, CompareColorListItems, reinterpret_cast<LPARAM>(&ctx));
-  }
-  UpdateListViewSort(list, state->color_sort_column, state->color_sort_ascending);
-  HWND header = ListView_GetHeader(list);
-  if (header) {
-    InvalidateRect(header, nullptr, TRUE);
+    appearance::SortListViewItems(
+        list,
+        state->color_sort_column,
+        false,
+        &state->color_sort_column,
+        &state->color_sort_ascending,
+        CompareColorListItems,
+        const_cast<ThemePreset*>(preset)
+    );
   }
   if (selected_field >= 0) {
     ReselectColorField(list, selected_field);
@@ -609,7 +526,7 @@ void RefreshThemeRendering(
     RedrawWindow(state->preset_list, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME);
   }
   if (state->color_list) {
-    Theme::Current().ApplyToListView(state->color_list);
+    appearance::RefreshListView(state->color_list);
     RedrawWindow(state->color_list, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME);
   }
   RedrawWindow(state->hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN);
@@ -718,7 +635,7 @@ void CreateControls(
 
   state->presets_group = CreateWindowExW(0, L"BUTTON", L"Presets", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
-  state->preset_list = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | LVS_NOSORTHEADER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kPresetListId)), nullptr, nullptr);
+  state->preset_list = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | LVS_NOSORTHEADER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kPresetListId)), nullptr, nullptr);
 
   state->new_btn = CreateWindowExW(0, L"BUTTON", L"New...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kNewPresetId)), nullptr, nullptr);
   state->duplicate_btn = CreateWindowExW(0, L"BUTTON", L"Duplicate", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDuplicatePresetId)), nullptr, nullptr);
@@ -729,7 +646,7 @@ void CreateControls(
 
   state->colors_group = CreateWindowExW(0, L"BUTTON", L"Colors", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
-  state->color_list = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kColorListId)), nullptr, nullptr);
+  state->color_list = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kColorListId)), nullptr, nullptr);
 
   state->edit_color_btn = CreateWindowExW(0, L"BUTTON", L"Edit Color...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kEditColorId)), nullptr, nullptr);
 
@@ -834,6 +751,7 @@ LRESULT CALLBACK ThemePresetWindowProc(
     return 0;
   case WM_SIZE:
     LayoutControls(state);
+    appearance::LayoutListViews(hwnd);
     return 0;
   case WM_SETTINGCHANGE:
     if (Theme::UpdateFromSystem()) {
@@ -879,6 +797,9 @@ LRESULT CALLBACK ThemePresetWindowProc(
         return 0;
       }
       int id = LOWORD(wparam);
+      if (appearance::HandleListViewCommand(hwnd, id)) {
+        return 0;
+      }
       switch (id) {
       case kNewPresetId:
         {
@@ -1049,6 +970,10 @@ LRESULT CALLBACK ThemePresetWindowProc(
       if (!hdr || !state) {
         break;
       }
+      LRESULT feature_result = 0;
+      if (appearance::HandleListViewNotify(hwnd, hdr, &feature_result)) {
+        return feature_result;
+      }
       if (hdr->hwndFrom == state->preset_list && hdr->code == LVN_ITEMCHANGED) {
         auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
         if (info && (info->uNewState & LVIS_SELECTED) && info->iItem >= 0) {
@@ -1066,30 +991,26 @@ LRESULT CALLBACK ThemePresetWindowProc(
       if (hdr->hwndFrom == state->color_list && hdr->code == LVN_COLUMNCLICK) {
         auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
         if (info) {
-          if (state->color_sort_column == info->iSubItem) {
-            state->color_sort_ascending = !state->color_sort_ascending;
-          } else {
-            state->color_sort_column = info->iSubItem;
-            state->color_sort_ascending = true;
-          }
           ThemePreset* preset = CurrentPreset(state);
-          if (preset) {
-            ColorSortContext ctx = {};
-            ctx.preset = preset;
-            ctx.column = state->color_sort_column;
-            ctx.ascending = state->color_sort_ascending;
-            ListView_SortItemsEx(state->color_list, CompareColorListItems, reinterpret_cast<LPARAM>(&ctx));
-          }
-          UpdateListViewSort(state->color_list, state->color_sort_column, state->color_sort_ascending);
-          HWND header = ListView_GetHeader(state->color_list);
-          if (header) {
-            InvalidateRect(header, nullptr, TRUE);
-          }
+          appearance::SortListViewItems(
+              state->color_list,
+              info->iSubItem,
+              true,
+              &state->color_sort_column,
+              &state->color_sort_ascending,
+              CompareColorListItems,
+              preset
+          );
         }
         return 0;
       }
       if (hdr->hwndFrom == state->color_list && hdr->code == NM_CUSTOMDRAW) {
-        return ui::HandleThemedListViewCustomDraw(state->color_list, reinterpret_cast<NMLVCUSTOMDRAW*>(lparam));
+        auto* draw = reinterpret_cast<NMLVCUSTOMDRAW*>(lparam);
+        return appearance::HandleListGridCustomDraw(
+            state->color_list,
+            draw,
+            ui::HandleThemedListViewCustomDraw(state->color_list, draw)
+        );
       }
       break;
     }
@@ -1098,6 +1019,7 @@ LRESULT CALLBACK ThemePresetWindowProc(
     DestroyWindow(hwnd);
     return 0;
   case WM_NCDESTROY:
+    appearance::ReleaseListViews(hwnd);
     if (state) {
       if (state->font) {
         DeleteObject(state->font);

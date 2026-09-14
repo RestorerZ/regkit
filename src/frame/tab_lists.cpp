@@ -131,16 +131,12 @@ void MainWindow::Impl::SortValueList(
   if (column < 0 || static_cast<size_t>(column) >= browse_.columns().items.size()) {
     return;
   }
-  if (toggle) {
-    if (browse_.columns().sort_column == column) {
-      browse_.columns().sort_ascending = !browse_.columns().sort_ascending;
-    } else {
-      browse_.columns().sort_column = column;
-      browse_.columns().sort_ascending = true;
-    }
-  } else {
-    browse_.columns().sort_column = column;
-  }
+  appearance::UpdateListSortState(
+      column,
+      toggle,
+      &browse_.columns().sort_column,
+      &browse_.columns().sort_ascending
+  );
 
   if (value_list_loading_ && browse_.current_node()) {
     UpdateValueListForNode(browse_.current_node());
@@ -183,7 +179,7 @@ void MainWindow::Impl::SortValueList(
     UpdateStatus();
   }
 
-  UpdateListViewSort(browse_.values().hwnd(), browse_.columns().sort_column, browse_.columns().sort_ascending);
+  appearance::UpdateListViewSort(browse_.values().hwnd(), browse_.columns().sort_column, browse_.columns().sort_ascending);
 }
 
 void MainWindow::Impl::SortHistoryList(
@@ -193,16 +189,12 @@ void MainWindow::Impl::SortHistoryList(
   if (!history_list_ || column < 0) {
     return;
   }
-  if (toggle) {
-    if (history_sort_column_ == column) {
-      history_sort_ascending_ = !history_sort_ascending_;
-    } else {
-      history_sort_column_ = column;
-      history_sort_ascending_ = true;
-    }
-  } else {
-    history_sort_column_ = column;
-  }
+  appearance::UpdateListSortState(
+      column,
+      toggle,
+      &history_sort_column_,
+      &history_sort_ascending_
+  );
 
   auto history_key_at = [this](int index) {
     const auto& entries = change_history_.entries();
@@ -217,7 +209,7 @@ void MainWindow::Impl::SortHistoryList(
   RebuildHistoryList();
   RestoreListSelection(history_list_, selection, history_key_at);
 
-  UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
+  appearance::UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
 }
 
 void MainWindow::Impl::SortSearchTabResults(
@@ -282,19 +274,15 @@ void MainWindow::Impl::SortSearchResults(
   };
   StableListSelection selection =
       CaptureListSelection(search_results_list_, search_key_at);
-  if (toggle) {
-    if (tab.sort_column == column) {
-      tab.sort_ascending = !tab.sort_ascending;
-    } else {
-      tab.sort_column = column;
-      tab.sort_ascending = true;
-    }
-  } else {
-    tab.sort_column = column;
-  }
+  appearance::UpdateListSortState(
+      column,
+      toggle,
+      &tab.sort_column,
+      &tab.sort_ascending
+  );
   SortSearchTabResults(&tab);
   RestoreListSelection(search_results_list_, selection, search_key_at);
-  UpdateListViewSort(search_results_list_, tab.sort_column, tab.sort_ascending);
+  appearance::UpdateListViewSort(search_results_list_, tab.sort_column, tab.sort_ascending);
   RedrawWindow(search_results_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
 }
 
