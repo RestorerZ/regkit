@@ -367,8 +367,6 @@ void MainWindow::Impl::UpdateSearchResultsView() {
   }
   int sel = TabCtrl_GetCurSel(tab_);
   if (!IsSearchTabIndex(sel)) {
-    ListView_SetItemCountEx(search_results_list_, 0, LVSICF_NOINVALIDATEALL | LVSICF_NOSCROLL);
-    search_results_view_tab_index_ = -1;
     return;
   }
   int search_index = SearchIndexFromTab(sel);

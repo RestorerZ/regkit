@@ -422,8 +422,15 @@ LRESULT CALLBACK StatusBarSubclassProc(
           LineTo(hdc, part.right - 1, part.bottom - 2);
           SelectObject(hdc, old_pen);
         }
-        wchar_t text[256] = {};
-        LRESULT length = SendMessageW(hwnd, SB_GETTEXTLENGTH, i, 0);
+        wchar_t stack_text[256] = {};
+        const size_t length = LOWORD(SendMessageW(hwnd, SB_GETTEXTLENGTH, i, 0));
+        std::unique_ptr<wchar_t[]> extended_text;
+        wchar_t* text = stack_text;
+        if (length >= _countof(stack_text)) {
+          extended_text = std::make_unique<wchar_t[]>(length + 1);
+          extended_text[length] = L'\0';
+          text = extended_text.get();
+        }
         if (length > 0) {
           SendMessageW(hwnd, SB_GETTEXT, i, reinterpret_cast<LPARAM>(text));
         }

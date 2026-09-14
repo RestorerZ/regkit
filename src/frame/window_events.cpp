@@ -213,6 +213,10 @@ bool MainWindow::Impl::TranslateAccelerator(
       return false;
     };
     const bool focus_edit = is_text_input(focus);
+    if (!ctrl && !shift && !alt && msg.wParam == VK_F7 &&
+        (HIWORD(msg.lParam) & KF_REPEAT) != 0) {
+      return true;
+    }
 
     if ((alt && msg.wParam == 'D') || (ctrl && !alt && msg.wParam == 'L')) {
       if (browse_.address()) {

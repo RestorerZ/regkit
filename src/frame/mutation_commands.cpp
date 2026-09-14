@@ -123,6 +123,11 @@ bool MainWindow::Impl::HandleMutationCommand(
 bool MainWindow::Impl::HandleCreateCommand(
     int command_id
 ) {
+  if (TreeView_GetEditControl(browse_.tree().hwnd()) ||
+      ListView_GetEditControl(browse_.values().hwnd()) ||
+      !pending_value_list_name_.empty()) {
+    return true;
+  }
   switch (command_id) {
   case cmd::kCreateSimulatedKey:
     {
@@ -219,7 +224,6 @@ bool MainWindow::Impl::HandleCreateCommand(
             SetFocus(browse_.tree().hwnd());
             TreeView_EditLabel(browse_.tree().hwnd(), target);
           }
-          UpdateValueListForNode(browse_.current_node());
         }
       }
       return true;
