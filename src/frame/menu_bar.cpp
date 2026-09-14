@@ -293,6 +293,10 @@ void MainWindow::Impl::BuildMenus() {
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(favorites_menu), L"F&avorites");
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(options_menu), L"Options");
 
+  HMENU tools_menu = CreatePopupMenu();
+  AppendMenuW(tools_menu, MF_STRING, cmd::kToolsBitfieldDefinitions, L"Bit Definitions...");
+  AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(tools_menu), L"Tools");
+
   HMENU window_menu = CreatePopupMenu();
   append_menu(window_menu, MF_STRING | (single_instance_ ? MF_GRAYED : 0), cmd::kWindowNew, L"New Window");
   AppendMenuW(window_menu, MF_STRING, cmd::kWindowClose, L"Close Window");

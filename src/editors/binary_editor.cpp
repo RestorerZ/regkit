@@ -5,6 +5,7 @@
 
 #include "appearance/feedback.h"
 #include "editors/binary_text.h"
+#include "editors/bitfield_editor.h"
 #include "appearance/dialog_layout.h"
 #include "editors/dialog_support.h"
 #include "registry/value_format.h"
@@ -190,6 +191,25 @@ INT_PTR CALLBACK DialogProc(
     return TRUE;
   }
   switch (id) {
+  case IDC_BITS:
+    {
+      std::vector<BYTE> bytes;
+      if (!value_format::ParseHex(dialog_support::ReadText(dialog, IDC_EDIT), &bytes) || bytes.empty()) {
+        ui::ShowError(dialog, L"Invalid hex input.");
+        return TRUE;
+      }
+      BitfieldRequest request;
+      request.value_name = state->request->value_name;
+      request.data = bytes;
+      request.read_only = state->request->read_only;
+      BitfieldResult result;
+      if (!EditBitfield(dialog, request, &result)) {
+        return TRUE;
+      }
+      SetDlgItemTextW(dialog, IDC_EDIT, binary_text::Hex(result.data).c_str());
+      UpdatePreview(dialog, state);
+      return TRUE;
+    }
   case IDC_FORMAT_BYTE:
   case IDC_FORMAT_WORD:
   case IDC_FORMAT_DWORD:

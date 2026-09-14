@@ -5,6 +5,7 @@
 #include "win32/text_transform.h"
 
 #include "editors/binary_text.h"
+#include "editors/bitfield_editor.h"
 #include "appearance/dialog_layout.h"
 #include "editors/dialog_support.h"
 
@@ -495,6 +496,33 @@ bool ParseNumberValue(
   }
   *value = parsed;
   return true;
+}
+
+
+void RunBitfieldEditor(
+    HWND dlg,
+    const std::wstring& value_name,
+    int edit_id,
+    int base,
+    unsigned bit_count,
+    bool read_only
+) {
+  unsigned long long value = 0;
+  if (!ParseNumberValue(ReadDialogText(dlg, edit_id), base, &value)) {
+    ui::ShowError(dlg, L"Enter a valid number before editing its bits.");
+    return;
+  }
+  BitfieldRequest request;
+  request.value_name = value_name;
+  request.value = value;
+  request.bit_count = bit_count;
+  request.read_only = read_only;
+  BitfieldResult result;
+  if (!EditBitfield(dlg, request, &result)) {
+    return;
+  }
+  SetDlgItemTextW(dlg, edit_id, FormatNumberValue(result.value, base).c_str());
+  SendDlgItemMessageW(dlg, edit_id, EM_SETSEL, 0, -1);
 }
 
 unsigned long long ReadUnsignedFromBytesBigEndian(
@@ -1002,6 +1030,16 @@ INT_PTR CALLBACK CustomValueDialogProc(
 
       if (code == BN_CLICKED) {
         switch (id) {
+        case IDC_REG_DWORD_BITS:
+          if (state) {
+            RunBitfieldEditor(dlg, state->value_name, IDC_REG_DWORD_EDIT, state->dword_base, 32u, state->read_only);
+          }
+          return TRUE;
+        case IDC_REG_QWORD_BITS:
+          if (state) {
+            RunBitfieldEditor(dlg, state->value_name, IDC_REG_QWORD_EDIT, state->qword_base, 64u, state->read_only);
+          }
+          return TRUE;
         case IDC_REG_DWORD_HEX:
         case IDC_REG_DWORD_DEC:
         case IDC_REG_DWORD_BIN:
@@ -1350,6 +1388,18 @@ INT_PTR CALLBACK ExtendedValueDialogProc(
 
       if (code == BN_CLICKED) {
         switch (id) {
+        case IDC_BITS:
+          if (state) {
+            RunBitfieldEditor(
+                dlg,
+                state->value_name,
+                IDC_EDIT,
+                state->number_base,
+                state->base_type == REG_QWORD ? 64u : 32u,
+                state->read_only
+            );
+          }
+          return TRUE;
         case IDC_HEX:
         case IDC_DEC:
         case IDC_BIN:

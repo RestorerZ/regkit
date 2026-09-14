@@ -56,6 +56,7 @@ constexpr int kEditCopyValueName = 2136;
 constexpr int kEditCopyValueData = 2137;
 constexpr int kEditInvertSelection = 2138;
 constexpr int kEditDecodeValue = 2139;
+constexpr int kToolsBitfieldDefinitions = 2140;
 
 constexpr int kRegistryLocal = 2120;
 constexpr int kRegistryNetwork = 2121;

@@ -98,6 +98,9 @@ add_custom_command(TARGET RegKit POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/assets/defaults"
         "$<TARGET_FILE_DIR:RegKit>/assets/defaults"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/assets/bitfields"
+        "$<TARGET_FILE_DIR:RegKit>/assets/bitfields"
 )
 
 if (MSVC)

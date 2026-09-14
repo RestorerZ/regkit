@@ -55,6 +55,7 @@ CommandArea ClassifyCommand(
   case cmd::kCreateSimulatedKey:
     return CommandArea::kMutation;
   case cmd::kEditDecodeValue:
+  case cmd::kToolsBitfieldDefinitions:
     return CommandArea::kTools;
   case cmd::kEditInvertSelection:
   case cmd::kTreeToggleExpand:

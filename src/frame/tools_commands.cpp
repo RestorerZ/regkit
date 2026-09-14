@@ -3,6 +3,7 @@
 
 #include "frame/command_detail.h"
 
+#include "editors/bitfield_definition_editor.h"
 #include "editors/decoder_dialog.h"
 
 namespace regkit {
@@ -12,6 +13,9 @@ bool MainWindow::Impl::HandleToolsCommand(
     int command_id
 ) {
   switch (command_id) {
+  case cmd::kToolsBitfieldDefinitions:
+    editors::ShowBitfieldDefinitionEditor(hwnd_);
+    return true;
   case cmd::kEditDecodeValue:
     {
       const RegistryNode* node = browse_.current_node();

@@ -1,6 +1,9 @@
 regkit_add_library(regkit_editors
     binary_editor.cpp
     binary_text.cpp
+    bitfield_definition.cpp
+    bitfield_definition_editor.cpp
+    bitfield_editor.cpp
     comment_editor.cpp
     decoder_dialog.cpp
     dialog_support.cpp
