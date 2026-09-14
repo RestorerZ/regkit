@@ -54,6 +54,8 @@ CommandArea ClassifyCommand(
   case cmd::kEditDelete:
   case cmd::kCreateSimulatedKey:
     return CommandArea::kMutation;
+  case cmd::kEditDecodeValue:
+    return CommandArea::kTools;
   case cmd::kEditInvertSelection:
   case cmd::kTreeToggleExpand:
   case cmd::kTreeExpandAll:
@@ -128,6 +130,9 @@ bool DispatchCommand(
     break;
   case CommandArea::kMutation:
     handler = context.mutation;
+    break;
+  case CommandArea::kTools:
+    handler = context.tools;
     break;
   case CommandArea::kUnknown:
     break;

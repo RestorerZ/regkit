@@ -2,6 +2,7 @@ regkit_add_library(regkit_editors
     binary_editor.cpp
     binary_text.cpp
     comment_editor.cpp
+    decoder_dialog.cpp
     dialog_support.cpp
     export_dialog.cpp
     hive_dialog.cpp

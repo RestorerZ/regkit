@@ -344,6 +344,7 @@ void MainWindow::Impl::ShowValueContextMenu(
     AppendMenuW(menu, inspect_flags, cmd::kEditChangeType, L"Change Data Type...");
     AppendResetDefaultMenu(menu);
     AppendMenuW(menu, comment_flags, cmd::kEditModifyComment, L"Modify Comment...");
+    AppendMenuW(menu, single_flags, cmd::kEditDecodeValue, L"Decode Value...");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, single_flags, cmd::kEditCopyValueName, L"Copy Value Name");
     AppendMenuW(menu, single_flags, cmd::kEditCopyValueData, L"Copy Value Data");
@@ -554,6 +555,7 @@ void MainWindow::Impl::ShowSearchResultContextMenu(
     kSearchModify = 51002,
     kSearchModifyBinary = 51003,
     kSearchModifyComment = 51004,
+    kSearchDecodeValue = 51021,
     kSearchCopyKeyName = 51005,
     kSearchCopyKeyPath = 51006,
     kSearchCopyKeyPathAbbrev = 51013,
@@ -603,6 +605,7 @@ void MainWindow::Impl::ShowSearchResultContextMenu(
     AppendMenuW(menu, MF_STRING, kSearchModify, L"Modify...");
     AppendMenuW(menu, MF_STRING, kSearchModifyBinary, L"Modify Binary Data...");
     AppendMenuW(menu, MF_STRING, kSearchModifyComment, L"Modify Comment...");
+    AppendMenuW(menu, MF_STRING, kSearchDecodeValue, L"Decode Value...");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   }
   AppendMenuW(menu, MF_STRING, kSearchCopyKeyName, L"Copy Key Name");
@@ -689,6 +692,9 @@ void MainWindow::Impl::ShowSearchResultContextMenu(
     return;
   case kSearchModifyComment:
     run_on_value(cmd::kEditModifyComment);
+    return;
+  case kSearchDecodeValue:
+    run_on_value(cmd::kEditDecodeValue);
     return;
   case kSearchCopyKeyName:
     {

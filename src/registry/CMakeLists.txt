@@ -3,6 +3,7 @@ regkit_add_library(regkit_registry
     offline_registry.cpp
     registry_path.cpp
     registry_store.cpp
+    value_decoder.cpp
     value_format.cpp
     virtual_registry.cpp
 )
@@ -12,7 +13,10 @@ target_include_directories(regkit_registry PUBLIC
 target_link_libraries(regkit_registry PRIVATE
     regkit_win32
     advapi32
+    crypt32
+    ole32
     shlwapi
+    ws2_32
 )
 
 regkit_add_library(regkit_security

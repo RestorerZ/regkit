@@ -362,6 +362,7 @@ private:
   bool HandleChangeHistoryCommand(int command_id);
   bool HandleRegistryNavigationCommand(int command_id);
   bool HandleMutationCommand(int command_id);
+  bool HandleToolsCommand(int command_id);
   bool HandleCreateCommand(int command_id);
   bool HandleModifyCommand(int command_id);
   bool HandleRenameCommand(int command_id);

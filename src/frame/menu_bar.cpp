@@ -143,6 +143,8 @@ void MainWindow::Impl::BuildMenus() {
   append_menu(edit_menu, MF_STRING, cmd::kEditModifyBinary, L"Modify Binary Data...");
   append_menu(edit_menu, MF_STRING, cmd::kEditChangeType, L"Change Data Type...");
   AppendResetDefaultMenu(edit_menu);
+  append_menu(edit_menu, MF_STRING, cmd::kEditModifyComment, L"Modify Comment...");
+  append_menu(edit_menu, MF_STRING, cmd::kEditDecodeValue, L"Decode Value...");
   AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
   append_menu(edit_menu, modify_flags, cmd::kEditUndo, L"Undo");
   append_menu(edit_menu, modify_flags, cmd::kEditRedo, L"Redo");
@@ -169,6 +171,8 @@ void MainWindow::Impl::BuildMenus() {
   append_menu(edit_menu, MF_STRING, cmd::kEditCopyKey, L"Copy Key Name");
   append_menu(edit_menu, MF_STRING, cmd::kEditCopyKeyPath, L"Copy Key Path");
   AppendMenuW(edit_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), L"Copy Key Path As");
+  append_menu(edit_menu, MF_STRING, cmd::kEditCopyValueName, L"Copy Value Name");
+  append_menu(edit_menu, MF_STRING, cmd::kEditCopyValueData, L"Copy Value Data");
   UINT permissions_flags = MF_STRING | ((browse_.current_node() && can_modify) ? 0 : MF_GRAYED);
   AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
   append_menu(edit_menu, MF_STRING, cmd::kEditGoTo, L"Go to...");
@@ -553,6 +557,9 @@ bool MainWindow::Impl::HandleMenuCommand(
   };
   context.mutation = [](void* value, int id) {
     return static_cast<MainWindow::Impl*>(value)->HandleMutationCommand(id);
+  };
+  context.tools = [](void* value, int id) {
+    return static_cast<MainWindow::Impl*>(value)->HandleToolsCommand(id);
   };
   return frame::DispatchCommand(command_id, context);
 }

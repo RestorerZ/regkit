@@ -1151,6 +1151,10 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(
       EnableMenuItem(menu, cmd::kEditModify, MF_BYCOMMAND | open_state);
       EnableMenuItem(menu, cmd::kEditModifyBinary, MF_BYCOMMAND | open_state);
       EnableMenuItem(menu, cmd::kEditChangeType, MF_BYCOMMAND | open_state);
+      EnableMenuItem(menu, cmd::kEditDecodeValue, MF_BYCOMMAND | open_state);
+      EnableMenuItem(menu, cmd::kEditModifyComment, MF_BYCOMMAND | open_state);
+      EnableMenuItem(menu, cmd::kEditCopyValueName, MF_BYCOMMAND | open_state);
+      EnableMenuItem(menu, cmd::kEditCopyValueData, MF_BYCOMMAND | open_state);
       RefreshResetDefaultMenu(menu);
       const bool hives_allowed = !read_only_ && registry_mode_ != RegistryMode::kRemote;
       const RegistryNode* hive_node = browse_.current_node();

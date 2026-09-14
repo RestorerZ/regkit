@@ -24,6 +24,7 @@ regkit_add_library(regkit_frame
     stored_records.cpp
     tab_lists.cpp
     toolbar.cpp
+    tools_commands.cpp
     trace_commands.cpp
     trace_loading.cpp
     tree_restore.cpp

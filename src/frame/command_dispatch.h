@@ -14,6 +14,7 @@ enum class CommandArea {
   kWorkspaceAppearance,
   kNavigateClipboard,
   kMutation,
+  kTools,
 };
 
 using CommandHandler = bool (*)(void* context, int command_id);
@@ -27,6 +28,7 @@ struct CommandContext {
   CommandHandler workspace_appearance = nullptr;
   CommandHandler navigate_clipboard = nullptr;
   CommandHandler mutation = nullptr;
+  CommandHandler tools = nullptr;
 };
 
 CommandArea ClassifyCommand(int command_id) noexcept;
