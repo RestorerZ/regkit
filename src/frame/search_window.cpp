@@ -381,6 +381,8 @@ void MainWindow::Impl::UpdateSearchResultsView() {
   if (compare != compare_columns_active_) {
     ApplySearchColumns(compare);
     force_redraw = true;
+  } else if (compare && force_redraw) {
+    RefreshCompareColumnTitles();
   }
   int max_sort_col = compare ? 3 : 5;
   if (tab.sort_column > max_sort_col) {

@@ -291,6 +291,19 @@ void MainWindow::Impl::RefreshCompareColumnTitles() {
     }
     compare_columns_[side + 2].title = std::move(title);
   }
+  if (!compare_columns_active_ || !search_results_list_) {
+    return;
+  }
+  for (size_t display = 0; display < search_column_subitems_.size(); ++display) {
+    const int logical = search_column_subitems_[display];
+    if (logical < 2 || logical > 3) {
+      continue;
+    }
+    LVCOLUMNW column = {};
+    column.mask = LVCF_TEXT;
+    column.pszText = const_cast<wchar_t*>(compare_columns_[static_cast<size_t>(logical)].title.c_str());
+    ListView_SetColumn(search_results_list_, static_cast<int>(display), &column);
+  }
 }
 
 void MainWindow::Impl::ApplySearchColumns(

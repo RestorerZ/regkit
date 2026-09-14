@@ -530,6 +530,9 @@ void MainWindow::Impl::SelectTabAfterClose(
   const int next = closed_active                   ? std::min(closed_index, count - 1)
                    : previous_index > closed_index ? previous_index - 1
                                                    : previous_index;
+  if (closed_active) {
+    search_results_view_tab_index_ = -1;
+  }
   TabCtrl_SetCurSel(tab_, next);
   if (closed_active) {
     ApplyTabSelection(next);
