@@ -36,6 +36,10 @@ CommandArea ClassifyCommand(
       command_id <= cmd::kNewExpandString) {
     return CommandArea::kMutation;
   }
+  if (command_id >= cmd::kToolsBitfieldFileBase &&
+      command_id <= cmd::kToolsBitfieldFileMax) {
+    return CommandArea::kTools;
+  }
   if (command_id >= cmd::kResetDefaultBase &&
       command_id <= cmd::kResetDefaultMax) {
     return CommandArea::kMutation;
@@ -50,6 +54,7 @@ CommandArea ClassifyCommand(
   case cmd::kEditChangeType:
   case cmd::kEditResetDefault:
   case cmd::kEditModifyComment:
+  case cmd::kEditBits:
   case cmd::kEditRename:
   case cmd::kEditDelete:
   case cmd::kCreateSimulatedKey:

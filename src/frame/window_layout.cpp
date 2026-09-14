@@ -3,6 +3,8 @@
 
 #include "frame/window_detail.h"
 
+#include "editors/dialog_support.h"
+
 #include "appearance/dialog_metrics.h"
 
 namespace regkit {
@@ -674,6 +676,13 @@ bool MainWindow::Impl::ShouldUseLightIcons() const {
 }
 
 void MainWindow::Impl::ApplyGridToolbarIcons() {
+  editors::dialog_support::SetGridIcon(ResolveIconPath(L"grid.ico"));
+  editors::dialog_support::SetGridLinesSink(
+      [](void* context, bool enabled) {
+        static_cast<MainWindow::Impl*>(context)->SetValueGridEnabled(enabled, true);
+      },
+      this
+  );
   HWND reference = value_grid_toolbar_ ? value_grid_toolbar_ : search_grid_toolbar_;
   if (!reference) {
     return;
@@ -775,6 +784,7 @@ void MainWindow::Impl::SetValueGridEnabled(
     bool persist
 ) {
   show_value_grid_ = enabled;
+  editors::dialog_support::SetGridLines(enabled);
   for (HWND list : {browse_.values().hwnd(), search_results_list_}) {
     if (list) {
       RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE);

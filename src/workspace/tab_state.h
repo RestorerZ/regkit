@@ -28,6 +28,7 @@ struct PersistedTab {
   int registry_mode = 0;
   int value_top_index = 0;
   bool is_compare = false;
+  int compare_filter = 0;
   int first_source_kind = 0;
   std::wstring first_source_file;
   int second_source_kind = 0;

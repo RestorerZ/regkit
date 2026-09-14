@@ -324,22 +324,21 @@ inline CompareSourceType CompareSourceFromIndex(
 
 struct CompareDialogSelection {
   CompareSourceType type = CompareSourceType::kRegistry;
-  std::wstring root;
-  std::wstring path;
   std::wstring file_path;
   std::wstring key_path;
   bool recursive = true;
 };
 
 struct CompareDialogDefaults {
-  std::vector<std::wstring> registry_roots;
   CompareDialogSelection left;
   CompareDialogSelection right;
+  search::compare::RowFilter filter = search::compare::RowFilter::kDifferences;
 };
 
 struct CompareDialogResult {
   CompareDialogSelection left;
   CompareDialogSelection right;
+  search::compare::RowFilter filter = search::compare::RowFilter::kDifferences;
 };
 
 struct CompareDialogState {
@@ -696,19 +695,13 @@ inline void ToggleCompareControls(
     bool left,
     CompareSourceType type
 ) {
-  int root_id = left ? IDC_COMPARE_LEFT_ROOT : IDC_COMPARE_RIGHT_ROOT;
-  int path_id = left ? IDC_COMPARE_LEFT_PATH : IDC_COMPARE_RIGHT_PATH;
   int file_id = left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE;
   int label_id = left ? IDC_COMPARE_LEFT_FILE_LABEL : IDC_COMPARE_RIGHT_FILE_LABEL;
   int browse_id = left ? IDC_COMPARE_LEFT_BROWSE : IDC_COMPARE_RIGHT_BROWSE;
-  int key_id = left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY;
   const bool network = type == CompareSourceType::kNetwork;
   const bool local = type == CompareSourceType::kRegistry;
-  EnableWindow(GetDlgItem(dlg, root_id), local || network);
-  EnableWindow(GetDlgItem(dlg, path_id), local || network);
   EnableWindow(GetDlgItem(dlg, file_id), !local);
   EnableWindow(GetDlgItem(dlg, browse_id), !local);
-  EnableWindow(GetDlgItem(dlg, key_id), !local && !network);
   SetDialogText(dlg, label_id, network ? L"Computer:" : L"File:");
 }
 
@@ -731,28 +724,27 @@ inline INT_PTR CALLBACK CompareDialogProc(
       ApplyDialogFonts(dlg, state->ui_font);
       Theme::Current().ApplyToWindow(dlg);
       Theme::Current().ApplyToChildren(dlg);
-      ApplyEditCustomBorder(dlg, IDC_COMPARE_LEFT_PATH);
       ApplyEditCustomBorder(dlg, IDC_COMPARE_LEFT_FILE);
-      ApplyEditCustomBorder(dlg, IDC_COMPARE_RIGHT_PATH);
       ApplyEditCustomBorder(dlg, IDC_COMPARE_RIGHT_FILE);
 
       PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive", L"Network Registry"});
       PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive", L"Network Registry"});
-      PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_LEFT_ROOT), state->data.registry_roots);
-      PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_RIGHT_ROOT), state->data.registry_roots);
 
       SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), CompareSourceLabel(state->data.left.type));
       SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), CompareSourceLabel(state->data.right.type));
-      SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_LEFT_ROOT), state->data.left.root);
-      SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_RIGHT_ROOT), state->data.right.root);
-      SetDialogText(dlg, IDC_COMPARE_LEFT_PATH, state->data.left.path);
-      SetDialogText(dlg, IDC_COMPARE_RIGHT_PATH, state->data.right.path);
       SetDialogText(dlg, IDC_COMPARE_LEFT_FILE, state->data.left.file_path);
       SetDialogText(dlg, IDC_COMPARE_RIGHT_FILE, state->data.right.file_path);
       SetDialogText(dlg, IDC_COMPARE_LEFT_KEY, state->data.left.key_path);
       SetDialogText(dlg, IDC_COMPARE_RIGHT_KEY, state->data.right.key_path);
       CheckDlgButton(dlg, IDC_COMPARE_LEFT_RECURSIVE, state->data.left.recursive ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(dlg, IDC_COMPARE_RIGHT_RECURSIVE, state->data.right.recursive ? BST_CHECKED : BST_UNCHECKED);
+      int filter_id = IDC_COMPARE_SHOW_DIFFERENCES;
+      if (state->data.filter == search::compare::RowFilter::kMatches) {
+        filter_id = IDC_COMPARE_SHOW_MATCHING;
+      } else if (state->data.filter == search::compare::RowFilter::kAll) {
+        filter_id = IDC_COMPARE_SHOW_BOTH;
+      }
+      CheckRadioButton(dlg, IDC_COMPARE_SHOW_DIFFERENCES, IDC_COMPARE_SHOW_BOTH, filter_id);
 
       auto populate_file_keys = [&](bool left) {
         std::wstring file_path = ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE);
@@ -766,8 +758,8 @@ inline INT_PTR CALLBACK CompareDialogProc(
         }
         std::vector<std::wstring> keys = ExtractRegFileKeys(data);
         HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
-        PopulateCombo(combo, keys);
         std::wstring current = ReadComboText(combo);
+        PopulateCombo(combo, keys);
         if (!current.empty()) {
           SetComboSelection(combo, current);
         } else if (!keys.empty()) {
@@ -778,13 +770,11 @@ inline INT_PTR CALLBACK CompareDialogProc(
       populate_file_keys(true);
       populate_file_keys(false);
 
-      int edit_height = ControlHeight(dlg, IDC_COMPARE_LEFT_PATH);
+      int edit_height = ControlHeight(dlg, IDC_COMPARE_LEFT_FILE);
       if (edit_height > 0) {
         SetComboHeights(dlg, IDC_COMPARE_LEFT_SOURCE, edit_height);
-        SetComboHeights(dlg, IDC_COMPARE_LEFT_ROOT, edit_height);
         SetComboHeights(dlg, IDC_COMPARE_LEFT_KEY, edit_height);
         SetComboHeights(dlg, IDC_COMPARE_RIGHT_SOURCE, edit_height);
-        SetComboHeights(dlg, IDC_COMPARE_RIGHT_ROOT, edit_height);
         SetComboHeights(dlg, IDC_COMPARE_RIGHT_KEY, edit_height);
       }
 
@@ -848,6 +838,7 @@ inline INT_PTR CALLBACK CompareDialogProc(
         CompareSourceType type = CompareSourceFromIndex(sel);
         ToggleCompareControls(dlg, left, type);
         SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, L"");
+        SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, L"");
         return TRUE;
       }
       if (code == BN_CLICKED && (id == IDC_COMPARE_LEFT_BROWSE || id == IDC_COMPARE_RIGHT_BROWSE)) {
@@ -897,12 +888,11 @@ inline INT_PTR CALLBACK CompareDialogProc(
           HWND source_combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_SOURCE : IDC_COMPARE_RIGHT_SOURCE);
           int source_index = source_combo ? static_cast<int>(SendMessageW(source_combo, CB_GETCURSEL, 0, 0)) : 0;
           out->type = CompareSourceFromIndex(source_index);
+          out->key_path = TrimWhitespace(ReadComboText(GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY)));
           if (out->type == CompareSourceType::kRegistry ||
               out->type == CompareSourceType::kNetwork) {
-            out->root = TrimWhitespace(ReadComboText(GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_ROOT : IDC_COMPARE_RIGHT_ROOT)));
-            out->path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_PATH : IDC_COMPARE_RIGHT_PATH));
-            if (out->root.empty()) {
-              ui::ShowError(dlg, L"Registry root is required.");
+            if (out->key_path.empty()) {
+              ui::ShowError(dlg, L"Registry key is required.");
               return false;
             }
             if (out->type == CompareSourceType::kNetwork) {
@@ -915,7 +905,6 @@ inline INT_PTR CALLBACK CompareDialogProc(
             return true;
           }
           out->file_path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
-          out->key_path = TrimWhitespace(ReadComboText(GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY)));
           if (out->file_path.empty()) {
             ui::ShowError(dlg, out->type == CompareSourceType::kOfflineHive ? L"Hive file path is required." : L"Registry file path is required.");
             return false;
@@ -961,8 +950,14 @@ inline INT_PTR CALLBACK CompareDialogProc(
         if (!read_side(false, &result.right)) {
           return TRUE;
         }
+        if (IsDlgButtonChecked(dlg, IDC_COMPARE_SHOW_MATCHING) == BST_CHECKED) {
+          result.filter = search::compare::RowFilter::kMatches;
+        } else if (IsDlgButtonChecked(dlg, IDC_COMPARE_SHOW_BOTH) == BST_CHECKED) {
+          result.filter = search::compare::RowFilter::kAll;
+        }
         state->data.left = result.left;
         state->data.right = result.right;
+        state->data.filter = result.filter;
         EndDialog(dlg, IDOK);
         return TRUE;
       }
@@ -994,6 +989,7 @@ inline bool ShowCompareDialog(
   }
   out->left = state.data.left;
   out->right = state.data.right;
+  out->filter = state.data.filter;
   return true;
 }
 

@@ -269,6 +269,13 @@ void SortRows(
   if (!rows || rows->size() < 2) {
     return;
   }
+  if (column == 4) {
+    std::stable_sort(rows->begin(), rows->end(), [ascending](const Row& left, const Row& right) {
+      return left.matches != right.matches &&
+             (ascending ? !left.matches : left.matches);
+    });
+    return;
+  }
   auto field = [column](const Row& row) -> const std::wstring& {
     switch (column) {
     case 1:
@@ -287,11 +294,14 @@ void SortRows(
                      return result != 0 && (ascending ? result < 0 : result > 0); });
 }
 
-std::vector<Row> Diff(
+std::vector<Row> BuildRows(
     const Snapshot& first,
     const Snapshot& second,
+    RowFilter filter,
     std::atomic_bool* cancel
 ) {
+  const bool include_differences = filter != RowFilter::kMatches;
+  const bool include_matches = filter != RowFilter::kDifferences;
   std::vector<std::wstring> keys;
   keys.reserve(first.keys.size() + second.keys.size());
   std::unordered_set<std::wstring> seen;
@@ -324,6 +334,9 @@ std::vector<Row> Diff(
     const std::wstring second_path = Combine(second.base_path, relative);
 
     if (!first_key || !second_key) {
+      if (!include_differences) {
+        continue;
+      }
       Row result;
       result.is_key = true;
       result.key_path = first_key ? first_path : second_path;
@@ -333,6 +346,18 @@ std::vector<Row> Diff(
       result.second_text = second_key ? L"Present" : L"(Missing)";
       results.push_back(std::move(result));
       continue;
+    }
+
+    if (include_matches) {
+      Row result;
+      result.is_key = true;
+      result.matches = true;
+      result.key_path = first_path;
+      result.first_key_path = first_path;
+      result.second_key_path = second_path;
+      result.first_text = L"Present";
+      result.second_text = L"Present";
+      results.push_back(std::move(result));
     }
 
     std::vector<std::wstring> values;
@@ -357,12 +382,15 @@ std::vector<Row> Diff(
           second_value == second_key->values.end()
               ? nullptr
               : &second_value->second;
-      if (left && right && left->type == right->type &&
-          left->data == right->data) {
+      const bool matches = left && right && left->type == right->type &&
+                           left->data == right->data;
+      if ((matches && !include_matches) ||
+          (!matches && !include_differences)) {
         continue;
       }
 
       Row result;
+      result.matches = matches;
       result.key_path = first_path;
       result.first_key_path = first_path;
       result.second_key_path = second_path;
@@ -378,7 +406,7 @@ std::vector<Row> Diff(
 std::wstring SerializeRows(
     const std::vector<Row>& rows
 ) {
-  std::wstring content = L"version=1\n";
+  std::wstring content = L"version=2\n";
   for (const Row& row : rows) {
     content += record_fields::Escape(row.key_path);
     content += L'\t';
@@ -393,6 +421,8 @@ std::wstring SerializeRows(
     content += record_fields::Escape(row.second_text);
     content += L'\t';
     content += (row.is_key ? L"1" : L"0");
+    content += L'\t';
+    content += (row.matches ? L"1" : L"0");
     content += L'\n';
   }
   return content;
@@ -422,6 +452,7 @@ bool ParseRows(
     row.first_text = record_fields::Unescape(fields[4]);
     row.second_text = record_fields::Unescape(fields[5]);
     row.is_key = _wtoi(fields[6].c_str()) != 0;
+    row.matches = fields.size() >= 8 && _wtoi(fields[7].c_str()) != 0;
     parsed.push_back(std::move(row));
   }
   *rows = std::move(parsed);

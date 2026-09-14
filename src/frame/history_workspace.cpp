@@ -409,6 +409,12 @@ void MainWindow::Impl::LoadTabs() {
         search_tab.compare_cache_file = std::move(saved.compare_cache_file);
         search_tab.is_compare = saved.is_compare ||
                                 StartsWithInsensitive(search_tab.label, L"Compare:");
+        if (saved.compare_filter >= 0 &&
+            saved.compare_filter <=
+                static_cast<int>(search::compare::RowFilter::kAll)) {
+          search_tab.compare_filter =
+              static_cast<search::compare::RowFilter>(saved.compare_filter);
+        }
         search_tab.results_loaded =
             search_tab.is_compare ? search_tab.compare_cache_file.empty()
                                   : search_tab.cache_file.empty();
@@ -614,6 +620,7 @@ bool MainWindow::Impl::SaveTabState(
       saved.kind = workspace::PersistedTab::Kind::kSearch;
       saved.label = std::move(label);
       saved.is_compare = search_tab.is_compare;
+      saved.compare_filter = static_cast<int>(search_tab.compare_filter);
       for (const search::Source& source : search_tab.sources) {
         saved.source_kinds.push_back(static_cast<int>(source.kind));
         saved.source_names.push_back(source.name);

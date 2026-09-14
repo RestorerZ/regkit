@@ -110,6 +110,7 @@ bool MainWindow::Impl::HandleMutationCommand(
   case cmd::kEditModifyBinary:
   case cmd::kEditChangeType:
   case cmd::kEditModifyComment:
+  case cmd::kEditBits:
     return HandleModifyCommand(command_id);
   case cmd::kEditRename:
     return HandleRenameCommand(command_id);
@@ -379,6 +380,7 @@ bool MainWindow::Impl::HandleModifyCommand(
     }
   case cmd::kEditModify:
   case cmd::kEditModifyBinary:
+  case cmd::kEditBits:
     {
       if (!browse_.current_node()) {
         return true;
@@ -442,7 +444,17 @@ bool MainWindow::Impl::HandleModifyCommand(
       DWORD base_type = value_format::NormalizeType(entry.type);
       bool supports_extended_dialog = base_type == REG_SZ || base_type == REG_EXPAND_SZ || base_type == REG_MULTI_SZ || base_type == REG_DWORD || base_type == REG_DWORD_BIG_ENDIAN || base_type == REG_QWORD || base_type == REG_LINK;
       std::vector<BYTE> new_data;
-      if (command_id == cmd::kEditModifyBinary || base_type == REG_BINARY || base_type == REG_NONE || base_type == REG_RESOURCE_LIST || base_type == REG_FULL_RESOURCE_DESCRIPTOR || base_type == REG_RESOURCE_REQUIREMENTS_LIST) {
+      if (command_id == cmd::kEditBits) {
+        editors::BitsRequest request;
+        request.value_name = entry.name;
+        request.key_path = registry_path::Build(*browse_.current_node());
+        request.base_type = base_type;
+        request.data = entry.data;
+        request.read_only = read_only_;
+        if (!editors::EditValueBits(hwnd_, request, &new_data)) {
+          return true;
+        }
+      } else if (command_id == cmd::kEditModifyBinary || base_type == REG_BINARY || base_type == REG_NONE || base_type == REG_RESOURCE_LIST || base_type == REG_FULL_RESOURCE_DESCRIPTOR || base_type == REG_RESOURCE_REQUIREMENTS_LIST) {
         editors::BinaryRequest request;
         request.value_name = entry.name;
         request.data = entry.data;

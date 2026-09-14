@@ -205,6 +205,7 @@ private:
   void ApplyHistoryColumns();
   void ApplySearchColumns(bool compare);
   void RefreshCompareColumnTitles();
+  bool IsCompareResultColumnAvailable() const;
   void UpdateValueListForNode(RegistryNode* node);
   void AttachBorder(HWND control);
   void AttachHeader(HWND header);
@@ -582,6 +583,7 @@ private:
   std::vector<int> compare_column_widths_;
   std::vector<bool> compare_column_visible_;
   bool compare_columns_active_ = false;
+  bool compare_result_column_active_ = false;
   int last_header_column_ = -1;
   int history_sort_column_ = 0;
   bool history_sort_ascending_ = true;
@@ -726,6 +728,7 @@ private:
     bool results_loaded = true;
     uint64_t generation = 0;
     bool is_compare = false;
+    search::compare::RowFilter compare_filter = search::compare::RowFilter::kDifferences;
     std::vector<search::Source> sources;
     size_t last_ui_count = 0;
     int sort_column = -1;

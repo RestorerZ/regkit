@@ -12,9 +12,18 @@ using namespace command_detail;
 bool MainWindow::Impl::HandleToolsCommand(
     int command_id
 ) {
+  if (command_id >= cmd::kToolsBitfieldFileBase &&
+      command_id <= cmd::kToolsBitfieldFileMax) {
+    const std::vector<editors::bitfield::DefinitionFile>& files = editors::bitfield::BundledFiles();
+    const size_t index = static_cast<size_t>(command_id - cmd::kToolsBitfieldFileBase);
+    if (index < files.size()) {
+      editors::ShowBitfieldDefinitionEditor(hwnd_, files[index].path);
+    }
+    return true;
+  }
   switch (command_id) {
   case cmd::kToolsBitfieldDefinitions:
-    editors::ShowBitfieldDefinitionEditor(hwnd_);
+    editors::ShowBitfieldDefinitionEditor(hwnd_, std::wstring());
     return true;
   case cmd::kEditDecodeValue:
     {

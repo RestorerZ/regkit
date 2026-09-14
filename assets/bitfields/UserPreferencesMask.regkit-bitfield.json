@@ -1,120 +1,127 @@
 {
   "format": "regkit-bitfield",
-  "version": 1,
   "name": "UserPreferencesMask",
-  "value_name": "UserPreferencesMask",
-  "bit_width": 64,
-  "comment": "HKEY_CURRENT_USER\\Control Panel\\Desktop\\UserPreferencesMask is an 8 byte little-endian REG_BINARY value that collects the per-user interface preferences win32k reads through SystemParametersInfo. Bits 32 and above are the ones the documentation calls \"in the high dword\". Bits marked untested have no confirmed Windows UI toggle; their meaning comes from win32k pseudocode or from SPI_ naming.",
-  "fields": [
+  "definitions": [
     {
-      "name": "Active window tracking",
-      "bits": [0],
-      "meaning": "Activates a window when the pointer moves over it, without a click. Untested."
-    },
-    {
-      "name": "Menu animation",
-      "bits": [1],
-      "meaning": "Fade or slide menus into view. Performance Options."
-    },
-    {
-      "name": "Combo box animation",
-      "bits": [2],
-      "meaning": "Slide open combo boxes. Performance Options."
-    },
-    {
-      "name": "List box smooth scrolling",
-      "bits": [3],
-      "meaning": "Smooth-scroll list boxes. Performance Options."
-    },
-    {
-      "name": "Gradient captions",
-      "bits": [4],
-      "meaning": "Each window title bar changes from one color or shade to another along its length. Untested."
-    },
-    {
-      "name": "Keyboard cues",
-      "bits": [5],
-      "meaning": "Show menu underlines and other keyboard cues. Untested."
-    },
-    {
-      "name": "Active window tracking Z-order",
-      "bits": [6],
-      "meaning": "Raise the window that active window tracking activates to the top of the Z-order. Untested."
-    },
-    {
-      "name": "Hot tracking",
-      "bits": [7],
-      "meaning": "Highlight items as the pointer moves over them. Untested."
-    },
-    {
-      "name": "Menu fade",
-      "bits": [9],
-      "meaning": "Fade menus instead of sliding them. Requires bit 1. Untested."
-    },
-    {
-      "name": "Selection fade",
-      "bits": [10],
-      "meaning": "Fade out menu items after clicking. Performance Options."
-    },
-    {
-      "name": "Tooltip animation",
-      "bits": [11],
-      "meaning": "Fade or slide ToolTips into view. Performance Options."
-    },
-    {
-      "name": "Tooltip fade",
-      "bits": [12],
-      "meaning": "Fade ToolTips instead of sliding them. Requires bit 11. Untested."
-    },
-    {
-      "name": "Cursor shadow",
-      "bits": [13],
-      "meaning": "Show shadows under the mouse pointer. Performance Options."
-    },
-    {
-      "name": "Mouse sonar",
-      "bits": [14],
-      "meaning": "Show the location of the pointer when the CTRL key is pressed. Mouse Properties."
-    },
-    {
-      "name": "ClickLock",
-      "bits": [15],
-      "meaning": "Turn on ClickLock, which holds the mouse button down after a brief press. Mouse Properties."
-    },
-    {
-      "name": "Hide pointer while typing",
-      "bits": [16],
-      "meaning": "Hide the mouse pointer while typing. Mouse Properties."
-    },
-    {
-      "name": "Flat menus",
-      "bits": [17],
-      "meaning": "Draw menus with the flat appearance instead of the raised one. Untested."
-    },
-    {
-      "name": "Window shadows",
-      "bits": [18],
-      "meaning": "Show shadows under windows. Performance Options."
-    },
-    {
-      "name": "UI effects master switch",
-      "bits": [31],
-      "meaning": "When enabled, all user interface effects are enabled: combo box animation, cursor shadow, gradient captions, hot tracking, list box smooth scrolling, menu animation, menu underlines, selection fade and tool tip animation. Untested."
-    },
-    {
-      "name": "Client area animation",
-      "bits": [33],
-      "meaning": "Animate controls and elements inside windows. Stored as 0x00000002 in the high dword."
-    },
-    {
-      "name": "Keyboard input delegation updates",
-      "bits": [39],
-      "meaning": "Suppress or apply global input-settings updates when focus or input delegation changes. Stored as 0x00000080 in the high dword. Untested."
-    },
-    {
-      "name": "Pen button yield",
-      "bits": [41],
-      "meaning": "Pen button yield and pen quick-launch hotkey behaviour. Stored as 0x00000200 in the high dword. Untested."
+      "name": "UserPreferencesMask",
+      "value_name": "UserPreferencesMask",
+      "key_paths": [
+        "\\Control Panel\\Desktop"
+      ],
+      "bit_width": 64,
+      "comment": "Per user interface preferences win32k reads, see https://noverse.dev/docs/win-config/visibility/minimal-visual-effects/#userpreferencesmask",
+      "fields": [
+        {
+          "name": "Active window tracking",
+          "bits": [0],
+          "meaning": "Active window tracking (untested)"
+        },
+        {
+          "name": "Menu animation",
+          "bits": [1],
+          "meaning": "Fade or slide menus into view - Performance Options"
+        },
+        {
+          "name": "Combo box animation",
+          "bits": [2],
+          "meaning": "Slide open combo boxes - Performance Options"
+        },
+        {
+          "name": "List box smooth scrolling",
+          "bits": [3],
+          "meaning": "Smooth-scroll list boxes - Performance Options"
+        },
+        {
+          "name": "Gradient captions",
+          "bits": [4],
+          "meaning": "Caption/gradient visual effects (untested) - \"When set, each window title bar has a gradient effect (changes from one color or shade to another along the length of the title bar).\""
+        },
+        {
+          "name": "Keyboard cues",
+          "bits": [5],
+          "meaning": "Keyboard cues / menu underlines (untested)"
+        },
+        {
+          "name": "Active window tracking Z-order",
+          "bits": [6],
+          "meaning": "Active window tracking Z-order (untested)"
+        },
+        {
+          "name": "Hot tracking",
+          "bits": [7],
+          "meaning": "Hot tracking (untested)"
+        },
+        {
+          "name": "Menu fade",
+          "bits": [9],
+          "meaning": "Menu fade (untested), requires bit 1 to be set"
+        },
+        {
+          "name": "Selection fade",
+          "bits": [10],
+          "meaning": "Fade out menu items after clicking - Performance Options"
+        },
+        {
+          "name": "Tooltip animation",
+          "bits": [11],
+          "meaning": "Fade or slide ToolTips into view - Performance Options"
+        },
+        {
+          "name": "Tooltip fade",
+          "bits": [12],
+          "meaning": "Tooltip fade (untested), required bit 11 to be set"
+        },
+        {
+          "name": "Cursor shadow",
+          "bits": [13],
+          "meaning": "Show shadows under mouse pointer - Performance Options"
+        },
+        {
+          "name": "Mouse sonar",
+          "bits": [14],
+          "meaning": "Show location of pointer when I press the CTRL key - Mouse Properties"
+        },
+        {
+          "name": "ClickLock",
+          "bits": [15],
+          "meaning": "Turn on ClickLock - Mouse Properties"
+        },
+        {
+          "name": "Hide pointer while typing",
+          "bits": [16],
+          "meaning": "Hide pointer while typing - Mouse Properties"
+        },
+        {
+          "name": "Flat menus",
+          "bits": [17],
+          "meaning": "Flat menus (untested)"
+        },
+        {
+          "name": "Window shadows",
+          "bits": [18],
+          "meaning": "Show shadows under windows - Performance Options"
+        },
+        {
+          "name": "Master UI effects",
+          "bits": [31],
+          "meaning": "Master UI effects (untested) - \"When enabled, all user interface effects (combo box animation, cursor shadow, gradient captions, hot tracking, list box smooth scrolling, menu animation, menu underlines, selection fade, tool tip animation) are enabled.\""
+        },
+        {
+          "name": "Animate controls",
+          "bits": [33],
+          "meaning": "Animate controls and elements inside windows (0x00000002 in high dword)"
+        },
+        {
+          "name": "Global input-settings updates",
+          "bits": [39],
+          "meaning": "Suppress/apply global input-settings updates on focus/delegation changes (untested) (0x00000080 in high dword)"
+        },
+        {
+          "name": "Pen button yield",
+          "bits": [41],
+          "meaning": "Pen button yield / pen quick-launch hotkey (untested) (0x00000200 in high dword)"
+        }
+      ]
     }
   ]
 }

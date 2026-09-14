@@ -48,21 +48,6 @@ bool ResolveRemoteNode(
 
 void MainWindow::Impl::StartCompareRegistries() {
   CompareDialogDefaults defaults;
-  defaults.registry_roots.reserve(browse_.roots().size());
-  std::unordered_set<std::wstring> seen_roots;
-  for (const auto& root : browse_.roots()) {
-    if (root.path_name.empty()) {
-      continue;
-    }
-    std::wstring key = ToLower(root.path_name);
-    if (seen_roots.insert(key).second) {
-      defaults.registry_roots.push_back(root.path_name);
-    }
-  }
-  if (defaults.registry_roots.empty()) {
-    defaults.registry_roots = {L"HKEY_LOCAL_MACHINE", L"HKEY_CURRENT_USER", L"HKEY_CLASSES_ROOT", L"HKEY_USERS", L"HKEY_CURRENT_CONFIG"};
-  }
-
   CompareDialogSelection left;
   CompareDialogSelection right;
   left.type = CompareSourceType::kRegistry;
@@ -70,15 +55,11 @@ void MainWindow::Impl::StartCompareRegistries() {
   left.recursive = true;
   right.recursive = true;
   if (browse_.current_node()) {
-    std::wstring root_name = browse_.current_node()->root_name.empty() ? registry_path::RootName(browse_.current_node()->root) : browse_.current_node()->root_name;
-    left.root = root_name;
-    right.root = root_name;
-    left.path = browse_.current_node()->subkey;
-    right.path = browse_.current_node()->subkey;
-  } else if (!defaults.registry_roots.empty()) {
-    left.root = defaults.registry_roots.front();
-    right.root = defaults.registry_roots.front();
+    left.key_path = registry_path::Build(*browse_.current_node());
+  } else {
+    left.key_path = L"HKEY_LOCAL_MACHINE";
   }
+  right.key_path = left.key_path;
   defaults.left = left;
   defaults.right = right;
 
@@ -91,33 +72,11 @@ void MainWindow::Impl::StartCompareRegistries() {
     if (!out_base) {
       return false;
     }
-    if (sel.type == CompareSourceType::kRegistry ||
-        sel.type == CompareSourceType::kNetwork) {
-      std::wstring base;
-      if (!sel.path.empty()) {
-        std::wstring normalized_path = NormalizeRegistryPath(sel.path);
-        if (StartsWithInsensitive(normalized_path, L"HKEY_") || StartsWithInsensitive(normalized_path, L"REGISTRY")) {
-          base = normalized_path;
-        }
-      }
-      if (base.empty()) {
-        base = sel.root;
-        if (!sel.path.empty()) {
-          base += L"\\" + sel.path;
-        }
-        base = NormalizeRegistryPath(base);
-      }
-      if (base.empty()) {
-        return false;
-      }
-      *out_base = base;
-      return true;
-    }
-    if (sel.type == CompareSourceType::kOfflineHive) {
-      *out_base = NormalizeRegistryPath(sel.key_path);
-      return true;
-    }
     std::wstring base = NormalizeRegistryPath(sel.key_path);
+    if (sel.type == CompareSourceType::kOfflineHive) {
+      *out_base = std::move(base);
+      return true;
+    }
     if (base.empty()) {
       return false;
     }
@@ -241,8 +200,8 @@ void MainWindow::Impl::StartCompareRegistries() {
   }
 
   std::vector<search::compare::Row> rows =
-      search::compare::Diff(left_snapshot, right_snapshot);
-  std::wstring tab_label = L"Registry Comparision";
+      search::compare::BuildRows(left_snapshot, right_snapshot, selection.filter);
+  std::wstring tab_label = L"Registry Comparison";
 
   auto source_ref = [this](const CompareDialogSelection& sel) {
     switch (sel.type) {
@@ -262,6 +221,7 @@ void MainWindow::Impl::StartCompareRegistries() {
   tab.label = std::move(tab_label);
   tab.compare_rows = std::move(rows);
   tab.is_compare = true;
+  tab.compare_filter = selection.filter;
   tab.sources = {source_ref(selection.left), source_ref(selection.right)};
   search_tabs_.push_back(std::move(tab));
   int search_index = static_cast<int>(search_tabs_.size() - 1);

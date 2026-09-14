@@ -1,0 +1,149 @@
+{
+  "format": "regkit-bitfield",
+  "name": "ShellState",
+  "comment": "ShellState is a little endian REG_BINARY, its data starts with a DWORD followed by the 32 byte SHELLSTATE structure. See https://noverse.dev/docs/win-config/visibility/explorer-options/#shellstate for more",
+  "definitions": [
+    {
+      "name": "ShellState (primary flags)",
+      "value_name": "ShellState",
+      "key_paths": [
+        "\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced"
+      ],
+      "bit_width": 32,
+      "byte_offset": 4,
+      "fields": [
+        {
+          "name": "fShowAllObjects",
+          "bits": [0],
+          "meaning": "Show hidden objects. Explorer\\Advanced value = Hidden (if = 1)"
+        },
+        {
+          "name": "fShowExtensions",
+          "bits": [1],
+          "meaning": "Show file extensions. Explorer\\Advanced value = HideFileExt (inverted)"
+        },
+        {
+          "name": "fNoConfirmRecycle",
+          "bits": [2],
+          "meaning": "Skip recycle bin confirmation"
+        },
+        {
+          "name": "fShowSysFiles",
+          "bits": [3],
+          "meaning": "Show system files. Explorer\\Advanced value = Hidden (if > 1)"
+        },
+        {
+          "name": "fShowCompColor",
+          "bits": [4],
+          "meaning": "Color compressed/encrypted files. Explorer\\Advanced value = ShowCompColor"
+        },
+        {
+          "name": "fDoubleClickInWebView",
+          "bits": [5],
+          "meaning": "Require double click to open"
+        },
+        {
+          "name": "fDesktopHTML",
+          "bits": [6],
+          "meaning": "Use active desktop"
+        },
+        {
+          "name": "fWin95Classic",
+          "bits": [7],
+          "meaning": "Enforce Windows 95 Shell behavior & restrictions"
+        },
+        {
+          "name": "fDontPrettyPath",
+          "bits": [8],
+          "meaning": "Prevent paths from being converted to lowercase. Explorer\\Advanced value = DontPrettyPath"
+        },
+        {
+          "name": "fShowAttribCol",
+          "bits": [9],
+          "meaning": "Unused. Explorer\\Advanced value = ShowAttribCol"
+        },
+        {
+          "name": "fMapNetDrvBtn",
+          "bits": [10],
+          "meaning": "Show the map network drive button. Explorer\\Advanced value = MapNetDrvBtn"
+        },
+        {
+          "name": "fShowInfoTip",
+          "bits": [11],
+          "meaning": "Show item popup descriptions. Explorer\\Advanced value = ShowInfoTip"
+        },
+        {
+          "name": "fHideIcons",
+          "bits": [12],
+          "meaning": "Hide desktop icons. Explorer\\Advanced value = HideIcons"
+        },
+        {
+          "name": "fWebView",
+          "bits": [13],
+          "meaning": "Use web view. Explorer\\Advanced value = WebView"
+        },
+        {
+          "name": "fFilter",
+          "bits": [14],
+          "meaning": "Unused. Explorer\\Advanced value = Filter"
+        },
+        {
+          "name": "fShowSuperHidden",
+          "bits": [15],
+          "meaning": "Show protected operating system files. Explorer\\Advanced value = ShowSuperHidden"
+        },
+        {
+          "name": "fNoNetCrawling",
+          "bits": [16],
+          "meaning": "Disable automatic searches for network folders & printers. Explorer\\Advanced value = NoNetCrawling"
+        }
+      ]
+    },
+    {
+      "name": "ShellState (secondary flags)",
+      "value_name": "ShellState",
+      "key_paths": [
+        "\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced"
+      ],
+      "bit_width": 32,
+      "byte_offset": 32,
+      "fields": [
+        {
+          "name": "fSepProcess",
+          "bits": [0],
+          "meaning": "Launch folder windows in a separate process. Explorer\\Advanced value = SeparateProcess"
+        },
+        {
+          "name": "fStartPanelOn",
+          "bits": [1],
+          "meaning": "Use the Windows XP style start menu"
+        },
+        {
+          "name": "fShowStartPage",
+          "bits": [2],
+          "meaning": "Unused"
+        },
+        {
+          "name": "fAutoCheckSelect",
+          "bits": [3],
+          "meaning": "Use check boxes to select items. Explorer\\Advanced value = AutoCheckSelect"
+        },
+        {
+          "name": "fIconsOnly",
+          "bits": [4],
+          "meaning": "Always show icons, never thumbnails. Explorer\\Advanced value = IconsOnly"
+        },
+        {
+          "name": "fShowTypeOverlay",
+          "bits": [5],
+          "meaning": "Display file type icon on thumbnails. Explorer\\Advanced value = ShowTypeOverlay"
+        },
+        {
+          "name": "fShowStatusBar",
+          "bits": [6],
+          "meaning": "Show the status bar. Explorer\\Advanced value = ShowStatusBar"
+        }
+      ]
+    }
+  ]
+}

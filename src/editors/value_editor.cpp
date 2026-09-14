@@ -1545,6 +1545,55 @@ bool EditText(
   return true;
 }
 
+bool EditValueBits(
+    HWND owner,
+    const BitsRequest& request,
+    std::vector<BYTE>* data
+) {
+  if (!data) {
+    return false;
+  }
+  BitfieldRequest bits;
+  bits.value_name = request.value_name;
+  bits.key_path = request.key_path;
+  bits.read_only = request.read_only;
+  std::vector<BYTE> source(request.data.begin(), request.data.end());
+
+  if (request.base_type == REG_DWORD && source.size() >= sizeof(DWORD)) {
+    bits.bit_count = 32;
+    bits.value = ReadUnsignedFromBytes(source, sizeof(DWORD));
+  } else if (request.base_type == REG_QWORD && source.size() >= sizeof(unsigned long long)) {
+    bits.bit_count = 64;
+    bits.value = ReadUnsignedFromBytes(source, sizeof(unsigned long long));
+  } else if (request.base_type == REG_DWORD_BIG_ENDIAN && source.size() >= sizeof(DWORD)) {
+    bits.bit_count = 32;
+    bits.value = ReadUnsignedFromBytesBigEndian(source, sizeof(DWORD));
+  } else {
+    if (source.empty()) {
+      ui::ShowError(owner, L"This value has no data to edit as bits.");
+      return false;
+    }
+    bits.data = source;
+  }
+
+  BitfieldResult result;
+  if (!EditBitfield(owner, bits, &result)) {
+    return false;
+  }
+  if (!bits.data.empty()) {
+    *data = std::move(result.data);
+    return true;
+  }
+  if (request.base_type == REG_DWORD_BIG_ENDIAN) {
+    WriteUnsignedToBytesBigEndian(result.value, sizeof(DWORD), data);
+    return true;
+  }
+  const size_t width = bits.bit_count / 8;
+  data->assign(width, 0);
+  memcpy(data->data(), &result.value, width);
+  return true;
+}
+
 bool EditCustomValue(
     HWND owner,
     const CustomValueRequest& request,

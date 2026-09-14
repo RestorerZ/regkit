@@ -3,6 +3,8 @@
 
 #include "frame/window_detail.h"
 
+#include "appearance/list_header.h"
+
 namespace regkit {
 using namespace window_detail;
 
@@ -33,39 +35,6 @@ void ReportNameTaken(
   ui::PromptKeyChoice(owner, message, name, title, L"", L"", L"OK");
 }
 
-constexpr int kDividerProbeWidth = 32;
-constexpr int kDividerProbeHeight = 16;
-
-COLORREF HeaderDividerColor(
-    HWND header
-) {
-  COLORREF color = Theme::Current().BorderColor();
-  HTHEME theme = OpenThemeData(header, VSCLASS_HEADER);
-  if (!theme) {
-    return color;
-  }
-  HDC screen = GetDC(nullptr);
-  if (HDC mem = CreateCompatibleDC(screen)) {
-    if (HBITMAP bitmap =
-            CreateCompatibleBitmap(screen, kDividerProbeWidth, kDividerProbeHeight)) {
-      HGDIOBJ previous = SelectObject(mem, bitmap);
-      RECT probe = {0, 0, kDividerProbeWidth, kDividerProbeHeight};
-      if (SUCCEEDED(DrawThemeBackground(theme, mem, HP_HEADERITEM, HIS_NORMAL, &probe, nullptr))) {
-        const COLORREF edge =
-            GetPixel(mem, kDividerProbeWidth - 1, kDividerProbeHeight / 2);
-        if (edge != CLR_INVALID) {
-          color = edge;
-        }
-      }
-      SelectObject(mem, previous);
-      DeleteObject(bitmap);
-    }
-    DeleteDC(mem);
-  }
-  ReleaseDC(nullptr, screen);
-  CloseThemeData(theme);
-  return color;
-}
 
 void FormatCellFileTime(
     const FILETIME& filetime,
@@ -185,6 +154,9 @@ std::wstring MainWindow::Impl::ListCellFieldText(
         return row.first_text;
       case 3:
         return row.second_text;
+      case 4:
+        return row.matches ? std::wstring(L"Same")
+                           : std::wstring(L"Different");
       default:
         return std::wstring();
       }
@@ -318,13 +290,7 @@ LRESULT MainWindow::Impl::HandleTooltipNotification(
 }
 
 HBRUSH MainWindow::Impl::ValueHeaderSurfaceBrush() const {
-  const COLORREF color = browse_.values().hwnd()
-                             ? ListView_GetBkColor(browse_.values().hwnd())
-                             : CLR_NONE;
-  if (color == CLR_NONE || color == CLR_DEFAULT) {
-    return Theme::Current().PanelBrush();
-  }
-  return appearance::CachedBrush(color);
+  return appearance::ListSurfaceBrush(browse_.values().hwnd());
 }
 
 LRESULT MainWindow::Impl::HandleToolbarNotification(
@@ -340,10 +306,13 @@ LRESULT MainWindow::Impl::HandleToolbarNotification(
       return CDRF_DODEFAULT;
     }
     HWND bar = header->hwndFrom;
+    if (is_grid_bar) {
+      return appearance::PaintGridToolbar(bar, draw, ValueHeaderSurfaceBrush());
+    }
     const Theme& theme = Theme::Current();
     switch (draw->nmcd.dwDrawStage) {
     case CDDS_PREPAINT:
-      FillRect(draw->nmcd.hdc, &draw->nmcd.rc, is_grid_bar ? ValueHeaderSurfaceBrush() : theme.BackgroundBrush());
+      FillRect(draw->nmcd.hdc, &draw->nmcd.rc, theme.BackgroundBrush());
       return CDRF_NOTIFYITEMDRAW;
     case CDDS_ITEMPREPAINT:
       {
@@ -377,10 +346,10 @@ LRESULT MainWindow::Impl::HandleToolbarNotification(
         draw->nHLStringBkMode = TRANSPARENT;
 
         if (is_hovered) {
-          DrawToolbarButtonBackground(draw->nmcd.hdc, draw->nmcd.rc, theme.HoverColor(), is_grid_bar ? theme.HoverColor() : theme.BorderColor());
+          DrawToolbarButtonBackground(draw->nmcd.hdc, draw->nmcd.rc, theme.HoverColor(), theme.BorderColor());
           draw->nmcd.uItemState &= ~(CDIS_HOT | CDIS_CHECKED);
         } else if ((draw->nmcd.uItemState & CDIS_CHECKED) == CDIS_CHECKED) {
-          DrawToolbarButtonBackground(draw->nmcd.hdc, draw->nmcd.rc, theme.SurfaceColor(), is_grid_bar ? theme.SurfaceColor() : theme.BorderColor());
+          DrawToolbarButtonBackground(draw->nmcd.hdc, draw->nmcd.rc, theme.SurfaceColor(), theme.BorderColor());
           draw->nmcd.uItemState &= ~CDIS_CHECKED;
         }
 
@@ -700,7 +669,7 @@ bool MainWindow::Impl::PaintHeaderItem(
   }
   if (state == HIS_NORMAL) {
     if (grid_line_color_ == CLR_INVALID) {
-      grid_line_color_ = HeaderDividerColor(header);
+      grid_line_color_ = appearance::HeaderDividerColor(header);
     }
     FillRect(draw->hdc, &draw->rc, appearance::CachedBrush(ListView_GetBkColor(GetParent(header))));
     RECT divider = {draw->rc.right - 1, draw->rc.top, draw->rc.right, draw->rc.bottom};
@@ -986,45 +955,13 @@ void MainWindow::Impl::PaintValueGridLines(
     int row_height
 ) {
   HWND header = list ? ListView_GetHeader(list) : nullptr;
-  if (!hdc || !header || area.top >= area.bottom) {
+  if (!header) {
     return;
   }
-  RECT header_rect = {};
-  if (!GetWindowRect(header, &header_rect)) {
-    return;
-  }
-  MapWindowPoints(nullptr, list, reinterpret_cast<POINT*>(&header_rect), 2);
-  RECT client = {};
-  GetClientRect(list, &client);
   if (grid_line_color_ == CLR_INVALID) {
-    grid_line_color_ = HeaderDividerColor(header);
+    grid_line_color_ = appearance::HeaderDividerColor(header);
   }
-  HBRUSH brush = appearance::CachedBrush(grid_line_color_);
-
-  const int count = Header_GetItemCount(header);
-  for (int i = 0; i < count; ++i) {
-    RECT item = {};
-    if (!Header_GetItemRect(header, i, &item)) {
-      continue;
-    }
-    const int x = header_rect.left + item.right - 1;
-    if (x < client.left || x >= client.right) {
-      continue;
-    }
-    RECT line = {x, area.top, x + 1, area.bottom};
-    FillRect(hdc, &line, brush);
-  }
-
-  if (row_height <= 0) {
-    return;
-  }
-  for (int y = first_line_y; y < area.bottom; y += row_height) {
-    if (y < area.top) {
-      continue;
-    }
-    RECT line = {client.left, y, client.right, y + 1};
-    FillRect(hdc, &line, brush);
-  }
+  appearance::PaintListGrid(list, hdc, area, first_line_y, row_height, grid_line_color_);
 }
 
 void MainWindow::Impl::PaintValueGridTail(
@@ -1032,31 +969,13 @@ void MainWindow::Impl::PaintValueGridTail(
     HDC hdc
 ) {
   HWND header = list ? ListView_GetHeader(list) : nullptr;
-  if (!hdc || !header) {
+  if (!header) {
     return;
   }
-  RECT client = {};
-  GetClientRect(list, &client);
-  RECT header_rect = {};
-  if (!GetWindowRect(header, &header_rect)) {
-    return;
+  if (grid_line_color_ == CLR_INVALID) {
+    grid_line_color_ = appearance::HeaderDividerColor(header);
   }
-  MapWindowPoints(nullptr, list, reinterpret_cast<POINT*>(&header_rect), 2);
-
-  RECT area = client;
-  area.top = header_rect.bottom;
-  int row_height = 0;
-  const int count = ListView_GetItemCount(list);
-  if (count > 0) {
-    RECT last = {};
-    if (ListView_GetItemRect(list, count - 1, &last, LVIR_BOUNDS)) {
-      row_height = last.bottom - last.top;
-      if (last.bottom > area.top) {
-        area.top = last.bottom;
-      }
-    }
-  }
-  PaintValueGridLines(list, hdc, area, area.top + row_height - 1, row_height);
+  appearance::PaintListGridTail(list, hdc, grid_line_color_);
 }
 
 search::Result* MainWindow::Impl::SearchResultAt(
@@ -1334,6 +1253,11 @@ LRESULT MainWindow::Impl::HandleSearchNotification(
           break;
         case 3:
           set_text(row.second_text);
+          break;
+        case 4:
+          disp->item.pszText = const_cast<wchar_t*>(
+              row.matches ? L"Same" : L"Different"
+          );
           break;
         default:
           break;

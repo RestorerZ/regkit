@@ -14,6 +14,7 @@ namespace regkit::editors {
 
 struct BitfieldRequest {
   std::wstring value_name;
+  std::wstring key_path;
   uint64_t value = 0;
   unsigned bit_count = 32;
   std::span<const BYTE> data;

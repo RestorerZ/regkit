@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/command_detail.h"
+
+#include "editors/bitfield_definition.h"
+
 #include "frame/research_links.h"
 #include "frame/shortcut_bindings.h"
 
@@ -145,6 +148,7 @@ void MainWindow::Impl::BuildMenus() {
   AppendResetDefaultMenu(edit_menu);
   append_menu(edit_menu, MF_STRING, cmd::kEditModifyComment, L"Modify Comment...");
   append_menu(edit_menu, MF_STRING, cmd::kEditDecodeValue, L"Decode Value...");
+  append_menu(edit_menu, MF_STRING, cmd::kEditBits, L"Edit Bits...");
   AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
   append_menu(edit_menu, modify_flags, cmd::kEditUndo, L"Undo");
   append_menu(edit_menu, modify_flags, cmd::kEditRedo, L"Redo");
@@ -294,7 +298,18 @@ void MainWindow::Impl::BuildMenus() {
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(options_menu), L"Options");
 
   HMENU tools_menu = CreatePopupMenu();
-  AppendMenuW(tools_menu, MF_STRING, cmd::kToolsBitfieldDefinitions, L"Bit Definitions...");
+  HMENU bitfield_menu = CreatePopupMenu();
+  AppendMenuW(bitfield_menu, MF_STRING, cmd::kToolsBitfieldDefinitions, L"New Definition File...");
+  const std::vector<editors::bitfield::DefinitionFile>& bitfield_files = editors::bitfield::BundledFiles();
+  if (!bitfield_files.empty()) {
+    AppendMenuW(bitfield_menu, MF_SEPARATOR, 0, nullptr);
+  }
+  for (size_t i = 0; i < bitfield_files.size() && i <= static_cast<size_t>(cmd::kToolsBitfieldFileMax - cmd::kToolsBitfieldFileBase); ++i) {
+    std::wstring label = bitfield_files[i].name.empty() ? FileBaseName(bitfield_files[i].path) : bitfield_files[i].name;
+    label.append(L"   (").append(std::to_wstring(bitfield_files[i].definitions.size())).append(L")");
+    AppendMenuW(bitfield_menu, MF_STRING, cmd::kToolsBitfieldFileBase + i, label.c_str());
+  }
+  AppendMenuW(tools_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(bitfield_menu), L"Bit Definitions");
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(tools_menu), L"Tools");
 
   HMENU window_menu = CreatePopupMenu();

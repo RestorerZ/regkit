@@ -50,7 +50,16 @@ struct FlaggedValueResult {
   std::vector<BYTE> data;
 };
 
+struct BitsRequest {
+  std::wstring value_name;
+  std::wstring key_path;
+  DWORD base_type = REG_DWORD;
+  std::span<const BYTE> data;
+  bool read_only = false;
+};
+
 bool EditText(HWND owner, const TextRequest& request, TextResult* result);
+bool EditValueBits(HWND owner, const BitsRequest& request, std::vector<BYTE>* data);
 bool EditCustomValue(HWND owner, const CustomValueRequest& request, CustomValueResult* result);
 bool EditFlaggedValue(HWND owner, const FlaggedValueRequest& request, FlaggedValueResult* result);
 

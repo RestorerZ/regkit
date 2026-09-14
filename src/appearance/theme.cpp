@@ -1152,12 +1152,13 @@ void Theme::ApplyToComboBox(
       state.release();
     }
   }
+  const wchar_t* theme_name = is_dark_ ? L"CFD" : L"Explorer";
+  AllowDarkModeForWindow(hwnd, is_dark_);
   COMBOBOXINFO info = {sizeof(COMBOBOXINFO)};
   if (GetComboBoxInfo(hwnd, &info) && info.hwndList) {
-    const wchar_t* theme_name = is_dark_ ? L"CFD" : L"Explorer";
+    AllowDarkModeForWindow(info.hwndList, is_dark_);
     SetWindowTheme(info.hwndList, theme_name, nullptr);
   }
-  const wchar_t* theme_name = is_dark_ ? L"CFD" : L"Explorer";
   SetWindowTheme(hwnd, theme_name, nullptr);
   InvalidateRect(hwnd, nullptr, TRUE);
 }

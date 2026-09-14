@@ -158,7 +158,7 @@ void MainWindow::Impl::UpdateStatus() {
     unsigned long long count_value = static_cast<unsigned long long>(count);
     wchar_t buffer[256] = {};
     if (compare_selected) {
-      swprintf_s(buffer, L"Differences: %llu", count_value);
+      swprintf_s(buffer, L"Results: %llu", count_value);
     } else if (search_running_) {
       uint64_t searched = search_progress_searched_.load();
       if (searched > 0) {
@@ -266,6 +266,18 @@ bool MainWindow::Impl::IsCompareTabSelected() const {
     return false;
   }
   return search_tabs_[static_cast<size_t>(search_index)].is_compare;
+}
+
+bool MainWindow::Impl::IsCompareResultColumnAvailable() const {
+  if (!tab_) {
+    return false;
+  }
+  const int search_index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
+  return search_index >= 0 &&
+         static_cast<size_t>(search_index) < search_tabs_.size() &&
+         search_tabs_[static_cast<size_t>(search_index)].is_compare &&
+         search_tabs_[static_cast<size_t>(search_index)].compare_filter ==
+             search::compare::RowFilter::kAll;
 }
 
 bool MainWindow::Impl::IsSearchTabIndex(
@@ -378,13 +390,16 @@ void MainWindow::Impl::UpdateSearchResultsView() {
   search_results_view_tab_index_ = sel;
   auto& tab = search_tabs_[static_cast<size_t>(search_index)];
   bool compare = tab.is_compare;
-  if (compare != compare_columns_active_) {
+  const bool show_result = compare &&
+                           tab.compare_filter == search::compare::RowFilter::kAll;
+  if (compare != compare_columns_active_ ||
+      show_result != compare_result_column_active_) {
     ApplySearchColumns(compare);
     force_redraw = true;
   } else if (compare && force_redraw) {
     RefreshCompareColumnTitles();
   }
-  int max_sort_col = compare ? 3 : 5;
+  int max_sort_col = compare ? (show_result ? 4 : 3) : 5;
   if (tab.sort_column > max_sort_col) {
     tab.sort_column = -1;
   }

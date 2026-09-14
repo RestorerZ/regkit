@@ -41,6 +41,16 @@ std::wstring SearchResultIdentity(
   return std::to_wstring(result.row_id);
 }
 
+std::wstring CompareRowIdentity(
+    const search::compare::Row& row
+) {
+  std::wstring key = row.is_key ? L"1" : L"0";
+  AppendIdentityPart(&key, row.first_key_path);
+  AppendIdentityPart(&key, row.second_key_path);
+  AppendIdentityPart(&key, row.value_name);
+  return key;
+}
+
 std::wstring HistoryEntryIdentity(
     const HistoryEntry& entry
 ) {
@@ -258,7 +268,15 @@ void MainWindow::Impl::SortSearchResults(
   EnsureSearchTabResultsLoaded(index);
   auto& tab = search_tabs_[static_cast<size_t>(index)];
   auto search_key_at = [&tab](int row) {
-    return row >= 0 && static_cast<size_t>(row) < tab.results.size()
+    if (row < 0) {
+      return std::wstring();
+    }
+    if (tab.is_compare) {
+      return static_cast<size_t>(row) < tab.compare_rows.size()
+                 ? CompareRowIdentity(tab.compare_rows[static_cast<size_t>(row)])
+                 : std::wstring();
+    }
+    return static_cast<size_t>(row) < tab.results.size()
                ? SearchResultIdentity(tab.results[static_cast<size_t>(row)])
                : std::wstring();
   };

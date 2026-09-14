@@ -20,10 +20,9 @@ constexpr int kMaxDepth = 8;
 
 enum FileMember {
   kFileFormat = 1 << 0,
-  kFileVersion = 1 << 1,
-  kFileName = 1 << 2,
-  kFileComment = 1 << 3,
-  kFileDefinitions = 1 << 4,
+  kFileName = 1 << 1,
+  kFileComment = 1 << 2,
+  kFileDefinitions = 1 << 3,
 };
 
 enum DefinitionMember {
@@ -648,15 +647,6 @@ bool Parser::ReadFile(
       if (format != kFormat) {
         return Fail(L"The file is not a RegKit bitfield definition.");
       }
-    } else if (member == L"version") {
-      flag = kFileVersion;
-      uint64_t version = 0;
-      if (!ReadUnsigned(&version)) {
-        return false;
-      }
-      if (version != 2) {
-        return Fail(L"Only version 2 definition files are supported.");
-      }
     } else if (member == L"name") {
       flag = kFileName;
       if (!ReadString(&file->name, kMaxNameLength)) {
@@ -693,7 +683,7 @@ bool Parser::ReadFile(
   if (*ptr_ != L'\0') {
     return Fail(L"The definition file contains trailing content.");
   }
-  constexpr unsigned required = kFileFormat | kFileVersion | kFileDefinitions;
+  constexpr unsigned required = kFileFormat | kFileDefinitions;
   if ((seen & required) != required) {
     return Fail(L"The file is missing a required member.");
   }
@@ -1108,7 +1098,6 @@ std::wstring Serialize(
 ) {
   std::wstring out;
   out.append(L"{\n  \"format\": \"").append(kFormat).append(L"\",\n");
-  out.append(L"  \"version\": 2,\n");
   if (!file.name.empty()) {
     AppendMember(&out, L"  ", L"name", file.name);
     out.append(L",\n");

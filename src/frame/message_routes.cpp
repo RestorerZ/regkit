@@ -1152,6 +1152,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(
       EnableMenuItem(menu, cmd::kEditModifyBinary, MF_BYCOMMAND | open_state);
       EnableMenuItem(menu, cmd::kEditChangeType, MF_BYCOMMAND | open_state);
       EnableMenuItem(menu, cmd::kEditDecodeValue, MF_BYCOMMAND | open_state);
+      EnableMenuItem(menu, cmd::kEditBits, MF_BYCOMMAND | open_state);
       EnableMenuItem(menu, cmd::kEditModifyComment, MF_BYCOMMAND | open_state);
       EnableMenuItem(menu, cmd::kEditCopyValueName, MF_BYCOMMAND | open_state);
       EnableMenuItem(menu, cmd::kEditCopyValueData, MF_BYCOMMAND | open_state);

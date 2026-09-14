@@ -106,6 +106,8 @@ void ParseTaggedFields(
       tab->value_top_index = _wtoi(value.c_str());
     } else if (key == L"cmp") {
       tab->is_compare = _wtoi(value.c_str()) != 0;
+    } else if (key == L"cmpf") {
+      tab->compare_filter = _wtoi(value.c_str());
     } else if (key == L"s1k") {
       tab->first_source_kind = _wtoi(value.c_str());
     } else if (key == L"s1f") {
@@ -200,6 +202,7 @@ std::wstring SerializeTabs(
     AppendNumber(&content, L"mode=", tab.registry_mode);
     AppendNumber(&content, L"top=", tab.value_top_index);
     AppendNumber(&content, L"cmp=", tab.is_compare ? 1 : 0);
+    AppendNumber(&content, L"cmpf=", tab.compare_filter);
     AppendNumber(&content, L"s1k=", tab.first_source_kind);
     AppendField(&content, L"s1f=", tab.first_source_file);
     AppendNumber(&content, L"s2k=", tab.second_source_kind);

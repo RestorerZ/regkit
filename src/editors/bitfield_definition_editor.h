@@ -8,6 +8,7 @@
 namespace regkit::editors {
 
 bool EditBitfieldDefinition(HWND owner, bitfield::Definition* definition, bool lock_width);
-void ShowBitfieldDefinitionEditor(HWND owner);
+bool EditBitfieldField(HWND owner, const bitfield::Definition& parent, int editing, bitfield::Field* field);
+void ShowBitfieldDefinitionEditor(HWND owner, const std::wstring& path);
 
 } // namespace regkit::editors

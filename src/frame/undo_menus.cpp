@@ -427,6 +427,7 @@ void MainWindow::Impl::ShowSearchHeaderMenu(
     return;
   }
   bool compare = IsCompareTabSelected();
+  const bool result_available = compare && IsCompareResultColumnAvailable();
   auto& columns = compare ? compare_columns_ : search_columns_;
   auto& widths = compare ? compare_column_widths_ : search_column_widths_;
   auto& visible = compare ? compare_column_visible_ : search_column_visible_;
@@ -443,6 +444,9 @@ void MainWindow::Impl::ShowSearchHeaderMenu(
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
   for (size_t i = 0; i < columns.size(); ++i) {
+    if (compare && i == 4 && !result_available) {
+      continue;
+    }
     UINT state = (i < visible.size() && visible[i]) ? MF_CHECKED : MF_UNCHECKED;
     AppendMenuW(menu, MF_STRING | state, cmd::kHeaderToggleBase + static_cast<int>(i), columns[i].title.c_str());
   }
@@ -459,8 +463,19 @@ void MainWindow::Impl::ShowSearchHeaderMenu(
     return;
   }
   if (command == cmd::kHeaderSizeAll) {
-    int last_visible = FindLastVisibleColumn(visible);
+    int last_visible = -1;
     for (size_t i = 0; i < columns.size(); ++i) {
+      if (compare && i == 4 && !result_available) {
+        continue;
+      }
+      if (i >= visible.size() || visible[i]) {
+        last_visible = static_cast<int>(i);
+      }
+    }
+    for (size_t i = 0; i < columns.size(); ++i) {
+      if (compare && i == 4 && !result_available) {
+        continue;
+      }
       if (i < visible.size() && !visible[i]) {
         continue;
       }

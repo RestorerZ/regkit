@@ -22,6 +22,7 @@ struct Row {
   std::wstring first_text;
   std::wstring second_text;
   bool is_key = false;
+  bool matches = false;
 };
 
 struct Value {
@@ -41,6 +42,12 @@ struct Snapshot {
   std::unordered_map<std::wstring, Key> keys;
 };
 
+enum class RowFilter {
+  kDifferences,
+  kMatches,
+  kAll,
+};
+
 using NormalizePath =
     std::function<std::wstring(const std::wstring& path)>;
 
@@ -50,7 +57,7 @@ bool LoadRegFile(const std::wstring& file_path, const std::wstring& base_path, b
 
 void SortRows(std::vector<Row>* rows, int column, bool ascending);
 
-std::vector<Row> Diff(const Snapshot& first, const Snapshot& second, std::atomic_bool* cancel = nullptr);
+std::vector<Row> BuildRows(const Snapshot& first, const Snapshot& second, RowFilter filter = RowFilter::kDifferences, std::atomic_bool* cancel = nullptr);
 
 std::wstring SerializeRows(const std::vector<Row>& rows);
 bool ParseRows(const std::wstring& content, std::vector<Row>* rows);

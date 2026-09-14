@@ -260,6 +260,7 @@ void MainWindow::Impl::CreateSearchColumns() {
       {L"Value", 180, LVCFMT_LEFT},
       {L"First Entry", 320, LVCFMT_LEFT},
       {L"Second Entry", 320, LVCFMT_LEFT},
+      {L"Result", 90, LVCFMT_LEFT},
   };
   compare_column_titles_ = {compare_columns_[2].title, compare_columns_[3].title};
   compare_column_widths_.clear();
@@ -330,8 +331,12 @@ void MainWindow::Impl::ApplySearchColumns(
   }
 
   search_column_subitems_.clear();
+  const bool result_available = compare && IsCompareResultColumnAvailable();
   int insert_index = 0;
   for (size_t i = 0; i < columns.size(); ++i) {
+    if (compare && i == 4 && !result_available) {
+      continue;
+    }
     if (i < visible.size() && !visible[i]) {
       continue;
     }
@@ -357,6 +362,7 @@ void MainWindow::Impl::ApplySearchColumns(
   SendMessageW(search_results_list_, WM_SETREDRAW, TRUE, 0);
   RedrawWindow(search_results_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
   compare_columns_active_ = compare;
+  compare_result_column_active_ = result_available;
 }
 
 void MainWindow::Impl::UpdateValueListForNode(

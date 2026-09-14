@@ -345,6 +345,7 @@ void MainWindow::Impl::ShowValueContextMenu(
     AppendResetDefaultMenu(menu);
     AppendMenuW(menu, comment_flags, cmd::kEditModifyComment, L"Modify Comment...");
     AppendMenuW(menu, single_flags, cmd::kEditDecodeValue, L"Decode Value...");
+    AppendMenuW(menu, single_flags, cmd::kEditBits, L"Edit Bits...");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, single_flags, cmd::kEditCopyValueName, L"Copy Value Name");
     AppendMenuW(menu, single_flags, cmd::kEditCopyValueData, L"Copy Value Data");

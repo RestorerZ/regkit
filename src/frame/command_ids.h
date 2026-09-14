@@ -57,6 +57,7 @@ constexpr int kEditCopyValueData = 2137;
 constexpr int kEditInvertSelection = 2138;
 constexpr int kEditDecodeValue = 2139;
 constexpr int kToolsBitfieldDefinitions = 2140;
+constexpr int kEditBits = 2141;
 
 constexpr int kRegistryLocal = 2120;
 constexpr int kRegistryNetwork = 2121;
@@ -171,6 +172,9 @@ constexpr int kResetDefaultMax = 2959;
 
 constexpr int kRegeditFavoriteBase = 3000;
 constexpr int kRegeditFavoriteMax = 3999;
+
+constexpr int kToolsBitfieldFileBase = 2830;
+constexpr int kToolsBitfieldFileMax = 2879;
 
 constexpr int kResearchItemBase = 2800;
 constexpr int kResearchItemMax = 2821;
