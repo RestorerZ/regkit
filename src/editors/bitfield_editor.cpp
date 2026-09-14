@@ -61,8 +61,12 @@ struct Editor {
   HFONT ui_font = nullptr;
   appearance::DialogResizer resizer;
 
-  Definition& definition() { return choices[static_cast<size_t>(choice)]; }
-  const Definition& definition() const { return choices[static_cast<size_t>(choice)]; }
+  Definition& definition() {
+    return choices[static_cast<size_t>(choice)];
+  }
+  const Definition& definition() const {
+    return choices[static_cast<size_t>(choice)];
+  }
 };
 
 uint64_t ReadWindow(

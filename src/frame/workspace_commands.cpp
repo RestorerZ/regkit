@@ -46,6 +46,7 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(
   case cmd::kOptionsEditContextMenu:
   case cmd::kOptionsSingleInstance:
   case cmd::kOptionsHiveFileDir:
+  case cmd::kOptionsResetSettings:
   case cmd::kHelpAbout:
   case cmd::kHelpContents:
   case cmd::kHelpCheckUpdates:
@@ -207,6 +208,19 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(
     return true;
   case cmd::kOptionsHiveFileDir:
     OpenHiveFileDir();
+    return true;
+  case cmd::kOptionsResetSettings:
+    if (ui::PromptChoice(
+            hwnd_,
+            L"Reset all settings and restart RegKit?",
+            L"Reset settings",
+            L"Reset",
+            L"",
+            L"Cancel"
+        ) == IDYES) {
+      reset_settings_on_close_ = true;
+      PostMessageW(hwnd_, WM_CLOSE, 0, 0);
+    }
     return true;
   case cmd::kHelpAbout:
     ui::ShowAbout(hwnd_);

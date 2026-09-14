@@ -53,6 +53,14 @@ std::wstring RestartArguments(
     const wchar_t* target_arg,
     DWORD parent_pid
 ) {
+  return RestartArguments(target_arg, parent_pid, true);
+}
+
+std::wstring RestartArguments(
+    const wchar_t* target_arg,
+    DWORD parent_pid,
+    bool restore_session
+) {
   std::wstring arguments;
   if (target_arg && *target_arg) {
     arguments = target_arg;
@@ -73,8 +81,10 @@ std::wstring RestartArguments(
     arguments += kRestartDataDirArg;
     arguments.push_back(L' ');
     arguments += QuoteArgument(data_dir);
-    arguments.push_back(L' ');
-    arguments += kRestartSessionArg;
+    if (restore_session) {
+      arguments.push_back(L' ');
+      arguments += kRestartSessionArg;
+    }
   }
   return arguments;
 }

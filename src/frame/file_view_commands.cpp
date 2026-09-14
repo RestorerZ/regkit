@@ -316,6 +316,41 @@ bool MainWindow::Impl::HandleFileCommand(
     SaveSettings();
     BuildMenus();
     return true;
+  case cmd::kFileClearCacheAll:
+  case cmd::kFileClearCacheTabs:
+  case cmd::kFileClearCacheHistory:
+  case cmd::kFileClearCacheSearchHistory:
+  case cmd::kFileClearCacheTreeState:
+  case cmd::kFileClearCacheTemporary:
+    {
+      CacheKind kind = CacheKind::kAll;
+      switch (command_id) {
+      case cmd::kFileClearCacheTabs:
+        kind = CacheKind::kTabs;
+        break;
+      case cmd::kFileClearCacheHistory:
+        kind = CacheKind::kHistory;
+        break;
+      case cmd::kFileClearCacheSearchHistory:
+        kind = CacheKind::kSearchHistory;
+        break;
+      case cmd::kFileClearCacheTreeState:
+        kind = CacheKind::kTreeState;
+        break;
+      case cmd::kFileClearCacheTemporary:
+        kind = CacheKind::kTemporary;
+        break;
+      default:
+        break;
+      }
+      cache_clear_on_close_ = kind;
+      PostMessageW(hwnd_, WM_CLOSE, 0, 0);
+      return true;
+    }
+  case cmd::kFileRestart:
+    restart_on_close_ = true;
+    PostMessageW(hwnd_, WM_CLOSE, 0, 0);
+    return true;
   default:
     return false;
   }

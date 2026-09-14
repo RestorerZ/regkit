@@ -91,6 +91,91 @@ void MainWindow::Impl::PrepareSessionHandover() {
   SaveSettings();
 }
 
+bool MainWindow::Impl::RestartCurrentInstance() {
+  CaptureRegistryTabState(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
+  if (!SaveSessionTabs()) {
+    ui::ShowError(hwnd_, L"The current session couldn't be saved for the restart.");
+    return false;
+  }
+  SaveSettings();
+  if (!ui::LaunchNewInstance(
+          win32::RestartArguments(nullptr, GetCurrentProcessId())
+      )) {
+    ui::ShowError(hwnd_, L"RegKit couldn't be restarted.");
+    return false;
+  }
+  return true;
+}
+
+bool MainWindow::Impl::RestartAfterCacheClear(
+    CacheKind kind
+) {
+  const bool restore_session =
+      kind != CacheKind::kAll && kind != CacheKind::kTabs;
+  if (restore_session) {
+    CaptureRegistryTabState(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
+    if (!SaveSessionTabs()) {
+      ui::ShowError(hwnd_, L"The current session couldn't be saved for the restart.");
+      return false;
+    }
+  }
+  SaveSettings();
+  if (!ClearCache(kind, false)) {
+    if ((kind == CacheKind::kAll || kind == CacheKind::kTreeState) &&
+        save_tree_state_) {
+      StartTreeStateWorker();
+    }
+    BuildMenus();
+    ui::ShowError(hwnd_, L"One or more cache files couldn't be removed.");
+    return false;
+  }
+  if (!ui::LaunchNewInstance(
+          win32::RestartArguments(
+              nullptr,
+              GetCurrentProcessId(),
+              restore_session
+          )
+      )) {
+    if ((kind == CacheKind::kAll || kind == CacheKind::kTreeState) &&
+        save_tree_state_) {
+      StartTreeStateWorker();
+    }
+    BuildMenus();
+    ui::ShowError(hwnd_, L"RegKit couldn't be restarted.");
+    return false;
+  }
+  restart_on_close_ = true;
+  return true;
+}
+
+bool MainWindow::Impl::RestartAfterSettingsReset() {
+  CaptureRegistryTabState(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
+  if (!SaveSessionTabs()) {
+    ui::ShowError(hwnd_, L"The current session couldn't be saved for the restart.");
+    return false;
+  }
+  const std::wstring path = SettingsPath();
+  if (path.empty()) {
+    ui::ShowError(hwnd_, L"Failed to find the settings file.");
+    return false;
+  }
+  if (DeleteFileW(path.c_str()) == 0) {
+    const DWORD error = GetLastError();
+    if (error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND) {
+      ui::ShowError(hwnd_, L"The settings file couldn't be removed.\n" + FormatWin32Error(error));
+      return false;
+    }
+  }
+  if (!ui::LaunchNewInstance(
+          win32::RestartArguments(nullptr, GetCurrentProcessId())
+      )) {
+    SaveSettings();
+    ui::ShowError(hwnd_, L"RegKit couldn't be restarted.");
+    return false;
+  }
+  return true;
+}
+
 bool MainWindow::Impl::RestartAsAdmin() {
   PrepareSessionHandover();
   if (util::IsProcessSystem() || util::IsProcessTrustedInstaller()) {
@@ -148,7 +233,10 @@ void MainWindow::Impl::ReplaceRegedit(
     );
     if (choice == IDYES) {
       result = win32::SetRegeditReplacement(
-          exe_path, true, nullptr, true
+          exe_path,
+          true,
+          nullptr,
+          true
       );
       conflict = false;
     } else {

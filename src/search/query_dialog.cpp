@@ -137,7 +137,7 @@ HFONT CreateDialogFont(
 }
 
 std::wstring SearchHistoryPath() {
-  std::wstring folder = util::GetAppDataFolder();
+  std::wstring folder = util::GetCacheFolder();
   if (folder.empty()) {
     return L"";
   }

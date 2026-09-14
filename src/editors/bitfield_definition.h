@@ -53,7 +53,9 @@ struct Definition {
   const Field* FieldForBit(unsigned bit) const;
   int FieldIndexForBit(unsigned bit) const;
   bool MatchesPath(const std::wstring& key_path) const;
-  unsigned byte_count() const { return bit_width / 8; }
+  unsigned byte_count() const {
+    return bit_width / 8;
+  }
 };
 
 struct DefinitionFile {

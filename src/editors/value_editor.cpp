@@ -498,7 +498,6 @@ bool ParseNumberValue(
   return true;
 }
 
-
 void RunBitfieldEditor(
     HWND dlg,
     const std::wstring& value_name,

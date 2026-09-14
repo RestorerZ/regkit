@@ -68,6 +68,14 @@ private:
     kRemote,
     kOffline,
   };
+  enum class CacheKind {
+    kAll,
+    kTabs,
+    kHistory,
+    kSearchHistory,
+    kTreeState,
+    kTemporary,
+  };
   enum class RegistryPathFormat {
     kFull,
     kAbbrev,
@@ -345,6 +353,7 @@ private:
   void RefreshRegeditFavoritesMenu();
   void RefreshBundledDefaultsCache();
   void BuildMenus();
+  void RefreshStorageMenuState(HMENU menu);
   void BuildAccelerators();
   std::wstring CommandShortcutText(int command_id) const;
   std::wstring CommandTooltipText(int command_id) const;
@@ -442,7 +451,8 @@ private:
   bool SaveTabState(const std::wstring& path, int kinds);
   int TabSaveKind(const TabEntry& entry) const;
   std::wstring SessionCachePath() const;
-  void ClearTabsCache();
+  bool ClearTabsCache();
+  bool ClearCache(CacheKind kind, bool resume_tree_worker);
   bool EnsureSearchTabResultsLoaded(int search_index);
   void StartStartupCacheLoad(bool include_tree_state);
   void StopStartupCacheLoad();
@@ -455,6 +465,9 @@ private:
   bool EditValueComments(const std::vector<ListRow>& rows);
   bool RestartAsAdmin();
   bool RestartAsUser();
+  bool RestartCurrentInstance();
+  bool RestartAfterCacheClear(CacheKind kind);
+  bool RestartAfterSettingsReset();
   void PrepareSessionHandover();
   bool RestartAsSystem();
   bool RestartAsTrustedInstaller();
@@ -669,6 +682,9 @@ private:
   bool value_list_loading_ = false;
   std::atomic<uint64_t> value_list_generation_{0};
   bool applying_theme_ = false;
+  bool restart_on_close_ = false;
+  bool reset_settings_on_close_ = false;
+  std::optional<CacheKind> cache_clear_on_close_;
   bool history_loaded_ = false;
   bool history_cache_failed_ = false;
   std::wstring status_message_;

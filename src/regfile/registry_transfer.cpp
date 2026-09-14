@@ -442,11 +442,7 @@ std::wstring MakeTempRegPath(
     std::wstring* error
 ) {
   static std::atomic<unsigned long> serial{0};
-  std::wstring folder = util::GetAppDataFolder();
-  if (!folder.empty()) {
-    folder = util::JoinPath(folder, L"cache");
-    SHCreateDirectoryExW(nullptr, folder.c_str(), nullptr);
-  }
+  std::wstring folder = util::GetCacheFolder();
   if (folder.empty()) {
     if (error) {
       *error = L"Failed to locate the RegKit data folder.";

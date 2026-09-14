@@ -19,6 +19,13 @@ constexpr int kFileImportComments = 2008;
 constexpr int kFileExportComments = 2009;
 constexpr int kFileSave = 2017;
 constexpr int kFileOpenRegFile = 2018;
+constexpr int kFileClearCacheAll = 2020;
+constexpr int kFileClearCacheTabs = 2021;
+constexpr int kFileClearCacheHistory = 2022;
+constexpr int kFileClearCacheSearchHistory = 2023;
+constexpr int kFileClearCacheTreeState = 2024;
+constexpr int kFileClearCacheTemporary = 2025;
+constexpr int kFileRestart = 2026;
 
 constexpr int kNewKey = 2010;
 constexpr int kNewString = 2011;
@@ -138,6 +145,7 @@ constexpr int kOptionsIconSetCustom = 2473;
 constexpr int kHistoryOpenTarget = 2481;
 constexpr int kHistoryRevert = 2482;
 constexpr int kHistoryRemove = 2483;
+constexpr int kOptionsResetSettings = 2484;
 
 constexpr int kHelpAbout = 2500;
 constexpr int kHelpContents = 2501;

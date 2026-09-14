@@ -25,6 +25,7 @@ std::wstring RestartDataDir(const std::vector<std::wstring>& args);
 bool RestoreSessionRequested();
 
 std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid);
+std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid, bool restore_session);
 std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid, const std::vector<std::wstring>& original_args);
 
 HRESULT LaunchElevated(HWND owner, const std::wstring& exe, const std::wstring& arguments);

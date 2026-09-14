@@ -36,7 +36,7 @@ struct ChoiceButtonWidths {
 int PromptKeyChoice(HWND owner, const std::wstring& message, const std::wstring& key_path, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths = {});
 int PromptChoice(HWND owner, const std::wstring& message, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths = {}, int width = 420);
 bool ReportFileDialogResult(HWND owner, HRESULT hr);
-bool LaunchNewInstance();
+bool LaunchNewInstance(const std::wstring& arguments = std::wstring());
 
 } // namespace ui
 } // namespace regkit

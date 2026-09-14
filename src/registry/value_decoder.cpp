@@ -706,8 +706,7 @@ Decoded DecodeAddress(
 ) {
   const size_t expected = ipv6 ? sizeof(IN6_ADDR) : sizeof(IN_ADDR);
   if (size != expected) {
-    return Failure(ipv6 ? L"An IPv6 address needs exactly 16 bytes."
-                        : L"An IPv4 address needs exactly 4 bytes.");
+    return Failure(ipv6 ? L"An IPv6 address needs exactly 16 bytes." : L"An IPv4 address needs exactly 4 bytes.");
   }
   wchar_t text[INET6_ADDRSTRLEN] = {};
   if (ipv6) {

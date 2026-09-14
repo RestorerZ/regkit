@@ -66,7 +66,9 @@ bool ContainsInsensitive(
 
 class Parser {
 public:
-  Parser(const wchar_t* text, std::wstring* error) : ptr_(text), error_(error) {}
+  Parser(const wchar_t* text, std::wstring* error)
+      : ptr_(text), error_(error) {
+  }
 
   bool ReadFile(DefinitionFile* file);
 
@@ -86,7 +88,9 @@ private:
   bool ReadDefinitions(std::vector<Definition>* definitions);
   bool Hex4(unsigned* out);
   bool Enter();
-  void Leave() { --depth_; }
+  void Leave() {
+    --depth_;
+  }
 
   const wchar_t* ptr_ = nullptr;
   std::wstring* error_ = nullptr;

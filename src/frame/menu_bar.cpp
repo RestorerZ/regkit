@@ -13,6 +13,103 @@
 namespace regkit {
 using namespace command_detail;
 
+namespace {
+
+struct CacheAvailability {
+  bool any = false;
+  bool tabs = false;
+  bool history = false;
+  bool search_history = false;
+  bool tree_state = false;
+  bool temporary = false;
+};
+
+bool HasCachePattern(
+    const wchar_t* name,
+    const wchar_t* prefix,
+    const wchar_t* suffix
+) {
+  if (!name || !prefix || !suffix) {
+    return false;
+  }
+  const size_t name_length = wcslen(name);
+  const size_t prefix_length = wcslen(prefix);
+  const size_t suffix_length = wcslen(suffix);
+  return name_length >= prefix_length + suffix_length &&
+         _wcsnicmp(name, prefix, prefix_length) == 0 &&
+         _wcsicmp(name + name_length - suffix_length, suffix) == 0;
+}
+
+CacheAvailability InspectCacheFiles(
+    const std::wstring& folder
+) {
+  CacheAvailability available;
+  if (folder.empty()) {
+    return available;
+  }
+  WIN32_FIND_DATAW data = {};
+  HANDLE find = FindFirstFileW(util::JoinPath(folder, L"*").c_str(), &data);
+  if (find == INVALID_HANDLE_VALUE) {
+    return available;
+  }
+  do {
+    if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      continue;
+    }
+    available.any = true;
+    const wchar_t* name = data.cFileName;
+    available.tabs =
+        available.tabs ||
+        _wcsicmp(name, L"tabs.ini") == 0 ||
+        _wcsicmp(name, L"session.ini") == 0 ||
+        HasCachePattern(name, L"search_", L".tsv") ||
+        HasCachePattern(name, L"compare_", L".tsv");
+    available.history =
+        available.history || _wcsicmp(name, L"history.tsv") == 0;
+    available.search_history =
+        available.search_history ||
+        _wcsicmp(name, L"search_history.txt") == 0;
+    available.tree_state =
+        available.tree_state || _wcsicmp(name, L"tree_state.ini") == 0;
+    available.temporary =
+        available.temporary || HasCachePattern(name, L"export_", L".reg");
+  } while (FindNextFileW(find, &data) != 0);
+  FindClose(find);
+  return available;
+}
+
+UINT AvailabilityFlags(
+    bool available
+) {
+  return MF_STRING | (available ? 0 : MF_GRAYED);
+}
+
+bool FileIsAvailable(
+    const std::wstring& path
+) {
+  if (path.empty()) {
+    return false;
+  }
+  const DWORD attributes = GetFileAttributesW(path.c_str());
+  return attributes != INVALID_FILE_ATTRIBUTES &&
+         (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
+}
+
+bool MenuHasDirectCommand(
+    HMENU menu,
+    UINT command
+) {
+  const int count = menu ? GetMenuItemCount(menu) : 0;
+  for (int position = 0; position < count; ++position) {
+    if (GetMenuItemID(menu, position) == command) {
+      return true;
+    }
+  }
+  return false;
+}
+
+} // namespace
+
 std::wstring MainWindow::Impl::CommandShortcutText(
     int command_id
 ) const {
@@ -71,6 +168,82 @@ bool MainWindow::Impl::EnsureWritable() {
   }
   ui::ShowWarning(hwnd_, L"Read only mode is enabled.");
   return false;
+}
+
+void MainWindow::Impl::RefreshStorageMenuState(
+    HMENU menu
+) {
+  if (!menu) {
+    return;
+  }
+  HMENU clear_menu = nullptr;
+  int clear_position = -1;
+  if (MenuHasDirectCommand(menu, cmd::kFileClearCacheAll)) {
+    clear_menu = menu;
+  } else {
+    const int count = GetMenuItemCount(menu);
+    for (int position = 0; position < count; ++position) {
+      HMENU child = GetSubMenu(menu, position);
+      if (MenuHasDirectCommand(child, cmd::kFileClearCacheAll)) {
+        clear_menu = child;
+        clear_position = position;
+        break;
+      }
+    }
+  }
+  const bool has_reset =
+      MenuHasDirectCommand(menu, cmd::kOptionsResetSettings);
+  if (!clear_menu && !has_reset) {
+    return;
+  }
+  if (clear_menu) {
+    const CacheAvailability cache = InspectCacheFiles(CacheFolderPath());
+    EnableMenuItem(
+        clear_menu,
+        cmd::kFileClearCacheAll,
+        MF_BYCOMMAND | (cache.any ? MF_ENABLED : MF_GRAYED)
+    );
+    EnableMenuItem(
+        clear_menu,
+        cmd::kFileClearCacheTabs,
+        MF_BYCOMMAND | (cache.tabs ? MF_ENABLED : MF_GRAYED)
+    );
+    EnableMenuItem(
+        clear_menu,
+        cmd::kFileClearCacheHistory,
+        MF_BYCOMMAND | (cache.history ? MF_ENABLED : MF_GRAYED)
+    );
+    EnableMenuItem(
+        clear_menu,
+        cmd::kFileClearCacheSearchHistory,
+        MF_BYCOMMAND | (cache.search_history ? MF_ENABLED : MF_GRAYED)
+    );
+    EnableMenuItem(
+        clear_menu,
+        cmd::kFileClearCacheTreeState,
+        MF_BYCOMMAND | (cache.tree_state ? MF_ENABLED : MF_GRAYED)
+    );
+    EnableMenuItem(
+        clear_menu,
+        cmd::kFileClearCacheTemporary,
+        MF_BYCOMMAND | (cache.temporary ? MF_ENABLED : MF_GRAYED)
+    );
+    if (clear_position >= 0) {
+      EnableMenuItem(
+          menu,
+          clear_position,
+          MF_BYPOSITION | (cache.any ? MF_ENABLED : MF_GRAYED)
+      );
+    }
+  }
+  if (has_reset) {
+    EnableMenuItem(
+        menu,
+        cmd::kOptionsResetSettings,
+        MF_BYCOMMAND |
+            (FileIsAvailable(SettingsPath()) ? MF_ENABLED : MF_GRAYED)
+    );
+  }
 }
 
 void MainWindow::Impl::BuildMenus() {
@@ -136,7 +309,18 @@ void MainWindow::Impl::BuildMenus() {
   append_menu(file_menu, clear_flags, cmd::kFileClearHistoryOnExit, L"Clear History on Exit");
   UINT clear_tabs_flags = MF_STRING | (clear_tabs_on_exit_ ? MF_CHECKED : MF_UNCHECKED);
   append_menu(file_menu, clear_tabs_flags, cmd::kFileClearTabsOnExit, L"Clear Tabs on Exit");
+  const CacheAvailability cache = InspectCacheFiles(CacheFolderPath());
+  HMENU clear_cache_menu = CreatePopupMenu();
+  AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.any), cmd::kFileClearCacheAll, L"Clear All");
+  AppendMenuW(clear_cache_menu, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.tabs), cmd::kFileClearCacheTabs, L"Tab Sessions");
+  AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.history), cmd::kFileClearCacheHistory, L"Change History");
+  AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.search_history), cmd::kFileClearCacheSearchHistory, L"Search History");
+  AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.tree_state), cmd::kFileClearCacheTreeState, L"Tree State");
+  AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.temporary), cmd::kFileClearCacheTemporary, L"Temporary Files");
+  AppendMenuW(file_menu, MF_POPUP | (cache.any ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(clear_cache_menu), L"Clear Caches");
   AppendMenuW(file_menu, MF_SEPARATOR, 0, nullptr);
+  append_menu(file_menu, MF_STRING, cmd::kFileRestart, L"Restart");
   append_menu(file_menu, MF_STRING, cmd::kFileExit, L"Exit");
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(file_menu), L"&File");
 
@@ -276,6 +460,8 @@ void MainWindow::Impl::BuildMenus() {
   AppendMenuW(options_menu, MF_POPUP | (save_tab_kinds_ != 0 ? MF_CHECKED : MF_UNCHECKED), reinterpret_cast<UINT_PTR>(save_tabs_menu), L"Save Tabs");
   AppendMenuW(options_menu, MF_STRING | (read_only_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReadOnly, L"Read Only Mode");
   AppendMenuW(options_menu, MF_STRING | (save_tree_state_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewSaveTreeState, L"Save Previous Tree State");
+  AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(options_menu, AvailabilityFlags(FileIsAvailable(SettingsPath())), cmd::kOptionsResetSettings, L"Reset Settings...");
   HMENU favorites_menu = CreatePopupMenu();
   AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesAdd, L"Add to Favorites...");
   AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesRemove, L"Remove Favorite");
@@ -472,7 +658,9 @@ void MainWindow::Impl::RefreshRegeditFavoritesMenu() {
   while (GetMenuItemCount(regedit_favorites_menu_) >
          regedit_favorites_static_count_) {
     DeleteMenu(
-        regedit_favorites_menu_, regedit_favorites_static_count_, MF_BYPOSITION
+        regedit_favorites_menu_,
+        regedit_favorites_static_count_,
+        MF_BYPOSITION
     );
   }
   regedit_favorites_.clear();

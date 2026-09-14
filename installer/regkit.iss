@@ -51,12 +51,14 @@ Name: "desktopicon"; Description: "Desktop shortcut"; GroupDescription: "Shortcu
 Name: "replace_regedit"; Description: "Replace Regedit"; GroupDescription: "Integration:"; Check: IsAdminInstallMode
 Name: "edit_context_menu"; Description: "Add ""Edit"" Context Menu"; GroupDescription: "Integration:"; Flags: checkedonce
 Name: "defaults"; Description: "Install registry exports used by the Default menu (~200 MB)"; GroupDescription: "Optional data:"
+Name: "bitfields"; Description: "Install bitfield definitions"; GroupDescription: "Optional data:"
 
 [Files]
 Source: "{#BuildDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\offreg.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BuildDir}\assets\*"; DestDir: "{app}\assets"; Excludes: "defaults\*,records\*"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#BuildDir}\assets\*"; DestDir: "{app}\assets"; Excludes: "bitfields\*,defaults\*,records\*"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#BuildDir}\assets\defaults\*"; DestDir: "{app}\assets\defaults"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: defaults
+Source: "{#BuildDir}\assets\bitfields\*"; DestDir: "{app}\assets\bitfields"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: bitfields
 Source: "{#BuildDir}\assets\records\23H2.txt"; DestDir: "{app}\assets\records"; Flags: ignoreversion
 Source: "{#BuildDir}\assets\records\24H2.txt"; DestDir: "{app}\assets\records"; Flags: ignoreversion
 Source: "{#BuildDir}\assets\records\25H2.txt"; DestDir: "{app}\assets\records"; Flags: ignoreversion

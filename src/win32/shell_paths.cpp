@@ -122,4 +122,14 @@ std::wstring GetAppDataFolder() {
   return folder;
 }
 
+std::wstring GetCacheFolder() {
+  std::wstring folder = GetAppDataFolder();
+  if (folder.empty()) {
+    return {};
+  }
+  folder = JoinPath(folder, L"cache");
+  SHCreateDirectoryExW(nullptr, folder.c_str(), nullptr);
+  return folder;
+}
+
 } // namespace util

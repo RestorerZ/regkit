@@ -28,6 +28,41 @@ search::Source::Kind LegacyCompareKind(
   }
 }
 
+bool DeleteCacheFile(
+    const std::wstring& path
+) {
+  if (path.empty() || DeleteFileW(path.c_str()) != 0) {
+    return true;
+  }
+  const DWORD error = GetLastError();
+  return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+}
+
+bool DeleteCacheFiles(
+    const std::wstring& folder,
+    const wchar_t* pattern_name
+) {
+  if (folder.empty() || !pattern_name || !*pattern_name) {
+    return false;
+  }
+  const std::wstring pattern = util::JoinPath(folder, pattern_name);
+  WIN32_FIND_DATAW data = {};
+  HANDLE find = FindFirstFileW(pattern.c_str(), &data);
+  if (find == INVALID_HANDLE_VALUE) {
+    const DWORD error = GetLastError();
+    return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+  }
+  bool deleted = true;
+  do {
+    if ((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+      deleted = DeleteCacheFile(util::JoinPath(folder, data.cFileName)) && deleted;
+    }
+  } while (FindNextFileW(find, &data) != 0);
+  const DWORD error = GetLastError();
+  FindClose(find);
+  return deleted && error == ERROR_NO_MORE_FILES;
+}
+
 } // namespace
 using namespace window_detail;
 
@@ -224,16 +259,7 @@ bool MainWindow::Impl::AppendHistoryCache(
 }
 
 std::wstring MainWindow::Impl::CacheFolderPath() const {
-  std::wstring folder = util::GetAppDataFolder();
-  if (folder.empty()) {
-    return L"";
-  }
-  std::wstring cache = util::JoinPath(folder, L"cache");
-  if (!cache.empty()) {
-    SHCreateDirectoryExW(nullptr, cache.c_str(), nullptr);
-  }
-
-  return cache;
+  return util::GetCacheFolder();
 }
 
 std::wstring MainWindow::Impl::HistoryCachePath() const {
@@ -350,32 +376,62 @@ void MainWindow::Impl::ApplySearchTabLoad(
   }
 }
 
-void MainWindow::Impl::ClearTabsCache() {
+bool MainWindow::Impl::ClearTabsCache() {
+  bool cleared = true;
   for (const std::wstring& path : {TabsCachePath(), SessionCachePath()}) {
-    if (!path.empty()) {
-      DeleteFileW(path.c_str());
-    }
+    cleared = DeleteCacheFile(path) && cleared;
   }
   std::wstring folder = CacheFolderPath();
   if (folder.empty()) {
-    return;
+    return false;
   }
   for (const wchar_t* pattern_name : {L"search_*.tsv", L"compare_*.tsv"}) {
-    std::wstring pattern = util::JoinPath(folder, pattern_name);
-    WIN32_FIND_DATAW data = {};
-    HANDLE find = FindFirstFileW(pattern.c_str(), &data);
-    if (find == INVALID_HANDLE_VALUE) {
-      continue;
-    }
-    do {
-      if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        continue;
-      }
-      std::wstring path = util::JoinPath(folder, data.cFileName);
-      DeleteFileW(path.c_str());
-    } while (FindNextFileW(find, &data) != 0);
-    FindClose(find);
+    cleared = DeleteCacheFiles(folder, pattern_name) && cleared;
   }
+  return cleared;
+}
+
+bool MainWindow::Impl::ClearCache(
+    CacheKind kind,
+    bool resume_tree_worker
+) {
+  bool cleared = true;
+  const bool all = kind == CacheKind::kAll;
+  bool restart_tree_worker = false;
+  const std::wstring folder = CacheFolderPath();
+  if (folder.empty()) {
+    return false;
+  }
+  if (all || kind == CacheKind::kTabs) {
+    cleared = ClearTabsCache() && cleared;
+  }
+  if (all || kind == CacheKind::kHistory) {
+    ClearHistoryItems(false);
+    history_cache_failed_ = false;
+    cleared = DeleteCacheFile(HistoryCachePath()) && cleared;
+  }
+  if (all || kind == CacheKind::kSearchHistory) {
+    cleared = DeleteCacheFile(util::JoinPath(folder, L"search_history.txt")) &&
+              cleared;
+  }
+  if (all || kind == CacheKind::kTreeState) {
+    KillTimer(hwnd_, kTreeStateTimerId);
+    StopTreeStateWorker();
+    saved_tree_state_.Clear();
+    tree_state_restored_ = false;
+    cleared = DeleteCacheFile(TreeStatePath()) && cleared;
+    restart_tree_worker = resume_tree_worker && save_tree_state_;
+  }
+  if (all || kind == CacheKind::kTemporary) {
+    cleared = DeleteCacheFiles(folder, L"export_*.reg") && cleared;
+  }
+  if (all) {
+    cleared = DeleteCacheFiles(folder, L"*") && cleared;
+  }
+  if (restart_tree_worker) {
+    StartTreeStateWorker();
+  }
+  return cleared;
 }
 
 void MainWindow::Impl::LoadTabs() {

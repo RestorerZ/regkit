@@ -29,7 +29,9 @@ CommandArea ClassifyCommand(
   if ((command_id >= cmd::kFileExit &&
        command_id <= cmd::kFileExportComments) ||
       command_id == cmd::kFileSave ||
-      command_id == cmd::kFileOpenRegFile) {
+      command_id == cmd::kFileOpenRegFile ||
+      (command_id >= cmd::kFileClearCacheAll &&
+       command_id <= cmd::kFileRestart)) {
     return CommandArea::kFile;
   }
   if (command_id >= cmd::kNewKey &&
@@ -76,6 +78,7 @@ CommandArea ClassifyCommand(
   case cmd::kOptionsCompareRegistries:
     return CommandArea::kView;
   case cmd::kOptionsEditContextMenu:
+  case cmd::kOptionsResetSettings:
     return CommandArea::kWorkspaceAppearance;
   default:
     break;
@@ -102,7 +105,7 @@ CommandArea ClassifyCommand(
       (command_id >= cmd::kWindowNew &&
        command_id <= cmd::kTabSelectMax) ||
       (command_id >= cmd::kOptionsThemeSystem &&
-       command_id <= cmd::kHistoryRemove) ||
+       command_id <= cmd::kOptionsResetSettings) ||
       (command_id >= cmd::kHelpAbout &&
        command_id <= cmd::kHelpAutoCheckUpdates)) {
     return CommandArea::kWorkspaceAppearance;

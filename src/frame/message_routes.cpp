@@ -126,10 +126,30 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(
     {
       for (int index = static_cast<int>(tabs_.size()) - 1; index >= 0; --index) {
         if (!ConfirmCloseTab(index)) {
+          restart_on_close_ = false;
+          reset_settings_on_close_ = false;
+          cache_clear_on_close_.reset();
           return 0;
         }
       }
-      SaveSettings();
+      if (reset_settings_on_close_) {
+        if (!RestartAfterSettingsReset()) {
+          reset_settings_on_close_ = false;
+          return 0;
+        }
+      } else if (cache_clear_on_close_) {
+        if (!RestartAfterCacheClear(*cache_clear_on_close_)) {
+          cache_clear_on_close_.reset();
+          return 0;
+        }
+      } else if (restart_on_close_) {
+        if (!RestartCurrentInstance()) {
+          restart_on_close_ = false;
+          return 0;
+        }
+      } else {
+        SaveSettings();
+      }
       DestroyWindow(hwnd_);
       return 0;
     }
@@ -1138,6 +1158,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(
   case WM_INITMENUPOPUP:
     {
       HMENU menu = reinterpret_cast<HMENU>(wparam);
+      RefreshStorageMenuState(menu);
       CheckMenuItem(menu, cmd::kViewGridLines, MF_BYCOMMAND | (show_value_grid_ ? MF_CHECKED : MF_UNCHECKED));
       UINT state = browse_.current_node() ? MF_ENABLED : MF_GRAYED;
       EnableMenuItem(menu, cmd::kEditPermissions, MF_BYCOMMAND | state);

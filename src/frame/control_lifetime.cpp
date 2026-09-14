@@ -35,7 +35,6 @@ void ReportNameTaken(
   ui::PromptKeyChoice(owner, message, name, title, L"", L"", L"OK");
 }
 
-
 void FormatCellFileTime(
     const FILETIME& filetime,
     wchar_t* buffer,
@@ -1441,7 +1440,11 @@ bool MainWindow::Impl::OnCreate() {
     return false;
   }
   regedit_compat_tree_.Create(
-      hwnd_, instance_, kRegeditCompatTreeId, false, false
+      hwnd_,
+      instance_,
+      kRegeditCompatTreeId,
+      false,
+      false
   );
   if (!regedit_compat_tree_.hwnd()) {
     return false;
@@ -1454,7 +1457,7 @@ bool MainWindow::Impl::OnCreate() {
           TreeViewProc,
           kTreeViewSubclassId,
           reinterpret_cast<DWORD_PTR>(this)
-  )) {
+      )) {
     return false;
   }
   TreeView_SelectItem(
@@ -1797,7 +1800,15 @@ void MainWindow::Impl::OnDestroy() {
   StopTraceLoadWorker();
   StopDefaultLoadWorker();
   StopValueListWorker();
-  StopTreeStateWorker();
+  const bool clearing_tree_state =
+      cache_clear_on_close_ &&
+      (*cache_clear_on_close_ == CacheKind::kAll ||
+       *cache_clear_on_close_ == CacheKind::kTreeState);
+  if (clearing_tree_state) {
+    tree_state_saver_.Stop();
+  } else {
+    StopTreeStateWorker();
+  }
   CancelSearch();
   update_session_.CancelAndJoin();
   update_check_running_ = false;
@@ -1807,10 +1818,12 @@ void MainWindow::Impl::OnDestroy() {
       ReleaseRegFileRoots(&entry);
     }
   }
-  if (clear_tabs_on_exit_) {
-    ClearTabsCache();
-  } else if (save_tab_kinds_ != 0 && !SaveTabs()) {
-    ui::ShowError(hwnd_, L"The open tabs couldn't be saved for the next session.");
+  if (!restart_on_close_ && !reset_settings_on_close_) {
+    if (clear_tabs_on_exit_) {
+      ClearTabsCache();
+    } else if (save_tab_kinds_ != 0 && !SaveTabs()) {
+      ui::ShowError(hwnd_, L"The open tabs couldn't be saved for the next session.");
+    }
   }
   ClearHistoryItems(false);
   if (clear_history_on_exit_) {

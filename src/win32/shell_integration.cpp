@@ -105,7 +105,12 @@ LONG ReadRegeditDebugger(
   DWORD type = 0;
   DWORD size = 0;
   result = RegQueryValueExW(
-      key.get(), L"Debugger", nullptr, &type, nullptr, &size
+      key.get(),
+      L"Debugger",
+      nullptr,
+      &type,
+      nullptr,
+      &size
   );
   if (result != ERROR_SUCCESS) {
     return result;

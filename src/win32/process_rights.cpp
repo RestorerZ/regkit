@@ -371,7 +371,10 @@ std::wstring GetProcessImagePath(
     std::wstring path(capacity, L'\0');
     DWORD length = capacity;
     if (QueryFullProcessImageNameW(
-            process.get(), 0, path.data(), &length
+            process.get(),
+            0,
+            path.data(),
+            &length
         )) {
       path.resize(length);
       return path;

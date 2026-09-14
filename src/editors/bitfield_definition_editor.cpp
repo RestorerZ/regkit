@@ -54,7 +54,9 @@ struct Editor {
   HFONT ui_font = nullptr;
   appearance::DialogResizer resizer;
 
-  Definition& definition() { return file.definitions[static_cast<size_t>(selected)]; }
+  Definition& definition() {
+    return file.definitions[static_cast<size_t>(selected)];
+  }
 };
 
 std::wstring BitsText(

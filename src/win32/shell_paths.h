@@ -11,5 +11,6 @@ std::wstring GetModuleDirectory();
 std::wstring GetModulePath();
 std::wstring JoinPath(const std::wstring& left, const std::wstring& right);
 std::wstring GetAppDataFolder();
+std::wstring GetCacheFolder();
 
 } // namespace util

@@ -1258,12 +1258,21 @@ bool ReportFileDialogResult(
   return SUCCEEDED(hr);
 }
 
-bool LaunchNewInstance() {
-  std::wstring exe = util::JoinPath(util::GetModuleDirectory(), L"RegKit.exe");
+bool LaunchNewInstance(
+    const std::wstring& arguments
+) {
+  std::wstring exe = util::GetModulePath();
   if (exe.empty()) {
     return false;
   }
-  HINSTANCE result = ShellExecuteW(nullptr, L"open", exe.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+  HINSTANCE result = ShellExecuteW(
+      nullptr,
+      L"open",
+      exe.c_str(),
+      arguments.empty() ? nullptr : arguments.c_str(),
+      nullptr,
+      SW_SHOWNORMAL
+  );
   return reinterpret_cast<intptr_t>(result) > 32;
 }
 
