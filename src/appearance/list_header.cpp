@@ -79,7 +79,7 @@ void PaintListHeader(
 
   POINT cursor = {};
   int hot_item = -1;
-  if (GetCursorPos(&cursor)) {
+  if (GetCursorPos(&cursor) && WindowFromPoint(cursor) == header) {
     ScreenToClient(header, &cursor);
     HDHITTESTINFO hit = {};
     hit.pt = cursor;

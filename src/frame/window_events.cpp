@@ -533,21 +533,17 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(
 
   if (message == WM_MOUSEMOVE && self && self->value_tooltip_ &&
       (hwnd == self->browse_.values().hwnd() ||
-       hwnd == self->search_results_list_)) {
+       hwnd == self->search_results_list_ || hwnd == self->history_list_)) {
     LVHITTESTINFO hit = {};
     hit.pt.x = GET_X_LPARAM(lparam);
     hit.pt.y = GET_Y_LPARAM(lparam);
     const int item = ListView_SubItemHitTest(hwnd, &hit);
     if (hwnd != self->value_tip_list_ || item != self->value_tip_item_ ||
         hit.iSubItem != self->value_tip_subitem_) {
-      const bool same_cell =
-          hwnd == self->value_tip_list_ && item == self->value_tip_item_;
       self->value_tip_list_ = hwnd;
       self->value_tip_item_ = item;
       self->value_tip_subitem_ = hit.iSubItem;
-      if (!same_cell) {
-        SendMessageW(self->value_tooltip_, TTM_POP, 0, 0);
-      }
+      SendMessageW(self->value_tooltip_, TTM_POP, 0, 0);
     }
   }
   if (message == WM_CHAR && self && hwnd == self->browse_.values().hwnd()) {
