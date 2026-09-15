@@ -151,6 +151,7 @@ INT_PTR CALLBACK DialogProc(
                                       {IDC_TEXT_GROUP, kAnchorRight | kAnchorBottom},
                                       {IDC_TEXT_ANSI, kAnchorRight | kAnchorBottom},
                                       {IDC_TEXT_UNICODE, kAnchorRight | kAnchorBottom},
+                                      {IDC_BITS, kAnchorLeft | kAnchorBottom},
                                       {IDOK, kAnchorRight | kAnchorBottom},
                                       {IDCANCEL, kAnchorRight | kAnchorBottom},
                                   });

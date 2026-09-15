@@ -382,8 +382,7 @@ void MainWindow::Impl::ShowHeaderMenu(
         index == unavailable_column) {
       return;
     }
-    const bool show = !(static_cast<size_t>(index) < visible.size() &&
-                        visible[static_cast<size_t>(index)]);
+    const bool show = !(static_cast<size_t>(index) < visible.size() && visible[static_cast<size_t>(index)]);
     if (list == browse_.values().hwnd()) {
       ToggleValueColumn(index, show);
     } else if (list == history_list_) {
