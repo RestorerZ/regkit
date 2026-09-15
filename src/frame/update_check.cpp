@@ -3,7 +3,10 @@
 
 #include "frame/window_detail.h"
 
+#include <bcrypt.h>
 #include <winhttp.h>
+
+#include <array>
 
 namespace regkit {
 using namespace window_detail;
@@ -11,252 +14,152 @@ using namespace window_detail;
 namespace {
 
 constexpr wchar_t kReleasesPage[] = L"https://github.com/nohuto/regkit/releases";
-constexpr wchar_t kApiHost[] = L"api.github.com";
-constexpr wchar_t kApiPath[] = L"/repos/nohuto/regkit/releases/latest";
+constexpr wchar_t kLatestReleaseUrl[] = L"https://api.github.com/repos/nohuto/regkit/releases/latest";
+constexpr const char* kSetupSuffix = sizeof(void*) == 8 ? "-x64.exe" : "-x86.exe";
 
-std::string HttpGet(
-    const wchar_t* host,
-    const wchar_t* path
+std::wstring ErrorText(
+    DWORD code
 ) {
-  std::string body;
-  HINTERNET session =
-      WinHttpOpen(L"RegKit", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-  if (!session) {
-    session = WinHttpOpen(L"RegKit", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+  if (code < WINHTTP_ERROR_BASE || code > WINHTTP_ERROR_LAST) {
+    return util::FormatWin32Error(code);
   }
-  if (!session) {
-    return body;
+  wchar_t text[512] = {};
+  DWORD length = FormatMessageW(FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_IGNORE_INSERTS, GetModuleHandleW(L"winhttp.dll"), code, 0, text, static_cast<DWORD>(_countof(text)), nullptr);
+  while (length > 0 && iswspace(text[length - 1])) {
+    --length;
   }
-  WinHttpSetTimeouts(session, 3000, 3000, 5000, 5000);
-  HINTERNET connect =
-      WinHttpConnect(session, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
-  if (connect) {
-    HINTERNET request = WinHttpOpenRequest(
-        connect,
-        L"GET",
-        path,
-        nullptr,
-        WINHTTP_NO_REFERER,
-        WINHTTP_DEFAULT_ACCEPT_TYPES,
-        WINHTTP_FLAG_SECURE
-    );
-    if (request) {
-      const wchar_t headers[] =
-          L"Accept: application/vnd.github+json\r\n"
-          L"X-GitHub-Api-Version: 2022-11-28\r\n";
-      if (WinHttpSendRequest(request, headers, static_cast<DWORD>(-1), WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
-          WinHttpReceiveResponse(request, nullptr)) {
-        DWORD status = 0;
-        DWORD status_size = sizeof(status);
-        WinHttpQueryHeaders(
-            request,
-            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-            WINHTTP_HEADER_NAME_BY_INDEX,
-            &status,
-            &status_size,
-            WINHTTP_NO_HEADER_INDEX
-        );
-        if (status == 200) {
-          DWORD available = 0;
-          while (WinHttpQueryDataAvailable(request, &available) &&
-                 available > 0) {
-            const size_t offset = body.size();
-            body.resize(offset + available);
-            DWORD read = 0;
-            if (!WinHttpReadData(request, body.data() + offset, available, &read)) {
-              break;
-            }
-            body.resize(offset + read);
-          }
-        }
-      }
-      WinHttpCloseHandle(request);
-    }
-    WinHttpCloseHandle(connect);
-  }
-  WinHttpCloseHandle(session);
-  return body;
+  return length > 0 ? std::wstring(text, length) : L"WinHTTP error " + std::to_wstring(code) + L".";
 }
 
-std::string JsonString(
+std::wstring HttpGet(
+    const std::wstring& url,
+    const std::atomic_bool& cancel,
+    std::string* body
+) {
+  using Handle = std::unique_ptr<void, decltype(&WinHttpCloseHandle)>;
+  URL_COMPONENTS parts = {sizeof(parts)};
+  parts.dwHostNameLength = static_cast<DWORD>(-1);
+  parts.dwUrlPathLength = static_cast<DWORD>(-1);
+  if (!WinHttpCrackUrl(url.c_str(), 0, 0, &parts)) {
+    return ErrorText(GetLastError());
+  }
+  Handle session(WinHttpOpen(L"RegKit", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0), WinHttpCloseHandle);
+  if (!session) {
+    session.reset(WinHttpOpen(L"RegKit", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0));
+  }
+  Handle connect(session ? WinHttpConnect(session.get(), std::wstring(parts.lpszHostName, parts.dwHostNameLength).c_str(), parts.nPort, 0) : nullptr, WinHttpCloseHandle);
+  Handle request(connect ? WinHttpOpenRequest(connect.get(), L"GET", std::wstring(parts.lpszUrlPath, parts.dwUrlPathLength).c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr, WinHttpCloseHandle);
+  DWORD status = 0;
+  DWORD status_size = sizeof(status);
+  if (!request || !WinHttpSetTimeouts(request.get(), 5000, 10000, 10000, 30000) ||
+      !WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) ||
+      !WinHttpReceiveResponse(request.get(), nullptr) ||
+      !WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status, &status_size, WINHTTP_NO_HEADER_INDEX)) {
+    return ErrorText(GetLastError());
+  }
+  if (status != HTTP_STATUS_OK) {
+    return L"The server returned HTTP " + std::to_wstring(status) + L".";
+  }
+  char buffer[64 * 1024];
+  DWORD read = 0;
+  while (!cancel.load()) {
+    if (!WinHttpReadData(request.get(), buffer, sizeof(buffer), &read)) {
+      return ErrorText(GetLastError());
+    }
+    if (read == 0) {
+      return {};
+    }
+    body->append(buffer, read);
+  }
+  return ErrorText(ERROR_CANCELLED);
+}
+
+std::string JsonText(
     const std::string& json,
-    const char* key,
-    size_t from = 0
+    size_t* pos,
+    const char* key
 ) {
-  const std::string needle = std::string("\"") + key + "\"";
-  size_t pos = json.find(needle, from);
-  if (pos == std::string::npos) {
+  size_t start = json.find(std::string("\"") + key + "\"", *pos);
+  start = start == std::string::npos ? start : json.find('"', json.find(':', start));
+  const size_t end = start == std::string::npos ? start : json.find('"', start + 1);
+  if (end == std::string::npos) {
+    *pos = std::string::npos;
     return {};
   }
-  pos = json.find(':', pos + needle.size());
-  if (pos == std::string::npos) {
-    return {};
-  }
-  pos = json.find('"', pos);
-  if (pos == std::string::npos) {
-    return {};
-  }
-  std::string value;
-  for (size_t i = pos + 1; i < json.size(); ++i) {
-    const char ch = json[i];
-    if (ch == '"') {
-      return value;
-    }
-    if (ch != '\\') {
-      value.push_back(ch);
-      continue;
-    }
-    if (++i >= json.size()) {
-      break;
-    }
-    switch (json[i]) {
-    case 'n':
-      value.push_back('\n');
-      break;
-    case 'r':
-      value.push_back('\r');
-      break;
-    case 't':
-      value.push_back('\t');
-      break;
-    case 'b':
-      value.push_back('\b');
-      break;
-    case 'f':
-      value.push_back('\f');
-      break;
-    case 'u':
-      {
-        if (i + 4 >= json.size()) {
-          return {};
-        }
-        const std::string digits = json.substr(i + 1, 4);
-        wchar_t code = 0;
-        for (char digit : digits) {
-          int nibble = 0;
-          if (digit >= '0' && digit <= '9') {
-            nibble = digit - '0';
-          } else if (digit >= 'a' && digit <= 'f') {
-            nibble = 10 + (digit - 'a');
-          } else if (digit >= 'A' && digit <= 'F') {
-            nibble = 10 + (digit - 'A');
-          } else {
-            return {};
-          }
-          code = static_cast<wchar_t>((code << 4) | nibble);
-        }
-        value += util::WideToUtf8(std::wstring(1, code));
-        i += 4;
-        break;
-      }
-    default:
-      value.push_back(json[i]);
-      break;
-    }
-  }
-  return {};
+  *pos = end + 1;
+  return json.substr(start + 1, end - start - 1);
 }
 
-std::vector<int> VersionParts(
+std::array<int, 4> VersionParts(
     const std::wstring& text
 ) {
-  std::vector<int> parts;
-  int value = 0;
-  bool digits = false;
-  for (wchar_t ch : text) {
-    if (ch >= L'0' && ch <= L'9') {
-      value = value * 10 + (ch - L'0');
-      digits = true;
-      continue;
-    }
-    if (digits) {
-      parts.push_back(value);
-      value = 0;
-      digits = false;
-    }
-    if (ch != L'.' && !parts.empty()) {
-      break;
-    }
-  }
-  if (digits) {
-    parts.push_back(value);
+  std::array<int, 4> parts = {};
+  const size_t start = text.find_first_of(L"0123456789");
+  if (start != std::wstring::npos) {
+    swscanf_s(text.c_str() + start, L"%d.%d.%d.%d", &parts[0], &parts[1], &parts[2], &parts[3]);
   }
   return parts;
 }
 
-bool IsNewerVersion(
-    const std::wstring& candidate,
-    const std::wstring& current
+std::string Sha256(
+    const std::string& data
 ) {
-  const std::vector<int> left = VersionParts(candidate);
-  const std::vector<int> right = VersionParts(current);
-  const size_t count = std::max(left.size(), right.size());
-  for (size_t i = 0; i < count; ++i) {
-    const int a = i < left.size() ? left[i] : 0;
-    const int b = i < right.size() ? right[i] : 0;
-    if (a != b) {
-      return a > b;
-    }
+  BCRYPT_ALG_HANDLE algorithm = nullptr;
+  BCRYPT_HASH_HANDLE hash = nullptr;
+  UCHAR digest[32] = {};
+  const bool hashed =
+      BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0)) &&
+      BCRYPT_SUCCESS(BCryptCreateHash(algorithm, &hash, nullptr, 0, nullptr, 0, 0)) &&
+      BCRYPT_SUCCESS(BCryptHashData(hash, reinterpret_cast<PUCHAR>(const_cast<char*>(data.data())), static_cast<ULONG>(data.size()), 0)) &&
+      BCRYPT_SUCCESS(BCryptFinishHash(hash, digest, sizeof(digest), 0));
+  if (hash) {
+    BCryptDestroyHash(hash);
   }
-  return false;
+  if (algorithm) {
+    BCryptCloseAlgorithmProvider(algorithm, 0);
+  }
+  std::string hex;
+  for (size_t i = 0; hashed && i < sizeof(digest); ++i) {
+    char pair[3] = {};
+    sprintf_s(pair, "%02x", digest[i]);
+    hex += pair;
+  }
+  return hex;
 }
 
-bool AssetMatchesArchitecture(
-    const std::string& name
+std::wstring SaveSetup(
+    const std::wstring& url,
+    const std::string& sha256,
+    const std::atomic_bool& cancel,
+    std::wstring* path
 ) {
-  std::string lower = name;
-  for (char& ch : lower) {
-    ch = static_cast<char>(tolower(static_cast<unsigned char>(ch)));
+  std::string data;
+  const std::wstring error = HttpGet(url, cancel, &data);
+  if (!error.empty()) {
+    return error;
   }
-  if (lower.find(".exe") == std::string::npos &&
-      lower.find(".msi") == std::string::npos) {
-    return false;
+  if (!sha256.empty() && _stricmp(Sha256(data).c_str(), sha256.c_str()) != 0) {
+    return L"The downloaded file doesn't match the release checksum.";
   }
-  const bool wants_64 = sizeof(void*) == 8;
-  const bool has_64 = lower.find("x64") != std::string::npos ||
-                      lower.find("amd64") != std::string::npos ||
-                      lower.find("win64") != std::string::npos ||
-                      lower.find("64-bit") != std::string::npos;
-  const bool has_32 = lower.find("x86") != std::string::npos ||
-                      lower.find("win32") != std::string::npos ||
-                      lower.find("32-bit") != std::string::npos;
-  if (wants_64) {
-    return has_64 || (!has_32 && !has_64);
+  wchar_t temp[MAX_PATH + 1] = {};
+  if (GetTempPathW(static_cast<DWORD>(_countof(temp)), temp) == 0) {
+    return util::FormatWin32Error(GetLastError());
   }
-  return has_32 || (!has_32 && !has_64);
-}
-
-std::wstring PickAssetUrl(
-    const std::string& json
-) {
-  std::wstring fallback;
-  size_t pos = json.find("\"assets\"");
-  if (pos == std::string::npos) {
-    return fallback;
+  *path = util::JoinPath(temp, url.substr(url.rfind(L'/') + 1));
+  HANDLE file = CreateFileW(path->c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  DWORD written = 0;
+  const bool saved = file != INVALID_HANDLE_VALUE &&
+                     WriteFile(file, data.data(), static_cast<DWORD>(data.size()), &written, nullptr) &&
+                     written == data.size();
+  const DWORD code = saved ? ERROR_SUCCESS : GetLastError();
+  if (file != INVALID_HANDLE_VALUE) {
+    CloseHandle(file);
   }
-  while (true) {
-    const size_t name_pos = json.find("\"name\"", pos);
-    if (name_pos == std::string::npos) {
-      break;
-    }
-    const std::string name = JsonString(json, "name", name_pos);
-    const std::string url = JsonString(json, "browser_download_url", name_pos);
-    if (url.empty()) {
-      break;
-    }
-    if (AssetMatchesArchitecture(name)) {
-      return util::Utf8ToWide(url);
-    }
-    if (fallback.empty()) {
-      fallback = util::Utf8ToWide(url);
-    }
-    pos = json.find("browser_download_url", name_pos);
-    if (pos == std::string::npos) {
-      break;
-    }
-    pos += 20;
+  if (!saved) {
+    DeleteFileW(path->c_str());
+    return util::FormatWin32Error(code != ERROR_SUCCESS ? code : ERROR_WRITE_FAULT);
   }
-  return fallback;
+  return {};
 }
 
 } // namespace
@@ -270,20 +173,60 @@ void MainWindow::Impl::CheckForUpdates(
   update_check_running_ = true;
   HWND owner = hwnd_;
   update_session_.Start([owner, silent](uint64_t, std::atomic_bool& cancel) {
-    const std::string json = HttpGet(kApiHost, kApiPath);
+    auto payload = std::make_unique<UpdateCheckPayload>();
+    payload->silent = silent;
+    std::string json;
+    std::wstring error = HttpGet(kLatestReleaseUrl, cancel, &json);
+    size_t pos = 0;
+    payload->version = util::Utf8ToWide(JsonText(json, &pos, "tag_name"));
+    if (error.empty() && payload->version.empty()) {
+      error = L"The response didn't contain a release.";
+    }
+    for (pos = json.find("\"assets\""); error.empty() && pos != std::string::npos;) {
+      const std::string name = JsonText(json, &pos, "name");
+      size_t asset = pos;
+      const std::string url = JsonText(json, &pos, "browser_download_url");
+      if (name.rfind("RegKit-Setup-", 0) == 0 && name.size() > strlen(kSetupSuffix) &&
+          name.compare(name.size() - strlen(kSetupSuffix), std::string::npos, kSetupSuffix) == 0) {
+        const std::string digest = JsonText(json, &asset, "digest");
+        payload->download_url = util::Utf8ToWide(url);
+        payload->sha256 = asset <= pos && digest.rfind("sha256:", 0) == 0 ? digest.substr(7) : std::string();
+        break;
+      }
+    }
     if (cancel.load()) {
       return;
     }
-    auto payload = std::make_unique<UpdateCheckPayload>();
-    payload->silent = silent;
-    if (json.empty()) {
+    if (!error.empty()) {
       payload->failed = true;
-    } else {
-      payload->version = util::Utf8ToWide(JsonString(json, "tag_name"));
-      payload->download_url = PickAssetUrl(json);
+      payload->error = L"Failed to reach the update server.\n" + error;
     }
-    if (PostMessageW(owner, frame::message_id::kUpdateCheckReady, 0,
-                     reinterpret_cast<LPARAM>(payload.get()))) {
+    if (PostMessageW(owner, frame::message_id::kUpdateCheckReady, 0, reinterpret_cast<LPARAM>(payload.get()))) {
+      ReleasePostedPayload(payload);
+    } });
+}
+
+void MainWindow::Impl::DownloadUpdate(
+    const UpdateCheckPayload& release
+) {
+  if (update_check_running_) {
+    return;
+  }
+  update_check_running_ = true;
+  SetStatusMessage(L"Downloading RegKit " + release.version + L"...");
+  HWND owner = hwnd_;
+  update_session_.Start([owner, url = release.download_url, sha256 = release.sha256](uint64_t, std::atomic_bool& cancel) {
+    auto payload = std::make_unique<UpdateCheckPayload>();
+    const std::wstring error = SaveSetup(url, sha256, cancel, &payload->setup_path);
+    if (cancel.load()) {
+      return;
+    }
+    if (!error.empty()) {
+      payload->failed = true;
+      payload->setup_path.clear();
+      payload->error = L"The update couldn't be downloaded.\n" + error;
+    }
+    if (PostMessageW(owner, frame::message_id::kUpdateCheckReady, 0, reinterpret_cast<LPARAM>(payload.get()))) {
       ReleasePostedPayload(payload);
     } });
 }
@@ -292,31 +235,41 @@ void MainWindow::Impl::ApplyUpdateCheckResult(
     UpdateCheckPayload* payload
 ) {
   update_check_running_ = false;
+  SetStatusMessage(std::wstring());
   if (!payload) {
     return;
   }
   if (payload->failed) {
     if (!payload->silent) {
-      ui::ShowError(hwnd_, L"Failed to reach the update server.");
+      ui::ShowError(hwnd_, payload->error);
     }
     return;
   }
-  if (!IsNewerVersion(payload->version, REGKIT_VERSION_STR_W)) {
+  if (!payload->setup_path.empty()) {
+    const HRESULT hr = win32::ShellOpen(hwnd_, payload->setup_path.c_str());
+    if (SUCCEEDED(hr)) {
+      PostMessageW(hwnd_, WM_CLOSE, 0, 0);
+    } else if (!win32::DialogCancelled(hr)) {
+      ui::ShowError(hwnd_, L"The setup couldn't be started.\n" + win32::FormatDialogError(hr));
+    }
+    return;
+  }
+  if (VersionParts(payload->version) <= VersionParts(REGKIT_VERSION_STR_W)) {
     if (!payload->silent) {
       ui::ShowInfo(hwnd_, L"RegKit is up to date.");
     }
     return;
   }
-  std::wstring message = L"RegKit ";
-  message += payload->version;
-  message += L" is available. You are running ";
-  message += REGKIT_VERSION_STR_W;
-  message += L".\n\nDownload it now?";
-  if (ui::PromptChoice(hwnd_, message, L"Update available", L"Download", L"", L"Close", {85, 70, 70}) == IDYES) {
-    const std::wstring target = payload->download_url.empty()
-                                    ? std::wstring(kReleasesPage)
-                                    : payload->download_url;
-    win32::ShellOpen(hwnd_, target.c_str());
+  const std::wstring message = L"RegKit " + payload->version + L" is available. You are running " REGKIT_VERSION_STR_W L".\n\n" +
+                               (payload->download_url.empty() ? L"No setup was found for this build. Open the releases page?"
+                                                              : L"Download and install it now? RegKit closes when the setup starts.");
+  if (ui::PromptChoice(hwnd_, message, L"Update available", payload->download_url.empty() ? L"Open" : L"Install", L"", L"Close", {70, 70, 70}) != IDYES) {
+    return;
+  }
+  if (payload->download_url.empty()) {
+    win32::ShellOpen(hwnd_, kReleasesPage);
+  } else {
+    DownloadUpdate(*payload);
   }
 }
 

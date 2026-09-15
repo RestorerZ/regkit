@@ -60,6 +60,7 @@ target_link_libraries(regkit_frame PRIVATE
     regkit_registry
     regkit_win32
     advapi32
+    bcrypt
     comctl32
     ole32
     shell32

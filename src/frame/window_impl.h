@@ -95,6 +95,9 @@ private:
     bool failed = false;
     std::wstring version;
     std::wstring download_url;
+    std::string sha256;
+    std::wstring setup_path;
+    std::wstring error;
   };
 
   struct StartupCachePayload : work::MoveOnly {
@@ -253,6 +256,7 @@ private:
   void ClearHistoryItems(bool delete_cache);
   void CheckForUpdates(bool silent);
   void ApplyUpdateCheckResult(UpdateCheckPayload* payload);
+  void DownloadUpdate(const UpdateCheckPayload& release);
   void RemoveSelectedHistoryItems();
   void RebuildHistoryList();
   void ScheduleValueListRename(LPARAM kind, const std::wstring& name);
