@@ -36,23 +36,6 @@ HBRUSH HeaderSurfaceBrush(
   return ListSurfaceBrush(GetParent(header));
 }
 
-void PaintToolbarButtonFace(
-    HDC hdc,
-    const RECT& rect,
-    COLORREF fill
-) {
-  if (!hdc) {
-    return;
-  }
-  RECT face = rect;
-  InflateRect(&face, -1, -1);
-  HGDIOBJ old_brush = SelectObject(hdc, CachedBrush(fill));
-  HGDIOBJ old_pen = SelectObject(hdc, CachedPen(fill));
-  RoundRect(hdc, face.left, face.top, face.right, face.bottom, 4, 4);
-  SelectObject(hdc, old_pen);
-  SelectObject(hdc, old_brush);
-}
-
 } // namespace
 
 void PaintListHeader(
@@ -127,14 +110,13 @@ void PaintListHeader(
     const bool sorted_up = (item.fmt & HDF_SORTUP) != 0;
     const bool sorted_down = (item.fmt & HDF_SORTDOWN) != 0;
 
-    const int state = i == hot_item ? (pressed ? HIS_PRESSED : HIS_HOT) : HIS_NORMAL;
-    if (state == HIS_NORMAL || !header_theme) {
-      FillRect(hdc, &rect, surface);
-      RECT divider = {rect.right - 1, rect.top, rect.right, rect.bottom};
-      FillRect(hdc, &divider, CachedBrush(theme.BorderColor()));
-    } else {
-      DrawThemeBackground(header_theme, hdc, HP_HEADERITEM, state, &rect, nullptr);
+    HBRUSH item_surface = surface;
+    if (i == hot_item) {
+      item_surface = CachedBrush(pressed ? theme.SelectionColor() : theme.HoverColor());
     }
+    FillRect(hdc, &rect, item_surface);
+    RECT divider = {rect.right - 1, rect.top, rect.right, rect.bottom};
+    FillRect(hdc, &divider, CachedBrush(theme.BorderColor()));
 
     RECT text_rect = rect;
     text_rect.left += kHeaderTextPadding;
@@ -179,37 +161,6 @@ void ReleaseListHeaderTheme(
     CloseThemeData(cached);
   }
   RemovePropW(header, kHeaderThemeProp);
-}
-
-COLORREF HeaderDividerColor(
-    HWND header
-) {
-  constexpr int kProbeWidth = 32;
-  constexpr int kProbeHeight = 16;
-  COLORREF color = Theme::Current().BorderColor();
-  HTHEME theme = OpenThemeData(header, VSCLASS_HEADER);
-  if (!theme) {
-    return color;
-  }
-  HDC screen = GetDC(nullptr);
-  if (HDC mem = CreateCompatibleDC(screen)) {
-    if (HBITMAP bitmap = CreateCompatibleBitmap(screen, kProbeWidth, kProbeHeight)) {
-      HGDIOBJ previous = SelectObject(mem, bitmap);
-      RECT probe = {0, 0, kProbeWidth, kProbeHeight};
-      if (SUCCEEDED(DrawThemeBackground(theme, mem, HP_HEADERITEM, HIS_NORMAL, &probe, nullptr))) {
-        const COLORREF edge = GetPixel(mem, kProbeWidth - 1, kProbeHeight / 2);
-        if (edge != CLR_INVALID) {
-          color = edge;
-        }
-      }
-      SelectObject(mem, previous);
-      DeleteObject(bitmap);
-    }
-    DeleteDC(mem);
-  }
-  ReleaseDC(nullptr, screen);
-  CloseThemeData(theme);
-  return color;
 }
 
 void PaintListGrid(
@@ -310,43 +261,13 @@ LRESULT PaintGridToolbar(
   if (!toolbar || !draw) {
     return CDRF_DODEFAULT;
   }
-  const Theme& theme = Theme::Current();
   switch (draw->nmcd.dwDrawStage) {
   case CDDS_PREPAINT:
     FillRect(draw->nmcd.hdc, &draw->nmcd.rc, surface);
     return CDRF_NOTIFYITEMDRAW;
   case CDDS_ITEMPREPAINT:
-    {
-      POINT cursor = {};
-      GetCursorPos(&cursor);
-      ScreenToClient(toolbar, &cursor);
-      const bool hovered = ((draw->nmcd.uItemState & CDIS_HOT) == CDIS_HOT) || PtInRect(&draw->nmcd.rc, cursor);
-
-      draw->hbrMonoDither = theme.BackgroundBrush();
-      draw->hbrLines = theme.BackgroundBrush();
-      draw->hpenLines = CachedPen(theme.BorderColor(), 1);
-      draw->clrText = theme.TextColor();
-      draw->clrTextHighlight = theme.TextColor();
-      draw->clrBtnFace = theme.BackgroundColor();
-      draw->clrBtnHighlight = theme.SurfaceColor();
-      draw->clrHighlightHotTrack = theme.HoverColor();
-      draw->nStringBkMode = TRANSPARENT;
-      draw->nHLStringBkMode = TRANSPARENT;
-
-      if (hovered) {
-        PaintToolbarButtonFace(draw->nmcd.hdc, draw->nmcd.rc, theme.HoverColor());
-        draw->nmcd.uItemState &= ~(CDIS_HOT | CDIS_CHECKED);
-      } else if ((draw->nmcd.uItemState & CDIS_CHECKED) == CDIS_CHECKED) {
-        PaintToolbarButtonFace(draw->nmcd.hdc, draw->nmcd.rc, theme.SurfaceColor());
-        draw->nmcd.uItemState &= ~CDIS_CHECKED;
-      }
-
-      LRESULT result = TBCDRF_USECDCOLORS;
-      if ((draw->nmcd.uItemState & CDIS_SELECTED) == CDIS_SELECTED) {
-        result |= TBCDRF_NOBACKGROUND;
-      }
-      return result;
-    }
+    draw->nmcd.uItemState &= ~(CDIS_HOT | CDIS_CHECKED | CDIS_SELECTED);
+    return TBCDRF_NOBACKGROUND | TBCDRF_NOEDGES | TBCDRF_NOOFFSET;
   default:
     break;
   }

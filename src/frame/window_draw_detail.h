@@ -78,9 +78,9 @@ constexpr int kHistoryHeaderCloseId = 114;
 constexpr int kFilterEditId = 115;
 constexpr int kValueGridButtonId = 116;
 constexpr int kSearchGridButtonId = 117;
-constexpr int kHistoryGridButtonId = 118;
 constexpr int kFilterClearId = 118;
 constexpr int kRegeditCompatTreeId = 119;
+constexpr int kHistoryGridButtonId = 120;
 constexpr UINT_PTR kStatusMessageTimerId = 41;
 constexpr UINT_PTR kTreeStateTimerId = 42;
 constexpr int kToolbarIconSize = 16;
@@ -459,17 +459,6 @@ inline int CalcListViewColumnFitWidth(
     }
   }
   return width;
-}
-
-inline int FindLastVisibleColumn(
-    const std::vector<bool>& visible
-) {
-  for (int i = static_cast<int>(visible.size()) - 1; i >= 0; --i) {
-    if (visible[static_cast<size_t>(i)]) {
-      return i;
-    }
-  }
-  return -1;
 }
 
 } // namespace regkit::window_detail

@@ -472,6 +472,7 @@ int RefreshPresetList(
     ListView_SetItemState(list, index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
     ListView_EnsureVisible(list, index, FALSE);
   }
+  ListView_SetColumnWidth(list, 0, LVSCW_AUTOSIZE_USEHEADER);
   return index;
 }
 
@@ -584,7 +585,7 @@ void LayoutControls(
   appearance::Place(state->presets_group, left_x, content_top, left_w, content_h);
   appearance::Place(state->preset_list, left_inner_x, list_y, left_inner_w, list_h);
   if (state->preset_list) {
-    ListView_SetColumnWidth(state->preset_list, 0, std::max(Scaled(60, dpi), left_inner_w - Scaled(6, dpi)));
+    ListView_SetColumnWidth(state->preset_list, 0, LVSCW_AUTOSIZE_USEHEADER);
   }
   appearance::Place(state->new_btn, left_inner_x, row1_y, button_w, button_h);
   appearance::Place(state->duplicate_btn, left_inner_x + button_w + button_gap, row1_y, wide_button_w, button_h);
@@ -633,9 +634,9 @@ void CreateControls(
   }
   HWND hwnd = state->hwnd;
 
-  state->presets_group = CreateWindowExW(0, L"BUTTON", L"Presets", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+  state->presets_group = CreateWindowExW(0, L"BUTTON", L"Presets", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
-  state->preset_list = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | LVS_NOSORTHEADER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kPresetListId)), nullptr, nullptr);
+  state->preset_list = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | LVS_NOSORTHEADER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kPresetListId)), nullptr, nullptr);
 
   state->new_btn = CreateWindowExW(0, L"BUTTON", L"New...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kNewPresetId)), nullptr, nullptr);
   state->duplicate_btn = CreateWindowExW(0, L"BUTTON", L"Duplicate", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDuplicatePresetId)), nullptr, nullptr);
@@ -644,15 +645,15 @@ void CreateControls(
   state->import_btn = CreateWindowExW(0, L"BUTTON", L"Import...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kImportPresetId)), nullptr, nullptr);
   state->export_btn = CreateWindowExW(0, L"BUTTON", L"Export...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kExportPresetId)), nullptr, nullptr);
 
-  state->colors_group = CreateWindowExW(0, L"BUTTON", L"Colors", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+  state->colors_group = CreateWindowExW(0, L"BUTTON", L"Colors", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
-  state->color_list = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kColorListId)), nullptr, nullptr);
+  state->color_list = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kColorListId)), nullptr, nullptr);
 
   state->edit_color_btn = CreateWindowExW(0, L"BUTTON", L"Edit Color...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kEditColorId)), nullptr, nullptr);
 
   state->dark_check = CreateWindowExW(0, L"BUTTON", L"Treat as dark theme", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDarkCheckId)), nullptr, nullptr);
 
-  state->templates_group = CreateWindowExW(0, L"BUTTON", L"Templates", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+  state->templates_group = CreateWindowExW(0, L"BUTTON", L"Templates", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
   state->template_combo = CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTemplateComboId)), nullptr, nullptr);
 
@@ -662,6 +663,9 @@ void CreateControls(
   state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
   state->cancel_btn = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
 
+  for (HWND group : {state->presets_group, state->colors_group, state->templates_group}) {
+    SetWindowPos(group, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+  }
   SetupPresetListView(state->preset_list);
   SetupColorListView(state->color_list);
 }
@@ -1060,7 +1064,7 @@ void appearance::ShowThemePresetEditor(
   state->templates = ThemePresetStore::BuiltInPresets();
   state->active_name = active_name;
 
-  DWORD style = WS_POPUP | WS_CAPTION | WS_SYSMENU;
+  DWORD style = WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN;
   DWORD ex_style = WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT;
   const UINT dpi = win32::DpiForWindow(owner);
   RECT rect = {0, 0, appearance::metrics::Scaled(kWindowWidth, dpi), appearance::metrics::Scaled(kWindowHeight, dpi)};
@@ -1075,7 +1079,6 @@ void appearance::ShowThemePresetEditor(
   }
 
   appearance::PositionDialog(hwnd, owner, width, height);
-  ApplyCurrentTheme(hwnd);
   EnableWindow(owner, FALSE);
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);

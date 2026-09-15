@@ -284,10 +284,15 @@ bool MainWindow::Impl::ResolvePathToNode(
   return false;
 }
 
-void MainWindow::Impl::ShowValueHeaderMenu(
-    POINT screen_pt
+void MainWindow::Impl::ShowHeaderMenu(
+    HWND list,
+    std::vector<ColumnInfo>& columns,
+    std::vector<int>& widths,
+    std::vector<bool>& visible,
+    POINT screen_pt,
+    int unavailable_column
 ) {
-  HWND header_hwnd = ListView_GetHeader(browse_.values().hwnd());
+  HWND header_hwnd = ListView_GetHeader(list);
   if (!header_hwnd) {
     return;
   }
@@ -295,213 +300,143 @@ void MainWindow::Impl::ShowValueHeaderMenu(
   ScreenToClient(header_hwnd, &client_pt);
   HDHITTESTINFO hit = {};
   hit.pt = client_pt;
-  int column_hit = static_cast<int>(SendMessageW(header_hwnd, HDM_HITTEST, 0, reinterpret_cast<LPARAM>(&hit)));
-  last_header_column_ = (column_hit >= 0) ? column_hit : -1;
+  const int column_hit = static_cast<int>(
+      SendMessageW(header_hwnd, HDM_HITTEST, 0, reinterpret_cast<LPARAM>(&hit))
+  );
 
   HMENU menu = CreatePopupMenu();
-  UINT fit_flags = MF_STRING | ((last_header_column_ >= 0) ? 0 : MF_GRAYED);
-  AppendMenuW(menu, fit_flags, cmd::kHeaderSizeToFit, L"Size column to fit");
-  AppendMenuW(menu, MF_STRING, cmd::kHeaderSizeAll, L"Size all columns to fit");
-  AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-
-  for (size_t i = 0; i < browse_.columns().items.size(); ++i) {
-    UINT state = browse_.columns().visible[i] ? MF_CHECKED : MF_UNCHECKED;
-    AppendMenuW(menu, MF_STRING | state, cmd::kHeaderToggleBase + static_cast<int>(i), browse_.columns().items[i].title.c_str());
-  }
-
-  int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
-  DestroyMenu(menu);
-
-  if (command == cmd::kHeaderSizeToFit && last_header_column_ >= 0) {
-    int subitem = GetListViewColumnSubItem(browse_.values().hwnd(), last_header_column_);
-    ListView_SetColumnWidth(browse_.values().hwnd(), last_header_column_, LVSCW_AUTOSIZE_USEHEADER);
-    int width = ListView_GetColumnWidth(browse_.values().hwnd(), last_header_column_);
-    if (subitem >= 0 && static_cast<size_t>(subitem) < browse_.columns().widths.size()) {
-      browse_.columns().widths[static_cast<size_t>(subitem)] = width;
-    }
-    SaveSettings();
+  if (!menu) {
     return;
   }
-  if (command == cmd::kHeaderSizeAll) {
-    int last_visible = FindLastVisibleColumn(browse_.columns().visible);
-    for (size_t i = 0; i < browse_.columns().items.size(); ++i) {
-      if (i < browse_.columns().visible.size() && !browse_.columns().visible[i]) {
-        continue;
-      }
-      int display_index = FindListViewColumnBySubItem(browse_.values().hwnd(), static_cast<int>(i));
-      if (display_index < 0) {
-        continue;
-      }
-      int width = 0;
-      if (static_cast<int>(i) == last_visible) {
-        width = CalcListViewColumnFitWidth(browse_.values().hwnd(), static_cast<int>(i), browse_.columns().items[i].width);
-        ListView_SetColumnWidth(browse_.values().hwnd(), display_index, width);
-      } else {
-        ListView_SetColumnWidth(browse_.values().hwnd(), display_index, LVSCW_AUTOSIZE_USEHEADER);
-        width = ListView_GetColumnWidth(browse_.values().hwnd(), display_index);
-      }
-      browse_.columns().widths[i] = width;
-    }
-    SaveSettings();
-    return;
-  }
-  if (command >= cmd::kHeaderToggleBase) {
-    int index = command - cmd::kHeaderToggleBase;
-    if (index >= 0 && static_cast<size_t>(index) < browse_.columns().items.size()) {
-      ToggleValueColumn(index, !browse_.columns().visible[static_cast<size_t>(index)]);
-      SaveSettings();
-    }
-  }
-}
-
-void MainWindow::Impl::ShowHistoryHeaderMenu(
-    POINT screen_pt
-) {
-  HWND header_hwnd = ListView_GetHeader(history_list_);
-  if (!header_hwnd) {
-    return;
-  }
-  POINT client_pt = screen_pt;
-  ScreenToClient(header_hwnd, &client_pt);
-  HDHITTESTINFO hit = {};
-  hit.pt = client_pt;
-  int column_hit = static_cast<int>(SendMessageW(header_hwnd, HDM_HITTEST, 0, reinterpret_cast<LPARAM>(&hit)));
-
-  HMENU menu = CreatePopupMenu();
-  UINT fit_flags = MF_STRING | ((column_hit >= 0) ? 0 : MF_GRAYED);
-  AppendMenuW(menu, fit_flags, cmd::kHeaderSizeToFit, L"Size column to fit");
-  AppendMenuW(menu, MF_STRING, cmd::kHeaderSizeAll, L"Size all columns to fit");
-  AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-
-  for (size_t i = 0; i < history_columns_.size(); ++i) {
-    UINT state = history_column_visible_[i] ? MF_CHECKED : MF_UNCHECKED;
-    AppendMenuW(menu, MF_STRING | state, cmd::kHeaderToggleBase + static_cast<int>(i), history_columns_[i].title.c_str());
-  }
-
-  int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
-  DestroyMenu(menu);
-
-  if (command == cmd::kHeaderSizeToFit && column_hit >= 0) {
-    int subitem = GetListViewColumnSubItem(history_list_, column_hit);
-    ListView_SetColumnWidth(history_list_, column_hit, LVSCW_AUTOSIZE_USEHEADER);
-    if (subitem >= 0 && static_cast<size_t>(subitem) < history_column_widths_.size()) {
-      history_column_widths_[static_cast<size_t>(subitem)] = ListView_GetColumnWidth(history_list_, column_hit);
-    }
-    return;
-  }
-  if (command == cmd::kHeaderSizeAll) {
-    int last_visible = FindLastVisibleColumn(history_column_visible_);
-    for (size_t i = 0; i < history_columns_.size(); ++i) {
-      if (i < history_column_visible_.size() && !history_column_visible_[i]) {
-        continue;
-      }
-      int display_index = FindListViewColumnBySubItem(history_list_, static_cast<int>(i));
-      if (display_index < 0) {
-        continue;
-      }
-      int width = 0;
-      if (static_cast<int>(i) == last_visible) {
-        width = CalcListViewColumnFitWidth(history_list_, static_cast<int>(i), history_columns_[i].width);
-        ListView_SetColumnWidth(history_list_, display_index, width);
-      } else {
-        ListView_SetColumnWidth(history_list_, display_index, LVSCW_AUTOSIZE_USEHEADER);
-        width = ListView_GetColumnWidth(history_list_, display_index);
-      }
-      history_column_widths_[i] = width;
-    }
-    return;
-  }
-  if (command >= cmd::kHeaderToggleBase) {
-    int index = command - cmd::kHeaderToggleBase;
-    if (index >= 0 && static_cast<size_t>(index) < history_columns_.size()) {
-      ToggleHistoryColumn(index, !history_column_visible_[static_cast<size_t>(index)]);
-    }
-  }
-}
-
-void MainWindow::Impl::ShowSearchHeaderMenu(
-    POINT screen_pt
-) {
-  HWND header_hwnd = ListView_GetHeader(search_results_list_);
-  if (!header_hwnd) {
-    return;
-  }
-  bool compare = IsCompareTabSelected();
-  const bool result_available = compare && IsCompareResultColumnAvailable();
-  auto& columns = compare ? compare_columns_ : search_columns_;
-  auto& widths = compare ? compare_column_widths_ : search_column_widths_;
-  auto& visible = compare ? compare_column_visible_ : search_column_visible_;
-  POINT client_pt = screen_pt;
-  ScreenToClient(header_hwnd, &client_pt);
-  HDHITTESTINFO hit = {};
-  hit.pt = client_pt;
-  int column_hit = static_cast<int>(SendMessageW(header_hwnd, HDM_HITTEST, 0, reinterpret_cast<LPARAM>(&hit)));
-
-  HMENU menu = CreatePopupMenu();
-  UINT fit_flags = MF_STRING | ((column_hit >= 0) ? 0 : MF_GRAYED);
+  const UINT fit_flags = MF_STRING | ((column_hit >= 0) ? 0 : MF_GRAYED);
   AppendMenuW(menu, fit_flags, cmd::kHeaderSizeToFit, L"Size column to fit");
   AppendMenuW(menu, MF_STRING, cmd::kHeaderSizeAll, L"Size all columns to fit");
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
   for (size_t i = 0; i < columns.size(); ++i) {
-    if (compare && i == 4 && !result_available) {
+    if (static_cast<int>(i) == unavailable_column) {
       continue;
     }
-    UINT state = (i < visible.size() && visible[i]) ? MF_CHECKED : MF_UNCHECKED;
-    AppendMenuW(menu, MF_STRING | state, cmd::kHeaderToggleBase + static_cast<int>(i), columns[i].title.c_str());
+    const UINT state = i < visible.size() && visible[i]
+                           ? MF_CHECKED
+                           : MF_UNCHECKED;
+    AppendMenuW(
+        menu,
+        MF_STRING | state,
+        cmd::kHeaderToggleBase + static_cast<int>(i),
+        columns[i].title.c_str()
+    );
   }
 
-  int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
+  const int command = TrackPopupMenu(
+      menu,
+      TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY,
+      screen_pt.x,
+      screen_pt.y,
+      0,
+      hwnd_,
+      nullptr
+  );
   DestroyMenu(menu);
 
   if (command == cmd::kHeaderSizeToFit && column_hit >= 0) {
-    int subitem = GetListViewColumnSubItem(search_results_list_, column_hit);
-    ListView_SetColumnWidth(search_results_list_, column_hit, LVSCW_AUTOSIZE_USEHEADER);
+    const int subitem = GetListViewColumnSubItem(list, column_hit);
+    ListView_SetColumnWidth(list, column_hit, LVSCW_AUTOSIZE_USEHEADER);
     if (subitem >= 0 && static_cast<size_t>(subitem) < widths.size()) {
-      widths[static_cast<size_t>(subitem)] = ListView_GetColumnWidth(search_results_list_, column_hit);
+      widths[static_cast<size_t>(subitem)] = ListView_GetColumnWidth(list, column_hit);
     }
-    return;
-  }
-  if (command == cmd::kHeaderSizeAll) {
+  } else if (command == cmd::kHeaderSizeAll) {
     int last_visible = -1;
     for (size_t i = 0; i < columns.size(); ++i) {
-      if (compare && i == 4 && !result_available) {
-        continue;
-      }
-      if (i >= visible.size() || visible[i]) {
+      if (static_cast<int>(i) != unavailable_column &&
+          (i >= visible.size() || visible[i])) {
         last_visible = static_cast<int>(i);
       }
     }
     for (size_t i = 0; i < columns.size(); ++i) {
-      if (compare && i == 4 && !result_available) {
+      if (static_cast<int>(i) == unavailable_column ||
+          (i < visible.size() && !visible[i])) {
         continue;
       }
-      if (i < visible.size() && !visible[i]) {
-        continue;
-      }
-      int display_index = FindListViewColumnBySubItem(search_results_list_, static_cast<int>(i));
-      if (display_index < 0) {
+      const int display = FindListViewColumnBySubItem(list, static_cast<int>(i));
+      if (display < 0) {
         continue;
       }
       int width = 0;
       if (static_cast<int>(i) == last_visible) {
-        width = CalcListViewColumnFitWidth(search_results_list_, static_cast<int>(i), columns[i].width);
-        ListView_SetColumnWidth(search_results_list_, display_index, width);
+        width = CalcListViewColumnFitWidth(
+            list,
+            static_cast<int>(i),
+            columns[i].width
+        );
+        ListView_SetColumnWidth(list, display, width);
       } else {
-        ListView_SetColumnWidth(search_results_list_, display_index, LVSCW_AUTOSIZE_USEHEADER);
-        width = ListView_GetColumnWidth(search_results_list_, display_index);
+        ListView_SetColumnWidth(list, display, LVSCW_AUTOSIZE_USEHEADER);
+        width = ListView_GetColumnWidth(list, display);
       }
       widths[i] = width;
     }
-    return;
-  }
-  if (command >= cmd::kHeaderToggleBase) {
-    int index = command - cmd::kHeaderToggleBase;
-    if (index >= 0 && static_cast<size_t>(index) < columns.size()) {
-      bool show = !(index < static_cast<int>(visible.size()) && visible[static_cast<size_t>(index)]);
+  } else if (command >= cmd::kHeaderToggleBase) {
+    const int index = command - cmd::kHeaderToggleBase;
+    if (index < 0 || static_cast<size_t>(index) >= columns.size() ||
+        index == unavailable_column) {
+      return;
+    }
+    const bool show = !(static_cast<size_t>(index) < visible.size() &&
+                        visible[static_cast<size_t>(index)]);
+    if (list == browse_.values().hwnd()) {
+      ToggleValueColumn(index, show);
+    } else if (list == history_list_) {
+      ToggleHistoryColumn(index, show);
+    } else if (list == search_results_list_) {
       ToggleSearchColumn(index, show);
     }
   }
+
+  if (list == browse_.values().hwnd() && command != 0) {
+    SaveSettings();
+  }
+}
+
+void MainWindow::Impl::ShowValueHeaderMenu(
+    POINT screen_pt
+) {
+  ShowHeaderMenu(
+      browse_.values().hwnd(),
+      browse_.columns().items,
+      browse_.columns().widths,
+      browse_.columns().visible,
+      screen_pt
+  );
+}
+
+void MainWindow::Impl::ShowHistoryHeaderMenu(
+    POINT screen_pt
+) {
+  ShowHeaderMenu(
+      history_list_,
+      history_columns_,
+      history_column_widths_,
+      history_column_visible_,
+      screen_pt
+  );
+}
+
+void MainWindow::Impl::ShowSearchHeaderMenu(
+    POINT screen_pt
+) {
+  const bool compare = IsCompareTabSelected();
+  auto& columns = compare ? compare_columns_ : search_columns_;
+  auto& widths = compare ? compare_column_widths_ : search_column_widths_;
+  auto& visible = compare ? compare_column_visible_ : search_column_visible_;
+  ShowHeaderMenu(
+      search_results_list_,
+      columns,
+      widths,
+      visible,
+      screen_pt,
+      compare && !IsCompareResultColumnAvailable() ? 4 : -1
+  );
 }
 
 void MainWindow::Impl::ToggleValueColumn(

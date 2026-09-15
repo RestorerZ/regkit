@@ -83,7 +83,8 @@ int CALLBACK CompareFieldBits(
   const unsigned right = static_cast<unsigned>(right_data);
   int result = 0;
   if (column == 0 || column == 1) {
-    result = left < right ? -1 : left > right ? 1 : 0;
+    result = left < right ? -1 : left > right ? 1
+                                              : 0;
   } else if (column == 2 && state && state->parent) {
     const int left_owner = state->parent->FieldIndexForBit(left);
     const int right_owner = state->parent->FieldIndexForBit(right);
@@ -95,7 +96,8 @@ int CALLBACK CompareFieldBits(
                                         : std::wstring();
     result = CompareText(left_name, right_name);
   }
-  return result != 0 ? result : (left < right ? -1 : left > right ? 1 : 0);
+  return result != 0 ? result : (left < right ? -1 : left > right ? 1
+                                                                  : 0);
 }
 
 int CALLBACK CompareDefinitionFields(
@@ -124,7 +126,8 @@ int CALLBACK CompareDefinitionFields(
   case 1:
     result = std::lexicographical_compare(left.bits.begin(), left.bits.end(), right.bits.begin(), right.bits.end())
                  ? -1
-                 : std::lexicographical_compare(right.bits.begin(), right.bits.end(), left.bits.begin(), left.bits.end()) ? 1 : 0;
+             : std::lexicographical_compare(right.bits.begin(), right.bits.end(), left.bits.begin(), left.bits.end()) ? 1
+                                                                                                                      : 0;
     break;
   case 2:
     result = CompareText(StatesText(left), StatesText(right));
@@ -135,7 +138,8 @@ int CALLBACK CompareDefinitionFields(
   default:
     break;
   }
-  return result != 0 ? result : (left_index < right_index ? -1 : left_index > right_index ? 1 : 0);
+  return result != 0 ? result : (left_index < right_index ? -1 : left_index > right_index ? 1
+                                                                                          : 0);
 }
 
 int SelectedFieldIndex(
@@ -496,6 +500,9 @@ void RefreshDefinitionCombo(
   }
   if (!shown && !state->filtering) {
     SendMessageW(combo, CB_SETCURSEL, static_cast<WPARAM>(-1), 0);
+  }
+  if (!state->filtering) {
+    SendMessageW(combo, CB_SETEDITSEL, 0, MAKELPARAM(-1, 0));
   }
   if (state->filtering) {
     SetWindowTextW(combo, filter.c_str());
@@ -883,7 +890,6 @@ INT_PTR CALLBACK DefinitionDialogProc(
       SendDlgItemMessageW(dialog, IDC_DEF_WIDTH, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(std::to_wstring(width).c_str()));
     }
     EnableWindow(GetDlgItem(dialog, IDC_DEF_WIDTH), !state->lock_width);
-    EnableWindow(GetDlgItem(dialog, IDC_DEF_SELECT), !state->single);
     EnableWindow(GetDlgItem(dialog, IDC_DEF_ADD_DEF), !state->single);
     dialog_support::SetupListView(
         GetDlgItem(dialog, IDC_DEF_LIST),
@@ -1044,9 +1050,15 @@ INT_PTR CALLBACK DefinitionDialogProc(
     LoadIntoEditor(dialog, state, std::wstring());
     return TRUE;
   case IDC_DEF_SAVE_AS:
+    if (state->filtering) {
+      RenameFromCombo(dialog, state);
+    }
     SaveDefinition(dialog, state);
     return TRUE;
   case IDOK:
+    if (state->filtering) {
+      RenameFromCombo(dialog, state);
+    }
     if (!CommitDefinition(dialog, state)) {
       return TRUE;
     }

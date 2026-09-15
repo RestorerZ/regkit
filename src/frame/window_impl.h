@@ -370,6 +370,14 @@ private:
   void OnMeasureMenuItem(MEASUREITEMSTRUCT* info);
   void OnDrawMenuItem(const DRAWITEMSTRUCT* info);
   void PaintMenuBarSeparator();
+  void ShowHeaderMenu(
+      HWND list,
+      std::vector<ColumnInfo>& columns,
+      std::vector<int>& widths,
+      std::vector<bool>& visible,
+      POINT screen_pt,
+      int unavailable_column = -1
+  );
   void ShowValueHeaderMenu(POINT screen_pt);
   void ShowHistoryHeaderMenu(POINT screen_pt);
   void ShowSearchHeaderMenu(POINT screen_pt);
@@ -585,7 +593,6 @@ private:
   std::vector<bool> compare_column_visible_;
   bool compare_columns_active_ = false;
   bool compare_result_column_active_ = false;
-  int last_header_column_ = -1;
   int history_sort_column_ = 0;
   bool history_sort_ascending_ = true;
   int history_max_rows_ = 500;

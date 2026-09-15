@@ -13,7 +13,6 @@ namespace regkit::appearance {
 void PaintListHeader(HWND header, HFONT font);
 void ReleaseListHeaderTheme(HWND header);
 
-COLORREF HeaderDividerColor(HWND header);
 void PaintListGrid(HWND list, HDC hdc, const RECT& area, int first_line_y, int row_height, COLORREF color);
 void PaintListGridTail(HWND list, HDC hdc, COLORREF color);
 HBRUSH ListSurfaceBrush(HWND list);

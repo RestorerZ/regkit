@@ -49,7 +49,6 @@ struct SortContext {
 
 std::vector<ListRegistration> registrations;
 bool grid_enabled = false;
-COLORREF grid_color = CLR_INVALID;
 std::wstring grid_icon_path;
 ListGridChangedCallback grid_changed = nullptr;
 void* grid_changed_context = nullptr;
@@ -143,11 +142,33 @@ void ApplyGridIcon(
   }
 }
 
+void ApplyGridToolbarTheme(
+    HWND toolbar
+) {
+  if (!toolbar) {
+    return;
+  }
+  Theme::Current().ApplyToToolbar(toolbar);
+  HWND tooltip = reinterpret_cast<HWND>(
+      SendMessageW(toolbar, TB_GETTOOLTIPS, 0, 0)
+  );
+  if (tooltip) {
+    AllowDarkModeForWindow(tooltip, Theme::UseDarkMode());
+    SetWindowTheme(
+        tooltip,
+        Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer",
+        nullptr
+    );
+  }
+}
+
 void LayoutRegistration(
     ListRegistration* entry
 ) {
   HWND header = entry && entry->list ? ListView_GetHeader(entry->list) : nullptr;
-  if (!entry || !entry->toolbar || !header || !IsWindowVisible(entry->list)) {
+  const bool shown = entry && entry->list &&
+                     (GetWindowLongPtrW(entry->list, GWL_STYLE) & WS_VISIBLE) != 0;
+  if (!entry || !entry->toolbar || !header || !shown) {
     if (entry && entry->toolbar) {
       ShowWindow(entry->toolbar, SW_HIDE);
     }
@@ -217,7 +238,7 @@ HWND CreateGridToolbar(
   button.fsStyle = BTNS_CHECK;
   button.iString = static_cast<INT_PTR>(label);
   SendMessageW(toolbar, TB_ADDBUTTONSW, 1, reinterpret_cast<LPARAM>(&button));
-  Theme::Current().ApplyToToolbar(toolbar);
+  ApplyGridToolbarTheme(toolbar);
   SendMessageW(
       toolbar,
       TB_CHECKBUTTON,
@@ -381,6 +402,9 @@ void ReleaseListViews(
               return false;
             }
             if (entry.images) {
+              if (IsWindow(entry.toolbar)) {
+                SendMessageW(entry.toolbar, TB_SETIMAGELIST, 0, 0);
+              }
               ImageList_Destroy(entry.images);
             }
             return true;
@@ -410,14 +434,13 @@ void RefreshListView(
   ListRegistration* entry = FindByList(list);
   if (entry) {
     ApplyGridIcon(entry);
-    Theme::Current().ApplyToToolbar(entry->toolbar);
+    ApplyGridToolbarTheme(entry->toolbar);
   }
   HWND header = ListView_GetHeader(list);
   if (header) {
     ReleaseListHeaderTheme(header);
     InvalidateRect(header, nullptr, TRUE);
   }
-  grid_color = CLR_INVALID;
   InvalidateRect(list, nullptr, TRUE);
 }
 
@@ -510,9 +533,7 @@ LRESULT HandleListGridCustomDraw(
   if (!list || !draw || !grid_enabled) {
     return result;
   }
-  if (grid_color == CLR_INVALID) {
-    grid_color = HeaderDividerColor(ListView_GetHeader(list));
-  }
+  const COLORREF grid_color = Theme::Current().BorderColor();
   switch (draw->nmcd.dwDrawStage) {
   case CDDS_PREPAINT:
     return result | CDRF_NOTIFYITEMDRAW | CDRF_NOTIFYPOSTPAINT;
@@ -641,19 +662,26 @@ void UpdateListViewSort(
 ) {
   HWND header = list ? ListView_GetHeader(list) : nullptr;
   const int count = header ? Header_GetItemCount(header) : 0;
+  bool changed = false;
   for (int display = 0; display < count; ++display) {
     HDITEMW item = {};
     item.mask = HDI_FORMAT;
     if (!Header_GetItem(header, display, &item)) {
       continue;
     }
-    item.fmt &= ~(HDF_SORTUP | HDF_SORTDOWN);
+    const int current = item.fmt & (HDF_SORTUP | HDF_SORTDOWN);
+    int wanted = 0;
     if (column >= 0 && ColumnSubItem(list, display) == column) {
-      item.fmt |= ascending ? HDF_SORTUP : HDF_SORTDOWN;
+      wanted = ascending ? HDF_SORTUP : HDF_SORTDOWN;
     }
+    if (current == wanted) {
+      continue;
+    }
+    item.fmt = (item.fmt & ~(HDF_SORTUP | HDF_SORTDOWN)) | wanted;
     Header_SetItem(header, display, &item);
+    changed = true;
   }
-  if (header) {
+  if (changed) {
     InvalidateRect(header, nullptr, TRUE);
   }
 }

@@ -14,7 +14,7 @@ namespace regkit::appearance {
 
 using ListHeaderMenuCallback = void (*)(HWND list, POINT screen, void* context);
 using ListGridChangedCallback = void (*)(void* context, bool enabled);
-using ListItemCompareCallback = int (CALLBACK *)(LPARAM left, LPARAM right, int column, void* context);
+using ListItemCompareCallback = int(CALLBACK*)(LPARAM left, LPARAM right, int column, void* context);
 
 void ConfigureListView(HWND list, DWORD extra_styles = 0);
 void RegisterListView(

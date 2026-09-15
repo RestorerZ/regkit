@@ -25,7 +25,6 @@ RegKit adds functionality that standard regedit doesn't support:
 - Loading/unloading hives
 - Local/remote/offline registry
 - Undo/redo, copy/paste (entire keys), replace, performant 'Find'
-- Find can search Root Keys, the real REGISTRY root, and Trace values independently
 - Address bar accepts multiple registry path formats (abbreviated HK*, full root, regedit address bar, `.reg` header, `reg:` link, PowerShell drive/provider, escaped)
 - Copy Key Path As menu for the same formats (to copy/paste into the address bar)
 - Copy Value Name / Copy Value Data from value context menus

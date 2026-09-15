@@ -115,11 +115,13 @@ int CALLBACK CompareBitRows(
   }
   int result = 0;
   if (column == 0 || column == kColumnMask) {
-    result = left < right ? -1 : left > right ? 1 : 0;
+    result = left < right ? -1 : left > right ? 1
+                                              : 0;
   } else if (column == kColumnState) {
     const bool left_set = ((editor->value >> left) & 1ull) != 0;
     const bool right_set = ((editor->value >> right) & 1ull) != 0;
-    result = left_set == right_set ? 0 : left_set ? 1 : -1;
+    result = left_set == right_set ? 0 : left_set ? 1
+                                                  : -1;
   } else {
     const Field* left_field = editor->definition().FieldForBit(left);
     const Field* right_field = editor->definition().FieldForBit(right);
@@ -131,7 +133,8 @@ int CALLBACK CompareBitRows(
     } else if (column == kColumnValue) {
       const uint64_t left_value = left_field ? left_field->Extract(editor->value) : 0;
       const uint64_t right_value = right_field ? right_field->Extract(editor->value) : 0;
-      result = left_value < right_value ? -1 : left_value > right_value ? 1 : 0;
+      result = left_value < right_value ? -1 : left_value > right_value ? 1
+                                                                        : 0;
     } else if (column == kColumnMeaning) {
       result = CompareText(
           left_field ? RowMeaning(*left_field, editor->value) : std::wstring(),
@@ -139,7 +142,8 @@ int CALLBACK CompareBitRows(
       );
     }
   }
-  return result != 0 ? result : (left < right ? -1 : left > right ? 1 : 0);
+  return result != 0 ? result : (left < right ? -1 : left > right ? 1
+                                                                  : 0);
 }
 
 void SortBitRows(
@@ -751,8 +755,6 @@ void HandleItemChanged(
 ) {
   if (editor->updating || !(info->uChanged & LVIF_STATE)) {
     return;
-  }
-  if ((info->uNewState & LVIS_SELECTED) && !(info->uOldState & LVIS_SELECTED)) {
   }
   const UINT old_image = info->uOldState & LVIS_STATEIMAGEMASK;
   const UINT new_image = info->uNewState & LVIS_STATEIMAGEMASK;
