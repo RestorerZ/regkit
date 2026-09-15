@@ -135,6 +135,22 @@ bool StartsWith(
          _wcsnicmp(text.data(), prefix.data(), prefix.size()) == 0;
 }
 
+std::wstring DisplayName(
+    std::wstring_view name
+) {
+  std::wstring text(name);
+  std::replace(text.begin(), text.end(), wchar_t(0), kNullSymbol);
+  return text;
+}
+
+std::wstring RawName(
+    std::wstring_view text
+) {
+  std::wstring name(text);
+  std::replace(name.begin(), name.end(), kNullSymbol, wchar_t(0));
+  return name;
+}
+
 std::wstring RootName(
     HKEY root
 ) {
@@ -174,7 +190,7 @@ std::wstring Build(
 ) {
   const std::wstring root =
       node.root_name.empty() ? RootName(node.root) : node.root_name;
-  return Join(root, node.subkey);
+  return DisplayName(Join(root, node.subkey));
 }
 
 std::wstring BuildNative(
@@ -447,7 +463,7 @@ bool ParseRoot(
   const std::wstring root = normalized.substr(0, split);
   const std::wstring rest =
       split == std::wstring::npos ? L"" : normalized.substr(split + 1);
-  node->subkey = rest;
+  node->subkey = RawName(rest);
   node->root_name = root;
   if (Equals(root, L"HKEY_CLASSES_ROOT")) {
     node->root = HKEY_CLASSES_ROOT;

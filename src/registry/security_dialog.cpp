@@ -4,6 +4,7 @@
 #include "registry/security_dialog.h"
 
 #include "registry/registry_path.h"
+#include "win32/registry_native.h"
 #include "win32/registry_view.h"
 
 #include <string>
@@ -225,23 +226,21 @@ bool ShowRegistryPermissions(
   TOKEN_PRIVILEGES previous_privilege = {};
   const bool privilege_enabled =
       SetPrivilege(SE_TAKE_OWNERSHIP_NAME, true, &previous_privilege);
-  const wchar_t* subkey = node.subkey.empty() ? nullptr : node.subkey.c_str();
   bool read_only = false;
-  HKEY key = nullptr;
-  LONG result = RegOpenKeyExW(node.root, subkey, 0, READ_CONTROL | WRITE_DAC | WRITE_OWNER | win32::kDefaultRegistryView, &key);
+  util::UniqueHKey key;
+  LONG result = util::OpenRegistryPath(node.root, node.subkey, READ_CONTROL | WRITE_DAC | WRITE_OWNER | win32::kDefaultRegistryView, false, &key);
   if (result == ERROR_ACCESS_DENIED) {
     read_only = true;
-    result = RegOpenKeyExW(node.root, subkey, 0, READ_CONTROL | win32::kDefaultRegistryView, &key);
+    result = util::OpenRegistryPath(node.root, node.subkey, READ_CONTROL | win32::kDefaultRegistryView, false, &key);
   }
   if (result == ERROR_ACCESS_DENIED) {
-    result = RegOpenKeyExW(node.root, subkey, 0, MAXIMUM_ALLOWED | win32::kDefaultRegistryView, &key);
+    result = util::OpenRegistryPath(node.root, node.subkey, MAXIMUM_ALLOWED | win32::kDefaultRegistryView, false, &key);
   }
 
   bool ok = false;
-  if (result == ERROR_SUCCESS && key) {
-    RegistrySecurityInformation info(key, path, read_only);
+  if (result == ERROR_SUCCESS && key.get()) {
+    RegistrySecurityInformation info(key.get(), path, read_only);
     ok = SUCCEEDED(EditSecurity(owner, &info));
-    RegCloseKey(key);
   }
 
   if (privilege_enabled) {

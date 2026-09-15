@@ -22,7 +22,7 @@ util::UniqueHKey OpenLinkKey(
     REGSAM access
 ) {
   util::UniqueHKey link;
-  if (RegOpenKeyExW(parent, name.c_str(), REG_OPTION_OPEN_LINK, access, link.put()) != ERROR_SUCCESS) {
+  if (util::OpenRegistryPath(parent, name, access, true, &link) != ERROR_SUCCESS) {
     return {};
   }
   DWORD type = 0;
@@ -38,12 +38,8 @@ util::UniqueHKey OpenKeyNoFollow(
     REGSAM access
 ) {
   util::UniqueHKey key;
-  if (!node.root) {
-    return key;
-  }
-  const wchar_t* subkey = node.subkey.empty() ? nullptr : node.subkey.c_str();
-  if (RegOpenKeyExW(node.root, subkey, REG_OPTION_OPEN_LINK, access | win32::kDefaultRegistryView, key.put()) != ERROR_SUCCESS) {
-    key.reset();
+  if (node.root) {
+    util::OpenRegistryPath(node.root, node.subkey, access | win32::kDefaultRegistryView, true, &key);
   }
   return key;
 }
@@ -53,14 +49,8 @@ util::UniqueHKey OpenKey(
     REGSAM access
 ) {
   util::UniqueHKey key;
-  if (!node.root) {
-    return key;
-  }
-  const wchar_t* subkey =
-      node.subkey.empty() ? nullptr : node.subkey.c_str();
-  if (RegOpenKeyExW(node.root, subkey, 0, access | win32::kDefaultRegistryView, key.put()) !=
-      ERROR_SUCCESS) {
-    key.reset();
+  if (node.root) {
+    util::OpenRegistryPath(node.root, node.subkey, access | win32::kDefaultRegistryView, false, &key);
   }
   return key;
 }
@@ -187,8 +177,7 @@ std::vector<std::wstring> EnumSubKeyNames(
     DWORD name_length = static_cast<DWORD>(buffer.size());
     FILETIME last_write = {};
     if (RegEnumKeyExW(key.get(), index, buffer.data(), &name_length, nullptr, nullptr, nullptr, &last_write) == ERROR_SUCCESS) {
-      buffer[name_length] = L'\0';
-      names.emplace_back(buffer.c_str());
+      names.emplace_back(buffer.data(), name_length);
     }
   }
   if (sorted) {
@@ -318,8 +307,7 @@ bool EnumKeyStreaming(
       if (RegEnumKeyExW(key.get(), index, name.data(), &name_length, nullptr, nullptr, nullptr, &child_write) != ERROR_SUCCESS) {
         continue;
       }
-      name[name_length] = L'\0';
-      if (!subkey_callback(name.c_str())) {
+      if (!subkey_callback(std::wstring(name.data(), name_length))) {
         return false;
       }
     }
@@ -373,7 +361,7 @@ bool CreateKey(
   }
   util::UniqueHKey created;
   DWORD disposition = 0;
-  if (RegCreateKeyExW(parent.get(), name.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, nullptr, created.put(), &disposition) != ERROR_SUCCESS) {
+  if (util::CreateRegistryKey(parent.get(), name, KEY_READ | KEY_WRITE, REG_OPTION_NON_VOLATILE, &created, &disposition) != ERROR_SUCCESS) {
     return false;
   }
   return disposition == REG_CREATED_NEW_KEY;
@@ -397,15 +385,12 @@ bool CreateRegistryLink(
   }
   util::UniqueHKey created;
   DWORD disposition = 0;
-  LONG result = RegCreateKeyExW(
+  LONG result = util::CreateRegistryKey(
       parent.get(),
-      name.c_str(),
-      0,
-      nullptr,
+      name,
+      KEY_SET_VALUE | KEY_CREATE_LINK | DELETE,
       REG_OPTION_NON_VOLATILE | REG_OPTION_CREATE_LINK,
-      KEY_SET_VALUE | KEY_CREATE_LINK,
-      nullptr,
-      created.put(),
+      &created,
       &disposition
   );
   if (result != ERROR_SUCCESS) {
@@ -426,8 +411,7 @@ bool CreateRegistryLink(
     if (error) {
       *error = static_cast<DWORD>(result);
     }
-    created.reset();
-    RegDeleteKeyW(parent.get(), name.c_str());
+    util::DeleteNativeRegistryKey(created.get());
     return false;
   }
   return true;
@@ -533,16 +517,11 @@ bool DeleteKey(
   if (!SplitNode(node, &parent, &name)) {
     return false;
   }
-  util::UniqueHKey key = OpenKey(parent, KEY_WRITE);
-  if (!key.get()) {
-    return false;
-  }
-  util::UniqueHKey link =
-      OpenLinkKey(key.get(), name, KEY_QUERY_VALUE | DELETE);
-  if (link.get()) {
-    return util::DeleteNativeRegistryKey(link.get());
-  }
-  return RegDeleteTreeW(key.get(), name.c_str()) == ERROR_SUCCESS;
+  util::UniqueHKey key = OpenKey(parent, KEY_ENUMERATE_SUB_KEYS);
+  util::UniqueHKey target;
+  return key.get() &&
+         util::OpenRegistryPath(key.get(), name, DELETE | KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE, true, &target) == ERROR_SUCCESS &&
+         util::DeleteRegistryTree(target.get()) == ERROR_SUCCESS;
 }
 
 bool RenameKey(
@@ -556,8 +535,7 @@ bool RenameKey(
   }
   util::UniqueHKey key = OpenKey(parent, KEY_WRITE);
   return key.get() &&
-         RegRenameKey(key.get(), old_name.c_str(), new_name.c_str()) ==
-             ERROR_SUCCESS;
+         util::RenameRegistryKey(key.get(), old_name, new_name) == ERROR_SUCCESS;
 }
 
 bool DeleteValue(

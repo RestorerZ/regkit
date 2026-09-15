@@ -5,6 +5,7 @@
 
 #include <algorithm>
 
+#include "registry/registry_path.h"
 #include "win32/text_transform.h"
 
 namespace regkit {
@@ -299,6 +300,7 @@ HTREEITEM RegistryTree::InsertChild(
     return nullptr;
   }
   HTREEITEM after = TVI_FIRST;
+  const std::wstring label = registry_path::DisplayName(name);
   wchar_t text[256] = {};
   for (HTREEITEM sibling = TreeView_GetChild(hwnd_, parent); sibling;
        sibling = TreeView_GetNextSibling(hwnd_, sibling)) {
@@ -310,7 +312,7 @@ HTREEITEM RegistryTree::InsertChild(
     if (!TreeView_GetItem(hwnd_, &item)) {
       continue;
     }
-    const int order = _wcsicmp(text, name.c_str());
+    const int order = _wcsicmp(text, label.c_str());
     if (order == 0) {
       return sibling;
     }
@@ -333,7 +335,7 @@ HTREEITEM RegistryTree::InsertChild(
   insert.hInsertAfter = after;
   insert.item.mask =
       TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
-  insert.item.pszText = const_cast<wchar_t*>(name.c_str());
+  insert.item.pszText = const_cast<wchar_t*>(label.c_str());
   insert.item.lParam = reinterpret_cast<LPARAM>(stored);
   insert.item.iImage = I_IMAGECALLBACK;
   insert.item.iSelectedImage = I_IMAGECALLBACK;
@@ -386,17 +388,18 @@ bool RegistryTree::AddChildren(
 
   struct ChildEntry {
     std::wstring name;
+    std::wstring label;
     bool simulated = false;
   };
   std::vector<ChildEntry> entries;
   entries.reserve(children.size() + virtual_children.size());
   for (const auto& name : children) {
-    entries.push_back({name, false});
+    entries.push_back({name, registry_path::DisplayName(name), false});
   }
   for (const auto& name : virtual_children) {
-    entries.push_back({name, true});
+    entries.push_back({name, registry_path::DisplayName(name), true});
   }
-  std::sort(entries.begin(), entries.end(), [](const ChildEntry& left, const ChildEntry& right) { return _wcsicmp(left.name.c_str(), right.name.c_str()) < 0; });
+  std::sort(entries.begin(), entries.end(), [](const ChildEntry& left, const ChildEntry& right) { return _wcsicmp(left.label.c_str(), right.label.c_str()) < 0; });
 
   if (!entries.empty()) {
     nodes_.reserve(nodes_.size() + entries.size());
@@ -418,7 +421,7 @@ bool RegistryTree::AddChildren(
     insert.hParent = parent;
     insert.hInsertAfter = TVI_LAST;
     insert.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
-    insert.item.pszText = const_cast<wchar_t*>(name.c_str());
+    insert.item.pszText = const_cast<wchar_t*>(entry.label.c_str());
     insert.item.lParam = reinterpret_cast<LPARAM>(stored);
     insert.item.iImage = I_IMAGECALLBACK;
     insert.item.iSelectedImage = I_IMAGECALLBACK;

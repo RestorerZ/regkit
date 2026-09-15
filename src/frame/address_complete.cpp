@@ -435,7 +435,8 @@ std::vector<std::wstring> MainWindow::Impl::BuildAddressSuggestions(
   }
   auto subkeys = RegistryStore::EnumSubKeyNames(node, true);
   items.reserve(std::min(subkeys.size(), kMaxSuggestions));
-  for (const auto& name : subkeys) {
+  for (const auto& raw_name : subkeys) {
+    const std::wstring name = registry_path::DisplayName(raw_name);
     if (!partial.empty() && !StartsWithInsensitive(name, partial)) {
       continue;
     }

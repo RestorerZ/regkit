@@ -109,6 +109,9 @@ void MainWindow::Impl::AppendHistoryEntry(
   if (!history_list_) {
     return;
   }
+  entry.action = registry_path::DisplayName(entry.action);
+  entry.old_data = registry_path::DisplayName(entry.old_data);
+  entry.new_data = registry_path::DisplayName(entry.new_data);
 
   const HistoryEntry appended =
       change_history_.Append(std::move(entry), static_cast<size_t>(history_max_rows_));
@@ -214,7 +217,7 @@ bool MainWindow::Impl::RevertHistoryEntry(
       RegistryNode node;
       if (ResolvePathToNode(prepared.key_path, &node)) {
         std::wstring name = LeafName(node);
-        if (!name.empty() && ui::ConfirmDelete(hwnd_, L"Revert Key Creation", name)) {
+        if (!name.empty() && ui::ConfirmDelete(hwnd_, L"Revert Key Creation", registry_path::DisplayName(name))) {
           ok = RegistryStore::DeleteKey(node);
         }
       }

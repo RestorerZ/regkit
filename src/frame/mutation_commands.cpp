@@ -714,7 +714,7 @@ bool MainWindow::Impl::HandleDeleteCommand(
       bool tree_focus = (focus == browse_.tree().hwnd());
       if (tree_focus && browse_.current_node() && !browse_.current_node()->subkey.empty()) {
         std::wstring name = LeafName(*browse_.current_node());
-        if (!ui::ConfirmDelete(hwnd_, L"Delete Key", name)) {
+        if (!ui::ConfirmDelete(hwnd_, L"Delete Key", registry_path::DisplayName(name))) {
           return true;
         }
         RegistryNode target = *browse_.current_node();
@@ -729,7 +729,7 @@ bool MainWindow::Impl::HandleDeleteCommand(
             !ui::ConfirmDelete(
                 hwnd_,
                 L"Delete Key",
-                name,
+                registry_path::DisplayName(name),
                 L"Part of this key could not be read, so this delete cannot be "
                 L"undone. Delete anyway?"
             )) {
@@ -820,7 +820,7 @@ bool MainWindow::Impl::HandleDeleteCommand(
 
       const ListRow* row = selected_rows.empty() ? nullptr : &selected_rows.front();
       if (row && row->kind == rowkind::kKey) {
-        if (!ui::ConfirmDelete(hwnd_, L"Delete Key", row->extra)) {
+        if (!ui::ConfirmDelete(hwnd_, L"Delete Key", row->name)) {
           return true;
         }
         RegistryNode child = MakeChildNode(*browse_.current_node(), row->extra);
@@ -831,7 +831,7 @@ bool MainWindow::Impl::HandleDeleteCommand(
                 hwnd_,
                 L"Part of this key could not be read, so this delete cannot be "
                 L"undone. Delete anyway?",
-                row->extra
+                row->name
             )) {
           return true;
         }

@@ -249,7 +249,7 @@ void MainWindow::Impl::StartValueListWorker() {
         if (task->show_keys_in_list) {
           for (const auto& name : subkeys) {
             ListRow row;
-            row.name = name;
+            row.name = registry_path::DisplayName(name);
             bool is_link = false;
             RegistryNode child = task->snapshot;
             child.subkey = task->snapshot.subkey.empty() ? name : task->snapshot.subkey + L"\\" + name;
@@ -280,7 +280,7 @@ void MainWindow::Impl::StartValueListWorker() {
               continue;
             }
             ListRow row;
-            row.name = name;
+            row.name = registry_path::DisplayName(name);
             RegistryNode child = task->snapshot;
             child.subkey = task->snapshot.subkey.empty() ? name : task->snapshot.subkey + L"\\" + name;
             child.simulated = true;

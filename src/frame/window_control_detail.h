@@ -503,7 +503,7 @@ inline HTREEITEM FindChildByText(
     item.pszText = buffer;
     item.cchTextMax = static_cast<int>(_countof(buffer));
     if (TreeView_GetItem(tree, &item)) {
-      if (EqualsInsensitive(text, buffer)) {
+      if (EqualsInsensitive(registry_path::DisplayName(text), buffer)) {
         return child;
       }
     }

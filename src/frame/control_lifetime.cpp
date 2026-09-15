@@ -33,7 +33,7 @@ void ReportNameTaken(
     const wchar_t* title,
     const std::wstring& name
 ) {
-  ui::PromptKeyChoice(owner, message, name, title, L"", L"", L"OK");
+  ui::PromptKeyChoice(owner, message, registry_path::DisplayName(name), title, L"", L"", L"OK");
 }
 
 void FormatCellFileTime(
@@ -505,9 +505,9 @@ LRESULT MainWindow::Impl::HandleTreeNotification(
       if (!node || node->subkey.empty()) {
         return FALSE;
       }
-      std::wstring new_name = TrimWhitespace(disp->item.pszText);
+      std::wstring new_name = registry_path::RawName(TrimWhitespace(disp->item.pszText));
       std::wstring old_name = LeafName(*node);
-      if (new_name.empty() || _wcsicmp(new_name.c_str(), old_name.c_str()) == 0) {
+      if (new_name.empty() || EqualsInsensitive(new_name, old_name)) {
         return FALSE;
       }
       RegistryNode rename_parent = *node;
@@ -527,7 +527,7 @@ LRESULT MainWindow::Impl::HandleTreeNotification(
       if (browse_.current_node() && SameNode(*browse_.current_node(), *node)) {
         UpdateAddressBar(browse_.current_node());
       }
-      AppendHistoryEntry(L"Rename key", old_name, new_name);
+      AppendHistoryEntry(L"Rename key", registry_path::DisplayName(old_name), registry_path::DisplayName(new_name));
       MarkOfflineDirty();
       RegistryNode parent = *node;
       if (!parent.subkey.empty()) {
@@ -730,7 +730,10 @@ LRESULT MainWindow::Impl::HandleValueNotification(
     }
     std::wstring new_name = TrimWhitespace(disp->item.pszText);
     std::wstring old_name = row->extra;
-    if (new_name.empty() || _wcsicmp(new_name.c_str(), old_name.c_str()) == 0) {
+    if (row->kind == rowkind::kKey) {
+      new_name = registry_path::RawName(new_name);
+    }
+    if (new_name.empty() || EqualsInsensitive(new_name, old_name)) {
       return FALSE;
     }
     if (row->kind == rowkind::kKey) {
@@ -743,7 +746,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(
         ui::ShowError(hwnd_, L"Failed to rename key.");
         return FALSE;
       }
-      AppendHistoryEntry(L"Rename key " + old_name, old_name, new_name);
+      AppendHistoryEntry(L"Rename key " + registry_path::DisplayName(old_name), registry_path::DisplayName(old_name), registry_path::DisplayName(new_name));
       MarkOfflineDirty();
       changes::UndoOperation op;
       op.type = changes::UndoOperation::Type::kRenameKey;

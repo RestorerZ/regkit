@@ -7,6 +7,7 @@
 #include "win32/text_transform.h"
 
 #include "regfile/reg_file.h"
+#include "registry/registry_path.h"
 #include "registry/value_format.h"
 
 #include <algorithm>
@@ -54,9 +55,9 @@ std::wstring Combine(
     return base;
   }
   if (base.empty()) {
-    return relative;
+    return registry_path::DisplayName(relative);
   }
-  return base + L"\\" + relative;
+  return base + L"\\" + registry_path::DisplayName(relative);
 }
 
 std::wstring DataText(

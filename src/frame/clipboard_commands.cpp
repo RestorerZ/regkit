@@ -150,9 +150,9 @@ bool MainWindow::Impl::HandleClipboardCommand(
       int index = -1;
       const ListRow* row = SelectedValueRow(browse_.values(), &index);
       if (row && row->kind == rowkind::kKey) {
-        name = row->extra;
+        name = row->name;
       } else if (browse_.current_node()) {
-        name = LeafName(*browse_.current_node());
+        name = registry_path::DisplayName(LeafName(*browse_.current_node()));
       }
       if (!name.empty()) {
         ui::CopyTextToClipboard(hwnd_, name);
@@ -206,7 +206,7 @@ bool MainWindow::Impl::HandleClipboardCommand(
         if (row && row->kind == rowkind::kKey && browse_.current_node()) {
           path = registry_path::Build(*browse_.current_node());
           if (!row->extra.empty()) {
-            path += L"\\" + row->extra;
+            path += L"\\" + row->name;
           }
         } else if (browse_.current_node()) {
           path = registry_path::Build(*browse_.current_node());

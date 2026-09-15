@@ -5,6 +5,8 @@
 
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
+#include "win32/registry_native.h"
+#include "win32/registry_view.h"
 
 #include <algorithm>
 #include <functional>
@@ -339,13 +341,13 @@ std::wstring BuildDisplayPath(
     return task.context->display_root;
   }
   if (task.context->display_root.empty()) {
-    return task.subkey;
+    return registry_path::DisplayName(task.subkey);
   }
   std::wstring path;
   path.reserve(task.context->display_root.size() + task.subkey.size() + 1);
   path.append(task.context->display_root);
   path.push_back(L'\\');
-  path.append(task.subkey);
+  path.append(registry_path::DisplayName(task.subkey));
   return path;
 }
 
@@ -382,7 +384,7 @@ std::wstring BuildMirrorPath(
   std::wstring path = context->mirror_root;
   if (subkey.size() > prefix.size()) {
     path.push_back(L'\\');
-    path.append(subkey, prefix.size() + 1, std::wstring::npos);
+    path.append(registry_path::DisplayName(std::wstring_view(subkey).substr(prefix.size() + 1)));
   }
   return path;
 }
@@ -396,16 +398,12 @@ bool UserClassesOverrides(
     path.push_back(L'\\');
     path.append(relative);
   }
-  HKEY key = nullptr;
-  if (RegOpenKeyExW(HKEY_CURRENT_USER, path.c_str(), 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
+  util::UniqueHKey key;
+  if (util::OpenRegistryPath(HKEY_CURRENT_USER, path, KEY_QUERY_VALUE | win32::kDefaultRegistryView, false, &key) != ERROR_SUCCESS) {
     return false;
   }
-  bool overrides = true;
-  if (value_name) {
-    overrides = RegQueryValueExW(key, value_name->c_str(), nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS;
-  }
-  RegCloseKey(key);
-  return overrides;
+  return !value_name ||
+         RegQueryValueExW(key.get(), value_name->c_str(), nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS;
 }
 
 RegistryNode TaskNode(
@@ -1134,7 +1132,7 @@ bool Run(
 
         if (enumerated && enum_result.info_valid && criteria.search_keys &&
             is_key_in_range()) {
-          const std::wstring_view leaf = TaskLeaf(entry);
+          const std::wstring leaf = registry_path::DisplayName(TaskLeaf(entry));
           const Match key_match = matcher.Find(leaf);
           if (key_match.matched) {
             Result result;

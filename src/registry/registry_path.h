@@ -28,6 +28,10 @@ enum class Style {
   kEscaped,
 };
 
+inline constexpr wchar_t kNullSymbol = 0x2400;
+
+std::wstring DisplayName(std::wstring_view name);
+std::wstring RawName(std::wstring_view text);
 std::wstring RootName(HKEY root);
 std::wstring Build(const RegistryNode& node);
 std::wstring BuildNative(const RegistryNode& node);

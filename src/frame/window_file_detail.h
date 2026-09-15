@@ -231,7 +231,7 @@ inline bool EqualsInsensitive(
     const std::wstring& left,
     const std::wstring& right
 ) {
-  return _wcsicmp(left.c_str(), right.c_str()) == 0;
+  return left.size() == right.size() && _wcsnicmp(left.c_str(), right.c_str(), left.size()) == 0;
 }
 
 inline bool StartsWithInsensitive(
