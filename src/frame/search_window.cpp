@@ -323,6 +323,15 @@ bool MainWindow::Impl::IsLocalRegistryTabIndex(
   return entry.kind == TabEntry::Kind::kRegistry && entry.registry_mode == RegistryMode::kLocal;
 }
 
+int MainWindow::Impl::FindLocalRegistryTabIndex() const {
+  for (size_t i = 0; i < tabs_.size(); ++i) {
+    if (IsLocalRegistryTabIndex(static_cast<int>(i))) {
+      return static_cast<int>(i);
+    }
+  }
+  return -1;
+}
+
 int MainWindow::Impl::FindFirstRegistryTabIndex() const {
   for (size_t i = 0; i < tabs_.size(); ++i) {
     if (tabs_[i].kind == TabEntry::Kind::kRegistry) {

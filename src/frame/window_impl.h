@@ -274,7 +274,7 @@ private:
   void SelectTabAfterClose(int closed_index, int previous_index);
   bool SwitchToLocalRegistry();
   bool SwitchToRemoteRegistry();
-  bool ConnectRemoteRegistry(const std::wstring& machine);
+  bool ConnectRemoteRegistry(const std::wstring& machine, bool open_new_tab = false);
   bool SwitchToOfflineRegistry();
   bool SaveOfflineRegistry();
   bool LoadOfflineRegistryFromPath(const std::wstring& path, bool open_new_tab);
@@ -297,6 +297,7 @@ private:
   bool ConfirmOfflineChanges(const wchar_t* message);
   void MarkOfflineDirty();
   void ClearOfflineDirty();
+  int AddRegistryTab(RegistryMode mode, const wchar_t* label);
   void OpenLocalRegistryTab();
   int CurrentRegistryTabIndex() const;
   void UpdateRegistryTabEntry(RegistryMode mode, const std::wstring& offline_path, const std::wstring& remote_machine);
@@ -305,8 +306,8 @@ private:
   bool IsRegFileTabSelected() const;
   int SearchIndexFromTab(int index) const;
   int FindFirstRegistryTabIndex() const;
+  int FindLocalRegistryTabIndex() const;
   bool IsLocalRegistryTabIndex(int index) const;
-  void ActivateRegistryTab();
   bool ActivateLocalRegistryTab();
   bool SearchResultOpensInNewTab() const;
   bool OpenSearchResultRow(int item, bool new_tab);

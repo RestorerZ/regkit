@@ -485,11 +485,12 @@ bool MainWindow::Impl::SwitchToRemoteRegistry() {
     }
     machine = std::move(text_result.text);
   }
-  return ConnectRemoteRegistry(machine);
+  return ConnectRemoteRegistry(machine, true);
 }
 
 bool MainWindow::Impl::ConnectRemoteRegistry(
-    const std::wstring& name
+    const std::wstring& name,
+    bool open_new_tab
 ) {
   std::wstring machine = name;
   machine = NormalizeMachineName(machine);
@@ -530,6 +531,9 @@ bool MainWindow::Impl::ConnectRemoteRegistry(
     }
   }
 
+  if (tab_ && open_new_tab) {
+    AddRegistryTab(RegistryMode::kRemote, L"Remote Registry");
+  }
   ReleaseRemoteRegistry();
   registry_mode_ = RegistryMode::kRemote;
   remote_machine_ = machine;
@@ -667,20 +671,7 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(
   }
 
   if (tab_ && open_new_tab) {
-    TCITEMW item = {};
-    item.mask = TCIF_TEXT;
-    item.pszText = const_cast<wchar_t*>(L"Offline Registry");
-    int index = TabCtrl_GetItemCount(tab_);
-    TabCtrl_InsertItem(tab_, index, &item);
-    TabEntry entry;
-    entry.kind = TabEntry::Kind::kRegistry;
-    entry.registry_mode = RegistryMode::kOffline;
-    entry.offline_path = selection_path;
-    tabs_.push_back(std::move(entry));
-    UpdateTabWidth();
-    suppress_tab_change_ = true;
-    SelectTabIndex(index);
-    suppress_tab_change_ = false;
+    AddRegistryTab(RegistryMode::kOffline, L"Offline Registry");
   }
 
   ReleaseRemoteRegistry();
@@ -860,9 +851,16 @@ bool MainWindow::Impl::ResolveExternalJumpTarget(
 }
 
 bool MainWindow::Impl::ActivateLocalRegistryTab() {
-  const int sel = TabCtrl_GetCurSel(tab_);
-  if (sel < 0 || static_cast<size_t>(sel) >= tabs_.size() || tabs_[static_cast<size_t>(sel)].kind != TabEntry::Kind::kRegistry) {
-    ActivateRegistryTab();
+  if (!IsLocalRegistryTabIndex(TabCtrl_GetCurSel(tab_))) {
+    const int local_tab = FindLocalRegistryTabIndex();
+    if (local_tab < 0) {
+      OpenLocalRegistryTab();
+    } else {
+      suppress_tab_change_ = true;
+      SelectTabIndex(local_tab);
+      suppress_tab_change_ = false;
+      ApplyTabSelection(local_tab);
+    }
   }
   return registry_mode_ == RegistryMode::kLocal || SwitchToLocalRegistry();
 }
@@ -918,18 +916,6 @@ bool MainWindow::Impl::SearchResultOpensInNewTab() const {
   const int index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
   return index >= 0 && static_cast<size_t>(index) < search_tabs_.size() &&
          search_tabs_[static_cast<size_t>(index)].open_in_new_tab;
-}
-
-void MainWindow::Impl::ActivateRegistryTab() {
-  const int registry_tab = FindFirstRegistryTabIndex();
-  if (registry_tab < 0) {
-    OpenLocalRegistryTab();
-    return;
-  }
-  suppress_tab_change_ = true;
-  SelectTabIndex(registry_tab);
-  suppress_tab_change_ = false;
-  ApplyTabSelection(registry_tab);
 }
 
 bool MainWindow::Impl::NavigateToResolvedExternalJump(

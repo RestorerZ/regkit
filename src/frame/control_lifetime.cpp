@@ -377,7 +377,7 @@ bool MainWindow::Impl::OpenSearchResultRow(
   if (new_tab) {
     OpenLocalRegistryTab();
   } else {
-    ActivateRegistryTab();
+    ActivateLocalRegistryTab();
   }
   ApplyViewVisibility();
   UpdateStatus();
@@ -1479,18 +1479,15 @@ bool MainWindow::Impl::OnCreate() {
 
   int initial_tab = tab_ ? TabCtrl_GetCurSel(tab_) : -1;
   if (initial_tab >= 0 && util::IsProcessPrivileged() && !IsLocalRegistryTabIndex(initial_tab)) {
-    int local_tab = 0;
-    while (local_tab < static_cast<int>(tabs_.size()) && !IsLocalRegistryTabIndex(local_tab)) {
-      ++local_tab;
-    }
-    if (local_tab == static_cast<int>(tabs_.size())) {
+    const int local_tab = FindLocalRegistryTabIndex();
+    if (local_tab < 0) {
       OpenLocalRegistryTab();
     } else {
       suppress_tab_change_ = true;
       TabCtrl_SetCurSel(tab_, local_tab);
       suppress_tab_change_ = false;
     }
-    initial_tab = local_tab;
+    initial_tab = TabCtrl_GetCurSel(tab_);
   }
   if (initial_tab >= 0) {
     ApplyTabSelection(initial_tab);

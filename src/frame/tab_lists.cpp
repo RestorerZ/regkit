@@ -561,22 +561,32 @@ void MainWindow::Impl::SelectTabIndex(
   TabCtrl_SetCurSel(tab_, index);
 }
 
+int MainWindow::Impl::AddRegistryTab(
+    RegistryMode mode,
+    const wchar_t* label
+) {
+  TCITEMW item = {};
+  item.mask = TCIF_TEXT;
+  item.pszText = const_cast<wchar_t*>(label);
+  const int index = TabCtrl_GetItemCount(tab_);
+  TabCtrl_InsertItem(tab_, index, &item);
+  TabEntry entry;
+  entry.kind = TabEntry::Kind::kRegistry;
+  entry.registry_mode = mode;
+  tabs_.push_back(std::move(entry));
+  UpdateTabWidth();
+  suppress_tab_change_ = true;
+  SelectTabIndex(index);
+  suppress_tab_change_ = false;
+  return index;
+}
+
 void MainWindow::Impl::OpenLocalRegistryTab() {
   if (!tab_) {
     return;
   }
-  CaptureRegistryTabState(TabCtrl_GetCurSel(tab_));
-  TCITEMW item = {};
-  item.mask = TCIF_TEXT;
-  item.pszText = const_cast<wchar_t*>(L"Local Registry");
-  int index = TabCtrl_GetItemCount(tab_);
-  TabCtrl_InsertItem(tab_, index, &item);
-  TabEntry entry;
-  entry.kind = TabEntry::Kind::kRegistry;
-  entry.registry_mode = RegistryMode::kLocal;
-  tabs_.push_back(std::move(entry));
+  const int index = AddRegistryTab(RegistryMode::kLocal, L"Local Registry");
   RefreshRegistryTabLabels();
-  TabCtrl_SetCurSel(tab_, index);
   SwitchToLocalRegistry();
   RestoreRegistryTabState(index);
   ApplyViewVisibility();
