@@ -539,7 +539,8 @@ LRESULT CALLBACK TraceDialogProc(
     }
   case WM_SIZE:
     LayoutDialog(hwnd, state, state->font);
-    return 0;  case WM_COMMAND:
+    return 0;
+  case WM_COMMAND:
     if (HIWORD(wparam) == BN_CLICKED && (LOWORD(wparam) == kSelectAllButton || LOWORD(wparam) == kOkButton)) {
       AcceptSelection(hwnd, state, LOWORD(wparam) == kSelectAllButton);
       return 0;

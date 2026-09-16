@@ -19,6 +19,7 @@ namespace regkit::value_decoder {
 
 namespace {
 
+// file times use 100ns ticks & start before unix epoch
 constexpr uint64_t kUnixEpochTicks = 116444736000000000ull;
 constexpr uint64_t kMaxFileTime = 0x8000000000000000ull;
 
@@ -32,6 +33,7 @@ bool HasTextForm(
   if (type != REG_BINARY && type != REG_NONE) {
     return false;
   }
+  // show text transforms for binary data only when every byte is ASCII
   for (const BYTE byte : data) {
     if (byte > 0x7F) {
       return false;
@@ -115,6 +117,7 @@ bool ValidateBase64(
       return false;
     }
   }
+  // unused padding bits must be zero
   if (padding == 2) {
     if ((Base64Index(text[body - 1]) & 0x0F) != 0) {
       *error = L"Invalid Base64 padding bits.";
@@ -342,6 +345,7 @@ uint64_t ReadUnsigned(
     const BYTE* data,
     size_t size
 ) {
+  // int decoders treat registry bytes as little endian
   uint64_t value = 0;
   std::memcpy(&value, data, size);
   return value;
@@ -422,6 +426,7 @@ Decoded DecodeUtf16(
       unit = static_cast<wchar_t>((unit >> 8) | (unit << 8));
     }
   }
+  // remove the BOM after byte order has been corrected
   if (!text.empty() && text.front() == 0xFEFF) {
     text.erase(text.begin());
     --units;
@@ -477,6 +482,7 @@ Decoded DecodeSystemTime(
   SYSTEMTIME time = {};
   std::memcpy(&time, data, sizeof(time));
   FILETIME probe = {};
+  // let windows reject invalid dates
   if (time.wMonth < 1 || time.wMonth > 12 || time.wDay < 1 || time.wDay > 31 ||
       time.wHour > 23 || time.wMinute > 59 || time.wSecond > 59 ||
       time.wMilliseconds > 999 || time.wDayOfWeek > 6 ||
@@ -507,6 +513,7 @@ Decoded DecodeUnix(
   }
   const uint64_t value = ReadUnsigned(data, size);
   const uint64_t scale = milliseconds ? 10000ull : 10000000ull;
+  // check scaling & epoch addition before converting to FILETIME
   if (value > (0xFFFFFFFFFFFFFFFFull - kUnixEpochTicks) / scale) {
     return Failure(L"Unix time is out of range.");
   }
@@ -623,8 +630,9 @@ Decoded DecodeSecurityDescriptor(
   }
   SECURITY_DESCRIPTOR_RELATIVE header = {};
   std::memcpy(&header, data, sizeof(header));
+  // registry security descriptors must use offsets within the same buffer
   if ((header.Control & SE_SELF_RELATIVE) == 0) {
-    return Failure(L"Not a self-relative security descriptor.");
+    return Failure(L"Not a self relative security descriptor.");
   }
   if (!SidAtFits(data, size, header.Owner) || !SidAtFits(data, size, header.Group) ||
       !AclFits(data, size, header.Dacl) || !AclFits(data, size, header.Sacl)) {
@@ -727,6 +735,7 @@ std::vector<DecoderEntry> AvailableDecoders(
     entries.push_back({DecoderId::kUtf16Be, L"UTF-16 BE text"});
   }
   entries.push_back({DecoderId::kAscii, L"ASCII text"});
+  // show fixed size structures only for their exact byte counts
   if (size == 8) {
     entries.push_back({DecoderId::kFileTime, L"Windows FILETIME"});
   }

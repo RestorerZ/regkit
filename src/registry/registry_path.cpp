@@ -20,6 +20,7 @@ struct RootNames {
   const wchar_t* abbreviation;
 };
 
+// keep normal path parsing limited to five standard roots
 constexpr size_t kBrowsableRoots = 5;
 
 const std::array<RootNames, 8>& Roots() {
@@ -120,6 +121,7 @@ std::wstring JoinRange(
 std::wstring DisplayName(
     std::wstring_view name
 ) {
+  // show embedded nulls without truncating text in the UI
   std::wstring text(name);
   std::replace(text.begin(), text.end(), wchar_t(0), kNullSymbol);
   return text;
@@ -128,6 +130,7 @@ std::wstring DisplayName(
 std::wstring RawName(
     std::wstring_view text
 ) {
+  // restore embedded nulls before native registry operations
   std::wstring name(text);
   std::replace(name.begin(), name.end(), kNullSymbol, wchar_t(0));
   return name;
@@ -178,12 +181,14 @@ std::wstring BuildNative(
   } else if (node.root == HKEY_USERS) {
     root = L"\\REGISTRY\\USER";
   } else if (node.root == HKEY_CURRENT_USER) {
+    // HKCU is stored below the current users SID in native namespace
     const std::wstring sid = util::GetCurrentUserSidString();
     if (sid.empty()) {
       return {};
     }
     root = L"\\REGISTRY\\USER\\" + sid;
   } else if (node.root == HKEY_CURRENT_CONFIG) {
+    // HKCC points to active hardware profile
     root =
         L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Hardware Profiles\\Current";
   } else {
@@ -455,6 +460,7 @@ bool ParseRoot(
   node->root_name = root;
   const RootNames* entry = FindRoot(root, kBrowsableRoots);
   node->root = entry ? entry->root : nullptr;
+  // native REGISTRY paths intentionally have no win32 root handle
   return entry || util::EqualsInsensitive(root, L"REGISTRY");
 }
 

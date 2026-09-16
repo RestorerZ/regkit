@@ -405,6 +405,7 @@ unsigned long long ReadUnsignedFromBytes(
   if (bytes == 0 || data.size() < bytes) {
     return 0;
   }
+  // standard registry integers use windows little endian byte order
   memcpy(&value, data.data(), bytes);
   return value;
 }
@@ -420,6 +421,7 @@ unsigned long long ReadNumberWithFallback(
   if (util::ParseUnsignedNumber(text, base, &parsed)) {
     return parsed;
   }
+  // keep base switching usable when current text is incomplete
   return fallback;
 }
 
@@ -512,6 +514,7 @@ bool ConvertValueData(
   }
   if (src == REG_MULTI_SZ && is_text(dst)) {
     const std::vector<std::wstring> items = value_format::MultiStringItems(data);
+    // converting multiple strings to one would discard item boundaries
     if (items.size() != 1) {
       return false;
     }
@@ -523,6 +526,7 @@ bool ConvertValueData(
     const unsigned long long value =
         src == REG_DWORD_BIG_ENDIAN ? ReadUnsignedFromBytesBigEndian(data, src_size)
                                     : ReadUnsignedFromBytes(data, src_size);
+    // reject narrowing conversions that would truncate the value
     if (dst != REG_QWORD && value > std::numeric_limits<DWORD>::max()) {
       return false;
     }
@@ -541,6 +545,7 @@ bool ConvertValueData(
   }
   if (is_raw(src) && is_number(dst)) {
     const size_t dst_size = dst == REG_QWORD ? sizeof(unsigned long long) : sizeof(DWORD);
+    // raw bytes must already match the target integer width
     if (data.size() != dst_size) {
       return false;
     }
@@ -857,6 +862,7 @@ INT_PTR CALLBACK CustomValueDialogProc(
                                      {IDOK, kAnchorRight | kAnchorBottom},
                                      {IDCANCEL, kAnchorRight | kAnchorBottom},
                                  });
+      // keep hex bytes & previews aligned
       state->mono_font = CreateFontW(
           -12,
           0,
@@ -923,6 +929,7 @@ INT_PTR CALLBACK CustomValueDialogProc(
           return TRUE;
         }
         std::vector<BYTE> carried;
+        // carry data only when the new type can represent it without loss
         if (ConvertValueData(previous, current, type, &carried)) {
           state->type = type;
           state->data = std::move(carried);
@@ -930,6 +937,7 @@ INT_PTR CALLBACK CustomValueDialogProc(
           PopulateTraceValueEditors(dlg, state);
           return TRUE;
         }
+        // require confirmation before clearing data that cant be converted
         const int choice = ui::PromptChoice(
             dlg,
             L"The current data can't be represented as " +
@@ -1433,6 +1441,7 @@ std::wstring RegDataToString(
   }
   size_t wchar_count = data.size() / sizeof(wchar_t);
   std::wstring text(reinterpret_cast<const wchar_t*>(data.data()), wchar_count);
+  // hide registry string terminators from text control
   while (!text.empty() && text.back() == L'\0') {
     text.pop_back();
   }
@@ -1509,6 +1518,7 @@ bool EditValueBits(
     return true;
   }
   if (request.base_type == REG_DWORD_BIG_ENDIAN) {
+    // restore registry types big endian byte order after editing
     WriteUnsignedToBytesBigEndian(result.value, sizeof(DWORD), data);
     return true;
   }

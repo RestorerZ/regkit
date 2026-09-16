@@ -124,7 +124,6 @@ std::wstring RestartArguments(
       continue;
     }
     AppendArgument(&arguments, QuoteArgument(arg));
-
   }
   return arguments;
 }

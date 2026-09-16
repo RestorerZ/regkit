@@ -13,6 +13,7 @@
 namespace regkit::win32 {
 namespace {
 
+// use regfile ProgID instead of SystemFileAssociations for W7 support
 constexpr wchar_t kEditMenuKey[] = L"Software\\Classes\\regfile\\shell\\RegKit.Edit";
 constexpr wchar_t kEditMenuCommandKey[] = L"Software\\Classes\\regfile\\shell\\RegKit.Edit\\command";
 constexpr wchar_t kEditMenuLabel[] = L"Edit with RegKit";
@@ -58,6 +59,7 @@ bool OwnsRegEditDebugger(
     const std::wstring& debugger,
     const std::wstring& exe_path
 ) {
+  // compare only the debugger executable and allow arguments after it
   const wchar_t* start = debugger.c_str();
   while (*start && iswspace(*start)) {
     ++start;
@@ -92,6 +94,7 @@ LONG DeleteOwnedRegEditDebugger(
   if (result != ERROR_SUCCESS) {
     return Missing(result) ? ERROR_SUCCESS : result;
   }
+  // leave debugger entries owned by other programs unchanged
   if (!OwnsRegEditDebugger(debugger, exe_path)) {
     return ERROR_SUCCESS;
   }
@@ -135,6 +138,7 @@ LONG SetRegFileEditMenu(
       result = util::WriteRegistryString(HKEY_CURRENT_USER, kEditMenuCommandKey, nullptr, EditMenuCommand(exe_path));
     }
     if (result != ERROR_SUCCESS) {
+      // remove partial registration when any write fails
       const LONG cleanup = DeleteEditMenu();
       if (cleanup_error) {
         *cleanup_error = cleanup;
@@ -143,6 +147,7 @@ LONG SetRegFileEditMenu(
   } else {
     result = DeleteEditMenu();
   }
+  // refresh explorer after changing file association
   SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
   return result;
 }
@@ -150,6 +155,7 @@ LONG SetRegFileEditMenu(
 LONG RemoveRegFileEditMenuIfOwned(
     const std::wstring& exe_path
 ) {
+  // uninstall only the command that still points to this executable
   return IsEditMenuCommandOwned(exe_path) ? SetRegFileEditMenu(exe_path, false) : ERROR_SUCCESS;
 }
 

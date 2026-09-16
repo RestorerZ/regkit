@@ -187,6 +187,7 @@ INT_PTR CALLBACK FieldDialogProc(
     SetDlgItemTextW(dialog, IDC_FIELD_MEANING, dialog_support::ToDisplayText(state->field.meaning).c_str());
     const HWND list = GetDlgItem(dialog, IDC_FIELD_BITS);
     dialog_support::SetupListView(list, LVS_EX_CHECKBOXES, {{L"Bit", 60}, {L"Mask", 150}, {L"Field", 160}});
+    // hide bits owned by other fields to prevent overlap
     for (unsigned bit = 0; bit < state->parent->bit_width; ++bit) {
       const int owner = state->parent->FieldIndexForBit(bit);
       if (owner >= 0 && owner != state->editing) {
@@ -314,6 +315,7 @@ INT_PTR CALLBACK FieldDialogProc(
         ui::ShowError(dialog, L"Select at least one bit.");
         return TRUE;
       }
+      // drop states that no longer fit after the field gets smaller
       const uint64_t limit = bitfield::WidthMask(static_cast<unsigned>(result.bits.size()));
       for (const bitfield::State& value : state->field.states) {
         if (value.value <= limit) {
@@ -424,6 +426,7 @@ void RefreshDefinitionCombo(
   const HWND combo = GetDlgItem(dialog, IDC_DEF_SELECT);
   const std::wstring filter = state->filtering ? dialog_support::ReadText(dialog, IDC_DEF_SELECT) : std::wstring();
   const DWORD selection = state->filtering ? static_cast<DWORD>(SendMessageW(combo, CB_GETEDITSEL, 0, 0)) : 0;
+  // block edit notifications caused by rebuilding the combo
   state->updating_combo = true;
   SendMessageW(combo, WM_SETREDRAW, FALSE, 0);
   SendMessageW(combo, CB_RESETCONTENT, 0, 0);
@@ -481,6 +484,7 @@ bool CommitDefinition(
     HWND dialog,
     Editor* state
 ) {
+  // validate a copy so rejected edits leave the definition unchanged
   Definition draft;
   if (!CollectDefinition(dialog, state, &draft)) {
     return false;
@@ -620,6 +624,7 @@ void ChangeWidth(
       SelectWidth(dialog, definition.bit_width);
       return;
     }
+    // remove out of range bits and fields left empty by the new width
     for (Field& field : definition.fields) {
       field.bits.erase(
           std::remove_if(field.bits.begin(), field.bits.end(), [width](unsigned bit) { return bit >= width; }),
@@ -727,6 +732,7 @@ void RenameFromCombo(
     HWND dialog,
     Editor* state
 ) {
+  // reuse filter text as a new name when editing ends
   std::wstring text = dialog_support::ReadText(dialog, IDC_DEF_SELECT);
   state->filtering = false;
   if (text.empty() || text == state->definition().name) {

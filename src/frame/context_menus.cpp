@@ -258,7 +258,7 @@ void MainWindow::Impl::ShowValueContextMenu(
 
   HMENU menu = CreatePopupMenu();
   if (row && row->kind == rowkind::kKey) {
-      bool is_simulated = row->simulated;
+    bool is_simulated = row->simulated;
     bool can_rename = !row->extra.empty();
     bool can_modify = !read_only_;
     UINT edit_flags = MF_STRING;

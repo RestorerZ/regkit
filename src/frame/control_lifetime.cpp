@@ -220,6 +220,7 @@ bool MainWindow::Impl::ListCellTooltipText(
       !CellTextIsClipped(list, text, available)) {
     return false;
   }
+  // limit tooltip text so large registry data doesnt create huge windows
   size_t limit = std::min(text.size(), kValueTooltipTextLimit);
   size_t lines = 0;
   for (size_t i = 0; i < limit; ++i) {
@@ -761,6 +762,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(
     bool both_names_left = false;
     if (!RegistryStore::RenameValue(*browse_.current_node(), old_name, new_name, &both_names_left)) {
       if (both_names_left) {
+        // value rename is a copy followed by delete and can fail in between
         MarkOfflineDirty();
         UpdateValueListForNode(browse_.current_node());
         ui::ShowError(hwnd_, L"The value was copied to the new name but the old name "
@@ -1010,6 +1012,7 @@ LRESULT MainWindow::Impl::HandleSearchListCustomDraw(
       }
       HFONT font = reinterpret_cast<HFONT>(SendMessageW(search_results_list_, WM_GETFONT, 0, 0));
       HFONT old_font = font ? reinterpret_cast<HFONT>(SelectObject(draw->nmcd.hdc, font)) : nullptr;
+      // draw matched range after the list view paints the full cell
       DrawSearchMatchOverlay(draw->nmcd.hdc, cell, cell_text, static_cast<int>(result->match_start), static_cast<int>(result->match_length));
       if (old_font) {
         SelectObject(draw->nmcd.hdc, old_font);
@@ -1342,6 +1345,7 @@ bool MainWindow::Impl::OnCreate() {
     return false;
   }
   appearance::ConfigureListView(browse_.values().hwnd());
+  // keep a hidden regedit tree for tools that navigate it through tree messages
   regedit_compat_tree_.Create(
       hwnd_,
       instance_,
@@ -1490,6 +1494,7 @@ void MainWindow::Impl::RunDeferredStartup() {
   }
   deferred_startup_complete_ = true;
   const bool has_external_jump = !queued_external_jump_target_.empty();
+  // external jumps & saved tab state take priority over the global tree state
   bool use_global_tree_state = (!has_external_jump && save_tree_state_);
   if (use_global_tree_state && tab_) {
     int active_tab = TabCtrl_GetCurSel(tab_);
@@ -1624,6 +1629,7 @@ void MainWindow::Impl::ApplyStartupCachePayload(
     return;
   }
   std::unique_ptr<StartupCachePayload> owned(payload);
+  // ignore results from cancelled/replaced startup load
   if (!startup_cache_session_.IsCurrent(owned->generation)) {
     return;
   }
@@ -1646,6 +1652,7 @@ void MainWindow::Impl::ApplyStartupCachePayload(
     for (auto& pair : value_comments_.name_entries()) {
       merged_name_comments[pair.first] = std::move(pair.second);
     }
+    // comments added during startup override older copies loaded from disk
     value_comments_.value_entries() = std::move(merged_value_comments);
     value_comments_.name_entries() = std::move(merged_name_comments);
     RefreshValueListComments();
@@ -1691,6 +1698,7 @@ void MainWindow::Impl::OnDestroy() {
     RemovePropW(hwnd_, kRegKitWindowProperty);
   }
   EndJumpUiBatch();
+  // stop workers before releasing controls & resources they may still reference
   StopStartupCacheLoad();
   StopReplace();
   StopTraceParseSessions();

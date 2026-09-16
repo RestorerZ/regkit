@@ -20,6 +20,7 @@ LOGFONTW DefaultUIFontLogFont(
     lf.lfWeight = FW_NORMAL;
     lf.lfCharSet = DEFAULT_CHARSET;
   }
+  // 9 point Segoe UI, windows/regit can override it
   lf.lfHeight = appearance::FontHeight(9, dpi);
   std::wstring face;
   if (util::ReadRegistryString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\FontSubstitutes", L"Segoe UI", &face) != ERROR_SUCCESS || face.empty()) {

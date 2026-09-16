@@ -284,6 +284,7 @@ std::vector<Row> BuildRows(
   keys.reserve(first.keys.size() + second.keys.size());
   std::unordered_set<std::wstring> seen;
   seen.reserve(keys.capacity());
+  // get key union once so each shared key is compared once
   AppendKeys(first.keys, &seen, &keys);
   AppendKeys(second.keys, &seen, &keys);
 
@@ -419,6 +420,7 @@ bool ParseRows(
       continue;
     }
     const auto fields = record_fields::Split(line);
+    // keep usable cache rows when one line is incomplete
     if (fields.size() < 7) {
       continue;
     }

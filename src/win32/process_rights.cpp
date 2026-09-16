@@ -106,6 +106,7 @@ bool OpenSystemToken(
   }
 
   UniqueHandle system_process;
+  // prefer session zero SYSTEM token and fall back to the active session
   if (lsass_pid != 0) {
     system_process.reset(OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, lsass_pid));
   }
@@ -240,6 +241,7 @@ bool LaunchElevatedToken(
   UniqueHandle source_token;
   UniqueHandle target_token;
   DWORD session_id = kNoSession;
+  // get debug access before opening a protected SYSTEM process
   if (!OpenProcessToken(GetCurrentProcess(), MAXIMUM_ALLOWED, current_token.put()) ||
       !DuplicateTokenEx(current_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenImpersonation, current_impersonation.put()) ||
       !util::EnableTokenPrivilege(current_impersonation.get(), SE_DEBUG_NAME) ||
@@ -260,6 +262,7 @@ bool LaunchElevatedToken(
   if (service_name && !OpenServiceProcessToken(service_name, source_token.put())) {
     return false;
   }
+  // attach primary token to the active session before launching the UI
   return DuplicateTokenEx(service_name ? source_token.get() : system_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityIdentification, TokenPrimary, target_token.put()) &&
          SetTokenInformation(target_token.get(), TokenSessionId, &session_id, sizeof(session_id)) &&
          EnableAllPrivileges(target_token.get()) &&
@@ -345,6 +348,7 @@ PrivilegeScope::PrivilegeScope(
 }
 
 PrivilegeScope::~PrivilegeScope() {
+  // restore each privilege to the state captured when the scope began
   for (auto previous = previous_.rbegin(); previous != previous_.rend(); ++previous) {
     if (previous->PrivilegeCount != 0) {
       AdjustTokenPrivileges(token_.get(), FALSE, &*previous, sizeof(*previous), nullptr, nullptr);
@@ -435,6 +439,7 @@ bool IsExecutableLocationWritableByOtherUsers() {
       return true;
     }
     const DWORD attributes = GetFileAttributesW(module.c_str());
+    // reject reparse points before trusting the executable path
     if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
       return true;
     }
@@ -446,6 +451,7 @@ bool IsExecutableLocationWritableByOtherUsers() {
         LocalFree(sid);
       }
     }
+    // writable executable/parent dir lets another user replace the target
     for (std::wstring path = module; path.size() > 3;) {
       if (GrantsWriteToStandardUsers(path, group_sids)) {
         return true;
@@ -528,6 +534,7 @@ bool LaunchProcessAsShellUser(
     SetLastError(ERROR_NOT_FOUND);
     return ReportLaunch(false, error_code);
   }
+  // shell token returns privileged restarts to the signed in user
   UniqueHandle shell_process(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, shell_pid));
   UniqueHandle shell_token;
   UniqueHandle target_token;

@@ -105,6 +105,7 @@ bool Parser::Fail(
 }
 
 bool Parser::Enter() {
+  // limit nested arrays & objects
   if (++depth_ > kMaxDepth) {
     return Fail(L"The definition file is nested too deeply.");
   }
@@ -786,6 +787,7 @@ std::vector<DefinitionFile> LoadBundledFiles() {
     }
     DefinitionFile file;
     std::wstring error;
+    // ignore invalid files without hiding remaining definitions
     if (Load(util::JoinPath(directory, found.cFileName), &file, &error)) {
       files.push_back(std::move(file));
     }
@@ -864,6 +866,7 @@ const Field* Definition::FieldForBit(
 bool Definition::MatchesPath(
     const std::wstring& key_path
 ) const {
+  // no path filters means definition applies to every matching value name
   if (key_paths.empty()) {
     return true;
   }
@@ -1059,6 +1062,7 @@ bool Parse(
   }
   const BYTE* data = utf8.data();
   size_t size = utf8.size();
+  // accept an optional UTF8 byte order mark
   if (size >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
     data += 3;
     size -= 3;

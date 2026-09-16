@@ -57,6 +57,7 @@ bool Load(
       target->values.reserve(source->second.values.size());
     }
     if (entries) {
+      // include key only row so empty keys are selectable
       Entry key_entry;
       key_entry.source_path = source_path;
       key_entry.key_path = key_path;

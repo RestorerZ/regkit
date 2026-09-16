@@ -448,7 +448,7 @@ LRESULT CALLBACK AboutDialogProc(
                                         nullptr,
                                         nullptr,
                                         nullptr);
-      state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+    state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
     state->focus = state->ok_btn;
     appearance::SetDialogFont(hwnd, state->font);
     LayoutAboutDialog(hwnd, state);

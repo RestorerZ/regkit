@@ -80,6 +80,7 @@ Matcher::Matcher(
   if (!valid_ || !use_regex_) {
     return;
   }
+  // compile once as this matcher is reused for every key & value
   try {
     auto flags = std::regex_constants::ECMAScript;
     if (!match_case_) {
@@ -249,6 +250,7 @@ void SortResults(
     return;
   }
   if (column == 2) {
+    // cache type labels as sorting calls the comparator many times
     std::map<std::pair<ResultKind, DWORD>, std::wstring> labels;
     auto label_of = [&labels](const Result& row) -> const std::wstring& {
       const auto key = std::make_pair(row.kind, row.type);
@@ -483,6 +485,7 @@ DataMatch MatchValueData(
 
   DWORD base_type = value_format::NormalizeType(type);
   if (base_type == REG_SZ || base_type == REG_EXPAND_SZ || base_type == REG_LINK || base_type == REG_MULTI_SZ) {
+    // search string data in place and format it only after a match
     std::wstring_view view;
     if (!BuildStringView(data, size, &view)) {
       return result;
@@ -548,6 +551,7 @@ DataMatch MatchValueData(
     };
 
     if (scratch) {
+      // reuse each worker buffer
       scratch->assign(size, L'\0');
       for (DWORD i = 0; i < size; ++i) {
         (*scratch)[i] = static_cast<wchar_t>(data[i]);
@@ -693,10 +697,13 @@ bool Run(
   if (!matcher.valid()) {
     return false;
   }
+  // parse hex once before workers search binary values
   const HexQuery hex_query = ParseHexQuery(criteria.query);
   const bool has_excludes = !criteria.exclude_paths.empty();
+  // skip values/child keys when the selected search fields dont need them
   const bool want_values = criteria.search_values || criteria.search_data;
   const bool want_subkeys = criteria.recursive;
+  // values above the size limit need metadata only
   const DWORD enum_max_data =
       criteria.use_max_size && criteria.max_size < MAXDWORD
           ? static_cast<DWORD>(criteria.max_size)
@@ -744,6 +751,7 @@ bool Run(
     };
     Store stores[2] = {{node.root, nullptr}, {nullptr, nullptr}};
     size_t store_count = 1;
+    // search HKCR through backing stores not already covered by another root
     if (mirror_classes && whole_root && node.root == HKEY_CLASSES_ROOT) {
       store_count = 0;
       if (!machine_in_scope) {
@@ -851,6 +859,7 @@ bool Run(
   };
 
   auto worker = [&]() {
+    // reuse buffers and vectors across all keys handled by this worker
     EnumerationScratch scratch;
     std::wstring widen_scratch;
     ResultBatch batch;
@@ -899,6 +908,7 @@ bool Run(
         flush_progress(false);
 
         std::wstring display_path;
+        // build display paths only when filtering/returning a match
         auto path_text = [&]() -> const std::wstring& {
           if (display_path.empty()) {
             display_path = BuildDisplayPath(entry);
@@ -965,6 +975,7 @@ bool Run(
           if (should_stop()) {
             return false;
           }
+          // reject by metadata before searching value names/data
           if ((criteria.skip_links && value.type == REG_LINK) ||
               !IsTypeAllowed(criteria, value.type) ||
               !IsSizeAllowed(criteria, data_size) || !is_key_in_range()) {
@@ -978,6 +989,7 @@ bool Run(
           }
 
           DataMatch data_match;
+          // skip data matching when value name already matches
           if (!name_match.matched && criteria.search_data) {
             data_match = MatchValueData(matcher, hex_query, value.type, data, data_size, &widen_scratch);
           }
@@ -1005,6 +1017,7 @@ bool Run(
                   static_cast<uint32_t>(data_match.match.length);
             }
           } else {
+            // leave name matches unloaded until UI needs their data
             result.data_state = DataState::kNotLoaded;
           }
           if (name_match.matched) {
@@ -1139,6 +1152,7 @@ bool Run(
     worker_count = 1;
   }
   worker_count = std::min(worker_count, WorkerPolicy(criteria));
+  // avoid extra threads when the search starts from only a few roots
   worker_count = static_cast<unsigned int>(std::min<size_t>(
       worker_count,
       std::max<size_t>(1, criteria.start_nodes.size() * 4)

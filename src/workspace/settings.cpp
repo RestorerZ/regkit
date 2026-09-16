@@ -16,50 +16,50 @@ namespace {
 
 struct BoolField {
   const wchar_t* key;
-  bool Settings::*member;
+  bool Settings::* member;
 };
 
 struct IntField {
   const wchar_t* key;
-  int Settings::*member;
+  int Settings::* member;
 };
 
 struct TextField {
   const wchar_t* key;
-  std::wstring Settings::*member;
+  std::wstring Settings::* member;
 };
 
 constexpr BoolField kBoolFields[] = {
-    {L"clear_history_on_exit", &Settings::clear_history_on_exit},
-    {L"clear_tabs_on_exit", &Settings::clear_tabs_on_exit},
-    {L"view_toolbar", &Settings::show_toolbar},
-    {L"view_address_bar", &Settings::show_address_bar},
-    {L"view_filter_bar", &Settings::show_filter_bar},
-    {L"view_tab_control", &Settings::show_tab_control},
-    {L"view_tree", &Settings::show_tree},
-    {L"view_history", &Settings::show_history},
-    {L"view_status_bar", &Settings::show_status_bar},
-    {L"view_keys_in_list", &Settings::show_keys_in_list},
-    {L"view_simulated_keys", &Settings::show_simulated_keys},
-    {L"view_extra_hives", &Settings::show_extra_hives},
-    {L"view_value_grid", &Settings::show_value_grid},
-    {L"save_tree_state", &Settings::save_tree_state},
-    {L"auto_check_updates", &Settings::auto_check_updates},
-    {L"default_reset_enabled", &Settings::default_reset_enabled},
-    {L"always_run_as_admin", &Settings::always_run_as_admin},
-    {L"always_run_as_system", &Settings::always_run_as_system},
-    {L"always_run_as_trustedinstaller", &Settings::always_run_as_trustedinstaller},
-    {L"always_on_top", &Settings::always_on_top},
-    {L"single_instance", &Settings::single_instance},
-    {L"read_only", &Settings::read_only},
-    {L"font_italic", &Settings::font_italic},
+    {L"clear_history_on_exit", &Settings::clear_history_on_exit},                   // Options > Clear History on Exit
+    {L"clear_tabs_on_exit", &Settings::clear_tabs_on_exit},                         // Options > Clear Tabs on Exit
+    {L"view_toolbar", &Settings::show_toolbar},                                     // View > Toolbar
+    {L"view_address_bar", &Settings::show_address_bar},                             // View > Address Bar
+    {L"view_filter_bar", &Settings::show_filter_bar},                               // View > Filter Bar
+    {L"view_tab_control", &Settings::show_tab_control},                             // View > Tabs
+    {L"view_tree", &Settings::show_tree},                                           // View > Key Tree
+    {L"view_history", &Settings::show_history},                                     // View > History
+    {L"view_status_bar", &Settings::show_status_bar},                               // View > Status Bar
+    {L"view_keys_in_list", &Settings::show_keys_in_list},                           // View > Keys in List
+    {L"view_simulated_keys", &Settings::show_simulated_keys},                       // View > Simulated Keys
+    {L"view_extra_hives", &Settings::show_extra_hives},                             // View > Show Extra Root Keys
+    {L"view_value_grid", &Settings::show_value_grid},                               // View > Grid Lines
+    {L"save_tree_state", &Settings::save_tree_state},                               // Options > Save Previous Tree State
+    {L"auto_check_updates", &Settings::auto_check_updates},                         // Help > Check for Updates Automatically
+    {L"default_reset_enabled", &Settings::default_reset_enabled},                   // Default > Enable Context Menu (risky)
+    {L"always_run_as_admin", &Settings::always_run_as_admin},                       // Options > Run As > Always Run as Admin
+    {L"always_run_as_system", &Settings::always_run_as_system},                     // Options > Run As > Always Run as SYSTEM
+    {L"always_run_as_trustedinstaller", &Settings::always_run_as_trustedinstaller}, // Options > Run As > Always Run as TrustedInstaller
+    {L"always_on_top", &Settings::always_on_top},                                   // Window > Always on Top
+    {L"single_instance", &Settings::single_instance},                               // Options > Single Instance
+    {L"read_only", &Settings::read_only},                                           // Options > Read Only Mode
+    {L"font_italic", &Settings::font_italic},                                       // Options > Font
 };
 
 constexpr IntField kPositiveFields[] = {
     {L"tree_width", &Settings::tree_width},
     {L"history_height", &Settings::history_height},
-    {L"font_size", &Settings::font_size},
-    {L"font_weight", &Settings::font_weight},
+    {L"font_size", &Settings::font_size},     // Options > Font
+    {L"font_weight", &Settings::font_weight}, // Options > Font
 };
 
 constexpr IntField kPlacementFields[] = {
@@ -70,10 +70,10 @@ constexpr IntField kPlacementFields[] = {
 };
 
 constexpr TextField kTextFields[] = {
-    {L"theme_mode", &Settings::theme_mode},
-    {L"theme_preset", &Settings::theme_preset},
-    {L"icon_set", &Settings::icon_set},
-    {L"font_face", &Settings::font_face},
+    {L"theme_mode", &Settings::theme_mode},     // Options > Theme
+    {L"theme_preset", &Settings::theme_preset}, // Options > Theme > Theme Presets
+    {L"icon_set", &Settings::icon_set},         // Options > Icons
+    {L"font_face", &Settings::font_face},       // Options > Font
 };
 
 template <typename Field>
@@ -157,17 +157,17 @@ Settings ParseSettings(
     } else if (util::EqualsInsensitive(key, L"window_maximized")) {
       settings.window_maximized = util::ParseBool(value);
       settings.window_placement_present = true;
-    } else if (util::EqualsInsensitive(key, L"save_tabs")) {
+    } else if (util::EqualsInsensitive(key, L"save_tabs")) { // Options > Save Tabs
       settings.save_tabs = util::ParseBool(value);
       settings.save_tab_kinds = settings.save_tabs ? kSaveTabsAll : 0;
-    } else if (util::EqualsInsensitive(key, L"save_tab_types")) {
+    } else if (util::EqualsInsensitive(key, L"save_tab_types")) { // Options > Save Tabs > tab types
       settings.save_tab_kinds = number & kSaveTabsAll;
       settings.save_tabs = settings.save_tab_kinds != 0;
-    } else if (util::EqualsInsensitive(key, L"font_use_default")) {
+    } else if (util::EqualsInsensitive(key, L"font_use_default")) { // Options > Font
       settings.use_custom_font = !util::ParseBool(value);
-    } else if (Indexed(key, L"trace_recent_", &index)) {
+    } else if (Indexed(key, L"trace_recent_", &index)) { // Trace > recent trace files
       SetIndexed(&settings.recent_traces, index, value);
-    } else if (Indexed(key, L"default_recent_", &index)) {
+    } else if (Indexed(key, L"default_recent_", &index)) { // Default > recent default files
       SetIndexed(&settings.recent_defaults, index, value);
     } else if (Indexed(key, L"value_column_width_", &index)) {
       SetIndexed(&settings.value_column_widths, index, number);

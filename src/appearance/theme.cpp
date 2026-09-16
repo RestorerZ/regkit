@@ -70,7 +70,6 @@ Fn DarkModeExport(
   return theme ? reinterpret_cast<Fn>(GetProcAddress(theme, MAKEINTRESOURCEA(ordinal))) : nullptr;
 }
 
-
 struct ComboBoxThemeState {
   bool hot = false;
 };
@@ -606,7 +605,9 @@ void PaintComboBox(
   LONG_PTR cb_style = style & CBS_DROPDOWNLIST;
   bool has_focus = (cb_style == CBS_DROPDOWNLIST && GetFocus() == hwnd) || (cb_style == CBS_DROPDOWN && info.hwndItem && GetFocus() == info.hwndItem);
 
-  const COLORREF border = !enabled ? theme.BorderColor() : has_focus ? theme.FocusColor() : hot ? theme.HoverColor() : theme.BorderColor();
+  const COLORREF border = !enabled ? theme.BorderColor() : has_focus ? theme.FocusColor()
+                                                       : hot         ? theme.HoverColor()
+                                                                     : theme.BorderColor();
   const COLORREF text = enabled ? theme.TextColor() : theme.MutedTextColor();
   const COLORREF fill = hot ? theme.HoverColor() : theme.SurfaceColor();
 

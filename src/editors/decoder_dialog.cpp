@@ -43,6 +43,7 @@ struct State {
 const std::vector<BYTE>& Bytes(
     const State& state
 ) {
+  // no transform reads original bytes without making a copy
   return state.transform == TransformId::kNone ? state.request->data
                                                : state.transformed;
 }
@@ -115,6 +116,7 @@ void RunDecoder(
     text.append(field.name).append(L": ").append(field.value).append(L"\r\n");
   }
   if (id == DecoderId::kRawBytes) {
+    // cap formatted preview so large registry values stay responsive
     const size_t shown = std::min(bytes.size(), kRawBytePreviewLimit);
     const std::span<const BYTE> span(bytes.data(), shown);
     text.append(L"\r\n").append(util::ToHex(span, L' ', true));
@@ -255,6 +257,7 @@ INT_PTR CALLBACK DialogProc(
   }
   switch (id) {
   case IDOK:
+    // keep decoder open after copying so other interpretations can be tried
     ui::CopyTextToClipboard(dialog, state->output);
     return TRUE;
   case IDCANCEL:

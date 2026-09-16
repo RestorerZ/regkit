@@ -44,6 +44,7 @@
 
 namespace regkit::command_detail {
 
+using window_detail::ChildNode;
 using window_detail::EqualsInsensitive;
 using window_detail::FetchListViewItemText;
 using window_detail::FileBaseName;
@@ -55,7 +56,6 @@ using window_detail::kIconSetLucide;
 using window_detail::kIconSetMaterialSymbols;
 using window_detail::kIconSetPhosphor;
 using window_detail::LeafName;
-using window_detail::ChildNode;
 using window_detail::MakeValueListRow;
 using window_detail::ShortDefaultLabel;
 using window_detail::StartsWithInsensitive;

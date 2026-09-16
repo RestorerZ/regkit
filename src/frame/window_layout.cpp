@@ -82,6 +82,7 @@ void MainWindow::Impl::InitDragLayout() {
   if (!hwnd_) {
     return;
   }
+  // cache fixed edges so moves dont relayout every control
   RECT client = {};
   GetClientRect(hwnd_, &client);
   drag_client_width_ = client.right - client.left;
@@ -253,6 +254,7 @@ void MainWindow::Impl::ApplyDragLayout() {
   }
 
   const UINT placement_flags = SWP_NOZORDER | SWP_NOACTIVATE;
+  // move all visible panels in one window update
   HDWP hdwp = BeginDeferWindowPos(placement_count);
   for (int i = 0; hdwp && i < placement_count; ++i) {
     const PanelPlacement& p = placements[i];
@@ -301,6 +303,7 @@ void MainWindow::Impl::ApplyDragLayout() {
   extend_dirty(history_splitter_rect_, history_splitter_rect_.bottom > history_splitter_rect_.top);
 
   LayoutValueGridToolbar();
+  // redraw only the area covered by the old & new panel positions
   if (has_dirty_layout) {
     RedrawWindow(hwnd_, &dirty_layout, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_UPDATENOW);
   }
@@ -482,6 +485,7 @@ void MainWindow::Impl::EnsureHiveListLoaded() {
   if (!hklm) {
     return;
   }
+  // cache mounted hive paths for file lookup & root icons
   util::UniqueHKey hive_key;
   if (RegOpenKeyExW(hklm, L"SYSTEM\\CurrentControlSet\\Control\\hivelist", 0, KEY_READ, hive_key.put()) != ERROR_SUCCESS) {
     return;
@@ -602,6 +606,7 @@ int MainWindow::Impl::KeyIconIndex(
   std::wstring hive_path = LookupHivePath(node, &hive_root);
   if (!hive_path.empty() && hive_root && node.subkey.empty()) {
     if (node.root == HKEY_CURRENT_USER || EqualsInsensitive(node.root_name, L"HKEY_CURRENT_USER")) {
+      // treat HKCU as an alias
       hive_root = false;
     }
   }
@@ -703,6 +708,7 @@ HICON MainWindow::Impl::LoadThemeIcon(
   if (!path.empty()) {
     icon = util::LoadIconFromFile(path, size, dpi);
   }
+  // fall back to built in icons when a custom icon cant be loaded
   if (!icon) {
     icon = util::LoadIconResource(ShouldUseLightIcons() ? light_id : dark_id, size, dpi);
   }
@@ -731,6 +737,7 @@ void MainWindow::Impl::ReloadThemeIcons() {
     }
     SendMessageW(hwnd, WM_SETREDRAW, enable ? TRUE : FALSE, 0);
   };
+  // pause redraw while every image list is replaced
   set_redraw(toolbar_.hwnd(), false);
   set_redraw(browse_.tree().hwnd(), false);
   set_redraw(browse_.values().hwnd(), false);
@@ -845,6 +852,7 @@ void MainWindow::Impl::LayoutControls(
     }
     UINT flags = SWP_NOZORDER | SWP_NOACTIVATE;
     if (!dragging_splitter) {
+      // wait for final redraw
       flags |= SWP_NOREDRAW;
     }
     SetWindowPos(hwnd, nullptr, x, y_pos, w, h, flags);
@@ -898,6 +906,7 @@ void MainWindow::Impl::LayoutControls(
         ShowWindow(browse_.filter(), SW_SHOW);
         ShowWindow(filter_clear_btn_, SW_SHOW);
       } else {
+        // keep tabs usable when there isnt space for both controls
         show_filter = false;
       }
     }

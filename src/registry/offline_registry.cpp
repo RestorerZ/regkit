@@ -187,6 +187,7 @@ public:
       return;
     }
     if (node.subkey.empty()) {
+      // hive roots stay owned by the caller while opened subkeys are owned here
       key_ = root;
     } else if (api_->open_key(root, node.subkey.c_str(), owner_.put()) == ERROR_SUCCESS) {
       key_ = owner_.get();
@@ -250,6 +251,7 @@ bool DeleteSubtree(
     const OfflineKey& parent,
     const std::wstring& name
 ) {
+  // close child handle before deleting its now empty key
   {
     const OfflineKey child(&parent.api(), parent.get(), name);
     if (!child) {
@@ -274,6 +276,7 @@ bool WithApi(
   }
   OffregApi* api = Api();
   if (!api) {
+    // report missing/incomplete offreg support
     if (error) {
       *error = OffregLoadFailure();
     }
@@ -312,6 +315,7 @@ bool OpenHive(
   return WithApi(error, [&](OffregApi& api) {
     ORHKEY hive = nullptr;
     DWORD result = api.open_hive(path.c_str(), &hive);
+    // reject a success result that didnt return a usable root
     if (result == ERROR_SUCCESS && !hive) {
       result = ERROR_INVALID_HANDLE;
     }
@@ -434,6 +438,7 @@ bool CreateKey(
   }
   util::UniqueResource<ORHKEY, CloseOfflineKey> created;
   DWORD disposition = 0;
+  // dont report an existing key as newly created
   return parent.api().create_key(parent.get(), name.c_str(), nullptr, 0, nullptr, created.put(), &disposition) == ERROR_SUCCESS &&
          disposition == REG_CREATED_NEW_KEY;
 }

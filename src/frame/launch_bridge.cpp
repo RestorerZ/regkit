@@ -45,6 +45,7 @@ bool BeginRestart(
   if (!RestartExePath(owner, &exe_path)) {
     return false;
   }
+  // pass current PID so the replacement waits for this instance to exit
   const HRESULT hr = win32::LaunchElevated(owner, exe_path, win32::RestartArguments(target_arg, GetCurrentProcessId()));
   if (FAILED(hr)) {
     if (!win32::DialogCancelled(hr)) {
@@ -120,6 +121,7 @@ bool MainWindow::Impl::RestartCurrentInstance() {
 bool MainWindow::Impl::RestartAfterCacheClear(
     CacheKind kind
 ) {
+  // dont restore tab data when its cache was cleared
   const bool restore_session =
       kind != CacheKind::kAll && kind != CacheKind::kTabs;
   if (restore_session && !SaveSessionForRestart()) {
@@ -127,6 +129,7 @@ bool MainWindow::Impl::RestartAfterCacheClear(
   }
   SaveSettings();
   if (!ClearCache(kind, false)) {
+    // continue tree state saving when the restart doesnt complete
     if ((kind == CacheKind::kAll || kind == CacheKind::kTreeState) &&
         save_tree_state_) {
       StartTreeStateWorker();
@@ -164,6 +167,7 @@ bool MainWindow::Impl::RestartAfterSettingsReset() {
     }
   }
   if (!LaunchRestart(true)) {
+    // recreate settings when the replacement process couldnt start
     SaveSettings();
     return false;
   }
@@ -173,6 +177,7 @@ bool MainWindow::Impl::RestartAfterSettingsReset() {
 bool MainWindow::Impl::RestartAsAdmin() {
   PrepareSessionHandover();
   if (util::IsProcessSystem() || util::IsProcessTrustedInstaller()) {
+    // return through the signed in shell before requesting admin access
     return BrokerRestart(hwnd_, kRestartAdminArg, L"Failed to restart with administrator rights.", util::LaunchProcessAsShellUser);
   }
   return BeginRestart(hwnd_, nullptr, L"Failed to restart with administrator rights.");
@@ -211,6 +216,7 @@ void MainWindow::Impl::ReplaceRegEdit(
     ui::ShowError(hwnd_, L"Failed to locate the executable path.");
     return;
   }
+  // reject machine wide redirection to an executable another user can replace
   if (enable && util::IsExecutableLocationWritableByOtherUsers()) {
     ui::PromptKeyChoice(
         hwnd_,
@@ -231,6 +237,7 @@ void MainWindow::Impl::ReplaceRegEdit(
 
   bool conflict = false;
   LONG result = win32::SetRegEditReplacement(exe_path, enable, &conflict);
+  // dont overwrite another debugger registration without approval
   if (result != ERROR_SUCCESS && conflict && enable) {
     const int choice = ui::PromptChoice(
         hwnd_,

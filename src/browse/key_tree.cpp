@@ -118,6 +118,7 @@ void RegistryTree::PopulateRoots(
   nodes_.reserve(roots.size() + 3);
 
   root_item_ = InsertFolderItem(hwnd_, TVI_ROOT, root_label_.c_str());
+  // group root keys unless regedit layout needs a flat tree
   const auto has_group = [&](bool real) {
     return !regedit_layout_ && std::any_of(roots.begin(), roots.end(), [&](const RegistryRootEntry& entry) { return (entry.group == RegistryRootGroup::kReal) == real; });
   };
@@ -140,6 +141,7 @@ void RegistryTree::PopulateRoots(
       icon_index = icon_resolver_(*stored);
     }
 
+    // reuse the REGISTRY group item as real registry root
     if (!regedit_layout_ && root_entry.group == RegistryRootGroup::kReal && real_group_item_ && util::EqualsInsensitive(root_entry.display_name, kRealGroupLabel) && root_entry.subkey_prefix.empty()) {
       TVITEMW item = {};
       item.mask = TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
@@ -205,6 +207,7 @@ void RegistryTree::OnItemExpanding(
     return;
   }
 
+  // load children on demand when key is expanded
   node->children_loaded = AddChildren(info->itemNew.hItem, node);
 }
 
@@ -220,6 +223,7 @@ RegistryNode* RegistryTree::OnSelectionChanged(
 RegistryNode* RegistryTree::StoreNode(
     std::unique_ptr<RegistryNode> node
 ) {
+  // keep node pointers valid as tree items store them in lParam
   RegistryNode* stored = node.get();
   nodes_.emplace(stored, std::move(node));
   return stored;
@@ -256,6 +260,7 @@ void RegistryTree::DeleteChildren(
   SuspendRedraw(hwnd_);
   while (child) {
     HTREEITEM next = TreeView_GetNextSibling(hwnd_, child);
+    // collect node pointers before deleting their tree items
     CollectSubtree(child, &released);
     TreeView_DeleteItem(hwnd_, child);
     child = next;
@@ -278,6 +283,7 @@ HTREEITEM RegistryTree::InsertChild(
   HTREEITEM after = TVI_FIRST;
   const std::wstring label = registry_path::DisplayName(name);
   wchar_t text[256] = {};
+  // find sorted position and reuse a matching item
   for (HTREEITEM sibling = TreeView_GetChild(hwnd_, parent); sibling;
        sibling = TreeView_GetNextSibling(hwnd_, sibling)) {
     TVITEMW item = {};
@@ -349,6 +355,7 @@ bool RegistryTree::AddChildren(
       false
   );
   std::vector<std::wstring> virtual_children;
+  // traces can add simulated keys missing from the current key
   if (virtual_child_provider_ && (enumerated || node->simulated)) {
     std::unordered_set<std::wstring> existing_lower;
     existing_lower.reserve(children.size());
@@ -399,6 +406,7 @@ bool RegistryTree::AddChildren(
   parent_state.hItem = parent;
   parent_state.cChildren = entries.empty() ? 0 : 1;
   TreeView_SetItem(hwnd_, &parent_state);
+  // only cache the load when the key read succeeded
   return enumerated;
 }
 
@@ -409,6 +417,7 @@ void RegistryTree::OnGetDispInfo(
     return;
   }
   auto* node = reinterpret_cast<RegistryNode*>(info->item.lParam);
+  // resolve child state & icons only when the tree asks for them
   if (info->item.mask & TVIF_CHILDREN) {
     if (!node) {
       info->item.cChildren = 0;

@@ -64,6 +64,7 @@ public:
     for (; fetched < celt && index_ < suggestions_.size(); ++fetched, ++index_) {
       const std::wstring& item = suggestions_[index_];
       size_t bytes = (item.size() + 1) * sizeof(wchar_t);
+      // return strings with COM task memory so the caller can free them
       wchar_t* buffer = static_cast<wchar_t*>(CoTaskMemAlloc(bytes));
       if (!buffer) {
         for (ULONG i = 0; i < fetched; ++i) {
@@ -148,6 +149,7 @@ private:
       DWORD sel_end = 0;
       SendMessageW(edit_, EM_GETSEL, reinterpret_cast<WPARAM>(&sel_start), reinterpret_cast<LPARAM>(&sel_end));
       if (sel_end > sel_start && sel_end == query.size()) {
+        // ignore auto appended selection when rebuilding suggestions
         query = query.substr(0, sel_start);
       }
     }
@@ -275,6 +277,7 @@ BOOL CALLBACK ApplyAutoCompleteThemeProc(
 
   bool is_dropdown = WindowClassEquals(hwnd, L"Auto-Suggest Dropdown") || WindowClassEquals(hwnd, L"Autocomplete") || WindowClassEquals(hwnd, L"AutoComplete");
   if (!is_dropdown) {
+    // older systems may show the popup under a different class name
     LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
     if ((style & WS_POPUP) == 0) {
       return TRUE;
@@ -359,6 +362,7 @@ std::vector<std::wstring> MainWindow::Impl::BuildAddressSuggestions(
   }
   bool trailing_sep = !text.empty() && text.back() == L'\\';
   if (trailing_sep) {
+    // separator requests every child of the completed path
     text.pop_back();
   }
 
@@ -425,6 +429,7 @@ std::vector<std::wstring> MainWindow::Impl::BuildAddressSuggestions(
   if (!ResolvePathToNode(normalized_prefix, &node)) {
     return items;
   }
+  // enumerate only immediate children and cap work for large keys
   auto subkeys = RegistryStore::EnumSubKeyNames(node, true);
   items.reserve(std::min(subkeys.size(), kMaxSuggestions));
   for (const auto& raw_name : subkeys) {

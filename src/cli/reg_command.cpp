@@ -89,6 +89,7 @@ int Fail(
   PrintError(status == ERROR_FILE_NOT_FOUND ? L"The system was unable to find the specified registry key or value." : util::FormatWin32Error(static_cast<DWORD>(status)));
   return kFailed;
 }
+
 bool IsSwitch(
     const std::wstring& text,
     const wchar_t* name
@@ -105,6 +106,7 @@ struct KeyRef {
   std::wstring display;
 };
 
+// split path into root/subkey & display form
 bool ParseKey(
     const std::wstring& text,
     KeyRef* key
@@ -152,6 +154,7 @@ const ValueType kTypes[] = {
     {L"REG_FULL_RESOURCE_DESCRIPTOR", REG_FULL_RESOURCE_DESCRIPTOR},
 };
 
+// convert REG_* type name into Windows type number
 bool ParseType(
     const std::wstring& text,
     DWORD* type
@@ -366,6 +369,7 @@ bool ParseOptions(
         return false;
       options->has_data = true;
     } else if (IsSwitch(arg, L"s")) {
+      // /s selects multi string separator for add and recursion elsewhere
       if (separator_switch) {
         std::wstring separator;
         if (!next(&separator))
@@ -459,6 +463,7 @@ int QueryKey(
   }
   Print(key.display);
   SelectValue(options, &contents.values);
+  // keep unnamed default value at the top of the output
   std::stable_partition(contents.values.begin(), contents.values.end(), [](const RegistryValue& value) { return value.name.empty(); });
   for (const RegistryValue& value : contents.values) {
     Print(L"    " + (value.name.empty() ? std::wstring(L"(Default)") : value.name) + L"    " + TypeName(value.type) + L"    " + FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size())));
@@ -485,6 +490,7 @@ int QueryKey(
   }
   return kOk;
 }
+
 int CmdQuery(
     const std::vector<std::wstring>& args
 ) {
@@ -507,6 +513,7 @@ int CmdQuery(
   }
   bool matched = false;
   const int result = QueryKey(key, options, options.recurse, &matched);
+  // key can exist even when the value requested with /v or /ve doesn't
   if (result == kOk && options.has_value && !matched) {
     return Fail(ERROR_FILE_NOT_FOUND);
   }
@@ -652,6 +659,7 @@ LONG CopyTree(
   }
   return status;
 }
+
 int CmdCopy(
     const std::vector<std::wstring>& args
 ) {
@@ -691,6 +699,7 @@ bool ExportKeyToFile(
     pending.pop_back();
     KeyContents contents;
     if (ReadKey(current, view, true, &contents) != ERROR_SUCCESS) {
+      // keep exporting readable keys, fail later if nothing was readable
       continue;
     }
     any = true;
@@ -719,6 +728,7 @@ bool ExportKeyToFile(
   }
   return true;
 }
+
 int CmdExport(
     const std::vector<std::wstring>& args
 ) {
@@ -790,6 +800,7 @@ int CmdSave(
   if (status != ERROR_SUCCESS) {
     return Fail(status);
   }
+  // RegSaveKey can't overwrite a file, so stage the save before replacing it
   std::wstring staged = positional[1];
   const bool existed =
       GetFileAttributesW(positional[1].c_str()) != INVALID_FILE_ATTRIBUTES;
@@ -939,6 +950,7 @@ int CompareKeys(
   if (!options.recurse) {
     return kOk;
   }
+  // go through both child lists so keys found on only one side are still compared
   std::vector<std::wstring> children = std::move(left_contents.subkeys);
   children.insert(children.end(), right_contents.subkeys.begin(), right_contents.subkeys.end());
   std::sort(children.begin(), children.end(), [](const std::wstring& a, const std::wstring& b) { return util::CompareInsensitive(a, b) < 0; });
@@ -950,6 +962,7 @@ int CompareKeys(
   }
   return kOk;
 }
+
 int CmdCompare(
     const std::vector<std::wstring>& args
 ) {
@@ -980,6 +993,7 @@ int CmdCompare(
     return kFailed;
   }
   Print(differs ? L"Result Compared: Different" : L"Result Compared: Identical");
+  // reg.exe exit code 2 = keys are different
   return differs ? 2 : kOk;
 }
 
@@ -1090,6 +1104,7 @@ bool Execute(
     }
   }
 
+  // accept older RegEdit import/export
   for (size_t i = 0; i < args.size(); ++i) {
     if (IsSwitch(args[i], L"s") && i + 1 < args.size()) {
       std::wstring error;

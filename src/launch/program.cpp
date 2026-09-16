@@ -203,6 +203,7 @@ bool ResolveExternalJumpTarget(
 bool IsOwnRegKitWindow(
     HWND hwnd
 ) {
+  // accept only this executable running in the same sign in session
   DWORD process_id = 0;
   if (!GetWindowThreadProcessId(hwnd, &process_id) || process_id == 0 ||
       process_id == GetCurrentProcessId()) {
@@ -258,6 +259,7 @@ bool SendTextToRegKit(
   data.cbData = static_cast<DWORD>((text.size() + 1) * sizeof(wchar_t));
   data.lpData = const_cast<wchar_t*>(text.c_str());
   DWORD_PTR accepted = 0;
+  // stop waiting if existing instance is frozen
   return SendMessageTimeoutW(
              window,
              WM_COPYDATA,
@@ -320,6 +322,7 @@ bool RestartAs(
     regkit::ui::ShowError(nullptr, L"Failed to locate the executable path.");
     return false;
   }
+  // keep user arguments while replacing old internal restart flags
   const std::wstring arguments = regkit::win32::RestartArguments(target.arg, parent_pid, original_args);
   *exit_code = 0;
   if (!util::IsProcessElevated()) {
@@ -349,10 +352,12 @@ bool RestartAs(
 void ApplySafeDllSearchPolicy() {
   const HMODULE kernel = GetModuleHandleW(L"kernel32.dll");
   using SetDefaultDllDirectoriesFn = BOOL(WINAPI*)(DWORD);
+  // resolve this at runtime as older winvers may not export it
   const auto set_directories = kernel ? reinterpret_cast<SetDefaultDllDirectoriesFn>(GetProcAddress(kernel, "SetDefaultDllDirectories")) : nullptr;
   if (set_directories) {
     set_directories(LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_USER_DIRS);
   }
+  // remove current dir from legacy DLL search path
   SetDllDirectoryW(L"");
 }
 
@@ -418,11 +423,11 @@ int WINAPI wWinMain(
   const DWORD restart_parent_pid = regkit::win32::RestartParentPid(args);
   const DWORD handoff_pid = restart_parent_pid != 0 ? restart_parent_pid : GetCurrentProcessId();
   const RestartTarget* restart_target =
-      HasCommandLineArg(args, kRestartTiArg)                                                                 ? &kTrustedInstallerTarget
-      : HasCommandLineArg(args, kRestartSystemArg)                                                           ? &kSystemTarget
+      HasCommandLineArg(args, kRestartTiArg)                                                                   ? &kTrustedInstallerTarget
+      : HasCommandLineArg(args, kRestartSystemArg)                                                             ? &kSystemTarget
       : !stay_as_user && startup_settings.always_run_as_trustedinstaller && !util::IsProcessTrustedInstaller() ? &kTrustedInstallerTarget
       : !stay_as_user && startup_settings.always_run_as_system && !util::IsProcessSystem()                     ? &kSystemTarget
-                                                                                                             : nullptr;
+                                                                                                               : nullptr;
   int restart_exit = 0;
   if (restart_target) {
     if (RestartAs(*restart_target, handoff_pid, args, &restart_exit)) {

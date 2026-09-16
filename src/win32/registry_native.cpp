@@ -52,6 +52,7 @@ bool CountedName(
     const std::wstring& text,
     UNICODE_STRING* name
 ) {
+  // counted names preserve embedded nulls that win32 key APIs cut off
   if (text.size() * sizeof(wchar_t) > (std::numeric_limits<USHORT>::max)()) {
     return false;
   }
@@ -78,8 +79,10 @@ LONG OpenNative(
     return ERROR_CALL_NOT_IMPLEMENTED;
   }
   OBJECT_ATTRIBUTES attributes = {};
+  // use OBJ_OPENLINK to open the link key instead of following its target
   InitializeObjectAttributes(&attributes, &name, OBJ_CASE_INSENSITIVE | (open_link ? OBJ_OPENLINK : 0ul), parent ? RootHandle(parent) : nullptr, nullptr);
   HANDLE handle = nullptr;
+  // rem win32 registry view flags before the native call
   const NTSTATUS status = open_link
                               ? open_key_ex(&handle, access & ~kViewFlags, &attributes, REG_OPTION_OPEN_LINK)
                               : open_key(&handle, access & ~kViewFlags, &attributes);
@@ -139,6 +142,7 @@ LONG CreateRegistryKey(
   if (name.find(L'\0') == std::wstring::npos) {
     return RegCreateKeyExW(parent, name.c_str(), 0, nullptr, options, access, nullptr, key->put(), disposition);
   }
+  // use NtCreateKey to keep the full name when it contains embedded nulls
   static const auto create_key = Ntdll<NtCreateKeyFn>("NtCreateKey");
   UNICODE_STRING counted = {};
   if (!create_key || !CountedName(name, &counted)) {
@@ -166,6 +170,7 @@ LONG RenameRegistryKey(
   if (old_name.find(L'\0') == std::wstring::npos && new_name.find(L'\0') == std::wstring::npos) {
     return RegRenameKey(parent, old_name.c_str(), new_name.c_str());
   }
+  // use NtRenameKey as RegRenameKey cuts names at embedded nulls
   static const auto rename_key = Ntdll<NtRenameKeyFn>("NtRenameKey");
   UniqueHKey key;
   LONG result = OpenRegistryPath(parent, old_name, KEY_WRITE, false, &key);
@@ -186,11 +191,13 @@ LONG DeleteRegistryTree(
   wchar_t name[256] = {};
   while (true) {
     DWORD length = static_cast<DWORD>(_countof(name));
+    // each removal moves the next child to index zero
     const LONG result = RegEnumKeyExW(key, 0, name, &length, nullptr, nullptr, nullptr, nullptr);
     if (result == ERROR_NO_MORE_ITEMS) {
       break;
     }
     UniqueHKey child;
+    // open link keys directly so deletion never goes into their targets
     LONG removed = result == ERROR_SUCCESS
                        ? OpenRegistryPath(key, std::wstring(name, length), DELETE | KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE, true, &child)
                        : result;

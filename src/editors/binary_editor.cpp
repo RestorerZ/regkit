@@ -64,6 +64,7 @@ void UpdatePreview(
     SetDlgItemTextW(dialog, IDC_VALUE_BYTES, L"Invalid");
     return;
   }
+  // grouping & text mode change only the preview
   const std::wstring preview =
       binary_text::Preview(bytes, state->group_bytes, state->unicode);
   SetDlgItemTextW(dialog, IDC_BINARY_PREVIEW, preview.c_str());
@@ -195,6 +196,7 @@ INT_PTR CALLBACK DialogProc(
   switch (id) {
   case IDC_BITS:
     {
+      // pass unsaved hex edits to the bit editor and copy its result back
       std::vector<BYTE> bytes;
       if (!value_format::ParseHex(dialog_support::ReadText(dialog, IDC_EDIT), &bytes) || bytes.empty()) {
         ui::ShowError(dialog, L"Invalid hex input.");
