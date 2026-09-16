@@ -254,6 +254,10 @@ bool SendTextToRegKit(
   if (!window || !sender || text.empty()) {
     return false;
   }
+  DWORD window_pid = 0;
+  if (GetWindowThreadProcessId(window, &window_pid)) {
+    AllowSetForegroundWindow(window_pid);
+  }
   COPYDATASTRUCT data = {};
   data.dwData = message_id;
   data.cbData = static_cast<DWORD>((text.size() + 1) * sizeof(wchar_t));
@@ -461,7 +465,8 @@ int WINAPI wWinMain(
   util::UniqueHandle instance_mutex;
   if (startup_settings.single_instance) {
     instance_mutex.reset(CreateMutexW(nullptr, TRUE, L"RegKit.SingleInstance"));
-    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+    const DWORD mutex_error = GetLastError();
+    if (mutex_error == ERROR_ALREADY_EXISTS || mutex_error == ERROR_ACCESS_DENIED) {
       HWND existing = FindRunningRegKitWindow();
       if (existing) {
         bool handed_off = true;

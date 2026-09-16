@@ -1284,6 +1284,9 @@ LRESULT MainWindow::Impl::HandleSearchNotification(
 }
 
 bool MainWindow::Impl::OnCreate() {
+  if (util::IsProcessPrivileged() && util::IsUacEnabled()) {
+    ChangeWindowMessageFilterEx(hwnd_, WM_COPYDATA, MSGFLT_ALLOW, nullptr);
+  }
   ui_font_ = CreateUIFont();
   icon_font_ = CreateIconFont(10);
   custom_font_ = DefaultLogFont();
@@ -1789,7 +1792,8 @@ void MainWindow::Impl::DiscardWorkerMessages() {
       frame::message_id::kSearchPreviewReady,
       frame::message_id::kSearchSortReady,
       frame::message_id::kSearchTabLoadReady,
-      frame::message_id::kUpdateCheckReady
+      frame::message_id::kUpdateCheckReady,
+      frame::message_id::kExternalHandoff
   };
   for (const UINT id : payload_messages) {
     while (PeekMessageW(&message, hwnd_, id, id, PM_REMOVE)) {
@@ -1832,6 +1836,9 @@ void MainWindow::Impl::DiscardWorkerMessages() {
         break;
       case frame::message_id::kUpdateCheckReady:
         delete reinterpret_cast<UpdateCheckPayload*>(message.lParam);
+        break;
+      case frame::message_id::kExternalHandoff:
+        delete reinterpret_cast<std::wstring*>(message.lParam);
         break;
       default:
         break;

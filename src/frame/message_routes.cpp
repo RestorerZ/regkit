@@ -27,7 +27,7 @@ bool AcceptHandoffFile(
     HWND owner,
     const std::wstring& path
 ) {
-  if (!util::IsProcessPrivileged()) {
+  if (!util::IsProcessPrivileged() || !util::IsUacEnabled()) {
     return true;
   }
   const DWORD attributes = GetFileAttributesW(path.c_str());
@@ -1079,32 +1079,39 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(
       }
       size_t length = data->cbData / sizeof(wchar_t);
       const wchar_t* text = reinterpret_cast<const wchar_t*>(data->lpData);
-      std::wstring target(text, text + length);
-      while (!target.empty() && target.back() == L'\0') {
-        target.pop_back();
+      auto target = std::make_unique<std::wstring>(text, text + length);
+      while (!target->empty() && target->back() == L'\0') {
+        target->pop_back();
       }
-      if (target.empty()) {
+      if (target->empty() || (data->dwData == kEditRegFileCopyDataId && !util::HasFileExtension(*target, L".reg"))) {
         return 0;
       }
-      if (data->dwData == kEditRegFileCopyDataId) {
-        if (!util::HasFileExtension(target, L".reg") || !AcceptHandoffFile(hwnd_, target) || !OpenRegFileTab(target)) {
-          return 0;
-        }
-        ShowWindow(hwnd_, SW_RESTORE);
-        SetForegroundWindow(hwnd_);
-        return TRUE;
+      if (!PostMessageW(hwnd_, frame::message_id::kExternalHandoff, data->dwData, reinterpret_cast<LPARAM>(target.get()))) {
+        return 0;
       }
-      if (deferred_startup_complete_) {
-        if (!NavigateToExternalJump(target)) {
-          ui::ShowWarning(hwnd_, L"Registry path not found:\n" + target);
-        }
-      } else {
-        QueueExternalJump(target);
-      }
+      ReleasePostedPayload(target);
+      return TRUE;
+    }
+  case frame::message_id::kExternalHandoff:
+    {
+      const std::unique_ptr<std::wstring> target(reinterpret_cast<std::wstring*>(lparam));
       ShowWindow(hwnd_, SW_RESTORE);
       SetForegroundWindow(hwnd_);
+      if (wparam == kEditRegFileCopyDataId) {
+        if (AcceptHandoffFile(hwnd_, *target)) {
+          OpenRegFileTab(*target);
+        }
+        return 0;
+      }
+      if (deferred_startup_complete_) {
+        if (!NavigateToExternalJump(*target)) {
+          ui::ShowWarning(hwnd_, L"Registry path not found:\n" + *target);
+        }
+      } else {
+        QueueExternalJump(*target);
+      }
       FocusAddressBarForExternalJump(true);
-      return TRUE;
+      return 0;
     }
   case WM_SETFOCUS:
     if (last_focus_ && IsWindow(last_focus_) && IsChild(hwnd_, last_focus_) &&
