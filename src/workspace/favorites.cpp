@@ -20,7 +20,7 @@ bool LoadFromFile(
     std::vector<std::wstring>* favorites
 ) {
   std::wstring content;
-  const bool loaded = !path.empty() && util::ReadTextFile(path, &content);
+  const bool loaded = !path.empty() && util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes);
   *favorites = util::SplitLines(content);
   return loaded;
 }

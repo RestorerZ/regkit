@@ -197,7 +197,7 @@ bool ThemePresetStore::Load(
     error->clear();
   }
   std::wstring content;
-  return util::ReadTextFile(PresetsPath(), &content) && ParsePresets(content, presets, error);
+  return util::ReadTextFile(PresetsPath(), &content, nullptr, util::kMaxStateFileBytes) && ParsePresets(content, presets, error);
 }
 
 bool ThemePresetStore::Save(
@@ -213,7 +213,7 @@ bool ThemePresetStore::ImportFromFile(
     std::wstring* error
 ) {
   std::wstring content;
-  const bool read = util::ReadTextFile(path, &content);
+  const bool read = util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes);
   if (read && ParsePresets(content, presets, error) && !presets->empty()) {
     return true;
   }

@@ -20,7 +20,6 @@
 #include "win32/text_transform.h"
 
 #include <algorithm>
-#include <atomic>
 #include <cwchar>
 #include <unordered_set>
 #include <vector>
@@ -275,7 +274,6 @@ bool FilterRegFileValues(
 std::wstring MakeTempRegPath(
     std::wstring* error
 ) {
-  static std::atomic<unsigned long> serial{0};
   const std::wstring folder = util::GetCacheFolder();
   if (folder.empty()) {
     if (error) {
@@ -283,11 +281,20 @@ std::wstring MakeTempRegPath(
     }
     return {};
   }
-  wchar_t name[64] = {};
-  swprintf_s(name, L"export_%lu_%llu_%lu.reg", GetCurrentProcessId(), GetTickCount64(), serial.fetch_add(1) + 1);
-  std::wstring path = util::JoinPath(folder, name);
-  DeleteFileW(path.c_str());
-  return path;
+  for (int attempt = 0; attempt < 16; ++attempt) {
+    std::wstring path = util::JoinPath(folder, L"export" + util::RandomFileSuffix(L".reg"));
+    const util::UniqueHandle reserved(CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY, nullptr));
+    if (reserved) {
+      return path;
+    }
+    if (GetLastError() != ERROR_FILE_EXISTS) {
+      break;
+    }
+  }
+  if (error) {
+    *error = FormatWin32Error(GetLastError());
+  }
+  return {};
 }
 
 bool ExportKey(

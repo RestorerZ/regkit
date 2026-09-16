@@ -18,12 +18,7 @@ void MainWindow::Impl::StartDefaultLoadWorker() {
         auto payload = std::make_unique<DefaultLoadPayload>();
         payload->generation = generation;
         std::wstring content;
-        if (!util::ReadTextFile(
-                active_path,
-                &content,
-                nullptr,
-                static_cast<uint64_t>(std::numeric_limits<int>::max())
-            )) {
+        if (!util::ReadTextFile(active_path, &content, nullptr, util::kMaxStateFileBytes)) {
           return;
         }
 
@@ -197,28 +192,8 @@ void MainWindow::Impl::LoadTraceSettings() {
   if (path.empty()) {
     return;
   }
-  HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (file == INVALID_HANDLE_VALUE) {
-    return;
-  }
-  LARGE_INTEGER size = {};
-  if (!GetFileSizeEx(file, &size) || size.QuadPart <= 0 || size.QuadPart > static_cast<LONGLONG>(std::numeric_limits<int>::max())) {
-    CloseHandle(file);
-    return;
-  }
-  std::string buffer(static_cast<size_t>(size.QuadPart), '\0');
-  DWORD read = 0;
-  bool ok = ReadFile(file, buffer.data(), static_cast<DWORD>(buffer.size()), &read, nullptr) != 0;
-  CloseHandle(file);
-  if (!ok || read == 0) {
-    return;
-  }
-  buffer.resize(read);
-  if (buffer.size() >= 3 && static_cast<unsigned char>(buffer[0]) == 0xEF && static_cast<unsigned char>(buffer[1]) == 0xBB && static_cast<unsigned char>(buffer[2]) == 0xBF) {
-    buffer.erase(0, 3);
-  }
-  std::wstring content = util::Utf8ToWide(buffer);
-  if (content.empty()) {
+  std::wstring content;
+  if (!util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes)) {
     return;
   }
 

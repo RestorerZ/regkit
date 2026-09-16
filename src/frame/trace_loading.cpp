@@ -24,12 +24,7 @@ void MainWindow::Impl::StartTraceLoadWorker() {
         payload->generation = generation;
         payload->selection_cache = std::move(selection_cache);
         std::wstring content;
-        if (!util::ReadTextFile(
-                active_path,
-                &content,
-                nullptr,
-                static_cast<uint64_t>(std::numeric_limits<int>::max())
-            )) {
+        if (!util::ReadTextFile(active_path, &content, nullptr, util::kMaxStateFileBytes)) {
           return;
         }
 

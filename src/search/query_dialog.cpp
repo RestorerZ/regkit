@@ -136,7 +136,7 @@ std::vector<std::wstring> LoadSearchHistory() {
   std::vector<std::wstring> items;
   std::wstring content;
   const std::wstring path = SearchHistoryPath();
-  if (!path.empty() && util::ReadTextFile(path, &content)) {
+  if (!path.empty() && util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes)) {
     for (std::wstring& line : record_fields::Lines(content)) {
       if (!line.empty()) {
         items.push_back(std::move(line));

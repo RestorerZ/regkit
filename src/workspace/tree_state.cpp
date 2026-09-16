@@ -88,7 +88,7 @@ bool LoadTreeState(
   }
   state->Clear();
   std::wstring content;
-  if (!util::ReadTextFile(path, &content)) {
+  if (!util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes)) {
     return false;
   }
   *state = ParseTreeState(content);

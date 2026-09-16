@@ -16,9 +16,19 @@ bool SaveHiveAtomically(
     const std::wstring& path,
     std::wstring* error
 ) {
-  const std::wstring temp =
-      path + L"." + std::to_wstring(GetCurrentProcessId()) + L".part";
-  DeleteFileW(temp.c_str());
+  std::wstring temp;
+  for (int attempt = 0; attempt < 16 && temp.empty(); ++attempt) {
+    const std::wstring candidate = path + util::RandomFileSuffix(L".part");
+    if (GetFileAttributesW(candidate.c_str()) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND) {
+      temp = candidate;
+    }
+  }
+  if (temp.empty()) {
+    if (error) {
+      *error = FormatWin32Error(ERROR_FILE_EXISTS);
+    }
+    return false;
+  }
   if (!RegistryStore::SaveOfflineHive(root, temp, error)) {
     DeleteFileW(temp.c_str());
     return false;

@@ -1557,12 +1557,7 @@ void MainWindow::Impl::StartStartupCacheLoad(
         std::wstring comments_path = CommentsPath();
         std::wstring comments_content;
         if (!comments_path.empty() &&
-            util::ReadTextFile(
-                comments_path,
-                &comments_content,
-                nullptr,
-                static_cast<uint64_t>(std::numeric_limits<int>::max())
-            )) {
+            util::ReadTextFile(comments_path, &comments_content, nullptr, util::kMaxCommentFileBytes)) {
           changes::CommentDocument comments;
           if (changes::ParseComments(comments_content, &comments)) {
             payload->value_comments = std::move(comments.value_entries);
@@ -1577,12 +1572,7 @@ void MainWindow::Impl::StartStartupCacheLoad(
         std::wstring history_path = HistoryCachePath();
         std::wstring history_content;
         if (!history_path.empty() &&
-            util::ReadTextFile(
-                history_path,
-                &history_content,
-                nullptr,
-                static_cast<uint64_t>(std::numeric_limits<int>::max())
-            )) {
+            util::ReadTextFile(history_path, &history_content)) {
           changes::ChangeHistory history;
           history.Replace(
               std::move(changes::ParseHistory(history_content).entries),
@@ -1602,12 +1592,7 @@ void MainWindow::Impl::StartStartupCacheLoad(
           std::wstring tree_path = TreeStatePath();
           std::wstring tree_content;
           if (!tree_path.empty() &&
-              util::ReadTextFile(
-                  tree_path,
-                  &tree_content,
-                  nullptr,
-                  static_cast<uint64_t>(std::numeric_limits<int>::max())
-              )) {
+              util::ReadTextFile(tree_path, &tree_content, nullptr, util::kMaxStateFileBytes)) {
             workspace::TreeState state =
                 workspace::ParseTreeState(tree_content);
             payload->tree_selected_path = std::move(state.selected_path);

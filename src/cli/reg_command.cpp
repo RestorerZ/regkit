@@ -804,16 +804,18 @@ int CmdSave(
   std::wstring staged = positional[1];
   const bool existed =
       GetFileAttributesW(positional[1].c_str()) != INVALID_FILE_ATTRIBUTES;
-  if (existed) {
-    wchar_t stamp[32] = {};
-    swprintf_s(stamp, L".%08x.part", GetCurrentProcessId());
-    staged = positional[1] + stamp;
-    DeleteFileW(staged.c_str());
+  for (int attempt = 0; attempt < 16; ++attempt) {
+    if (existed) {
+      staged = positional[1] + util::RandomFileSuffix(L".part");
+    }
+    status = RegSaveKeyW(handle.get(), staged.c_str(), nullptr);
+    if (!existed || status != ERROR_ALREADY_EXISTS) {
+      break;
+    }
   }
-  status = RegSaveKeyW(handle.get(), staged.c_str(), nullptr);
   handle.reset();
   if (status != ERROR_SUCCESS) {
-    if (existed) {
+    if (existed && status != ERROR_ALREADY_EXISTS) {
       DeleteFileW(staged.c_str());
     }
     return Fail(status);

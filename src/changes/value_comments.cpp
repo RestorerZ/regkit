@@ -37,7 +37,7 @@ bool ValueComments::Load(
     const std::wstring& path
 ) {
   std::wstring content;
-  if (!util::ReadTextFile(path, &content)) {
+  if (!util::ReadTextFile(path, &content, nullptr, util::kMaxCommentFileBytes)) {
     return false;
   }
   CommentDocument document;

@@ -10,6 +10,20 @@
 
 namespace util {
 
+std::wstring RandomFileSuffix(
+    const wchar_t* extension
+) {
+  unsigned int high = 0;
+  unsigned int low = 0;
+  if (rand_s(&high) != 0 || rand_s(&low) != 0) {
+    high = GetTickCount();
+    low = GetCurrentProcessId();
+  }
+  wchar_t suffix[32] = {};
+  swprintf_s(suffix, L".%08x%08x", high, low);
+  return std::wstring(suffix) + extension;
+}
+
 std::string WideToUtf8(
     const std::wstring& text
 ) {
@@ -176,13 +190,7 @@ bool WriteTextFile(
     bool utf16
 ) {
   for (int attempt = 0; attempt < 16; ++attempt) {
-    unsigned int suffix = 0;
-    if (rand_s(&suffix) != 0) {
-      suffix = GetTickCount();
-    }
-    wchar_t stamp[32] = {};
-    swprintf_s(stamp, L".%08x.tmp", suffix);
-    const std::wstring temp_path = path + stamp;
+    const std::wstring temp_path = path + RandomFileSuffix(L".tmp");
     if (!WriteWholeFile(temp_path, text, utf16, CREATE_NEW)) {
       if (GetLastError() == ERROR_FILE_EXISTS) {
         continue;

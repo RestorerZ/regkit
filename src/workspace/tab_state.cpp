@@ -244,7 +244,7 @@ bool LoadTabs(
     return false;
   }
   std::wstring content;
-  if (!util::ReadTextFile(path, &content)) {
+  if (!util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes)) {
     return false;
   }
   *state = ParseTabs(content);

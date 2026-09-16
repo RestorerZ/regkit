@@ -232,7 +232,7 @@ bool LoadSettings(
     Settings* settings
 ) {
   std::wstring content;
-  if (!settings || !util::ReadTextFile(path, &content)) {
+  if (!settings || !util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes)) {
     return false;
   }
   *settings = ParseSettings(content, std::move(*settings));
