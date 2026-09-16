@@ -80,8 +80,8 @@ void ApplyDataDirOverride(
     return;
   }
   SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
-  const std::wstring probe = util::JoinPath(dir, L"session.probe");
-  const util::UniqueHandle handle(CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr));
+  const std::wstring probe = util::JoinPath(dir, L"session" + util::RandomFileSuffix(L".probe"));
+  const util::UniqueHandle handle(CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
   if (handle) {
     SetEnvironmentVariableW(L"REGKIT_DATA_DIR", dir.c_str());
   }
@@ -525,7 +525,7 @@ int WINAPI wWinMain(
       break;
     }
     if (available == -1) {
-      regkit::ui::ShowError(nullptr, L"The message loop failed unexpectedly.");
+      regkit::ui::ShowError(nullptr, L"Message loop failed unexpectedly.");
       break;
     }
     if (window.TranslateAccelerator(msg)) {

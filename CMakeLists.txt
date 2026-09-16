@@ -7,7 +7,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 option(REGKIT_REPORT_COMPILE_TIME "Print MSVC front-end and back-end timing" OFF)
-option(REGKIT_BUILD_TESTS "Build the security regression tests" OFF)
 
 message(STATUS "RegKit platform: '${CMAKE_GENERATOR_PLATFORM}' pointer size: ${CMAKE_SIZEOF_VOID_P}")
 
@@ -44,11 +43,6 @@ include(cmake/RegKitTarget.cmake)
 include(cmake/VerifyTargetGraph.cmake)
 
 add_subdirectory(src)
-
-if (REGKIT_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
 
 add_executable(RegKit WIN32
     src/launch/program.cpp

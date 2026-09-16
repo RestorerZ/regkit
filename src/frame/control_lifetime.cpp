@@ -452,7 +452,7 @@ LRESULT MainWindow::Impl::HandleTreeNotification(
           reinterpret_cast<NMTREEVIEWW*>(lparam)
       );
       if (node) {
-        NavigateToExternalJump(registry_path::Build(*node));
+        QueueCompatJump(*node);
       }
       return 0;
     }
@@ -1479,13 +1479,18 @@ bool MainWindow::Impl::OnCreate() {
 
   int initial_tab = tab_ ? TabCtrl_GetCurSel(tab_) : -1;
   if (initial_tab >= 0 && util::IsProcessPrivileged() && !IsLocalRegistryTabIndex(initial_tab)) {
-    const int registry_tab = FindFirstRegistryTabIndex();
-    if (registry_tab >= 0 && tab_) {
-      suppress_tab_change_ = true;
-      TabCtrl_SetCurSel(tab_, registry_tab);
-      suppress_tab_change_ = false;
-      initial_tab = registry_tab;
+    int local_tab = 0;
+    while (local_tab < static_cast<int>(tabs_.size()) && !IsLocalRegistryTabIndex(local_tab)) {
+      ++local_tab;
     }
+    if (local_tab == static_cast<int>(tabs_.size())) {
+      OpenLocalRegistryTab();
+    } else {
+      suppress_tab_change_ = true;
+      TabCtrl_SetCurSel(tab_, local_tab);
+      suppress_tab_change_ = false;
+    }
+    initial_tab = local_tab;
   }
   if (initial_tab >= 0) {
     ApplyTabSelection(initial_tab);

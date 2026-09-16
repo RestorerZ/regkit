@@ -519,6 +519,13 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(
     DWORD_PTR ref_data
 ) {
   auto* self = reinterpret_cast<MainWindow::Impl*>(ref_data);
+  if (self && InSendMessage() && (message == WM_CHAR || message == WM_KEYDOWN || message == WM_SETFOCUS || message == LVM_GETITEMCOUNT || message == LVM_FINDITEMW || message == LVM_GETITEMTEXTW || message == LVM_GETITEMW)) {
+    self->FlushExternalNavigation();
+    if (message == WM_SETFOCUS && hwnd != self->browse_.values().hwnd()) {
+      SetFocus(self->browse_.values().hwnd());
+      return 0;
+    }
+  }
   if (message == WM_PAINT && ListViewScrolledHorizontally(hwnd)) {
     InvalidateListViewTail(hwnd);
   }
@@ -547,7 +554,7 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(
       SendMessageW(self->value_tooltip_, TTM_POP, 0, 0);
     }
   }
-  if (message == WM_CHAR && self && hwnd == self->browse_.values().hwnd()) {
+  if (message == WM_CHAR && self && (hwnd == self->browse_.values().hwnd() || InSendMessage())) {
     wchar_t ch = static_cast<wchar_t>(wparam);
     if (ch == L'\b' || (iswprint(ch) && ch != L'\r' && ch != L'\n' && ch != L'\t')) {
       self->HandleTypeToSelectList(ch);
@@ -602,7 +609,7 @@ LRESULT CALLBACK MainWindow::Impl::TreeViewProc(
     if (unchanged) {
       RegistryNode* node = self->regedit_compat_tree_.NodeFromItem(item);
       if (node) {
-        self->NavigateToExternalJump(registry_path::Build(*node));
+        self->QueueCompatJump(*node);
       }
     }
     return result;

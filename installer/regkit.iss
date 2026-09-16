@@ -80,7 +80,7 @@ begin
   if not WizardIsTaskSelected('replace_regedit') then
     exit;
   if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--install-regedit-replacement', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then begin
-    RaiseException('RegEdit replacement couldn''t be installed. Another program may already own its Debugger entry.');
+    RaiseException('RegEdit replacement couldn''t be installed. Another program may already own its Debugger entry, or non administrators can modify the install folder.');
   end;
 end;
 

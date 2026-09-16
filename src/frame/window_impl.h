@@ -333,6 +333,8 @@ private:
   void ApplyQueuedExternalJump();
   bool NavigateToResolvedExternalJump(const std::wstring& key_path, const std::wstring& value_name);
   bool NavigateToExternalJump(const std::wstring& target);
+  void QueueCompatJump(const RegistryNode& node);
+  void FlushExternalNavigation();
   bool ResolveExternalJumpTarget(const std::wstring& target, std::wstring* key_path, std::wstring* value_name) const;
   bool LoadTraceFromFile(const std::wstring& label, const std::wstring& path, const trace::Selection* selection_override = nullptr);
   bool LoadBundledTrace(const std::wstring& label, const trace::Selection* selection_override = nullptr);
@@ -708,6 +710,8 @@ private:
   int retained_value_index_ = -1;
   std::wstring retained_value_key_path_;
   std::wstring queued_external_jump_target_;
+  std::wstring pending_compat_jump_;
+  bool flushing_external_navigation_ = false;
   bool jump_ui_batch_active_ = false;
   std::wstring pending_compare_key_path_;
   std::wstring pending_compare_value_name_;

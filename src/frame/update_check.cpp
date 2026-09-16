@@ -224,15 +224,22 @@ std::wstring SaveSetup(
   return {};
 }
 
-bool SetupFileStillMatches(
+util::UniqueHandle OpenVerifiedSetup(
     const std::wstring& path,
     const std::string& sha256
 ) {
-  std::vector<BYTE> bytes;
-  if (!util::ReadFileBytes(path, &bytes, kMaxSetupBytes, 0) || bytes.empty()) {
-    return false;
+  util::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+  LARGE_INTEGER size = {};
+  if (!file || !GetFileSizeEx(file.get(), &size) || size.QuadPart <= 0 || static_cast<uint64_t>(size.QuadPart) > kMaxSetupBytes) {
+    return {};
   }
-  return _stricmp(Sha256(std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size())).c_str(), sha256.c_str()) == 0;
+  std::string data(static_cast<size_t>(size.QuadPart), '\0');
+  DWORD read = 0;
+  if (!ReadFile(file.get(), data.data(), static_cast<DWORD>(data.size()), &read, nullptr) || read != data.size() ||
+      _stricmp(Sha256(data).c_str(), sha256.c_str()) != 0) {
+    return {};
+  }
+  return file;
 }
 
 } // namespace
@@ -320,7 +327,8 @@ void MainWindow::Impl::ApplyUpdateCheckResult(
     return;
   }
   if (!payload->setup_path.empty()) {
-    if (!SetupFileStillMatches(payload->setup_path, payload->sha256)) {
+    const util::UniqueHandle verified = OpenVerifiedSetup(payload->setup_path, payload->sha256);
+    if (!verified) {
       ui::ShowError(hwnd_, L"The downloaded setup changed after RegKit verified it and wasn't started.");
       return;
     }

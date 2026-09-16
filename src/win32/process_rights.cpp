@@ -402,69 +402,63 @@ bool IsUacEnabled() {
   return RegGetValueW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", L"EnableLUA", RRF_RT_REG_DWORD, nullptr, &value, &size) != ERROR_SUCCESS || value != 0;
 }
 
-bool GrantsWriteToStandardUsers(
+bool GrantsWriteToNonAdmins(
     const std::wstring& path,
-    const std::vector<std::vector<BYTE>>& group_sids
+    const std::vector<std::vector<BYTE>>& trusted_sids
 ) {
-  constexpr ACCESS_MASK kWriteAccess = FILE_WRITE_DATA | FILE_APPEND_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES | DELETE | WRITE_DAC | WRITE_OWNER;
+  constexpr ACCESS_MASK kWriteAccess = FILE_WRITE_DATA | FILE_APPEND_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES | FILE_DELETE_CHILD | DELETE | WRITE_DAC | WRITE_OWNER | GENERIC_WRITE | GENERIC_ALL;
   PSECURITY_DESCRIPTOR descriptor = nullptr;
+  PSID owner = nullptr;
   PACL dacl = nullptr;
-  if (GetNamedSecurityInfoW(path.c_str(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, nullptr, nullptr, &dacl, nullptr, &descriptor) != ERROR_SUCCESS) {
+  if (GetNamedSecurityInfoW(path.c_str(), SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION, &owner, nullptr, &dacl, nullptr, &descriptor) != ERROR_SUCCESS) {
     return true;
   }
-  bool writable = false;
+  const auto trusted = [&](PSID sid) {
+    return std::any_of(trusted_sids.begin(), trusted_sids.end(), [&](const std::vector<BYTE>& entry) { return EqualSid(const_cast<PSID>(static_cast<const void*>(entry.data())), sid) != FALSE; });
+  };
+  bool writable = !owner || !dacl || !trusted(owner);
   for (DWORD index = 0; dacl && !writable && index < dacl->AceCount; ++index) {
     void* entry = nullptr;
     if (!GetAce(dacl, index, &entry)) {
-      continue;
+      writable = true;
+      break;
     }
     const auto* header = static_cast<const ACE_HEADER*>(entry);
-    const auto* ace = static_cast<const ACCESS_ALLOWED_ACE*>(entry);
-    if (header->AceType != ACCESS_ALLOWED_ACE_TYPE || (header->AceFlags & INHERIT_ONLY_ACE) != 0 || (ace->Mask & kWriteAccess) == 0) {
+    if ((header->AceFlags & INHERIT_ONLY_ACE) != 0 || header->AceType == ACCESS_DENIED_ACE_TYPE || header->AceType == ACCESS_DENIED_CALLBACK_ACE_TYPE) {
       continue;
     }
-    PSID ace_sid = const_cast<PSID>(static_cast<const void*>(&ace->SidStart));
-    for (const std::vector<BYTE>& sid : group_sids) {
-      writable = writable || EqualSid(const_cast<PSID>(static_cast<const void*>(sid.data())), ace_sid) != FALSE;
-    }
+    const auto* ace = static_cast<const ACCESS_ALLOWED_ACE*>(entry);
+    writable = (header->AceType != ACCESS_ALLOWED_ACE_TYPE && header->AceType != ACCESS_ALLOWED_CALLBACK_ACE_TYPE) ||
+               ((ace->Mask & kWriteAccess) != 0 && !trusted(const_cast<PSID>(static_cast<const void*>(&ace->SidStart))));
   }
   LocalFree(descriptor);
   return writable;
 }
 
-bool IsExecutableLocationWritableByOtherUsers() {
-  static const bool writable = []() {
-    const std::wstring module = GetModulePath();
-    if (module.empty()) {
+bool IsWritableByNonAdmins(
+    const std::wstring& file_path
+) {
+  std::vector<std::vector<BYTE>> trusted_sids;
+  const std::wstring user_sid = !IsUacEnabled() && IsProcessElevated() ? GetCurrentUserSidString() : std::wstring();
+  for (const wchar_t* text : {L"S-1-5-18", L"S-1-5-32-544", L"S-1-3-4", L"S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464", user_sid.c_str()}) {
+    PSID sid = nullptr;
+    if (*text && ConvertStringSidToSidW(text, &sid)) {
+      trusted_sids.emplace_back(static_cast<BYTE*>(sid), static_cast<BYTE*>(sid) + GetLengthSid(sid));
+      LocalFree(sid);
+    }
+  }
+  for (std::wstring path = file_path; path.size() > 3;) {
+    const DWORD attributes = GetFileAttributesW(path.c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 || GrantsWriteToNonAdmins(path, trusted_sids)) {
       return true;
     }
-    const DWORD attributes = GetFileAttributesW(module.c_str());
-    // reject reparse points before trusting the executable path
-    if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
-      return true;
+    const size_t slash = path.find_last_of(L'\\');
+    if (slash == std::wstring::npos) {
+      break;
     }
-    std::vector<std::vector<BYTE>> group_sids;
-    for (const wchar_t* text : {L"S-1-1-0", L"S-1-5-11", L"S-1-5-32-545", L"S-1-5-4"}) {
-      PSID sid = nullptr;
-      if (ConvertStringSidToSidW(text, &sid)) {
-        group_sids.emplace_back(static_cast<BYTE*>(sid), static_cast<BYTE*>(sid) + GetLengthSid(sid));
-        LocalFree(sid);
-      }
-    }
-    // writable executable/parent dir lets another user replace the target
-    for (std::wstring path = module; path.size() > 3;) {
-      if (GrantsWriteToStandardUsers(path, group_sids)) {
-        return true;
-      }
-      const size_t slash = path.find_last_of(L'\\');
-      if (slash == std::wstring::npos) {
-        break;
-      }
-      path.resize(slash <= 2 ? slash + 1 : slash);
-    }
-    return false;
-  }();
-  return writable;
+    path.resize(slash <= 2 ? slash + 1 : slash);
+  }
+  return file_path.empty();
 }
 
 bool IsProcessPrivileged() {

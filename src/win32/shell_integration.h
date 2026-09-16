@@ -19,7 +19,8 @@ LONG SetRegEditReplacement(
     const std::wstring& exe_path,
     bool enable,
     bool* conflict = nullptr,
-    bool overwrite_existing = false
+    bool overwrite_existing = false,
+    bool allow_writable_location = false
 );
 
 } // namespace regkit::win32

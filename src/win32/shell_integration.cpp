@@ -4,6 +4,7 @@
 #include "win32/text_transform.h"
 #include "win32/shell_integration.h"
 
+#include "win32/process_rights.h"
 #include "win32/registry_native.h"
 
 #include <shlobj.h>
@@ -170,7 +171,8 @@ LONG SetRegEditReplacement(
     const std::wstring& exe_path,
     bool enable,
     bool* conflict,
-    bool overwrite_existing
+    bool overwrite_existing,
+    bool allow_writable_location
 ) {
   if (conflict) {
     *conflict = false;
@@ -180,6 +182,9 @@ LONG SetRegEditReplacement(
   }
   if (!enable) {
     return DeleteOwnedRegEditDebugger(exe_path);
+  }
+  if (!allow_writable_location && util::IsWritableByNonAdmins(exe_path)) {
+    return ERROR_ACCESS_DENIED;
   }
   std::wstring debugger;
   const LONG result = overwrite_existing ? ERROR_FILE_NOT_FOUND : ReadRegEditDebugger(&debugger);

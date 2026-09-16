@@ -83,6 +83,8 @@ constexpr int kRegEditCompatTreeId = 119;
 constexpr int kHistoryGridButtonId = 120;
 constexpr UINT_PTR kStatusMessageTimerId = 41;
 constexpr UINT_PTR kTreeStateTimerId = 42;
+constexpr UINT_PTR kCompatJumpTimerId = 43;
+constexpr UINT kCompatJumpDelayMs = 40;
 constexpr int kToolbarIconSize = 16;
 constexpr int kToolbarGlyphSize = 16;
 using win32::kRestartAdminArg;

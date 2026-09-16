@@ -836,60 +836,19 @@ bool MainWindow::Impl::ResolveExternalJumpTarget(
   }
 
   RegistryNode node;
-  auto has_value = [&](const RegistryNode& candidate, const std::wstring& candidate_value) -> bool {
-    if (candidate_value.empty()) {
-      return false;
-    }
-    bool found = false;
-    RegistryStore::EnumKeyStreaming(
-        candidate,
-        true,
-        false,
-        false,
-        nullptr,
-        [&](const ValueInfo& value, const BYTE*, DWORD) {
-          found = EqualsInsensitive(value.name, candidate_value);
-          return !found;
-        },
-        {}
-    );
-    return found;
-  };
-  if (ResolvePathToNode(normalized, &node)) {
-    KeyInfo info = {};
-    if (RegistryStore::QueryKeyInfo(node, &info)) {
-      *key_path = std::move(normalized);
-      return true;
-    }
+  KeyInfo info = {};
+  if (ResolvePathToNode(normalized, &node) && RegistryStore::QueryKeyInfo(node, &info)) {
+    *key_path = std::move(normalized);
+    return true;
   }
 
-  size_t search_pos = normalized.size();
-  while (search_pos > 0) {
-    size_t slash = normalized.rfind(L'\\', search_pos - 1);
-    if (slash == std::wstring::npos || slash + 1 >= normalized.size()) {
-      break;
+  for (size_t slash = normalized.rfind(L'\\'); slash != std::wstring::npos && slash > 0 && slash + 1 < normalized.size(); slash = normalized.rfind(L'\\', slash - 1)) {
+    ValueEntry value;
+    if (ResolvePathToNode(normalized.substr(0, slash), &node) && RegistryStore::QueryValue(node, normalized.substr(slash + 1), &value)) {
+      *key_path = normalized.substr(0, slash);
+      *value_name = normalized.substr(slash + 1);
+      return true;
     }
-    std::wstring candidate_key = normalized.substr(0, slash);
-    std::wstring candidate_value = normalized.substr(slash + 1);
-    if (!candidate_value.empty() && ResolvePathToNode(candidate_key, &node)) {
-      KeyInfo info = {};
-      if (RegistryStore::QueryKeyInfo(node, &info)) {
-        if (!has_value(node, candidate_value)) {
-          if (slash == 0) {
-            break;
-          }
-          search_pos = slash;
-          continue;
-        }
-        *key_path = std::move(candidate_key);
-        *value_name = std::move(candidate_value);
-        return true;
-      }
-    }
-    if (slash == 0) {
-      break;
-    }
-    search_pos = slash;
   }
 
   std::wstring nearest;
@@ -906,6 +865,36 @@ bool MainWindow::Impl::ActivateLocalRegistryTab() {
     ActivateRegistryTab();
   }
   return registry_mode_ == RegistryMode::kLocal || SwitchToLocalRegistry();
+}
+
+void MainWindow::Impl::QueueCompatJump(
+    const RegistryNode& node
+) {
+  pending_compat_jump_ = registry_path::Build(node);
+  SetTimer(hwnd_, kCompatJumpTimerId, kCompatJumpDelayMs, nullptr);
+}
+
+void MainWindow::Impl::FlushExternalNavigation() {
+  if (flushing_external_navigation_ || updating_value_list_) {
+    return;
+  }
+  flushing_external_navigation_ = true;
+  if (!pending_compat_jump_.empty()) {
+    KillTimer(hwnd_, kCompatJumpTimerId);
+    const std::wstring target = std::move(pending_compat_jump_);
+    pending_compat_jump_.clear();
+    NavigateToExternalJump(target);
+  }
+  const ULONGLONG deadline = GetTickCount64() + 2000;
+  MSG message = {};
+  while (value_list_loading_ && GetTickCount64() < deadline) {
+    if (PeekMessageW(&message, hwnd_, frame::message_id::kValueListReady, frame::message_id::kValueListReady, PM_REMOVE)) {
+      HandleValueWorkerMessage(message.message, message.wParam, message.lParam);
+    } else {
+      MsgWaitForMultipleObjects(0, nullptr, FALSE, 10, QS_POSTMESSAGE);
+    }
+  }
+  flushing_external_navigation_ = false;
 }
 
 bool MainWindow::Impl::NavigateToExternalJump(

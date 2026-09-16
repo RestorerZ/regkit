@@ -30,9 +30,14 @@ bool AcceptHandoffFile(
   if (!util::IsProcessPrivileged() || !util::IsUacEnabled()) {
     return true;
   }
-  const DWORD attributes = GetFileAttributesW(path.c_str());
-  if (!IsLocalFixedPath(path) || attributes == INVALID_FILE_ATTRIBUTES ||
-      (attributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) != 0) {
+  bool local = IsLocalFixedPath(path);
+  DWORD attributes = FILE_ATTRIBUTE_DIRECTORY;
+  for (std::wstring component = path; local && component.size() > 3; component.resize(component.find_last_of(L"\\/"))) {
+    const DWORD component_attributes = GetFileAttributesW(component.c_str());
+    local = component_attributes != INVALID_FILE_ATTRIBUTES && (component_attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0;
+    attributes = component.size() == path.size() ? component_attributes : attributes;
+  }
+  if (!local || (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
     ui::ShowWarning(owner, L"RegKit is running with elevated rights and only opens local files handed to it by another instance.");
     return false;
   }
@@ -1053,6 +1058,10 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(
       KillTimer(hwnd_, kStatusMessageTimerId);
       status_message_.clear();
       UpdateStatus();
+      return 0;
+    }
+    if (wparam == kCompatJumpTimerId) {
+      FlushExternalNavigation();
       return 0;
     }
     if (wparam == kTreeStateTimerId) {

@@ -217,26 +217,29 @@ void MainWindow::Impl::ReplaceRegEdit(
     return;
   }
   // reject machine wide redirection to an executable another user can replace
-  if (enable && util::IsExecutableLocationWritableByOtherUsers()) {
-    ui::PromptKeyChoice(
-        hwnd_,
-        L"Replacing RegEdit registers this executable for every account on the machine.\n\n"
-        L"RegKit is running from a location other standard users can write to, so they could "
-        L"replace it and run their own program whenever anyone starts RegEdit. Install RegKit "
-        L"for all users first, or move it somewhere only administrators can write.",
-        exe_path,
-        L"Replace RegEdit",
-        L"OK",
-        L"",
-        L""
-    );
+  const bool writable_location = enable && util::IsWritableByNonAdmins(exe_path);
+  if (writable_location &&
+      ui::PromptKeyChoice(
+          hwnd_,
+          L"Replacing RegEdit registers this executable for every account on the machine.\n\n"
+          L"RegKit is running from a location that non administrators can write to, so a program "
+          L"without administrator rights could replace it and run whenever anyone starts RegEdit. "
+          L"Install RegKit for all users first, or move it somewhere only administrators can write.\n\n"
+          L"Replace anyway to apply it from this location.",
+          exe_path,
+          L"Replace RegEdit",
+          L"Replace Anyway",
+          L"",
+          L"Cancel",
+          {110, 70, 70}
+      ) != IDYES) {
     SyncReplaceRegEditState();
     BuildMenus();
     return;
   }
 
   bool conflict = false;
-  LONG result = win32::SetRegEditReplacement(exe_path, enable, &conflict);
+  LONG result = win32::SetRegEditReplacement(exe_path, enable, &conflict, false, writable_location);
   // dont overwrite another debugger registration without approval
   if (result != ERROR_SUCCESS && conflict && enable) {
     const int choice = ui::PromptChoice(
@@ -254,7 +257,8 @@ void MainWindow::Impl::ReplaceRegEdit(
           exe_path,
           true,
           nullptr,
-          true
+          true,
+          writable_location
       );
       conflict = false;
     } else {
