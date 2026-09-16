@@ -80,8 +80,22 @@ public:
       return E_POINTER;
     }
     *out_sd = nullptr;
-    DWORD result = GetSecurityInfo(key_, SE_REGISTRY_KEY, security_info, nullptr, nullptr, nullptr, nullptr, out_sd);
-    return HRESULT_FROM_WIN32(result);
+    DWORD size = 0;
+    LSTATUS status = RegGetKeySecurity(key_, security_info, nullptr, &size);
+    if (status != ERROR_INSUFFICIENT_BUFFER || size == 0) {
+      return HRESULT_FROM_WIN32(status == ERROR_SUCCESS ? ERROR_INVALID_DATA : status);
+    }
+    PSECURITY_DESCRIPTOR descriptor = LocalAlloc(LPTR, size);
+    if (!descriptor) {
+      return E_OUTOFMEMORY;
+    }
+    status = RegGetKeySecurity(key_, security_info, descriptor, &size);
+    if (status != ERROR_SUCCESS) {
+      LocalFree(descriptor);
+      return HRESULT_FROM_WIN32(status);
+    }
+    *out_sd = descriptor;
+    return S_OK;
   }
 
   HRESULT STDMETHODCALLTYPE SetSecurity(

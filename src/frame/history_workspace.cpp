@@ -192,6 +192,10 @@ bool MainWindow::Impl::RevertHistoryEntry(
   if (!EnsureWritable() || !PrepareHistoryRevert(entry, &prepared)) {
     return false;
   }
+  if (util::IsProcessPrivileged() &&
+      ui::PromptKeyChoice(hwnd_, L"Revert this change with elevated rights?", prepared.value_name.empty() ? prepared.key_path : prepared.key_path + L"\\" + prepared.value_name, L"Revert", L"Revert", L"", L"Cancel") != IDYES) {
+    return false;
+  }
 
   bool ok = false;
   is_replaying_ = true;
@@ -246,9 +250,16 @@ bool MainWindow::Impl::RevertHistoryEntry(
   return true;
 }
 
+bool MainWindow::Impl::HistoryStaysInMemory() const {
+  return util::IsProcessSystem() || util::IsProcessTrustedInstaller();
+}
+
 bool MainWindow::Impl::AppendHistoryCache(
     const HistoryEntry& entry
 ) {
+  if (HistoryStaysInMemory()) {
+    return true;
+  }
   if (changes::AppendHistoryFile(HistoryCachePath(), entry)) {
     history_cache_failed_ = false;
     return true;

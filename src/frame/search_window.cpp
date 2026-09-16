@@ -313,6 +313,16 @@ int MainWindow::Impl::SearchIndexFromTab(
   return tabs_[static_cast<size_t>(index)].search_index;
 }
 
+bool MainWindow::Impl::IsLocalRegistryTabIndex(
+    int index
+) const {
+  if (index < 0 || static_cast<size_t>(index) >= tabs_.size()) {
+    return false;
+  }
+  const TabEntry& entry = tabs_[static_cast<size_t>(index)];
+  return entry.kind == TabEntry::Kind::kRegistry && entry.registry_mode == RegistryMode::kLocal;
+}
+
 int MainWindow::Impl::FindFirstRegistryTabIndex() const {
   for (size_t i = 0; i < tabs_.size(); ++i) {
     if (tabs_[i].kind == TabEntry::Kind::kRegistry) {

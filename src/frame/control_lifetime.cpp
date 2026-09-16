@@ -1475,6 +1475,15 @@ bool MainWindow::Impl::OnCreate() {
   browse_.tree().PopulateRoots(browse_.roots());
 
   int initial_tab = tab_ ? TabCtrl_GetCurSel(tab_) : -1;
+  if (initial_tab >= 0 && util::IsProcessPrivileged() && !IsLocalRegistryTabIndex(initial_tab)) {
+    const int registry_tab = FindFirstRegistryTabIndex();
+    if (registry_tab >= 0 && tab_) {
+      suppress_tab_change_ = true;
+      TabCtrl_SetCurSel(tab_, registry_tab);
+      suppress_tab_change_ = false;
+      initial_tab = registry_tab;
+    }
+  }
   if (initial_tab >= 0) {
     ApplyTabSelection(initial_tab);
   } else {

@@ -324,6 +324,9 @@ void MainWindow::Impl::RemoveSelectedHistoryItems() {
   }
   ListView_SetItemState(history_list_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
   RebuildHistoryList();
+  if (HistoryStaysInMemory()) {
+    return;
+  }
   changes::WriteHistoryFile(HistoryCachePath(), entries);
 }
 

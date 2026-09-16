@@ -305,6 +305,7 @@ private:
   bool IsRegFileTabSelected() const;
   int SearchIndexFromTab(int index) const;
   int FindFirstRegistryTabIndex() const;
+  bool IsLocalRegistryTabIndex(int index) const;
   void ActivateRegistryTab();
   bool ActivateLocalRegistryTab();
   bool SearchResultOpensInNewTab() const;
@@ -442,6 +443,7 @@ private:
   void OpenSourceEntry(const search::Source& source, const std::wstring& path, const std::wstring& value_name, bool new_tab);
   int FindSourceTab(const search::Source& source) const;
   bool AppendHistoryCache(const HistoryEntry& entry);
+  bool HistoryStaysInMemory() const;
   std::wstring CacheFolderPath() const;
   std::wstring HistoryCachePath() const;
   std::wstring TabsCachePath() const;
