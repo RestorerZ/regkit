@@ -69,7 +69,7 @@ using util::TrimWhitespace;
 inline HMENU BuildCopyKeyPathMenu() {
   HMENU menu = CreatePopupMenu();
   AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathAbbrev, L"Abbreviated (HKLM)");
-  AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathRegedit, L"Regedit Address Bar");
+  AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathRegEdit, L"RegEdit Address Bar");
   AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathRegFile, L".reg File Header");
   AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathPowerShell, L"PowerShell Drive");
   AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathPowerShellProvider, L"PowerShell Provider");

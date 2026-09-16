@@ -44,8 +44,8 @@ std::wstring MainWindow::Impl::FormatRegistryPath(
   case RegistryPathFormat::kAbbrev:
     style = registry_path::Style::kAbbreviated;
     break;
-  case RegistryPathFormat::kRegedit:
-    style = registry_path::Style::kRegeditAddress;
+  case RegistryPathFormat::kRegEdit:
+    style = registry_path::Style::kRegEditAddress;
     break;
   case RegistryPathFormat::kRegFile:
     style = registry_path::Style::kRegFileHeader;
@@ -1381,13 +1381,13 @@ void MainWindow::Impl::CommitReplacePayload(
         std::to_wstring(payload->failures);
     if (payload->rejected > 0) {
       message += L"\nSkipped: " + std::to_wstring(payload->rejected) +
-                 L" value(s) because the replacement was not valid for the "
+                 L" value(s) because the replacement wasn't valid for the "
                  L"value type.";
     }
     if (payload->partial_renames > 0) {
       message += L"\n" + std::to_wstring(payload->partial_renames) +
                  L" value(s) were copied to the new name but the old name "
-                 L"could not be removed. Both names now exist.";
+                 L"couldn't be removed. Both names now exist.";
     }
     ui::ShowError(hwnd_, message);
   }

@@ -79,7 +79,7 @@ private:
   enum class RegistryPathFormat {
     kFull,
     kAbbrev,
-    kRegedit,
+    kRegEdit,
     kRegFile,
     kPowerShellDrive,
     kPowerShellProvider,
@@ -343,7 +343,7 @@ private:
   bool LoadDefaultFromPrompt();
   void ClearDefaults();
   void RefreshFavoritesCache();
-  void RefreshRegeditFavoritesMenu();
+  void RefreshRegEditFavoritesMenu();
   void RefreshBundledDefaultsCache();
   void BuildMenus();
   void RefreshStorageMenuState(HMENU menu);
@@ -405,8 +405,8 @@ private:
   void DrawFilterClearButton(const DRAWITEMSTRUCT* info);
   void ClearValueFilter(bool focus_values);
   void ShowPermissionsDialog(const RegistryNode& node);
-  void ReplaceRegedit(bool enable);
-  void SyncReplaceRegeditState();
+  void ReplaceRegEdit(bool enable);
+  void SyncReplaceRegEditState();
   void SetEditContextMenu(bool enable);
   void SyncEditContextMenuState();
   void OpenHiveFileDir();

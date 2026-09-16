@@ -104,7 +104,7 @@ bool FavoritesStore::ExportToFile(
   return SaveToFile(path, favorites);
 }
 
-bool FavoritesStore::ImportFromRegedit(
+bool FavoritesStore::ImportFromRegEdit(
     size_t* imported_count,
     std::wstring* error
 ) {
@@ -112,7 +112,7 @@ bool FavoritesStore::ImportFromRegedit(
     *imported_count = 0;
   }
   std::vector<NamedFavorite> named;
-  if (!LoadRegedit(&named, error)) {
+  if (!LoadRegEdit(&named, error)) {
     return false;
   }
   std::vector<std::wstring> imported;
@@ -135,7 +135,7 @@ bool FavoritesStore::ImportFromRegedit(
   return true;
 }
 
-bool FavoritesStore::LoadRegedit(
+bool FavoritesStore::LoadRegEdit(
     std::vector<NamedFavorite>* favorites,
     std::wstring* error
 ) {
@@ -144,7 +144,7 @@ bool FavoritesStore::LoadRegedit(
     error->clear();
   }
   util::UniqueHKey key;
-  LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\Regedit\\Favorites", 0, KEY_READ, key.put());
+  LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit\\Favorites", 0, KEY_READ, key.put());
   DWORD value_count = 0;
   DWORD max_name = 0;
   DWORD max_data = 0;

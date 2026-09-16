@@ -12,6 +12,41 @@ using namespace window_detail;
 
 namespace {
 
+bool IsLocalFixedPath(
+    const std::wstring& path
+) {
+  if (path.size() < 3 || path[1] != L':' || !iswalpha(path[0]) || (path[2] != L'\\' && path[2] != L'/')) {
+    return false;
+  }
+  const std::wstring root = path.substr(0, 3);
+  const UINT drive_type = GetDriveTypeW(root.c_str());
+  return drive_type == DRIVE_FIXED || drive_type == DRIVE_RAMDISK;
+}
+
+bool AcceptHandoffFile(
+    HWND owner,
+    const std::wstring& path
+) {
+  if (!util::IsProcessPrivileged()) {
+    return true;
+  }
+  const DWORD attributes = GetFileAttributesW(path.c_str());
+  if (!IsLocalFixedPath(path) || attributes == INVALID_FILE_ATTRIBUTES ||
+      (attributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) != 0) {
+    ui::ShowWarning(owner, L"RegKit is running with elevated rights and only opens local files handed to it by another instance.");
+    return false;
+  }
+  return ui::PromptKeyChoice(
+             owner,
+             L"Another RegKit instance asked this elevated window to open a .reg file.\n\nOpen it?",
+             path,
+             L"Open .reg file",
+             L"Open",
+             L"",
+             L"Cancel"
+         ) == IDYES;
+}
+
 bool IsSiblingRegKitWindow(
     HWND sender
 ) {
@@ -19,9 +54,6 @@ bool IsSiblingRegKitWindow(
   if (!sender || !IsWindow(sender) ||
       !GetWindowThreadProcessId(sender, &sender_pid) || sender_pid == 0) {
     return false;
-  }
-  if (sender_pid == GetCurrentProcessId()) {
-    return true;
   }
   const std::wstring sender_image = util::GetProcessImagePath(sender_pid);
   const std::wstring own_image = util::GetModulePath();
@@ -1055,7 +1087,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(
         return 0;
       }
       if (data->dwData == kEditRegFileCopyDataId) {
-        if (!util::HasFileExtension(target, L".reg") || !OpenRegFileTab(target)) {
+        if (!util::HasFileExtension(target, L".reg") || !AcceptHandoffFile(hwnd_, target) || !OpenRegFileTab(target)) {
           return 0;
         }
         ShowWindow(hwnd_, SW_RESTORE);
@@ -1203,7 +1235,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(
       if ((flags & MF_POPUP) != 0 && menu &&
           GetSubMenu(menu, static_cast<int>(position)) ==
               regedit_favorites_menu_) {
-        RefreshRegeditFavoritesMenu();
+        RefreshRegEditFavoritesMenu();
       }
       return 0;
     }

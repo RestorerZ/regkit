@@ -22,11 +22,11 @@ public:
   static bool Remove(const std::wstring& path);
   static bool ImportFromFile(const std::wstring& path);
   static bool ExportToFile(const std::wstring& path);
-  static bool LoadRegedit(
+  static bool LoadRegEdit(
       std::vector<NamedFavorite>* favorites,
       std::wstring* error = nullptr
   );
-  static bool ImportFromRegedit(size_t* imported_count, std::wstring* error);
+  static bool ImportFromRegEdit(size_t* imported_count, std::wstring* error);
 };
 
 } // namespace regkit::workspace

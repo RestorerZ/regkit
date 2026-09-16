@@ -124,18 +124,39 @@ std::wstring Data(
   return util::ToHex({data, size});
 }
 
+bool IsLocalIndirectSource(
+    const std::wstring& value
+) {
+  if (value.size() < 2) {
+    return false;
+  }
+  if (value[1] == L'{') {
+    return true;
+  }
+  std::wstring source = value.substr(1, value.find_last_of(L',') == std::wstring::npos ? std::wstring::npos : value.find_last_of(L',') - 1);
+  source = util::ExpandEnvironmentStringsDynamic(source);
+  if (source.size() < 3 || source.find(L"://") != std::wstring::npos || !iswalpha(source[0]) || source[1] != L':' ||
+      (source[2] != L'\\' && source[2] != L'/')) {
+    return false;
+  }
+  const std::wstring root = source.substr(0, 3);
+  const UINT drive_type = GetDriveTypeW(root.c_str());
+  return drive_type == DRIVE_FIXED || drive_type == DRIVE_RAMDISK;
+}
+
 std::wstring DisplayData(
     DWORD type,
     const BYTE* data,
-    DWORD size
+    DWORD size,
+    bool resolve_indirect
 ) {
   const DWORD base_type = NormalizeType(type);
   std::wstring value = Data(type, data, size);
   if (value.empty()) {
     return value;
   }
-  if ((base_type == REG_SZ || base_type == REG_EXPAND_SZ) &&
-      value.front() == L'@') {
+  if (resolve_indirect && (base_type == REG_SZ || base_type == REG_EXPAND_SZ) &&
+      value.front() == L'@' && IsLocalIndirectSource(value)) {
     std::wstring resolved(1024, L'\0');
     HRESULT result =
         SHLoadIndirectString(value.c_str(), resolved.data(), static_cast<UINT>(resolved.size()), nullptr);

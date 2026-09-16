@@ -18,8 +18,8 @@ CommandArea ClassifyCommand(
        command_id <= cmd::kDefaultRecentMax) ||
       (command_id >= cmd::kDefaultBundledBase &&
        command_id <= cmd::kDefaultBundledMax) ||
-      (command_id >= cmd::kRegeditFavoriteBase &&
-       command_id <= cmd::kRegeditFavoriteMax)) {
+      (command_id >= cmd::kRegEditFavoriteBase &&
+       command_id <= cmd::kRegEditFavoriteMax)) {
     return CommandArea::kDynamic;
   }
   if (command_id >= cmd::kResearchItemBase &&
@@ -101,7 +101,7 @@ CommandArea ClassifyCommand(
     return CommandArea::kTraceDefaults;
   }
   if ((command_id >= cmd::kFavoritesAdd &&
-       command_id <= cmd::kFavoritesImportRegedit) ||
+       command_id <= cmd::kFavoritesImportRegEdit) ||
       (command_id >= cmd::kWindowNew &&
        command_id <= cmd::kTabSelectMax) ||
       (command_id >= cmd::kOptionsThemeSystem &&

@@ -255,7 +255,7 @@ bool MainWindow::Impl::AppendHistoryCache(
   }
   if (!history_cache_failed_) {
     history_cache_failed_ = true;
-    ui::ShowError(hwnd_, L"The history could not be written to disk. It is "
+    ui::ShowError(hwnd_, L"The history couldn't be written to disk. It is "
                          L"kept for this session only.");
   }
   return false;
@@ -783,7 +783,7 @@ bool MainWindow::Impl::ImportCommentsFromFile(
     return false;
   }
   if (!value_comments_.Save(CommentsPath())) {
-    ui::ShowError(hwnd_, L"Comments were imported but could not be saved.");
+    ui::ShowError(hwnd_, L"Comments were imported but couldn't be saved.");
   }
   RefreshValueListComments();
   return true;
@@ -931,7 +931,7 @@ bool MainWindow::Impl::EditValueComments(
     }
   }
   if (!SaveComments()) {
-    ui::ShowError(hwnd_, L"The comment could not be saved.");
+    ui::ShowError(hwnd_, L"The comment couldn't be saved.");
   }
   RefreshValueListComments();
   return true;

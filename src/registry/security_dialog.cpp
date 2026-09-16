@@ -186,13 +186,13 @@ bool ShowRegistryPermissions(
   const util::PrivilegeScope privilege({SE_TAKE_OWNERSHIP_NAME});
   bool read_only = false;
   util::UniqueHKey key;
-  LONG result = util::OpenRegistryPath(node.root, node.subkey, READ_CONTROL | WRITE_DAC | WRITE_OWNER | win32::kDefaultRegistryView, false, &key);
+  LONG result = util::OpenRegistryPath(node.root, node.subkey, READ_CONTROL | WRITE_DAC | WRITE_OWNER | win32::kDefaultRegistryView, true, &key);
   if (result == ERROR_ACCESS_DENIED) {
     read_only = true;
-    result = util::OpenRegistryPath(node.root, node.subkey, READ_CONTROL | win32::kDefaultRegistryView, false, &key);
+    result = util::OpenRegistryPath(node.root, node.subkey, READ_CONTROL | win32::kDefaultRegistryView, true, &key);
   }
   if (result == ERROR_ACCESS_DENIED) {
-    result = util::OpenRegistryPath(node.root, node.subkey, MAXIMUM_ALLOWED | win32::kDefaultRegistryView, false, &key);
+    result = util::OpenRegistryPath(node.root, node.subkey, MAXIMUM_ALLOWED | win32::kDefaultRegistryView, true, &key);
   }
 
   bool ok = false;

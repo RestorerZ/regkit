@@ -71,7 +71,7 @@ bool BrokerRestart(
   bool impersonation_lost = false;
   const bool launched = launch(command_line, L"", &error, &impersonation_lost);
   if (impersonation_lost) {
-    ui::ShowError(owner, WithErrorDetail(L"RegKit could not restore its own security context and must close now.", error));
+    ui::ShowError(owner, WithErrorDetail(L"RegKit couldn't restore its own security context and must close now.", error));
     ExitProcess(launched ? 0u : 1u);
   }
   if (!launched) {
@@ -199,11 +199,11 @@ bool MainWindow::Impl::RestartAsTrustedInstaller() {
   return BrokerRestart(hwnd_, kRestartTiArg, L"Failed to restart with TrustedInstaller rights.", util::LaunchProcessAsTrustedInstaller);
 }
 
-void MainWindow::Impl::SyncReplaceRegeditState() {
-  replace_regedit_ = win32::IsRegeditReplacementRegistered(util::GetModulePath());
+void MainWindow::Impl::SyncReplaceRegEditState() {
+  replace_regedit_ = win32::IsRegEditReplacementRegistered(util::GetModulePath());
 }
 
-void MainWindow::Impl::ReplaceRegedit(
+void MainWindow::Impl::ReplaceRegEdit(
     bool enable
 ) {
   std::wstring exe_path = util::GetModulePath();
@@ -211,22 +211,39 @@ void MainWindow::Impl::ReplaceRegedit(
     ui::ShowError(hwnd_, L"Failed to locate the executable path.");
     return;
   }
+  if (enable && util::IsExecutableLocationWritableByOtherUsers()) {
+    ui::PromptKeyChoice(
+        hwnd_,
+        L"Replacing RegEdit registers this executable for every account on the machine.\n\n"
+        L"RegKit is running from a location other standard users can write to, so they could "
+        L"replace it and run their own program whenever anyone starts RegEdit. Install RegKit "
+        L"for all users first, or move it somewhere only administrators can write.",
+        exe_path,
+        L"Replace RegEdit",
+        L"OK",
+        L"",
+        L""
+    );
+    SyncReplaceRegEditState();
+    BuildMenus();
+    return;
+  }
 
   bool conflict = false;
-  LONG result = win32::SetRegeditReplacement(exe_path, enable, &conflict);
+  LONG result = win32::SetRegEditReplacement(exe_path, enable, &conflict);
   if (result != ERROR_SUCCESS && conflict && enable) {
     const int choice = ui::PromptChoice(
         hwnd_,
-        L"Regedit already has a Debugger entry owned by another program.\n\n"
+        L"RegEdit already has a Debugger entry owned by another program.\n\n"
         L"Override the existing entry?",
-        L"Replace Regedit",
+        L"Replace RegEdit",
         L"Override",
         L"",
         L"Cancel",
         {80, 70, 70}
     );
     if (choice == IDYES) {
-      result = win32::SetRegeditReplacement(
+      result = win32::SetRegEditReplacement(
           exe_path,
           true,
           nullptr,
@@ -242,7 +259,7 @@ void MainWindow::Impl::ReplaceRegedit(
       ui::ShowError(hwnd_, FormatWin32Error(result));
     }
   }
-  SyncReplaceRegeditState();
+  SyncReplaceRegEditState();
   BuildMenus();
 }
 

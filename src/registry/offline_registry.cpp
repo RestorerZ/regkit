@@ -75,7 +75,10 @@ public:
     const std::wstring directory = util::GetModuleDirectory();
     const std::wstring path =
         directory.empty() ? std::wstring() : util::JoinPath(directory, L"offreg.dll");
-    module_ = path.empty() ? nullptr : LoadLibraryW(path.c_str());
+    const DWORD attributes = path.empty() ? INVALID_FILE_ATTRIBUTES : GetFileAttributesW(path.c_str());
+    module_ = attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0
+                  ? nullptr
+                  : LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
     if (!module_) {
       load_error_ = path.empty() ? ERROR_MOD_NOT_FOUND : GetLastError();
       return;

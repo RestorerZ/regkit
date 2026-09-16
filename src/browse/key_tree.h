@@ -26,7 +26,7 @@ public:
   void SetIconResolver(std::function<int(const RegistryNode&)> resolver);
   void SetVirtualChildProvider(std::function<void(const RegistryNode&, const std::unordered_set<std::wstring>&, std::vector<std::wstring>*)> provider);
   void SetRootLabel(const std::wstring& label);
-  void SetRegeditLayout(bool enabled);
+  void SetRegEditLayout(bool enabled);
 
   void PopulateRoots(const std::vector<RegistryRootEntry>& roots);
   RegistryNode* NodeFromItem(HTREEITEM item);

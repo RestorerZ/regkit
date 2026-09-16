@@ -14,8 +14,8 @@ namespace regkit::win32 {
 bool IsRegFileEditMenuRegistered(const std::wstring& exe_path);
 LONG SetRegFileEditMenu(const std::wstring& exe_path, bool enable, LONG* cleanup_error = nullptr);
 LONG RemoveRegFileEditMenuIfOwned(const std::wstring& exe_path);
-bool IsRegeditReplacementRegistered(const std::wstring& exe_path);
-LONG SetRegeditReplacement(
+bool IsRegEditReplacementRegistered(const std::wstring& exe_path);
+LONG SetRegEditReplacement(
     const std::wstring& exe_path,
     bool enable,
     bool* conflict = nullptr,

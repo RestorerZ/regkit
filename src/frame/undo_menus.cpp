@@ -144,7 +144,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
   }
   if (rename_left_both_names) {
     ui::ShowError(hwnd_, L"The value was copied to the new name but the old name "
-                         L"could not be removed. Both names now exist.");
+                         L"couldn't be removed. Both names now exist.");
   }
   if (toolbar_.hwnd()) {
     SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);

@@ -731,7 +731,7 @@ bool MainWindow::Impl::HandleDeleteCommand(
                 hwnd_,
                 L"Delete Key",
                 registry_path::DisplayName(name),
-                L"Part of this key could not be read, so this delete cannot be "
+                L"Part of this key couldn't be read, so this delete can't be "
                 L"undone. Delete anyway?"
             )) {
           return true;
@@ -830,7 +830,7 @@ bool MainWindow::Impl::HandleDeleteCommand(
         if (!restorable &&
             !ui::ConfirmDelete(
                 hwnd_,
-                L"Part of this key could not be read, so this delete cannot be "
+                L"Part of this key couldn't be read, so this delete can't be "
                 L"undone. Delete anyway?",
                 row->name
             )) {

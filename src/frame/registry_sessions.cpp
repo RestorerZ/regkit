@@ -115,7 +115,7 @@ void MainWindow::Impl::ApplyRegistryRoots(
   browse_.values().Clear();
   current_key_count_ = 0;
   current_value_count_ = 0;
-  browse_.tree().SetRegeditLayout(false);
+  browse_.tree().SetRegEditLayout(false);
   browse_.tree().SetRootLabel(TreeRootLabel());
   browse_.tree().PopulateRoots(browse_.roots());
   ResetNavigationState();

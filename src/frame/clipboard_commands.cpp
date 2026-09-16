@@ -70,19 +70,19 @@ bool MainWindow::Impl::HandleFavoritesCommand(
       BuildMenus();
       return true;
     }
-  case cmd::kFavoritesImportRegedit:
+  case cmd::kFavoritesImportRegEdit:
     {
       size_t imported = 0;
       std::wstring error;
-      if (!FavoritesStore::ImportFromRegedit(&imported, &error)) {
-        ui::ShowError(hwnd_, error.empty() ? L"Failed to import Regedit favorites." : error);
+      if (!FavoritesStore::ImportFromRegEdit(&imported, &error)) {
+        ui::ShowError(hwnd_, error.empty() ? L"Failed to import RegEdit favorites." : error);
         return true;
       }
       if (imported > 0) {
         RefreshFavoritesCache();
         BuildMenus();
       }
-      AppendHistoryEntry(L"Import Regedit favorites", L"", std::to_wstring(imported) + L" favorites");
+      AppendHistoryEntry(L"Import RegEdit favorites", L"", std::to_wstring(imported) + L" favorites");
       return true;
     }
   case cmd::kFavoritesExport:
@@ -112,7 +112,7 @@ bool MainWindow::Impl::HandleNavigateClipboardCommand(
   case cmd::kEditCopyValueData:
   case cmd::kEditCopyKeyPath:
   case cmd::kEditCopyKeyPathAbbrev:
-  case cmd::kEditCopyKeyPathRegedit:
+  case cmd::kEditCopyKeyPathRegEdit:
   case cmd::kEditCopyKeyPathRegFile:
   case cmd::kEditCopyKeyPathPowerShell:
   case cmd::kEditCopyKeyPathPowerShellProvider:
@@ -193,7 +193,7 @@ bool MainWindow::Impl::HandleClipboardCommand(
     }
   case cmd::kEditCopyKeyPath:
   case cmd::kEditCopyKeyPathAbbrev:
-  case cmd::kEditCopyKeyPathRegedit:
+  case cmd::kEditCopyKeyPathRegEdit:
   case cmd::kEditCopyKeyPathRegFile:
   case cmd::kEditCopyKeyPathPowerShell:
   case cmd::kEditCopyKeyPathPowerShellProvider:
@@ -222,8 +222,8 @@ bool MainWindow::Impl::HandleClipboardCommand(
       case cmd::kEditCopyKeyPathAbbrev:
         format = RegistryPathFormat::kAbbrev;
         break;
-      case cmd::kEditCopyKeyPathRegedit:
-        format = RegistryPathFormat::kRegedit;
+      case cmd::kEditCopyKeyPathRegEdit:
+        format = RegistryPathFormat::kRegEdit;
         break;
       case cmd::kEditCopyKeyPathRegFile:
         format = RegistryPathFormat::kRegFile;

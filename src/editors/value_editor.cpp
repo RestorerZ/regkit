@@ -910,7 +910,7 @@ INT_PTR CALLBACK CustomValueDialogProc(
         if (!empty_editor && !SerializeTraceEditor(dlg, state, previous, &current)) {
           ui::ShowError(
               dlg,
-              L"The current data is not valid, so the type cannot be changed."
+              L"The current data isn't valid, so the type can't be changed."
           );
           SelectTraceType(dlg, state, previous);
           return TRUE;
@@ -932,7 +932,7 @@ INT_PTR CALLBACK CustomValueDialogProc(
         }
         const int choice = ui::PromptChoice(
             dlg,
-            L"The current data cannot be represented as " +
+            L"The current data can't be represented as " +
                 value_format::TypeName(type) +
                 L". Continue and start with an empty value?",
             L"Change Data Type",

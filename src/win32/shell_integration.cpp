@@ -16,7 +16,7 @@ namespace {
 constexpr wchar_t kEditMenuKey[] = L"Software\\Classes\\regfile\\shell\\RegKit.Edit";
 constexpr wchar_t kEditMenuCommandKey[] = L"Software\\Classes\\regfile\\shell\\RegKit.Edit\\command";
 constexpr wchar_t kEditMenuLabel[] = L"Edit with RegKit";
-constexpr wchar_t kRegeditImageOptionsKey[] = L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\regedit.exe";
+constexpr wchar_t kRegEditImageOptionsKey[] = L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\regedit.exe";
 
 bool Missing(
     LONG result
@@ -54,7 +54,7 @@ bool IsEditMenuCommandOwned(
   return !exe_path.empty() && RegistryStringEquals(kEditMenuCommandKey, nullptr, EditMenuCommand(exe_path));
 }
 
-bool OwnsRegeditDebugger(
+bool OwnsRegEditDebugger(
     const std::wstring& debugger,
     const std::wstring& exe_path
 ) {
@@ -72,34 +72,34 @@ bool OwnsRegeditDebugger(
          util::StartsWithInsensitive(start, exe_path);
 }
 
-LONG ReadRegeditDebugger(
+LONG ReadRegEditDebugger(
     std::wstring* debugger
 ) {
-  return util::ReadRegistryString(HKEY_LOCAL_MACHINE, kRegeditImageOptionsKey, L"Debugger", debugger);
+  return util::ReadRegistryString(HKEY_LOCAL_MACHINE, kRegEditImageOptionsKey, L"Debugger", debugger);
 }
 
-LONG WriteRegeditDebugger(
+LONG WriteRegEditDebugger(
     const std::wstring& exe_path
 ) {
-  return util::WriteRegistryString(HKEY_LOCAL_MACHINE, kRegeditImageOptionsKey, L"Debugger", L"\"" + exe_path + L"\"");
+  return util::WriteRegistryString(HKEY_LOCAL_MACHINE, kRegEditImageOptionsKey, L"Debugger", L"\"" + exe_path + L"\"");
 }
 
-LONG DeleteOwnedRegeditDebugger(
+LONG DeleteOwnedRegEditDebugger(
     const std::wstring& exe_path
 ) {
   std::wstring debugger;
-  LONG result = ReadRegeditDebugger(&debugger);
+  LONG result = ReadRegEditDebugger(&debugger);
   if (result != ERROR_SUCCESS) {
     return Missing(result) ? ERROR_SUCCESS : result;
   }
-  if (!OwnsRegeditDebugger(debugger, exe_path)) {
+  if (!OwnsRegEditDebugger(debugger, exe_path)) {
     return ERROR_SUCCESS;
   }
-  result = RegDeleteKeyValueW(HKEY_LOCAL_MACHINE, kRegeditImageOptionsKey, L"Debugger");
+  result = RegDeleteKeyValueW(HKEY_LOCAL_MACHINE, kRegEditImageOptionsKey, L"Debugger");
   if (result != ERROR_SUCCESS && !Missing(result)) {
     return result;
   }
-  RegDeleteKeyW(HKEY_LOCAL_MACHINE, kRegeditImageOptionsKey);
+  RegDeleteKeyW(HKEY_LOCAL_MACHINE, kRegEditImageOptionsKey);
   return ERROR_SUCCESS;
 }
 
@@ -153,14 +153,14 @@ LONG RemoveRegFileEditMenuIfOwned(
   return IsEditMenuCommandOwned(exe_path) ? SetRegFileEditMenu(exe_path, false) : ERROR_SUCCESS;
 }
 
-bool IsRegeditReplacementRegistered(
+bool IsRegEditReplacementRegistered(
     const std::wstring& exe_path
 ) {
   std::wstring debugger;
-  return !exe_path.empty() && ReadRegeditDebugger(&debugger) == ERROR_SUCCESS && OwnsRegeditDebugger(debugger, exe_path);
+  return !exe_path.empty() && ReadRegEditDebugger(&debugger) == ERROR_SUCCESS && OwnsRegEditDebugger(debugger, exe_path);
 }
 
-LONG SetRegeditReplacement(
+LONG SetRegEditReplacement(
     const std::wstring& exe_path,
     bool enable,
     bool* conflict,
@@ -173,14 +173,14 @@ LONG SetRegeditReplacement(
     return ERROR_INVALID_PARAMETER;
   }
   if (!enable) {
-    return DeleteOwnedRegeditDebugger(exe_path);
+    return DeleteOwnedRegEditDebugger(exe_path);
   }
   std::wstring debugger;
-  const LONG result = overwrite_existing ? ERROR_FILE_NOT_FOUND : ReadRegeditDebugger(&debugger);
+  const LONG result = overwrite_existing ? ERROR_FILE_NOT_FOUND : ReadRegEditDebugger(&debugger);
   if (Missing(result)) {
-    return WriteRegeditDebugger(exe_path);
+    return WriteRegEditDebugger(exe_path);
   }
-  if (result == ERROR_SUCCESS && OwnsRegeditDebugger(debugger, exe_path)) {
+  if (result == ERROR_SUCCESS && OwnsRegEditDebugger(debugger, exe_path)) {
     return ERROR_SUCCESS;
   }
   if (result != ERROR_SUCCESS && result != ERROR_UNSUPPORTED_TYPE && result != ERROR_INVALID_DATA) {

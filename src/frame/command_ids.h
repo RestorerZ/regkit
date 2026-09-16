@@ -54,7 +54,7 @@ constexpr int kEditCopyKeyPath = 2112;
 constexpr int kEditGoTo = 2113;
 constexpr int kEditPermissions = 2114;
 constexpr int kEditCopyKeyPathAbbrev = 2130;
-constexpr int kEditCopyKeyPathRegedit = 2131;
+constexpr int kEditCopyKeyPathRegEdit = 2131;
 constexpr int kEditCopyKeyPathRegFile = 2132;
 constexpr int kEditCopyKeyPathPowerShell = 2133;
 constexpr int kEditCopyKeyPathPowerShellProvider = 2134;
@@ -98,7 +98,7 @@ constexpr int kFavoritesRemove = 2301;
 constexpr int kFavoritesEdit = 2302;
 constexpr int kFavoritesExport = 2303;
 constexpr int kFavoritesImport = 2304;
-constexpr int kFavoritesImportRegedit = 2305;
+constexpr int kFavoritesImportRegEdit = 2305;
 constexpr int kFavoritesItemBase = 2600;
 constexpr int kFavoritesItemMax = 2699;
 
@@ -114,7 +114,7 @@ constexpr int kTabSelectMax = 2418;
 constexpr int kOptionsThemeSystem = 2450;
 constexpr int kOptionsThemeLight = 2451;
 constexpr int kOptionsThemeDark = 2452;
-constexpr int kOptionsReplaceRegedit = 2453;
+constexpr int kOptionsReplaceRegEdit = 2453;
 constexpr int kOptionsSingleInstance = 2454;
 constexpr int kOptionsHiveFileDir = 2455;
 constexpr int kOptionsRestartAdmin = 2456;
@@ -178,8 +178,8 @@ constexpr int kDefaultBundledMax = 2799;
 constexpr int kResetDefaultBase = 2900;
 constexpr int kResetDefaultMax = 2959;
 
-constexpr int kRegeditFavoriteBase = 3000;
-constexpr int kRegeditFavoriteMax = 3999;
+constexpr int kRegEditFavoriteBase = 3000;
+constexpr int kRegEditFavoriteMax = 3999;
 
 constexpr int kToolsBitfieldFileBase = 2830;
 constexpr int kToolsBitfieldFileMax = 2879;

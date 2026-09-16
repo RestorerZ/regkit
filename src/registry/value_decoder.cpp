@@ -71,7 +71,7 @@ bool SourceText(
     text->reserve(data.size());
     for (const BYTE byte : data) {
       if (byte > 0x7F) {
-        *error = L"Binary value is not ASCII text.";
+        *error = L"Binary value isn't ASCII text.";
         return false;
       }
       text->push_back(static_cast<wchar_t>(byte));
@@ -145,7 +145,7 @@ bool DecodeWithCrypto(
   }
   DWORD size = 0;
   if (!CryptStringToBinaryW(text.c_str(), static_cast<DWORD>(text.size()), flags, nullptr, &size, nullptr, nullptr)) {
-    *error = L"The text could not be decoded.";
+    *error = L"The text couldn't be decoded.";
     return false;
   }
   out->resize(size);
@@ -154,7 +154,7 @@ bool DecodeWithCrypto(
   }
   if (!CryptStringToBinaryW(text.c_str(), static_cast<DWORD>(text.size()), flags, out->data(), &size, nullptr, nullptr)) {
     out->clear();
-    *error = L"The text could not be decoded.";
+    *error = L"The text couldn't be decoded.";
     return false;
   }
   out->resize(size);
@@ -167,7 +167,7 @@ bool TransformBase64(
     std::wstring* error
 ) {
   if ((text.size() % 4) != 0) {
-    *error = L"Base64 length is not a multiple of four.";
+    *error = L"Base64 length isn't a multiple of four.";
     return false;
   }
   size_t padding = 0;
@@ -210,12 +210,12 @@ bool TransformBase64Url(
   }
   if (normalized.find(L'=') != std::wstring::npos &&
       normalized.find(L'=') != normalized.size() - padding) {
-    *error = L"Base64URL padding is not at the end.";
+    *error = L"Base64URL padding isn't at the end.";
     return false;
   }
   const size_t remainder = normalized.size() % 4;
   if (remainder == 1) {
-    *error = L"Base64URL length is not valid.";
+    *error = L"Base64URL length isn't valid.";
     return false;
   }
   if (remainder != 0) {
@@ -440,7 +440,7 @@ Decoded DecodeAscii(
   text.reserve(size);
   for (size_t i = 0; i < size; ++i) {
     if (data[i] > 0x7F) {
-      return Failure(L"Byte at offset " + std::to_wstring(i) + L" is not ASCII.");
+      return Failure(L"Byte at offset " + std::to_wstring(i) + L" isn't ASCII.");
     }
     text.push_back(static_cast<wchar_t>(data[i]));
   }
@@ -533,7 +533,7 @@ Decoded DecodeGuid(
   std::memcpy(&guid, data, sizeof(guid));
   wchar_t text[64] = {};
   if (StringFromGUID2(guid, text, static_cast<int>(std::size(text))) == 0) {
-    return Failure(L"The GUID could not be formatted.");
+    return Failure(L"The GUID couldn't be formatted.");
   }
   return Success({{L"GUID", text}});
 }
@@ -651,7 +651,7 @@ Decoded DecodeSecurityDescriptor(
   }
   LPWSTR sddl = nullptr;
   if (!ConvertSecurityDescriptorToStringSecurityDescriptorW(descriptor, SDDL_REVISION_1, information, &sddl, nullptr) || !sddl) {
-    return Failure(L"The security descriptor could not be converted.");
+    return Failure(L"The security descriptor couldn't be converted.");
   }
   Decoded decoded;
   decoded.ok = true;
@@ -677,7 +677,7 @@ Decoded DecodeAddress(
   std::memcpy(&address, data, size);
   wchar_t text[INET6_ADDRSTRLEN] = {};
   if (!InetNtopW(ipv6 ? AF_INET6 : AF_INET, &address, text, std::size(text))) {
-    return Failure(L"The address could not be formatted.");
+    return Failure(L"The address couldn't be formatted.");
   }
   return Success({{L"Address", text}});
 }

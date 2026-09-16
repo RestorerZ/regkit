@@ -25,6 +25,14 @@ if (MSVC)
         /FS
         /W4
         /permissive-
+        /sdl
+        /guard:cf
+    )
+    target_link_options(regkit_compile_settings INTERFACE
+        /GUARD:CF
+        /DYNAMICBASE
+        /NXCOMPAT
+        $<$<CONFIG:Release>:/CETCOMPAT>
     )
     if (REGKIT_REPORT_COMPILE_TIME)
         target_compile_options(regkit_compile_settings INTERFACE /Bt+)

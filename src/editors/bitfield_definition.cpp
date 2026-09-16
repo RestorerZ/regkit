@@ -51,8 +51,8 @@ enum StateMember {
 
 class Parser {
 public:
-  Parser(const wchar_t* text, std::wstring* error)
-      : ptr_(text), error_(error) {
+  Parser(std::wstring_view text, std::wstring* error)
+      : ptr_(text.data()), end_(text.data() + text.size()), error_(error) {
   }
 
   bool ReadFile(DefinitionFile* file);
@@ -77,7 +77,20 @@ private:
     --depth_;
   }
 
+  wchar_t Peek(size_t offset = 0) const {
+    return static_cast<size_t>(end_ - ptr_) > offset ? ptr_[offset] : L'\0';
+  }
+  wchar_t PeekAdvance() {
+    const wchar_t character = Peek();
+    Advance();
+    return character;
+  }
+  void Advance(size_t count = 1) {
+    ptr_ += count < static_cast<size_t>(end_ - ptr_) ? count : static_cast<size_t>(end_ - ptr_);
+  }
+
   const wchar_t* ptr_ = nullptr;
+  const wchar_t* end_ = nullptr;
   std::wstring* error_ = nullptr;
   int depth_ = 0;
 };
@@ -99,8 +112,8 @@ bool Parser::Enter() {
 }
 
 void Parser::SkipSpace() {
-  while (*ptr_ == L' ' || *ptr_ == L'\t' || *ptr_ == L'\r' || *ptr_ == L'\n') {
-    ++ptr_;
+  while (Peek() == L' ' || Peek() == L'\t' || Peek() == L'\r' || Peek() == L'\n') {
+    Advance();
   }
 }
 
@@ -108,10 +121,10 @@ bool Parser::Literal(
     wchar_t expected
 ) {
   SkipSpace();
-  if (*ptr_ != expected) {
-    return Fail(L"The definition file is not valid JSON.");
+  if (Peek() != expected) {
+    return Fail(L"The definition file isn't valid JSON.");
   }
-  ++ptr_;
+  Advance();
   return true;
 }
 
@@ -120,7 +133,7 @@ bool Parser::Hex4(
 ) {
   unsigned value = 0;
   for (int i = 0; i < 4; ++i) {
-    const wchar_t c = ptr_[i];
+    const wchar_t c = Peek(i);
     unsigned digit = 0;
     if (c >= L'0' && c <= L'9') {
       digit = static_cast<unsigned>(c - L'0');
@@ -133,7 +146,7 @@ bool Parser::Hex4(
     }
     value = (value << 4) | digit;
   }
-  ptr_ += 4;
+  Advance(4);
   *out = value;
   return true;
 }
@@ -147,12 +160,12 @@ bool Parser::ReadString(
   }
   out->clear();
   for (;;) {
-    const wchar_t c = *ptr_;
+    const wchar_t c = Peek();
     if (c == L'\0') {
       return Fail(L"The definition file ends inside a string.");
     }
     if (c == L'"') {
-      ++ptr_;
+      Advance();
       break;
     }
     if (c < 0x20) {
@@ -160,11 +173,14 @@ bool Parser::ReadString(
     }
     if (c != L'\\') {
       out->push_back(c);
-      ++ptr_;
+      Advance();
       continue;
     }
-    ++ptr_;
-    const wchar_t escape = *ptr_++;
+    Advance();
+    const wchar_t escape = PeekAdvance();
+    if (escape == L'\0') {
+      return Fail(L"The definition file ends inside a string.");
+    }
     switch (escape) {
     case L'"':
     case L'\\':
@@ -196,10 +212,10 @@ bool Parser::ReadString(
           return Fail(L"A string contains a lone surrogate.");
         }
         if (first >= 0xD800 && first <= 0xDBFF) {
-          if (ptr_[0] != L'\\' || ptr_[1] != L'u') {
+          if (Peek(0) != L'\\' || Peek(1) != L'u') {
             return Fail(L"A string contains a lone surrogate.");
           }
-          ptr_ += 2;
+          Advance(2);
           unsigned second = 0;
           if (!Hex4(&second) || second < 0xDC00 || second > 0xDFFF) {
             return Fail(L"A string contains a lone surrogate.");
@@ -228,21 +244,21 @@ bool Parser::ReadUnsigned(
     uint64_t* out
 ) {
   SkipSpace();
-  if (*ptr_ < L'0' || *ptr_ > L'9') {
+  if (Peek() < L'0' || Peek() > L'9') {
     return Fail(L"An unsigned number was expected.");
   }
-  if (ptr_[0] == L'0' && ptr_[1] >= L'0' && ptr_[1] <= L'9') {
+  if (Peek(0) == L'0' && Peek(1) >= L'0' && Peek(1) <= L'9') {
     return Fail(L"A number has a leading zero.");
   }
   uint64_t value = 0;
-  while (*ptr_ >= L'0' && *ptr_ <= L'9') {
+  while (Peek() >= L'0' && Peek() <= L'9') {
     if (value > 0x0FFFFFFFFFFFFFFFull) {
       return Fail(L"A number is out of range.");
     }
-    value = value * 10 + static_cast<uint64_t>(*ptr_ - L'0');
-    ++ptr_;
+    value = value * 10 + static_cast<uint64_t>(Peek() - L'0');
+    Advance();
   }
-  if (*ptr_ == L'.' || *ptr_ == L'e' || *ptr_ == L'E' || *ptr_ == L'-' || *ptr_ == L'+') {
+  if (Peek() == L'.' || Peek() == L'e' || Peek() == L'E' || Peek() == L'-' || Peek() == L'+') {
     return Fail(L"Only unsigned integers are supported.");
   }
   *out = value;
@@ -256,8 +272,8 @@ bool Parser::ReadPaths(
     return false;
   }
   SkipSpace();
-  if (*ptr_ == L']') {
-    ++ptr_;
+  if (Peek() == L']') {
+    Advance();
     Leave();
     return true;
   }
@@ -271,8 +287,8 @@ bool Parser::ReadPaths(
     }
     paths->push_back(std::move(path));
     SkipSpace();
-    if (*ptr_ == L',') {
-      ++ptr_;
+    if (Peek() == L',') {
+      Advance();
       continue;
     }
     break;
@@ -291,8 +307,8 @@ bool Parser::ReadBits(
     return false;
   }
   SkipSpace();
-  if (*ptr_ == L']') {
-    ++ptr_;
+  if (Peek() == L']') {
+    Advance();
     return Fail(L"A field lists no bits.");
   }
   for (;;) {
@@ -308,8 +324,8 @@ bool Parser::ReadBits(
     }
     bits->push_back(static_cast<unsigned>(value));
     SkipSpace();
-    if (*ptr_ == L',') {
-      ++ptr_;
+    if (Peek() == L',') {
+      Advance();
       continue;
     }
     break;
@@ -357,8 +373,8 @@ bool Parser::ReadState(
     }
     seen |= flag;
     SkipSpace();
-    if (*ptr_ == L',') {
-      ++ptr_;
+    if (Peek() == L',') {
+      Advance();
       continue;
     }
     break;
@@ -380,8 +396,8 @@ bool Parser::ReadStates(
     return false;
   }
   SkipSpace();
-  if (*ptr_ == L']') {
-    ++ptr_;
+  if (Peek() == L']') {
+    Advance();
     Leave();
     return true;
   }
@@ -395,8 +411,8 @@ bool Parser::ReadStates(
     }
     states->push_back(std::move(state));
     SkipSpace();
-    if (*ptr_ == L',') {
-      ++ptr_;
+    if (Peek() == L',') {
+      Advance();
       continue;
     }
     break;
@@ -449,8 +465,8 @@ bool Parser::ReadField(
     }
     seen |= flag;
     SkipSpace();
-    if (*ptr_ == L',') {
-      ++ptr_;
+    if (Peek() == L',') {
+      Advance();
       continue;
     }
     break;
@@ -472,8 +488,8 @@ bool Parser::ReadFields(
     return false;
   }
   SkipSpace();
-  if (*ptr_ == L']') {
-    ++ptr_;
+  if (Peek() == L']') {
+    Advance();
     Leave();
     return true;
   }
@@ -487,8 +503,8 @@ bool Parser::ReadFields(
     }
     fields->push_back(std::move(field));
     SkipSpace();
-    if (*ptr_ == L',') {
-      ++ptr_;
+    if (Peek() == L',') {
+      Advance();
       continue;
     }
     break;
@@ -566,8 +582,8 @@ bool Parser::ReadDefinition(
     }
     seen |= flag;
     SkipSpace();
-    if (*ptr_ == L',') {
-      ++ptr_;
+    if (Peek() == L',') {
+      Advance();
       continue;
     }
     break;
@@ -590,8 +606,8 @@ bool Parser::ReadDefinitions(
     return false;
   }
   SkipSpace();
-  if (*ptr_ == L']') {
-    ++ptr_;
+  if (Peek() == L']') {
+    Advance();
     return Fail(L"The file contains no definitions.");
   }
   for (;;) {
@@ -601,8 +617,8 @@ bool Parser::ReadDefinitions(
     }
     definitions->push_back(std::move(definition));
     SkipSpace();
-    if (*ptr_ == L',') {
-      ++ptr_;
+    if (Peek() == L',') {
+      Advance();
       continue;
     }
     break;
@@ -634,7 +650,7 @@ bool Parser::ReadFile(
         return false;
       }
       if (format != kFormat) {
-        return Fail(L"The file is not a RegKit bitfield definition.");
+        return Fail(L"The file isn't a RegKit bitfield definition.");
       }
     } else if (member == L"name") {
       flag = kFileName;
@@ -659,8 +675,8 @@ bool Parser::ReadFile(
     }
     seen |= flag;
     SkipSpace();
-    if (*ptr_ == L',') {
-      ++ptr_;
+    if (Peek() == L',') {
+      Advance();
       continue;
     }
     break;
@@ -669,7 +685,7 @@ bool Parser::ReadFile(
     return false;
   }
   SkipSpace();
-  if (*ptr_ != L'\0') {
+  if (Peek() != L'\0') {
     return Fail(L"The definition file contains trailing content.");
   }
   constexpr unsigned required = kFileFormat | kFileDefinitions;
@@ -974,7 +990,7 @@ bool Validate(
         return fail(L"A state meaning is longer than the format allows.");
       }
       if (state.value > limit) {
-        return fail(L"A state value does not fit the bits of its field.");
+        return fail(L"A state value doesn't fit the bits of its field.");
       }
       for (size_t k = 0; k < j; ++k) {
         if (field.states[k].value == state.value) {
@@ -1052,7 +1068,7 @@ bool Parse(
     const int needed = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reinterpret_cast<const char*>(data), static_cast<int>(size), nullptr, 0);
     if (needed <= 0) {
       if (error) {
-        *error = L"The definition file is not valid UTF-8.";
+        *error = L"The definition file isn't valid UTF-8.";
       }
       return false;
     }
@@ -1061,10 +1077,10 @@ bool Parse(
   }
   DefinitionFile parsed;
   std::wstring message;
-  Parser parser(text.c_str(), &message);
+  Parser parser(text, &message);
   if (!parser.ReadFile(&parsed)) {
     if (error) {
-      *error = message.empty() ? L"The definition file is not valid JSON." : message;
+      *error = message.empty() ? L"The definition file isn't valid JSON." : message;
     }
     return false;
   }
@@ -1083,7 +1099,7 @@ bool Load(
   std::vector<BYTE> bytes;
   if (!util::ReadFileBytes(path, &bytes, kMaxFileBytes)) {
     if (error) {
-      *error = L"The definition file could not be read.";
+      *error = L"The definition file couldn't be read.";
     }
     return false;
   }
@@ -1189,7 +1205,7 @@ bool Save(
   }
   if (!util::WriteTextFile(path, Serialize(copy), false)) {
     if (error) {
-      *error = L"The definition file could not be written.";
+      *error = L"The definition file couldn't be written.";
     }
     return false;
   }

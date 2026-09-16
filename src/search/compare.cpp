@@ -50,7 +50,8 @@ std::wstring DataText(
   return value_format::DisplayData(
       value.type,
       value.data.data(),
-      static_cast<DWORD>(value.data.size())
+      static_cast<DWORD>(value.data.size()),
+      false
   );
 }
 
@@ -148,7 +149,7 @@ bool CaptureRegistry(
     }
     if (!enumerated) {
       if (error) {
-        *error = L"Could not read the registry key.\n" +
+        *error = L"Couldn't read the registry key.\n" +
                  (relative.empty() ? base_path : base_path + L"\\" + relative);
       }
       return false;

@@ -317,7 +317,7 @@ bool Parse(
   auto fail = [&](const std::wstring& line) {
     if (error) {
       std::wstring shown = line.size() > 80 ? line.substr(0, 80) + L"..." : line;
-      *error = L"The file contains an entry RegKit cannot parse:\n" + shown;
+      *error = L"The file contains an entry RegKit can't parse:\n" + shown;
     }
     return false;
   };

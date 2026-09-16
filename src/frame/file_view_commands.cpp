@@ -9,10 +9,10 @@ using namespace command_detail;
 bool MainWindow::Impl::HandleDynamicCommand(
     int command_id
 ) {
-  if (command_id >= cmd::kRegeditFavoriteBase &&
-      command_id <= cmd::kRegeditFavoriteMax) {
+  if (command_id >= cmd::kRegEditFavoriteBase &&
+      command_id <= cmd::kRegEditFavoriteMax) {
     const size_t index =
-        static_cast<size_t>(command_id - cmd::kRegeditFavoriteBase);
+        static_cast<size_t>(command_id - cmd::kRegEditFavoriteBase);
     if (index < regedit_favorites_.size()) {
       NavigateToExternalJump(regedit_favorites_[index].path);
       return true;

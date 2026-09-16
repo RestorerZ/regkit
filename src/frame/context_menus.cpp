@@ -559,7 +559,7 @@ void MainWindow::Impl::ShowSearchResultContextMenu(
     kSearchCopyKeyName = 51005,
     kSearchCopyKeyPath = 51006,
     kSearchCopyKeyPathAbbrev = 51013,
-    kSearchCopyKeyPathRegedit = 51014,
+    kSearchCopyKeyPathRegEdit = 51014,
     kSearchCopyKeyPathRegFile = 51015,
     kSearchCopyKeyPathPowerShell = 51016,
     kSearchCopyKeyPathPowerShellProvider = 51017,
@@ -574,7 +574,7 @@ void MainWindow::Impl::ShowSearchResultContextMenu(
   auto build_copy_path_menu = [&]() -> HMENU {
     HMENU submenu = CreatePopupMenu();
     AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathAbbrev, L"Abbreviated (HKLM)");
-    AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathRegedit, L"Regedit Address Bar");
+    AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathRegEdit, L"RegEdit Address Bar");
     AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathRegFile, L".reg File Header");
     AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathPowerShell, L"PowerShell Drive");
     AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathPowerShellProvider, L"PowerShell Provider");
@@ -720,9 +720,9 @@ void MainWindow::Impl::ShowSearchResultContextMenu(
       ui::CopyTextToClipboard(hwnd_, FormatRegistryPath(key_path, RegistryPathFormat::kAbbrev));
     }
     return;
-  case kSearchCopyKeyPathRegedit:
+  case kSearchCopyKeyPathRegEdit:
     if (!key_path.empty()) {
-      ui::CopyTextToClipboard(hwnd_, FormatRegistryPath(key_path, RegistryPathFormat::kRegedit));
+      ui::CopyTextToClipboard(hwnd_, FormatRegistryPath(key_path, RegistryPathFormat::kRegEdit));
     }
     return;
   case kSearchCopyKeyPathRegFile:

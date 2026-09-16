@@ -21,7 +21,7 @@ namespace registry_path {
 enum class Style {
   kFull,
   kAbbreviated,
-  kRegeditAddress,
+  kRegEditAddress,
   kRegFileHeader,
   kPowerShellDrive,
   kPowerShellProvider,

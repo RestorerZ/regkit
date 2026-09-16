@@ -49,12 +49,12 @@ constexpr wchar_t kInstallEditContextMenuArg[] =
     L"--install-edit-context-menu";
 constexpr wchar_t kUninstallEditContextMenuArg[] =
     L"--uninstall-edit-context-menu";
-constexpr wchar_t kInstallRegeditReplacementArg[] =
+constexpr wchar_t kInstallRegEditReplacementArg[] =
     L"--install-regedit-replacement";
-constexpr wchar_t kUninstallRegeditReplacementArg[] =
+constexpr wchar_t kUninstallRegEditReplacementArg[] =
     L"--uninstall-regedit-replacement";
 
-constexpr const wchar_t* kRegeditNames[] = {L"regedit.exe", L"regedit", L"regedt32.exe", L"regedt32"};
+constexpr const wchar_t* kRegEditNames[] = {L"regedit.exe", L"regedit", L"regedt32.exe", L"regedt32"};
 
 using util::FormatWin32Error;
 
@@ -94,34 +94,34 @@ bool HasCommandLineArg(
   return std::any_of(args.begin(), args.end(), [&](const std::wstring& entry) { return util::EqualsInsensitive(entry, arg); });
 }
 
-bool IsRegeditLaunchArg(
+bool IsRegEditLaunchArg(
     const std::wstring& arg
 ) {
   const bool drive_absolute = arg.size() >= 3 && iswalpha(arg[0]) && arg[1] == L':' && (arg[2] == L'\\' || arg[2] == L'/');
   const bool unc_absolute = arg.size() >= 3 && ((arg[0] == L'\\' && arg[1] == L'\\') || (arg[0] == L'/' && arg[1] == L'/'));
   const std::wstring name = regkit::registry_path::Leaf(arg);
   return (drive_absolute || unc_absolute) &&
-         std::any_of(std::begin(kRegeditNames), std::end(kRegeditNames), [&](const wchar_t* regedit) { return util::EqualsInsensitive(name, regedit); });
+         std::any_of(std::begin(kRegEditNames), std::end(kRegEditNames), [&](const wchar_t* regedit) { return util::EqualsInsensitive(name, regedit); });
 }
 
-bool IsInterceptedRegeditLaunch(
+bool IsInterceptedRegEditLaunch(
     const std::vector<std::wstring>& args
 ) {
   for (const auto& arg : args) {
-    if (IsRegeditLaunchArg(arg)) {
+    if (IsRegEditLaunchArg(arg)) {
       return true;
     }
   }
   return false;
 }
 
-std::vector<std::wstring> StripRegeditLaunchArg(
+std::vector<std::wstring> StripRegEditLaunchArg(
     const std::vector<std::wstring>& args
 ) {
   std::vector<std::wstring> stripped;
   stripped.reserve(args.size());
   for (const auto& arg : args) {
-    if (!IsRegeditLaunchArg(arg)) {
+    if (!IsRegEditLaunchArg(arg)) {
       stripped.push_back(arg);
     }
   }
@@ -133,7 +133,7 @@ std::vector<std::wstring> RegFilesFromArgs(
 ) {
   std::vector<std::wstring> files;
   for (const auto& arg : args) {
-    if (arg.empty() || arg[0] == L'-' || arg[0] == L'/' || IsRegeditLaunchArg(arg)) {
+    if (arg.empty() || arg[0] == L'-' || arg[0] == L'/' || IsRegEditLaunchArg(arg)) {
       continue;
     }
     if (util::HasFileExtension(arg, L".reg")) {
@@ -168,7 +168,7 @@ bool ResolveExternalJumpTarget(
       }
       continue;
     }
-    if (IsRegeditLaunchArg(arg)) {
+    if (IsRegEditLaunchArg(arg)) {
       intercepted_regedit = true;
       continue;
     }
@@ -197,7 +197,7 @@ bool ResolveExternalJumpTarget(
   if (!intercepted_regedit) {
     return false;
   }
-  return util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\Regedit", L"LastKey", out) == ERROR_SUCCESS && !out->empty();
+  return util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit", L"LastKey", out) == ERROR_SUCCESS && !out->empty();
 }
 
 bool IsOwnRegKitWindow(
@@ -346,17 +346,28 @@ bool RestartAs(
 
 } // namespace
 
+void ApplySafeDllSearchPolicy() {
+  const HMODULE kernel = GetModuleHandleW(L"kernel32.dll");
+  using SetDefaultDllDirectoriesFn = BOOL(WINAPI*)(DWORD);
+  const auto set_directories = kernel ? reinterpret_cast<SetDefaultDllDirectoriesFn>(GetProcAddress(kernel, "SetDefaultDllDirectories")) : nullptr;
+  if (set_directories) {
+    set_directories(LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_USER_DIRS);
+  }
+  SetDllDirectoryW(L"");
+}
+
 int WINAPI wWinMain(
     HINSTANCE instance,
     HINSTANCE,
     PWSTR,
     int cmd_show
 ) {
+  ApplySafeDllSearchPolicy();
   const auto args = GetCommandLineArgs();
   if (HasCommandLineArg(args, kInstallEditContextMenuArg) ||
       HasCommandLineArg(args, kUninstallEditContextMenuArg) ||
-      HasCommandLineArg(args, kInstallRegeditReplacementArg) ||
-      HasCommandLineArg(args, kUninstallRegeditReplacementArg)) {
+      HasCommandLineArg(args, kInstallRegEditReplacementArg) ||
+      HasCommandLineArg(args, kUninstallRegEditReplacementArg)) {
     const std::wstring exe_path = util::GetModulePath();
     if (exe_path.empty()) {
       return 1;
@@ -367,9 +378,9 @@ int WINAPI wWinMain(
     } else if (HasCommandLineArg(args, kUninstallEditContextMenuArg)) {
       result = regkit::win32::RemoveRegFileEditMenuIfOwned(exe_path);
     } else {
-      result = regkit::win32::SetRegeditReplacement(
+      result = regkit::win32::SetRegEditReplacement(
           exe_path,
-          HasCommandLineArg(args, kInstallRegeditReplacementArg)
+          HasCommandLineArg(args, kInstallRegEditReplacementArg)
       );
     }
     return result == ERROR_SUCCESS ? 0 : 1;
@@ -389,10 +400,10 @@ int WINAPI wWinMain(
   BufferedPaintInit();
 
   ApplyDataDirOverride(args);
-  const bool regedit_compat_requested = IsInterceptedRegeditLaunch(args);
+  const bool regedit_compat_requested = IsInterceptedRegEditLaunch(args);
   int cli_exit = 0;
   if (regkit::cli::Execute(
-          regedit_compat_requested ? StripRegeditLaunchArg(args) : args,
+          regedit_compat_requested ? StripRegEditLaunchArg(args) : args,
           &cli_exit
       )) {
     return cli_exit;

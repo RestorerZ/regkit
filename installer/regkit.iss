@@ -1,7 +1,7 @@
 ﻿#define AppId "4678f42c-c6a2-4df9-bc2a-dddbd2613045"
 #define AppName "RegKit"
 #define AppExeName "regkit.exe"
-#define AppVersion "0.0.1.0"
+#define AppVersion "0.0.1.1"
 #define AppPublisher "nohuto"
 #define AppCopyright "(C) 2026 nohuto"
 #define AppURL "https://github.com/nohuto/regkit"
@@ -48,7 +48,7 @@ OutputBaseFilename=RegKit-Setup-{#AppVersion}-{#Arch}
 [Tasks]
 Name: "startmenu"; Description: "Start Menu shortcut"; GroupDescription: "Shortcuts:"; Flags: checkedonce
 Name: "desktopicon"; Description: "Desktop shortcut"; GroupDescription: "Shortcuts:"
-Name: "replace_regedit"; Description: "Replace Regedit"; GroupDescription: "Integration:"; Check: IsAdminInstallMode
+Name: "replace_regedit"; Description: "Replace RegEdit"; GroupDescription: "Integration:"; Check: IsAdminInstallMode
 Name: "edit_context_menu"; Description: "Add ""Edit"" Context Menu"; GroupDescription: "Integration:"; Flags: checkedonce
 Name: "defaults"; Description: "Install registry exports used by the Default menu (~200 MB)"; GroupDescription: "Optional data:"
 Name: "bitfields"; Description: "Install bitfield definitions"; GroupDescription: "Optional data:"
@@ -73,37 +73,37 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\DefaultIcon"; Va
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\SupportedTypes"; ValueType: string; ValueName: ".reg"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\shell\open\command"; ValueType: string; ValueData: """{app}\{#AppExeName}"" ""%1"""
 [Code]
-procedure InstallRegeditReplacement;
+procedure InstallRegEditReplacement;
 var
   ResultCode: Integer;
 begin
   if not WizardIsTaskSelected('replace_regedit') then
     exit;
   if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--install-regedit-replacement', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then begin
-    RaiseException('Regedit replacement could not be installed. Another program may already own its Debugger entry.');
+    RaiseException('RegEdit replacement couldn''t be installed. Another program may already own its Debugger entry.');
   end;
 end;
 
-procedure RemoveRegeditReplacement;
+procedure RemoveRegEditReplacement;
 var
   ResultCode: Integer;
 begin
   if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--uninstall-regedit-replacement', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then begin
-    RaiseException('Regedit replacement could not be removed. Uninstallation was stopped to avoid leaving Regedit redirected to a deleted file.');
+    RaiseException('RegEdit replacement couldn''t be removed. Uninstallation was stopped to avoid leaving RegEdit redirected to a deleted file.');
   end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then begin
-    InstallRegeditReplacement;
+    InstallRegEditReplacement;
   end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then begin
-    RemoveRegeditReplacement;
+    RemoveRegEditReplacement;
   end;
 end;
 

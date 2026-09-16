@@ -764,7 +764,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(
         MarkOfflineDirty();
         UpdateValueListForNode(browse_.current_node());
         ui::ShowError(hwnd_, L"The value was copied to the new name but the old name "
-                             L"could not be removed. Both names now exist.");
+                             L"couldn't be removed. Both names now exist.");
       } else {
         ui::ShowError(hwnd_, L"Failed to rename value.");
       }
@@ -1281,7 +1281,6 @@ LRESULT MainWindow::Impl::HandleSearchNotification(
 }
 
 bool MainWindow::Impl::OnCreate() {
-  ChangeWindowMessageFilterEx(hwnd_, WM_COPYDATA, MSGFLT_ALLOW, nullptr);
   ui_font_ = CreateUIFont();
   icon_font_ = CreateIconFont(10);
   custom_font_ = DefaultLogFont();
@@ -1346,14 +1345,14 @@ bool MainWindow::Impl::OnCreate() {
   regedit_compat_tree_.Create(
       hwnd_,
       instance_,
-      kRegeditCompatTreeId,
+      kRegEditCompatTreeId,
       false,
       false
   );
   if (!regedit_compat_tree_.hwnd()) {
     return false;
   }
-  regedit_compat_tree_.SetRegeditLayout(true);
+  regedit_compat_tree_.SetRegEditLayout(true);
   regedit_compat_tree_.SetRootLabel(L"Computer");
   regedit_compat_tree_.PopulateRoots(RegistryStore::DefaultRoots(false));
   if (!SetWindowSubclass(
@@ -1467,7 +1466,7 @@ bool MainWindow::Impl::OnCreate() {
 
   browse_.roots() = RegistryStore::DefaultRoots(show_extra_hives_);
   AppendRealRegistryRoot(&browse_.roots());
-  browse_.tree().SetRegeditLayout(false);
+  browse_.tree().SetRegEditLayout(false);
   browse_.tree().SetRootLabel(TreeRootLabel());
   browse_.tree().PopulateRoots(browse_.roots());
 

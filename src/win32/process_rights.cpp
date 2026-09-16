@@ -3,10 +3,12 @@
 
 #include "win32/text_transform.h"
 #include "win32/process_rights.h"
+#include "win32/shell_paths.h"
 
 #include <algorithm>
 #include <vector>
 
+#include <aclapi.h>
 #include <sddl.h>
 #include <userenv.h>
 #include <winsvc.h>
@@ -394,6 +396,73 @@ bool IsUacEnabled() {
   DWORD value = 1;
   DWORD size = sizeof(value);
   return RegGetValueW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", L"EnableLUA", RRF_RT_REG_DWORD, nullptr, &value, &size) != ERROR_SUCCESS || value != 0;
+}
+
+bool GrantsWriteToStandardUsers(
+    const std::wstring& path,
+    const std::vector<std::vector<BYTE>>& group_sids
+) {
+  constexpr ACCESS_MASK kWriteAccess = FILE_WRITE_DATA | FILE_APPEND_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES | DELETE | WRITE_DAC | WRITE_OWNER;
+  PSECURITY_DESCRIPTOR descriptor = nullptr;
+  PACL dacl = nullptr;
+  if (GetNamedSecurityInfoW(path.c_str(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, nullptr, nullptr, &dacl, nullptr, &descriptor) != ERROR_SUCCESS) {
+    return true;
+  }
+  bool writable = false;
+  for (DWORD index = 0; dacl && !writable && index < dacl->AceCount; ++index) {
+    void* entry = nullptr;
+    if (!GetAce(dacl, index, &entry)) {
+      continue;
+    }
+    const auto* header = static_cast<const ACE_HEADER*>(entry);
+    const auto* ace = static_cast<const ACCESS_ALLOWED_ACE*>(entry);
+    if (header->AceType != ACCESS_ALLOWED_ACE_TYPE || (header->AceFlags & INHERIT_ONLY_ACE) != 0 || (ace->Mask & kWriteAccess) == 0) {
+      continue;
+    }
+    PSID ace_sid = const_cast<PSID>(static_cast<const void*>(&ace->SidStart));
+    for (const std::vector<BYTE>& sid : group_sids) {
+      writable = writable || EqualSid(const_cast<PSID>(static_cast<const void*>(sid.data())), ace_sid) != FALSE;
+    }
+  }
+  LocalFree(descriptor);
+  return writable;
+}
+
+bool IsExecutableLocationWritableByOtherUsers() {
+  static const bool writable = []() {
+    const std::wstring module = GetModulePath();
+    if (module.empty()) {
+      return true;
+    }
+    const DWORD attributes = GetFileAttributesW(module.c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+      return true;
+    }
+    std::vector<std::vector<BYTE>> group_sids;
+    for (const wchar_t* text : {L"S-1-1-0", L"S-1-5-11", L"S-1-5-32-545", L"S-1-5-4"}) {
+      PSID sid = nullptr;
+      if (ConvertStringSidToSidW(text, &sid)) {
+        group_sids.emplace_back(static_cast<BYTE*>(sid), static_cast<BYTE*>(sid) + GetLengthSid(sid));
+        LocalFree(sid);
+      }
+    }
+    for (std::wstring path = module; path.size() > 3;) {
+      if (GrantsWriteToStandardUsers(path, group_sids)) {
+        return true;
+      }
+      const size_t slash = path.find_last_of(L'\\');
+      if (slash == std::wstring::npos) {
+        break;
+      }
+      path.resize(slash <= 2 ? slash + 1 : slash);
+    }
+    return false;
+  }();
+  return writable;
+}
+
+bool IsProcessPrivileged() {
+  return IsProcessElevated() || IsProcessSystem() || IsProcessTrustedInstaller();
 }
 
 bool IsProcessSystem() {

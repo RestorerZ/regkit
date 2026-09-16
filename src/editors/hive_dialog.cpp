@@ -196,7 +196,7 @@ INT_PTR CALLBACK SymbolicLinkDialogProc(
             return TRUE;
           }
           if (state->name.find(L'\\') != std::wstring::npos) {
-            ui::ShowWarning(dlg, L"The link name cannot contain a backslash.");
+            ui::ShowWarning(dlg, L"The link name can't contain a backslash.");
             return TRUE;
           }
         }

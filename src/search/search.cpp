@@ -493,7 +493,7 @@ DataMatch MatchValueData(
     }
     result.matched = true;
     result.match = match;
-    result.data_text = value_format::DisplayData(type, data, size);
+    result.data_text = value_format::DisplayData(type, data, size, false);
     if (result.data_text != view) {
       result.match = matcher.Find(result.data_text);
     }
@@ -571,7 +571,7 @@ DataMatch MatchValueData(
     return result;
   }
 
-  std::wstring text = value_format::DisplayData(type, data, size);
+  std::wstring text = value_format::DisplayData(type, data, size, false);
   Match match = matcher.Find(text);
   if (!match.matched) {
     return result;

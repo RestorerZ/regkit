@@ -37,6 +37,8 @@ private:
 std::wstring GetCurrentUserSidString();
 std::wstring GetProcessImagePath(DWORD process_id);
 bool IsProcessElevated();
+bool IsProcessPrivileged();
+bool IsExecutableLocationWritableByOtherUsers();
 bool IsProcessSystem();
 bool IsUacEnabled();
 bool IsProcessTrustedInstaller();

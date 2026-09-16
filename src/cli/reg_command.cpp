@@ -1015,7 +1015,7 @@ void PrintUsage() {
       L"  regkit --uninstall-edit-context-menu\n"
       L"                                    remove this executable's context menu\n"
       L"  regkit --install-regedit-replacement\n"
-      L"                                    replace Regedit with this executable\n"
+      L"                                    replace RegEdit with this executable\n"
       L"  regkit --uninstall-regedit-replacement\n"
       L"                                    remove this executable's replacement\n"
       L"  regkit --restart-system         relaunch as SYSTEM\n"

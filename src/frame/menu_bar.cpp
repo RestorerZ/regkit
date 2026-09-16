@@ -246,7 +246,7 @@ void MainWindow::Impl::RefreshStorageMenuState(
 
 void MainWindow::Impl::BuildMenus() {
   if (deferred_startup_complete_) {
-    SyncReplaceRegeditState();
+    SyncReplaceRegEditState();
     SyncEditContextMenuState();
   }
   if (deferred_startup_complete_ && !favorites_loaded_) {
@@ -427,7 +427,7 @@ void MainWindow::Impl::BuildMenus() {
   AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(run_as_menu), L"Run As");
   AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
   UINT replace_flags = MF_STRING | ((is_elevated || is_system || is_ti) ? 0 : MF_GRAYED);
-  AppendMenuW(options_menu, replace_flags | (replace_regedit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReplaceRegedit, L"Replace Regedit");
+  AppendMenuW(options_menu, replace_flags | (replace_regedit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReplaceRegEdit, L"Replace RegEdit");
   UINT edit_context_flags = MF_STRING | (is_high ? MF_GRAYED : 0);
   AppendMenuW(options_menu, edit_context_flags | (edit_context_menu_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsEditContextMenu, L"Add \"Edit\" Context Menu");
   AppendMenuW(options_menu, MF_STRING | (single_instance_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsSingleInstance, L"Single Instance");
@@ -470,7 +470,7 @@ void MainWindow::Impl::BuildMenus() {
   AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesEdit, L"Edit Favorites...");
   AppendMenuW(favorites_menu, MF_SEPARATOR, 0, nullptr);
   append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImport, L"Import Favorites...");
-  append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImportRegedit, L"Import Regedit Favorites");
+  append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImportRegEdit, L"Import RegEdit Favorites");
   append_menu(favorites_menu, MF_STRING, cmd::kFavoritesExport, L"Export Favorites...");
   if (!favorites_cache_.empty()) {
     AppendMenuW(favorites_menu, MF_SEPARATOR, 0, nullptr);
@@ -667,7 +667,7 @@ void MainWindow::Impl::RefreshFavoritesCache() {
   favorites_loaded_ = true;
 }
 
-void MainWindow::Impl::RefreshRegeditFavoritesMenu() {
+void MainWindow::Impl::RefreshRegEditFavoritesMenu() {
   if (!regedit_favorites_menu_) {
     return;
   }
@@ -680,11 +680,11 @@ void MainWindow::Impl::RefreshRegeditFavoritesMenu() {
     );
   }
   regedit_favorites_.clear();
-  FavoritesStore::LoadRegedit(&regedit_favorites_);
+  FavoritesStore::LoadRegEdit(&regedit_favorites_);
   const size_t limit = std::min(
       regedit_favorites_.size(),
       static_cast<size_t>(
-          cmd::kRegeditFavoriteMax - cmd::kRegeditFavoriteBase + 1
+          cmd::kRegEditFavoriteMax - cmd::kRegEditFavoriteBase + 1
       )
   );
   if (limit == 0) {
@@ -695,7 +695,7 @@ void MainWindow::Impl::RefreshRegeditFavoritesMenu() {
     AppendMenuW(
         regedit_favorites_menu_,
         MF_STRING,
-        cmd::kRegeditFavoriteBase + static_cast<UINT>(i),
+        cmd::kRegEditFavoriteBase + static_cast<UINT>(i),
         regedit_favorites_[i].name.c_str()
     );
   }

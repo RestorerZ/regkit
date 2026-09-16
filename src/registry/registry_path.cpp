@@ -407,7 +407,7 @@ std::wstring Format(
   switch (style) {
   case Style::kAbbreviated:
     return Join(AbbreviatedRoot(root), rest);
-  case Style::kRegeditAddress:
+  case Style::kRegEditAddress:
     return Join(tree_root.empty() ? L"Computer" : tree_root, path);
   case Style::kRegFileHeader:
     return L"[" + std::wstring(path) + L"]";

@@ -52,7 +52,7 @@ bool RunRegCommand(
   const UINT length = GetSystemDirectoryW(system_dir, _countof(system_dir));
   if (length == 0 || length >= _countof(system_dir)) {
     if (error) {
-      *error = L"The system directory could not be resolved.";
+      *error = L"The system directory couldn't be resolved.";
     }
     return false;
   }

@@ -104,7 +104,7 @@ void RegistryTree::SetRootLabel(
   root_label_ = label;
 }
 
-void RegistryTree::SetRegeditLayout(
+void RegistryTree::SetRegEditLayout(
     bool enabled
 ) {
   regedit_layout_ = enabled;

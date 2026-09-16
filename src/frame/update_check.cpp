@@ -1,12 +1,17 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+#define _CRT_RAND_S
+#include <cstdlib>
+
 #include "frame/window_detail.h"
 
 #include <bcrypt.h>
 #include <winhttp.h>
 
 #include <array>
+#include <stdlib.h>
+#include <algorithm>
 
 namespace regkit {
 using namespace window_detail;
@@ -16,6 +21,15 @@ namespace {
 constexpr wchar_t kReleasesPage[] = L"https://github.com/nohuto/regkit/releases";
 constexpr wchar_t kLatestReleaseUrl[] = L"https://api.github.com/repos/nohuto/regkit/releases/latest";
 constexpr const char* kSetupSuffix = sizeof(void*) == 8 ? "-x64.exe" : "-x86.exe";
+constexpr size_t kMaxReleaseJsonBytes = 4ull * 1024ull * 1024ull;
+constexpr size_t kMaxSetupBytes = 192ull * 1024ull * 1024ull;
+
+bool IsAllowedReleaseHost(
+    const std::wstring& host
+) {
+  constexpr const wchar_t* kHosts[] = {L"github.com", L"api.github.com", L"objects.githubusercontent.com", L"release-assets.githubusercontent.com"};
+  return std::any_of(std::begin(kHosts), std::end(kHosts), [&](const wchar_t* allowed) { return util::EqualsInsensitive(host, allowed); });
+}
 
 std::wstring ErrorText(
     DWORD code
@@ -34,7 +48,8 @@ std::wstring ErrorText(
 std::wstring HttpGet(
     const std::wstring& url,
     const std::atomic_bool& cancel,
-    std::string* body
+    std::string* body,
+    size_t max_bytes
 ) {
   using Handle = std::unique_ptr<void, decltype(&WinHttpCloseHandle)>;
   URL_COMPONENTS parts = {sizeof(parts)};
@@ -42,6 +57,9 @@ std::wstring HttpGet(
   parts.dwUrlPathLength = static_cast<DWORD>(-1);
   if (!WinHttpCrackUrl(url.c_str(), 0, 0, &parts)) {
     return ErrorText(GetLastError());
+  }
+  if (parts.nScheme != INTERNET_SCHEME_HTTPS || !IsAllowedReleaseHost(std::wstring(parts.lpszHostName, parts.dwHostNameLength))) {
+    return L"The release location isn't a trusted RegKit download address.";
   }
   Handle session(WinHttpOpen(L"RegKit", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0), WinHttpCloseHandle);
   if (!session) {
@@ -68,6 +86,9 @@ std::wstring HttpGet(
     }
     if (read == 0) {
       return {};
+    }
+    if (body->size() + read > max_bytes) {
+      return L"The download is larger than RegKit accepts.";
     }
     body->append(buffer, read);
   }
@@ -127,39 +148,91 @@ std::string Sha256(
   return hex;
 }
 
+std::wstring RandomName(
+    const wchar_t* prefix
+) {
+  std::wstring name = prefix;
+  for (int part = 0; part < 4; ++part) {
+    unsigned int value = 0;
+    if (rand_s(&value) != 0) {
+      value = GetTickCount();
+    }
+    wchar_t text[16] = {};
+    swprintf_s(text, L"%08x", value);
+    name += text;
+  }
+  return name;
+}
+
+std::wstring PrivateTempDirectory(
+    std::wstring* directory
+) {
+  const HMODULE kernel = GetModuleHandleW(L"kernel32.dll");
+  using GetTempPath2Fn = DWORD(WINAPI*)(DWORD, LPWSTR);
+  const auto temp_path2 = kernel ? reinterpret_cast<GetTempPath2Fn>(GetProcAddress(kernel, "GetTempPath2W")) : nullptr;
+  wchar_t temp[MAX_PATH + 1] = {};
+  const DWORD length = temp_path2 ? temp_path2(static_cast<DWORD>(_countof(temp)), temp) : GetTempPathW(static_cast<DWORD>(_countof(temp)), temp);
+  if (length == 0) {
+    return util::FormatWin32Error(GetLastError());
+  }
+  for (int attempt = 0; attempt < 8; ++attempt) {
+    const std::wstring candidate = util::JoinPath(temp, RandomName(L"RegKit-"));
+    if (CreateDirectoryW(candidate.c_str(), nullptr)) {
+      *directory = candidate;
+      return {};
+    }
+    if (GetLastError() != ERROR_ALREADY_EXISTS) {
+      return util::FormatWin32Error(GetLastError());
+    }
+  }
+  return util::FormatWin32Error(ERROR_ALREADY_EXISTS);
+}
+
 std::wstring SaveSetup(
     const std::wstring& url,
     const std::string& sha256,
     const std::atomic_bool& cancel,
     std::wstring* path
 ) {
+  if (sha256.size() != 64 || sha256.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos) {
+    return L"The release didn't publish a checksum for this download.";
+  }
   std::string data;
-  const std::wstring error = HttpGet(url, cancel, &data);
+  const std::wstring error = HttpGet(url, cancel, &data, kMaxSetupBytes);
   if (!error.empty()) {
     return error;
   }
-  if (!sha256.empty() && _stricmp(Sha256(data).c_str(), sha256.c_str()) != 0) {
+  if (data.empty() || _stricmp(Sha256(data).c_str(), sha256.c_str()) != 0) {
     return L"The downloaded file doesn't match the release checksum.";
   }
-  wchar_t temp[MAX_PATH + 1] = {};
-  if (GetTempPathW(static_cast<DWORD>(_countof(temp)), temp) == 0) {
-    return util::FormatWin32Error(GetLastError());
+  std::wstring directory;
+  const std::wstring directory_error = PrivateTempDirectory(&directory);
+  if (!directory_error.empty()) {
+    return directory_error;
   }
-  *path = util::JoinPath(temp, url.substr(url.rfind(L'/') + 1));
-  HANDLE file = CreateFileW(path->c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  *path = util::JoinPath(directory, RandomName(L"RegKit-Setup-") + L".exe");
+  const util::UniqueHandle file(CreateFileW(path->c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
   DWORD written = 0;
-  const bool saved = file != INVALID_HANDLE_VALUE &&
-                     WriteFile(file, data.data(), static_cast<DWORD>(data.size()), &written, nullptr) &&
-                     written == data.size();
+  const bool saved = file && WriteFile(file.get(), data.data(), static_cast<DWORD>(data.size()), &written, nullptr) && written == data.size();
   const DWORD code = saved ? ERROR_SUCCESS : GetLastError();
-  if (file != INVALID_HANDLE_VALUE) {
-    CloseHandle(file);
-  }
   if (!saved) {
     DeleteFileW(path->c_str());
+    RemoveDirectoryW(directory.c_str());
+    path->clear();
     return util::FormatWin32Error(code != ERROR_SUCCESS ? code : ERROR_WRITE_FAULT);
   }
   return {};
+}
+
+bool SetupFileStillMatches(
+    const std::wstring& path,
+    const std::string& sha256
+) {
+  std::vector<BYTE> bytes;
+  if (!util::ReadFileBytes(path, &bytes, kMaxSetupBytes, 0) || bytes.empty()) {
+    return false;
+  }
+  return _stricmp(Sha256(std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size())).c_str(), sha256.c_str()) == 0;
 }
 
 } // namespace
@@ -176,7 +249,7 @@ void MainWindow::Impl::CheckForUpdates(
     auto payload = std::make_unique<UpdateCheckPayload>();
     payload->silent = silent;
     std::string json;
-    std::wstring error = HttpGet(kLatestReleaseUrl, cancel, &json);
+    std::wstring error = HttpGet(kLatestReleaseUrl, cancel, &json, kMaxReleaseJsonBytes);
     size_t pos = 0;
     payload->version = util::Utf8ToWide(JsonText(json, &pos, "tag_name"));
     if (error.empty() && payload->version.empty()) {
@@ -217,6 +290,7 @@ void MainWindow::Impl::DownloadUpdate(
   HWND owner = hwnd_;
   update_session_.Start([owner, url = release.download_url, sha256 = release.sha256](uint64_t, std::atomic_bool& cancel) {
     auto payload = std::make_unique<UpdateCheckPayload>();
+    payload->sha256 = sha256;
     const std::wstring error = SaveSetup(url, sha256, cancel, &payload->setup_path);
     if (cancel.load()) {
       return;
@@ -246,6 +320,10 @@ void MainWindow::Impl::ApplyUpdateCheckResult(
     return;
   }
   if (!payload->setup_path.empty()) {
+    if (!SetupFileStillMatches(payload->setup_path, payload->sha256)) {
+      ui::ShowError(hwnd_, L"The downloaded setup changed after RegKit verified it and wasn't started.");
+      return;
+    }
     const HRESULT hr = win32::ShellOpen(hwnd_, payload->setup_path.c_str());
     if (SUCCEEDED(hr)) {
       PostMessageW(hwnd_, WM_CLOSE, 0, 0);

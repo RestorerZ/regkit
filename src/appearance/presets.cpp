@@ -120,7 +120,7 @@ bool ParsePresets(
   };
   auto fail = [&](const std::wstring& text) {
     if (error) {
-      *error = L"The theme preset file contains an entry RegKit cannot parse:\n" + text;
+      *error = L"The theme preset file contains an entry RegKit can't parse:\n" + text;
     }
     presets->clear();
     return false;

@@ -42,7 +42,7 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(
   case cmd::kOptionsAlwaysRunSystem:
   case cmd::kOptionsRestartTrustedInstaller:
   case cmd::kOptionsAlwaysRunTrustedInstaller:
-  case cmd::kOptionsReplaceRegedit:
+  case cmd::kOptionsReplaceRegEdit:
   case cmd::kOptionsEditContextMenu:
   case cmd::kOptionsSingleInstance:
   case cmd::kOptionsHiveFileDir:
@@ -56,7 +56,7 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(
   case cmd::kFavoritesRemove:
   case cmd::kFavoritesEdit:
   case cmd::kFavoritesImport:
-  case cmd::kFavoritesImportRegedit:
+  case cmd::kFavoritesImportRegEdit:
   case cmd::kFavoritesExport:
     return HandleFavoritesCommand(command_id);
   default:
@@ -195,8 +195,8 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(
       RestartAsTrustedInstaller();
     }
     return true;
-  case cmd::kOptionsReplaceRegedit:
-    ReplaceRegedit(!replace_regedit_);
+  case cmd::kOptionsReplaceRegEdit:
+    ReplaceRegEdit(!replace_regedit_);
     return true;
   case cmd::kOptionsEditContextMenu:
     SetEditContextMenu(!edit_context_menu_);

@@ -17,7 +17,7 @@ namespace regkit::value_format {
 DWORD NormalizeType(DWORD type);
 std::wstring TypeName(DWORD type);
 std::wstring Data(DWORD type, const BYTE* data, DWORD size);
-std::wstring DisplayData(DWORD type, const BYTE* data, DWORD size);
+std::wstring DisplayData(DWORD type, const BYTE* data, DWORD size, bool resolve_indirect = true);
 
 bool ParseHex(std::wstring_view text, std::vector<BYTE>* output);
 std::vector<BYTE> StringData(std::wstring_view text);
