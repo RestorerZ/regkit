@@ -76,11 +76,16 @@ public:
     const std::wstring path =
         directory.empty() ? std::wstring() : util::JoinPath(directory, L"offreg.dll");
     const DWORD attributes = path.empty() ? INVALID_FILE_ATTRIBUTES : GetFileAttributesW(path.c_str());
-    module_ = attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0
-                  ? nullptr
-                  : LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+      load_error_ = path.empty() ? ERROR_MOD_NOT_FOUND : attributes == INVALID_FILE_ATTRIBUTES ? GetLastError() : ERROR_ACCESS_DENIED;
+      return;
+    }
+    module_ = LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (!module_ && GetLastError() == ERROR_INVALID_PARAMETER) {
+      module_ = LoadLibraryExW(path.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+    }
     if (!module_) {
-      load_error_ = path.empty() ? ERROR_MOD_NOT_FOUND : GetLastError();
+      load_error_ = GetLastError();
       return;
     }
     open_hive = LoadFunction<OROpenHiveFn>(module_, "OROpenHive");
