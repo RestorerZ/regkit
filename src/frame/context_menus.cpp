@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/command_detail.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 using namespace command_detail;
@@ -172,13 +173,12 @@ void MainWindow::Impl::ShowTreeContextMenu(
   std::wstring expand_label = expanded ? L"Collapse Key" : L"Expand Key";
   UINT expand_flags = MF_STRING | (can_toggle ? 0 : MF_GRAYED);
   UINT expand_all_flags = MF_STRING | (has_children ? 0 : MF_GRAYED);
-  auto equals_insensitive = [](const std::wstring& left, const wchar_t* right) -> bool { return _wcsicmp(left.c_str(), right) == 0; };
   bool can_open_hive = false;
   if (has_node) {
     bool is_root = false;
     std::wstring hive_path = LookupHivePath(*node, &is_root);
     if (!hive_path.empty() && is_root) {
-      if (node->subkey.empty() && (node->root == HKEY_CURRENT_USER || equals_insensitive(node->root_name, L"HKEY_CURRENT_USER"))) {
+      if (node->subkey.empty() && (node->root == HKEY_CURRENT_USER || util::EqualsInsensitive(node->root_name, L"HKEY_CURRENT_USER"))) {
         can_open_hive = false;
       } else {
         can_open_hive = true;
@@ -258,8 +258,7 @@ void MainWindow::Impl::ShowValueContextMenu(
 
   HMENU menu = CreatePopupMenu();
   if (row && row->kind == rowkind::kKey) {
-    auto equals_insensitive = [](const std::wstring& left, const wchar_t* right) -> bool { return _wcsicmp(left.c_str(), right) == 0; };
-    bool is_simulated = row->simulated;
+      bool is_simulated = row->simulated;
     bool can_rename = !row->extra.empty();
     bool can_modify = !read_only_;
     UINT edit_flags = MF_STRING;
@@ -272,12 +271,12 @@ void MainWindow::Impl::ShowValueContextMenu(
     if (browse_.current_node()) {
       RegistryNode target = *browse_.current_node();
       if (!row->extra.empty()) {
-        target = MakeChildNode(*browse_.current_node(), row->extra);
+        target = ChildNode(*browse_.current_node(), row->extra);
       }
       bool is_root = false;
       std::wstring hive_path = LookupHivePath(target, &is_root);
       if (!hive_path.empty() && is_root) {
-        if (target.subkey.empty() && (target.root == HKEY_CURRENT_USER || equals_insensitive(target.root_name, L"HKEY_CURRENT_USER"))) {
+        if (target.subkey.empty() && (target.root == HKEY_CURRENT_USER || util::EqualsInsensitive(target.root_name, L"HKEY_CURRENT_USER"))) {
           can_open_hive = false;
         } else {
           can_open_hive = true;

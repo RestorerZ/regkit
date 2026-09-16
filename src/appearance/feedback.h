@@ -36,6 +36,11 @@ struct ChoiceButtonWidths {
 int PromptKeyChoice(HWND owner, const std::wstring& message, const std::wstring& key_path, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths = {});
 int PromptChoice(HWND owner, const std::wstring& message, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths = {}, int width = 420);
 bool ReportFileDialogResult(HWND owner, HRESULT hr);
+bool PromptOpenFile(HWND owner, const wchar_t* filter, std::wstring* path);
+bool PromptSaveFile(HWND owner, const wchar_t* filter, std::wstring* path);
+
+inline constexpr wchar_t kRegFileFilter[] = L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0\0";
+inline constexpr wchar_t kHiveFileFilter[] = L"Hive Files (*.*)\0*.*\0";
 bool LaunchNewInstance(const std::wstring& arguments = std::wstring());
 
 } // namespace ui

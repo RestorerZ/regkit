@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 using namespace window_detail;
@@ -46,7 +47,7 @@ bool MainWindow::Impl::ExportRegFileTab(
   if (!BuildRegFileContent(tabs_[static_cast<size_t>(tab_index)], &content)) {
     return false;
   }
-  std::wstring target = EnsureRegExtension(path);
+  std::wstring target = util::EnsureFileExtension(path, L".reg");
   if (!util::WriteTextFile(target, content, true)) {
     ui::ShowError(hwnd_, L"Failed to export registry file.");
     return false;
@@ -90,7 +91,7 @@ bool MainWindow::Impl::BuildRegFileContent(
       if (!left || !right) {
         return left != nullptr;
       }
-      return _wcsicmp(left->name.c_str(), right->name.c_str()) < 0; });
+      return util::CompareInsensitive(left->name, right->name) < 0; });
     for (const auto* child : children) {
       if (!child) {
         continue;

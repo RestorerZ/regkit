@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "search/replace.h"
+#include "win32/text_transform.h"
 
 #include <windows.h>
 
@@ -96,14 +97,7 @@ bool Replacer::Replace(
   std::wstring replaced;
   bool matched = false;
   while (cursor < text.size()) {
-    const int position = FindStringOrdinal(
-        FIND_FROMSTART,
-        text.c_str() + cursor,
-        static_cast<int>(text.size() - cursor),
-        query_.c_str(),
-        static_cast<int>(query_.size()),
-        TRUE
-    );
+    const int position = util::FindInsensitive(std::wstring_view(text).substr(cursor), query_);
     if (position < 0) {
       break;
     }

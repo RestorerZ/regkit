@@ -4,6 +4,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "appearance/theme.h"
@@ -18,7 +19,6 @@ struct ThemePreset {
 
 class ThemePresetStore {
 public:
-  static std::wstring PresetsPath();
   static std::vector<ThemePreset> BuiltInPresets();
   static bool Load(std::vector<ThemePreset>* presets, std::wstring* error = nullptr);
   static bool Save(const std::vector<ThemePreset>& presets, std::wstring* error = nullptr);
@@ -26,6 +26,7 @@ public:
   static bool ExportToFile(const std::wstring& path, const std::vector<ThemePreset>& presets, std::wstring* error = nullptr);
 };
 
+const ThemePreset* FindThemePreset(const std::vector<ThemePreset>& presets, std::wstring_view name);
 std::wstring FormatColorHex(COLORREF color);
 bool ParseColorHex(const std::wstring& text, COLORREF* color);
 

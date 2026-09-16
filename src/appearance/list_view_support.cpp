@@ -149,17 +149,7 @@ void ApplyGridToolbarTheme(
     return;
   }
   Theme::Current().ApplyToToolbar(toolbar);
-  HWND tooltip = reinterpret_cast<HWND>(
-      SendMessageW(toolbar, TB_GETTOOLTIPS, 0, 0)
-  );
-  if (tooltip) {
-    AllowDarkModeForWindow(tooltip, Theme::UseDarkMode());
-    SetWindowTheme(
-        tooltip,
-        Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer",
-        nullptr
-    );
-  }
+  SetDarkWindowTheme(reinterpret_cast<HWND>(SendMessageW(toolbar, TB_GETTOOLTIPS, 0, 0)), Theme::UseDarkMode());
 }
 
 void LayoutRegistration(
@@ -381,12 +371,8 @@ void RegisterListView(
     ApplyGridIcon(entry);
   }
   HWND header = ListView_GetHeader(list);
-  if (!GetWindowSubclass(header, HeaderProc, kListHeaderSubclassId, nullptr)) {
-    SetWindowSubclass(header, HeaderProc, kListHeaderSubclassId, 0);
-  }
-  if (!GetWindowSubclass(list, ListProc, kListViewSubclassId, nullptr)) {
-    SetWindowSubclass(list, ListProc, kListViewSubclassId, 0);
-  }
+  EnsureSubclass(header, HeaderProc, kListHeaderSubclassId);
+  EnsureSubclass(list, ListProc, kListViewSubclassId);
   LayoutRegistration(entry);
 }
 
@@ -459,10 +445,6 @@ void SetListGridEnabled(
     }
     InvalidateRect(entry.list, nullptr, TRUE);
   }
-}
-
-bool ListGridEnabled() {
-  return grid_enabled;
 }
 
 void SetListGridIcon(

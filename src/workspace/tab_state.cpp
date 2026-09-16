@@ -5,22 +5,43 @@
 
 #include "records/escaped_fields.h"
 #include "win32/file_text.h"
+#include "win32/text_transform.h"
 
 namespace regkit::workspace {
 
 namespace {
 
+struct KindName {
+  PersistedTab::Kind kind;
+  const wchar_t* tag;
+};
+
+constexpr KindName kKindNames[] = {
+    {PersistedTab::Kind::kRegistry, L"registry"},
+    {PersistedTab::Kind::kSearch, L"search"},
+    {PersistedTab::Kind::kRegFile, L"regfile"},
+};
+
 const wchar_t* KindTag(
     PersistedTab::Kind kind
 ) {
-  switch (kind) {
-  case PersistedTab::Kind::kSearch:
-    return L"search";
-  case PersistedTab::Kind::kRegFile:
-    return L"regfile";
-  default:
-    return L"registry";
+  for (const KindName& name : kKindNames) {
+    if (name.kind == kind) {
+      return name.tag;
+    }
   }
+  return kKindNames[0].tag;
+}
+
+const KindName* FindKind(
+    std::wstring_view tag
+) {
+  for (const KindName& name : kKindNames) {
+    if (util::EqualsInsensitive(tag, name.tag)) {
+      return &name;
+    }
+  }
+  return nullptr;
 }
 
 void AppendField(
@@ -143,20 +164,13 @@ TabState ParseTabs(
       continue;
     }
     const auto fields = record_fields::Split(line);
-    if (fields.size() < 3 || _wcsicmp(fields[0].c_str(), L"tab") != 0) {
+    const KindName* kind = fields.size() >= 3 && util::EqualsInsensitive(fields[0], L"tab") ? FindKind(fields[1]) : nullptr;
+    if (!kind) {
       continue;
     }
     PersistedTab tab;
+    tab.kind = kind->kind;
     tab.label = record_fields::Unescape(fields[2]);
-    if (_wcsicmp(fields[1].c_str(), L"registry") == 0) {
-      tab.kind = PersistedTab::Kind::kRegistry;
-    } else if (_wcsicmp(fields[1].c_str(), L"search") == 0) {
-      tab.kind = PersistedTab::Kind::kSearch;
-    } else if (_wcsicmp(fields[1].c_str(), L"regfile") == 0) {
-      tab.kind = PersistedTab::Kind::kRegFile;
-    } else {
-      continue;
-    }
     if (state.source_version >= 3) {
       ParseTaggedFields(fields, &tab);
     } else if (tab.kind == PersistedTab::Kind::kSearch) {

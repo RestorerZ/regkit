@@ -115,7 +115,7 @@ bool MainWindow::Impl::LoadDefaultFromFile(
 
 bool MainWindow::Impl::LoadDefaultFromPrompt() {
   std::wstring path;
-  if (!PromptOpenFile(hwnd_, L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0\0", &path)) {
+  if (!ui::PromptOpenFile(hwnd_, ui::kRegFileFilter, &path)) {
     return false;
   }
   std::wstring label = FileBaseName(path);

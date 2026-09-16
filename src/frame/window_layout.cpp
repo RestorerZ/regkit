@@ -3,6 +3,8 @@
 
 #include "frame/window_detail.h"
 
+#include "registry/key_algorithms.h"
+
 #include "editors/dialog_support.h"
 
 #include "appearance/dialog_metrics.h"
@@ -453,6 +455,8 @@ void MainWindow::Impl::ApplyTabSelection(
   }
 }
 
+constexpr DWORD kMaxHiveValueBytes = 64 * 1024;
+
 void MainWindow::Impl::ResetHiveListCache() {
   hive_list_loaded_ = false;
   hive_list_.clear();
@@ -482,44 +486,33 @@ void MainWindow::Impl::EnsureHiveListLoaded() {
   if (RegOpenKeyExW(hklm, L"SYSTEM\\CurrentControlSet\\Control\\hivelist", 0, KEY_READ, hive_key.put()) != ERROR_SUCCESS) {
     return;
   }
-
-  DWORD value_count = 0;
-  DWORD max_name_len = 0;
-  DWORD max_data_len = 0;
-  if (RegQueryInfoKeyW(hive_key.get(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &value_count, &max_name_len, &max_data_len, nullptr, nullptr) != ERROR_SUCCESS) {
-    return;
-  }
-
-  std::vector<wchar_t> name_buffer(max_name_len + 1, L'\0');
-  std::vector<BYTE> data_buffer(max_data_len > 0 ? max_data_len : 1);
-
-  for (DWORD i = 0; i < value_count; ++i) {
-    DWORD name_len = static_cast<DWORD>(name_buffer.size());
-    DWORD data_len = static_cast<DWORD>(data_buffer.size());
-    DWORD type = 0;
-    LONG result = RegEnumValueW(hive_key.get(), i, name_buffer.data(), &name_len, nullptr, &type, data_buffer.data(), &data_len);
-    if (result != ERROR_SUCCESS || name_len == 0 || data_len == 0) {
-      continue;
-    }
-    if (type != REG_SZ && type != REG_EXPAND_SZ) {
-      continue;
-    }
-    std::wstring name(name_buffer.data(), name_len);
-    std::wstring data(reinterpret_cast<wchar_t*>(data_buffer.data()), data_len / sizeof(wchar_t));
-    while (!data.empty() && data.back() == L'\0') {
-      data.pop_back();
-    }
-    if (data.empty()) {
-      continue;
-    }
-    data = NormalizeHiveFilePath(data);
-    if (data.empty()) {
-      continue;
-    }
-    std::wstring name_lower = ToLower(name);
-    hive_list_.emplace(name_lower, std::move(data));
-    hive_roots->insert(std::move(name_lower));
-  }
+  registry_backend::EnumerateKey(
+      registry_backend::RegistryKeyHandle(std::move(hive_key)),
+      true,
+      true,
+      false,
+      nullptr,
+      [&](const ValueInfo& value, const BYTE* data, DWORD size) {
+        if (!data || size == 0 || value.name.empty() || (value.type != REG_SZ && value.type != REG_EXPAND_SZ)) {
+          return true;
+        }
+        std::wstring path(reinterpret_cast<const wchar_t*>(data), size / sizeof(wchar_t));
+        while (!path.empty() && path.back() == L'\0') {
+          path.pop_back();
+        }
+        path = NormalizeHiveFilePath(path);
+        if (path.empty()) {
+          return true;
+        }
+        std::wstring name_lower = ToLower(value.name);
+        hive_list_.emplace(name_lower, std::move(path));
+        hive_roots->insert(std::move(name_lower));
+        return true;
+      },
+      nullptr,
+      kMaxHiveValueBytes,
+      nullptr
+  );
 }
 
 std::wstring MainWindow::Impl::LookupHivePath(

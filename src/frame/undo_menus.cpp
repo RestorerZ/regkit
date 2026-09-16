@@ -53,7 +53,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
           SelectChildKey(operation.node, operation.name);
         }
       } else {
-        RegistryNode child = MakeChildNode(operation.node, operation.name);
+        RegistryNode child = ChildNode(operation.node, operation.name);
         ok = RegistryStore::DeleteKey(child);
         if (ok) {
           RefreshTreeSelection();
@@ -64,7 +64,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
   case changes::UndoOperation::Type::kDeleteKey:
     {
       if (redo) {
-        RegistryNode child = MakeChildNode(operation.node, operation.name);
+        RegistryNode child = ChildNode(operation.node, operation.name);
         ok = RegistryStore::DeleteKey(child);
         if (ok) {
           RefreshTreeSelection();
@@ -82,7 +82,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(
     {
       std::wstring from = redo ? operation.name : operation.new_name;
       std::wstring to = redo ? operation.new_name : operation.name;
-      RegistryNode child = MakeChildNode(operation.node, from);
+      RegistryNode child = ChildNode(operation.node, from);
       ok = RegistryStore::RenameKey(child, to);
       if (ok) {
         RefreshTreeSelection();

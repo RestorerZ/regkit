@@ -16,7 +16,7 @@ LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWO
 LONG RenameRegistryKey(HKEY parent, const std::wstring& old_name, const std::wstring& new_name);
 LONG DeleteRegistryTree(HKEY key);
 bool DeleteNativeRegistryKey(HKEY key);
-bool ReadRegistryString(HKEY root, const wchar_t* subkey, const wchar_t* value_name, std::wstring* value);
-LONG WriteRegistryString(HKEY key, const wchar_t* value_name, const std::wstring& value);
+LONG ReadRegistryString(HKEY root, const wchar_t* subkey, const wchar_t* value_name, std::wstring* value);
+LONG WriteRegistryString(HKEY root, const wchar_t* subkey, const wchar_t* value_name, const std::wstring& value);
 
 } // namespace util

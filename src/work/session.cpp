@@ -60,10 +60,6 @@ bool Session::running() const noexcept {
   return running_.load();
 }
 
-uint64_t Session::generation() const noexcept {
-  return generation_.load();
-}
-
 uint64_t Session::StartPrepared(
     Task task
 ) {

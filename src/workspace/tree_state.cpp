@@ -31,7 +31,7 @@ void TreeState::Normalize() {
               if (left.size() != right.size()) {
                 return left.size() < right.size();
               }
-              return _wcsicmp(left.c_str(), right.c_str()) < 0; });
+              return util::CompareInsensitive(left, right) < 0; });
   expanded_paths.swap(normalized);
 }
 
@@ -51,9 +51,9 @@ TreeState ParseTreeState(
         util::TrimWhitespace(line.substr(0, separator));
     const std::wstring value =
         record_fields::Unescape(line.substr(separator + 1));
-    if (_wcsicmp(key.c_str(), L"selected") == 0) {
+    if (util::EqualsInsensitive(key, L"selected")) {
       state.selected_path = value;
-    } else if (_wcsicmp(key.c_str(), L"expanded") == 0 && !value.empty()) {
+    } else if (util::EqualsInsensitive(key, L"expanded") && !value.empty()) {
       state.expanded_paths.push_back(value);
     }
   }

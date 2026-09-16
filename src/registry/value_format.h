@@ -22,7 +22,7 @@ std::wstring DisplayData(DWORD type, const BYTE* data, DWORD size);
 bool ParseHex(std::wstring_view text, std::vector<BYTE>* output);
 std::vector<BYTE> StringData(std::wstring_view text);
 bool DecodeString(std::span<const BYTE> data, std::wstring* output);
-std::vector<std::wstring> MultiStringItems(const std::vector<BYTE>& data);
+std::vector<std::wstring> MultiStringItems(std::span<const BYTE> data);
 std::vector<BYTE> MultiStringData(const std::vector<std::wstring>& items);
 std::wstring MultiStringText(const std::vector<BYTE>& data);
 std::vector<BYTE> MultiStringData(std::wstring_view lines);

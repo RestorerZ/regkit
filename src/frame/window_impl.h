@@ -306,6 +306,7 @@ private:
   int SearchIndexFromTab(int index) const;
   int FindFirstRegistryTabIndex() const;
   void ActivateRegistryTab();
+  bool ActivateLocalRegistryTab();
   bool SearchResultOpensInNewTab() const;
   bool OpenSearchResultRow(int item, bool new_tab);
   bool OpenSelectedSearchResult(bool new_tab);
@@ -469,6 +470,8 @@ private:
   bool RestartAfterCacheClear(CacheKind kind);
   bool RestartAfterSettingsReset();
   void PrepareSessionHandover();
+  bool SaveSessionForRestart();
+  bool LaunchRestart(bool restore_session);
   bool RestartAsSystem();
   bool RestartAsTrustedInstaller();
   void LoadSettings();

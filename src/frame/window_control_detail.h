@@ -58,6 +58,7 @@
 #include "win32/registry_native.h"
 #include "win32/shell_paths.h"
 #include "resource.h"
+#include "win32/text_transform.h"
 
 namespace regkit::window_detail {
 inline void SetEditMargins(
@@ -136,18 +137,7 @@ inline void DrawToolbarButtonBackground(
   SelectObject(hdc, old_brush);
 }
 
-inline RegistryNode MakeChildNode(
-    const RegistryNode& parent,
-    const std::wstring& name
-) {
-  RegistryNode child = parent;
-  if (child.subkey.empty()) {
-    child.subkey = name;
-  } else {
-    child.subkey = child.subkey + L"\\" + name;
-  }
-  return child;
-}
+using registry_path::ChildNode;
 
 inline std::wstring LeafName(
     const RegistryNode& node
@@ -265,26 +255,6 @@ inline uint64_t FileTimeToUint64(
   return value.QuadPart;
 }
 
-inline int CompareTextInsensitive(
-    const std::wstring& left,
-    const std::wstring& right
-) {
-  if (left.empty()) {
-    return right.empty() ? 0 : 1;
-  }
-  if (right.empty()) {
-    return -1;
-  }
-  int result = CompareStringOrdinal(left.c_str(), static_cast<int>(left.size()), right.c_str(), static_cast<int>(right.size()), TRUE);
-  if (result == CSTR_LESS_THAN) {
-    return -1;
-  }
-  if (result == CSTR_GREATER_THAN) {
-    return 1;
-  }
-  return 0;
-}
-
 inline int CompareUint64(
     uint64_t left,
     uint64_t right
@@ -354,15 +324,15 @@ inline int CompareValueRow(
   }
   switch (column) {
   case kValueColName:
-    return CompareTextInsensitive(left.name, right.name);
+    return util::CompareListText(left.name, right.name);
   case kValueColType:
-    return CompareTextInsensitive(left.type, right.type);
+    return util::CompareListText(left.type, right.type);
   case kValueColData:
-    return CompareTextInsensitive(left.data, right.data);
+    return util::CompareListText(left.data, right.data);
   case kValueColDefault:
-    return CompareTextInsensitive(left.default_data, right.default_data);
+    return util::CompareListText(left.default_data, right.default_data);
   case kValueColReadOnBoot:
-    return CompareTextInsensitive(left.read_on_boot, right.read_on_boot);
+    return util::CompareListText(left.read_on_boot, right.read_on_boot);
   case kValueColSize:
     if (left.has_size != right.has_size) {
       return left.has_size ? -1 : 1;
@@ -382,9 +352,9 @@ inline int CompareValueRow(
     }
     return CompareUint64(left.detail_value_count, right.detail_value_count);
   case kValueColComment:
-    return CompareTextInsensitive(left.comment, right.comment);
+    return util::CompareListText(left.comment, right.comment);
   default:
-    return CompareTextInsensitive(left.name, right.name);
+    return util::CompareListText(left.name, right.name);
   }
 }
 

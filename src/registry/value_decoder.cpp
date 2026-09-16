@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "registry/value_decoder.h"
+#include "win32/text_transform.h"
 
 #include <objbase.h>
 #include <sddl.h>
@@ -231,14 +232,6 @@ bool TransformBase64Url(
   return DecodeWithCrypto(normalized, CRYPT_STRING_BASE64, out, error);
 }
 
-bool HexDigit(
-    wchar_t character
-) {
-  return (character >= L'0' && character <= L'9') ||
-         (character >= L'a' && character <= L'f') ||
-         (character >= L'A' && character <= L'F');
-}
-
 bool HexSeparator(
     wchar_t character
 ) {
@@ -264,11 +257,11 @@ bool TransformHex(
       index += 2;
       continue;
     }
-    if (!HexDigit(text[index])) {
+    if (util::HexDigitValue(text[index]) < 0) {
       *error = L"Invalid hex character at offset " + std::to_wstring(index) + L".";
       return false;
     }
-    if (index + 1 >= text.size() || !HexDigit(text[index + 1])) {
+    if (index + 1 >= text.size() || util::HexDigitValue(text[index + 1]) < 0) {
       *error = L"Incomplete hex byte at offset " + std::to_wstring(index) + L".";
       return false;
     }
@@ -277,21 +270,6 @@ bool TransformHex(
     index += 2;
   }
   return DecodeWithCrypto(normalized, CRYPT_STRING_HEX, out, error);
-}
-
-int HexValue(
-    wchar_t character
-) {
-  if (character >= L'0' && character <= L'9') {
-    return character - L'0';
-  }
-  if (character >= L'a' && character <= L'f') {
-    return character - L'a' + 10;
-  }
-  if (character >= L'A' && character <= L'F') {
-    return character - L'A' + 10;
-  }
-  return -1;
 }
 
 bool TransformPercent(
@@ -308,8 +286,8 @@ bool TransformPercent(
         *error = L"Incomplete percent escape at offset " + std::to_wstring(i) + L".";
         return false;
       }
-      const int high = HexValue(text[i + 1]);
-      const int low = HexValue(text[i + 2]);
+      const int high = util::HexDigitValue(text[i + 1]);
+      const int low = util::HexDigitValue(text[i + 2]);
       if (high < 0 || low < 0) {
         *error = L"Invalid percent escape at offset " + std::to_wstring(i) + L".";
         return false;
@@ -377,14 +355,12 @@ Decoded Failure(
   return decoded;
 }
 
-Decoded DecodeWideText(
-    std::wstring text,
-    size_t units
+Decoded Success(
+    std::initializer_list<Field> fields
 ) {
   Decoded decoded;
   decoded.ok = true;
-  decoded.fields.push_back({L"Text", std::move(text)});
-  decoded.fields.push_back({L"Code units", std::to_wstring(units)});
+  decoded.fields = fields;
   return decoded;
 }
 
@@ -415,7 +391,7 @@ Decoded DecodeUtf8(
     return Failure(L"Input is too large to decode.");
   }
   if (size == 0) {
-    return DecodeWideText(std::wstring(), 0);
+    return Success({{L"Text", L""}, {L"Bytes", L"0"}});
   }
   const int needed = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reinterpret_cast<const char*>(data), static_cast<int>(size), nullptr, 0);
   if (needed <= 0) {
@@ -425,11 +401,7 @@ Decoded DecodeUtf8(
   if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reinterpret_cast<const char*>(data), static_cast<int>(size), text.data(), needed) != needed) {
     return Failure(L"Invalid UTF-8.");
   }
-  Decoded decoded;
-  decoded.ok = true;
-  decoded.fields.push_back({L"Text", std::move(text)});
-  decoded.fields.push_back({L"Bytes", std::to_wstring(size)});
-  return decoded;
+  return Success({{L"Text", std::move(text)}, {L"Bytes", std::to_wstring(size)}});
 }
 
 Decoded DecodeUtf16(
@@ -457,7 +429,7 @@ Decoded DecodeUtf16(
   if (!ValidSurrogates(text)) {
     return Failure(L"Invalid UTF-16 surrogate pair.");
   }
-  return DecodeWideText(std::move(text), units);
+  return Success({{L"Text", std::move(text)}, {L"Code units", std::to_wstring(units)}});
 }
 
 Decoded DecodeAscii(
@@ -472,11 +444,7 @@ Decoded DecodeAscii(
     }
     text.push_back(static_cast<wchar_t>(data[i]));
   }
-  Decoded decoded;
-  decoded.ok = true;
-  decoded.fields.push_back({L"Text", std::move(text)});
-  decoded.fields.push_back({L"Bytes", std::to_wstring(size)});
-  return decoded;
+  return Success({{L"Text", std::move(text)}, {L"Bytes", std::to_wstring(size)}});
 }
 
 Decoded DecodeFileTime(
@@ -567,10 +535,7 @@ Decoded DecodeGuid(
   if (StringFromGUID2(guid, text, static_cast<int>(std::size(text))) == 0) {
     return Failure(L"The GUID could not be formatted.");
   }
-  Decoded decoded;
-  decoded.ok = true;
-  decoded.fields.push_back({L"GUID", text});
-  return decoded;
+  return Success({{L"GUID", text}});
 }
 
 bool SidFits(
@@ -708,33 +673,13 @@ Decoded DecodeAddress(
   if (size != expected) {
     return Failure(ipv6 ? L"An IPv6 address needs exactly 16 bytes." : L"An IPv4 address needs exactly 4 bytes.");
   }
+  IN6_ADDR address = {};
+  std::memcpy(&address, data, size);
   wchar_t text[INET6_ADDRSTRLEN] = {};
-  if (ipv6) {
-    IN6_ADDR address = {};
-    std::memcpy(&address, data, sizeof(address));
-    if (!InetNtopW(AF_INET6, &address, text, std::size(text))) {
-      return Failure(L"The address could not be formatted.");
-    }
-  } else {
-    IN_ADDR address = {};
-    std::memcpy(&address, data, sizeof(address));
-    if (!InetNtopW(AF_INET, &address, text, std::size(text))) {
-      return Failure(L"The address could not be formatted.");
-    }
+  if (!InetNtopW(ipv6 ? AF_INET6 : AF_INET, &address, text, std::size(text))) {
+    return Failure(L"The address could not be formatted.");
   }
-  Decoded decoded;
-  decoded.ok = true;
-  decoded.fields.push_back({L"Address", text});
-  return decoded;
-}
-
-bool EndsWithInsensitive(
-    const std::wstring& text,
-    const wchar_t* suffix
-) {
-  const size_t length = wcslen(suffix);
-  return text.size() >= length &&
-         _wcsicmp(text.c_str() + (text.size() - length), suffix) == 0;
+  return Success({{L"Address", text}});
 }
 
 struct PathRule {
@@ -854,12 +799,7 @@ Decoded Decode(
   }
   switch (id) {
   case DecoderId::kRawBytes:
-    {
-      Decoded decoded;
-      decoded.ok = true;
-      decoded.fields.push_back({L"Bytes", std::to_wstring(size)});
-      return decoded;
-    }
+    return Success({{L"Bytes", std::to_wstring(size)}});
   case DecoderId::kUtf8:
     return DecodeUtf8(data, size);
   case DecoderId::kUtf16Le:
@@ -898,14 +838,8 @@ DecoderId Suggest(
 ) {
   (void)type;
   for (const PathRule& rule : kPathRules) {
-    if (size != rule.size ||
-        _wcsicmp(value_name.c_str(), rule.value_name) != 0) {
-      continue;
-    }
-    const bool matched = rule.key_ends_with
-                             ? EndsWithInsensitive(key_path, rule.key_text)
-                             : key_path.find(rule.key_text) != std::wstring::npos;
-    if (matched) {
+    if (size == rule.size && util::EqualsInsensitive(value_name, rule.value_name) &&
+        (rule.key_ends_with ? util::EndsWithInsensitive(key_path, rule.key_text) : util::ContainsInsensitive(key_path, rule.key_text))) {
       return rule.id;
     }
   }

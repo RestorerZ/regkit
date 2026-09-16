@@ -27,24 +27,8 @@ constexpr DWORD kUseImmersiveDarkModeBefore20H1 = 19;
 constexpr DWORD kUseImmersiveDarkMode = 20;
 ThemeMode g_theme_mode = ThemeMode::kSystem;
 bool g_use_dark_mode = true;
-bool g_custom_is_dark = true;
-ThemeColors g_custom_colors = []() -> ThemeColors {
-  ThemeColors colors;
-  colors.background = RGB(20, 20, 20);
-  colors.panel = RGB(20, 20, 20);
-  colors.surface = RGB(34, 34, 34);
-  colors.field = RGB(14, 14, 14);
-  colors.header = colors.surface;
-  colors.border = RGB(66, 66, 66);
-  colors.text = RGB(200, 200, 200);
-  colors.muted_text = RGB(170, 170, 170);
-  colors.accent = RGB(90, 162, 255);
-  colors.selection = RGB(38, 79, 120);
-  colors.selection_text = RGB(255, 255, 255);
-  colors.hover = RGB(44, 44, 44);
-  colors.focus = colors.accent;
-  return colors;
-}();
+constexpr ThemeColors kDarkColors = {RGB(20, 20, 20), RGB(20, 20, 20), RGB(34, 34, 34), RGB(14, 14, 14), RGB(34, 34, 34), RGB(66, 66, 66), RGB(200, 200, 200), RGB(170, 170, 170), RGB(90, 162, 255), RGB(38, 79, 120), RGB(255, 255, 255), RGB(44, 44, 44), RGB(90, 162, 255)};
+constexpr ThemeColors kLightColors = {RGB(245, 245, 245), RGB(255, 255, 255), RGB(242, 242, 242), RGB(235, 235, 235), RGB(242, 242, 242), RGB(204, 204, 204), RGB(32, 32, 32), RGB(96, 96, 96), RGB(0, 120, 215), RGB(229, 241, 255), RGB(32, 32, 32), RGB(236, 236, 236), RGB(0, 120, 215)};
 constexpr wchar_t kPersonalizePath[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 
 enum class PreferredAppMode {
@@ -54,11 +38,6 @@ enum class PreferredAppMode {
   kForceLight = 3,
   kMax = 4,
 };
-
-using SetPreferredAppModeFn = PreferredAppMode(WINAPI*)(PreferredAppMode);
-using AllowDarkModeForWindowFn = BOOL(WINAPI*)(HWND, BOOL);
-using RefreshImmersiveColorPolicyStateFn = void(WINAPI*)();
-using FlushMenuThemesFn = void(WINAPI*)();
 
 bool DarkModeOrdinalsAvailable() {
   static const bool available = []() -> bool {
@@ -83,9 +62,14 @@ bool DarkModeOrdinalsAvailable() {
   return available;
 }
 
-HMODULE DarkModeThemeModule() {
-  return DarkModeOrdinalsAvailable() ? GetModuleHandleW(L"uxtheme.dll") : nullptr;
+template <typename Fn>
+Fn DarkModeExport(
+    WORD ordinal
+) {
+  const HMODULE theme = DarkModeOrdinalsAvailable() ? GetModuleHandleW(L"uxtheme.dll") : nullptr;
+  return theme ? reinterpret_cast<Fn>(GetProcAddress(theme, MAKEINTRESOURCEA(ordinal))) : nullptr;
 }
+
 
 struct ComboBoxThemeState {
   bool hot = false;
@@ -549,50 +533,6 @@ LRESULT CALLBACK EditShortcutSubclassProc(
   return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
-SetPreferredAppModeFn GetSetPreferredAppMode() {
-  static SetPreferredAppModeFn fn = []() -> SetPreferredAppModeFn {
-    HMODULE theme = DarkModeThemeModule();
-    if (!theme) {
-      return nullptr;
-    }
-    return reinterpret_cast<SetPreferredAppModeFn>(GetProcAddress(theme, MAKEINTRESOURCEA(135)));
-  }();
-  return fn;
-}
-
-AllowDarkModeForWindowFn GetAllowDarkModeForWindow() {
-  static AllowDarkModeForWindowFn fn = []() -> AllowDarkModeForWindowFn {
-    HMODULE theme = DarkModeThemeModule();
-    if (!theme) {
-      return nullptr;
-    }
-    return reinterpret_cast<AllowDarkModeForWindowFn>(GetProcAddress(theme, MAKEINTRESOURCEA(133)));
-  }();
-  return fn;
-}
-
-RefreshImmersiveColorPolicyStateFn GetRefreshImmersiveColorPolicyState() {
-  static RefreshImmersiveColorPolicyStateFn fn = []() -> RefreshImmersiveColorPolicyStateFn {
-    HMODULE theme = DarkModeThemeModule();
-    if (!theme) {
-      return nullptr;
-    }
-    return reinterpret_cast<RefreshImmersiveColorPolicyStateFn>(GetProcAddress(theme, MAKEINTRESOURCEA(104)));
-  }();
-  return fn;
-}
-
-FlushMenuThemesFn GetFlushMenuThemes() {
-  static FlushMenuThemesFn fn = []() -> FlushMenuThemesFn {
-    HMODULE theme = DarkModeThemeModule();
-    if (!theme) {
-      return nullptr;
-    }
-    return reinterpret_cast<FlushMenuThemesFn>(GetProcAddress(theme, MAKEINTRESOURCEA(136)));
-  }();
-  return fn;
-}
-
 void ConfigureDarkModeSupport(
     PreferredAppMode mode
 ) {
@@ -601,13 +541,16 @@ void ConfigureDarkModeSupport(
   if (configured && configured_mode == mode) {
     return;
   }
-  if (auto set_mode = GetSetPreferredAppMode()) {
+  static const auto set_mode = DarkModeExport<PreferredAppMode(WINAPI*)(PreferredAppMode)>(135);
+  static const auto refresh = DarkModeExport<void(WINAPI*)()>(104);
+  static const auto flush = DarkModeExport<void(WINAPI*)()>(136);
+  if (set_mode) {
     set_mode(mode);
   }
-  if (auto refresh = GetRefreshImmersiveColorPolicyState()) {
+  if (refresh) {
     refresh();
   }
-  if (auto flush = GetFlushMenuThemes()) {
+  if (flush) {
     flush();
   }
   configured = true;
@@ -663,17 +606,9 @@ void PaintComboBox(
   LONG_PTR cb_style = style & CBS_DROPDOWNLIST;
   bool has_focus = (cb_style == CBS_DROPDOWNLIST && GetFocus() == hwnd) || (cb_style == CBS_DROPDOWN && info.hwndItem && GetFocus() == info.hwndItem);
 
-  COLORREF border = theme.BorderColor();
-  if (!enabled) {
-    border = theme.BorderColor();
-  } else if (has_focus) {
-    border = theme.FocusColor();
-  } else if (hot) {
-    border = theme.HoverColor();
-  }
-
-  COLORREF text = enabled ? theme.TextColor() : theme.MutedTextColor();
-  COLORREF fill = enabled ? (hot ? theme.HoverColor() : theme.SurfaceColor()) : theme.SurfaceColor();
+  const COLORREF border = !enabled ? theme.BorderColor() : has_focus ? theme.FocusColor() : hot ? theme.HoverColor() : theme.BorderColor();
+  const COLORREF text = enabled ? theme.TextColor() : theme.MutedTextColor();
+  const COLORREF fill = hot ? theme.HoverColor() : theme.SurfaceColor();
 
   HTHEME combo_theme = OpenThemeData(hwnd, VSCLASS_COMBOBOX);
   bool has_theme = combo_theme != nullptr;
@@ -784,17 +719,7 @@ LRESULT CALLBACK ComboBoxThemeSubclassProc(
   case WM_CTLCOLORSTATIC:
   case WM_CTLCOLOREDIT:
   case WM_CTLCOLORLISTBOX:
-    {
-      HDC hdc = reinterpret_cast<HDC>(wparam);
-      HWND target = reinterpret_cast<HWND>(lparam);
-      int type = CTLCOLOR_STATIC;
-      if (msg == WM_CTLCOLOREDIT) {
-        type = CTLCOLOR_EDIT;
-      } else if (msg == WM_CTLCOLORLISTBOX) {
-        type = CTLCOLOR_LISTBOX;
-      }
-      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
-    }
+    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(reinterpret_cast<HDC>(wparam), reinterpret_cast<HWND>(lparam), static_cast<int>(msg - WM_CTLCOLORMSGBOX)));
   case WM_MOUSEMOVE:
     {
       if (state && !state->hot) {
@@ -831,8 +756,7 @@ LRESULT CALLBACK ComboBoxThemeSubclassProc(
       }
       PAINTSTRUCT ps = {};
       HDC hdc = BeginPaint(hwnd, &ps);
-      LONG_PTR dropdown_style = style & CBS_DROPDOWNLIST;
-      if (dropdown_style != CBS_DROPDOWN) {
+      if (cb_style != CBS_DROPDOWN) {
         HDC buffered = nullptr;
         HPAINTBUFFER buffer = BeginBufferedPaint(
             hdc,
@@ -892,45 +816,17 @@ LRESULT CALLBACK ThemeWindowSubclassProc(
 } // namespace
 
 Theme& Theme::Dark() {
-  ThemeColors colors;
-  colors.background = RGB(20, 20, 20);
-  colors.panel = RGB(20, 20, 20);
-  colors.surface = RGB(34, 34, 34);
-  colors.field = RGB(14, 14, 14);
-  colors.header = colors.surface;
-  colors.border = RGB(66, 66, 66);
-  colors.text = RGB(200, 200, 200);
-  colors.muted_text = RGB(170, 170, 170);
-  colors.accent = RGB(90, 162, 255);
-  colors.selection = RGB(38, 79, 120);
-  colors.selection_text = RGB(255, 255, 255);
-  colors.hover = RGB(44, 44, 44);
-  colors.focus = colors.accent;
-  static Theme theme(colors, true);
+  static Theme theme(kDarkColors, true);
   return theme;
 }
 
 Theme& Theme::Light() {
-  ThemeColors colors;
-  colors.background = RGB(245, 245, 245);
-  colors.panel = RGB(255, 255, 255);
-  colors.surface = RGB(242, 242, 242);
-  colors.field = RGB(235, 235, 235);
-  colors.header = colors.surface;
-  colors.border = RGB(204, 204, 204);
-  colors.text = RGB(32, 32, 32);
-  colors.muted_text = RGB(96, 96, 96);
-  colors.accent = RGB(0, 120, 215);
-  colors.selection = RGB(229, 241, 255);
-  colors.selection_text = RGB(32, 32, 32);
-  colors.hover = RGB(236, 236, 236);
-  colors.focus = colors.accent;
-  static Theme theme(colors, false);
+  static Theme theme(kLightColors, false);
   return theme;
 }
 
 Theme& Theme::Custom() {
-  static Theme theme(g_custom_colors, g_custom_is_dark);
+  static Theme theme(kDarkColors, true);
   return theme;
 }
 
@@ -945,18 +841,8 @@ void Theme::SetCustomColors(
     const ThemeColors& colors,
     bool is_dark
 ) {
-  g_custom_colors = colors;
-  g_custom_is_dark = is_dark;
-  Theme& custom = Custom();
-  custom.colors_ = colors;
-  custom.is_dark_ = is_dark;
-  custom.background_brush_.reset(CreateSolidBrush(colors.background));
-  custom.panel_brush_.reset(CreateSolidBrush(colors.panel));
-  custom.surface_brush_.reset(CreateSolidBrush(colors.surface));
-  custom.field_brush_.reset(CreateSolidBrush(colors.field));
-  custom.header_brush_.reset(CreateSolidBrush(colors.header));
+  Custom().SetColors(colors, is_dark);
   if (g_theme_mode == ThemeMode::kCustom) {
-    g_use_dark_mode = is_dark;
     InitializeDarkModeSupport();
   }
 }
@@ -965,14 +851,33 @@ void Theme::SetMode(
     ThemeMode mode
 ) {
   g_theme_mode = mode;
-  if (mode == ThemeMode::kCustom) {
-    g_use_dark_mode = g_custom_is_dark;
-  } else if (mode == ThemeMode::kSystem) {
-    g_use_dark_mode = ReadSystemDarkMode();
-  } else {
-    g_use_dark_mode = (mode == ThemeMode::kDark);
-  }
+  g_use_dark_mode = mode == ThemeMode::kDark;
   InitializeDarkModeSupport();
+}
+ThemeMode ParseThemeMode(
+    std::wstring_view name
+) {
+  for (const ThemeMode mode : {ThemeMode::kLight, ThemeMode::kDark, ThemeMode::kCustom}) {
+    if (util::EqualsInsensitive(name, ThemeModeName(mode))) {
+      return mode;
+    }
+  }
+  return ThemeMode::kSystem;
+}
+
+const wchar_t* ThemeModeName(
+    ThemeMode mode
+) {
+  switch (mode) {
+  case ThemeMode::kLight:
+    return L"light";
+  case ThemeMode::kDark:
+    return L"dark";
+  case ThemeMode::kCustom:
+    return L"custom";
+  default:
+    return L"system";
+  }
 }
 
 ThemeMode Theme::Mode() {
@@ -1004,7 +909,7 @@ void Theme::InitializeDarkModeSupport() {
   if (g_theme_mode == ThemeMode::kSystem) {
     g_use_dark_mode = ReadSystemDarkMode();
   } else if (g_theme_mode == ThemeMode::kCustom) {
-    g_use_dark_mode = g_custom_is_dark;
+    g_use_dark_mode = Custom().is_dark_;
   }
   ConfigureDarkModeSupport(g_use_dark_mode ? PreferredAppMode::kForceDark : PreferredAppMode::kForceLight);
 }
@@ -1012,25 +917,29 @@ void Theme::InitializeDarkModeSupport() {
 Theme::Theme(
     const ThemeColors& colors,
     bool is_dark
-)
-    : colors_(colors), is_dark_(is_dark) {
-  background_brush_.reset(CreateSolidBrush(colors_.background));
-  panel_brush_.reset(CreateSolidBrush(colors_.panel));
-  surface_brush_.reset(CreateSolidBrush(colors_.surface));
-  field_brush_.reset(CreateSolidBrush(colors_.field));
-  header_brush_.reset(CreateSolidBrush(colors_.header));
+) {
+  SetColors(colors, is_dark);
+}
+
+void Theme::SetColors(
+    const ThemeColors& colors,
+    bool is_dark
+) {
+  colors_ = colors;
+  is_dark_ = is_dark;
+  background_brush_.reset(CreateSolidBrush(colors.background));
+  panel_brush_.reset(CreateSolidBrush(colors.panel));
+  surface_brush_.reset(CreateSolidBrush(colors.surface));
+  field_brush_.reset(CreateSolidBrush(colors.field));
+  header_brush_.reset(CreateSolidBrush(colors.header));
 }
 
 void Theme::ApplyToWindow(
     HWND hwnd
 ) const {
-  AllowDarkModeForWindow(hwnd, is_dark_);
+  SetDarkWindowTheme(hwnd, is_dark_);
   EnableImmersiveDarkMode(hwnd, is_dark_);
-  const wchar_t* theme = is_dark_ ? L"DarkMode_Explorer" : L"Explorer";
-  SetWindowTheme(hwnd, theme, nullptr);
-  if (!GetWindowSubclass(hwnd, ThemeWindowSubclassProc, 1, nullptr)) {
-    SetWindowSubclass(hwnd, ThemeWindowSubclassProc, 1, 0);
-  }
+  EnsureSubclass(hwnd, ThemeWindowSubclassProc, 1);
 }
 
 void Theme::ApplyToChildren(
@@ -1042,29 +951,16 @@ void Theme::ApplyToChildren(
   EnumChildWindows(
       hwnd,
       [](HWND child, LPARAM param) -> BOOL {
-        auto* theme = reinterpret_cast<const Theme*>(param);
-        if (!theme) {
-          return TRUE;
-        }
-        AllowDarkModeForWindow(child, theme->is_dark_);
-        const wchar_t* theme_name = theme->is_dark_ ? L"DarkMode_Explorer" : L"Explorer";
-        SetWindowTheme(child, theme_name, nullptr);
-
+        const auto* theme = reinterpret_cast<const Theme*>(param);
+        SetDarkWindowTheme(child, theme->is_dark_);
         wchar_t class_name[64] = {};
         if (GetClassNameW(child, class_name, static_cast<int>(_countof(class_name)))) {
           if (wcscmp(class_name, WC_COMBOBOXW) == 0) {
             theme->ApplyToComboBox(child);
-          } else if (_wcsicmp(class_name, WC_EDITW) == 0 || _wcsnicmp(class_name, L"RICHEDIT", 8) == 0) {
-            if (!GetWindowSubclass(child, EditShortcutSubclassProc, kEditShortcutSubclassId, nullptr)) {
-              SetWindowSubclass(child, EditShortcutSubclassProc, kEditShortcutSubclassId, 0);
-            }
-          } else if (wcscmp(class_name, WC_BUTTONW) == 0) {
-            LONG_PTR style = GetWindowLongPtrW(child, GWL_STYLE);
-            if ((style & BS_GROUPBOX) == BS_GROUPBOX) {
-              if (!GetWindowSubclass(child, GroupBoxSubclassProc, kGroupBoxSubclassId, nullptr)) {
-                SetWindowSubclass(child, GroupBoxSubclassProc, kGroupBoxSubclassId, 0);
-              }
-            }
+          } else if (util::EqualsInsensitive(class_name, WC_EDITW) || util::StartsWithInsensitive(class_name, L"RICHEDIT")) {
+            EnsureSubclass(child, EditShortcutSubclassProc, kEditShortcutSubclassId);
+          } else if (wcscmp(class_name, WC_BUTTONW) == 0 && (GetWindowLongPtrW(child, GWL_STYLE) & BS_TYPEMASK) == BS_GROUPBOX) {
+            EnsureSubclass(child, GroupBoxSubclassProc, kGroupBoxSubclassId);
           }
         }
         return TRUE;
@@ -1079,15 +975,11 @@ void Theme::ApplyToTreeView(
   if (!hwnd) {
     return;
   }
-  AllowDarkModeForWindow(hwnd, is_dark_);
-  const wchar_t* theme = is_dark_ ? L"DarkMode_Explorer" : L"Explorer";
-  SetWindowTheme(hwnd, theme, nullptr);
+  SetDarkWindowTheme(hwnd, is_dark_);
   TreeView_SetBkColor(hwnd, colors_.panel);
   TreeView_SetTextColor(hwnd, colors_.text);
   TreeView_SetLineColor(hwnd, colors_.border);
-  if (!GetWindowSubclass(hwnd, TreeViewSubclassProc, kTreeViewSubclassId, nullptr)) {
-    SetWindowSubclass(hwnd, TreeViewSubclassProc, kTreeViewSubclassId, 0);
-  }
+  EnsureSubclass(hwnd, TreeViewSubclassProc, kTreeViewSubclassId);
 }
 
 void Theme::ApplyToListView(
@@ -1096,23 +988,13 @@ void Theme::ApplyToListView(
   if (!hwnd) {
     return;
   }
-  AllowDarkModeForWindow(hwnd, is_dark_);
-  SetWindowTheme(hwnd, is_dark_ ? L"DarkMode_Explorer" : L"Explorer", nullptr);
+  SetDarkWindowTheme(hwnd, is_dark_);
   ListView_SetBkColor(hwnd, colors_.panel);
   ListView_SetTextBkColor(hwnd, colors_.panel);
   ListView_SetTextColor(hwnd, colors_.text);
-
-  HWND tooltip = ListView_GetToolTips(hwnd);
-  if (tooltip) {
-    AllowDarkModeForWindow(tooltip, is_dark_);
-    const wchar_t* tip_theme = is_dark_ ? L"DarkMode_Explorer" : L"Explorer";
-    SetWindowTheme(tooltip, tip_theme, nullptr);
-  }
-
-  HWND header = ListView_GetHeader(hwnd);
-  if (header) {
-    AllowDarkModeForWindow(header, is_dark_);
-    SetWindowTheme(header, is_dark_ ? L"DarkMode_ItemsView" : L"ItemsView", nullptr);
+  SetDarkWindowTheme(ListView_GetToolTips(hwnd), is_dark_);
+  if (HWND header = ListView_GetHeader(hwnd)) {
+    SetDarkWindowTheme(header, is_dark_, L"DarkMode_ItemsView", L"ItemsView");
     InvalidateRect(header, nullptr, TRUE);
   }
 }
@@ -1123,21 +1005,14 @@ void Theme::ApplyToTabControl(
   if (!hwnd) {
     return;
   }
-  AllowDarkModeForWindow(hwnd, is_dark_);
-  const wchar_t* theme_name = is_dark_ ? L"DarkMode_Explorer" : L"Explorer";
-  SetWindowTheme(hwnd, theme_name, nullptr);
+  SetDarkWindowTheme(hwnd, is_dark_);
   InvalidateRect(hwnd, nullptr, TRUE);
 }
 
 void Theme::ApplyToToolbar(
     HWND hwnd
 ) const {
-  if (!hwnd) {
-    return;
-  }
-  AllowDarkModeForWindow(hwnd, is_dark_);
-  const wchar_t* theme_name = is_dark_ ? L"DarkMode_Explorer" : L"Explorer";
-  SetWindowTheme(hwnd, theme_name, nullptr);
+  SetDarkWindowTheme(hwnd, is_dark_);
 }
 
 void Theme::ApplyToComboBox(
@@ -1148,18 +1023,16 @@ void Theme::ApplyToComboBox(
   }
   if (!GetWindowSubclass(hwnd, ComboBoxThemeSubclassProc, 1, nullptr)) {
     auto state = std::make_unique<ComboBoxThemeState>();
-    if (SetWindowSubclass(hwnd, ComboBoxThemeSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state.get()))) {
+    EnsureSubclass(hwnd, ComboBoxThemeSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state.get()));
+    if (GetWindowSubclass(hwnd, ComboBoxThemeSubclassProc, 1, nullptr)) {
       state.release();
     }
   }
-  const wchar_t* theme_name = is_dark_ ? L"CFD" : L"Explorer";
-  AllowDarkModeForWindow(hwnd, is_dark_);
   COMBOBOXINFO info = {sizeof(COMBOBOXINFO)};
-  if (GetComboBoxInfo(hwnd, &info) && info.hwndList) {
-    AllowDarkModeForWindow(info.hwndList, is_dark_);
-    SetWindowTheme(info.hwndList, theme_name, nullptr);
+  if (GetComboBoxInfo(hwnd, &info)) {
+    SetDarkWindowTheme(info.hwndList, is_dark_, L"CFD");
   }
-  SetWindowTheme(hwnd, theme_name, nullptr);
+  SetDarkWindowTheme(hwnd, is_dark_, L"CFD");
   InvalidateRect(hwnd, nullptr, TRUE);
 }
 
@@ -1169,15 +1042,10 @@ void Theme::ApplyToStatusBar(
   if (!hwnd) {
     return;
   }
-  AllowDarkModeForWindow(hwnd, is_dark_);
-  const wchar_t* theme_name = is_dark_ ? L"DarkMode_Explorer" : L"Explorer";
-  SetWindowTheme(hwnd, theme_name, nullptr);
-  if (!GetWindowSubclass(hwnd, StatusBarSubclassProc, kStatusBarSubclassId, nullptr)) {
-    SetWindowSubclass(hwnd, StatusBarSubclassProc, kStatusBarSubclassId, 0);
-  }
+  SetDarkWindowTheme(hwnd, is_dark_);
+  EnsureSubclass(hwnd, StatusBarSubclassProc, kStatusBarSubclassId);
   InvalidateRect(hwnd, nullptr, TRUE);
 }
-
 HBRUSH Theme::BackgroundBrush() const {
   return background_brush_.get();
 }
@@ -1298,6 +1166,29 @@ void EnableImmersiveDarkMode(
   }
 }
 
+void EnsureSubclass(
+    HWND hwnd,
+    SUBCLASSPROC proc,
+    UINT_PTR id,
+    DWORD_PTR data
+) {
+  if (hwnd && !GetWindowSubclass(hwnd, proc, id, nullptr)) {
+    SetWindowSubclass(hwnd, proc, id, data);
+  }
+}
+
+void SetDarkWindowTheme(
+    HWND hwnd,
+    bool dark,
+    const wchar_t* dark_theme,
+    const wchar_t* light_theme
+) {
+  if (hwnd) {
+    AllowDarkModeForWindow(hwnd, dark);
+    SetWindowTheme(hwnd, dark ? dark_theme : light_theme, nullptr);
+  }
+}
+
 void AllowDarkModeForWindow(
     HWND hwnd,
     bool enabled
@@ -1305,7 +1196,8 @@ void AllowDarkModeForWindow(
   if (!hwnd) {
     return;
   }
-  if (auto allow = GetAllowDarkModeForWindow()) {
+  static const auto allow = DarkModeExport<BOOL(WINAPI*)(HWND, BOOL)>(133);
+  if (allow) {
     allow(hwnd, enabled ? TRUE : FALSE);
   }
 }

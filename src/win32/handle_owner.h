@@ -8,97 +8,109 @@
 #include <objbase.h>
 #include <windows.h>
 
+#include <utility>
+
 namespace util {
 
 class ComInit {
 public:
-  explicit ComInit(DWORD flags = COINIT_APARTMENTTHREADED) noexcept;
-  ~ComInit();
+  explicit ComInit(
+      DWORD flags = COINIT_APARTMENTTHREADED
+  ) noexcept
+      : hr_(CoInitializeEx(nullptr, flags)) {
+  }
+  ~ComInit() {
+    if (SUCCEEDED(hr_)) {
+      CoUninitialize();
+    }
+  }
   ComInit(const ComInit&) = delete;
   ComInit& operator=(const ComInit&) = delete;
 
-  bool ok() const noexcept;
+  bool ok() const noexcept {
+    return SUCCEEDED(hr_);
+  }
 
 private:
   HRESULT hr_;
 };
 
-class UniqueHKey {
+template <typename T, typename Close>
+class UniqueResource {
 public:
-  UniqueHKey() noexcept = default;
-  explicit UniqueHKey(HKEY key) noexcept;
-  ~UniqueHKey();
-  UniqueHKey(UniqueHKey&& other) noexcept;
-  UniqueHKey& operator=(UniqueHKey&& other) noexcept;
-  UniqueHKey(const UniqueHKey&) = delete;
-  UniqueHKey& operator=(const UniqueHKey&) = delete;
-
-  HKEY get() const noexcept;
-  HKEY* put() noexcept;
-  HKEY release() noexcept;
-  void reset(HKEY key = nullptr) noexcept;
-
-private:
-  HKEY key_ = nullptr;
-};
-
-template <typename T>
-class UniqueGdiObject {
-public:
-  UniqueGdiObject() noexcept = default;
-  explicit UniqueGdiObject(
-      T handle
+  UniqueResource() noexcept = default;
+  explicit UniqueResource(
+      T value
   ) noexcept
-      : handle_(handle) {
+      : value_(value) {
   }
-  ~UniqueGdiObject() {
+  ~UniqueResource() {
     reset();
   }
-  UniqueGdiObject(const UniqueGdiObject&) = delete;
-  UniqueGdiObject& operator=(const UniqueGdiObject&) = delete;
-  UniqueGdiObject(
-      UniqueGdiObject&& other
+  UniqueResource(const UniqueResource&) = delete;
+  UniqueResource& operator=(const UniqueResource&) = delete;
+  UniqueResource(
+      UniqueResource&& other
   ) noexcept
-      : handle_(other.handle_) {
-    other.handle_ = nullptr;
+      : value_(other.release()) {
   }
-  UniqueGdiObject& operator=(
-      UniqueGdiObject&& other
+  UniqueResource& operator=(
+      UniqueResource&& other
   ) noexcept {
     if (this != &other) {
-      reset();
-      handle_ = other.handle_;
-      other.handle_ = nullptr;
+      reset(other.release());
     }
     return *this;
   }
 
   T get() const noexcept {
-    return handle_;
+    return value_;
   }
   T* put() noexcept {
     reset();
-    return &handle_;
+    return &value_;
   }
   T release() noexcept {
-    T handle = handle_;
-    handle_ = nullptr;
-    return handle;
+    return std::exchange(value_, T{});
   }
   void reset(
-      T handle = nullptr
+      T value = T{}
   ) noexcept {
-    if (handle_) {
-      DeleteObject(handle_);
+    if (*this) {
+      Close{}(value_);
     }
-    handle_ = handle;
+    value_ = value;
   }
   explicit operator bool() const noexcept {
-    return handle_ != nullptr;
+    return value_ && static_cast<void*>(value_) != INVALID_HANDLE_VALUE;
   }
 
 private:
-  T handle_ = nullptr;
+  T value_ = T{};
 };
+
+struct CloseKey {
+  void operator()(HKEY key) const noexcept {
+    RegCloseKey(key);
+  }
+};
+
+struct CloseKernelHandle {
+  void operator()(HANDLE handle) const noexcept {
+    CloseHandle(handle);
+  }
+};
+
+struct DeleteGdiObject {
+  void operator()(HGDIOBJ object) const noexcept {
+    DeleteObject(object);
+  }
+};
+
+using UniqueHKey = UniqueResource<HKEY, CloseKey>;
+using UniqueHandle = UniqueResource<HANDLE, CloseKernelHandle>;
+
+template <typename T>
+using UniqueGdiObject = UniqueResource<T, DeleteGdiObject>;
 
 } // namespace util

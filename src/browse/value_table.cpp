@@ -201,14 +201,7 @@ const ListRow* ValueList::RowAt(
 ListRow* ValueList::MutableRowAt(
     int index
 ) {
-  if (index < 0 || static_cast<size_t>(index) >= visible_indices_.size()) {
-    return nullptr;
-  }
-  int mapped = visible_indices_[static_cast<size_t>(index)];
-  if (mapped < 0 || static_cast<size_t>(mapped) >= rows_.size()) {
-    return nullptr;
-  }
-  return &rows_[static_cast<size_t>(mapped)];
+  return const_cast<ListRow*>(RowAt(index));
 }
 
 std::vector<ListRow>& ValueList::rows() {

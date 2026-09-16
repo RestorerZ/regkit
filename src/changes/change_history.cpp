@@ -7,6 +7,7 @@
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "win32/file_text.h"
+#include "win32/handle_owner.h"
 #include "win32/text_transform.h"
 
 #include <algorithm>
@@ -19,14 +20,6 @@
 namespace regkit::changes {
 namespace {
 
-int CompareText(
-    const std::wstring& left,
-    const std::wstring& right
-) {
-  const int result = _wcsicmp(left.c_str(), right.c_str());
-  return result < 0 ? -1 : (result > 0 ? 1 : 0);
-}
-
 int CompareEntry(
     const HistoryEntry& left,
     const HistoryEntry& right,
@@ -34,11 +27,11 @@ int CompareEntry(
 ) {
   switch (column) {
   case 1:
-    return CompareText(left.action, right.action);
+    return util::CompareListText(left.action, right.action);
   case 2:
-    return CompareText(left.old_data, right.old_data);
+    return util::CompareListText(left.old_data, right.old_data);
   case 3:
-    return CompareText(left.new_data, right.new_data);
+    return util::CompareListText(left.new_data, right.new_data);
   default:
     return left.timestamp < right.timestamp
                ? -1
@@ -241,11 +234,7 @@ std::wstring SerializeHistoryEntry(
   line.push_back(L'\t');
   line.append(std::to_wstring(entry.revert_value.type));
   line.push_back(L'\t');
-  line.append(record_fields::Escape(util::ToHex(
-      entry.revert_value.data.data(),
-      entry.revert_value.data.size(),
-      entry.revert_value.data.size()
-  )));
+  line.append(record_fields::Escape(util::ToHex(entry.revert_value.data)));
   line.push_back(L'\n');
   return line;
 }
@@ -254,70 +243,30 @@ bool WriteHistoryFile(
     const std::wstring& path,
     const std::vector<HistoryEntry>& entries
 ) {
+  std::wstring content;
+  for (const auto& entry : entries) {
+    content += SerializeHistoryEntry(entry);
+  }
   if (path.empty()) {
     return false;
   }
-  std::string bytes;
-  for (const auto& entry : entries) {
-    bytes += util::WideToUtf8(SerializeHistoryEntry(entry));
+  if (content.empty()) {
+    return DeleteFileW(path.c_str()) != 0 || GetLastError() == ERROR_FILE_NOT_FOUND;
   }
-  if (bytes.empty()) {
-    return DeleteFileW(path.c_str()) != 0 ||
-           GetLastError() == ERROR_FILE_NOT_FOUND;
-  }
-  wchar_t stamp[32] = {};
-  swprintf_s(stamp, L".%08x.tmp", GetCurrentProcessId());
-  const std::wstring temp_path = path + stamp;
-  HANDLE file =
-      CreateFileW(temp_path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (file == INVALID_HANDLE_VALUE) {
-    return false;
-  }
-  DWORD written = 0;
-  bool success =
-      WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) != 0 &&
-      written == static_cast<DWORD>(bytes.size());
-  if (success) {
-    success = FlushFileBuffers(file) != 0;
-  }
-  if (CloseHandle(file) == 0) {
-    success = false;
-  }
-  if (!success) {
-    DeleteFileW(temp_path.c_str());
-    return false;
-  }
-  if (!MoveFileExW(temp_path.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
-    DeleteFileW(temp_path.c_str());
-    return false;
-  }
-  return true;
+  return util::WriteTextFile(path, content, false);
 }
 
 bool AppendHistoryFile(
     const std::wstring& path,
     const HistoryEntry& entry
 ) {
-  if (path.empty()) {
-    return false;
-  }
   const std::string bytes = util::WideToUtf8(SerializeHistoryEntry(entry));
-  if (bytes.empty()) {
-    return false;
-  }
-  HANDLE file =
-      CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (file == INVALID_HANDLE_VALUE) {
-    return false;
-  }
+  util::UniqueHandle file(path.empty() ? INVALID_HANDLE_VALUE : CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
   DWORD written = 0;
-  const bool success =
-      WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) != 0 &&
-      written == static_cast<DWORD>(bytes.size());
-  CloseHandle(file);
-  return success;
+  return file && !bytes.empty() &&
+         WriteFile(file.get(), bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) &&
+         written == bytes.size();
 }
-
 bool PrepareRevert(
     const HistoryEntry& entry,
     const QueryValue& query_value,
@@ -331,13 +280,11 @@ bool PrepareRevert(
     return true;
   }
 
-  auto suffix = [&](const wchar_t* prefix, std::wstring* value_name) {
-    const size_t length = wcslen(prefix);
-    if (entry.action.size() < length ||
-        _wcsnicmp(entry.action.c_str(), prefix, length) != 0) {
+  auto suffix = [&](std::wstring_view prefix, std::wstring* value_name) {
+    if (!util::StartsWithInsensitive(entry.action, prefix)) {
       return false;
     }
-    *value_name = entry.action.substr(length);
+    *value_name = entry.action.substr(prefix.size());
     if (*value_name == L"(Default)") {
       value_name->clear();
     }
@@ -388,15 +335,8 @@ bool PrepareRevert(
   if (type == REG_QWORD) {
     current.data.resize(sizeof(value));
     memcpy(current.data.data(), &value, sizeof(value));
-  } else if (type == REG_DWORD_BIG_ENDIAN) {
-    current.data.resize(sizeof(DWORD));
-    for (size_t index = 0; index < sizeof(DWORD); ++index) {
-      current.data[sizeof(DWORD) - 1 - index] =
-          static_cast<BYTE>(value & 0xff);
-      value >>= 8;
-    }
   } else {
-    const DWORD dword = static_cast<DWORD>(value);
+    const DWORD dword = type == REG_DWORD_BIG_ENDIAN ? _byteswap_ulong(static_cast<DWORD>(value)) : static_cast<DWORD>(value);
     current.data.resize(sizeof(dword));
     memcpy(current.data.data(), &dword, sizeof(dword));
   }

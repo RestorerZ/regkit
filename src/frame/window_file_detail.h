@@ -57,22 +57,6 @@
 #include "resource.h"
 
 namespace regkit::window_detail {
-inline bool PromptOpenFile(
-    HWND owner,
-    const wchar_t* filter,
-    std::wstring* path
-) {
-  return ui::ReportFileDialogResult(owner, win32::ChooseFileToOpen(owner, filter, path));
-}
-
-inline bool PromptSaveFile(
-    HWND owner,
-    const wchar_t* filter,
-    std::wstring* path
-) {
-  return ui::ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, filter, nullptr, nullptr, path));
-}
-
 inline std::wstring TrimTrailingSeparators(
     const std::wstring& path
 ) {
@@ -101,7 +85,7 @@ inline bool IsIconSetName(
     const std::wstring& value,
     const wchar_t* name
 ) {
-  return _wcsicmp(value.c_str(), name) == 0;
+  return util::EqualsInsensitive(value, name);
 }
 
 inline bool IsKnownIconSetName(
@@ -163,38 +147,6 @@ inline std::wstring AssetsIconsRoot() {
 constexpr wchar_t kOfflineHiveFilter[] =
     L"Registry Hive Files\0*.dat;*.hiv;*.hive;*.sav;SYSTEM;SOFTWARE;SAM;SECURITY;DEFAULT;NTUSER.DAT;USRCLASS.DAT\0All Files (*.*)\0*.*\0";
 
-inline bool HasRegExtension(
-    const std::wstring& path
-) {
-  size_t dot = path.find_last_of(L'.');
-  if (dot == std::wstring::npos) {
-    return false;
-  }
-  std::wstring ext = path.substr(dot);
-  return _wcsicmp(ext.c_str(), L".reg") == 0;
-}
-
-inline std::wstring EnsureRegExtension(
-    std::wstring path
-) {
-  if (path.empty() || HasRegExtension(path)) {
-    return path;
-  }
-  path.append(L".reg");
-  return path;
-}
-
-inline bool IsWhitespaceOnly(
-    const std::wstring& text
-) {
-  for (wchar_t ch : text) {
-    if (!iswspace(static_cast<wint_t>(ch))) {
-      return false;
-    }
-  }
-  return true;
-}
-
 inline std::wstring NormalizeMachineName(
     const std::wstring& text
 ) {
@@ -227,25 +179,9 @@ inline bool FileExists(
   return attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-inline bool EqualsInsensitive(
-    const std::wstring& left,
-    const std::wstring& right
-) {
-  return left.size() == right.size() && _wcsnicmp(left.c_str(), right.c_str(), left.size()) == 0;
-}
+using util::EqualsInsensitive;
 
-inline bool StartsWithInsensitive(
-    const std::wstring& text,
-    const std::wstring& prefix
-) {
-  if (prefix.empty()) {
-    return true;
-  }
-  if (text.size() < prefix.size()) {
-    return false;
-  }
-  return CompareStringOrdinal(text.c_str(), static_cast<int>(prefix.size()), prefix.c_str(), static_cast<int>(prefix.size()), TRUE) == CSTR_EQUAL;
-}
+using util::StartsWithInsensitive;
 
 inline bool WindowClassEquals(
     HWND hwnd,
@@ -258,7 +194,7 @@ inline bool WindowClassEquals(
   if (!GetClassNameW(hwnd, buffer, static_cast<int>(_countof(buffer)))) {
     return false;
   }
-  return _wcsicmp(buffer, class_name) == 0;
+  return util::EqualsInsensitive(buffer, class_name);
 }
 
 struct ParsedRegFileRoot {

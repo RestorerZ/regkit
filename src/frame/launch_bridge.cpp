@@ -16,19 +16,36 @@ void MainWindow::Impl::ShowPermissionsDialog(
 
 namespace {
 
+bool RestartExePath(
+    HWND owner,
+    std::wstring* exe_path
+) {
+  *exe_path = util::GetModulePath();
+  if (!exe_path->empty()) {
+    return true;
+  }
+  ui::ShowError(owner, L"Failed to locate the executable path.");
+  return false;
+}
+
+std::wstring WithErrorDetail(
+    std::wstring message,
+    DWORD error
+) {
+  const std::wstring detail = FormatWin32Error(error);
+  return detail.empty() ? message : message + L"\n" + detail;
+}
+
 bool BeginRestart(
     HWND owner,
     const wchar_t* target_arg,
     const wchar_t* failure
 ) {
-  const std::wstring exe_path = util::GetModulePath();
-  if (exe_path.empty()) {
-    ui::ShowError(owner, L"Failed to locate the executable path.");
+  std::wstring exe_path;
+  if (!RestartExePath(owner, &exe_path)) {
     return false;
   }
-  const std::wstring arguments =
-      win32::RestartArguments(target_arg, GetCurrentProcessId());
-  const HRESULT hr = win32::LaunchElevated(owner, exe_path, arguments);
+  const HRESULT hr = win32::LaunchElevated(owner, exe_path, win32::RestartArguments(target_arg, GetCurrentProcessId()));
   if (FAILED(hr)) {
     if (!win32::DialogCancelled(hr)) {
       ui::ShowError(owner, std::wstring(failure) + L"\n" + win32::FormatDialogError(hr));
@@ -45,38 +62,20 @@ bool BrokerRestart(
     const wchar_t* failure,
     bool (*launch)(const std::wstring&, const std::wstring&, DWORD*, bool*)
 ) {
-  const std::wstring exe_path = util::GetModulePath();
-  if (exe_path.empty()) {
-    ui::ShowError(owner, L"Failed to locate the executable path.");
+  std::wstring exe_path;
+  if (!RestartExePath(owner, &exe_path)) {
     return false;
   }
-  std::wstring command_line = L"\"";
-  command_line += exe_path;
-  command_line += L"\" ";
-  command_line += win32::RestartArguments(target_arg, GetCurrentProcessId());
+  const std::wstring command_line = L"\"" + exe_path + L"\" " + win32::RestartArguments(target_arg, GetCurrentProcessId());
   DWORD error = 0;
   bool impersonation_lost = false;
   const bool launched = launch(command_line, L"", &error, &impersonation_lost);
   if (impersonation_lost) {
-    std::wstring message =
-        L"RegKit could not restore its own security context and must close "
-        L"now.";
-    const std::wstring detail = FormatWin32Error(error);
-    if (!detail.empty()) {
-      message += L"\n";
-      message += detail;
-    }
-    ui::ShowError(owner, message);
+    ui::ShowError(owner, WithErrorDetail(L"RegKit could not restore its own security context and must close now.", error));
     ExitProcess(launched ? 0u : 1u);
   }
   if (!launched) {
-    std::wstring message = failure;
-    const std::wstring detail = FormatWin32Error(error);
-    if (!detail.empty()) {
-      message += L"\n";
-      message += detail;
-    }
-    ui::ShowError(owner, message);
+    ui::ShowError(owner, WithErrorDetail(failure, error));
     return false;
   }
   PostMessageW(owner, WM_CLOSE, 0, 0);
@@ -91,20 +90,31 @@ void MainWindow::Impl::PrepareSessionHandover() {
   SaveSettings();
 }
 
-bool MainWindow::Impl::RestartCurrentInstance() {
+bool MainWindow::Impl::SaveSessionForRestart() {
   CaptureRegistryTabState(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
-  if (!SaveSessionTabs()) {
-    ui::ShowError(hwnd_, L"The current session couldn't be saved for the restart.");
+  if (SaveSessionTabs()) {
+    return true;
+  }
+  ui::ShowError(hwnd_, L"The current session couldn't be saved for the restart.");
+  return false;
+}
+
+bool MainWindow::Impl::LaunchRestart(
+    bool restore_session
+) {
+  if (ui::LaunchNewInstance(win32::RestartArguments(nullptr, GetCurrentProcessId(), restore_session))) {
+    return true;
+  }
+  ui::ShowError(hwnd_, L"RegKit couldn't be restarted.");
+  return false;
+}
+
+bool MainWindow::Impl::RestartCurrentInstance() {
+  if (!SaveSessionForRestart()) {
     return false;
   }
   SaveSettings();
-  if (!ui::LaunchNewInstance(
-          win32::RestartArguments(nullptr, GetCurrentProcessId())
-      )) {
-    ui::ShowError(hwnd_, L"RegKit couldn't be restarted.");
-    return false;
-  }
-  return true;
+  return LaunchRestart(true);
 }
 
 bool MainWindow::Impl::RestartAfterCacheClear(
@@ -112,12 +122,8 @@ bool MainWindow::Impl::RestartAfterCacheClear(
 ) {
   const bool restore_session =
       kind != CacheKind::kAll && kind != CacheKind::kTabs;
-  if (restore_session) {
-    CaptureRegistryTabState(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
-    if (!SaveSessionTabs()) {
-      ui::ShowError(hwnd_, L"The current session couldn't be saved for the restart.");
-      return false;
-    }
+  if (restore_session && !SaveSessionForRestart()) {
+    return false;
   }
   SaveSettings();
   if (!ClearCache(kind, false)) {
@@ -129,19 +135,12 @@ bool MainWindow::Impl::RestartAfterCacheClear(
     ui::ShowError(hwnd_, L"One or more cache files couldn't be removed.");
     return false;
   }
-  if (!ui::LaunchNewInstance(
-          win32::RestartArguments(
-              nullptr,
-              GetCurrentProcessId(),
-              restore_session
-          )
-      )) {
+  if (!LaunchRestart(restore_session)) {
     if ((kind == CacheKind::kAll || kind == CacheKind::kTreeState) &&
         save_tree_state_) {
       StartTreeStateWorker();
     }
     BuildMenus();
-    ui::ShowError(hwnd_, L"RegKit couldn't be restarted.");
     return false;
   }
   restart_on_close_ = true;
@@ -149,9 +148,7 @@ bool MainWindow::Impl::RestartAfterCacheClear(
 }
 
 bool MainWindow::Impl::RestartAfterSettingsReset() {
-  CaptureRegistryTabState(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
-  if (!SaveSessionTabs()) {
-    ui::ShowError(hwnd_, L"The current session couldn't be saved for the restart.");
+  if (!SaveSessionForRestart()) {
     return false;
   }
   const std::wstring path = SettingsPath();
@@ -166,11 +163,8 @@ bool MainWindow::Impl::RestartAfterSettingsReset() {
       return false;
     }
   }
-  if (!ui::LaunchNewInstance(
-          win32::RestartArguments(nullptr, GetCurrentProcessId())
-      )) {
+  if (!LaunchRestart(true)) {
     SaveSettings();
-    ui::ShowError(hwnd_, L"RegKit couldn't be restarted.");
     return false;
   }
   return true;
@@ -299,7 +293,7 @@ std::wstring MainWindow::Impl::ResolveSelectedHiveFilePath() {
   if (index >= 0) {
     const ListRow* row = browse_.values().RowAt(index);
     if (row && row->kind == rowkind::kKey && !row->extra.empty()) {
-      target = MakeChildNode(*node, row->extra);
+      target = ChildNode(*node, row->extra);
     }
   }
   return LookupHivePath(target, nullptr);

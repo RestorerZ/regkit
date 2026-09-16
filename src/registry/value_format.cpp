@@ -12,85 +12,58 @@
 
 namespace regkit::value_format {
 
+namespace {
+
+struct TypeLabel {
+  DWORD type;
+  const wchar_t* name;
+};
+
+constexpr TypeLabel kTypeLabels[] = {
+    {REG_NONE, L"REG_NONE"},
+    {REG_SZ, L"REG_SZ"},
+    {REG_EXPAND_SZ, L"REG_EXPAND_SZ"},
+    {REG_MULTI_SZ, L"REG_MULTI_SZ"},
+    {REG_DWORD, L"REG_DWORD"},
+    {REG_QWORD, L"REG_QWORD"},
+    {REG_BINARY, L"REG_BINARY"},
+    {REG_RESOURCE_LIST, L"REG_RESOURCE_LIST"},
+    {REG_FULL_RESOURCE_DESCRIPTOR, L"REG_FULL_RESOURCE_DESCRIPTOR"},
+    {REG_RESOURCE_REQUIREMENTS_LIST, L"REG_RESOURCE_REQUIREMENTS_LIST"},
+    {REG_LINK, L"REG_LINK"},
+    {REG_DWORD_BIG_ENDIAN, L"REG_DWORD_BIG_ENDIAN"},
+};
+
+const TypeLabel* FindTypeLabel(
+    DWORD type
+) {
+  for (const TypeLabel& label : kTypeLabels) {
+    if (label.type == (type & 0xFFFF)) {
+      return &label;
+    }
+  }
+  return nullptr;
+}
+
+} // namespace
+
 DWORD NormalizeType(
     DWORD type
 ) {
-  const DWORD base = type & 0xFFFF;
-  switch (base) {
-  case REG_NONE:
-  case REG_SZ:
-  case REG_EXPAND_SZ:
-  case REG_MULTI_SZ:
-  case REG_DWORD:
-  case REG_QWORD:
-  case REG_BINARY:
-  case REG_RESOURCE_LIST:
-  case REG_FULL_RESOURCE_DESCRIPTOR:
-  case REG_RESOURCE_REQUIREMENTS_LIST:
-  case REG_LINK:
-  case REG_DWORD_BIG_ENDIAN:
-    return base;
-  default:
-    return type;
-  }
+  const TypeLabel* label = FindTypeLabel(type);
+  return label ? label->type : type;
 }
 
 std::wstring TypeName(
     DWORD type
 ) {
-  const DWORD base = NormalizeType(type);
-  const bool has_flags = base != type;
-  const wchar_t* label = nullptr;
-  switch (base) {
-  case REG_NONE:
-    label = L"REG_NONE";
-    break;
-  case REG_SZ:
-    label = L"REG_SZ";
-    break;
-  case REG_EXPAND_SZ:
-    label = L"REG_EXPAND_SZ";
-    break;
-  case REG_MULTI_SZ:
-    label = L"REG_MULTI_SZ";
-    break;
-  case REG_DWORD:
-    label = L"REG_DWORD";
-    break;
-  case REG_QWORD:
-    label = L"REG_QWORD";
-    break;
-  case REG_BINARY:
-    label = L"REG_BINARY";
-    break;
-  case REG_RESOURCE_LIST:
-    label = L"REG_RESOURCE_LIST";
-    break;
-  case REG_FULL_RESOURCE_DESCRIPTOR:
-    label = L"REG_FULL_RESOURCE_DESCRIPTOR";
-    break;
-  case REG_RESOURCE_REQUIREMENTS_LIST:
-    label = L"REG_RESOURCE_REQUIREMENTS_LIST";
-    break;
-  case REG_LINK:
-    label = L"REG_LINK";
-    break;
-  case REG_DWORD_BIG_ENDIAN:
-    label = L"REG_DWORD_BIG_ENDIAN";
-    break;
-  default:
-    break;
+  const TypeLabel* label = FindTypeLabel(type);
+  if (label && label->type == type) {
+    return label->name;
   }
   wchar_t buffer[64] = {};
-  if (!label) {
-    swprintf_s(buffer, L"REG_UNKNOWN (0x%X)", type);
-    return buffer;
-  }
-  if (has_flags) {
-    swprintf_s(buffer, L"%s (0x%X)", label, type);
-    return buffer;
-  }
-  return label;
+  swprintf_s(buffer, L"%s (0x%X)", label ? label->name : L"REG_UNKNOWN", type);
+  return buffer;
 }
 
 std::wstring Data(
@@ -115,36 +88,21 @@ std::wstring Data(
   case REG_MULTI_SZ:
     {
       std::wstring joined;
-      const wchar_t* current = reinterpret_cast<const wchar_t*>(data);
-      size_t remaining = size / sizeof(wchar_t);
-      while (remaining > 0 && *current) {
-        const size_t length = wcsnlen_s(current, remaining);
-        if (length == remaining) {
-          break;
-        }
+      for (const std::wstring& item : MultiStringItems({data, size - size % sizeof(wchar_t)})) {
         if (!joined.empty()) {
           joined += L' ';
         }
-        joined.append(current, length);
-        current += length + 1;
-        remaining -= length + 1;
+        joined += item;
       }
       return joined;
     }
   case REG_DWORD:
-    if (size >= sizeof(DWORD)) {
-      DWORD value = 0;
-      std::memcpy(&value, data, sizeof(value));
-      wchar_t buffer[32] = {};
-      swprintf_s(buffer, L"0x%08X (%u)", value, value);
-      return buffer;
-    }
-    break;
   case REG_DWORD_BIG_ENDIAN:
     if (size >= sizeof(DWORD)) {
       DWORD value = 0;
-      for (size_t i = 0; i < sizeof(DWORD); ++i) {
-        value = (value << 8) | data[i];
+      std::memcpy(&value, data, sizeof(value));
+      if (NormalizeType(type) == REG_DWORD_BIG_ENDIAN) {
+        value = _byteswap_ulong(value);
       }
       wchar_t buffer[32] = {};
       swprintf_s(buffer, L"0x%08X (%u)", value, value);
@@ -163,7 +121,7 @@ std::wstring Data(
   default:
     break;
   }
-  return util::ToHex(data, size, 0);
+  return util::ToHex({data, size});
 }
 
 std::wstring DisplayData(
@@ -214,7 +172,8 @@ bool ParseHex(
   int high = -1;
   for (size_t index = 0; index < text.size(); ++index) {
     const wchar_t character = text[index];
-    if (!iswxdigit(character)) {
+    const int value = util::HexDigitValue(character);
+    if (value < 0) {
       if (character == L' ' || character == L'\t' || character == L'\r' ||
           character == L'\n' || character == L',' || character == L';' ||
           character == L'-') {
@@ -227,9 +186,6 @@ bool ParseHex(
       }
       return false;
     }
-    int value = character <= L'9'
-                    ? character - L'0'
-                    : 10 + (towlower(character) - L'a');
     if (high < 0) {
       high = value;
     } else {
@@ -263,7 +219,7 @@ bool DecodeString(
 }
 
 std::vector<std::wstring> MultiStringItems(
-    const std::vector<BYTE>& data
+    std::span<const BYTE> data
 ) {
   std::vector<std::wstring> items;
   if (data.size() % sizeof(wchar_t) != 0) {

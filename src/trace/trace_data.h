@@ -48,6 +48,7 @@ struct Data {
 bool IncludesKey(const Selection& selection, const std::wstring& key_lower);
 bool IncludesValue(const Selection& selection, const std::wstring& key_lower, const std::wstring& value_lower);
 void NormalizeSelection(const Data& data, Selection* selection);
+void AddEntry(Data* data, const Entry& entry, std::unordered_set<std::wstring>* affected_keys = nullptr);
 void Merge(Data* data, const std::vector<Entry>& entries, std::unordered_set<std::wstring>* affected_keys = nullptr);
 void Sort(Data* data);
 

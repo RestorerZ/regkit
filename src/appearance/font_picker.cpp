@@ -13,6 +13,7 @@
 #include <uxtheme.h>
 
 #include "appearance/theme.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 
@@ -36,7 +37,7 @@ bool IsSameFontChoice(
     const LOGFONTW& left,
     const LOGFONTW& right
 ) {
-  return _wcsicmp(left.lfFaceName, right.lfFaceName) == 0 &&
+  return util::EqualsInsensitive(left.lfFaceName, right.lfFaceName) &&
          appearance::FontPointSize(left) == appearance::FontPointSize(right) &&
          left.lfWeight == right.lfWeight &&
          !!left.lfItalic == !!right.lfItalic;
@@ -98,10 +99,8 @@ void ApplyNativeDarkTheme(
     return;
   }
 
-  const wchar_t* default_theme = dark_mode ? L"DarkMode_Explorer" : L"Explorer";
-  AllowDarkModeForWindow(hwnd, dark_mode);
+  SetDarkWindowTheme(hwnd, dark_mode);
   EnableImmersiveDarkMode(hwnd, dark_mode);
-  SetWindowTheme(hwnd, default_theme, nullptr);
 
   EnumChildWindows(
       hwnd,
@@ -117,18 +116,15 @@ void ApplyNativeDarkTheme(
         wchar_t class_name[32] = {};
         GetClassNameW(child, class_name, static_cast<int>(_countof(class_name)));
 
-        const wchar_t* theme_name = dark_mode ? L"DarkMode_Explorer" : L"Explorer";
+        const wchar_t* dark_theme = L"DarkMode_Explorer";
         if (wcscmp(class_name, WC_COMBOBOXW) == 0) {
-          theme_name = dark_mode ? L"CFD" : L"Explorer";
+          dark_theme = L"CFD";
           COMBOBOXINFO info = {sizeof(COMBOBOXINFO)};
-          if (GetComboBoxInfo(child, &info) && info.hwndList) {
-            AllowDarkModeForWindow(info.hwndList, dark_mode);
-            SetWindowTheme(info.hwndList, theme_name, nullptr);
+          if (GetComboBoxInfo(child, &info)) {
+            SetDarkWindowTheme(info.hwndList, dark_mode, dark_theme);
           }
         }
-
-        AllowDarkModeForWindow(child, dark_mode);
-        SetWindowTheme(child, theme_name, nullptr);
+        SetDarkWindowTheme(child, dark_mode, dark_theme);
         return TRUE;
       },
       static_cast<LPARAM>(dark_mode ? 1 : 0)
@@ -155,16 +151,12 @@ void ApplyComboTheme(
     return;
   }
 
-  const wchar_t* edit_theme = dark_mode ? L"DarkMode_CFD" : L"Explorer";
-  const wchar_t* list_theme = dark_mode ? L"DarkMode_Explorer" : L"Explorer";
   if (info.hwndItem) {
-    AllowDarkModeForWindow(info.hwndItem, dark_mode);
-    SetWindowTheme(info.hwndItem, edit_theme, nullptr);
+    SetDarkWindowTheme(info.hwndItem, dark_mode, L"DarkMode_CFD");
     InvalidateRect(info.hwndItem, nullptr, TRUE);
   }
   if (info.hwndList) {
-    AllowDarkModeForWindow(info.hwndList, dark_mode);
-    SetWindowTheme(info.hwndList, list_theme, nullptr);
+    SetDarkWindowTheme(info.hwndList, dark_mode);
     if (!is_simple) {
       LONG_PTR list_style = GetWindowLongPtrW(info.hwndList, GWL_STYLE);
       LONG_PTR list_ex_style = GetWindowLongPtrW(info.hwndList, GWL_EXSTYLE);
@@ -418,9 +410,7 @@ UINT_PTR CALLBACK FontDialogHookProc(
       auto* state = choose ? reinterpret_cast<FontDialogHookState*>(choose->lCustData) : nullptr;
       bool dark_mode = state && state->dark_mode;
       SetWindowLongPtrW(hwnd, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-      if (!GetWindowSubclass(hwnd, FontDialogSubclassProc, kFontDialogSubclassId, nullptr)) {
-        SetWindowSubclass(hwnd, FontDialogSubclassProc, kFontDialogSubclassId, 0);
-      }
+      EnsureSubclass(hwnd, FontDialogSubclassProc, kFontDialogSubclassId);
       ApplyFontDialogTheme(hwnd, dark_mode);
       PostMessageW(hwnd, kFontDialogUpdatePreviewMessage, 0, reinterpret_cast<LPARAM>(state));
       return 0;

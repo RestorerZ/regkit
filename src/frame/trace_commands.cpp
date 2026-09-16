@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 using namespace window_detail;
@@ -101,7 +102,7 @@ void MainWindow::Impl::AppendTraceChildren(
       out->push_back(child.second);
     }
   }
-  std::sort(out->begin(), out->end(), [](const std::wstring& left, const std::wstring& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
+  std::sort(out->begin(), out->end(), [](const std::wstring& left, const std::wstring& right) { return util::CompareInsensitive(left, right) < 0; });
 }
 
 std::wstring MainWindow::Impl::ResolveBundledTracePath(
@@ -111,7 +112,7 @@ std::wstring MainWindow::Impl::ResolveBundledTracePath(
   if (file.empty()) {
     return L"";
   }
-  if (file.size() < 4 || _wcsicmp(file.c_str() + file.size() - 4, L".txt") != 0) {
+  if (!util::EndsWithInsensitive(file, L".txt")) {
     file.append(L".txt");
   }
 
@@ -141,7 +142,7 @@ std::wstring MainWindow::Impl::ResolveBundledDefaultPath(
   if (file.empty()) {
     return L"";
   }
-  if (!HasRegExtension(file)) {
+  if (!util::HasFileExtension(file, L".reg")) {
     file.append(L".reg");
   }
 
@@ -308,7 +309,7 @@ bool MainWindow::Impl::LoadTraceFromFile(
 
 bool MainWindow::Impl::LoadTraceFromPrompt() {
   std::wstring path;
-  if (!PromptOpenFile(hwnd_, L"Trace Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0\0", &path)) {
+  if (!ui::PromptOpenFile(hwnd_, L"Trace Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0\0", &path)) {
     return false;
   }
   std::wstring label = FileBaseName(path);

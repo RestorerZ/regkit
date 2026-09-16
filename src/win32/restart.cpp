@@ -1,6 +1,7 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+#include "win32/text_transform.h"
 #include "win32/restart.h"
 
 #include "win32/shell_paths.h"
@@ -14,15 +15,15 @@ namespace regkit::win32 {
 bool ArgTakesValue(
     const std::wstring& arg
 ) {
-  return _wcsicmp(arg.c_str(), kRestartParentArg) == 0 ||
-         _wcsicmp(arg.c_str(), kRestartDataDirArg) == 0;
+  return util::EqualsInsensitive(arg, kRestartParentArg) ||
+         util::EqualsInsensitive(arg, kRestartDataDirArg);
 }
 
 std::wstring RestartDataDir(
     const std::vector<std::wstring>& args
 ) {
   for (size_t i = 0; i + 1 < args.size(); ++i) {
-    if (_wcsicmp(args[i].c_str(), kRestartDataDirArg) == 0) {
+    if (util::EqualsInsensitive(args[i], kRestartDataDirArg)) {
       return args[i + 1];
     }
   }
@@ -37,7 +38,7 @@ bool RestoreSessionRequested() {
   }
   bool requested = false;
   for (int i = 1; i < argc && !requested; ++i) {
-    requested = _wcsicmp(argv[i], kRestartSessionArg) == 0;
+    requested = util::EqualsInsensitive(argv[i], kRestartSessionArg);
   }
   LocalFree(argv);
   return requested;
@@ -45,85 +46,30 @@ bool RestoreSessionRequested() {
 
 namespace {
 
-std::wstring QuoteArgument(const std::wstring& arg);
-
-} // namespace
-
-std::wstring RestartArguments(
-    const wchar_t* target_arg,
-    DWORD parent_pid
-) {
-  return RestartArguments(target_arg, parent_pid, true);
-}
-
-std::wstring RestartArguments(
-    const wchar_t* target_arg,
-    DWORD parent_pid,
-    bool restore_session
-) {
-  std::wstring arguments;
-  if (target_arg && *target_arg) {
-    arguments = target_arg;
-  }
-  if (parent_pid != 0) {
-    if (!arguments.empty()) {
-      arguments.push_back(L' ');
-    }
-    arguments += kRestartParentArg;
-    arguments.push_back(L' ');
-    arguments += std::to_wstring(parent_pid);
-  }
-  const std::wstring data_dir = util::GetAppDataFolder();
-  if (!data_dir.empty()) {
-    if (!arguments.empty()) {
-      arguments.push_back(L' ');
-    }
-    arguments += kRestartDataDirArg;
-    arguments.push_back(L' ');
-    arguments += QuoteArgument(data_dir);
-    if (restore_session) {
-      arguments.push_back(L' ');
-      arguments += kRestartSessionArg;
-    }
-  }
-  return arguments;
-}
-
-namespace {
-
 bool IsInternalRestartArg(
     const std::wstring& arg
 ) {
-  return _wcsicmp(arg.c_str(), kRestartSystemArg) == 0 ||
-         _wcsicmp(arg.c_str(), kRestartTiArg) == 0 ||
-         _wcsicmp(arg.c_str(), kRestartUserArg) == 0 ||
-         _wcsicmp(arg.c_str(), kRestartAdminArg) == 0 ||
-         _wcsicmp(arg.c_str(), kRestartSessionArg) == 0 ||
-         ArgTakesValue(arg);
+  for (const wchar_t* flag : {kRestartSystemArg, kRestartTiArg, kRestartUserArg, kRestartAdminArg, kRestartSessionArg}) {
+    if (util::EqualsInsensitive(arg, flag)) {
+      return true;
+    }
+  }
+  return ArgTakesValue(arg);
 }
 
 std::wstring QuoteArgument(
     const std::wstring& arg
 ) {
-  if (!arg.empty() &&
-      arg.find_first_of(L" \t\"") == std::wstring::npos) {
+  if (!arg.empty() && arg.find_first_of(L" \t\"") == std::wstring::npos) {
     return arg;
   }
   std::wstring quoted = L"\"";
   size_t backslashes = 0;
   for (wchar_t character : arg) {
-    if (character == L'\\') {
-      ++backslashes;
-      quoted.push_back(character);
-      continue;
-    }
     if (character == L'"') {
       quoted.append(backslashes + 1, L'\\');
-      backslashes = 0;
-      quoted.push_back(L'"');
-      continue;
     }
-    backslashes = 0;
+    backslashes = character == L'\\' ? backslashes + 1 : 0;
     quoted.push_back(character);
   }
   quoted.append(backslashes, L'\\');
@@ -131,8 +77,38 @@ std::wstring QuoteArgument(
   return quoted;
 }
 
+void AppendArgument(
+    std::wstring* arguments,
+    const std::wstring& arg
+) {
+  if (!arguments->empty()) {
+    arguments->push_back(L' ');
+  }
+  arguments->append(arg);
+}
+
 } // namespace
 
+std::wstring RestartArguments(
+    const wchar_t* target_arg,
+    DWORD parent_pid,
+    bool restore_session
+) {
+  std::wstring arguments = target_arg ? target_arg : L"";
+  if (parent_pid != 0) {
+    AppendArgument(&arguments, kRestartParentArg);
+    AppendArgument(&arguments, std::to_wstring(parent_pid));
+  }
+  const std::wstring data_dir = util::GetAppDataFolder();
+  if (!data_dir.empty()) {
+    AppendArgument(&arguments, kRestartDataDirArg);
+    AppendArgument(&arguments, QuoteArgument(data_dir));
+    if (restore_session) {
+      AppendArgument(&arguments, kRestartSessionArg);
+    }
+  }
+  return arguments;
+}
 std::wstring RestartArguments(
     const wchar_t* target_arg,
     DWORD parent_pid,
@@ -147,10 +123,8 @@ std::wstring RestartArguments(
       }
       continue;
     }
-    if (!arguments.empty()) {
-      arguments.push_back(L' ');
-    }
-    arguments += QuoteArgument(arg);
+    AppendArgument(&arguments, QuoteArgument(arg));
+
   }
   return arguments;
 }
@@ -184,7 +158,7 @@ DWORD RestartParentPid(
     const std::vector<std::wstring>& args
 ) {
   for (size_t i = 0; i + 1 < args.size(); ++i) {
-    if (_wcsicmp(args[i].c_str(), kRestartParentArg) != 0) {
+    if (!util::EqualsInsensitive(args[i], kRestartParentArg)) {
       continue;
     }
     const std::wstring& text = args[i + 1];

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 using namespace window_detail;
@@ -196,7 +197,6 @@ void MainWindow::Impl::LoadTraceSettings() {
   if (path.empty()) {
     return;
   }
-  auto parse_bool = [](const std::wstring& value) -> bool { return (_wcsicmp(value.c_str(), L"1") == 0 || _wcsicmp(value.c_str(), L"true") == 0 || _wcsicmp(value.c_str(), L"yes") == 0); };
   HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (file == INVALID_HANDLE_VALUE) {
     return;
@@ -317,9 +317,9 @@ void MainWindow::Impl::LoadTraceSettings() {
     } else if (EqualsInsensitive(key, L"label")) {
       current_label = value;
     } else if (EqualsInsensitive(key, L"select_all")) {
-      selection.select_all = parse_bool(value);
+      selection.select_all = util::ParseBool(value);
     } else if (EqualsInsensitive(key, L"recursive")) {
-      selection.recursive = parse_bool(value);
+      selection.recursive = util::ParseBool(value);
     } else if (EqualsInsensitive(key, L"key_path") || EqualsInsensitive(key, L"key")) {
       selection.key_paths.push_back(value);
     } else if (EqualsInsensitive(key, L"values")) {
@@ -536,7 +536,7 @@ bool MainWindow::Impl::RemoveTraceByLabel(
     return false;
   }
   for (auto it = trace_parse_sessions_.begin(); it != trace_parse_sessions_.end();) {
-    if (it->second && _wcsicmp(it->second->label.c_str(), label.c_str()) == 0) {
+    if (it->second && util::EqualsInsensitive(it->second->label, label)) {
       it->second->work.CancelAndJoin();
       it = trace_parse_sessions_.erase(it);
       continue;
@@ -545,7 +545,7 @@ bool MainWindow::Impl::RemoveTraceByLabel(
   }
   size_t removed = 0;
   active_traces_.erase(std::remove_if(active_traces_.begin(), active_traces_.end(), [&](const ActiveTrace& trace) {
-                                        if (_wcsicmp(trace.label.c_str(), label.c_str()) != 0) {
+                                        if (!util::EqualsInsensitive(trace.label, label)) {
                                           return false;
                                         }
                                         ++removed;

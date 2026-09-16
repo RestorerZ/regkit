@@ -7,6 +7,7 @@
 
 #include "frame/research_links.h"
 #include "frame/shortcut_bindings.h"
+#include "win32/text_transform.h"
 
 #include <filesystem>
 
@@ -32,12 +33,9 @@ bool HasCachePattern(
   if (!name || !prefix || !suffix) {
     return false;
   }
-  const size_t name_length = wcslen(name);
-  const size_t prefix_length = wcslen(prefix);
-  const size_t suffix_length = wcslen(suffix);
-  return name_length >= prefix_length + suffix_length &&
-         _wcsnicmp(name, prefix, prefix_length) == 0 &&
-         _wcsicmp(name + name_length - suffix_length, suffix) == 0;
+  return wcslen(name) >= wcslen(prefix) + wcslen(suffix) &&
+         util::StartsWithInsensitive(name, prefix) &&
+         util::EndsWithInsensitive(name, suffix);
 }
 
 CacheAvailability InspectCacheFiles(
@@ -60,17 +58,17 @@ CacheAvailability InspectCacheFiles(
     const wchar_t* name = data.cFileName;
     available.tabs =
         available.tabs ||
-        _wcsicmp(name, L"tabs.ini") == 0 ||
-        _wcsicmp(name, L"session.ini") == 0 ||
+        util::EqualsInsensitive(name, L"tabs.ini") ||
+        util::EqualsInsensitive(name, L"session.ini") ||
         HasCachePattern(name, L"search_", L".tsv") ||
         HasCachePattern(name, L"compare_", L".tsv");
     available.history =
-        available.history || _wcsicmp(name, L"history.tsv") == 0;
+        available.history || util::EqualsInsensitive(name, L"history.tsv");
     available.search_history =
         available.search_history ||
-        _wcsicmp(name, L"search_history.txt") == 0;
+        util::EqualsInsensitive(name, L"search_history.txt");
     available.tree_state =
-        available.tree_state || _wcsicmp(name, L"tree_state.ini") == 0;
+        available.tree_state || util::EqualsInsensitive(name, L"tree_state.ini");
     available.temporary =
         available.temporary || HasCachePattern(name, L"export_", L".reg");
   } while (FindNextFileW(find, &data) != 0);
@@ -395,7 +393,7 @@ void MainWindow::Impl::BuildMenus() {
   AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemePresets, L"Theme Presets...");
   AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(theme_menu), L"Theme");
   HMENU icon_menu = CreatePopupMenu();
-  auto icon_flags = [&](const wchar_t* name) -> UINT { return MF_STRING | (_wcsicmp(icon_set_.c_str(), name) == 0 ? MF_CHECKED : MF_UNCHECKED); };
+  auto icon_flags = [&](const wchar_t* name) -> UINT { return MF_STRING | (util::EqualsInsensitive(icon_set_, name) ? MF_CHECKED : MF_UNCHECKED); };
   AppendMenuW(icon_menu, icon_flags(kIconSetDefault), cmd::kOptionsIconSetDefault, L"Phosphor + RegEdit");
   AppendMenuW(icon_menu, icon_flags(kIconSetPhosphor), cmd::kOptionsIconSetPhosphor, L"Phosphor");
   AppendMenuW(icon_menu, icon_flags(kIconSetLucide), cmd::kOptionsIconSetLucide, L"Lucide");
@@ -515,7 +513,7 @@ void MainWindow::Impl::BuildMenus() {
   HMENU trace_menu = CreatePopupMenu();
   auto has_label = [&](const wchar_t* label) -> bool {
     for (const auto& trace : active_traces_) {
-      if (_wcsicmp(trace.label.c_str(), label) == 0) {
+      if (util::EqualsInsensitive(trace.label, label)) {
         return true;
       }
     }
@@ -731,7 +729,7 @@ void MainWindow::Impl::RefreshBundledDefaultsCache() {
              error
          )) {
       if (!file.is_regular_file(error) ||
-          _wcsicmp(file.path().extension().c_str(), L".reg") != 0) {
+          !util::EqualsInsensitive(file.path().extension().c_str(), L".reg")) {
         error.clear();
         continue;
       }
@@ -746,10 +744,10 @@ void MainWindow::Impl::RefreshBundledDefaultsCache() {
 
   std::sort(bundled_defaults_.begin(), bundled_defaults_.end(), [](const BundledDefault& left, const BundledDefault& right) {
               const int group =
-                  _wcsicmp(left.group.c_str(), right.group.c_str());
+                  util::CompareInsensitive(left.group, right.group);
               return group != 0
                          ? group < 0
-                         : _wcsicmp(left.label.c_str(), right.label.c_str()) <
+                         : util::CompareInsensitive(left.label, right.label) <
                                0; });
   size_t bundled_limit = std::min(bundled_defaults_.size(), static_cast<size_t>(cmd::kDefaultBundledMax - cmd::kDefaultBundledBase + 1));
   if (bundled_defaults_.size() > bundled_limit) {

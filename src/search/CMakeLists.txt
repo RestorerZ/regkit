@@ -23,10 +23,9 @@ target_link_libraries(regkit_search_dialogs PRIVATE
     regkit_browse
     regkit_editors
     regkit_search
+    regkit_records
     regkit_registry
     regkit_appearance
     regkit_win32
     comctl32
-    shell32
-    uxtheme
 )

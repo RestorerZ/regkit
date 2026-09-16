@@ -176,7 +176,7 @@ void Initialize(
           wchar_t class_name[16] = {};
           GetClassNameW(child, class_name, _countof(class_name));
           const LONG_PTR style = GetWindowLongPtrW(child, GWL_STYLE);
-          if (_wcsicmp(class_name, L"Edit") == 0 &&
+          if (util::EqualsInsensitive(class_name, L"Edit") &&
               (style & ES_MULTILINE) && !(style & ES_READONLY)) {
             SetWindowSubclass(child, SingleLineProc, kSingleLineSubclassId, 0);
           }
@@ -275,13 +275,6 @@ bool HandleThemeMessage(
   return true;
 }
 
-std::wstring ReadText(
-    HWND dialog,
-    int control_id
-) {
-  return util::WindowText(GetDlgItem(dialog, control_id));
-}
-
 void SetupListView(
     HWND list,
     DWORD extra_styles,
@@ -307,9 +300,7 @@ void SetupListView(
   if (HWND tooltip = ListView_GetToolTips(list)) {
     SendMessageW(tooltip, TTM_SETMAXTIPWIDTH, 0, MulDiv(kTooltipMaxWidth, static_cast<int>(dpi), 96));
   }
-  if (!GetWindowSubclass(list, ListViewProc, kListViewSubclassId, nullptr)) {
-    SetWindowSubclass(list, ListViewProc, kListViewSubclassId, 0);
-  }
+  EnsureSubclass(list, ListViewProc, kListViewSubclassId);
   appearance::RegisterListView(GetParent(list), list, kGridToggleId);
   RefreshListViewTheme(list);
 }
@@ -358,7 +349,7 @@ bool HandleListViewNotify(
   }
   wchar_t class_name[32] = {};
   GetClassNameW(header->hwndFrom, class_name, static_cast<int>(_countof(class_name)));
-  if (_wcsicmp(class_name, WC_LISTVIEWW) != 0) {
+  if (!util::EqualsInsensitive(class_name, WC_LISTVIEWW)) {
     return false;
   }
   const HWND list = header->hwndFrom;
@@ -431,19 +422,7 @@ bool Matches(
     const std::wstring& text,
     const std::wstring& filter
 ) {
-  if (filter.empty()) {
-    return true;
-  }
-  if (filter.size() > text.size()) {
-    return false;
-  }
-  const size_t last = text.size() - filter.size();
-  for (size_t start = 0; start <= last; ++start) {
-    if (_wcsnicmp(text.c_str() + start, filter.c_str(), filter.size()) == 0) {
-      return true;
-    }
-  }
-  return false;
+  return filter.empty() || util::ContainsInsensitive(text, filter);
 }
 
 void FitDroppedWidth(

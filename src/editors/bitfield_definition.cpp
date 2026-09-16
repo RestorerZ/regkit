@@ -5,6 +5,7 @@
 
 #include "win32/file_text.h"
 #include "win32/shell_paths.h"
+#include "win32/text_transform.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -47,22 +48,6 @@ enum StateMember {
   kStateName = 1 << 1,
   kStateMeaning = 1 << 2,
 };
-
-bool ContainsInsensitive(
-    const std::wstring& haystack,
-    const std::wstring& needle
-) {
-  if (needle.empty() || needle.size() > haystack.size()) {
-    return false;
-  }
-  const size_t last = haystack.size() - needle.size();
-  for (size_t start = 0; start <= last; ++start) {
-    if (_wcsnicmp(haystack.c_str() + start, needle.c_str(), needle.size()) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
 
 class Parser {
 public:
@@ -794,7 +779,7 @@ std::vector<DefinitionFile> LoadBundledFiles() {
       files.begin(),
       files.end(),
       [](const DefinitionFile& left, const DefinitionFile& right) {
-        return _wcsicmp(left.name.c_str(), right.name.c_str()) < 0;
+        return util::CompareInsensitive(left.name, right.name) < 0;
       }
   );
   return files;
@@ -867,11 +852,23 @@ bool Definition::MatchesPath(
     return true;
   }
   for (const std::wstring& fragment : key_paths) {
-    if (ContainsInsensitive(key_path, fragment)) {
+    if (util::ContainsInsensitive(key_path, fragment)) {
       return true;
     }
   }
   return false;
+}
+
+std::wstring DisplayName(
+    const Definition& definition
+) {
+  if (!definition.name.empty()) {
+    return definition.name;
+  }
+  if (!definition.value_name.empty()) {
+    return definition.value_name;
+  }
+  return L"Unnamed definition";
 }
 
 bool ValidWidth(
@@ -986,7 +983,7 @@ bool Validate(
       }
     }
     for (size_t j = 0; j < i; ++j) {
-      if (_wcsicmp(definition->fields[j].name.c_str(), field.name.c_str()) == 0) {
+      if (util::EqualsInsensitive(definition->fields[j].name, field.name)) {
         return fail(L"Two fields share the same name.");
       }
     }
@@ -1211,7 +1208,7 @@ std::vector<Definition> Matching(
   std::vector<Definition> matches;
   for (const DefinitionFile& file : BundledFiles()) {
     for (const Definition& definition : file.definitions) {
-      if (_wcsicmp(definition.value_name.c_str(), value_name.c_str()) != 0) {
+      if (!util::EqualsInsensitive(definition.value_name, value_name)) {
         continue;
       }
       if (!definition.MatchesPath(key_path)) {

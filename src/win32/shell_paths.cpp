@@ -3,6 +3,7 @@
 
 #include "win32/shell_paths.h"
 
+#include "win32/text_transform.h"
 #include "win32/windows_config.h"
 
 #include <windows.h>
@@ -130,6 +131,26 @@ std::wstring GetCacheFolder() {
   folder = JoinPath(folder, L"cache");
   SHCreateDirectoryExW(nullptr, folder.c_str(), nullptr);
   return folder;
+}
+
+bool HasFileExtension(
+    std::wstring_view path,
+    std::wstring_view extension
+) {
+  const size_t dot = path.find_last_of(L'.');
+  const size_t separator = path.find_last_of(L"\\/");
+  return dot != std::wstring_view::npos && (separator == std::wstring_view::npos || dot > separator) &&
+         EqualsInsensitive(path.substr(dot), extension);
+}
+
+std::wstring EnsureFileExtension(
+    std::wstring path,
+    std::wstring_view extension
+) {
+  if (!path.empty() && !HasFileExtension(path, extension)) {
+    path.append(extension);
+  }
+  return path;
 }
 
 } // namespace util

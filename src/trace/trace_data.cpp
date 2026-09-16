@@ -15,12 +15,6 @@ namespace regkit::trace {
 
 namespace {
 
-std::wstring Lower(
-    const std::wstring& text
-) {
-  return util::ToLower(text);
-}
-
 bool IsChild(
     const std::wstring& path,
     const std::wstring& parent
@@ -41,7 +35,7 @@ bool IncludesKey(
   }
   if (!selection.key_paths.empty()) {
     for (const auto& path : selection.key_paths) {
-      const std::wstring selected = Lower(path);
+      const std::wstring selected = util::ToLower(path);
       if (selected.empty()) {
         continue;
       }
@@ -80,14 +74,14 @@ void NormalizeSelection(
     return;
   }
   auto resolve_key = [&](const std::wstring& key) {
-    const auto display = data.display_to_key.find(Lower(key));
+    const auto display = data.display_to_key.find(util::ToLower(key));
     return display == data.display_to_key.end() ? key : display->second;
   };
 
   std::unordered_map<std::wstring, std::wstring> keys;
   keys.reserve(data.key_paths.size());
   for (const auto& path : data.key_paths) {
-    keys.emplace(Lower(path), path);
+    keys.emplace(util::ToLower(path), path);
   }
 
   std::vector<std::wstring> normalized_keys;
@@ -95,7 +89,7 @@ void NormalizeSelection(
   std::unordered_set<std::wstring> seen;
   for (const auto& selected : selection->key_paths) {
     const std::wstring resolved = resolve_key(selected);
-    const std::wstring lower = Lower(resolved);
+    const std::wstring lower = util::ToLower(resolved);
     const auto key = keys.find(lower);
     if (key != keys.end() && seen.insert(lower).second) {
       normalized_keys.push_back(key->second);
@@ -105,7 +99,7 @@ void NormalizeSelection(
   std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
       normalized_values;
   for (const auto& pair : selection->values_by_key) {
-    const std::wstring key = Lower(resolve_key(pair.first));
+    const std::wstring key = util::ToLower(resolve_key(pair.first));
     if (!key.empty()) {
       normalized_values[key].insert(pair.second.begin(), pair.second.end());
     }
@@ -115,6 +109,39 @@ void NormalizeSelection(
   selection->values_by_key = std::move(normalized_values);
   if (selection->key_paths.empty() && selection->values_by_key.empty()) {
     selection->select_all = true;
+  }
+}
+
+void AddEntry(
+    Data* data,
+    const Entry& entry,
+    std::unordered_set<std::wstring>* affected_keys
+) {
+  if (entry.key_path.empty()) {
+    return;
+  }
+  const std::wstring key_lower = util::ToLower(entry.key_path);
+  if (affected_keys) {
+    affected_keys->insert(key_lower);
+  }
+  auto [key, inserted] = data->values_by_key.try_emplace(key_lower);
+  if (inserted) {
+    data->key_paths.push_back(entry.key_path);
+    const auto parts = registry_path::Split(entry.key_path);
+    std::wstring parent = parts.empty() ? std::wstring() : parts.front();
+    for (size_t index = 1; index < parts.size(); ++index) {
+      std::wstring parent_lower = util::ToLower(parent);
+      if (data->children_by_key[parent_lower].try_emplace(util::ToLower(parts[index]), parts[index]).second && affected_keys) {
+        affected_keys->insert(std::move(parent_lower));
+      }
+      parent += L"\\" + parts[index];
+    }
+  }
+  if (!entry.display_path.empty() && data->display_to_key.try_emplace(util::ToLower(entry.display_path), entry.key_path).second) {
+    data->display_key_paths.push_back(entry.display_path);
+  }
+  if (entry.has_value && key->second.values_lower.insert(util::ToLower(entry.value_name)).second) {
+    key->second.values_display.push_back(entry.value_name);
   }
 }
 
@@ -128,46 +155,7 @@ void Merge(
   }
   std::unique_lock<std::shared_mutex> lock(*data->mutex);
   for (const auto& entry : entries) {
-    if (entry.key_path.empty()) {
-      continue;
-    }
-    const std::wstring key_lower = Lower(entry.key_path);
-    if (affected_keys) {
-      affected_keys->insert(key_lower);
-    }
-    auto [key, inserted] = data->values_by_key.try_emplace(key_lower);
-    if (inserted) {
-      data->key_paths.push_back(entry.key_path);
-      const auto parts = registry_path::Split(entry.key_path);
-      if (parts.size() > 1) {
-        std::wstring parent = parts.front();
-        for (size_t index = 1; index < parts.size(); ++index) {
-          std::wstring parent_lower = Lower(parent);
-          const bool added =
-              data->children_by_key[parent_lower]
-                  .try_emplace(Lower(parts[index]), parts[index])
-                  .second;
-          if (added && affected_keys) {
-            affected_keys->insert(std::move(parent_lower));
-          }
-          parent += L"\\" + parts[index];
-        }
-      }
-    }
-    if (!entry.display_path.empty()) {
-      const std::wstring display_lower = Lower(entry.display_path);
-      if (data->display_to_key
-              .try_emplace(display_lower, entry.key_path)
-              .second) {
-        data->display_key_paths.push_back(entry.display_path);
-      }
-    }
-    if (entry.has_value) {
-      const std::wstring value_lower = Lower(entry.value_name);
-      if (key->second.values_lower.insert(value_lower).second) {
-        key->second.values_display.push_back(entry.value_name);
-      }
-    }
+    AddEntry(data, entry, affected_keys);
   }
 }
 
@@ -177,12 +165,9 @@ void Sort(
   if (!data) {
     return;
   }
-  auto less = [](const std::wstring& left, const std::wstring& right) {
-    return _wcsicmp(left.c_str(), right.c_str()) < 0;
-  };
+  auto less = [](const std::wstring& left, const std::wstring& right) { return util::CompareInsensitive(left, right) < 0; };
   std::unique_lock<std::shared_mutex> lock(*data->mutex);
   std::sort(data->key_paths.begin(), data->key_paths.end(), less);
   std::sort(data->display_key_paths.begin(), data->display_key_paths.end(), less);
 }
-
 } // namespace regkit::trace

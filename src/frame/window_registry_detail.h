@@ -81,7 +81,7 @@ inline std::wstring ResolveDevicePath(
       continue;
     }
     size_t device_len = wcslen(device);
-    if (_wcsnicmp(path.c_str(), device, device_len) != 0) {
+    if (!util::StartsWithInsensitive(path, device)) {
       continue;
     }
     std::wstring rest = path.substr(device_len);
@@ -256,7 +256,7 @@ inline std::wstring CleanTraceKeyText(
   DWORD machine_len = static_cast<DWORD>(_countof(machine));
   if (GetComputerNameW(machine, &machine_len) && machine_len > 0) {
     const std::wstring prefix = std::wstring(machine, machine_len) + L"\\";
-    if (registry_path::StartsWith(path, prefix)) {
+    if (util::StartsWithInsensitive(path, prefix)) {
       path.erase(0, prefix.size());
     }
   }
@@ -274,8 +274,8 @@ inline std::wstring NormalizeTraceKeyPathBasic(
   path = registry_path::Normalize(path, sid);
   const std::wstring current_user = L"HKEY_USERS\\" + sid;
   if (!sid.empty() &&
-      (registry_path::Equals(path, current_user) ||
-       registry_path::StartsWith(path, current_user + L"\\"))) {
+      (util::EqualsInsensitive(path, current_user) ||
+       util::StartsWithInsensitive(path, current_user + L"\\"))) {
     path.replace(0, current_user.size(), L"HKEY_CURRENT_USER");
   }
   RegistryNode node;
@@ -533,7 +533,7 @@ inline std::wstring ShortDefaultLabel(
   while (first < words.size()) {
     bool hive_word = false;
     for (const wchar_t* hive : kHiveWords) {
-      if (_wcsicmp(words[first].c_str(), hive) == 0) {
+      if (util::EqualsInsensitive(words[first], hive)) {
         hive_word = true;
         break;
       }
@@ -673,7 +673,7 @@ inline bool ShouldIncludeOfflineHiveFile(
     return true;
   }
   std::wstring ext = name.substr(dot);
-  return _wcsicmp(ext.c_str(), L".dat") == 0;
+  return util::EqualsInsensitive(ext, L".dat");
 }
 
 inline void CollectLooseHivesInFolder(

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 using namespace window_detail;
@@ -130,7 +131,7 @@ void MainWindow::Impl::StartValueListWorker() {
               out->push_back(child.second);
             }
           }
-          std::sort(out->begin(), out->end(), [](const std::wstring& left, const std::wstring& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
+          std::sort(out->begin(), out->end(), [](const std::wstring& left, const std::wstring& right) { return util::CompareInsensitive(left, right) < 0; });
         };
         append_trace_children(task->snapshot, existing_keys, &simulated_subkeys);
         payload->key_count = static_cast<int>(subkeys.size() + simulated_subkeys.size());
@@ -251,8 +252,7 @@ void MainWindow::Impl::StartValueListWorker() {
             ListRow row;
             row.name = registry_path::DisplayName(name);
             bool is_link = false;
-            RegistryNode child = task->snapshot;
-            child.subkey = task->snapshot.subkey.empty() ? name : task->snapshot.subkey + L"\\" + name;
+            const RegistryNode child = registry_path::ChildNode(task->snapshot, name);
             row.image_index = resolve_key_icon(child, &is_link);
             row.type = is_link ? L"Link" : L"Key";
             row.extra = name;
@@ -281,8 +281,7 @@ void MainWindow::Impl::StartValueListWorker() {
             }
             ListRow row;
             row.name = registry_path::DisplayName(name);
-            RegistryNode child = task->snapshot;
-            child.subkey = task->snapshot.subkey.empty() ? name : task->snapshot.subkey + L"\\" + name;
+            RegistryNode child = registry_path::ChildNode(task->snapshot, name);
             child.simulated = true;
             row.image_index = resolve_key_icon(child, nullptr);
             row.simulated = true;

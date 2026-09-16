@@ -104,12 +104,12 @@ void MainWindow::Impl::ApplyThemeToChildren() {
   theme.ApplyToStatusBar(status_bar_);
 
   if (browse_.address()) {
-    SetWindowTheme(browse_.address(), Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer", nullptr);
+    SetDarkWindowTheme(browse_.address(), Theme::UseDarkMode());
     SetEditMargins(browse_.address(), 6, 6);
     SetEditVerticalRect(browse_.address(), ui_font_, 2, 6, 6);
   }
   if (browse_.filter()) {
-    SetWindowTheme(browse_.filter(), Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer", nullptr);
+    SetDarkWindowTheme(browse_.filter(), Theme::UseDarkMode());
     SetEditMargins(browse_.filter(), 6, 6);
     SetEditVerticalRect(browse_.filter(), ui_font_, 2, 6, 6);
   }
@@ -147,14 +147,12 @@ void MainWindow::Impl::LoadThemePresets() {
     presets = ThemePresetStore::BuiltInPresets();
   } else {
     std::vector<ThemePreset> builtins = ThemePresetStore::BuiltInPresets();
-    auto same_colors = [](const ThemeColors& left, const ThemeColors& right) { return left.background == right.background && left.panel == right.panel && left.surface == right.surface && left.header == right.header && left.border == right.border && left.text == right.text && left.muted_text == right.muted_text && left.accent == right.accent && left.selection == right.selection && left.selection_text == right.selection_text && left.hover == right.hover && left.focus == right.focus; };
-    auto same_preset = [&](const ThemePreset& left, const ThemePreset& right) { return left.is_dark == right.is_dark && same_colors(left.colors, right.colors); };
     for (const auto& builtin : builtins) {
-      auto it = std::find_if(presets.begin(), presets.end(), [&](const ThemePreset& existing) { return _wcsicmp(existing.name.c_str(), builtin.name.c_str()) == 0; });
+      auto it = std::find_if(presets.begin(), presets.end(), [&](const ThemePreset& existing) { return EqualsInsensitive(existing.name, builtin.name); });
       if (it == presets.end()) {
         presets.push_back(builtin);
         updated_builtins = true;
-      } else if (!same_preset(*it, builtin)) {
+      } else if (it->is_dark != builtin.is_dark || it->colors != builtin.colors) {
         *it = builtin;
         updated_builtins = true;
       }
@@ -164,13 +162,7 @@ void MainWindow::Impl::LoadThemePresets() {
   if (theme_presets_.empty()) {
     return;
   }
-  if (active_theme_preset_.empty()) {
-    active_theme_preset_ = theme_presets_.front().name;
-  }
-  auto it = std::find_if(theme_presets_.begin(), theme_presets_.end(), [&](const ThemePreset& preset) { return _wcsicmp(preset.name.c_str(), active_theme_preset_.c_str()) == 0; });
-  if (it == theme_presets_.end()) {
-    active_theme_preset_ = theme_presets_.front().name;
-  }
+  active_theme_preset_ = FindThemePreset(theme_presets_, active_theme_preset_)->name;
   if (!loaded || updated_builtins) {
     SaveThemePresets();
   }
@@ -187,10 +179,7 @@ bool MainWindow::Impl::ApplyThemePresetByName(
   if (theme_presets_.empty()) {
     return false;
   }
-  auto it = std::find_if(theme_presets_.begin(), theme_presets_.end(), [&](const ThemePreset& preset) { return _wcsicmp(preset.name.c_str(), name.c_str()) == 0; });
-  if (it == theme_presets_.end()) {
-    it = theme_presets_.begin();
-  }
+  const ThemePreset* it = FindThemePreset(theme_presets_, name);
   Theme::SetCustomColors(it->colors, it->is_dark);
   theme_mode_ = ThemeMode::kCustom;
   active_theme_preset_ = it->name;

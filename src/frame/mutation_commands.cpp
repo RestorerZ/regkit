@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/command_detail.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 using namespace command_detail;
@@ -22,19 +23,19 @@ std::wstring NativeTargetPath(
   const std::wstring rest =
       split == std::wstring::npos ? std::wstring() : normalized.substr(split);
   std::wstring native;
-  if (_wcsicmp(root.c_str(), L"HKEY_LOCAL_MACHINE") == 0) {
+  if (util::EqualsInsensitive(root, L"HKEY_LOCAL_MACHINE")) {
     native = L"\\REGISTRY\\MACHINE";
-  } else if (_wcsicmp(root.c_str(), L"HKEY_USERS") == 0) {
+  } else if (util::EqualsInsensitive(root, L"HKEY_USERS")) {
     native = L"\\REGISTRY\\USER";
-  } else if (_wcsicmp(root.c_str(), L"HKEY_CURRENT_USER") == 0) {
+  } else if (util::EqualsInsensitive(root, L"HKEY_CURRENT_USER")) {
     const std::wstring sid = util::GetCurrentUserSidString();
     if (sid.empty()) {
       return {};
     }
     native = L"\\REGISTRY\\USER\\" + sid;
-  } else if (_wcsicmp(root.c_str(), L"HKEY_CLASSES_ROOT") == 0) {
+  } else if (util::EqualsInsensitive(root, L"HKEY_CLASSES_ROOT")) {
     native = L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes";
-  } else if (_wcsicmp(root.c_str(), L"HKEY_CURRENT_CONFIG") == 0) {
+  } else if (util::EqualsInsensitive(root, L"HKEY_CURRENT_CONFIG")) {
     native =
         L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Hardware Profiles\\Current";
   } else {
@@ -139,7 +140,7 @@ bool MainWindow::Impl::HandleCreateCommand(
       bool has_target = false;
       const ListRow* row = SelectedValueRow(browse_.values(), nullptr);
       if (row && row->kind == rowkind::kKey && row->simulated && browse_.current_node()) {
-        target = MakeChildNode(*browse_.current_node(), row->extra);
+        target = ChildNode(*browse_.current_node(), row->extra);
         has_target = true;
       } else if (browse_.current_node() && browse_.current_node()->simulated) {
         target = *browse_.current_node();
@@ -823,7 +824,7 @@ bool MainWindow::Impl::HandleDeleteCommand(
         if (!ui::ConfirmDelete(hwnd_, L"Delete Key", row->name)) {
           return true;
         }
-        RegistryNode child = MakeChildNode(*browse_.current_node(), row->extra);
+        RegistryNode child = ChildNode(*browse_.current_node(), row->extra);
         changes::KeySnapshot snapshot = changes::CaptureKey(child);
         const bool restorable = snapshot.complete;
         if (!restorable &&

@@ -12,16 +12,15 @@
 #include <vector>
 
 #include <commctrl.h>
-#include <shlobj.h>
+#include <windowsx.h>
 
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
 #include "win32/window_metrics.h"
-#include "appearance/theme.h"
-#include "appearance/default_font.h"
 #include "appearance/feedback.h"
 #include "registry/registry_store.h"
 #include "editors/value_editor.h"
+#include "records/escaped_fields.h"
 #include "win32/file_text.h"
 #include "win32/shell_paths.h"
 
@@ -78,8 +77,7 @@ enum ControlId {
   kCancelButton = IDCANCEL,
 };
 
-struct SearchDialogState {
-  HWND hwnd = nullptr;
+struct SearchDialogState : appearance::DialogWindow {
   HWND find_combo = nullptr;
   HWND scope_top = nullptr;
   HWND scope_key = nullptr;
@@ -117,24 +115,14 @@ struct SearchDialogState {
   HWND result_limit_edit = nullptr;
   HWND find_button = nullptr;
   HWND cancel_button = nullptr;
-  HWND owner = nullptr;
-  HFONT font = nullptr;
   SearchDialogResult* out = nullptr;
   SearchSources sources;
-  bool accepted = false;
   bool recursive = true;
   std::vector<std::wstring> history;
   std::vector<std::wstring> root_names;
   std::vector<bool> root_selected;
   std::vector<DWORD> data_types;
-  bool owner_restored = false;
 };
-
-HFONT CreateDialogFont(
-    HWND hwnd
-) {
-  return ui::DefaultUIFont(win32::DpiForWindow(hwnd));
-}
 
 std::wstring SearchHistoryPath() {
   std::wstring folder = util::GetCacheFolder();
@@ -146,48 +134,14 @@ std::wstring SearchHistoryPath() {
 
 std::vector<std::wstring> LoadSearchHistory() {
   std::vector<std::wstring> items;
-  std::wstring path = SearchHistoryPath();
-  if (path.empty()) {
-    return items;
-  }
-  HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (file == INVALID_HANDLE_VALUE) {
-    return items;
-  }
-  LARGE_INTEGER size = {};
-  if (!GetFileSizeEx(file, &size) || size.QuadPart <= 0 || size.QuadPart > static_cast<LONGLONG>(std::numeric_limits<int>::max())) {
-    CloseHandle(file);
-    return items;
-  }
-  std::string buffer(static_cast<size_t>(size.QuadPart), '\0');
-  DWORD read = 0;
-  bool ok = ReadFile(file, buffer.data(), static_cast<DWORD>(buffer.size()), &read, nullptr) != 0;
-  CloseHandle(file);
-  if (!ok || read == 0) {
-    return items;
-  }
-  buffer.resize(read);
-  if (buffer.size() >= 3 && static_cast<unsigned char>(buffer[0]) == 0xEF && static_cast<unsigned char>(buffer[1]) == 0xBB && static_cast<unsigned char>(buffer[2]) == 0xBF) {
-    buffer.erase(0, 3);
-  }
-  std::wstring content = util::Utf8ToWide(buffer);
-  if (content.empty()) {
-    return items;
-  }
-  size_t start = 0;
-  while (start < content.size()) {
-    size_t end = content.find(L'\n', start);
-    if (end == std::wstring::npos) {
-      end = content.size();
+  std::wstring content;
+  const std::wstring path = SearchHistoryPath();
+  if (!path.empty() && util::ReadTextFile(path, &content)) {
+    for (std::wstring& line : record_fields::Lines(content)) {
+      if (!line.empty()) {
+        items.push_back(std::move(line));
+      }
     }
-    std::wstring line = content.substr(start, end - start);
-    if (!line.empty() && line.back() == L'\r') {
-      line.pop_back();
-    }
-    if (!line.empty()) {
-      items.push_back(line);
-    }
-    start = end + 1;
   }
   return items;
 }
@@ -195,26 +149,14 @@ std::vector<std::wstring> LoadSearchHistory() {
 void SaveSearchHistory(
     const std::vector<std::wstring>& items
 ) {
-  std::wstring path = SearchHistoryPath();
-  if (path.empty()) {
-    return;
-  }
   std::wstring content;
   for (const auto& item : items) {
-    content += item;
-    content += L"\n";
+    content.append(item).append(L"\n");
   }
-  std::string utf8 = util::WideToUtf8(content);
-  if (utf8.empty()) {
-    return;
+  const std::wstring path = SearchHistoryPath();
+  if (!path.empty() && !content.empty()) {
+    util::WriteTextFile(path, content, false);
   }
-  HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (file == INVALID_HANDLE_VALUE) {
-    return;
-  }
-  DWORD written = 0;
-  WriteFile(file, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
-  CloseHandle(file);
 }
 
 void UpdateHistoryList(
@@ -224,7 +166,7 @@ void UpdateHistoryList(
   if (!items || entry.empty()) {
     return;
   }
-  items->erase(std::remove_if(items->begin(), items->end(), [&](const std::wstring& item) { return _wcsicmp(item.c_str(), entry.c_str()) == 0; }), items->end());
+  std::erase_if(*items, [&](const std::wstring& item) { return util::EqualsInsensitive(item, entry); });
   items->insert(items->begin(), entry);
   const size_t max_items = 20;
   if (items->size() > max_items) {
@@ -303,23 +245,6 @@ void ShowRootSelectionMenu(
       UpdateScopeComboText(state);
     }
   }
-}
-
-void FocusFindCombo(
-    SearchDialogState* state
-) {
-  if (!state || !state->find_combo) {
-    return;
-  }
-  COMBOBOXINFO info = {};
-  info.cbSize = sizeof(info);
-  if (GetComboBoxInfo(state->find_combo, &info) && info.hwndItem) {
-    SetFocus(info.hwndItem);
-    SendMessageW(info.hwndItem, EM_SETSEL, 0, -1);
-    return;
-  }
-  SetFocus(state->find_combo);
-  SendMessageW(state->find_combo, CB_SETEDITSEL, 0, MAKELPARAM(0, -1));
 }
 
 bool ParseUint64(
@@ -428,9 +353,16 @@ std::wstring JoinExcludePaths(
 }
 
 bool IsChecked(
-    HWND hwnd
+    HWND button
 ) {
-  return SendMessageW(hwnd, BM_GETCHECK, 0, 0) == BST_CHECKED;
+  return Button_GetCheck(button) == BST_CHECKED;
+}
+
+void SetChecked(
+    HWND button,
+    bool checked
+) {
+  Button_SetCheck(button, checked ? BST_CHECKED : BST_UNCHECKED);
 }
 
 void UpdateDialogEnableState(
@@ -615,23 +547,10 @@ LRESULT CALLBACK SearchDialogProc(
     WPARAM wparam,
     LPARAM lparam
 ) {
-  auto* state = reinterpret_cast<SearchDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+  auto* state = appearance::DialogWindowState<SearchDialogState>(hwnd);
   switch (msg) {
-  case WM_NCCREATE:
-    {
-      auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
-      SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-      return DefWindowProcW(hwnd, msg, wparam, lparam);
-    }
   case WM_CREATE:
     {
-      state = reinterpret_cast<SearchDialogState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-      if (!state) {
-        return -1;
-      }
-      state->hwnd = hwnd;
-      SetWindowTextW(hwnd, L"Find");
-      state->font = CreateDialogFont(hwnd);
       HFONT font = state->font;
 
       CreateWindowExW(0, L"STATIC", L"Find what:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindLabel), nullptr, nullptr);
@@ -693,16 +612,7 @@ LRESULT CALLBACK SearchDialogProc(
         appearance::AttachThemedBorder(bordered);
       }
 
-      appearance::SetControlFont(hwnd, font);
-      EnumChildWindows(
-          hwnd,
-          [](HWND child, LPARAM param) -> BOOL {
-            HFONT font_handle = reinterpret_cast<HFONT>(param);
-            appearance::SetControlFont(child, font_handle);
-            return TRUE;
-          },
-          reinterpret_cast<LPARAM>(font)
-      );
+      appearance::SetDialogFont(hwnd, font);
 
       state->history = LoadSearchHistory();
       PopulateHistoryCombo(state->find_combo, state->history);
@@ -724,7 +634,7 @@ LRESULT CALLBACK SearchDialogProc(
         state->root_selected.assign(state->root_names.size(), false);
         for (size_t i = 0; i < state->root_names.size(); ++i) {
           for (const auto& path : state->out->root_paths) {
-            if (_wcsicmp(state->root_names[i].c_str(), path.c_str()) == 0) {
+            if (util::EqualsInsensitive(state->root_names[i], path)) {
               state->root_selected[i] = true;
               break;
             }
@@ -739,19 +649,19 @@ LRESULT CALLBACK SearchDialogProc(
       }
       const SearchDialogResult* initial = state->out;
       if (initial) {
-        SendMessageW(state->options_keys, BM_SETCHECK, initial->criteria.search_keys ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->options_values, BM_SETCHECK, initial->criteria.search_values ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->options_data, BM_SETCHECK, initial->criteria.search_data ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->match_case, BM_SETCHECK, initial->criteria.match_case ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->match_whole, BM_SETCHECK, initial->criteria.match_whole ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->use_regex, BM_SETCHECK, initial->criteria.use_regex ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->skip_links, BM_SETCHECK, initial->criteria.skip_links ? BST_CHECKED : BST_UNCHECKED, 0);
+        SetChecked(state->options_keys, initial->criteria.search_keys);
+        SetChecked(state->options_values, initial->criteria.search_values);
+        SetChecked(state->options_data, initial->criteria.search_data);
+        SetChecked(state->match_case, initial->criteria.match_case);
+        SetChecked(state->match_whole, initial->criteria.match_whole);
+        SetChecked(state->use_regex, initial->criteria.use_regex);
+        SetChecked(state->skip_links, initial->criteria.skip_links);
         if (initial->criteria.use_min_size) {
-          SendMessageW(state->min_size, BM_SETCHECK, BST_CHECKED, 0);
+          SetChecked(state->min_size, true);
           SetWindowTextW(state->min_size_edit, std::to_wstring(initial->criteria.min_size).c_str());
         }
         if (initial->criteria.use_max_size) {
-          SendMessageW(state->max_size, BM_SETCHECK, BST_CHECKED, 0);
+          SetChecked(state->max_size, true);
           SetWindowTextW(state->max_size_edit, std::to_wstring(initial->criteria.max_size).c_str());
         }
         if (initial->criteria.use_modified_from) {
@@ -769,112 +679,52 @@ LRESULT CALLBACK SearchDialogProc(
         if (!state->sources.traces) {
           trace_values = false;
         }
-        SendMessageW(state->options_standard, BM_SETCHECK, standard_hives ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->options_registry, BM_SETCHECK, registry_root ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->options_trace, BM_SETCHECK, trace_values ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->options_offline, BM_SETCHECK, initial->search_offline_hives && state->sources.offline ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->options_reg_files, BM_SETCHECK, initial->search_reg_files && state->sources.reg_files ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->options_remote, BM_SETCHECK, initial->search_remote_registry && state->sources.remote ? BST_CHECKED : BST_UNCHECKED, 0);
+        SetChecked(state->options_standard, standard_hives);
+        SetChecked(state->options_registry, registry_root);
+        SetChecked(state->options_trace, trace_values);
+        SetChecked(state->options_offline, initial->search_offline_hives && state->sources.offline);
+        SetChecked(state->options_reg_files, initial->search_reg_files && state->sources.reg_files);
+        SetChecked(state->options_remote, initial->search_remote_registry && state->sources.remote);
         bool scope_top = initial->scope == SearchScope::kEntireRegistry;
-        SendMessageW(state->scope_top, BM_SETCHECK, scope_top ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->scope_key, BM_SETCHECK, scope_top ? BST_UNCHECKED : BST_CHECKED, 0);
+        SetChecked(state->scope_top, scope_top);
+        SetChecked(state->scope_key, !scope_top);
         if (!initial->start_key.empty()) {
           SetWindowTextW(state->scope_edit, initial->start_key.c_str());
         }
         bool new_tab = initial->result_mode == SearchResultMode::kNewTab;
-        SendMessageW(state->result_reuse, BM_SETCHECK, new_tab ? BST_UNCHECKED : BST_CHECKED, 0);
-        SendMessageW(state->result_new, BM_SETCHECK, new_tab ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->result_open_new_tab, BM_SETCHECK, initial->open_in_new_tab ? BST_CHECKED : BST_UNCHECKED, 0);
+        SetChecked(state->result_reuse, !new_tab);
+        SetChecked(state->result_new, new_tab);
+        SetChecked(state->result_open_new_tab, initial->open_in_new_tab);
         const bool limited = initial->criteria.max_results > 0;
-        SendMessageW(state->result_limit_enable, BM_SETCHECK, limited ? BST_CHECKED : BST_UNCHECKED, 0);
+        SetChecked(state->result_limit_enable, limited);
         SetWindowTextW(state->result_limit_edit, std::to_wstring(limited ? initial->criteria.max_results : 1000).c_str());
         SendMessageW(state->result_limit_edit, EM_SETSEL, 0, 0);
         EnableWindow(state->result_limit_edit, limited);
       } else {
-        SendMessageW(state->options_keys, BM_SETCHECK, BST_UNCHECKED, 0);
-        SendMessageW(state->options_values, BM_SETCHECK, BST_CHECKED, 0);
-        SendMessageW(state->options_data, BM_SETCHECK, BST_CHECKED, 0);
-        SendMessageW(state->options_standard, BM_SETCHECK, BST_CHECKED, 0);
-        SendMessageW(state->options_registry, BM_SETCHECK, BST_UNCHECKED, 0);
-        SendMessageW(state->options_trace, BM_SETCHECK, state->sources.traces ? BST_CHECKED : BST_UNCHECKED, 0);
-        SendMessageW(state->scope_top, BM_SETCHECK, BST_CHECKED, 0);
-        SendMessageW(state->result_reuse, BM_SETCHECK, BST_CHECKED, 0);
-        SendMessageW(state->result_limit_enable, BM_SETCHECK, BST_CHECKED, 0);
+        SetChecked(state->options_keys, false);
+        SetChecked(state->options_values, true);
+        SetChecked(state->options_data, true);
+        SetChecked(state->options_standard, true);
+        SetChecked(state->options_registry, false);
+        SetChecked(state->options_trace, state->sources.traces);
+        SetChecked(state->scope_top, true);
+        SetChecked(state->result_reuse, true);
+        SetChecked(state->result_limit_enable, true);
       }
-      SendMessageW(state->scope_recursive, BM_SETCHECK, state->recursive ? BST_CHECKED : BST_UNCHECKED, 0);
+      SetChecked(state->scope_recursive, state->recursive);
 
       UpdateDialogEnableState(state);
-
-      Theme::Current().ApplyToChildren(hwnd);
+      COMBOBOXINFO combo = {sizeof(combo)};
+      state->focus = GetComboBoxInfo(state->find_combo, &combo) && combo.hwndItem ? combo.hwndItem : state->find_combo;
+      SendMessageW(state->focus, EM_SETSEL, 0, -1);
       LayoutDialog(hwnd, state, font);
       return 0;
     }
-  case WM_DESTROY:
-    if (state && state->font) {
-      DeleteObject(state->font);
-      state->font = nullptr;
-    }
-    return 0;
-  case WM_DPICHANGED:
-    if (state) {
-      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
-    }
-    appearance::ApplyDpiChange(hwnd, lparam);
-    return 0;
   case WM_SIZE:
-    {
-      HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
-      LayoutDialog(hwnd, state, font);
-      return 0;
-    }
-  case WM_ERASEBKGND:
-    {
-      HDC hdc = reinterpret_cast<HDC>(wparam);
-      RECT rect = {};
-      GetClientRect(hwnd, &rect);
-      FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
-      return 1;
-    }
-  case WM_SETTINGCHANGE:
-    {
-      if (Theme::UpdateFromSystem()) {
-        Theme::Current().ApplyToWindow(hwnd);
-        Theme::Current().ApplyToChildren(hwnd);
-        InvalidateRect(hwnd, nullptr, TRUE);
-      }
-      return 0;
-    }
-  case WM_CTLCOLORSTATIC:
-    {
-      HDC hdc = reinterpret_cast<HDC>(wparam);
-      HWND target = reinterpret_cast<HWND>(lparam);
-      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_STATIC));
-    }
-  case WM_CTLCOLORBTN:
-    {
-      HDC hdc = reinterpret_cast<HDC>(wparam);
-      HWND target = reinterpret_cast<HWND>(lparam);
-      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_BTN));
-    }
-  case WM_CTLCOLORLISTBOX:
-    {
-      HDC hdc = reinterpret_cast<HDC>(wparam);
-      HWND target = reinterpret_cast<HWND>(lparam);
-      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_LISTBOX));
-    }
-  case WM_CTLCOLOREDIT:
-    {
-      HDC hdc = reinterpret_cast<HDC>(wparam);
-      HWND target = reinterpret_cast<HWND>(lparam);
-      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, CTLCOLOR_EDIT));
-    }
-  case DM_GETDEFID:
-    return MAKELRESULT(IDOK, DC_HASDEFID);
+    LayoutDialog(hwnd, state, state->font);
+    return 0;
   case WM_COMMAND:
     {
-      if (!state) {
-        return 0;
-      }
       if (HIWORD(wparam) == CBN_DROPDOWN && LOWORD(wparam) == kScopeCombo) {
         ShowRootSelectionMenu(hwnd, state);
         SendMessageW(state->scope_combo, CB_SHOWDROPDOWN, FALSE, 0);
@@ -909,8 +759,8 @@ LRESULT CALLBACK SearchDialogProc(
             if (!selected.empty()) {
               SetWindowTextW(state->scope_edit, selected.c_str());
             }
-            SendMessageW(state->scope_key, BM_SETCHECK, BST_CHECKED, 0);
-            SendMessageW(state->scope_top, BM_SETCHECK, BST_UNCHECKED, 0);
+            SetChecked(state->scope_key, true);
+            SetChecked(state->scope_top, false);
             UpdateDialogEnableState(state);
           }
           return 0;
@@ -920,30 +770,15 @@ LRESULT CALLBACK SearchDialogProc(
         return 0;
       case kExcludeButton:
         {
-          std::vector<std::wstring> items =
-              SplitExcludePaths(util::WindowText(state->exclude_edit));
-          std::wstring multiline;
-          for (const auto& item : items) {
-            if (item.empty()) {
-              continue;
-            }
-            if (!multiline.empty()) {
-              multiline.append(L"\r\n");
-            }
-            multiline.append(item);
-          }
           editors::TextRequest request;
           request.title = L"Exclude Keys";
           request.label = L"Each line should include one key.";
-          request.text = multiline;
+          request.text = util::JoinLines(SplitExcludePaths(util::WindowText(state->exclude_edit)));
           request.multiline = true;
           request.browse = ShowBrowseKeyDialog;
           editors::TextResult result;
           if (editors::EditText(hwnd, request, &result)) {
-            multiline = std::move(result.text);
-            std::vector<std::wstring> updated = SplitExcludePaths(multiline);
-            std::wstring joined = JoinExcludePaths(updated);
-            SetWindowTextW(state->exclude_edit, joined.c_str());
+            SetWindowTextW(state->exclude_edit, JoinExcludePaths(SplitExcludePaths(result.text)).c_str());
           }
           return 0;
         }
@@ -956,19 +791,19 @@ LRESULT CALLBACK SearchDialogProc(
             ui::ShowWarning(hwnd, L"Enter a search term.");
             return 0;
           }
-          bool keys = SendMessageW(state->options_keys, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          bool values = SendMessageW(state->options_values, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          bool data = SendMessageW(state->options_data, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          bool keys = IsChecked(state->options_keys);
+          bool values = IsChecked(state->options_values);
+          bool data = IsChecked(state->options_data);
           if (!keys && !values && !data) {
             ui::ShowWarning(hwnd, L"Select at least one search option.");
             return 0;
           }
-          bool standard_hives = state->options_standard && SendMessageW(state->options_standard, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          bool registry_root = state->options_registry && SendMessageW(state->options_registry, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          bool trace_values = state->options_trace && SendMessageW(state->options_trace, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          bool offline_hives = state->sources.offline && SendMessageW(state->options_offline, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          bool reg_files = state->sources.reg_files && SendMessageW(state->options_reg_files, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          bool remote_registry = state->sources.remote && SendMessageW(state->options_remote, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          bool standard_hives = IsChecked(state->options_standard);
+          bool registry_root = IsChecked(state->options_registry);
+          bool trace_values = IsChecked(state->options_trace);
+          bool offline_hives = state->sources.offline && IsChecked(state->options_offline);
+          bool reg_files = state->sources.reg_files && IsChecked(state->options_reg_files);
+          bool remote_registry = state->sources.remote && IsChecked(state->options_remote);
           if (!state->sources.registry_root) {
             registry_root = false;
           }
@@ -985,13 +820,13 @@ LRESULT CALLBACK SearchDialogProc(
           result.criteria.search_keys = keys;
           result.criteria.search_values = values;
           result.criteria.search_data = data;
-          result.criteria.match_case = SendMessageW(state->match_case, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          result.criteria.match_whole = SendMessageW(state->match_whole, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          result.criteria.use_regex = SendMessageW(state->use_regex, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          result.criteria.skip_links = SendMessageW(state->skip_links, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          result.criteria.match_case = IsChecked(state->match_case);
+          result.criteria.match_whole = IsChecked(state->match_whole);
+          result.criteria.use_regex = IsChecked(state->use_regex);
+          result.criteria.skip_links = IsChecked(state->skip_links);
           if (data) {
             result.criteria.allowed_types = state->data_types;
-            if (state->min_size && SendMessageW(state->min_size, BM_GETCHECK, 0, 0) == BST_CHECKED) {
+            if (IsChecked(state->min_size)) {
               wchar_t buffer[64] = {};
               GetWindowTextW(state->min_size_edit, buffer, static_cast<int>(_countof(buffer)));
               uint64_t value = 0;
@@ -1002,7 +837,7 @@ LRESULT CALLBACK SearchDialogProc(
               result.criteria.use_min_size = true;
               result.criteria.min_size = value;
             }
-            if (state->max_size && SendMessageW(state->max_size, BM_GETCHECK, 0, 0) == BST_CHECKED) {
+            if (IsChecked(state->max_size)) {
               wchar_t buffer[64] = {};
               GetWindowTextW(state->max_size_edit, buffer, static_cast<int>(_countof(buffer)));
               uint64_t value = 0;
@@ -1041,13 +876,13 @@ LRESULT CALLBACK SearchDialogProc(
           result.search_reg_files = reg_files;
           result.search_remote_registry = remote_registry;
 
-          bool scope_top = SendMessageW(state->scope_top, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          bool scope_top = IsChecked(state->scope_top);
           result.scope = scope_top ? SearchScope::kEntireRegistry : SearchScope::kCurrentKey;
-          state->recursive = SendMessageW(state->scope_recursive, BM_GETCHECK, 0, 0) == BST_CHECKED;
+          state->recursive = IsChecked(state->scope_recursive);
           result.criteria.recursive = scope_top ? true : state->recursive;
-          result.result_mode = SendMessageW(state->result_new, BM_GETCHECK, 0, 0) == BST_CHECKED ? SearchResultMode::kNewTab : SearchResultMode::kReuseTab;
-          result.open_in_new_tab = SendMessageW(state->result_open_new_tab, BM_GETCHECK, 0, 0) == BST_CHECKED;
-          if (SendMessageW(state->result_limit_enable, BM_GETCHECK, 0, 0) == BST_CHECKED) {
+          result.result_mode = IsChecked(state->result_new) ? SearchResultMode::kNewTab : SearchResultMode::kReuseTab;
+          result.open_in_new_tab = IsChecked(state->result_open_new_tab);
+          if (IsChecked(state->result_limit_enable)) {
             wchar_t limit_text[32] = {};
             GetWindowTextW(state->result_limit_edit, limit_text, static_cast<int>(_countof(limit_text)));
             uint64_t limit = 0;
@@ -1060,7 +895,7 @@ LRESULT CALLBACK SearchDialogProc(
             result.criteria.max_results = 0;
           }
 
-          if (SendMessageW(state->exclude_enable, BM_GETCHECK, 0, 0) == BST_CHECKED) {
+          if (IsChecked(state->exclude_enable)) {
             result.criteria.exclude_paths =
                 SplitExcludePaths(util::WindowText(state->exclude_edit));
           }
@@ -1086,49 +921,19 @@ LRESULT CALLBACK SearchDialogProc(
           UpdateHistoryList(&state->history, query_text);
           SaveSearchHistory(state->history);
 
-          if (state->out) {
-            *state->out = result;
-          }
-          state->accepted = true;
-          appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-          DestroyWindow(hwnd);
+          *state->out = std::move(result);
+          appearance::CloseDialogWindow(state, true);
           return 0;
         }
-      case kCancelButton:
-        appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-        DestroyWindow(hwnd);
-        return 0;
       default:
         break;
       }
       break;
     }
-  case WM_CLOSE:
-    if (state) {
-      appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-    }
-    DestroyWindow(hwnd);
-    return 0;
   default:
     break;
   }
-  return DefWindowProcW(hwnd, msg, wparam, lparam);
-}
-
-HWND CreateSearchDialogWindow(
-    HINSTANCE instance,
-    HWND owner,
-    SearchDialogState* state
-) {
-  WNDCLASSW wc = {};
-  wc.lpfnWndProc = SearchDialogProc;
-  wc.hInstance = instance;
-  wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-  wc.hbrBackground = nullptr;
-  wc.lpszClassName = kDialogClass;
-  RegisterClassW(&wc);
-
-  return CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kDialogClass, L"Find", WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, appearance::metrics::Scaled(600, win32::DpiForWindow(owner)), appearance::metrics::Scaled(700, win32::DpiForWindow(owner)), owner, nullptr, instance, state);
+  return appearance::DefDialogWindowProc(hwnd, msg, wparam, lparam);
 }
 
 } // namespace
@@ -1145,35 +950,12 @@ bool ShowSearchDialog(
     SearchDialogResult* result,
     const SearchSources& available
 ) {
-  if (!result) {
-    return false;
-  }
-  HINSTANCE instance = GetModuleHandleW(nullptr);
   SearchDialogState state;
   state.out = result;
   state.owner = owner;
   state.sources = available;
-  HWND hwnd = CreateSearchDialogWindow(instance, owner, &state);
-  if (!hwnd) {
-    return false;
-  }
-  SetWindowTextW(hwnd, L"Find");
-
-  Theme::Current().ApplyToWindow(hwnd);
-  RECT rect = {};
-  if (GetWindowRect(hwnd, &rect)) {
-    appearance::PositionDialog(hwnd, owner, rect.right - rect.left, rect.bottom - rect.top);
-  }
-
-  EnableWindow(owner, FALSE);
-  ShowWindow(hwnd, SW_SHOW);
-  UpdateWindow(hwnd);
-  FocusFindCombo(&state);
-
-  appearance::RunModalLoop(hwnd);
-
-  appearance::RestoreDialogOwner(owner, &state.owner_restored);
-  return state.accepted;
+  const UINT dpi = win32::DpiForWindow(owner);
+  return result && appearance::RunDialogWindow(&state, kDialogClass, SearchDialogProc, L"Find", {appearance::metrics::Scaled(600, dpi), appearance::metrics::Scaled(700, dpi)});
 }
 
 } // namespace regkit

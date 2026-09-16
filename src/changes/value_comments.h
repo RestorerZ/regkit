@@ -31,8 +31,6 @@ class ValueComments {
 public:
   bool Load(const std::wstring& path);
   bool Save(const std::wstring& path) const;
-  bool Import(const std::wstring& path);
-  bool Export(const std::wstring& path) const;
   void Clear();
   void Merge(const CommentDocument& document);
 

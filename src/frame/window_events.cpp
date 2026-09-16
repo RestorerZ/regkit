@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 using namespace window_detail;
@@ -194,19 +195,19 @@ bool MainWindow::Impl::TranslateAccelerator(
       }
       wchar_t cls[64] = {};
       GetClassNameW(hwnd, cls, static_cast<int>(_countof(cls)));
-      if (_wcsicmp(cls, L"Edit") == 0) {
+      if (util::EqualsInsensitive(cls, L"Edit")) {
         return true;
       }
-      if (_wcsicmp(cls, L"RichEdit20W") == 0 || _wcsicmp(cls, L"RichEdit20A") == 0) {
+      if (util::EqualsInsensitive(cls, L"RichEdit20W") || util::EqualsInsensitive(cls, L"RichEdit20A")) {
         return true;
       }
-      if (_wcsicmp(cls, L"ComboBox") == 0 || _wcsicmp(cls, L"ComboBoxEx32") == 0) {
+      if (util::EqualsInsensitive(cls, L"ComboBox") || util::EqualsInsensitive(cls, L"ComboBoxEx32")) {
         return true;
       }
       HWND parent = GetParent(hwnd);
       if (parent) {
         GetClassNameW(parent, cls, static_cast<int>(_countof(cls)));
-        if (_wcsicmp(cls, L"ComboBox") == 0 || _wcsicmp(cls, L"ComboBoxEx32") == 0) {
+        if (util::EqualsInsensitive(cls, L"ComboBox") || util::EqualsInsensitive(cls, L"ComboBoxEx32")) {
           return true;
         }
       }

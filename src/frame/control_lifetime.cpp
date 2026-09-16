@@ -24,7 +24,7 @@ bool KeyNameExists(
     const std::wstring& name
 ) {
   KeyInfo info = {};
-  return RegistryStore::QueryKeyInfo(MakeChildNode(parent, name), &info);
+  return RegistryStore::QueryKeyInfo(ChildNode(parent, name), &info);
 }
 
 void ReportNameTaken(
@@ -488,8 +488,6 @@ LRESULT MainWindow::Impl::HandleTreeNotification(
       if (edit) {
         Theme::Current().ApplyToWindow(edit);
         Theme::Current().ApplyToChildren(edit);
-        const wchar_t* theme_name = Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer";
-        SetWindowTheme(edit, theme_name, nullptr);
       }
       return FALSE;
     }
@@ -711,8 +709,6 @@ LRESULT MainWindow::Impl::HandleValueNotification(
     if (edit) {
       Theme::Current().ApplyToWindow(edit);
       Theme::Current().ApplyToChildren(edit);
-      const wchar_t* theme_name = Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer";
-      SetWindowTheme(edit, theme_name, nullptr);
     }
     return FALSE;
   }
@@ -737,7 +733,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(
       return FALSE;
     }
     if (row->kind == rowkind::kKey) {
-      RegistryNode child = MakeChildNode(*browse_.current_node(), old_name);
+      RegistryNode child = ChildNode(*browse_.current_node(), old_name);
       if (KeyNameExists(*browse_.current_node(), new_name)) {
         ReportNameTaken(hwnd_, L"A key with this name already exists:", L"Rename key", new_name);
         return FALSE;
@@ -1393,8 +1389,7 @@ bool MainWindow::Impl::OnCreate() {
     info.lpszText = LPSTR_TEXTCALLBACKW;
     SendMessageW(value_tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&info));
     SendMessageW(value_tooltip_, TTM_SETMAXTIPWIDTH, 0, kValueTooltipMaxWidth);
-    AllowDarkModeForWindow(value_tooltip_, Theme::UseDarkMode());
-    SetWindowTheme(value_tooltip_, Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer", nullptr);
+    SetDarkWindowTheme(value_tooltip_, Theme::UseDarkMode());
   }
 
   tab_ = CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_TABS | TCS_FOCUSNEVER, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTabId)), instance_, nullptr);

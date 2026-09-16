@@ -4,6 +4,7 @@
 #include "browse/browse_pane.h"
 
 #include "registry/registry_path.h"
+#include "win32/text_transform.h"
 
 #include <algorithm>
 
@@ -12,28 +13,6 @@ namespace regkit::browse {
 namespace {
 
 constexpr DWORD kTypeSelectTimeoutMs = 1000;
-
-bool EqualsInsensitive(
-    const std::wstring& left,
-    const std::wstring& right
-) {
-  return _wcsicmp(left.c_str(), right.c_str()) == 0;
-}
-
-bool StartsWithInsensitive(
-    const std::wstring& text,
-    const std::wstring& prefix
-) {
-  return prefix.size() <= text.size() &&
-         _wcsnicmp(text.c_str(), prefix.c_str(), prefix.size()) == 0;
-}
-
-int CompareInsensitive(
-    const std::wstring& left,
-    const std::wstring& right
-) {
-  return _wcsicmp(left.c_str(), right.c_str());
-}
 
 } // namespace
 
@@ -203,13 +182,8 @@ std::optional<std::wstring> Pane::Up() {
   if (!current_node_ || current_node_->subkey.empty()) {
     return std::nullopt;
   }
-  std::wstring path = registry_path::Build(*current_node_);
-  const size_t separator = path.rfind(L'\\');
-  if (separator == std::wstring::npos) {
-    return std::nullopt;
-  }
   programmatic_navigation_ = true;
-  return path.substr(0, separator);
+  return registry_path::Parent(registry_path::Build(*current_node_));
 }
 
 void Pane::UndoNavigation(
@@ -293,7 +267,7 @@ void Pane::TypeSelectValues(
   int match = -1;
   for (size_t index = 0; index < values_.RowCount(); ++index) {
     const ListRow* row = values_.RowAt(static_cast<int>(index));
-    if (row && StartsWithInsensitive(row->name, value_type_buffer_)) {
+    if (row && util::StartsWithInsensitive(row->name, value_type_buffer_)) {
       match = static_cast<int>(index);
       break;
     }
@@ -302,8 +276,8 @@ void Pane::TypeSelectValues(
     std::wstring nearest;
     for (size_t index = 0; index < values_.RowCount(); ++index) {
       const ListRow* row = values_.RowAt(static_cast<int>(index));
-      if (row && CompareInsensitive(row->name, value_type_buffer_) >= 0 &&
-          (match < 0 || CompareInsensitive(row->name, nearest) < 0)) {
+      if (row && util::CompareInsensitive(row->name, value_type_buffer_) >= 0 &&
+          (match < 0 || util::CompareInsensitive(row->name, nearest) < 0)) {
         match = static_cast<int>(index);
         nearest = row->name;
       }
@@ -384,8 +358,8 @@ void Pane::TypeSelectTree(
         const HTREEITEM item = items[(start + offset) % items.size()];
         const std::wstring item_text = text(item);
         const bool matched = exact
-                                 ? EqualsInsensitive(item_text, tree_type_buffer_)
-                                 : StartsWithInsensitive(item_text, tree_type_buffer_);
+                                 ? util::EqualsInsensitive(item_text, tree_type_buffer_)
+                                 : util::StartsWithInsensitive(item_text, tree_type_buffer_);
         if (matched) {
           return item;
         }

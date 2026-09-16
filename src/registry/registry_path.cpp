@@ -5,74 +5,72 @@
 
 #include "registry/registry_store.h"
 #include "win32/process_rights.h"
+#include "win32/text_transform.h"
 
 #include <algorithm>
+#include <array>
 #include <cwctype>
 
 namespace regkit::registry_path {
 namespace {
 
-std::wstring Trim(
-    std::wstring_view text
+struct RootNames {
+  HKEY root;
+  const wchar_t* name;
+  const wchar_t* abbreviation;
+};
+
+constexpr size_t kBrowsableRoots = 5;
+
+const std::array<RootNames, 8>& Roots() {
+  static const std::array<RootNames, 8> roots = {{
+      {HKEY_CLASSES_ROOT, L"HKEY_CLASSES_ROOT", L"HKCR"},
+      {HKEY_CURRENT_USER, L"HKEY_CURRENT_USER", L"HKCU"},
+      {HKEY_LOCAL_MACHINE, L"HKEY_LOCAL_MACHINE", L"HKLM"},
+      {HKEY_USERS, L"HKEY_USERS", L"HKU"},
+      {HKEY_CURRENT_CONFIG, L"HKEY_CURRENT_CONFIG", L"HKCC"},
+      {HKEY_PERFORMANCE_DATA, L"HKEY_PERFORMANCE_DATA", L"HKPD"},
+      {HKEY_PERFORMANCE_TEXT, L"HKEY_PERFORMANCE_TEXT", L""},
+      {HKEY_PERFORMANCE_NLSTEXT, L"HKEY_PERFORMANCE_NLSTEXT", L""},
+  }};
+  return roots;
+}
+
+const RootNames* FindRoot(
+    std::wstring_view name,
+    size_t count
 ) {
-  size_t first = 0;
-  while (first < text.size() && iswspace(text[first])) {
-    ++first;
+  for (size_t index = 0; index < count && !name.empty(); ++index) {
+    const RootNames& entry = Roots()[index];
+    if (util::EqualsInsensitive(name, entry.name) || util::EqualsInsensitive(name, entry.abbreviation)) {
+      return &entry;
+    }
   }
-  size_t last = text.size();
-  while (last > first && iswspace(text[last - 1])) {
-    --last;
-  }
-  return std::wstring(text.substr(first, last - first));
+  return nullptr;
 }
 
 std::wstring CanonicalRoot(
     std::wstring_view root
 ) {
-  if (Equals(root, L"HKCR") || Equals(root, L"HKEY_CLASSES_ROOT")) {
-    return L"HKEY_CLASSES_ROOT";
-  }
-  if (Equals(root, L"HKCU") || Equals(root, L"HKEY_CURRENT_USER")) {
-    return L"HKEY_CURRENT_USER";
-  }
-  if (Equals(root, L"HKLM") || Equals(root, L"HKEY_LOCAL_MACHINE") ||
-      Equals(root, L"MACHINE")) {
+  if (util::EqualsInsensitive(root, L"MACHINE")) {
     return L"HKEY_LOCAL_MACHINE";
   }
-  if (Equals(root, L"HKU") || Equals(root, L"HKEY_USERS") ||
-      Equals(root, L"USER") || Equals(root, L"USERS")) {
+  if (util::EqualsInsensitive(root, L"USER") || util::EqualsInsensitive(root, L"USERS")) {
     return L"HKEY_USERS";
   }
-  if (Equals(root, L"HKCC") || Equals(root, L"HKEY_CURRENT_CONFIG")) {
-    return L"HKEY_CURRENT_CONFIG";
-  }
-  if (Equals(root, L"REGISTRY")) {
+  if (util::EqualsInsensitive(root, L"REGISTRY")) {
     return L"REGISTRY";
   }
-  return {};
+  const RootNames* entry = FindRoot(root, kBrowsableRoots);
+  return entry ? entry->name : L"";
 }
 
 std::wstring AbbreviatedRoot(
     std::wstring_view root
 ) {
-  if (Equals(root, L"HKEY_CLASSES_ROOT")) {
-    return L"HKCR";
-  }
-  if (Equals(root, L"HKEY_CURRENT_USER")) {
-    return L"HKCU";
-  }
-  if (Equals(root, L"HKEY_LOCAL_MACHINE")) {
-    return L"HKLM";
-  }
-  if (Equals(root, L"HKEY_USERS")) {
-    return L"HKU";
-  }
-  if (Equals(root, L"HKEY_CURRENT_CONFIG")) {
-    return L"HKCC";
-  }
-  return std::wstring(root);
+  const RootNames* entry = FindRoot(root, kBrowsableRoots);
+  return entry ? entry->abbreviation : std::wstring(root);
 }
-
 std::wstring Join(
     std::wstring_view root,
     std::wstring_view rest
@@ -90,7 +88,7 @@ bool HasComponentPrefix(
     std::wstring_view path,
     std::wstring_view prefix
 ) {
-  return StartsWith(path, prefix) &&
+  return util::StartsWithInsensitive(path, prefix) &&
          (path.size() == prefix.size() || path[prefix.size()] == L'\\');
 }
 
@@ -119,22 +117,6 @@ std::wstring JoinRange(
 
 } // namespace
 
-bool Equals(
-    std::wstring_view left,
-    std::wstring_view right
-) {
-  return left.size() == right.size() &&
-         _wcsnicmp(left.data(), right.data(), left.size()) == 0;
-}
-
-bool StartsWith(
-    std::wstring_view text,
-    std::wstring_view prefix
-) {
-  return text.size() >= prefix.size() &&
-         _wcsnicmp(text.data(), prefix.data(), prefix.size()) == 0;
-}
-
 std::wstring DisplayName(
     std::wstring_view name
 ) {
@@ -151,6 +133,13 @@ std::wstring RawName(
   return name;
 }
 
+HKEY RootFromName(
+    std::wstring_view name
+) {
+  const RootNames* entry = FindRoot(name, Roots().size());
+  return entry ? entry->root : nullptr;
+}
+
 std::wstring RootName(
     HKEY root
 ) {
@@ -158,33 +147,13 @@ std::wstring RootName(
   if (RegistryStore::GetVirtualRootName(root, &virtual_name)) {
     return virtual_name;
   }
-  if (root == HKEY_CLASSES_ROOT) {
-    return L"HKEY_CLASSES_ROOT";
-  }
-  if (root == HKEY_CURRENT_USER) {
-    return L"HKEY_CURRENT_USER";
-  }
-  if (root == HKEY_LOCAL_MACHINE) {
-    return L"HKEY_LOCAL_MACHINE";
-  }
-  if (root == HKEY_USERS) {
-    return L"HKEY_USERS";
-  }
-  if (root == HKEY_CURRENT_CONFIG) {
-    return L"HKEY_CURRENT_CONFIG";
-  }
-  if (root == HKEY_PERFORMANCE_DATA) {
-    return L"HKEY_PERFORMANCE_DATA";
-  }
-  if (root == HKEY_PERFORMANCE_TEXT) {
-    return L"HKEY_PERFORMANCE_TEXT";
-  }
-  if (root == HKEY_PERFORMANCE_NLSTEXT) {
-    return L"HKEY_PERFORMANCE_NLSTEXT";
+  for (const RootNames& entry : Roots()) {
+    if (entry.root == root) {
+      return entry.name;
+    }
   }
   return {};
 }
-
 std::wstring Build(
     const RegistryNode& node
 ) {
@@ -199,7 +168,7 @@ std::wstring BuildNative(
   if (RegistryStore::IsVirtualRoot(node.root)) {
     return {};
   }
-  if (Equals(node.root_name, L"REGISTRY")) {
+  if (util::EqualsInsensitive(node.root_name, L"REGISTRY")) {
     return Join(L"\\REGISTRY", node.subkey);
   }
 
@@ -260,6 +229,25 @@ std::wstring JoinPrefix(
   return JoinRange(parts, 0, std::min(part_count, parts.size()));
 }
 
+std::wstring JoinSubkey(
+    std::wstring_view parent,
+    std::wstring_view name
+) {
+  return parent.empty() ? std::wstring(name) : Join(parent, name);
+}
+
+RegistryNode ChildNode(
+    const RegistryNode& parent,
+    std::wstring_view name
+) {
+  RegistryNode child;
+  child.root = parent.root;
+  child.root_name = parent.root_name;
+  child.subkey = JoinSubkey(parent.subkey, name);
+  child.simulated = parent.simulated;
+  return child;
+}
+
 std::wstring Parent(
     std::wstring_view path
 ) {
@@ -284,15 +272,15 @@ std::wstring Leaf(
 std::wstring Clean(
     std::wstring_view input
 ) {
-  std::wstring path = Trim(input);
+  std::wstring path = util::TrimWhitespace(input);
   if (path.size() >= 2 &&
       ((path.front() == L'[' && path.back() == L']') ||
        (path.front() == L'"' && path.back() == L'"') ||
        (path.front() == L'\'' && path.back() == L'\''))) {
-    path = Trim(std::wstring_view(path).substr(1, path.size() - 2));
+    path = util::TrimWhitespace(std::wstring_view(path).substr(1, path.size() - 2));
   }
   if (!path.empty() && path.front() == L'-') {
-    path = Trim(std::wstring_view(path).substr(1));
+    path = util::TrimWhitespace(std::wstring_view(path).substr(1));
   }
   for (wchar_t& character : path) {
     if (character == L'/') {
@@ -310,18 +298,18 @@ std::wstring Clean(
   }
   path = std::move(collapsed);
 
-  if (StartsWith(path, L"reg:")) {
-    path = Trim(std::wstring_view(path).substr(4));
+  if (util::StartsWithInsensitive(path, L"reg:")) {
+    path = util::TrimWhitespace(std::wstring_view(path).substr(4));
   }
-  if (StartsWith(path, L"Registry::")) {
+  if (util::StartsWithInsensitive(path, L"Registry::")) {
     path.erase(0, 10);
   }
   while (!path.empty() && path.front() == L'\\') {
     path.erase(path.begin());
   }
-  if (StartsWith(path, L"My Computer\\")) {
+  if (util::StartsWithInsensitive(path, L"My Computer\\")) {
     path.erase(0, 12);
-  } else if (StartsWith(path, L"Computer\\")) {
+  } else if (util::StartsWithInsensitive(path, L"Computer\\")) {
     path.erase(0, 9);
   }
   return path;
@@ -333,7 +321,7 @@ std::wstring Normalize(
 ) {
   std::wstring path = Clean(input);
 
-  if (StartsWith(path, L"REGISTRY\\")) {
+  if (util::StartsWithInsensitive(path, L"REGISTRY\\")) {
     std::wstring native = path.substr(9);
     auto native_rest = [&](std::wstring_view prefix) {
       std::wstring_view rest(native);
@@ -383,7 +371,7 @@ std::wstring Normalize(
             ? std::wstring_view(native)
             : std::wstring_view(native).substr(0, native_split);
     const std::wstring canonical = CanonicalRoot(native_root);
-    if (!canonical.empty() && !Equals(canonical, L"REGISTRY")) {
+    if (!canonical.empty() && !util::EqualsInsensitive(canonical, L"REGISTRY")) {
       const std::wstring_view rest =
           native_split == std::wstring::npos
               ? std::wstring_view{}
@@ -465,22 +453,9 @@ bool ParseRoot(
       split == std::wstring::npos ? L"" : normalized.substr(split + 1);
   node->subkey = RawName(rest);
   node->root_name = root;
-  if (Equals(root, L"HKEY_CLASSES_ROOT")) {
-    node->root = HKEY_CLASSES_ROOT;
-  } else if (Equals(root, L"HKEY_CURRENT_USER")) {
-    node->root = HKEY_CURRENT_USER;
-  } else if (Equals(root, L"HKEY_LOCAL_MACHINE")) {
-    node->root = HKEY_LOCAL_MACHINE;
-  } else if (Equals(root, L"HKEY_USERS")) {
-    node->root = HKEY_USERS;
-  } else if (Equals(root, L"HKEY_CURRENT_CONFIG")) {
-    node->root = HKEY_CURRENT_CONFIG;
-  } else if (Equals(root, L"REGISTRY")) {
-    node->root = nullptr;
-  } else {
-    return false;
-  }
-  return true;
+  const RootNames* entry = FindRoot(root, kBrowsableRoots);
+  node->root = entry ? entry->root : nullptr;
+  return entry || util::EqualsInsensitive(root, L"REGISTRY");
 }
 
 } // namespace regkit::registry_path

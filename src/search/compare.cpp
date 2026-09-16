@@ -25,39 +25,20 @@ bool Cancelled(
   return cancel && cancel->load();
 }
 
-bool EqualsInsensitive(
-    const std::wstring& left,
-    const std::wstring& right
-) {
-  return _wcsicmp(left.c_str(), right.c_str()) == 0;
-}
-
 bool IsWithin(
     const std::wstring& path,
     const std::wstring& base,
     bool recursive
 ) {
-  if (EqualsInsensitive(path, base)) {
-    return true;
-  }
-  if (!recursive || path.size() <= base.size() ||
-      _wcsnicmp(path.c_str(), base.c_str(), base.size()) != 0) {
-    return false;
-  }
-  return path[base.size()] == L'\\';
+  return util::EqualsInsensitive(path, base) ||
+         (recursive && path.size() > base.size() && path[base.size()] == L'\\' && util::StartsWithInsensitive(path, base));
 }
 
 std::wstring Combine(
     const std::wstring& base,
     const std::wstring& relative
 ) {
-  if (relative.empty()) {
-    return base;
-  }
-  if (base.empty()) {
-    return registry_path::DisplayName(relative);
-  }
-  return base + L"\\" + registry_path::DisplayName(relative);
+  return registry_path::JoinSubkey(base, registry_path::DisplayName(relative));
 }
 
 std::wstring DataText(
@@ -175,12 +156,7 @@ bool CaptureRegistry(
     snapshot->keys[util::ToLower(relative)] = std::move(key);
 
     for (const auto& name : children) {
-      RegistryNode child = node;
-      child.subkey =
-          node.subkey.empty() ? name : node.subkey + L"\\" + name;
-      const std::wstring child_relative =
-          relative.empty() ? name : relative + L"\\" + name;
-      stack.emplace_back(std::move(child), child_relative);
+      stack.emplace_back(registry_path::ChildNode(node, name), registry_path::JoinSubkey(relative, name));
     }
   }
   return true;
@@ -291,7 +267,7 @@ void SortRows(
   };
   std::stable_sort(rows->begin(), rows->end(), [&](const Row& left, const Row& right) {
                      const int result =
-                         _wcsicmp(field(left).c_str(), field(right).c_str());
+                         util::CompareListText(field(left), field(right));
                      return result != 0 && (ascending ? result < 0 : result > 0); });
 }
 
@@ -317,7 +293,7 @@ std::vector<Row> BuildRows(
     }
     return second.keys.find(lower)->second.relative_path;
   };
-  std::sort(keys.begin(), keys.end(), [&](const std::wstring& left, const std::wstring& right) { return _wcsicmp(key_display(left).c_str(), key_display(right).c_str()) < 0; });
+  std::sort(keys.begin(), keys.end(), [&](const std::wstring& left, const std::wstring& right) { return util::CompareInsensitive(key_display(left), key_display(right)) < 0; });
 
   std::vector<Row> results;
   for (const auto& key_name : keys) {
@@ -367,7 +343,7 @@ std::vector<Row> BuildRows(
     seen_values.reserve(values.capacity());
     AppendKeys(first_key->values, &seen_values, &values);
     AppendKeys(second_key->values, &seen_values, &values);
-    std::sort(values.begin(), values.end(), [](const std::wstring& left, const std::wstring& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
+    std::sort(values.begin(), values.end(), [](const std::wstring& left, const std::wstring& right) { return util::CompareInsensitive(left, right) < 0; });
 
     for (const auto& value_name : values) {
       if (Cancelled(cancel)) {

@@ -32,6 +32,7 @@ inline constexpr wchar_t kNullSymbol = 0x2400;
 
 std::wstring DisplayName(std::wstring_view name);
 std::wstring RawName(std::wstring_view text);
+HKEY RootFromName(std::wstring_view name);
 std::wstring RootName(HKEY root);
 std::wstring Build(const RegistryNode& node);
 std::wstring BuildNative(const RegistryNode& node);
@@ -43,10 +44,10 @@ bool ParseRoot(std::wstring_view path, RegistryNode* node);
 std::vector<std::wstring> Split(std::wstring_view path);
 std::wstring Join(const std::vector<std::wstring>& parts, size_t first_part = 0);
 std::wstring JoinPrefix(const std::vector<std::wstring>& parts, size_t part_count);
+std::wstring JoinSubkey(std::wstring_view parent, std::wstring_view name);
+RegistryNode ChildNode(const RegistryNode& parent, std::wstring_view name);
 std::wstring Parent(std::wstring_view path);
 std::wstring Leaf(std::wstring_view path);
-bool Equals(std::wstring_view left, std::wstring_view right);
-bool StartsWith(std::wstring_view text, std::wstring_view prefix);
 
 } // namespace registry_path
 } // namespace regkit

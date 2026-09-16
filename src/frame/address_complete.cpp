@@ -300,9 +300,7 @@ BOOL CALLBACK ApplyAutoCompleteThemeProc(
   }
 
   ctx->theme->ApplyToWindow(hwnd);
-  if (!GetWindowSubclass(hwnd, AutoCompletePopupSubclassProc, kAutoCompletePopupSubclassId, nullptr)) {
-    SetWindowSubclass(hwnd, AutoCompletePopupSubclassProc, kAutoCompletePopupSubclassId, 0);
-  }
+  EnsureSubclass(hwnd, AutoCompletePopupSubclassProc, kAutoCompletePopupSubclassId);
   EnumChildWindows(
       hwnd,
       [](HWND child, LPARAM param) -> BOOL {
@@ -313,16 +311,10 @@ BOOL CALLBACK ApplyAutoCompleteThemeProc(
         if (WindowClassEquals(child, WC_LISTVIEWW)) {
           theme->ApplyToListView(child);
         } else if (WindowClassEquals(child, WC_LISTBOXW) || WindowClassEquals(child, L"ComboLBox")) {
-          AllowDarkModeForWindow(child, Theme::UseDarkMode());
-          const wchar_t* theme_name = Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer";
-          SetWindowTheme(child, theme_name, nullptr);
-          if (!GetWindowSubclass(child, AutoCompleteListBoxSubclassProc, kAutoCompleteListBoxSubclassId, nullptr)) {
-            SetWindowSubclass(child, AutoCompleteListBoxSubclassProc, kAutoCompleteListBoxSubclassId, 0);
-          }
+          SetDarkWindowTheme(child, Theme::UseDarkMode());
+          EnsureSubclass(child, AutoCompleteListBoxSubclassProc, kAutoCompleteListBoxSubclassId);
         } else {
-          AllowDarkModeForWindow(child, Theme::UseDarkMode());
-          const wchar_t* theme_name = Theme::UseDarkMode() ? L"DarkMode_Explorer" : L"Explorer";
-          SetWindowTheme(child, theme_name, nullptr);
+          SetDarkWindowTheme(child, Theme::UseDarkMode());
         }
         return TRUE;
       },

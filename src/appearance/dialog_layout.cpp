@@ -6,7 +6,9 @@
 #include "appearance/default_font.h"
 #include "appearance/theme.h"
 #include "appearance/gdi_cache.h"
+#include "appearance/list_view_support.h"
 #include "win32/window_metrics.h"
+#include "win32/text_transform.h"
 
 #include <algorithm>
 #include <commctrl.h>
@@ -89,6 +91,21 @@ void SetControlFont(
   }
 }
 
+void SetDialogFont(
+    HWND dialog,
+    HFONT font
+) {
+  SetControlFont(dialog, font);
+  EnumChildWindows(
+      dialog,
+      [](HWND child, LPARAM param) -> BOOL {
+        SetControlFont(child, reinterpret_cast<HFONT>(param));
+        return TRUE;
+      },
+      reinterpret_cast<LPARAM>(font)
+  );
+}
+
 void Place(
     HWND control,
     int x,
@@ -112,24 +129,6 @@ void RestoreDialogOwner(
   SetActiveWindow(owner);
   SetForegroundWindow(owner);
   *restored = true;
-}
-
-void PositionDialog(
-    HWND dialog,
-    HWND owner,
-    int width,
-    int height
-) {
-  RECT owner_rect = {};
-  if (owner && GetWindowRect(owner, &owner_rect)) {
-    const int owner_width = owner_rect.right - owner_rect.left;
-    const int owner_height = owner_rect.bottom - owner_rect.top;
-    const int x = owner_rect.left + std::max(0, (owner_width - width) / 2);
-    const int y = owner_rect.top + std::max(0, (owner_height - height) / 2);
-    SetWindowPos(dialog, nullptr, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
-    return;
-  }
-  SetWindowPos(dialog, nullptr, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 void CenterWindow(
@@ -162,15 +161,7 @@ void RefreshDialogFont(
   if (!font) {
     return;
   }
-  SetControlFont(window, font);
-  EnumChildWindows(
-      window,
-      [](HWND child, LPARAM param) -> BOOL {
-        SetControlFont(child, reinterpret_cast<HFONT>(param));
-        return TRUE;
-      },
-      reinterpret_cast<LPARAM>(font)
-  );
+  SetDialogFont(window, font);
   if (*owned_font) {
     DeleteObject(*owned_font);
   }
@@ -250,11 +241,172 @@ void RunModalLoop(
       PostQuitMessage(static_cast<int>(msg.wParam));
       break;
     }
+    const LONG_PTR style = GetWindowLongPtrW(msg.hwnd, GWL_STYLE);
+    if (msg.message == WM_KEYDOWN && msg.wParam == VK_RETURN && (style & (ES_MULTILINE | ES_WANTRETURN)) == ES_MULTILINE && IsChild(dialog, msg.hwnd)) {
+      wchar_t class_name[8] = {};
+      const LRESULT default_id = SendMessageW(dialog, DM_GETDEFID, 0, 0);
+      if (GetClassNameW(msg.hwnd, class_name, static_cast<int>(_countof(class_name))) && util::EqualsInsensitive(class_name, WC_EDITW) && HIWORD(default_id) == DC_HASDEFID) {
+        const WORD id = LOWORD(default_id);
+        SendMessageW(dialog, WM_COMMAND, MAKEWPARAM(id, BN_CLICKED), reinterpret_cast<LPARAM>(GetDlgItem(dialog, id)));
+        continue;
+      }
+    }
     if (!IsDialogMessageW(dialog, &msg)) {
       TranslateMessage(&msg);
       DispatchMessageW(&msg);
     }
   }
+}
+
+namespace {
+
+constexpr DWORD kDialogWindowStyle = WS_POPUP | WS_CAPTION | WS_SYSMENU;
+constexpr DWORD kDialogWindowExStyle = WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT;
+
+} // namespace
+
+SIZE DialogWindowSize(
+    HWND owner,
+    int client_width,
+    int client_height,
+    DWORD extra_style
+) {
+  RECT rect = {0, 0, client_width, client_height};
+  win32::AdjustWindowRectForDpi(&rect, kDialogWindowStyle | extra_style, kDialogWindowExStyle, win32::DpiForWindow(owner));
+  return {rect.right - rect.left, rect.bottom - rect.top};
+}
+
+void ApplyDialogTheme(
+    HWND dialog
+) {
+  const Theme& theme = Theme::Current();
+  theme.ApplyToWindow(dialog);
+  theme.ApplyToChildren(dialog);
+  EnumChildWindows(
+      dialog,
+      [](HWND child, LPARAM) -> BOOL {
+        wchar_t class_name[32] = {};
+        GetClassNameW(child, class_name, static_cast<int>(_countof(class_name)));
+        if (wcscmp(class_name, WC_TREEVIEWW) == 0) {
+          Theme::Current().ApplyToTreeView(child);
+        } else if (wcscmp(class_name, WC_LISTVIEWW) == 0) {
+          RefreshListView(child);
+        }
+        return TRUE;
+      },
+      0
+  );
+  InvalidateRect(dialog, nullptr, TRUE);
+}
+
+void CloseDialogWindow(
+    DialogWindow* dialog,
+    bool accepted
+) {
+  dialog->accepted = accepted;
+  RestoreDialogOwner(dialog->owner, &dialog->owner_restored);
+  DestroyWindow(dialog->hwnd);
+}
+
+LRESULT DefDialogWindowProc(
+    HWND hwnd,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam
+) {
+  DialogWindow* dialog = DialogWindowState<DialogWindow>(hwnd);
+  switch (message) {
+  case WM_NCCREATE:
+    dialog = static_cast<DialogWindow*>(reinterpret_cast<CREATESTRUCTW*>(lparam)->lpCreateParams);
+    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(dialog));
+    dialog->hwnd = hwnd;
+    dialog->font = ui::DefaultUIFont(win32::DpiForWindow(hwnd));
+    break;
+  case WM_NCDESTROY:
+    if (dialog && dialog->font) {
+      DeleteObject(dialog->font);
+      dialog->font = nullptr;
+    }
+    break;
+  case WM_DPICHANGED:
+    if (dialog) {
+      RefreshDialogFont(hwnd, &dialog->font, LOWORD(wparam));
+    }
+    ApplyDpiChange(hwnd, lparam);
+    return 0;
+  case WM_SETTINGCHANGE:
+    if (Theme::UpdateFromSystem()) {
+      ApplyDialogTheme(hwnd);
+    }
+    return 0;
+  case WM_ERASEBKGND:
+    {
+      RECT rect = {};
+      GetClientRect(hwnd, &rect);
+      FillRect(reinterpret_cast<HDC>(wparam), &rect, Theme::Current().BackgroundBrush());
+      return TRUE;
+    }
+  case WM_CTLCOLORDLG:
+  case WM_CTLCOLORSTATIC:
+  case WM_CTLCOLORBTN:
+  case WM_CTLCOLOREDIT:
+  case WM_CTLCOLORLISTBOX:
+    return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(reinterpret_cast<HDC>(wparam), reinterpret_cast<HWND>(lparam), static_cast<int>(message - WM_CTLCOLORMSGBOX)));
+  case DM_GETDEFID:
+    return MAKELRESULT(dialog ? dialog->default_id : IDOK, DC_HASDEFID);
+  case WM_ACTIVATE:
+    if (dialog && LOWORD(wparam) == WA_INACTIVE) {
+      HWND focus = GetFocus();
+      dialog->focus = IsChild(hwnd, focus) ? focus : dialog->focus;
+    } else if (dialog) {
+      HWND focus = dialog->focus && IsWindow(dialog->focus) ? dialog->focus : GetNextDlgTabItem(hwnd, nullptr, FALSE);
+      if (focus) {
+        SetFocus(focus);
+        return 0;
+      }
+    }
+    break;
+  case WM_CLOSE:
+    SendMessageW(hwnd, WM_COMMAND, IDCANCEL, 0);
+    return 0;
+  case WM_COMMAND:
+    if (dialog && LOWORD(wparam) == IDCANCEL) {
+      CloseDialogWindow(dialog, false);
+      return 0;
+    }
+    break;
+  default:
+    break;
+  }
+  return DefWindowProcW(hwnd, message, wparam, lparam);
+}
+
+bool RunDialogWindow(
+    DialogWindow* dialog,
+    const wchar_t* class_name,
+    WNDPROC proc,
+    const wchar_t* title,
+    SIZE size,
+    DWORD extra_style
+) {
+  WNDCLASSW window_class = {};
+  window_class.lpfnWndProc = proc;
+  window_class.hInstance = GetModuleHandleW(nullptr);
+  window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+  window_class.lpszClassName = class_name;
+  RegisterClassW(&window_class);
+  const HWND hwnd = CreateWindowExW(kDialogWindowExStyle, class_name, title, kDialogWindowStyle | extra_style, CW_USEDEFAULT, CW_USEDEFAULT, size.cx, size.cy, dialog->owner, nullptr, window_class.hInstance, dialog);
+  if (!hwnd) {
+    return false;
+  }
+  ApplyDialogTheme(hwnd);
+  CenterWindow(hwnd, dialog->owner);
+  EnableWindow(dialog->owner, FALSE);
+  ShowWindow(hwnd, SW_SHOW);
+  UpdateWindow(hwnd);
+  RunModalLoop(hwnd);
+  RestoreDialogOwner(dialog->owner, &dialog->owner_restored);
+  return dialog->accepted;
 }
 
 void DialogResizer::Attach(

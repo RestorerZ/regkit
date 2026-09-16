@@ -4,6 +4,7 @@
 #include "frame/window_detail.h"
 
 #include "regfile/registry_transfer.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 
@@ -25,7 +26,7 @@ bool IsSiblingRegKitWindow(
   const std::wstring sender_image = util::GetProcessImagePath(sender_pid);
   const std::wstring own_image = util::GetModulePath();
   return !sender_image.empty() && !own_image.empty() &&
-         _wcsicmp(sender_image.c_str(), own_image.c_str()) == 0;
+         util::EqualsInsensitive(sender_image, own_image);
 }
 
 } // namespace
@@ -998,7 +999,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(
           continue;
         }
         path.resize(path_len);
-        if (HasRegExtension(path)) {
+        if (util::HasFileExtension(path, L".reg")) {
           reg_paths.push_back(path);
         } else if (offline_candidate.empty()) {
           offline_candidate = path;
@@ -1054,7 +1055,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(
         return 0;
       }
       if (data->dwData == kEditRegFileCopyDataId) {
-        if (!HasRegExtension(target) || !OpenRegFileTab(target)) {
+        if (!util::HasFileExtension(target, L".reg") || !OpenRegFileTab(target)) {
           return 0;
         }
         ShowWindow(hwnd_, SW_RESTORE);

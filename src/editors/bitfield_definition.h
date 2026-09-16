@@ -65,6 +65,7 @@ struct DefinitionFile {
   std::vector<Definition> definitions;
 };
 
+std::wstring DisplayName(const Definition& definition);
 bool ValidWidth(unsigned bit_width);
 uint64_t WidthMask(unsigned bit_width);
 void BuildLookup(Definition* definition);

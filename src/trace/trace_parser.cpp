@@ -22,29 +22,6 @@ bool Cancelled(
   return cancel && cancel->load();
 }
 
-std::wstring Lower(
-    const std::wstring& text
-) {
-  return util::ToLower(text);
-}
-
-std::wstring Trim(
-    std::wstring text
-) {
-  const auto first =
-      std::find_if_not(text.begin(), text.end(), iswspace);
-  const auto last =
-      std::find_if_not(text.rbegin(), text.rend(), iswspace).base();
-  return first < last ? std::wstring(first, last) : std::wstring();
-}
-
-bool EqualsInsensitive(
-    const std::wstring& left,
-    const wchar_t* right
-) {
-  return _wcsicmp(left.c_str(), right) == 0;
-}
-
 bool Decode(
     std::string_view buffer,
     std::wstring* content,
@@ -73,29 +50,6 @@ bool Decode(
     return false;
   }
   return true;
-}
-
-void Finalize(
-    Data* data
-) {
-  auto less = [](const std::wstring& left, const std::wstring& right) {
-    return _wcsicmp(left.c_str(), right.c_str()) < 0;
-  };
-  std::sort(data->key_paths.begin(), data->key_paths.end(), less);
-  std::sort(data->display_key_paths.begin(), data->display_key_paths.end(), less);
-
-  data->children_by_key.reserve(data->key_paths.size());
-  for (const auto& path : data->key_paths) {
-    const auto parts = registry_path::Split(path);
-    if (parts.size() < 2) {
-      continue;
-    }
-    std::wstring parent = parts.front();
-    for (size_t index = 1; index < parts.size(); ++index) {
-      data->children_by_key[Lower(parent)].try_emplace(Lower(parts[index]), parts[index]);
-      parent += L"\\" + parts[index];
-    }
-  }
 }
 
 } // namespace
@@ -130,7 +84,7 @@ bool ParseEntries(
     if (!line.empty() && line.back() == L'\r') {
       line.pop_back();
     }
-    line = Trim(std::move(line));
+    line = util::TrimWhitespace(std::move(line));
     if (line.empty()) {
       continue;
     }
@@ -146,7 +100,7 @@ bool ParseEntries(
     }
 
     const std::wstring source_key =
-        Trim(line.substr(0, separator));
+        util::TrimWhitespace(line.substr(0, separator));
     if (source_key.empty()) {
       continue;
     }
@@ -160,9 +114,9 @@ bool ParseEntries(
       entry.key_path = entry.display_path;
     }
     entry.value_name =
-        Trim(line.substr(separator + separator_size));
+        util::TrimWhitespace(line.substr(separator + separator_size));
     entry.has_value = true;
-    if (EqualsInsensitive(entry.value_name, L"(Default)")) {
+    if (util::EqualsInsensitive(entry.value_name, L"(Default)")) {
       entry.value_name.clear();
     }
     saw_entry = true;
@@ -199,26 +153,7 @@ bool Parse(
       buffer,
       normalizers,
       [&](Entry&& entry) {
-        const std::wstring key_lower = Lower(entry.key_path);
-        auto [key, inserted] =
-            parsed.values_by_key.try_emplace(key_lower);
-        if (inserted) {
-          parsed.key_paths.push_back(entry.key_path);
-        }
-        const std::wstring display_lower = Lower(entry.display_path);
-        if (parsed.display_to_key
-                .try_emplace(display_lower, entry.key_path)
-                .second) {
-          parsed.display_key_paths.push_back(entry.display_path);
-        }
-        if (entry.has_value) {
-          const std::wstring value_lower = Lower(entry.value_name);
-          if (key->second.values_lower.insert(value_lower).second) {
-            key->second.values_display.push_back(
-                std::move(entry.value_name)
-            );
-          }
-        }
+        AddEntry(&parsed, entry);
         return !Cancelled(cancel);
       },
       error,
@@ -227,9 +162,8 @@ bool Parse(
   if (!ok) {
     return false;
   }
-  Finalize(&parsed);
+  Sort(&parsed);
   *data = std::move(parsed);
   return true;
 }
-
 } // namespace regkit::trace

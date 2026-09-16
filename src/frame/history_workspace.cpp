@@ -779,7 +779,7 @@ bool MainWindow::Impl::SaveComments() const {
 bool MainWindow::Impl::ImportCommentsFromFile(
     const std::wstring& path
 ) {
-  if (!value_comments_.Import(path)) {
+  if (!value_comments_.Load(path)) {
     return false;
   }
   if (!value_comments_.Save(CommentsPath())) {
@@ -792,7 +792,7 @@ bool MainWindow::Impl::ImportCommentsFromFile(
 bool MainWindow::Impl::ExportCommentsToFile(
     const std::wstring& path
 ) const {
-  return value_comments_.Export(path);
+  return value_comments_.Save(path);
 }
 
 void MainWindow::Impl::RefreshValueListComments() {
@@ -904,7 +904,7 @@ bool MainWindow::Impl::EditValueComments(
   }
   std::wstring updated = std::move(result.text);
   const bool apply_all_out = result.apply_to_same_name;
-  if (IsWhitespaceOnly(updated)) {
+  if (util::IsBlank(updated)) {
     updated.clear();
   }
 
@@ -1015,15 +1015,7 @@ void MainWindow::Impl::LoadSettings() {
   window_maximized_ = settings.window_maximized;
   tree_width_ = settings.tree_width;
   history_height_ = settings.history_height;
-  if (_wcsicmp(settings.theme_mode.c_str(), L"dark") == 0) {
-    theme_mode_ = ThemeMode::kDark;
-  } else if (_wcsicmp(settings.theme_mode.c_str(), L"light") == 0) {
-    theme_mode_ = ThemeMode::kLight;
-  } else if (_wcsicmp(settings.theme_mode.c_str(), L"custom") == 0) {
-    theme_mode_ = ThemeMode::kCustom;
-  } else {
-    theme_mode_ = ThemeMode::kSystem;
-  }
+  theme_mode_ = ParseThemeMode(settings.theme_mode);
   active_theme_preset_ = std::move(settings.theme_preset);
   icon_set_ = IsIconSetName(settings.icon_set, kIconSetLegacyDefault)
                   ? kIconSetDefault
@@ -1098,20 +1090,7 @@ void MainWindow::Impl::SaveSettings() const {
   }
   settings.tree_width = tree_width_;
   settings.history_height = history_height_;
-  switch (theme_mode_) {
-  case ThemeMode::kDark:
-    settings.theme_mode = L"dark";
-    break;
-  case ThemeMode::kLight:
-    settings.theme_mode = L"light";
-    break;
-  case ThemeMode::kCustom:
-    settings.theme_mode = L"custom";
-    break;
-  default:
-    settings.theme_mode = L"system";
-    break;
-  }
+  settings.theme_mode = ThemeModeName(theme_mode_);
   settings.theme_preset = active_theme_preset_;
   settings.icon_set = IsKnownIconSetName(icon_set_) ? icon_set_ : kIconSetDefault;
   settings.use_custom_font = use_custom_font_;

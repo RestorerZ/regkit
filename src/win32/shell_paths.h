@@ -4,6 +4,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 namespace util {
 
@@ -12,5 +13,7 @@ std::wstring GetModulePath();
 std::wstring JoinPath(const std::wstring& left, const std::wstring& right);
 std::wstring GetAppDataFolder();
 std::wstring GetCacheFolder();
+bool HasFileExtension(std::wstring_view path, std::wstring_view extension);
+std::wstring EnsureFileExtension(std::wstring path, std::wstring_view extension);
 
 } // namespace util

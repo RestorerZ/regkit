@@ -55,7 +55,7 @@ using window_detail::kIconSetLucide;
 using window_detail::kIconSetMaterialSymbols;
 using window_detail::kIconSetPhosphor;
 using window_detail::LeafName;
-using window_detail::MakeChildNode;
+using window_detail::ChildNode;
 using window_detail::MakeValueListRow;
 using window_detail::ShortDefaultLabel;
 using window_detail::StartsWithInsensitive;
@@ -78,49 +78,8 @@ inline HMENU BuildCopyKeyPathMenu() {
 }
 constexpr wchar_t kOneKeyPerLineText[] = L"Each line should include one key.";
 
-inline std::vector<std::wstring> SplitLines(
-    const std::wstring& text
-) {
-  std::vector<std::wstring> lines;
-  std::wstring current;
-  for (wchar_t ch : text) {
-    if (ch == L'\r' || ch == L'\n') {
-      if (!current.empty()) {
-        lines.push_back(current);
-        current.clear();
-      }
-    } else {
-      current.push_back(ch);
-    }
-  }
-  if (!current.empty()) {
-    lines.push_back(current);
-  }
-  for (auto& line : lines) {
-    line.erase(line.begin(), std::find_if(line.begin(), line.end(), [](wchar_t c) { return c != L' '; }));
-    while (!line.empty() && line.back() == L' ') {
-      line.pop_back();
-    }
-  }
-  lines.erase(std::remove_if(lines.begin(), lines.end(), [](const std::wstring& line) { return line.empty(); }), lines.end());
-  return lines;
-}
-
-inline std::wstring JoinLines(
-    const std::vector<std::wstring>& lines
-) {
-  std::wstring out;
-  for (size_t i = 0; i < lines.size(); ++i) {
-    if (lines[i].empty()) {
-      continue;
-    }
-    if (!out.empty()) {
-      out.append(L"\r\n");
-    }
-    out.append(lines[i]);
-  }
-  return out;
-}
+using util::JoinLines;
+using util::SplitLines;
 
 inline const ListRow* SelectedValueRow(
     const ValueList& list,
@@ -190,22 +149,6 @@ inline bool SelectValueByName(
     }
   }
   return false;
-}
-
-inline bool PromptOpenFilePath(
-    HWND owner,
-    const wchar_t* filter,
-    std::wstring* path
-) {
-  return ui::ReportFileDialogResult(owner, win32::ChooseFileToOpen(owner, filter, path));
-}
-
-inline bool PromptSaveFilePath(
-    HWND owner,
-    const wchar_t* filter,
-    std::wstring* path
-) {
-  return ui::ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, filter, nullptr, nullptr, path));
 }
 
 inline bool GetListViewColumnInfo(
@@ -547,7 +490,7 @@ inline std::vector<std::wstring> ExtractRegFileKeys(
       keys.push_back(entry.second.path);
     }
   }
-  std::sort(keys.begin(), keys.end(), [](const std::wstring& a, const std::wstring& b) { return _wcsicmp(a.c_str(), b.c_str()) < 0; });
+  std::sort(keys.begin(), keys.end(), [](const std::wstring& a, const std::wstring& b) { return util::CompareInsensitive(a, b) < 0; });
   return keys;
 }
 
@@ -655,7 +598,7 @@ inline void SetComboSelection(
     for (int i = 0; i < count; ++i) {
       wchar_t buffer[256] = {};
       SendMessageW(combo, CB_GETLBTEXT, i, reinterpret_cast<LPARAM>(buffer));
-      if (_wcsicmp(buffer, value.c_str()) == 0) {
+      if (util::EqualsInsensitive(buffer, value)) {
         SendMessageW(combo, CB_SETCURSEL, i, 0);
         return;
       }
@@ -670,13 +613,6 @@ inline std::wstring ReadComboText(
     HWND combo
 ) {
   return util::WindowText(combo);
-}
-
-inline std::wstring ReadDialogText(
-    HWND dlg,
-    int id
-) {
-  return util::WindowText(GetDlgItem(dlg, id));
 }
 
 inline void SetDialogText(
@@ -747,7 +683,7 @@ inline INT_PTR CALLBACK CompareDialogProc(
       CheckRadioButton(dlg, IDC_COMPARE_SHOW_DIFFERENCES, IDC_COMPARE_SHOW_BOTH, filter_id);
 
       auto populate_file_keys = [&](bool left) {
-        std::wstring file_path = ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE);
+        std::wstring file_path = util::DialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE);
         if (file_path.empty()) {
           return;
         }
@@ -855,7 +791,7 @@ inline INT_PTR CALLBACK CompareDialogProc(
           SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, path);
           return TRUE;
         }
-        if (!PromptOpenFilePath(dlg, browse_type == CompareSourceType::kOfflineHive ? L"Registry Hive Files\0*.*\0\0" : L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0\0", &path)) {
+        if (!ui::PromptOpenFile(dlg, browse_type == CompareSourceType::kOfflineHive ? L"Registry Hive Files\0*.*\0\0" : ui::kRegFileFilter, &path)) {
           return TRUE;
         }
         SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, path);
@@ -896,7 +832,7 @@ inline INT_PTR CALLBACK CompareDialogProc(
               return false;
             }
             if (out->type == CompareSourceType::kNetwork) {
-              out->file_path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
+              out->file_path = TrimWhitespace(util::DialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
               if (out->file_path.empty()) {
                 ui::ShowError(dlg, L"Computer name is required.");
                 return false;
@@ -904,7 +840,7 @@ inline INT_PTR CALLBACK CompareDialogProc(
             }
             return true;
           }
-          out->file_path = TrimWhitespace(ReadDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
+          out->file_path = TrimWhitespace(util::DialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
           if (out->file_path.empty()) {
             ui::ShowError(dlg, out->type == CompareSourceType::kOfflineHive ? L"Hive file path is required." : L"Registry file path is required.");
             return false;
@@ -929,7 +865,7 @@ inline INT_PTR CALLBACK CompareDialogProc(
           std::wstring key_lower = ToLower(out->key_path);
           bool found = false;
           for (const auto& key : keys) {
-            if (_wcsicmp(key.c_str(), out->key_path.c_str()) == 0) {
+            if (util::EqualsInsensitive(key, out->key_path)) {
               found = true;
               break;
             }

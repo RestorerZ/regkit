@@ -12,6 +12,7 @@
 #include "win32/window_metrics.h"
 
 #include "resource.h"
+#include "win32/text_transform.h"
 
 #include <commctrl.h>
 #include <windowsx.h>
@@ -65,13 +66,6 @@ struct Editor {
 
 std::wstring StatesText(const Field& field);
 
-int CompareText(
-    const std::wstring& left,
-    const std::wstring& right
-) {
-  return _wcsicmp(left.c_str(), right.c_str());
-}
-
 int CALLBACK CompareFieldBits(
     LPARAM left_data,
     LPARAM right_data,
@@ -94,7 +88,7 @@ int CALLBACK CompareFieldBits(
     const std::wstring right_name = right_owner >= 0
                                         ? state->parent->fields[static_cast<size_t>(right_owner)].name
                                         : std::wstring();
-    result = CompareText(left_name, right_name);
+    result = util::CompareListText(left_name, right_name);
   }
   return result != 0 ? result : (left < right ? -1 : left > right ? 1
                                                                   : 0);
@@ -121,7 +115,7 @@ int CALLBACK CompareDefinitionFields(
   int result = 0;
   switch (column) {
   case 0:
-    result = CompareText(left.name, right.name);
+    result = util::CompareListText(left.name, right.name);
     break;
   case 1:
     result = std::lexicographical_compare(left.bits.begin(), left.bits.end(), right.bits.begin(), right.bits.end())
@@ -130,10 +124,10 @@ int CALLBACK CompareDefinitionFields(
                                                                                                                       : 0;
     break;
   case 2:
-    result = CompareText(StatesText(left), StatesText(right));
+    result = util::CompareListText(StatesText(left), StatesText(right));
     break;
   case 3:
-    result = CompareText(left.meaning, right.meaning);
+    result = util::CompareListText(left.meaning, right.meaning);
     break;
   default:
     break;
@@ -176,58 +170,6 @@ std::wstring StatesText(
     text.append(std::to_wstring(field.states[i].value)).append(L"=").append(field.states[i].name);
   }
   return text;
-}
-
-std::wstring DisplayName(
-    const Definition& definition
-) {
-  if (!definition.name.empty()) {
-    return definition.name;
-  }
-  if (!definition.value_name.empty()) {
-    return definition.value_name;
-  }
-  return L"Unnamed definition";
-}
-
-std::wstring JoinLines(
-    const std::vector<std::wstring>& items
-) {
-  std::wstring text;
-  for (size_t i = 0; i < items.size(); ++i) {
-    if (i > 0) {
-      text.append(L"\r\n");
-    }
-    text.append(items[i]);
-  }
-  return text;
-}
-
-std::vector<std::wstring> SplitLines(
-    const std::wstring& text
-) {
-  std::vector<std::wstring> items;
-  size_t start = 0;
-  while (start <= text.size()) {
-    const size_t end = text.find(L'\n', start);
-    std::wstring line = text.substr(start, end == std::wstring::npos ? std::wstring::npos : end - start);
-    while (!line.empty() && (line.back() == L'\r' || line.back() == L' ' || line.back() == L'\t')) {
-      line.pop_back();
-    }
-    size_t lead = 0;
-    while (lead < line.size() && (line[lead] == L' ' || line[lead] == L'\t')) {
-      ++lead;
-    }
-    line.erase(0, lead);
-    if (!line.empty()) {
-      items.push_back(std::move(line));
-    }
-    if (end == std::wstring::npos) {
-      break;
-    }
-    start = end + 1;
-  }
-  return items;
 }
 
 INT_PTR CALLBACK FieldDialogProc(
@@ -353,7 +295,7 @@ INT_PTR CALLBACK FieldDialogProc(
       }
       for (size_t i = 0; i < state->parent->fields.size(); ++i) {
         if (static_cast<int>(i) != state->editing &&
-            _wcsicmp(state->parent->fields[i].name.c_str(), result.name.c_str()) == 0) {
+            util::EqualsInsensitive(state->parent->fields[i].name, result.name)) {
           ui::ShowError(dialog, L"Another field already uses that name.");
           return TRUE;
         }
@@ -467,7 +409,7 @@ void ShowDefinition(
   state->loading = true;
   const Definition& definition = state->definition();
   SetDlgItemTextW(dialog, IDC_DEF_VALUE_NAME, definition.value_name.c_str());
-  SetDlgItemTextW(dialog, IDC_DEF_KEY_PATHS, JoinLines(definition.key_paths).c_str());
+  SetDlgItemTextW(dialog, IDC_DEF_KEY_PATHS, util::JoinLines(definition.key_paths).c_str());
   SetDlgItemTextW(dialog, IDC_DEF_COMMENT, dialog_support::ToDisplayText(definition.comment).c_str());
   SetDlgItemInt(dialog, IDC_DEF_OFFSET, definition.byte_offset, FALSE);
   SelectWidth(dialog, definition.bit_width);
@@ -487,7 +429,7 @@ void RefreshDefinitionCombo(
   SendMessageW(combo, CB_RESETCONTENT, 0, 0);
   bool shown = false;
   for (size_t i = 0; i < state->file.definitions.size(); ++i) {
-    const std::wstring label = DisplayName(state->file.definitions[i]);
+    const std::wstring label = bitfield::DisplayName(state->file.definitions[i]);
     if (static_cast<int>(i) != state->selected && !dialog_support::Matches(label, filter)) {
       continue;
     }
@@ -522,7 +464,7 @@ bool CollectDefinition(
 ) {
   Definition draft = state->definition();
   draft.value_name = dialog_support::ReadText(dialog, IDC_DEF_VALUE_NAME);
-  draft.key_paths = SplitLines(dialog_support::ReadText(dialog, IDC_DEF_KEY_PATHS));
+  draft.key_paths = util::SplitLines(dialog_support::ReadText(dialog, IDC_DEF_KEY_PATHS));
   draft.comment = dialog_support::FromDisplayText(dialog_support::ReadText(dialog, IDC_DEF_COMMENT));
   draft.bit_width = SelectedWidth(dialog);
   draft.byte_offset = ReadOffset(dialog);

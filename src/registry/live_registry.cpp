@@ -3,73 +3,46 @@
 
 #include "registry/registry_backends.h"
 
-#include "registry/registry_path.h"
+#include "registry/key_algorithms.h"
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
-
-#include <algorithm>
-#include <utility>
-#include <vector>
 
 namespace regkit::registry_backend::live {
 namespace {
 
-constexpr wchar_t kSymbolicLinkValue[] = L"SymbolicLinkValue";
-
-util::UniqueHKey OpenLinkKey(
-    HKEY parent,
-    const std::wstring& name,
-    REGSAM access
-) {
-  util::UniqueHKey link;
-  if (util::OpenRegistryPath(parent, name, access, true, &link) != ERROR_SUCCESS) {
-    return {};
+class LiveKey : public RegistryKeyHandle {
+public:
+  LiveKey(
+      const RegistryNode& node,
+      REGSAM access,
+      bool open_link = false
+  ) {
+    if (node.root) {
+      util::OpenRegistryPath(node.root, node.subkey, access | win32::kDefaultRegistryView, open_link, &key_);
+    }
   }
-  DWORD type = 0;
-  if (RegQueryValueExW(link.get(), kSymbolicLinkValue, nullptr, &type, nullptr, nullptr) != ERROR_SUCCESS ||
-      type != REG_LINK) {
-    return {};
-  }
-  return link;
-}
-
-util::UniqueHKey OpenKeyNoFollow(
+  using RegistryKeyHandle::RegistryKeyHandle;
+};
+LiveKey OpenChild(
     const RegistryNode& node,
-    REGSAM access
+    REGSAM parent_access,
+    REGSAM child_access,
+    bool open_link,
+    std::wstring* name = nullptr
 ) {
-  util::UniqueHKey key;
-  if (node.root) {
-    util::OpenRegistryPath(node.root, node.subkey, access | win32::kDefaultRegistryView, true, &key);
+  RegistryNode parent_node;
+  std::wstring leaf;
+  util::UniqueHKey child;
+  if (SplitNode(node, &parent_node, &leaf)) {
+    LiveKey parent(parent_node, parent_access);
+    if (parent) {
+      util::OpenRegistryPath(parent.get(), leaf, child_access, open_link, &child);
+    }
   }
-  return key;
-}
-
-util::UniqueHKey OpenKey(
-    const RegistryNode& node,
-    REGSAM access
-) {
-  util::UniqueHKey key;
-  if (node.root) {
-    util::OpenRegistryPath(node.root, node.subkey, access | win32::kDefaultRegistryView, false, &key);
+  if (name) {
+    *name = std::move(leaf);
   }
-  return key;
-}
-
-bool SplitNode(
-    const RegistryNode& node,
-    RegistryNode* parent,
-    std::wstring* name
-) {
-  if (!parent || !name) {
-    return false;
-  }
-  *name = registry_path::Leaf(node.subkey);
-  if (name->empty()) {
-    return false;
-  }
-  *parent = node;
-  parent->subkey = registry_path::Parent(node.subkey);
-  return true;
+  return LiveKey(std::move(child));
 }
 
 } // namespace
@@ -77,113 +50,33 @@ bool SplitNode(
 bool HasSubKeys(
     const RegistryNode& node
 ) {
-  util::UniqueHKey key = OpenKey(node, KEY_ENUMERATE_SUB_KEYS);
-  if (!key.get()) {
-    return false;
-  }
-  wchar_t name[1] = {};
-  DWORD name_length = static_cast<DWORD>(_countof(name));
-  const LONG result =
-      RegEnumKeyExW(key.get(), 0, name, &name_length, nullptr, nullptr, nullptr, nullptr);
-  return result == ERROR_SUCCESS || result == ERROR_MORE_DATA;
+  LiveKey key(node, KEY_QUERY_VALUE);
+  return key && registry_backend::HasSubKeys(key);
 }
 
 bool QueryKeyInfo(
     const RegistryNode& node,
     KeyInfo* info
 ) {
-  if (!info) {
-    return false;
-  }
-  util::UniqueHKey key = OpenKey(node, KEY_READ);
-  if (!key.get()) {
-    return false;
-  }
-  DWORD subkey_count = 0;
-  DWORD value_count = 0;
-  FILETIME last_write = {};
-  if (RegQueryInfoKeyW(key.get(), nullptr, nullptr, nullptr, &subkey_count, nullptr, nullptr, &value_count, nullptr, nullptr, nullptr, &last_write) != ERROR_SUCCESS) {
-    return false;
-  }
-  info->subkey_count = subkey_count;
-  info->value_count = value_count;
-  info->last_write = last_write;
-  return true;
+  LiveKey key(node, KEY_READ);
+  return key && registry_backend::QueryKeyInfo(key, info);
 }
 
 bool QuerySymbolicLinkTarget(
     const RegistryNode& node,
     std::wstring* target
 ) {
-  if (!target) {
-    return false;
-  }
   target->clear();
-  const std::wstring native_path = registry_path::BuildNative(node);
-  util::UniqueHKey key =
-      util::OpenNativeRegistryKey(native_path, KEY_QUERY_VALUE, true);
-  if (!key.get()) {
-    return false;
-  }
-  DWORD type = 0;
-  DWORD size = 0;
-  LONG result =
-      RegQueryValueExW(key.get(), L"SymbolicLinkValue", nullptr, &type, nullptr, &size);
-  if (result != ERROR_SUCCESS ||
-      type != REG_LINK ||
-      size == 0) {
-    return false;
-  }
-  std::vector<wchar_t> buffer(size / sizeof(wchar_t) + 1, L'\0');
-  result = RegQueryValueExW(
-      key.get(),
-      L"SymbolicLinkValue",
-      nullptr,
-      &type,
-      reinterpret_cast<LPBYTE>(buffer.data()),
-      &size
-  );
-  if (result != ERROR_SUCCESS) {
-    return false;
-  }
-  std::wstring value(buffer.data(), size / sizeof(wchar_t));
-  while (!value.empty() && value.back() == L'\0') {
-    value.pop_back();
-  }
-  if (value.empty()) {
-    return false;
-  }
-  *target = std::move(value);
-  return true;
+  LiveKey key(util::OpenNativeRegistryKey(registry_path::BuildNative(node), KEY_QUERY_VALUE, true));
+  return key && ReadLinkTarget(key, target) && !target->empty();
 }
 
 std::vector<std::wstring> EnumSubKeyNames(
     const RegistryNode& node,
     bool sorted
 ) {
-  std::vector<std::wstring> names;
-  util::UniqueHKey key = OpenKey(node, KEY_READ);
-  if (!key.get()) {
-    return names;
-  }
-  DWORD subkey_count = 0;
-  DWORD max_name_length = 0;
-  if (RegQueryInfoKeyW(key.get(), nullptr, nullptr, nullptr, &subkey_count, &max_name_length, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
-    return names;
-  }
-  names.reserve(subkey_count);
-  std::wstring buffer(max_name_length + 1, L'\0');
-  for (DWORD index = 0; index < subkey_count; ++index) {
-    DWORD name_length = static_cast<DWORD>(buffer.size());
-    FILETIME last_write = {};
-    if (RegEnumKeyExW(key.get(), index, buffer.data(), &name_length, nullptr, nullptr, nullptr, &last_write) == ERROR_SUCCESS) {
-      names.emplace_back(buffer.data(), name_length);
-    }
-  }
-  if (sorted) {
-    std::sort(names.begin(), names.end(), [](const std::wstring& left, const std::wstring& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
-  }
-  return names;
+  LiveKey key(node, KEY_READ);
+  return key ? SubKeyNames(key, sorted) : std::vector<std::wstring>();
 }
 
 bool EnumKeyStreaming(
@@ -196,123 +89,11 @@ bool EnumKeyStreaming(
     const RegistryStore::SubkeyStreamCallback& subkey_callback,
     DWORD max_data_size,
     EnumerationScratch* scratch,
-    bool ordered,
+    bool,
     bool open_link
 ) {
-  (void)ordered;
-  EnumerationScratch local;
-  EnumerationScratch& buffers = scratch ? *scratch : local;
-  util::UniqueHKey key =
-      open_link ? OpenKeyNoFollow(node, KEY_READ) : OpenKey(node, KEY_READ);
-  if (!key.get()) {
-    return false;
-  }
-
-  DWORD subkey_count = 0;
-  DWORD max_subkey_length = 0;
-  DWORD value_count = 0;
-  DWORD max_value_name_length = 0;
-  DWORD max_value_data_length = 0;
-  FILETIME last_write = {};
-  if (RegQueryInfoKeyW(
-          key.get(),
-          nullptr,
-          nullptr,
-          nullptr,
-          &subkey_count,
-          &max_subkey_length,
-          nullptr,
-          &value_count,
-          &max_value_name_length,
-          &max_value_data_length,
-          nullptr,
-          &last_write
-      ) != ERROR_SUCCESS) {
-    return false;
-  }
-  if (out_info) {
-    out_info->info.subkey_count = subkey_count;
-    out_info->info.value_count = value_count;
-    out_info->info.last_write = last_write;
-    out_info->info_valid = true;
-  }
-
-  if (include_values && value_callback) {
-    std::wstring& name = buffers.value_name;
-    std::vector<BYTE>& data = buffers.value_data;
-    name.resize(static_cast<size_t>(max_value_name_length) + 1);
-    if (include_data) {
-      const size_t needed = std::min(max_value_data_length, max_data_size);
-      data.resize(needed);
-    }
-    for (DWORD index = 0; index < value_count; ++index) {
-      DWORD name_length = static_cast<DWORD>(name.size());
-      DWORD data_length =
-          include_data ? static_cast<DWORD>(data.size()) : 0;
-      DWORD type = 0;
-      LONG result = RegEnumValueW(
-          key.get(),
-          index,
-          name.data(),
-          &name_length,
-          nullptr,
-          &type,
-          include_data && !data.empty() ? data.data() : nullptr,
-          &data_length
-      );
-      if (result == ERROR_MORE_DATA && include_data &&
-          data_length <= max_data_size) {
-        if (data.size() < data_length) {
-          data.resize(data_length);
-        }
-        name_length = static_cast<DWORD>(name.size());
-        data_length = static_cast<DWORD>(data.size());
-        result = RegEnumValueW(
-            key.get(),
-            index,
-            name.data(),
-            &name_length,
-            nullptr,
-            &type,
-            data.empty() ? nullptr : data.data(),
-            &data_length
-        );
-      }
-      const bool data_available =
-          include_data && result == ERROR_SUCCESS;
-      if (result != ERROR_SUCCESS &&
-          !(result == ERROR_MORE_DATA &&
-            (!include_data || data_length > max_data_size))) {
-        continue;
-      }
-      name[name_length] = L'\0';
-      ValueInfo info;
-      info.name.assign(name.c_str(), name_length);
-      info.type = type;
-      info.data_size = data_length;
-      const BYTE* buffer =
-          data_available && data_length > 0 ? data.data() : nullptr;
-      if (!value_callback(info, buffer, data_length)) {
-        return false;
-      }
-    }
-  }
-
-  if (include_subkeys && subkey_callback) {
-    std::wstring& name = buffers.subkey_name;
-    name.resize(static_cast<size_t>(max_subkey_length) + 1);
-    for (DWORD index = 0; index < subkey_count; ++index) {
-      DWORD name_length = static_cast<DWORD>(name.size());
-      FILETIME child_write = {};
-      if (RegEnumKeyExW(key.get(), index, name.data(), &name_length, nullptr, nullptr, nullptr, &child_write) != ERROR_SUCCESS) {
-        continue;
-      }
-      if (!subkey_callback(std::wstring(name.data(), name_length))) {
-        return false;
-      }
-    }
-  }
-  return true;
+  LiveKey key(node, KEY_READ, open_link);
+  return key && EnumerateKey(key, include_values, include_data, include_subkeys, out_info, value_callback, subkey_callback, max_data_size, scratch);
 }
 
 bool QueryValue(
@@ -320,51 +101,20 @@ bool QueryValue(
     const std::wstring& value_name,
     ValueEntry* out
 ) {
-  if (!out) {
-    return false;
-  }
-  util::UniqueHKey key = OpenKey(node, KEY_QUERY_VALUE);
-  if (!key.get()) {
-    return false;
-  }
-  const wchar_t* name =
-      value_name.empty() ? nullptr : value_name.c_str();
-  DWORD type = 0;
-  DWORD size = 0;
-  if (RegQueryValueExW(key.get(), name, nullptr, &type, nullptr, &size) !=
-      ERROR_SUCCESS) {
-    return false;
-  }
-  std::vector<BYTE> data(size);
-  LONG read = RegQueryValueExW(key.get(), name, nullptr, &type, data.empty() ? nullptr : data.data(), &size);
-  for (int attempt = 0; read == ERROR_MORE_DATA && attempt < 4; ++attempt) {
-    data.resize(size);
-    read = RegQueryValueExW(key.get(), name, nullptr, &type, data.empty() ? nullptr : data.data(), &size);
-  }
-  if (read != ERROR_SUCCESS) {
-    return false;
-  }
-  data.resize(size);
-  out->name = value_name;
-  out->type = type;
-  out->data = std::move(data);
-  return true;
+  LiveKey key(node, KEY_QUERY_VALUE);
+  return key && registry_backend::QueryValue(key, value_name, out);
 }
 
 bool CreateKey(
     const RegistryNode& node,
     const std::wstring& name
 ) {
-  util::UniqueHKey parent = OpenKey(node, KEY_WRITE);
-  if (!parent.get()) {
-    return false;
-  }
+  LiveKey parent(node, KEY_WRITE);
   util::UniqueHKey created;
   DWORD disposition = 0;
-  if (util::CreateRegistryKey(parent.get(), name, KEY_READ | KEY_WRITE, REG_OPTION_NON_VOLATILE, &created, &disposition) != ERROR_SUCCESS) {
-    return false;
-  }
-  return disposition == REG_CREATED_NEW_KEY;
+  return parent &&
+         util::CreateRegistryKey(parent.get(), name, KEY_READ | KEY_WRITE, REG_OPTION_NON_VOLATILE, &created, &disposition) == ERROR_SUCCESS &&
+         disposition == REG_CREATED_NEW_KEY;
 }
 
 bool CreateRegistryLink(
@@ -373,80 +123,33 @@ bool CreateRegistryLink(
     const std::wstring& nt_target,
     DWORD* error
 ) {
-  if (error) {
-    *error = ERROR_SUCCESS;
-  }
-  util::UniqueHKey parent = OpenKey(node, KEY_WRITE);
-  if (!parent.get()) {
-    if (error) {
-      *error = ERROR_ACCESS_DENIED;
-    }
-    return false;
-  }
+  LONG result = ERROR_ACCESS_DENIED;
+  LiveKey parent(node, KEY_WRITE);
   util::UniqueHKey created;
   DWORD disposition = 0;
-  LONG result = util::CreateRegistryKey(
-      parent.get(),
-      name,
-      KEY_SET_VALUE | KEY_CREATE_LINK | DELETE,
-      REG_OPTION_NON_VOLATILE | REG_OPTION_CREATE_LINK,
-      &created,
-      &disposition
-  );
-  if (result != ERROR_SUCCESS) {
-    if (error) {
-      *error = static_cast<DWORD>(result);
-    }
-    return false;
+  if (parent) {
+    result = util::CreateRegistryKey(parent.get(), name, KEY_SET_VALUE | KEY_CREATE_LINK | DELETE, REG_OPTION_NON_VOLATILE | REG_OPTION_CREATE_LINK, &created, &disposition);
   }
-  result = RegSetValueExW(
-      created.get(),
-      L"SymbolicLinkValue",
-      0,
-      REG_LINK,
-      reinterpret_cast<const BYTE*>(nt_target.c_str()),
-      static_cast<DWORD>(nt_target.size() * sizeof(wchar_t))
-  );
-  if (result != ERROR_SUCCESS) {
-    if (error) {
-      *error = static_cast<DWORD>(result);
+  if (result == ERROR_SUCCESS) {
+    result = RegSetValueExW(created.get(), L"SymbolicLinkValue", 0, REG_LINK, reinterpret_cast<const BYTE*>(nt_target.c_str()), static_cast<DWORD>(nt_target.size() * sizeof(wchar_t)));
+    if (result != ERROR_SUCCESS) {
+      util::DeleteNativeRegistryKey(created.get());
     }
-    util::DeleteNativeRegistryKey(created.get());
-    return false;
   }
-  return true;
+  if (error) {
+    *error = static_cast<DWORD>(result);
+  }
+  return result == ERROR_SUCCESS;
 }
 
 bool ReadKeyLink(
     const RegistryNode& node,
     std::wstring* target
 ) {
-  RegistryNode parent;
-  std::wstring name;
-  if (!SplitNode(node, &parent, &name)) {
+  std::wstring value;
+  const LiveKey link = OpenChild(node, KEY_READ, KEY_QUERY_VALUE, true);
+  if (!link || !ReadLinkTarget(link, &value)) {
     return false;
-  }
-  util::UniqueHKey key = OpenKey(parent, KEY_READ);
-  if (!key.get()) {
-    return false;
-  }
-  util::UniqueHKey link = OpenLinkKey(key.get(), name, KEY_QUERY_VALUE);
-  if (!link.get()) {
-    return false;
-  }
-  DWORD type = 0;
-  DWORD size = 0;
-  if (RegQueryValueExW(link.get(), kSymbolicLinkValue, nullptr, &type, nullptr, &size) != ERROR_SUCCESS) {
-    return false;
-  }
-  std::wstring value(size / sizeof(wchar_t), L'\0');
-  if (!value.empty() &&
-      RegQueryValueExW(link.get(), kSymbolicLinkValue, nullptr, &type, reinterpret_cast<BYTE*>(&value[0]), &size) != ERROR_SUCCESS) {
-    return false;
-  }
-  value.resize(size / sizeof(wchar_t));
-  while (!value.empty() && value.back() == L'\0') {
-    value.pop_back();
   }
   if (target) {
     *target = std::move(value);
@@ -458,93 +161,45 @@ bool ReadKeySecurity(
     const RegistryNode& node,
     std::vector<BYTE>* descriptor
 ) {
-  if (!descriptor) {
-    return false;
-  }
   descriptor->clear();
-  const SECURITY_INFORMATION wanted = OWNER_SECURITY_INFORMATION |
-                                      GROUP_SECURITY_INFORMATION |
-                                      DACL_SECURITY_INFORMATION;
-  util::UniqueHKey key = OpenKeyNoFollow(node, READ_CONTROL);
-  if (!key.get()) {
-    return false;
-  }
-  DWORD size = 0;
-  LONG status = RegGetKeySecurity(key.get(), wanted, nullptr, &size);
-  if (status != ERROR_INSUFFICIENT_BUFFER || size == 0) {
-    return false;
-  }
-  descriptor->resize(size);
-  status = RegGetKeySecurity(
-      key.get(),
-      wanted,
-      reinterpret_cast<PSECURITY_DESCRIPTOR>(descriptor->data()),
-      &size
-  );
-  if (status != ERROR_SUCCESS) {
-    descriptor->clear();
-    return false;
-  }
-  descriptor->resize(size);
-  return true;
+  LiveKey key(node, READ_CONTROL, true);
+  return key && ReadSecurity(key, descriptor);
 }
 
 bool WriteKeySecurity(
     const RegistryNode& node,
     const std::vector<BYTE>& descriptor
 ) {
-  if (descriptor.empty()) {
-    return false;
-  }
-  util::UniqueHKey key = OpenKeyNoFollow(node, WRITE_DAC | WRITE_OWNER);
-  if (!key.get()) {
-    return false;
-  }
-  auto* sd = reinterpret_cast<PSECURITY_DESCRIPTOR>(
-      const_cast<BYTE*>(descriptor.data())
-  );
-  const SECURITY_INFORMATION wanted =
-      OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION |
-      DACL_SECURITY_INFORMATION;
-  return RegSetKeySecurity(key.get(), wanted, sd) == ERROR_SUCCESS;
+  LiveKey key(node, WRITE_DAC | WRITE_OWNER, true);
+  return key && WriteSecurity(key, descriptor);
 }
 
 bool DeleteKey(
     const RegistryNode& node
 ) {
-  RegistryNode parent;
-  std::wstring name;
-  if (!SplitNode(node, &parent, &name)) {
-    return false;
-  }
-  util::UniqueHKey key = OpenKey(parent, KEY_ENUMERATE_SUB_KEYS);
-  util::UniqueHKey target;
-  return key.get() &&
-         util::OpenRegistryPath(key.get(), name, DELETE | KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE, true, &target) == ERROR_SUCCESS &&
-         util::DeleteRegistryTree(target.get()) == ERROR_SUCCESS;
+  const LiveKey target = OpenChild(node, KEY_ENUMERATE_SUB_KEYS, DELETE | KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE, true);
+  return target && util::DeleteRegistryTree(target.get()) == ERROR_SUCCESS;
 }
 
 bool RenameKey(
     const RegistryNode& node,
     const std::wstring& new_name
 ) {
-  RegistryNode parent;
+  RegistryNode parent_node;
   std::wstring old_name;
-  if (!SplitNode(node, &parent, &old_name)) {
+  if (!SplitNode(node, &parent_node, &old_name)) {
     return false;
   }
-  util::UniqueHKey key = OpenKey(parent, KEY_WRITE);
-  return key.get() &&
-         util::RenameRegistryKey(key.get(), old_name, new_name) == ERROR_SUCCESS;
+  LiveKey parent(parent_node, KEY_WRITE);
+  return parent && util::RenameRegistryKey(parent.get(), old_name, new_name) == ERROR_SUCCESS;
 }
 
 bool DeleteValue(
     const RegistryNode& node,
     const std::wstring& value_name
 ) {
-  util::UniqueHKey key = OpenKey(node, KEY_SET_VALUE);
-  return key.get() &&
-         RegDeleteValueW(key.get(), value_name.c_str()) == ERROR_SUCCESS;
+  LiveKey key(node, KEY_SET_VALUE);
+  return key && key.DeleteValue(value_name.c_str()) == ERROR_SUCCESS;
 }
 
 bool SetValue(
@@ -553,18 +208,8 @@ bool SetValue(
     DWORD type,
     const std::vector<BYTE>& data
 ) {
-  util::UniqueHKey key = OpenKey(node, KEY_SET_VALUE);
-  if (!key.get()) {
-    return false;
-  }
-  return RegSetValueExW(
-             key.get(),
-             value_name.c_str(),
-             0,
-             type,
-             data.empty() ? nullptr : data.data(),
-             static_cast<DWORD>(data.size())
-         ) == ERROR_SUCCESS;
+  LiveKey key(node, KEY_SET_VALUE);
+  return key && key.SetValue(value_name.c_str(), type, data.empty() ? nullptr : data.data(), static_cast<DWORD>(data.size())) == ERROR_SUCCESS;
 }
 
 bool RenameValue(
@@ -573,37 +218,8 @@ bool RenameValue(
     const std::wstring& new_name,
     bool* both_names_left
 ) {
-  if (both_names_left) {
-    *both_names_left = false;
-  }
-  util::UniqueHKey key =
-      OpenKey(node, KEY_QUERY_VALUE | KEY_SET_VALUE);
-  if (!key.get()) {
-    return false;
-  }
-  DWORD type = 0;
-  DWORD size = 0;
-  if (RegQueryValueExW(key.get(), old_name.c_str(), nullptr, &type, nullptr, &size) != ERROR_SUCCESS) {
-    return false;
-  }
-  std::vector<BYTE> data(size);
-  if (RegQueryValueExW(key.get(), old_name.c_str(), nullptr, &type, data.empty() ? nullptr : data.data(), &size) != ERROR_SUCCESS) {
-    return false;
-  }
-  if (RegQueryValueExW(key.get(), new_name.c_str(), nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS) {
-    return false;
-  }
-  if (RegSetValueExW(key.get(), new_name.c_str(), 0, type, data.empty() ? nullptr : data.data(), size) != ERROR_SUCCESS) {
-    return false;
-  }
-  if (RegDeleteValueW(key.get(), old_name.c_str()) != ERROR_SUCCESS) {
-    if (RegDeleteValueW(key.get(), new_name.c_str()) != ERROR_SUCCESS &&
-        both_names_left) {
-      *both_names_left = true;
-    }
-    return false;
-  }
-  return true;
+  LiveKey key(node, KEY_QUERY_VALUE | KEY_SET_VALUE);
+  return key && registry_backend::RenameValue(key, old_name, new_name, both_names_left);
 }
 
 } // namespace regkit::registry_backend::live

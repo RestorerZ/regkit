@@ -5,9 +5,16 @@
 
 #include "regfile/reg_file.h"
 #include "regfile/registry_transfer.h"
+#include "registry/key_algorithms.h"
+#include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "win32/file_text.h"
+#include "win32/handle_owner.h"
+#include "win32/process_rights.h"
+#include "win32/registry_native.h"
+#include "win32/system_error.h"
 #include "win32/registry_view.h"
+#include "win32/text_transform.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -76,49 +83,12 @@ void PrintError(
   WriteTo(g_err, (prefixed ? text : L"ERROR: " + text) + L"\r\n");
 }
 
-std::wstring SystemMessage(
-    LONG status
-) {
-  wchar_t* buffer = nullptr;
-  const DWORD length = FormatMessageW(
-      FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-          FORMAT_MESSAGE_IGNORE_INSERTS,
-      nullptr,
-      static_cast<DWORD>(status),
-      0,
-      reinterpret_cast<wchar_t*>(&buffer),
-      0,
-      nullptr
-  );
-  std::wstring text = (length && buffer) ? buffer : L"The operation failed.";
-  if (buffer) {
-    LocalFree(buffer);
-  }
-  while (!text.empty() && (text.back() == L'\r' || text.back() == L'\n')) {
-    text.pop_back();
-  }
-  return text;
-}
-
 int Fail(
     LONG status
 ) {
-  if (status == ERROR_FILE_NOT_FOUND) {
-    PrintError(L"The system was unable to find the specified registry key or value.");
-  } else {
-    PrintError(SystemMessage(status));
-  }
+  PrintError(status == ERROR_FILE_NOT_FOUND ? L"The system was unable to find the specified registry key or value." : util::FormatWin32Error(static_cast<DWORD>(status)));
   return kFailed;
 }
-
-bool EqualsInsensitive(
-    std::wstring_view left,
-    const wchar_t* right
-) {
-  return left.size() == wcslen(right) &&
-         _wcsnicmp(left.data(), right, left.size()) == 0;
-}
-
 bool IsSwitch(
     const std::wstring& text,
     const wchar_t* name
@@ -126,7 +96,7 @@ bool IsSwitch(
   if (text.empty() || (text[0] != L'/' && text[0] != L'-')) {
     return false;
   }
-  return EqualsInsensitive(std::wstring_view(text).substr(1), name);
+  return util::EqualsInsensitive(std::wstring_view(text).substr(1), name);
 }
 
 struct KeyRef {
@@ -134,49 +104,6 @@ struct KeyRef {
   std::wstring subkey;
   std::wstring display;
 };
-
-HKEY RootFromName(
-    std::wstring_view name
-) {
-  struct Entry {
-    const wchar_t* full;
-    const wchar_t* shortcut;
-    HKEY root;
-  };
-  static const Entry kRoots[] = {
-      {L"HKEY_LOCAL_MACHINE", L"HKLM", HKEY_LOCAL_MACHINE},
-      {L"HKEY_CURRENT_USER", L"HKCU", HKEY_CURRENT_USER},
-      {L"HKEY_CLASSES_ROOT", L"HKCR", HKEY_CLASSES_ROOT},
-      {L"HKEY_USERS", L"HKU", HKEY_USERS},
-      {L"HKEY_CURRENT_CONFIG", L"HKCC", HKEY_CURRENT_CONFIG},
-      {L"HKEY_PERFORMANCE_DATA", L"HKPD", HKEY_PERFORMANCE_DATA},
-  };
-  for (const Entry& entry : kRoots) {
-    if (EqualsInsensitive(name, entry.full) ||
-        EqualsInsensitive(name, entry.shortcut)) {
-      return entry.root;
-    }
-  }
-  return nullptr;
-}
-
-const wchar_t* RootName(
-    HKEY root
-) {
-  if (root == HKEY_LOCAL_MACHINE)
-    return L"HKEY_LOCAL_MACHINE";
-  if (root == HKEY_CURRENT_USER)
-    return L"HKEY_CURRENT_USER";
-  if (root == HKEY_CLASSES_ROOT)
-    return L"HKEY_CLASSES_ROOT";
-  if (root == HKEY_USERS)
-    return L"HKEY_USERS";
-  if (root == HKEY_CURRENT_CONFIG)
-    return L"HKEY_CURRENT_CONFIG";
-  if (root == HKEY_PERFORMANCE_DATA)
-    return L"HKEY_PERFORMANCE_DATA";
-  return L"HKEY";
-}
 
 bool ParseKey(
     const std::wstring& text,
@@ -189,7 +116,7 @@ bool ParseKey(
   const size_t split = view.find(L'\\');
   const std::wstring_view root_name =
       split == std::wstring_view::npos ? view : view.substr(0, split);
-  key->root = RootFromName(root_name);
+  key->root = registry_path::RootFromName(root_name);
   if (!key->root) {
     PrintError(L"Invalid key name: " + text);
     return false;
@@ -197,7 +124,7 @@ bool ParseKey(
   key->subkey = split == std::wstring_view::npos
                     ? std::wstring()
                     : std::wstring(view.substr(split + 1));
-  key->display = RootName(key->root);
+  key->display = registry_path::RootName(key->root);
   if (!key->subkey.empty()) {
     key->display += L'\\';
     key->display += key->subkey;
@@ -230,7 +157,7 @@ bool ParseType(
     DWORD* type
 ) {
   for (const ValueType& entry : kTypes) {
-    if (EqualsInsensitive(text, entry.name)) {
+    if (util::EqualsInsensitive(text, entry.name)) {
       *type = entry.type;
       return true;
     }
@@ -353,7 +280,7 @@ std::wstring FormatData(
     {
       std::wstring joined;
       for (const auto& item :
-           value_format::MultiStringItems(std::vector<BYTE>(data, data + size))) {
+           value_format::MultiStringItems({data, size})) {
         if (!joined.empty()) {
           joined += L"\\0";
         }
@@ -386,16 +313,7 @@ std::wstring FormatData(
       return buffer;
     }
   default:
-    {
-      std::wstring hex;
-      hex.reserve(static_cast<size_t>(size) * 2);
-      static const wchar_t digits[] = L"0123456789ABCDEF";
-      for (DWORD i = 0; i < size; ++i) {
-        hex.push_back(digits[data[i] >> 4]);
-        hex.push_back(digits[data[i] & 0x0F]);
-      }
-      return hex;
-    }
+    return util::ToHex({data, size}, L'\0', true);
   }
 }
 
@@ -472,75 +390,60 @@ bool ParseOptions(
   return true;
 }
 
-bool CollectSubkeyNames(
-    HKEY root,
-    const std::wstring& subkey,
-    REGSAM view,
-    std::vector<std::wstring>* names
+KeyRef ChildRef(
+    const KeyRef& parent,
+    const std::wstring& name
 ) {
-  HKEY handle = nullptr;
-  if (RegOpenKeyExW(root, subkey.c_str(), 0, KEY_READ | view, &handle) !=
-      ERROR_SUCCESS) {
-    return false;
-  }
-  wchar_t name[512] = {};
-  DWORD index = 0;
-  while (true) {
-    DWORD length = static_cast<DWORD>(std::size(name));
-    if (RegEnumKeyExW(handle, index, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
-      break;
-    }
-    ++index;
-    names->emplace_back(name, length);
-  }
-  RegCloseKey(handle);
-  return true;
+  KeyRef child = parent;
+  child.subkey = registry_path::JoinSubkey(parent.subkey, name);
+  child.display = parent.display + L"\\" + name;
+  return child;
 }
 
-bool CollectValues(
-    HKEY root,
-    const std::wstring& subkey,
+struct KeyContents {
+  std::vector<RegistryValue> values;
+  std::vector<std::wstring> subkeys;
+};
+
+LONG ReadKey(
+    const KeyRef& key,
     REGSAM view,
+    bool include_data,
+    KeyContents* contents
+) {
+  util::UniqueHKey handle;
+  const LONG status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_READ | view, handle.put());
+  if (status != ERROR_SUCCESS) {
+    return status;
+  }
+  registry_backend::EnumerateKey(
+      registry_backend::RegistryKeyHandle(std::move(handle)),
+      true,
+      include_data,
+      true,
+      nullptr,
+      [&](const ValueInfo& info, const BYTE* data, DWORD size) {
+        contents->values.push_back({info.name, info.type, data ? std::vector<BYTE>(data, data + size) : std::vector<BYTE>()});
+        return true;
+      },
+      [&](const std::wstring& name) {
+        contents->subkeys.push_back(name);
+        return true;
+      },
+      MAXDWORD,
+      nullptr
+  );
+  return ERROR_SUCCESS;
+}
+
+void SelectValue(
+    const Options& options,
     std::vector<RegistryValue>* values
 ) {
-  HKEY handle = nullptr;
-  if (RegOpenKeyExW(root, subkey.c_str(), 0, KEY_READ | view, &handle) !=
-      ERROR_SUCCESS) {
-    return false;
+  if (options.has_value) {
+    const std::wstring wanted = options.default_value ? std::wstring() : options.value_name;
+    std::erase_if(*values, [&](const RegistryValue& value) { return !util::EqualsInsensitive(value.name, wanted); });
   }
-  wchar_t name[16384] = {};
-  std::vector<BYTE> data(4096);
-  DWORD index = 0;
-  while (true) {
-    DWORD length = static_cast<DWORD>(std::size(name));
-    DWORD size = static_cast<DWORD>(data.size());
-    DWORD type = 0;
-    const LONG status = RegEnumValueW(handle, index, name, &length, nullptr, &type, data.data(), &size);
-    if (status == ERROR_MORE_DATA) {
-      data.resize(size ? size : data.size() * 2);
-      continue;
-    }
-    if (status != ERROR_SUCCESS) {
-      break;
-    }
-    ++index;
-    RegistryValue value;
-    value.name.assign(name, length);
-    value.type = type;
-    value.data.assign(data.begin(), data.begin() + size);
-    values->push_back(std::move(value));
-  }
-  RegCloseKey(handle);
-  return true;
-}
-
-LONG OpenKey(
-    const KeyRef& key,
-    REGSAM access,
-    REGSAM view,
-    HKEY* handle
-) {
-  return RegOpenKeyExW(key.root, key.subkey.c_str(), 0, access | view, handle);
 }
 
 int QueryKey(
@@ -549,95 +452,39 @@ int QueryKey(
     bool recurse,
     bool* matched
 ) {
-  HKEY handle = nullptr;
-  LONG status = OpenKey(key, KEY_READ, options.view, &handle);
+  KeyContents contents;
+  const LONG status = ReadKey(key, options.view, true, &contents);
   if (status != ERROR_SUCCESS) {
     return Fail(status);
   }
-
   Print(key.display);
-  struct Entry {
-    std::wstring name;
-    DWORD type = 0;
-    std::vector<BYTE> data;
-  };
-  std::vector<Entry> entries;
-  DWORD index = 0;
-  wchar_t name[16384] = {};
-  DWORD name_length = 0;
-  DWORD type = 0;
-  std::vector<BYTE> data(4096);
-  DWORD size = 0;
-  bool printed = false;
-  while (true) {
-    name_length = static_cast<DWORD>(std::size(name));
-    size = static_cast<DWORD>(data.size());
-    status = RegEnumValueW(handle, index, name, &name_length, nullptr, &type, data.data(), &size);
-    if (status == ERROR_MORE_DATA) {
-      data.resize(size ? size : data.size() * 2);
-      continue;
-    }
-    if (status != ERROR_SUCCESS) {
-      break;
-    }
-    ++index;
-    const std::wstring value_name(name, name_length);
-    if (options.has_value) {
-      if (options.default_value ? !value_name.empty()
-                                : _wcsicmp(value_name.c_str(), options.value_name.c_str()) != 0) {
-        continue;
-      }
-    }
-    Entry entry;
-    entry.name = value_name;
-    entry.type = type;
-    entry.data.assign(data.begin(), data.begin() + size);
-    entries.push_back(std::move(entry));
+  SelectValue(options, &contents.values);
+  std::stable_partition(contents.values.begin(), contents.values.end(), [](const RegistryValue& value) { return value.name.empty(); });
+  for (const RegistryValue& value : contents.values) {
+    Print(L"    " + (value.name.empty() ? std::wstring(L"(Default)") : value.name) + L"    " + TypeName(value.type) + L"    " + FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size())));
   }
-  std::stable_partition(entries.begin(), entries.end(), [](const Entry& entry) { return entry.name.empty(); });
-  for (const Entry& entry : entries) {
-    Print(L"    " + (entry.name.empty() ? std::wstring(L"(Default)") : entry.name) + L"    " + TypeName(entry.type) + L"    " + FormatData(entry.type, entry.data.data(), static_cast<DWORD>(entry.data.size())));
-    printed = true;
-  }
+  const bool printed = !contents.values.empty();
   if (printed && matched) {
     *matched = true;
   }
   if (!options.has_value || printed) {
     Print(L"");
   }
-
-  std::vector<std::wstring> children;
-  index = 0;
-  while (true) {
-    name_length = static_cast<DWORD>(std::size(name));
-    status = RegEnumKeyExW(handle, index, name, &name_length, nullptr, nullptr, nullptr, nullptr);
-    if (status != ERROR_SUCCESS) {
-      break;
-    }
-    ++index;
-    children.emplace_back(name, name_length);
-  }
   if (!options.has_value && !recurse) {
-    for (const auto& child : children) {
+    for (const auto& child : contents.subkeys) {
       Print(key.display + L'\\' + child);
     }
-    if (!children.empty()) {
+    if (!contents.subkeys.empty()) {
       Print(L"");
     }
   }
-  RegCloseKey(handle);
-
   if (recurse) {
-    for (const auto& child : children) {
-      KeyRef sub = key;
-      sub.subkey = key.subkey.empty() ? child : key.subkey + L'\\' + child;
-      sub.display = key.display + L'\\' + child;
-      QueryKey(sub, options, true, matched);
+    for (const auto& child : contents.subkeys) {
+      QueryKey(ChildRef(key, child), options, true, matched);
     }
   }
   return kOk;
 }
-
 int CmdQuery(
     const std::vector<std::wstring>& args
 ) {
@@ -699,64 +546,24 @@ int CmdAdd(
     }
   }
 
-  HKEY handle = nullptr;
-  DWORD disposition = 0;
-  LONG status = RegCreateKeyExW(key.root, key.subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_QUERY_VALUE | options.view, nullptr, &handle, &disposition);
+  util::UniqueHKey handle;
+  LONG status = RegCreateKeyExW(key.root, key.subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_QUERY_VALUE | options.view, nullptr, handle.put(), nullptr);
   if (status != ERROR_SUCCESS) {
     return Fail(status);
   }
-
-  int result = kOk;
   if (options.has_value) {
     const std::wstring name = options.default_value ? std::wstring() : options.value_name;
-    const DWORD type = value_type;
-    if (!options.force) {
-      DWORD existing = 0;
-      if (RegQueryValueExW(handle, name.c_str(), nullptr, &existing, nullptr, nullptr) == ERROR_SUCCESS) {
-        Print(L"Value " + (name.empty() ? std::wstring(L"(Default)") : name) + L" already exists. Use /f to overwrite.");
-        RegCloseKey(handle);
-        return kFailed;
-      }
+    if (!options.force && RegQueryValueExW(handle.get(), name.c_str(), nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS) {
+      Print(L"Value " + (name.empty() ? std::wstring(L"(Default)") : name) + L" already exists. Use /f to overwrite.");
+      return kFailed;
     }
-    const std::vector<BYTE>& data = value_data;
-    status = RegSetValueExW(handle, name.c_str(), 0, type, data.data(), static_cast<DWORD>(data.size()));
+    status = RegSetValueExW(handle.get(), name.c_str(), 0, value_type, value_data.data(), static_cast<DWORD>(value_data.size()));
     if (status != ERROR_SUCCESS) {
-      result = Fail(status);
+      return Fail(status);
     }
   }
-  RegCloseKey(handle);
-  if (result == kOk) {
-    Print(L"The operation completed successfully.");
-  }
-  return result;
-}
-
-LONG DeleteTree(
-    HKEY root,
-    const std::wstring& subkey,
-    REGSAM view
-) {
-  HKEY handle = nullptr;
-  LONG status = RegOpenKeyExW(root, subkey.c_str(), 0, KEY_READ | KEY_WRITE | view, &handle);
-  if (status != ERROR_SUCCESS) {
-    return status;
-  }
-  std::vector<std::wstring> children;
-  wchar_t name[512] = {};
-  DWORD index = 0;
-  while (true) {
-    DWORD length = static_cast<DWORD>(std::size(name));
-    if (RegEnumKeyExW(handle, index, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
-      break;
-    }
-    ++index;
-    children.emplace_back(name, length);
-  }
-  RegCloseKey(handle);
-  for (const auto& child : children) {
-    DeleteTree(root, subkey + L'\\' + child, view);
-  }
-  return RegDeleteKeyExW(root, subkey.c_str(), view, 0);
+  Print(L"The operation completed successfully.");
+  return kOk;
 }
 
 int CmdDelete(
@@ -788,34 +595,21 @@ int CmdDelete(
   }
 
   if (options.has_value || options.all_values) {
-    HKEY handle = nullptr;
-    LONG status = OpenKey(key, KEY_WRITE, options.view, &handle);
+    KeyContents contents;
+    LONG status = options.all_values ? ReadKey(key, options.view, false, &contents) : ERROR_SUCCESS;
+    util::UniqueHKey handle;
+    if (status == ERROR_SUCCESS) {
+      status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_SET_VALUE | options.view, handle.put());
+    }
+    if (!options.all_values) {
+      contents.values.push_back({options.default_value ? std::wstring() : options.value_name});
+    }
+    for (size_t index = 0; status == ERROR_SUCCESS && index < contents.values.size(); ++index) {
+      status = RegDeleteValueW(handle.get(), contents.values[index].name.c_str());
+    }
     if (status != ERROR_SUCCESS) {
       return Fail(status);
     }
-    if (options.all_values) {
-      wchar_t name[16384] = {};
-      while (true) {
-        DWORD length = static_cast<DWORD>(std::size(name));
-        if (RegEnumValueW(handle, 0, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
-          break;
-        }
-        const LONG removed = RegDeleteValueW(handle, name);
-        if (removed != ERROR_SUCCESS) {
-          RegCloseKey(handle);
-          return Fail(removed);
-        }
-      }
-    } else {
-      const std::wstring name =
-          options.default_value ? std::wstring() : options.value_name;
-      status = RegDeleteValueW(handle, name.c_str());
-      if (status != ERROR_SUCCESS) {
-        RegCloseKey(handle);
-        return Fail(status);
-      }
-    }
-    RegCloseKey(handle);
     Print(L"The operation completed successfully.");
     return kOk;
   }
@@ -824,7 +618,11 @@ int CmdDelete(
     PrintError(L"Refusing to delete a registry root.");
     return kFailed;
   }
-  const LONG status = DeleteTree(key.root, key.subkey, options.view);
+  util::UniqueHKey target;
+  LONG status = util::OpenRegistryPath(key.root, key.subkey, DELETE | KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE | options.view, true, &target);
+  if (status == ERROR_SUCCESS) {
+    status = util::DeleteRegistryTree(target.get());
+  }
   if (status != ERROR_SUCCESS) {
     return Fail(status);
   }
@@ -838,69 +636,22 @@ LONG CopyTree(
     REGSAM view,
     bool recurse
 ) {
-  HKEY source = nullptr;
-  LONG status = RegOpenKeyExW(from.root, from.subkey.c_str(), 0, KEY_READ | view, &source);
-  if (status != ERROR_SUCCESS) {
-    return status;
+  KeyContents contents;
+  LONG status = ReadKey(from, view, true, &contents);
+  util::UniqueHKey target;
+  if (status == ERROR_SUCCESS) {
+    status = RegCreateKeyExW(to.root, to.subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE | view, nullptr, target.put(), nullptr);
   }
-  HKEY target = nullptr;
-  status = RegCreateKeyExW(to.root, to.subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE | view, nullptr, &target, nullptr);
-  if (status != ERROR_SUCCESS) {
-    RegCloseKey(source);
-    return status;
+  for (size_t index = 0; status == ERROR_SUCCESS && index < contents.values.size(); ++index) {
+    const RegistryValue& value = contents.values[index];
+    status = RegSetValueExW(target.get(), value.name.c_str(), 0, value.type, value.data.data(), static_cast<DWORD>(value.data.size()));
   }
-
-  wchar_t name[16384] = {};
-  std::vector<BYTE> data(4096);
-  DWORD index = 0;
-  while (true) {
-    DWORD length = static_cast<DWORD>(std::size(name));
-    DWORD size = static_cast<DWORD>(data.size());
-    DWORD type = 0;
-    status = RegEnumValueW(source, index, name, &length, nullptr, &type, data.data(), &size);
-    if (status == ERROR_MORE_DATA) {
-      data.resize(size ? size : data.size() * 2);
-      continue;
-    }
-    if (status != ERROR_SUCCESS) {
-      break;
-    }
-    ++index;
-    const LONG written =
-        RegSetValueExW(target, name, 0, type, data.data(), size);
-    if (written != ERROR_SUCCESS) {
-      RegCloseKey(source);
-      RegCloseKey(target);
-      return written;
-    }
+  target.reset();
+  for (size_t index = 0; recurse && status == ERROR_SUCCESS && index < contents.subkeys.size(); ++index) {
+    status = CopyTree(ChildRef(from, contents.subkeys[index]), ChildRef(to, contents.subkeys[index]), view, true);
   }
-
-  std::vector<std::wstring> children;
-  index = 0;
-  while (recurse) {
-    DWORD length = static_cast<DWORD>(std::size(name));
-    if (RegEnumKeyExW(source, index, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
-      break;
-    }
-    ++index;
-    children.emplace_back(name, length);
-  }
-  RegCloseKey(source);
-  RegCloseKey(target);
-
-  for (const auto& child : children) {
-    KeyRef child_from = from;
-    KeyRef child_to = to;
-    child_from.subkey = from.subkey + L'\\' + child;
-    child_to.subkey = to.subkey + L'\\' + child;
-    const LONG copied = CopyTree(child_from, child_to, view, true);
-    if (copied != ERROR_SUCCESS) {
-      return copied;
-    }
-  }
-  return ERROR_SUCCESS;
+  return status;
 }
-
 int CmdCopy(
     const std::vector<std::wstring>& args
 ) {
@@ -936,41 +687,22 @@ bool ExportKeyToFile(
   std::vector<KeyRef> pending{key};
   bool any = false;
   while (!pending.empty()) {
-    const KeyRef current = pending.back();
+    const KeyRef current = std::move(pending.back());
     pending.pop_back();
-    HKEY handle = nullptr;
-    if (RegOpenKeyExW(current.root, current.subkey.c_str(), 0, KEY_READ | view, &handle) != ERROR_SUCCESS) {
+    KeyContents contents;
+    if (ReadKey(current, view, true, &contents) != ERROR_SUCCESS) {
       continue;
     }
     any = true;
-
-    std::vector<RegistryValue> values;
-    CollectValues(current.root, current.subkey, view, &values);
-    std::stable_partition(values.begin(), values.end(), [](const RegistryValue& value) { return value.name.empty(); });
+    std::stable_partition(contents.values.begin(), contents.values.end(), [](const RegistryValue& value) { return value.name.empty(); });
     std::vector<const regfile::Value*> pointers;
-    pointers.reserve(values.size());
-    for (const RegistryValue& value : values) {
+    pointers.reserve(contents.values.size());
+    for (const RegistryValue& value : contents.values) {
       pointers.push_back(&value);
     }
     writer.AppendKey(current.display, std::move(pointers), false);
-
-    wchar_t name[512] = {};
-    DWORD index = 0;
-    std::vector<std::wstring> children;
-    while (true) {
-      DWORD length = static_cast<DWORD>(std::size(name));
-      if (RegEnumKeyExW(handle, index, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) {
-        break;
-      }
-      ++index;
-      children.emplace_back(name, length);
-    }
-    RegCloseKey(handle);
-    for (auto it = children.rbegin(); it != children.rend(); ++it) {
-      KeyRef child = current;
-      child.subkey = current.subkey.empty() ? *it : current.subkey + L'\\' + *it;
-      child.display = current.display + L'\\' + *it;
-      pending.push_back(child);
+    for (auto child = contents.subkeys.rbegin(); child != contents.subkeys.rend(); ++child) {
+      pending.push_back(ChildRef(current, *child));
     }
   }
   if (!any) {
@@ -987,7 +719,6 @@ bool ExportKeyToFile(
   }
   return true;
 }
-
 int CmdExport(
     const std::vector<std::wstring>& args
 ) {
@@ -1033,25 +764,6 @@ int CmdImport(
   return kOk;
 }
 
-bool EnablePrivilege(
-    const wchar_t* name
-) {
-  HANDLE token = nullptr;
-  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
-    return false;
-  }
-  TOKEN_PRIVILEGES privileges = {};
-  privileges.PrivilegeCount = 1;
-  privileges.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-  bool ok = LookupPrivilegeValueW(nullptr, name, &privileges.Privileges[0].Luid) != FALSE;
-  if (ok) {
-    ok = AdjustTokenPrivileges(token, FALSE, &privileges, 0, nullptr, nullptr) &&
-         GetLastError() == ERROR_SUCCESS;
-  }
-  CloseHandle(token);
-  return ok;
-}
-
 int CmdSave(
     const std::vector<std::wstring>& args
 ) {
@@ -1072,9 +784,9 @@ int CmdSave(
     PrintError(positional[1] + L" already exists. Use /y to overwrite.");
     return kFailed;
   }
-  EnablePrivilege(SE_BACKUP_NAME);
-  HKEY handle = nullptr;
-  LONG status = OpenKey(key, KEY_READ, options.view, &handle);
+  const util::PrivilegeScope privileges({SE_BACKUP_NAME});
+  util::UniqueHKey handle;
+  LONG status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_READ | options.view, handle.put());
   if (status != ERROR_SUCCESS) {
     return Fail(status);
   }
@@ -1087,8 +799,8 @@ int CmdSave(
     staged = positional[1] + stamp;
     DeleteFileW(staged.c_str());
   }
-  status = RegSaveKeyW(handle, staged.c_str(), nullptr);
-  RegCloseKey(handle);
+  status = RegSaveKeyW(handle.get(), staged.c_str(), nullptr);
+  handle.reset();
   if (status != ERROR_SUCCESS) {
     if (existed) {
       DeleteFileW(staged.c_str());
@@ -1120,17 +832,15 @@ int CmdRestore(
   if (!ParseKey(positional[0], &key)) {
     return kFailed;
   }
-  if (!EnablePrivilege(SE_RESTORE_NAME) ||
-      !EnablePrivilege(SE_BACKUP_NAME)) {
+  const util::PrivilegeScope privileges({SE_RESTORE_NAME, SE_BACKUP_NAME});
+  if (!privileges.held()) {
     return Fail(ERROR_PRIVILEGE_NOT_HELD);
   }
-  HKEY handle = nullptr;
-  LONG status = OpenKey(key, KEY_WRITE, options.view, &handle);
-  if (status != ERROR_SUCCESS) {
-    return Fail(status);
+  util::UniqueHKey handle;
+  LONG status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_WRITE | options.view, handle.put());
+  if (status == ERROR_SUCCESS) {
+    status = RegRestoreKeyW(handle.get(), positional[1].c_str(), REG_FORCE_RESTORE);
   }
-  status = RegRestoreKeyW(handle, positional[1].c_str(), REG_FORCE_RESTORE);
-  RegCloseKey(handle);
   if (status != ERROR_SUCCESS) {
     return Fail(status);
   }
@@ -1149,8 +859,7 @@ int CmdLoad(
   if (!ParseKey(args[1], &key)) {
     return kFailed;
   }
-  EnablePrivilege(SE_RESTORE_NAME);
-  EnablePrivilege(SE_BACKUP_NAME);
+  const util::PrivilegeScope privileges({SE_RESTORE_NAME, SE_BACKUP_NAME});
   const LONG status = RegLoadKeyW(key.root, key.subkey.c_str(), args[2].c_str());
   if (status != ERROR_SUCCESS) {
     return Fail(status);
@@ -1170,8 +879,7 @@ int CmdUnload(
   if (!ParseKey(args[1], &key)) {
     return kFailed;
   }
-  EnablePrivilege(SE_RESTORE_NAME);
-  EnablePrivilege(SE_BACKUP_NAME);
+  const util::PrivilegeScope privileges({SE_RESTORE_NAME, SE_BACKUP_NAME});
   const LONG status = RegUnLoadKeyW(key.root, key.subkey.c_str());
   if (status != ERROR_SUCCESS) {
     return Fail(status);
@@ -1180,90 +888,39 @@ int CmdUnload(
   return kOk;
 }
 
-bool OpenKeyStatus(
-    const KeyRef& key,
-    REGSAM view,
-    LONG* status
-) {
-  HKEY handle = nullptr;
-  *status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_READ | view, &handle);
-  if (*status != ERROR_SUCCESS) {
-    return false;
-  }
-  RegCloseKey(handle);
-  return true;
-}
-
-KeyRef ChildRef(
-    const KeyRef& parent,
-    const std::wstring& name
-) {
-  KeyRef child = parent;
-  child.subkey = parent.subkey.empty() ? name : parent.subkey + L"\\" + name;
-  child.display = parent.display + L"\\" + name;
-  return child;
-}
-
 int CompareKeys(
     const KeyRef& left,
     const KeyRef& right,
     const Options& options,
     bool* differs
 ) {
-  LONG left_status = ERROR_SUCCESS;
-  LONG right_status = ERROR_SUCCESS;
-  const bool left_exists = OpenKeyStatus(left, options.view, &left_status);
-  const bool right_exists = OpenKeyStatus(right, options.view, &right_status);
-  if (!left_exists && left_status != ERROR_FILE_NOT_FOUND) {
-    PrintError(L"The system was unable to open " + left.display + L".");
-    return kFailed;
+  KeyContents left_contents;
+  KeyContents right_contents;
+  const LONG left_status = ReadKey(left, options.view, true, &left_contents);
+  const LONG right_status = ReadKey(right, options.view, true, &right_contents);
+  for (const auto& [status, ref] : {std::pair<LONG, const KeyRef*>{left_status, &left}, {right_status, &right}}) {
+    if (status != ERROR_SUCCESS && status != ERROR_FILE_NOT_FOUND) {
+      PrintError(L"The system was unable to open " + ref->display + L".");
+      return kFailed;
+    }
   }
-  if (!right_exists && right_status != ERROR_FILE_NOT_FOUND) {
-    PrintError(L"The system was unable to open " + right.display + L".");
-    return kFailed;
-  }
+  const bool left_exists = left_status == ERROR_SUCCESS;
+  const bool right_exists = right_status == ERROR_SUCCESS;
   if (!left_exists && !right_exists) {
     return kOk;
   }
   if (left_exists != right_exists) {
-    Print((left_exists ? L"< " + left.display : L"> " + right.display));
+    Print(left_exists ? L"< " + left.display : L"> " + right.display);
     *differs = true;
   }
-
-  std::vector<RegistryValue> left_values;
-  std::vector<RegistryValue> right_values;
-  if (left_exists &&
-      !CollectValues(left.root, left.subkey, options.view, &left_values)) {
-    PrintError(L"The system was unable to open " + left.display + L".");
-    return kFailed;
-  }
-  if (right_exists &&
-      !CollectValues(right.root, right.subkey, options.view, &right_values)) {
-    PrintError(L"The system was unable to open " + right.display + L".");
-    return kFailed;
-  }
-  if (options.has_value) {
-    const std::wstring wanted =
-        options.default_value ? std::wstring() : options.value_name;
-    auto keep_only = [&](std::vector<RegistryValue>* list) {
-      list->erase(std::remove_if(list->begin(), list->end(), [&](const RegistryValue& value) { return _wcsicmp(value.name.c_str(), wanted.c_str()) != 0; }), list->end());
-    };
-    keep_only(&left_values);
-    keep_only(&right_values);
-  }
-
-  auto find = [](const std::vector<RegistryValue>& list,
-                 const std::wstring& name) -> const RegistryValue* {
-    for (const RegistryValue& value : list) {
-      if (_wcsicmp(value.name.c_str(), name.c_str()) == 0) {
-        return &value;
-      }
-    }
-    return nullptr;
+  SelectValue(options, &left_contents.values);
+  SelectValue(options, &right_contents.values);
+  auto find = [](const std::vector<RegistryValue>& list, const std::wstring& name) -> const RegistryValue* {
+    const auto found = std::find_if(list.begin(), list.end(), [&](const RegistryValue& value) { return util::EqualsInsensitive(value.name, name); });
+    return found == list.end() ? nullptr : &*found;
   };
-
-  for (const RegistryValue& value : left_values) {
-    const RegistryValue* other = find(right_values, value.name);
+  for (const RegistryValue& value : left_contents.values) {
+    const RegistryValue* other = find(right_contents.values, value.name);
     if (!other) {
       Print(L"< " + left.display + L"    " + value.name);
       *differs = true;
@@ -1273,39 +930,26 @@ int CompareKeys(
       *differs = true;
     }
   }
-  for (const RegistryValue& value : right_values) {
-    if (!find(left_values, value.name)) {
+  for (const RegistryValue& value : right_contents.values) {
+    if (!find(left_contents.values, value.name)) {
       Print(L"> " + right.display + L"    " + value.name);
       *differs = true;
     }
   }
-
   if (!options.recurse) {
     return kOk;
   }
-
-  std::vector<std::wstring> children;
-  if (left_exists &&
-      !CollectSubkeyNames(left.root, left.subkey, options.view, &children)) {
-    PrintError(L"The system was unable to open " + left.display + L".");
-    return kFailed;
-  }
-  if (right_exists &&
-      !CollectSubkeyNames(right.root, right.subkey, options.view, &children)) {
-    PrintError(L"The system was unable to open " + right.display + L".");
-    return kFailed;
-  }
-  std::sort(children.begin(), children.end(), [](const std::wstring& a, const std::wstring& b) { return _wcsicmp(a.c_str(), b.c_str()) < 0; });
-  children.erase(std::unique(children.begin(), children.end(), [](const std::wstring& a, const std::wstring& b) { return _wcsicmp(a.c_str(), b.c_str()) == 0; }), children.end());
+  std::vector<std::wstring> children = std::move(left_contents.subkeys);
+  children.insert(children.end(), right_contents.subkeys.begin(), right_contents.subkeys.end());
+  std::sort(children.begin(), children.end(), [](const std::wstring& a, const std::wstring& b) { return util::CompareInsensitive(a, b) < 0; });
+  children.erase(std::unique(children.begin(), children.end(), [](const std::wstring& a, const std::wstring& b) { return util::EqualsInsensitive(a, b); }), children.end());
   for (const std::wstring& child : children) {
-    const int result = CompareKeys(ChildRef(left, child), ChildRef(right, child), options, differs);
-    if (result == kFailed) {
+    if (CompareKeys(ChildRef(left, child), ChildRef(right, child), options, differs) == kFailed) {
       return kFailed;
     }
   }
   return kOk;
 }
-
 int CmdCompare(
     const std::vector<std::wstring>& args
 ) {
@@ -1324,10 +968,9 @@ int CmdCompare(
     return kFailed;
   }
 
-  LONG left_status = ERROR_SUCCESS;
-  LONG right_status = ERROR_SUCCESS;
-  if (!OpenKeyStatus(left, options.view, &left_status) &&
-      !OpenKeyStatus(right, options.view, &right_status)) {
+  KeyContents probe;
+  if (ReadKey(left, options.view, false, &probe) != ERROR_SUCCESS &&
+      ReadKey(right, options.view, false, &probe) != ERROR_SUCCESS) {
     PrintError(L"The system was unable to open " + left.display + L".");
     return kFailed;
   }
@@ -1388,35 +1031,34 @@ int RunVerb(
     const std::wstring& verb,
     const std::vector<std::wstring>& args
 ) {
-  if (EqualsInsensitive(verb, L"query"))
-    return CmdQuery(args);
-  if (EqualsInsensitive(verb, L"add"))
-    return CmdAdd(args);
-  if (EqualsInsensitive(verb, L"delete"))
-    return CmdDelete(args);
-  if (EqualsInsensitive(verb, L"copy"))
-    return CmdCopy(args);
-  if (EqualsInsensitive(verb, L"export"))
-    return CmdExport(args);
-  if (EqualsInsensitive(verb, L"import"))
-    return CmdImport(args);
-  if (EqualsInsensitive(verb, L"save"))
-    return CmdSave(args);
-  if (EqualsInsensitive(verb, L"restore"))
-    return CmdRestore(args);
-  if (EqualsInsensitive(verb, L"load"))
-    return CmdLoad(args);
-  if (EqualsInsensitive(verb, L"unload"))
-    return CmdUnload(args);
-  if (EqualsInsensitive(verb, L"compare"))
-    return CmdCompare(args);
-  if (EqualsInsensitive(verb, L"flags")) {
+  struct Verb {
+    const wchar_t* name;
+    int (*run)(const std::vector<std::wstring>&);
+  };
+  static constexpr Verb kVerbs[] = {
+      {L"query", CmdQuery},
+      {L"add", CmdAdd},
+      {L"delete", CmdDelete},
+      {L"copy", CmdCopy},
+      {L"export", CmdExport},
+      {L"import", CmdImport},
+      {L"save", CmdSave},
+      {L"restore", CmdRestore},
+      {L"load", CmdLoad},
+      {L"unload", CmdUnload},
+      {L"compare", CmdCompare},
+  };
+  for (const Verb& entry : kVerbs) {
+    if (util::EqualsInsensitive(verb, entry.name)) {
+      return entry.run(args);
+    }
+  }
+  if (util::EqualsInsensitive(verb, L"flags")) {
     PrintError(L"reg flags isn't implemented.");
     return kFailed;
   }
   return -1;
 }
-
 } // namespace
 
 bool Execute(
@@ -1437,7 +1079,7 @@ bool Execute(
   }
 
   std::vector<std::wstring> verb_args = args;
-  if (EqualsInsensitive(verb_args[0], L"reg")) {
+  if (util::EqualsInsensitive(verb_args[0], L"reg")) {
     verb_args.erase(verb_args.begin());
   }
   if (!verb_args.empty()) {

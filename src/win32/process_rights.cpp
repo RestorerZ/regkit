@@ -1,8 +1,10 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+#include "win32/text_transform.h"
 #include "win32/process_rights.h"
 
+#include <algorithm>
 #include <vector>
 
 #include <sddl.h>
@@ -12,92 +14,50 @@
 
 namespace {
 
-class ScopedHandle {
-public:
-  ScopedHandle() noexcept = default;
-  explicit ScopedHandle(
-      HANDLE handle
-  ) noexcept
-      : handle_(handle) {
-  }
-  ~ScopedHandle() {
-    reset();
-  }
-  ScopedHandle(const ScopedHandle&) = delete;
-  ScopedHandle& operator=(const ScopedHandle&) = delete;
-  ScopedHandle(
-      ScopedHandle&& other
-  ) noexcept
-      : handle_(other.handle_) {
-    other.handle_ = nullptr;
-  }
-  ScopedHandle& operator=(
-      ScopedHandle&& other
-  ) noexcept {
-    if (this != &other) {
-      reset();
-      handle_ = other.handle_;
-      other.handle_ = nullptr;
-    }
-    return *this;
-  }
+using util::UniqueHandle;
 
-  HANDLE get() const noexcept {
-    return handle_;
+struct DestroyEnvironment {
+  void operator()(LPVOID block) const noexcept {
+    DestroyEnvironmentBlock(block);
   }
-  HANDLE* put() noexcept {
-    reset();
-    return &handle_;
-  }
-  HANDLE release() noexcept {
-    HANDLE temp = handle_;
-    handle_ = nullptr;
-    return temp;
-  }
-  void reset(
-      HANDLE handle = nullptr
-  ) noexcept {
-    if (handle_ && handle_ != INVALID_HANDLE_VALUE) {
-      CloseHandle(handle_);
-    }
-    handle_ = handle;
-  }
-  explicit operator bool() const noexcept {
-    return handle_ && handle_ != INVALID_HANDLE_VALUE;
-  }
-
-private:
-  HANDLE handle_ = nullptr;
 };
 
-class ScopedEnvBlock {
-public:
-  ScopedEnvBlock() noexcept = default;
-  ~ScopedEnvBlock() {
-    reset();
+struct CloseService {
+  void operator()(SC_HANDLE service) const noexcept {
+    CloseServiceHandle(service);
   }
-  ScopedEnvBlock(const ScopedEnvBlock&) = delete;
-  ScopedEnvBlock& operator=(const ScopedEnvBlock&) = delete;
-
-  LPVOID get() const noexcept {
-    return block_;
-  }
-  LPVOID* put() noexcept {
-    reset();
-    return &block_;
-  }
-  void reset(
-      LPVOID block = nullptr
-  ) noexcept {
-    if (block_) {
-      DestroyEnvironmentBlock(block_);
-    }
-    block_ = block;
-  }
-
-private:
-  LPVOID block_ = nullptr;
 };
+
+using UniqueEnvironment = util::UniqueResource<LPVOID, DestroyEnvironment>;
+using UniqueService = util::UniqueResource<SC_HANDLE, CloseService>;
+
+constexpr DWORD kNoSession = static_cast<DWORD>(-1);
+
+std::vector<BYTE> TokenInformation(
+    HANDLE token,
+    TOKEN_INFORMATION_CLASS type
+) {
+  DWORD size = 0;
+  GetTokenInformation(token, type, nullptr, 0, &size);
+  std::vector<BYTE> buffer(size);
+  if (size == 0 || !GetTokenInformation(token, type, buffer.data(), size, &size)) {
+    buffer.clear();
+  }
+  return buffer;
+}
+
+std::vector<BYTE> CurrentTokenInformation(
+    TOKEN_INFORMATION_CLASS type
+) {
+  UniqueHandle token;
+  return OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, token.put()) ? TokenInformation(token.get(), type) : std::vector<BYTE>();
+}
+
+PSID CurrentUserSid(
+    const std::vector<BYTE>& buffer
+) {
+  return buffer.empty() ? nullptr : reinterpret_cast<const TOKEN_USER*>(buffer.data())->User.Sid;
+}
 
 DWORD GetActiveSessionId() {
   DWORD current = 0;
@@ -107,9 +67,9 @@ DWORD GetActiveSessionId() {
   DWORD count = 0;
   PWTS_SESSION_INFOW sessions = nullptr;
   if (!WTSEnumerateSessionsW(WTS_CURRENT_SERVER_HANDLE, 0, 1, &sessions, &count)) {
-    return static_cast<DWORD>(-1);
+    return kNoSession;
   }
-  DWORD active_session = static_cast<DWORD>(-1);
+  DWORD active_session = kNoSession;
   for (DWORD i = 0; i < count; ++i) {
     if (sessions[i].State == WTS_CONNECTSTATE_CLASS::WTSActive) {
       active_session = sessions[i].SessionId;
@@ -120,41 +80,30 @@ DWORD GetActiveSessionId() {
   return active_session;
 }
 
-bool CreateSystemToken(
-    DWORD desired_access,
-    HANDLE* token_handle
+bool OpenSystemToken(
+    DWORD session_id,
+    HANDLE* token
 ) {
-  if (!token_handle) {
-    SetLastError(ERROR_INVALID_PARAMETER);
-    return false;
-  }
-  *token_handle = nullptr;
-
   DWORD lsass_pid = 0;
   DWORD winlogon_pid = 0;
   DWORD process_count = 0;
   PWTS_PROCESS_INFOW processes = nullptr;
-  DWORD session_id = GetActiveSessionId();
-
   if (WTSEnumerateProcessesW(WTS_CURRENT_SERVER_HANDLE, 0, 1, &processes, &process_count)) {
     for (DWORD i = 0; i < process_count; ++i) {
       const auto& process = processes[i];
       if (!process.pProcessName || !process.pUserSid || !IsWellKnownSid(process.pUserSid, WELL_KNOWN_SID_TYPE::WinLocalSystemSid)) {
         continue;
       }
-      if (lsass_pid == 0 && process.SessionId == 0 && _wcsicmp(process.pProcessName, L"lsass.exe") == 0) {
+      if (lsass_pid == 0 && process.SessionId == 0 && util::EqualsInsensitive(process.pProcessName, L"lsass.exe")) {
         lsass_pid = process.ProcessId;
-        continue;
-      }
-      if (winlogon_pid == 0 && process.SessionId == session_id && _wcsicmp(process.pProcessName, L"winlogon.exe") == 0) {
+      } else if (winlogon_pid == 0 && process.SessionId == session_id && util::EqualsInsensitive(process.pProcessName, L"winlogon.exe")) {
         winlogon_pid = process.ProcessId;
-        continue;
       }
     }
     WTSFreeMemory(processes);
   }
 
-  ScopedHandle system_process;
+  UniqueHandle system_process;
   if (lsass_pid != 0) {
     system_process.reset(OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, lsass_pid));
   }
@@ -165,57 +114,21 @@ bool CreateSystemToken(
     SetLastError(ERROR_INVALID_PARAMETER);
     return false;
   }
-
-  ScopedHandle system_token;
-  if (!OpenProcessToken(system_process.get(), TOKEN_DUPLICATE, system_token.put())) {
-    return false;
-  }
-
-  if (!DuplicateTokenEx(system_token.get(), desired_access, nullptr, SecurityIdentification, TokenPrimary, token_handle)) {
-    return false;
-  }
-
-  return true;
+  return OpenProcessToken(system_process.get(), TOKEN_DUPLICATE, token) != FALSE;
 }
 
-bool EnablePrivilege(
-    HANDLE token,
-    const wchar_t* privilege
+bool EnableAllPrivileges(
+    HANDLE token
 ) {
-  if (!token || !privilege) {
-    SetLastError(ERROR_INVALID_PARAMETER);
-    return false;
-  }
-  LUID luid = {};
-  if (!LookupPrivilegeValueW(nullptr, privilege, &luid)) {
-    return false;
-  }
-  TOKEN_PRIVILEGES tp = {};
-  tp.PrivilegeCount = 1;
-  tp.Privileges[0].Luid = luid;
-  tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-  AdjustTokenPrivileges(token, FALSE, &tp, sizeof(tp), nullptr, nullptr);
-  return GetLastError() == ERROR_SUCCESS;
-}
-
-bool AdjustTokenAllPrivileges(
-    HANDLE token,
-    DWORD attributes
-) {
-  DWORD length = 0;
-  GetTokenInformation(token, TokenPrivileges, nullptr, 0, &length);
-  if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || length == 0) {
-    return false;
-  }
-  std::vector<BYTE> buffer(length);
-  if (!GetTokenInformation(token, TokenPrivileges, buffer.data(), length, &length)) {
+  std::vector<BYTE> buffer = TokenInformation(token, TokenPrivileges);
+  if (buffer.empty()) {
     return false;
   }
   auto* privileges = reinterpret_cast<TOKEN_PRIVILEGES*>(buffer.data());
   for (DWORD i = 0; i < privileges->PrivilegeCount; ++i) {
-    privileges->Privileges[i].Attributes = attributes;
+    privileges->Privileges[i].Attributes = SE_PRIVILEGE_ENABLED;
   }
-  AdjustTokenPrivileges(token, FALSE, privileges, length, nullptr, nullptr);
+  AdjustTokenPrivileges(token, FALSE, privileges, static_cast<DWORD>(buffer.size()), nullptr, nullptr);
   return GetLastError() == ERROR_SUCCESS;
 }
 
@@ -223,10 +136,6 @@ bool QueryServiceProcess(
     SC_HANDLE service,
     SERVICE_STATUS_PROCESS* status
 ) {
-  if (!status) {
-    SetLastError(ERROR_INVALID_PARAMETER);
-    return false;
-  }
   DWORD bytes = 0;
   return QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, reinterpret_cast<LPBYTE>(status), sizeof(SERVICE_STATUS_PROCESS), &bytes) != FALSE;
 }
@@ -241,13 +150,7 @@ bool WaitWhileServicePending(
   DWORD checkpoint = status->dwCheckPoint;
   ULONGLONG progress = start;
   while (status->dwCurrentState == pending_state) {
-    DWORD wait = status->dwWaitHint / 10;
-    if (wait < 100) {
-      wait = 100;
-    } else if (wait > 2000) {
-      wait = 2000;
-    }
-    Sleep(wait);
+    Sleep(std::clamp<DWORD>(status->dwWaitHint / 10, 100, 2000));
     if (!QueryServiceProcess(service, status)) {
       return false;
     }
@@ -257,8 +160,7 @@ bool WaitWhileServicePending(
       progress = now;
       continue;
     }
-    const ULONGLONG budget = status->dwWaitHint > 5000 ? status->dwWaitHint : 5000;
-    if (now - progress > budget || now - start > kMaxWaitMs) {
+    if (now - progress > std::max<ULONGLONG>(status->dwWaitHint, 5000) || now - start > kMaxWaitMs) {
       SetLastError(ERROR_SERVICE_REQUEST_TIMEOUT);
       return false;
     }
@@ -266,116 +168,199 @@ bool WaitWhileServicePending(
   return true;
 }
 
-bool StartServiceAndGetProcessId(
+bool OpenServiceProcessToken(
     const wchar_t* service_name,
-    DWORD* process_id
+    HANDLE* token
 ) {
-  if (!service_name || !process_id) {
-    SetLastError(ERROR_INVALID_PARAMETER);
-    return false;
-  }
-  *process_id = 0;
-
-  SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
-  if (!scm) {
-    return false;
-  }
-  SC_HANDLE service = OpenServiceW(scm, service_name, SERVICE_QUERY_STATUS | SERVICE_START);
-  if (!service) {
-    CloseServiceHandle(scm);
-    return false;
-  }
-
+  UniqueService scm(OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT));
+  UniqueService service(scm ? OpenServiceW(scm.get(), service_name, SERVICE_QUERY_STATUS | SERVICE_START) : nullptr);
   SERVICE_STATUS_PROCESS status = {};
-  if (!QueryServiceProcess(service, &status)) {
-    CloseServiceHandle(service);
-    CloseServiceHandle(scm);
+  if (!service || !QueryServiceProcess(service.get(), &status) ||
+      !WaitWhileServicePending(service.get(), SERVICE_STOP_PENDING, &status)) {
     return false;
-  }
-
-  auto fail = [&](DWORD error) {
-    CloseServiceHandle(service);
-    CloseServiceHandle(scm);
-    SetLastError(error);
-    return false;
-  };
-
-  if (!WaitWhileServicePending(service, SERVICE_STOP_PENDING, &status)) {
-    return fail(GetLastError());
   }
   if (status.dwCurrentState == SERVICE_STOPPED) {
-    if (!StartServiceW(service, 0, nullptr) &&
-        GetLastError() != ERROR_SERVICE_ALREADY_RUNNING) {
-      return fail(GetLastError());
+    if (!StartServiceW(service.get(), 0, nullptr) && GetLastError() != ERROR_SERVICE_ALREADY_RUNNING) {
+      return false;
     }
-    if (!QueryServiceProcess(service, &status)) {
-      return fail(GetLastError());
+    if (!QueryServiceProcess(service.get(), &status)) {
+      return false;
     }
   }
-  if (!WaitWhileServicePending(service, SERVICE_START_PENDING, &status)) {
-    return fail(GetLastError());
+  if (!WaitWhileServicePending(service.get(), SERVICE_START_PENDING, &status)) {
+    return false;
   }
   if (status.dwCurrentState != SERVICE_RUNNING || status.dwProcessId == 0) {
-    DWORD error = status.dwWin32ExitCode;
-    if (error == ERROR_SERVICE_SPECIFIC_ERROR) {
-      error = status.dwServiceSpecificExitCode;
-    }
-    return fail(error != ERROR_SUCCESS ? error : ERROR_SERVICE_NOT_ACTIVE);
+    DWORD error = status.dwWin32ExitCode == ERROR_SERVICE_SPECIFIC_ERROR ? status.dwServiceSpecificExitCode : status.dwWin32ExitCode;
+    SetLastError(error != ERROR_SUCCESS ? error : ERROR_SERVICE_NOT_ACTIVE);
+    return false;
   }
+  UniqueHandle process(OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, status.dwProcessId));
+  return process && OpenProcessToken(process.get(), MAXIMUM_ALLOWED, token);
+}
 
-  *process_id = status.dwProcessId;
-  CloseServiceHandle(service);
-  CloseServiceHandle(scm);
+bool LaunchWithToken(
+    HANDLE token,
+    const std::wstring& command_line,
+    const std::wstring& work_dir,
+    bool as_user
+) {
+  UniqueEnvironment env;
+  if (!CreateEnvironmentBlock(env.put(), token, FALSE)) {
+    return false;
+  }
+  STARTUPINFOW startup = {};
+  startup.cb = sizeof(startup);
+  startup.lpDesktop = const_cast<LPWSTR>(L"winsta0\\default");
+  PROCESS_INFORMATION process = {};
+  std::wstring command = command_line;
+  const wchar_t* directory = work_dir.empty() ? nullptr : work_dir.c_str();
+  const BOOL launched = as_user
+                            ? CreateProcessAsUserW(token, nullptr, command.data(), nullptr, nullptr, FALSE, CREATE_UNICODE_ENVIRONMENT, env.get(), directory, &startup, &process)
+                            : CreateProcessWithTokenW(token, 0, nullptr, command.data(), CREATE_UNICODE_ENVIRONMENT, env.get(), directory, &startup, &process);
+  if (!launched) {
+    return false;
+  }
+  CloseHandle(process.hThread);
+  CloseHandle(process.hProcess);
   return true;
 }
 
-bool OpenServiceProcessToken(
-    const wchar_t* service_name,
-    DWORD desired_access,
-    HANDLE* token_handle
+bool LaunchElevatedToken(
+    const std::wstring& command_line,
+    const std::wstring& work_dir,
+    const wchar_t* service_name
 ) {
-  if (!token_handle) {
-    SetLastError(ERROR_INVALID_PARAMETER);
+  UniqueHandle current_token;
+  UniqueHandle current_impersonation;
+  UniqueHandle system_token;
+  UniqueHandle system_impersonation;
+  UniqueHandle source_token;
+  UniqueHandle target_token;
+  DWORD session_id = kNoSession;
+  if (!OpenProcessToken(GetCurrentProcess(), MAXIMUM_ALLOWED, current_token.put()) ||
+      !DuplicateTokenEx(current_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenImpersonation, current_impersonation.put()) ||
+      !util::EnableTokenPrivilege(current_impersonation.get(), SE_DEBUG_NAME) ||
+      !SetThreadToken(nullptr, current_impersonation.get())) {
     return false;
   }
-  *token_handle = nullptr;
+  session_id = GetActiveSessionId();
+  if (session_id == kNoSession) {
+    SetLastError(ERROR_NO_TOKEN);
+    return false;
+  }
+  if (!OpenSystemToken(session_id, system_token.put()) ||
+      !DuplicateTokenEx(system_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenImpersonation, system_impersonation.put()) ||
+      !EnableAllPrivileges(system_impersonation.get()) ||
+      !SetThreadToken(nullptr, system_impersonation.get())) {
+    return false;
+  }
+  if (service_name && !OpenServiceProcessToken(service_name, source_token.put())) {
+    return false;
+  }
+  return DuplicateTokenEx(service_name ? source_token.get() : system_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityIdentification, TokenPrimary, target_token.put()) &&
+         SetTokenInformation(target_token.get(), TokenSessionId, &session_id, sizeof(session_id)) &&
+         EnableAllPrivileges(target_token.get()) &&
+         LaunchWithToken(target_token.get(), command_line, work_dir, true);
+}
 
-  DWORD process_id = 0;
-  if (!StartServiceAndGetProcessId(service_name, &process_id)) {
-    return false;
+bool ReportLaunch(
+    bool launched,
+    DWORD* error_code
+) {
+  const DWORD error = launched ? ERROR_SUCCESS : GetLastError();
+  if (error_code) {
+    *error_code = error;
   }
-  ScopedHandle process(OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, process_id));
-  if (!process) {
-    return false;
+  SetLastError(error);
+  return launched;
+}
+
+bool LaunchImpersonated(
+    const std::wstring& command_line,
+    const std::wstring& work_dir,
+    const wchar_t* service_name,
+    DWORD* error_code,
+    bool* impersonation_lost
+) {
+  if (impersonation_lost) {
+    *impersonation_lost = false;
   }
-  if (!OpenProcessToken(process.get(), desired_access, token_handle)) {
-    return false;
+  if (command_line.empty()) {
+    SetLastError(ERROR_INVALID_PARAMETER);
+    return ReportLaunch(false, error_code);
   }
-  return true;
+  UniqueHandle previous_thread_token;
+  const bool had_thread_token = OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE, previous_thread_token.put()) != FALSE;
+  if (!had_thread_token && GetLastError() != ERROR_NO_TOKEN) {
+    return ReportLaunch(false, error_code);
+  }
+  const bool launched = LaunchElevatedToken(command_line, work_dir, service_name);
+  DWORD error = launched ? ERROR_SUCCESS : GetLastError();
+  if (had_thread_token ? !SetThreadToken(nullptr, previous_thread_token.get()) : !RevertToSelf()) {
+    error = GetLastError();
+    if (impersonation_lost) {
+      *impersonation_lost = true;
+    }
+  }
+  if (error_code) {
+    *error_code = error;
+  }
+  SetLastError(error);
+  return launched;
 }
 
 } // namespace
 
 namespace util {
 
+bool EnableTokenPrivilege(
+    HANDLE token,
+    const wchar_t* name,
+    TOKEN_PRIVILEGES* previous
+) {
+  TOKEN_PRIVILEGES privileges = {};
+  privileges.PrivilegeCount = 1;
+  privileges.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+  DWORD previous_size = previous ? sizeof(TOKEN_PRIVILEGES) : 0;
+  return LookupPrivilegeValueW(nullptr, name, &privileges.Privileges[0].Luid) &&
+         AdjustTokenPrivileges(token, FALSE, &privileges, previous_size, previous, previous ? &previous_size : nullptr) &&
+         GetLastError() == ERROR_SUCCESS;
+}
+
+PrivilegeScope::PrivilegeScope(
+    std::initializer_list<const wchar_t*> names
+) {
+  held_ = OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, token_.put()) != FALSE;
+  for (const wchar_t* name : names) {
+    if (!held_) {
+      break;
+    }
+    TOKEN_PRIVILEGES previous = {};
+    held_ = EnableTokenPrivilege(token_.get(), name, &previous);
+    previous_.push_back(previous);
+  }
+}
+
+PrivilegeScope::~PrivilegeScope() {
+  for (auto previous = previous_.rbegin(); previous != previous_.rend(); ++previous) {
+    if (previous->PrivilegeCount != 0) {
+      AdjustTokenPrivileges(token_.get(), FALSE, &*previous, sizeof(*previous), nullptr, nullptr);
+    }
+  }
+}
+
 std::wstring GetProcessImagePath(
     DWORD process_id
 ) {
-  ScopedHandle process(
-      OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id)
-  );
+  UniqueHandle process(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id));
   if (!process) {
     return {};
   }
   for (DWORD capacity = MAX_PATH; capacity <= 32768; capacity *= 2) {
     std::wstring path(capacity, L'\0');
     DWORD length = capacity;
-    if (QueryFullProcessImageNameW(
-            process.get(),
-            0,
-            path.data(),
-            &length
-        )) {
+    if (QueryFullProcessImageNameW(process.get(), 0, path.data(), &length)) {
       path.resize(length);
       return path;
     }
@@ -387,137 +372,68 @@ std::wstring GetProcessImagePath(
 }
 
 std::wstring GetCurrentUserSidString() {
-  static const std::wstring cached = []() -> std::wstring {
+  static const std::wstring cached = [] {
     std::wstring sid_string;
-    HANDLE token = nullptr;
-    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
-      return sid_string;
-    }
-    DWORD size = 0;
-    GetTokenInformation(token, TokenUser, nullptr, 0, &size);
-    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || size == 0) {
-      CloseHandle(token);
-      return sid_string;
-    }
-    std::vector<BYTE> buffer(size);
-    if (!GetTokenInformation(token, TokenUser, buffer.data(), size, &size)) {
-      CloseHandle(token);
-      return sid_string;
-    }
-    auto* user = reinterpret_cast<TOKEN_USER*>(buffer.data());
     LPWSTR sid = nullptr;
-    if (ConvertSidToStringSidW(user->User.Sid, &sid) && sid) {
+    const std::vector<BYTE> user = CurrentTokenInformation(TokenUser);
+    if (!user.empty() && ConvertSidToStringSidW(CurrentUserSid(user), &sid)) {
       sid_string.assign(sid);
       LocalFree(sid);
     }
-    CloseHandle(token);
     return sid_string;
   }();
   return cached;
 }
 
 bool IsProcessElevated() {
-  ScopedHandle token;
-  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, token.put())) {
-    return false;
-  }
-  TOKEN_ELEVATION elevation = {};
-  DWORD size = 0;
-  bool elevated = false;
-  if (GetTokenInformation(token.get(), TokenElevation, &elevation, sizeof(elevation), &size)) {
-    elevated = (elevation.TokenIsElevated != 0);
-  }
-  return elevated;
+  const std::vector<BYTE> elevation = CurrentTokenInformation(TokenElevation);
+  return elevation.size() >= sizeof(TOKEN_ELEVATION) && reinterpret_cast<const TOKEN_ELEVATION*>(elevation.data())->TokenIsElevated != 0;
 }
 
 bool IsUacEnabled() {
-  HKEY key = nullptr;
-  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
-    return true;
-  }
   DWORD value = 1;
   DWORD size = sizeof(value);
-  DWORD type = 0;
-  const LONG result = RegQueryValueExW(key, L"EnableLUA", nullptr, &type, reinterpret_cast<LPBYTE>(&value), &size);
-  RegCloseKey(key);
-  if (result != ERROR_SUCCESS || type != REG_DWORD) {
-    return true;
-  }
-  return value != 0;
+  return RegGetValueW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", L"EnableLUA", RRF_RT_REG_DWORD, nullptr, &value, &size) != ERROR_SUCCESS || value != 0;
 }
 
 bool IsProcessSystem() {
-  ScopedHandle token;
-  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, token.put())) {
-    return false;
-  }
-  DWORD size = 0;
-  GetTokenInformation(token.get(), TokenUser, nullptr, 0, &size);
-  if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || size == 0) {
-    return false;
-  }
-  std::vector<BYTE> buffer(size);
-  if (!GetTokenInformation(token.get(), TokenUser, buffer.data(), size, &size)) {
-    return false;
-  }
-  auto* user = reinterpret_cast<TOKEN_USER*>(buffer.data());
-  return IsWellKnownSid(user->User.Sid, WELL_KNOWN_SID_TYPE::WinLocalSystemSid) != FALSE;
+  const std::vector<BYTE> user = CurrentTokenInformation(TokenUser);
+  return !user.empty() && IsWellKnownSid(CurrentUserSid(user), WELL_KNOWN_SID_TYPE::WinLocalSystemSid) != FALSE;
 }
 
 bool IsProcessTrustedInstaller() {
-  static const std::vector<BYTE> ti_sid = []() -> std::vector<BYTE> {
+  static const std::vector<BYTE> ti_sid = [] {
     const wchar_t* account = L"NT SERVICE\\TrustedInstaller";
     DWORD sid_size = 0;
     DWORD domain_size = 0;
     SID_NAME_USE use = SidTypeUnknown;
     LookupAccountNameW(nullptr, account, nullptr, &sid_size, nullptr, &domain_size, &use);
-    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || sid_size == 0) {
-      return {};
-    }
     std::vector<BYTE> sid_buffer(sid_size);
     std::wstring domain(domain_size, L'\0');
-    if (!LookupAccountNameW(nullptr, account, sid_buffer.data(), &sid_size, domain.data(), &domain_size, &use)) {
-      return {};
+    if (sid_size == 0 || !LookupAccountNameW(nullptr, account, sid_buffer.data(), &sid_size, domain.data(), &domain_size, &use)) {
+      sid_buffer.clear();
     }
-    sid_buffer.resize(sid_size);
     return sid_buffer;
   }();
-
   if (ti_sid.empty()) {
     return false;
   }
-
-  ScopedHandle token;
+  const PSID ti = const_cast<PSID>(static_cast<const void*>(ti_sid.data()));
+  UniqueHandle token;
   if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, token.put())) {
     return false;
   }
-  DWORD size = 0;
-  GetTokenInformation(token.get(), TokenUser, nullptr, 0, &size);
-  if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || size == 0) {
-    return false;
-  }
-  std::vector<BYTE> buffer(size);
-  if (!GetTokenInformation(token.get(), TokenUser, buffer.data(), size, &size)) {
-    return false;
-  }
-  auto* user = reinterpret_cast<TOKEN_USER*>(buffer.data());
-  PSID ti_sid_ptr = const_cast<PSID>(static_cast<const void*>(ti_sid.data()));
-  if (EqualSid(user->User.Sid, ti_sid_ptr)) {
+  const std::vector<BYTE> user = TokenInformation(token.get(), TokenUser);
+  if (!user.empty() && EqualSid(CurrentUserSid(user), ti)) {
     return true;
   }
-
-  DWORD group_size = 0;
-  GetTokenInformation(token.get(), TokenGroups, nullptr, 0, &group_size);
-  if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || group_size == 0) {
+  const std::vector<BYTE> group_buffer = TokenInformation(token.get(), TokenGroups);
+  if (group_buffer.empty()) {
     return false;
   }
-  std::vector<BYTE> group_buffer(group_size);
-  if (!GetTokenInformation(token.get(), TokenGroups, group_buffer.data(), group_size, &group_size)) {
-    return false;
-  }
-  auto* groups = reinterpret_cast<TOKEN_GROUPS*>(group_buffer.data());
+  const auto* groups = reinterpret_cast<const TOKEN_GROUPS*>(group_buffer.data());
   for (DWORD i = 0; i < groups->GroupCount; ++i) {
-    if (EqualSid(groups->Groups[i].Sid, ti_sid_ptr)) {
+    if (EqualSid(groups->Groups[i].Sid, ti)) {
       return true;
     }
   }
@@ -530,73 +446,29 @@ bool LaunchProcessAsShellUser(
     DWORD* error_code,
     bool* impersonation_lost
 ) {
-  if (error_code) {
-    *error_code = ERROR_SUCCESS;
-  }
   if (impersonation_lost) {
     *impersonation_lost = false;
   }
   if (command_line.empty()) {
     SetLastError(ERROR_INVALID_PARAMETER);
-    if (error_code) {
-      *error_code = ERROR_INVALID_PARAMETER;
-    }
-    return false;
+    return ReportLaunch(false, error_code);
   }
-
-  bool result = false;
-  DWORD error = ERROR_SUCCESS;
   DWORD shell_pid = 0;
   const HWND shell = GetShellWindow();
-  ScopedHandle shell_process;
-  ScopedHandle shell_token;
-  ScopedHandle target_token;
-  ScopedEnvBlock env;
-  STARTUPINFOW startup = {};
-  PROCESS_INFORMATION process = {};
-  std::wstring mutable_command;
-
   if (!shell || !GetWindowThreadProcessId(shell, &shell_pid) || shell_pid == 0) {
-    error = ERROR_NOT_FOUND;
-    goto Cleanup;
+    SetLastError(ERROR_NOT_FOUND);
+    return ReportLaunch(false, error_code);
   }
-  shell_process.reset(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, shell_pid));
-  if (!shell_process) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!OpenProcessToken(shell_process.get(), TOKEN_DUPLICATE, shell_token.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!DuplicateTokenEx(shell_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenPrimary, target_token.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!CreateEnvironmentBlock(env.put(), target_token.get(), FALSE)) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-
-  startup.cb = sizeof(startup);
-  startup.lpDesktop = const_cast<LPWSTR>(L"winsta0\\default");
-  mutable_command = command_line;
-  result = CreateProcessWithTokenW(target_token.get(), 0, nullptr, mutable_command.data(), CREATE_UNICODE_ENVIRONMENT, env.get(), work_dir.empty() ? nullptr : work_dir.c_str(), &startup, &process);
-  if (!result) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  CloseHandle(process.hThread);
-  CloseHandle(process.hProcess);
-
-Cleanup:
-  if (!result) {
-    if (error_code) {
-      *error_code = error;
-    }
-    SetLastError(error);
-  }
-  return result;
+  UniqueHandle shell_process(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, shell_pid));
+  UniqueHandle shell_token;
+  UniqueHandle target_token;
+  return ReportLaunch(
+      shell_process &&
+          OpenProcessToken(shell_process.get(), TOKEN_DUPLICATE, shell_token.put()) &&
+          DuplicateTokenEx(shell_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenPrimary, target_token.put()) &&
+          LaunchWithToken(target_token.get(), command_line, work_dir, false),
+      error_code
+  );
 }
 
 bool LaunchProcessAsSystem(
@@ -605,127 +477,7 @@ bool LaunchProcessAsSystem(
     DWORD* error_code,
     bool* impersonation_lost
 ) {
-  if (error_code) {
-    *error_code = ERROR_SUCCESS;
-  }
-  if (impersonation_lost) {
-    *impersonation_lost = false;
-  }
-  if (command_line.empty()) {
-    if (error_code) {
-      *error_code = ERROR_INVALID_PARAMETER;
-    }
-    SetLastError(ERROR_INVALID_PARAMETER);
-    return false;
-  }
-
-  bool result = false;
-  DWORD error = ERROR_SUCCESS;
-
-  ScopedHandle current_token;
-  ScopedHandle current_impersonation;
-  ScopedHandle system_token;
-  ScopedHandle system_impersonation;
-  ScopedHandle target_token;
-  ScopedHandle previous_thread_token;
-  ScopedEnvBlock env;
-  bool had_thread_token = false;
-  DWORD session_id = static_cast<DWORD>(-1);
-  STARTUPINFOW startup = {};
-  PROCESS_INFORMATION process = {};
-  std::wstring mutable_command;
-
-  if (OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE, previous_thread_token.put())) {
-    had_thread_token = true;
-  } else if (GetLastError() != ERROR_NO_TOKEN) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!OpenProcessToken(GetCurrentProcess(), MAXIMUM_ALLOWED, current_token.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!DuplicateTokenEx(current_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenImpersonation, current_impersonation.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!EnablePrivilege(current_impersonation.get(), SE_DEBUG_NAME)) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!SetThreadToken(nullptr, current_impersonation.get())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  session_id = GetActiveSessionId();
-  if (session_id == static_cast<DWORD>(-1)) {
-    error = ERROR_NO_TOKEN;
-    goto Cleanup;
-  }
-  if (!CreateSystemToken(MAXIMUM_ALLOWED, system_token.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!DuplicateTokenEx(system_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenImpersonation, system_impersonation.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!AdjustTokenAllPrivileges(system_impersonation.get(), SE_PRIVILEGE_ENABLED)) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!SetThreadToken(nullptr, system_impersonation.get())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!DuplicateTokenEx(system_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityIdentification, TokenPrimary, target_token.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!SetTokenInformation(target_token.get(), TokenSessionId, &session_id, sizeof(session_id))) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!AdjustTokenAllPrivileges(target_token.get(), SE_PRIVILEGE_ENABLED)) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!CreateEnvironmentBlock(env.put(), target_token.get(), FALSE)) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-
-  startup.cb = sizeof(startup);
-  startup.lpDesktop = const_cast<LPWSTR>(L"winsta0\\default");
-  mutable_command = command_line;
-  result = CreateProcessAsUserW(target_token.get(), nullptr, mutable_command.data(), nullptr, nullptr, FALSE, CREATE_UNICODE_ENVIRONMENT, env.get(), work_dir.empty() ? nullptr : work_dir.c_str(), &startup, &process);
-  if (!result) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  CloseHandle(process.hThread);
-  CloseHandle(process.hProcess);
-
-Cleanup:
-  {
-    const bool restored = had_thread_token
-                              ? SetThreadToken(nullptr, previous_thread_token.get()) != 0
-                              : RevertToSelf() != 0;
-    if (!restored) {
-      const DWORD restore_error = GetLastError();
-      if (impersonation_lost) {
-        *impersonation_lost = true;
-      }
-      error = restore_error;
-    }
-  }
-  if (!result || (impersonation_lost && *impersonation_lost)) {
-    if (error_code) {
-      *error_code = error;
-    }
-    SetLastError(error);
-  }
-  return result;
+  return LaunchImpersonated(command_line, work_dir, nullptr, error_code, impersonation_lost);
 }
 
 bool LaunchProcessAsTrustedInstaller(
@@ -734,132 +486,7 @@ bool LaunchProcessAsTrustedInstaller(
     DWORD* error_code,
     bool* impersonation_lost
 ) {
-  if (error_code) {
-    *error_code = ERROR_SUCCESS;
-  }
-  if (impersonation_lost) {
-    *impersonation_lost = false;
-  }
-  if (command_line.empty()) {
-    if (error_code) {
-      *error_code = ERROR_INVALID_PARAMETER;
-    }
-    SetLastError(ERROR_INVALID_PARAMETER);
-    return false;
-  }
-
-  bool result = false;
-  DWORD error = ERROR_SUCCESS;
-
-  ScopedHandle current_token;
-  ScopedHandle current_impersonation;
-  ScopedHandle system_token;
-  ScopedHandle system_impersonation;
-  ScopedHandle ti_token;
-  ScopedHandle target_token;
-  ScopedHandle previous_thread_token;
-  ScopedEnvBlock env;
-  bool had_thread_token = false;
-  DWORD session_id = static_cast<DWORD>(-1);
-  STARTUPINFOW startup = {};
-  PROCESS_INFORMATION process = {};
-  std::wstring mutable_command;
-
-  if (OpenThreadToken(GetCurrentThread(), TOKEN_IMPERSONATE | TOKEN_QUERY, TRUE, previous_thread_token.put())) {
-    had_thread_token = true;
-  } else if (GetLastError() != ERROR_NO_TOKEN) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!OpenProcessToken(GetCurrentProcess(), MAXIMUM_ALLOWED, current_token.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!DuplicateTokenEx(current_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenImpersonation, current_impersonation.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!EnablePrivilege(current_impersonation.get(), SE_DEBUG_NAME)) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!SetThreadToken(nullptr, current_impersonation.get())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  session_id = GetActiveSessionId();
-  if (session_id == static_cast<DWORD>(-1)) {
-    error = ERROR_NO_TOKEN;
-    goto Cleanup;
-  }
-  if (!CreateSystemToken(MAXIMUM_ALLOWED, system_token.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!DuplicateTokenEx(system_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenImpersonation, system_impersonation.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!AdjustTokenAllPrivileges(system_impersonation.get(), SE_PRIVILEGE_ENABLED)) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!SetThreadToken(nullptr, system_impersonation.get())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!OpenServiceProcessToken(L"TrustedInstaller", MAXIMUM_ALLOWED, ti_token.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!DuplicateTokenEx(ti_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityIdentification, TokenPrimary, target_token.put())) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!SetTokenInformation(target_token.get(), TokenSessionId, &session_id, sizeof(session_id))) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!AdjustTokenAllPrivileges(target_token.get(), SE_PRIVILEGE_ENABLED)) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  if (!CreateEnvironmentBlock(env.put(), target_token.get(), FALSE)) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-
-  startup.cb = sizeof(startup);
-  startup.lpDesktop = const_cast<LPWSTR>(L"winsta0\\default");
-  mutable_command = command_line;
-  result = CreateProcessAsUserW(target_token.get(), nullptr, mutable_command.data(), nullptr, nullptr, FALSE, CREATE_UNICODE_ENVIRONMENT, env.get(), work_dir.empty() ? nullptr : work_dir.c_str(), &startup, &process);
-  if (!result) {
-    error = GetLastError();
-    goto Cleanup;
-  }
-  CloseHandle(process.hThread);
-  CloseHandle(process.hProcess);
-
-Cleanup:
-  {
-    const bool restored = had_thread_token
-                              ? SetThreadToken(nullptr, previous_thread_token.get()) != 0
-                              : RevertToSelf() != 0;
-    if (!restored) {
-      const DWORD restore_error = GetLastError();
-      if (impersonation_lost) {
-        *impersonation_lost = true;
-      }
-      error = restore_error;
-    }
-  }
-  if (!result || (impersonation_lost && *impersonation_lost)) {
-    if (error_code) {
-      *error_code = error;
-    }
-    SetLastError(error);
-  }
-  return result;
+  return LaunchImpersonated(command_line, work_dir, L"TrustedInstaller", error_code, impersonation_lost);
 }
 
 } // namespace util

@@ -4,6 +4,7 @@
 #include "registry/security_dialog.h"
 
 #include "registry/registry_path.h"
+#include "win32/process_rights.h"
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
 
@@ -13,50 +14,9 @@
 #include <aclapi.h>
 #include <aclui.h>
 
-#include "registry/registry_store.h"
-
 namespace regkit {
 
 namespace {
-
-bool SetPrivilege(
-    const wchar_t* name,
-    bool enable,
-    TOKEN_PRIVILEGES* previous = nullptr
-) {
-  HANDLE token = nullptr;
-  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
-    return false;
-  }
-  LUID luid = {};
-  if (!LookupPrivilegeValueW(nullptr, name, &luid)) {
-    CloseHandle(token);
-    return false;
-  }
-  TOKEN_PRIVILEGES tp = {};
-  tp.PrivilegeCount = 1;
-  tp.Privileges[0].Luid = luid;
-  tp.Privileges[0].Attributes = enable ? SE_PRIVILEGE_ENABLED : 0;
-  DWORD previous_size = previous ? sizeof(TOKEN_PRIVILEGES) : 0;
-  AdjustTokenPrivileges(token, FALSE, &tp, previous_size, previous, previous ? &previous_size : nullptr);
-  DWORD last_error = GetLastError();
-  CloseHandle(token);
-  return last_error == ERROR_SUCCESS;
-}
-
-bool RestorePrivilege(
-    const TOKEN_PRIVILEGES& previous
-) {
-  HANDLE token = nullptr;
-  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
-    return false;
-  }
-  TOKEN_PRIVILEGES restore = previous;
-  AdjustTokenPrivileges(token, FALSE, &restore, sizeof(restore), nullptr, nullptr);
-  const DWORD last_error = GetLastError();
-  CloseHandle(token);
-  return last_error == ERROR_SUCCESS;
-}
 
 class RegistrySecurityInformation : public ISecurityInformation {
 public:
@@ -223,9 +183,7 @@ bool ShowRegistryPermissions(
     return false;
   }
 
-  TOKEN_PRIVILEGES previous_privilege = {};
-  const bool privilege_enabled =
-      SetPrivilege(SE_TAKE_OWNERSHIP_NAME, true, &previous_privilege);
+  const util::PrivilegeScope privilege({SE_TAKE_OWNERSHIP_NAME});
   bool read_only = false;
   util::UniqueHKey key;
   LONG result = util::OpenRegistryPath(node.root, node.subkey, READ_CONTROL | WRITE_DAC | WRITE_OWNER | win32::kDefaultRegistryView, false, &key);
@@ -241,10 +199,6 @@ bool ShowRegistryPermissions(
   if (result == ERROR_SUCCESS && key.get()) {
     RegistrySecurityInformation info(key.get(), path, read_only);
     ok = SUCCEEDED(EditSecurity(owner, &info));
-  }
-
-  if (privilege_enabled) {
-    RestorePrivilege(previous_privilege);
   }
   return ok;
 }

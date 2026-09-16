@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <commctrl.h>
+#include <windowsx.h>
 #include <commdlg.h>
 #include <uxtheme.h>
 #include <vsstyle.h>
@@ -16,6 +17,7 @@
 #include "appearance/feedback.h"
 #include "appearance/list_view_support.h"
 #include "win32/file_dialog.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 
@@ -77,9 +79,7 @@ constexpr ColorField kColorFields[] = {
     {L"Focus", &ThemeColors::focus},
 };
 
-struct ThemePresetWindowState {
-  HWND hwnd = nullptr;
-  HWND owner = nullptr;
+struct ThemePresetWindowState : appearance::DialogWindow {
   HWND presets_group = nullptr;
   HWND preset_list = nullptr;
   HWND colors_group = nullptr;
@@ -98,7 +98,6 @@ struct ThemePresetWindowState {
   HWND apply_btn = nullptr;
   HWND ok_btn = nullptr;
   HWND cancel_btn = nullptr;
-  HFONT font = nullptr;
   appearance::ThemePresetApply apply = nullptr;
   appearance::ThemePresetNamePrompt prompt_name = nullptr;
   void* apply_context = nullptr;
@@ -109,27 +108,7 @@ struct ThemePresetWindowState {
   int color_sort_column = -1;
   bool color_sort_ascending = true;
   COLORREF custom_colors[16] = {};
-  bool owner_restored = false;
 };
-
-void ApplyFontRecursive(
-    HWND hwnd,
-    HFONT font
-) {
-  if (!hwnd || !font) {
-    return;
-  }
-  SendMessageW(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-  EnumChildWindows(
-      hwnd,
-      [](HWND child, LPARAM param) -> BOOL {
-        HFONT font_handle = reinterpret_cast<HFONT>(param);
-        SendMessageW(child, WM_SETFONT, reinterpret_cast<WPARAM>(font_handle), TRUE);
-        return TRUE;
-      },
-      reinterpret_cast<LPARAM>(font)
-  );
-}
 
 ThemePreset* CurrentPreset(
     ThemePresetWindowState* state
@@ -148,7 +127,7 @@ int FindPresetIndexByName(
     const std::wstring& name
 ) {
   for (size_t i = 0; i < presets.size(); ++i) {
-    if (_wcsicmp(presets[i].name.c_str(), name.c_str()) == 0) {
+    if (util::EqualsInsensitive(presets[i].name, name)) {
       return static_cast<int>(i);
     }
   }
@@ -180,7 +159,7 @@ std::wstring MakeUniquePresetName(
     const ThemePreset* ignored = nullptr
 ) {
   std::wstring base = base_name.empty() ? L"Preset" : base_name;
-  auto exists = [&](const std::wstring& name) -> bool { return std::any_of(presets.begin(), presets.end(), [&](const ThemePreset& preset) { return &preset != ignored && _wcsicmp(preset.name.c_str(), name.c_str()) == 0; }); };
+  auto exists = [&](const std::wstring& name) -> bool { return std::any_of(presets.begin(), presets.end(), [&](const ThemePreset& preset) { return &preset != ignored && util::EqualsInsensitive(preset.name, name); }); };
   if (!exists(base)) {
     return base;
   }
@@ -218,20 +197,6 @@ bool PromptPresetName(
 constexpr wchar_t kThemeFilter[] =
     L"RegKit Theme Presets (*.rktheme)\0*.rktheme\0All Files (*.*)\0*.*\0";
 
-bool PromptOpenThemeFile(
-    HWND owner,
-    std::wstring* path
-) {
-  return ui::ReportFileDialogResult(owner, win32::ChooseFileToOpen(owner, kThemeFilter, path));
-}
-
-bool PromptSaveThemeFile(
-    HWND owner,
-    std::wstring* path
-) {
-  return ui::ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, kThemeFilter, L"rktheme", nullptr, path));
-}
-
 bool ChooseColorFor(
     HWND owner,
     COLORREF* color,
@@ -251,15 +216,6 @@ bool ChooseColorFor(
   }
   *color = cc.rgbResult;
   return true;
-}
-
-int CompareTextInsensitive(
-    const wchar_t* left,
-    const wchar_t* right
-) {
-  const wchar_t* safe_left = left ? left : L"";
-  const wchar_t* safe_right = right ? right : L"";
-  return _wcsicmp(safe_left, safe_right);
 }
 
 int CompareColorValue(
@@ -309,9 +265,7 @@ void SetupPresetListView(
   col.fmt = LVCFMT_LEFT;
   col.cx = 120;
   ListView_InsertColumn(list, 0, &col);
-  if (!GetWindowSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId, nullptr)) {
-    SetWindowSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId, 0);
-  }
+  EnsureSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId);
   Theme::Current().ApplyToListView(list);
 }
 
@@ -332,9 +286,7 @@ void SetupColorListView(
   col.pszText = const_cast<wchar_t*>(L"Hex");
   col.iSubItem = 1;
   ListView_InsertColumn(list, 1, &col);
-  if (!GetWindowSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId, nullptr)) {
-    SetWindowSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId, 0);
-  }
+  EnsureSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId);
   Theme::Current().ApplyToListView(list);
   appearance::RegisterListView(GetParent(list), list, kColorGridId);
 }
@@ -356,7 +308,7 @@ int CALLBACK CompareColorListItems(
   }
   int result = 0;
   if (column == 0) {
-    result = CompareTextInsensitive(kColorFields[left_index].label, kColorFields[right_index].label);
+    result = util::CompareListText(kColorFields[left_index].label, kColorFields[right_index].label);
   } else if (column == 1) {
     COLORREF left = preset->colors.*(kColorFields[left_index].member);
     COLORREF right = preset->colors.*(kColorFields[right_index].member);
@@ -505,14 +457,6 @@ ThemePreset BuildPresetFromTemplate(
     return state->templates.front();
   }
   return state->templates[static_cast<size_t>(template_index)];
-}
-
-void ApplyCurrentTheme(
-    HWND hwnd
-) {
-  Theme::Current().ApplyToWindow(hwnd);
-  Theme::Current().ApplyToChildren(hwnd);
-  InvalidateRect(hwnd, nullptr, TRUE);
 }
 
 void RefreshThemeRendering(
@@ -708,11 +652,10 @@ void ApplySelectedPreset(
   }
   state->active_name = preset->name;
   state->apply(state->apply_context, state->presets, state->active_name);
-  ApplyCurrentTheme(state->hwnd);
+  appearance::ApplyDialogTheme(state->hwnd);
   RefreshThemeRendering(state);
   if (close_dialog) {
-    appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-    DestroyWindow(state->hwnd);
+    appearance::CloseDialogWindow(state, true);
   }
 }
 
@@ -722,36 +665,14 @@ LRESULT CALLBACK ThemePresetWindowProc(
     WPARAM wparam,
     LPARAM lparam
 ) {
-  auto* state = reinterpret_cast<ThemePresetWindowState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+  auto* state = appearance::DialogWindowState<ThemePresetWindowState>(hwnd);
   switch (msg) {
-  case WM_NCCREATE:
-    {
-      auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
-      SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-      return DefWindowProcW(hwnd, msg, wparam, lparam);
-    }
   case WM_CREATE:
-    {
-      state = reinterpret_cast<ThemePresetWindowState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-      if (!state) {
-        return -1;
-      }
-      state->hwnd = hwnd;
-      SetWindowTextW(hwnd, kThemePresetTitle);
-      CreateControls(state);
-      state->font = ui::DefaultUIFont(win32::DpiForWindow(hwnd));
-      ApplyFontRecursive(hwnd, state->font);
-      PopulateTemplates(state);
-      PopulatePresets(state);
-      ApplyCurrentTheme(hwnd);
-      LayoutControls(state);
-      return 0;
-    }
-  case WM_DPICHANGED:
-    if (state) {
-      appearance::RefreshDialogFont(hwnd, &state->font, LOWORD(wparam));
-    }
-    appearance::ApplyDpiChange(hwnd, lparam);
+    CreateControls(state);
+    appearance::SetDialogFont(hwnd, state->font);
+    PopulateTemplates(state);
+    PopulatePresets(state);
+    LayoutControls(state);
     return 0;
   case WM_SIZE:
     LayoutControls(state);
@@ -759,47 +680,12 @@ LRESULT CALLBACK ThemePresetWindowProc(
     return 0;
   case WM_SETTINGCHANGE:
     if (Theme::UpdateFromSystem()) {
-      ApplyCurrentTheme(hwnd);
+      appearance::ApplyDialogTheme(hwnd);
       RefreshThemeRendering(state);
     }
     return 0;
-  case WM_ERASEBKGND:
-    {
-      HDC hdc = reinterpret_cast<HDC>(wparam);
-      RECT rect = {};
-      GetClientRect(hwnd, &rect);
-      FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
-      return TRUE;
-    }
-  case WM_CTLCOLORDLG:
-    {
-      HDC hdc = reinterpret_cast<HDC>(wparam);
-      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, hwnd, CTLCOLOR_DLG));
-    }
-  case WM_CTLCOLORSTATIC:
-  case WM_CTLCOLOREDIT:
-  case WM_CTLCOLORLISTBOX:
-  case WM_CTLCOLORBTN:
-    {
-      HDC hdc = reinterpret_cast<HDC>(wparam);
-      HWND target = reinterpret_cast<HWND>(lparam);
-      int type = CTLCOLOR_STATIC;
-      if (msg == WM_CTLCOLOREDIT) {
-        type = CTLCOLOR_EDIT;
-      } else if (msg == WM_CTLCOLORLISTBOX) {
-        type = CTLCOLOR_LISTBOX;
-      } else if (msg == WM_CTLCOLORBTN) {
-        type = CTLCOLOR_BTN;
-      }
-      return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(hdc, target, type));
-    }
-  case DM_GETDEFID:
-    return MAKELRESULT(IDOK, DC_HASDEFID);
   case WM_COMMAND:
     {
-      if (!state) {
-        return 0;
-      }
       int id = LOWORD(wparam);
       if (appearance::HandleListViewCommand(hwnd, id)) {
         return 0;
@@ -873,7 +759,7 @@ LRESULT CALLBACK ThemePresetWindowProc(
       case kImportPresetId:
         {
           std::wstring path;
-          if (!PromptOpenThemeFile(hwnd, &path)) {
+          if (!ui::PromptOpenFile(hwnd, kThemeFilter, &path)) {
             return 0;
           }
           std::vector<ThemePreset> imported;
@@ -896,7 +782,7 @@ LRESULT CALLBACK ThemePresetWindowProc(
       case kExportPresetId:
         {
           std::wstring path;
-          if (!PromptSaveThemeFile(hwnd, &path)) {
+          if (!ui::ReportFileDialogResult(hwnd, win32::ChooseFileToSave(hwnd, kThemeFilter, L"rktheme", nullptr, &path))) {
             return 0;
           }
           std::wstring error;
@@ -937,7 +823,7 @@ LRESULT CALLBACK ThemePresetWindowProc(
           if (!preset || !state->dark_check) {
             return 0;
           }
-          preset->is_dark = (SendMessageW(state->dark_check, BM_GETCHECK, 0, 0) == BST_CHECKED);
+          preset->is_dark = Button_GetCheck(state->dark_check) == BST_CHECKED;
           return 0;
         }
       case kApplyTemplateId:
@@ -959,10 +845,6 @@ LRESULT CALLBACK ThemePresetWindowProc(
       case IDOK:
         ApplySelectedPreset(state, true);
         return 0;
-      case IDCANCEL:
-        appearance::RestoreDialogOwner(state->owner, &state->owner_restored);
-        DestroyWindow(hwnd);
-        return 0;
       default:
         break;
       }
@@ -971,9 +853,6 @@ LRESULT CALLBACK ThemePresetWindowProc(
   case WM_NOTIFY:
     {
       auto* hdr = reinterpret_cast<NMHDR*>(lparam);
-      if (!hdr || !state) {
-        break;
-      }
       LRESULT feature_result = 0;
       if (appearance::HandleListViewNotify(hwnd, hdr, &feature_result)) {
         return feature_result;
@@ -1018,23 +897,13 @@ LRESULT CALLBACK ThemePresetWindowProc(
       }
       break;
     }
-  case WM_CLOSE:
-    appearance::RestoreDialogOwner(state ? state->owner : nullptr, state ? &state->owner_restored : nullptr);
-    DestroyWindow(hwnd);
-    return 0;
   case WM_NCDESTROY:
     appearance::ReleaseListViews(hwnd);
-    if (state) {
-      if (state->font) {
-        DeleteObject(state->font);
-        state->font = nullptr;
-      }
-    }
-    return 0;
+    break;
   default:
     break;
   }
-  return DefWindowProcW(hwnd, msg, wparam, lparam);
+  return appearance::DefDialogWindowProc(hwnd, msg, wparam, lparam);
 }
 
 } // namespace
@@ -1047,45 +916,17 @@ void appearance::ShowThemePresetEditor(
     appearance::ThemePresetNamePrompt prompt_name,
     void* context
 ) {
-  WNDCLASSW wc = {};
-  wc.lpfnWndProc = ThemePresetWindowProc;
-  wc.hInstance = GetModuleHandleW(nullptr);
-  wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-  wc.hbrBackground = nullptr;
-  wc.lpszClassName = kThemePresetClass;
-  RegisterClassW(&wc);
-
-  auto* state = new ThemePresetWindowState();
-  state->apply = apply;
-  state->prompt_name = prompt_name;
-  state->apply_context = context;
-  state->owner = owner;
-  state->presets = presets;
-  state->templates = ThemePresetStore::BuiltInPresets();
-  state->active_name = active_name;
-
-  DWORD style = WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN;
-  DWORD ex_style = WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT;
+  ThemePresetWindowState state;
+  state.apply = apply;
+  state.prompt_name = prompt_name;
+  state.apply_context = context;
+  state.owner = owner;
+  state.presets = presets;
+  state.templates = ThemePresetStore::BuiltInPresets();
+  state.active_name = active_name;
   const UINT dpi = win32::DpiForWindow(owner);
-  RECT rect = {0, 0, appearance::metrics::Scaled(kWindowWidth, dpi), appearance::metrics::Scaled(kWindowHeight, dpi)};
-  win32::AdjustWindowRectForDpi(&rect, style, ex_style, dpi);
-  int width = rect.right - rect.left;
-  int height = rect.bottom - rect.top;
-
-  HWND hwnd = CreateWindowExW(ex_style, kThemePresetClass, kThemePresetTitle, style, CW_USEDEFAULT, CW_USEDEFAULT, width, height, owner, nullptr, wc.hInstance, state);
-  if (!hwnd) {
-    delete state;
-    return;
-  }
-
-  appearance::PositionDialog(hwnd, owner, width, height);
-  EnableWindow(owner, FALSE);
-  ShowWindow(hwnd, SW_SHOW);
-  UpdateWindow(hwnd);
-
-  appearance::RunModalLoop(hwnd);
-  appearance::RestoreDialogOwner(owner, &state->owner_restored);
-  delete state;
+  const SIZE size = appearance::DialogWindowSize(owner, appearance::metrics::Scaled(kWindowWidth, dpi), appearance::metrics::Scaled(kWindowHeight, dpi), WS_CLIPCHILDREN);
+  appearance::RunDialogWindow(&state, kThemePresetClass, ThemePresetWindowProc, kThemePresetTitle, size, WS_CLIPCHILDREN);
 }
 
 } // namespace regkit

@@ -6,8 +6,11 @@
 #include "win32/windows_config.h"
 
 #include <windows.h>
+#include <commctrl.h>
 
 #include "win32/handle_owner.h"
+
+#include <string_view>
 
 namespace regkit {
 
@@ -32,6 +35,8 @@ struct ThemeColors {
   COLORREF selection_text = RGB(0, 0, 0);
   COLORREF hover = RGB(0, 0, 0);
   COLORREF focus = RGB(0, 0, 0);
+
+  bool operator==(const ThemeColors&) const = default;
 };
 
 class Theme {
@@ -80,6 +85,7 @@ public:
 
 private:
   explicit Theme(const ThemeColors& colors, bool is_dark);
+  void SetColors(const ThemeColors& colors, bool is_dark);
 
   ThemeColors colors_;
   bool is_dark_ = true;
@@ -90,7 +96,11 @@ private:
   util::UniqueGdiObject<HBRUSH> header_brush_;
 };
 
+ThemeMode ParseThemeMode(std::wstring_view name);
+const wchar_t* ThemeModeName(ThemeMode mode);
 void EnableImmersiveDarkMode(HWND hwnd, bool enabled);
 void AllowDarkModeForWindow(HWND hwnd, bool enabled);
+void SetDarkWindowTheme(HWND hwnd, bool dark, const wchar_t* dark_theme = L"DarkMode_Explorer", const wchar_t* light_theme = L"Explorer");
+void EnsureSubclass(HWND hwnd, SUBCLASSPROC proc, UINT_PTR id, DWORD_PTR data = 0);
 
 } // namespace regkit

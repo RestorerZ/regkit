@@ -6,21 +6,6 @@
 #include "registry/registry_path.h"
 
 namespace regkit::changes {
-namespace {
-
-RegistryNode ChildNode(
-    const RegistryNode& parent,
-    const std::wstring& name
-) {
-  RegistryNode child = parent;
-  child.subkey = parent.subkey.empty() ? name
-                                       : parent.subkey + L"\\" + name;
-  child.children_loaded = false;
-  return child;
-}
-
-} // namespace
-
 KeySnapshot CaptureKey(
     const RegistryNode& node
 ) {
@@ -67,7 +52,7 @@ KeySnapshot CaptureKey(
 
   snapshot.children.reserve(children.size());
   for (const std::wstring& name : children) {
-    snapshot.children.push_back(CaptureKey(ChildNode(node, name)));
+    snapshot.children.push_back(CaptureKey(registry_path::ChildNode(node, name)));
     if (!snapshot.children.back().complete) {
       snapshot.complete = false;
     }
@@ -90,14 +75,14 @@ bool RestoreKey(
       return false;
     }
     if (!snapshot.security.empty()) {
-      RegistryStore::WriteKeySecurity(ChildNode(parent, snapshot.name), snapshot.security);
+      RegistryStore::WriteKeySecurity(registry_path::ChildNode(parent, snapshot.name), snapshot.security);
     }
     return true;
   }
   if (!RegistryStore::CreateKey(parent, snapshot.name)) {
     return false;
   }
-  const RegistryNode node = ChildNode(parent, snapshot.name);
+  const RegistryNode node = registry_path::ChildNode(parent, snapshot.name);
   if (!snapshot.security.empty()) {
     RegistryStore::WriteKeySecurity(node, snapshot.security);
   }

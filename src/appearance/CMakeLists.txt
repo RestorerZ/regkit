@@ -20,6 +20,7 @@ target_include_directories(regkit_appearance PRIVATE
 )
 target_link_libraries(regkit_appearance PRIVATE
     regkit_win32
+    regkit_workspace
     advapi32
     comctl32
     comdlg32

@@ -95,7 +95,7 @@ bool MainWindow::Impl::HandleFileCommand(
         return true;
       }
       std::wstring path;
-      if (!PromptOpenFilePath(hwnd_, L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0\0", &path)) {
+      if (!ui::PromptOpenFile(hwnd_, ui::kRegFileFilter, &path)) {
         return true;
       }
       std::wstring error;
@@ -109,7 +109,7 @@ bool MainWindow::Impl::HandleFileCommand(
   case cmd::kFileOpenRegFile:
     {
       std::wstring path;
-      if (!PromptOpenFilePath(hwnd_, L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0\0", &path)) {
+      if (!ui::PromptOpenFile(hwnd_, ui::kRegFileFilter, &path)) {
         return true;
       }
       OpenRegFileTab(path);
@@ -145,7 +145,7 @@ bool MainWindow::Impl::HandleFileCommand(
       if (IsRegFileTabSelected()) {
         int tab_index = TabCtrl_GetCurSel(tab_);
         std::wstring path;
-        if (!PromptSaveFilePath(hwnd_, L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0\0", &path)) {
+        if (!ui::PromptSaveFile(hwnd_, ui::kRegFileFilter, &path)) {
           return true;
         }
         if (ExportRegFileTab(tab_index, path)) {
@@ -223,7 +223,7 @@ bool MainWindow::Impl::HandleFileCommand(
   case cmd::kFileImportComments:
     {
       std::wstring path;
-      if (!PromptOpenFilePath(hwnd_, L"RegKit Comment Files (*.rkc)\0*.rkc\0All Files (*.*)\0*.*\0\0", &path)) {
+      if (!ui::PromptOpenFile(hwnd_, L"RegKit Comment Files (*.rkc)\0*.rkc\0All Files (*.*)\0*.*\0\0", &path)) {
         return true;
       }
       if (ImportCommentsFromFile(path)) {
@@ -236,7 +236,7 @@ bool MainWindow::Impl::HandleFileCommand(
   case cmd::kFileExportComments:
     {
       std::wstring path;
-      if (!PromptSaveFilePath(hwnd_, L"RegKit Comment Files (*.rkc)\0*.rkc\0All Files (*.*)\0*.*\0\0", &path)) {
+      if (!ui::PromptSaveFile(hwnd_, L"RegKit Comment Files (*.rkc)\0*.rkc\0All Files (*.*)\0*.*\0\0", &path)) {
         return true;
       }
       if (ExportCommentsToFile(path)) {

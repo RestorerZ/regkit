@@ -3,11 +3,11 @@
 
 #include "appearance/presets.h"
 
-#include <fstream>
-#include <sstream>
+#include <algorithm>
 
-#include "win32/text_transform.h"
+#include "win32/file_text.h"
 #include "win32/shell_paths.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 
@@ -15,560 +15,42 @@ namespace {
 
 constexpr wchar_t kPresetSection[] = L"[preset]";
 
-using util::ToLower;
-
-ThemePreset MakePreset(
-    const wchar_t* name,
-    const ThemeColors& colors,
-    bool is_dark
-) {
-  ThemePreset preset;
-  preset.name = name ? name : L"";
-  preset.colors = colors;
-  preset.is_dark = is_dark;
-  return preset;
-}
-
-std::wstring Trim(
-    const std::wstring& text
-) {
-  size_t start = 0;
-  while (start < text.size() && (text[start] == L' ' || text[start] == L'\t')) {
-    ++start;
-  }
-  size_t end = text.size();
-  while (end > start && (text[end - 1] == L' ' || text[end - 1] == L'\t')) {
-    --end;
-  }
-  return text.substr(start, end - start);
-}
-
-ThemeColors DarkDefaults() {
+struct BuiltInPreset {
+  const wchar_t* name;
+  bool is_dark;
   ThemeColors colors;
-  colors.background = RGB(20, 20, 20);
-  colors.panel = RGB(20, 20, 20);
-  colors.surface = RGB(34, 34, 34);
-  colors.field = RGB(14, 14, 14);
-  colors.header = colors.surface;
-  colors.border = RGB(66, 66, 66);
-  colors.text = RGB(200, 200, 200);
-  colors.muted_text = RGB(170, 170, 170);
-  colors.accent = RGB(90, 162, 255);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(44, 44, 44);
-  colors.focus = colors.accent;
-  return colors;
-}
+};
 
-ThemeColors LightDefaults() {
-  ThemeColors colors;
-  colors.background = RGB(245, 245, 245);
-  colors.panel = RGB(255, 255, 255);
-  colors.surface = RGB(242, 242, 242);
-  colors.field = RGB(235, 235, 235);
-  colors.header = colors.surface;
-  colors.border = RGB(204, 204, 204);
-  colors.text = RGB(32, 32, 32);
-  colors.muted_text = RGB(96, 96, 96);
-  colors.accent = RGB(0, 120, 215);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(236, 236, 236);
-  colors.focus = colors.accent;
-  return colors;
-}
-
-ThemeColors SolarizedDark() {
-  ThemeColors colors;
-  colors.background = RGB(0, 43, 54);
-  colors.panel = RGB(7, 54, 66);
-  colors.surface = RGB(10, 60, 71);
-  colors.field = RGB(0, 37, 48);
-  colors.header = colors.surface;
-  colors.border = RGB(15, 59, 70);
-  colors.text = RGB(147, 161, 161);
-  colors.muted_text = RGB(131, 148, 150);
-  colors.accent = RGB(181, 137, 0);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(10, 60, 71);
-  colors.focus = RGB(181, 137, 0);
-  return colors;
-}
-
-ThemeColors SolarizedLight() {
-  ThemeColors colors;
-  colors.background = RGB(253, 246, 227);
-  colors.panel = RGB(238, 232, 213);
-  colors.surface = RGB(228, 221, 200);
-  colors.field = RGB(243, 236, 217);
-  colors.header = colors.surface;
-  colors.border = RGB(214, 207, 181);
-  colors.text = RGB(88, 110, 117);
-  colors.muted_text = RGB(101, 123, 131);
-  colors.accent = RGB(181, 137, 0);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(228, 221, 200);
-  colors.focus = RGB(181, 137, 0);
-  return colors;
-}
-
-ThemeColors NordDark() {
-  ThemeColors colors;
-  colors.background = RGB(46, 52, 64);
-  colors.panel = RGB(59, 66, 82);
-  colors.surface = RGB(67, 76, 94);
-  colors.field = RGB(40, 46, 58);
-  colors.header = colors.surface;
-  colors.border = RGB(76, 86, 106);
-  colors.text = RGB(229, 233, 240);
-  colors.muted_text = RGB(167, 177, 194);
-  colors.accent = RGB(136, 192, 208);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(67, 76, 94);
-  colors.focus = RGB(136, 192, 208);
-  return colors;
-}
-
-ThemeColors Dracula() {
-  ThemeColors colors;
-  colors.background = RGB(40, 42, 54);
-  colors.panel = RGB(52, 55, 70);
-  colors.surface = RGB(59, 63, 82);
-  colors.field = RGB(34, 36, 48);
-  colors.header = colors.surface;
-  colors.border = RGB(68, 71, 90);
-  colors.text = RGB(248, 248, 242);
-  colors.muted_text = RGB(191, 191, 191);
-  colors.accent = RGB(189, 147, 249);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(59, 63, 82);
-  colors.focus = RGB(189, 147, 249);
-  return colors;
-}
-
-ThemeColors GruvboxDark() {
-  ThemeColors colors;
-  colors.background = RGB(40, 40, 40);
-  colors.panel = RGB(50, 48, 47);
-  colors.surface = RGB(60, 56, 54);
-  colors.field = RGB(34, 34, 34);
-  colors.header = colors.surface;
-  colors.border = RGB(80, 73, 69);
-  colors.text = RGB(235, 219, 178);
-  colors.muted_text = RGB(189, 174, 147);
-  colors.accent = RGB(250, 189, 47);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(60, 56, 54);
-  colors.focus = RGB(250, 189, 47);
-  return colors;
-}
-
-ThemeColors GruvboxLight() {
-  ThemeColors colors;
-  colors.background = RGB(251, 241, 199);
-  colors.panel = RGB(242, 229, 188);
-  colors.surface = RGB(235, 219, 178);
-  colors.field = RGB(241, 231, 189);
-  colors.header = colors.surface;
-  colors.border = RGB(213, 196, 161);
-  colors.text = RGB(60, 56, 54);
-  colors.muted_text = RGB(124, 111, 100);
-  colors.accent = RGB(215, 153, 33);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(235, 219, 178);
-  colors.focus = RGB(215, 153, 33);
-  return colors;
-}
-
-ThemeColors CatppuccinMocha() {
-  ThemeColors colors;
-  colors.background = RGB(30, 30, 46);
-  colors.panel = RGB(42, 43, 60);
-  colors.surface = RGB(49, 50, 68);
-  colors.field = RGB(24, 24, 40);
-  colors.header = colors.surface;
-  colors.border = RGB(69, 71, 90);
-  colors.text = RGB(205, 214, 244);
-  colors.muted_text = RGB(166, 173, 200);
-  colors.accent = RGB(137, 180, 250);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(49, 50, 68);
-  colors.focus = RGB(137, 180, 250);
-  return colors;
-}
-
-ThemeColors CatppuccinMacchiato() {
-  ThemeColors colors;
-  colors.background = RGB(36, 39, 58);
-  colors.panel = RGB(48, 52, 70);
-  colors.surface = RGB(54, 58, 79);
-  colors.field = RGB(30, 33, 52);
-  colors.header = colors.surface;
-  colors.border = RGB(73, 77, 100);
-  colors.text = RGB(202, 211, 245);
-  colors.muted_text = RGB(165, 173, 203);
-  colors.accent = RGB(138, 173, 244);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(54, 58, 79);
-  colors.focus = RGB(138, 173, 244);
-  return colors;
-}
-
-ThemeColors CatppuccinFrappe() {
-  ThemeColors colors;
-  colors.background = RGB(48, 52, 70);
-  colors.panel = RGB(65, 69, 89);
-  colors.surface = RGB(81, 87, 109);
-  colors.field = RGB(42, 46, 64);
-  colors.header = colors.surface;
-  colors.border = RGB(98, 104, 128);
-  colors.text = RGB(198, 208, 245);
-  colors.muted_text = RGB(181, 191, 226);
-  colors.accent = RGB(140, 170, 238);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(81, 87, 109);
-  colors.focus = RGB(140, 170, 238);
-  return colors;
-}
-
-ThemeColors CatppuccinLatte() {
-  ThemeColors colors;
-  colors.background = RGB(239, 241, 245);
-  colors.panel = RGB(230, 233, 239);
-  colors.surface = RGB(220, 224, 232);
-  colors.field = RGB(229, 231, 235);
-  colors.header = colors.surface;
-  colors.border = RGB(204, 208, 218);
-  colors.text = RGB(76, 79, 105);
-  colors.muted_text = RGB(108, 111, 133);
-  colors.accent = RGB(30, 102, 245);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(220, 224, 232);
-  colors.focus = RGB(30, 102, 245);
-  return colors;
-}
-
-ThemeColors TokyoNight() {
-  ThemeColors colors;
-  colors.background = RGB(26, 27, 38);
-  colors.panel = RGB(36, 40, 59);
-  colors.surface = RGB(47, 51, 77);
-  colors.field = RGB(20, 21, 32);
-  colors.header = colors.surface;
-  colors.border = RGB(65, 72, 104);
-  colors.text = RGB(192, 202, 245);
-  colors.muted_text = RGB(169, 177, 214);
-  colors.accent = RGB(122, 162, 247);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(47, 51, 77);
-  colors.focus = RGB(122, 162, 247);
-  return colors;
-}
-
-ThemeColors OneDark() {
-  ThemeColors colors;
-  colors.background = RGB(40, 44, 52);
-  colors.panel = RGB(47, 52, 63);
-  colors.surface = RGB(59, 64, 74);
-  colors.field = RGB(34, 38, 46);
-  colors.header = colors.surface;
-  colors.border = RGB(62, 68, 81);
-  colors.text = RGB(171, 178, 191);
-  colors.muted_text = RGB(139, 147, 165);
-  colors.accent = RGB(97, 175, 239);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(59, 64, 74);
-  colors.focus = RGB(97, 175, 239);
-  return colors;
-}
-
-ThemeColors OneLight() {
-  ThemeColors colors;
-  colors.background = RGB(250, 250, 250);
-  colors.panel = RGB(242, 242, 242);
-  colors.surface = RGB(231, 231, 231);
-  colors.field = RGB(240, 240, 240);
-  colors.header = colors.surface;
-  colors.border = RGB(208, 208, 208);
-  colors.text = RGB(56, 58, 66);
-  colors.muted_text = RGB(107, 111, 119);
-  colors.accent = RGB(64, 120, 242);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(231, 231, 231);
-  colors.focus = RGB(64, 120, 242);
-  return colors;
-}
-
-ThemeColors Monokai() {
-  ThemeColors colors;
-  colors.background = RGB(39, 40, 34);
-  colors.panel = RGB(45, 46, 39);
-  colors.surface = RGB(58, 59, 51);
-  colors.field = RGB(33, 34, 28);
-  colors.header = colors.surface;
-  colors.border = RGB(62, 61, 50);
-  colors.text = RGB(248, 248, 242);
-  colors.muted_text = RGB(197, 197, 190);
-  colors.accent = RGB(166, 226, 46);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(58, 59, 51);
-  colors.focus = RGB(166, 226, 46);
-  return colors;
-}
-
-ThemeColors AyuDark() {
-  ThemeColors colors;
-  colors.background = RGB(15, 20, 25);
-  colors.panel = RGB(21, 26, 33);
-  colors.surface = RGB(27, 34, 43);
-  colors.field = RGB(9, 14, 19);
-  colors.header = colors.surface;
-  colors.border = RGB(37, 51, 64);
-  colors.text = RGB(230, 225, 207);
-  colors.muted_text = RGB(166, 179, 191);
-  colors.accent = RGB(255, 180, 84);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(27, 34, 43);
-  colors.focus = RGB(255, 180, 84);
-  return colors;
-}
-
-ThemeColors AyuLight() {
-  ThemeColors colors;
-  colors.background = RGB(250, 250, 250);
-  colors.panel = RGB(243, 243, 243);
-  colors.surface = RGB(232, 232, 232);
-  colors.field = RGB(240, 240, 240);
-  colors.header = colors.surface;
-  colors.border = RGB(214, 214, 214);
-  colors.text = RGB(92, 103, 115);
-  colors.muted_text = RGB(138, 145, 153);
-  colors.accent = RGB(242, 151, 24);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(232, 232, 232);
-  colors.focus = RGB(242, 151, 24);
-  return colors;
-}
-
-ThemeColors EverforestDark() {
-  ThemeColors colors;
-  colors.background = RGB(43, 51, 57);
-  colors.panel = RGB(52, 63, 68);
-  colors.surface = RGB(60, 71, 77);
-  colors.field = RGB(37, 45, 51);
-  colors.header = colors.surface;
-  colors.border = RGB(61, 72, 77);
-  colors.text = RGB(211, 198, 170);
-  colors.muted_text = RGB(157, 169, 160);
-  colors.accent = RGB(167, 192, 128);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(60, 71, 77);
-  colors.focus = RGB(167, 192, 128);
-  return colors;
-}
-
-ThemeColors EverforestLight() {
-  ThemeColors colors;
-  colors.background = RGB(243, 234, 211);
-  colors.panel = RGB(232, 223, 198);
-  colors.surface = RGB(223, 212, 181);
-  colors.field = RGB(233, 224, 201);
-  colors.header = colors.surface;
-  colors.border = RGB(211, 198, 170);
-  colors.text = RGB(92, 106, 114);
-  colors.muted_text = RGB(127, 140, 141);
-  colors.accent = RGB(141, 161, 1);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(223, 212, 181);
-  colors.focus = RGB(141, 161, 1);
-  return colors;
-}
-
-ThemeColors Material() {
-  ThemeColors colors;
-  colors.background = RGB(38, 50, 56);
-  colors.panel = RGB(47, 59, 67);
-  colors.surface = RGB(54, 69, 79);
-  colors.field = RGB(32, 44, 50);
-  colors.header = colors.surface;
-  colors.border = RGB(55, 71, 79);
-  colors.text = RGB(207, 216, 220);
-  colors.muted_text = RGB(176, 190, 197);
-  colors.accent = RGB(128, 203, 196);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(54, 69, 79);
-  colors.focus = RGB(128, 203, 196);
-  return colors;
-}
-
-ThemeColors Horizon() {
-  ThemeColors colors;
-  colors.background = RGB(28, 30, 38);
-  colors.panel = RGB(35, 37, 48);
-  colors.surface = RGB(45, 47, 58);
-  colors.field = RGB(22, 24, 32);
-  colors.header = colors.surface;
-  colors.border = RGB(46, 48, 62);
-  colors.text = RGB(224, 224, 224);
-  colors.muted_text = RGB(157, 160, 162);
-  colors.accent = RGB(233, 86, 120);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(45, 47, 58);
-  colors.focus = RGB(233, 86, 120);
-  return colors;
-}
-
-ThemeColors NightOwl() {
-  ThemeColors colors;
-  colors.background = RGB(1, 22, 39);
-  colors.panel = RGB(11, 37, 58);
-  colors.surface = RGB(17, 50, 77);
-  colors.field = RGB(0, 16, 33);
-  colors.header = colors.surface;
-  colors.border = RGB(18, 48, 71);
-  colors.text = RGB(214, 222, 235);
-  colors.muted_text = RGB(159, 179, 200);
-  colors.accent = RGB(130, 170, 255);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(17, 50, 77);
-  colors.focus = RGB(130, 170, 255);
-  return colors;
-}
-
-ThemeColors RosePine() {
-  ThemeColors colors;
-  colors.background = RGB(25, 23, 36);
-  colors.panel = RGB(31, 29, 46);
-  colors.surface = RGB(38, 35, 58);
-  colors.field = RGB(19, 17, 30);
-  colors.header = colors.surface;
-  colors.border = RGB(64, 61, 82);
-  colors.text = RGB(224, 222, 244);
-  colors.muted_text = RGB(156, 154, 179);
-  colors.accent = RGB(235, 111, 146);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(38, 35, 58);
-  colors.focus = RGB(235, 111, 146);
-  return colors;
-}
-
-ThemeColors RosePineMoon() {
-  ThemeColors colors;
-  colors.background = RGB(35, 33, 54);
-  colors.panel = RGB(42, 39, 63);
-  colors.surface = RGB(49, 48, 74);
-  colors.field = RGB(29, 27, 48);
-  colors.header = colors.surface;
-  colors.border = RGB(68, 65, 90);
-  colors.text = RGB(224, 222, 244);
-  colors.muted_text = RGB(179, 176, 214);
-  colors.accent = RGB(234, 154, 151);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(49, 48, 74);
-  colors.focus = RGB(234, 154, 151);
-  return colors;
-}
-
-ThemeColors KanagawaWave() {
-  ThemeColors colors;
-  colors.background = RGB(31, 31, 40);
-  colors.panel = RGB(42, 42, 55);
-  colors.surface = RGB(54, 54, 70);
-  colors.field = RGB(25, 25, 34);
-  colors.header = colors.surface;
-  colors.border = RGB(59, 59, 79);
-  colors.text = RGB(220, 215, 186);
-  colors.muted_text = RGB(166, 166, 156);
-  colors.accent = RGB(126, 156, 216);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(54, 54, 70);
-  colors.focus = RGB(126, 156, 216);
-  return colors;
-}
-
-ThemeColors KanagawaDragon() {
-  ThemeColors colors;
-  colors.background = RGB(24, 22, 22);
-  colors.panel = RGB(31, 31, 31);
-  colors.surface = RGB(38, 38, 38);
-  colors.field = RGB(18, 16, 16);
-  colors.header = colors.surface;
-  colors.border = RGB(45, 42, 46);
-  colors.text = RGB(197, 201, 197);
-  colors.muted_text = RGB(166, 166, 156);
-  colors.accent = RGB(127, 180, 202);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(38, 38, 38);
-  colors.focus = RGB(127, 180, 202);
-  return colors;
-}
-
-ThemeColors KanagawaLotus() {
-  ThemeColors colors;
-  colors.background = RGB(242, 236, 188);
-  colors.panel = RGB(231, 221, 176);
-  colors.surface = RGB(223, 212, 164);
-  colors.field = RGB(232, 226, 178);
-  colors.header = colors.surface;
-  colors.border = RGB(200, 192, 160);
-  colors.text = RGB(77, 74, 65);
-  colors.muted_text = RGB(116, 108, 93);
-  colors.accent = RGB(196, 109, 137);
-  colors.selection = colors.panel;
-  colors.selection_text = colors.text;
-  colors.hover = RGB(223, 212, 164);
-  colors.focus = RGB(196, 109, 137);
-  return colors;
-}
-
-void WritePreset(
-    std::wofstream& file,
-    const ThemePreset& preset
-) {
-  file << kPresetSection << L"\n";
-  file << L"name=" << preset.name << L"\n";
-  file << L"dark=" << (preset.is_dark ? L"1" : L"0") << L"\n";
-  file << L"background=" << FormatColorHex(preset.colors.background) << L"\n";
-  file << L"panel=" << FormatColorHex(preset.colors.panel) << L"\n";
-  file << L"surface=" << FormatColorHex(preset.colors.surface) << L"\n";
-  file << L"field=" << FormatColorHex(preset.colors.field) << L"\n";
-  file << L"header=" << FormatColorHex(preset.colors.header) << L"\n";
-  file << L"border=" << FormatColorHex(preset.colors.border) << L"\n";
-  file << L"text=" << FormatColorHex(preset.colors.text) << L"\n";
-  file << L"muted_text=" << FormatColorHex(preset.colors.muted_text) << L"\n";
-  file << L"accent=" << FormatColorHex(preset.colors.accent) << L"\n";
-  file << L"selection=" << FormatColorHex(preset.colors.selection) << L"\n";
-  file << L"selection_text=" << FormatColorHex(preset.colors.selection_text) << L"\n";
-  file << L"hover=" << FormatColorHex(preset.colors.hover) << L"\n";
-  file << L"focus=" << FormatColorHex(preset.colors.focus) << L"\n";
-  file << L"\n";
-}
+constexpr BuiltInPreset kBuiltInPresets[] = {
+    {L"Default Dark", true, {RGB(20, 20, 20), RGB(20, 20, 20), RGB(34, 34, 34), RGB(14, 14, 14), RGB(34, 34, 34), RGB(66, 66, 66), RGB(200, 200, 200), RGB(170, 170, 170), RGB(90, 162, 255), RGB(20, 20, 20), RGB(200, 200, 200), RGB(44, 44, 44), RGB(90, 162, 255)}},
+    {L"Default Light", false, {RGB(245, 245, 245), RGB(255, 255, 255), RGB(242, 242, 242), RGB(235, 235, 235), RGB(242, 242, 242), RGB(204, 204, 204), RGB(32, 32, 32), RGB(96, 96, 96), RGB(0, 120, 215), RGB(255, 255, 255), RGB(32, 32, 32), RGB(236, 236, 236), RGB(0, 120, 215)}},
+    {L"Ayu Dark", true, {RGB(15, 20, 25), RGB(21, 26, 33), RGB(27, 34, 43), RGB(9, 14, 19), RGB(27, 34, 43), RGB(37, 51, 64), RGB(230, 225, 207), RGB(166, 179, 191), RGB(255, 180, 84), RGB(21, 26, 33), RGB(230, 225, 207), RGB(27, 34, 43), RGB(255, 180, 84)}},
+    {L"Ayu Light", false, {RGB(250, 250, 250), RGB(243, 243, 243), RGB(232, 232, 232), RGB(240, 240, 240), RGB(232, 232, 232), RGB(214, 214, 214), RGB(92, 103, 115), RGB(138, 145, 153), RGB(242, 151, 24), RGB(243, 243, 243), RGB(92, 103, 115), RGB(232, 232, 232), RGB(242, 151, 24)}},
+    {L"Catppuccin Frappe", true, {RGB(48, 52, 70), RGB(65, 69, 89), RGB(81, 87, 109), RGB(42, 46, 64), RGB(81, 87, 109), RGB(98, 104, 128), RGB(198, 208, 245), RGB(181, 191, 226), RGB(140, 170, 238), RGB(65, 69, 89), RGB(198, 208, 245), RGB(81, 87, 109), RGB(140, 170, 238)}},
+    {L"Catppuccin Latte", false, {RGB(239, 241, 245), RGB(230, 233, 239), RGB(220, 224, 232), RGB(229, 231, 235), RGB(220, 224, 232), RGB(204, 208, 218), RGB(76, 79, 105), RGB(108, 111, 133), RGB(30, 102, 245), RGB(230, 233, 239), RGB(76, 79, 105), RGB(220, 224, 232), RGB(30, 102, 245)}},
+    {L"Catppuccin Macchiato", true, {RGB(36, 39, 58), RGB(48, 52, 70), RGB(54, 58, 79), RGB(30, 33, 52), RGB(54, 58, 79), RGB(73, 77, 100), RGB(202, 211, 245), RGB(165, 173, 203), RGB(138, 173, 244), RGB(48, 52, 70), RGB(202, 211, 245), RGB(54, 58, 79), RGB(138, 173, 244)}},
+    {L"Catppuccin Mocha", true, {RGB(30, 30, 46), RGB(42, 43, 60), RGB(49, 50, 68), RGB(24, 24, 40), RGB(49, 50, 68), RGB(69, 71, 90), RGB(205, 214, 244), RGB(166, 173, 200), RGB(137, 180, 250), RGB(42, 43, 60), RGB(205, 214, 244), RGB(49, 50, 68), RGB(137, 180, 250)}},
+    {L"Dracula", true, {RGB(40, 42, 54), RGB(52, 55, 70), RGB(59, 63, 82), RGB(34, 36, 48), RGB(59, 63, 82), RGB(68, 71, 90), RGB(248, 248, 242), RGB(191, 191, 191), RGB(189, 147, 249), RGB(52, 55, 70), RGB(248, 248, 242), RGB(59, 63, 82), RGB(189, 147, 249)}},
+    {L"Everforest Dark", true, {RGB(43, 51, 57), RGB(52, 63, 68), RGB(60, 71, 77), RGB(37, 45, 51), RGB(60, 71, 77), RGB(61, 72, 77), RGB(211, 198, 170), RGB(157, 169, 160), RGB(167, 192, 128), RGB(52, 63, 68), RGB(211, 198, 170), RGB(60, 71, 77), RGB(167, 192, 128)}},
+    {L"Everforest Light", false, {RGB(243, 234, 211), RGB(232, 223, 198), RGB(223, 212, 181), RGB(233, 224, 201), RGB(223, 212, 181), RGB(211, 198, 170), RGB(92, 106, 114), RGB(127, 140, 141), RGB(141, 161, 1), RGB(232, 223, 198), RGB(92, 106, 114), RGB(223, 212, 181), RGB(141, 161, 1)}},
+    {L"Gruvbox Dark", true, {RGB(40, 40, 40), RGB(50, 48, 47), RGB(60, 56, 54), RGB(34, 34, 34), RGB(60, 56, 54), RGB(80, 73, 69), RGB(235, 219, 178), RGB(189, 174, 147), RGB(250, 189, 47), RGB(50, 48, 47), RGB(235, 219, 178), RGB(60, 56, 54), RGB(250, 189, 47)}},
+    {L"Gruvbox Light", false, {RGB(251, 241, 199), RGB(242, 229, 188), RGB(235, 219, 178), RGB(241, 231, 189), RGB(235, 219, 178), RGB(213, 196, 161), RGB(60, 56, 54), RGB(124, 111, 100), RGB(215, 153, 33), RGB(242, 229, 188), RGB(60, 56, 54), RGB(235, 219, 178), RGB(215, 153, 33)}},
+    {L"Horizon", true, {RGB(28, 30, 38), RGB(35, 37, 48), RGB(45, 47, 58), RGB(22, 24, 32), RGB(45, 47, 58), RGB(46, 48, 62), RGB(224, 224, 224), RGB(157, 160, 162), RGB(233, 86, 120), RGB(35, 37, 48), RGB(224, 224, 224), RGB(45, 47, 58), RGB(233, 86, 120)}},
+    {L"Kanagawa Dragon", true, {RGB(24, 22, 22), RGB(31, 31, 31), RGB(38, 38, 38), RGB(18, 16, 16), RGB(38, 38, 38), RGB(45, 42, 46), RGB(197, 201, 197), RGB(166, 166, 156), RGB(127, 180, 202), RGB(31, 31, 31), RGB(197, 201, 197), RGB(38, 38, 38), RGB(127, 180, 202)}},
+    {L"Kanagawa Lotus", false, {RGB(242, 236, 188), RGB(231, 221, 176), RGB(223, 212, 164), RGB(232, 226, 178), RGB(223, 212, 164), RGB(200, 192, 160), RGB(77, 74, 65), RGB(116, 108, 93), RGB(196, 109, 137), RGB(231, 221, 176), RGB(77, 74, 65), RGB(223, 212, 164), RGB(196, 109, 137)}},
+    {L"Kanagawa Wave", true, {RGB(31, 31, 40), RGB(42, 42, 55), RGB(54, 54, 70), RGB(25, 25, 34), RGB(54, 54, 70), RGB(59, 59, 79), RGB(220, 215, 186), RGB(166, 166, 156), RGB(126, 156, 216), RGB(42, 42, 55), RGB(220, 215, 186), RGB(54, 54, 70), RGB(126, 156, 216)}},
+    {L"Material", true, {RGB(38, 50, 56), RGB(47, 59, 67), RGB(54, 69, 79), RGB(32, 44, 50), RGB(54, 69, 79), RGB(55, 71, 79), RGB(207, 216, 220), RGB(176, 190, 197), RGB(128, 203, 196), RGB(47, 59, 67), RGB(207, 216, 220), RGB(54, 69, 79), RGB(128, 203, 196)}},
+    {L"Monokai", true, {RGB(39, 40, 34), RGB(45, 46, 39), RGB(58, 59, 51), RGB(33, 34, 28), RGB(58, 59, 51), RGB(62, 61, 50), RGB(248, 248, 242), RGB(197, 197, 190), RGB(166, 226, 46), RGB(45, 46, 39), RGB(248, 248, 242), RGB(58, 59, 51), RGB(166, 226, 46)}},
+    {L"Night Owl", true, {RGB(1, 22, 39), RGB(11, 37, 58), RGB(17, 50, 77), RGB(0, 16, 33), RGB(17, 50, 77), RGB(18, 48, 71), RGB(214, 222, 235), RGB(159, 179, 200), RGB(130, 170, 255), RGB(11, 37, 58), RGB(214, 222, 235), RGB(17, 50, 77), RGB(130, 170, 255)}},
+    {L"Nord", true, {RGB(46, 52, 64), RGB(59, 66, 82), RGB(67, 76, 94), RGB(40, 46, 58), RGB(67, 76, 94), RGB(76, 86, 106), RGB(229, 233, 240), RGB(167, 177, 194), RGB(136, 192, 208), RGB(59, 66, 82), RGB(229, 233, 240), RGB(67, 76, 94), RGB(136, 192, 208)}},
+    {L"One Dark", true, {RGB(40, 44, 52), RGB(47, 52, 63), RGB(59, 64, 74), RGB(34, 38, 46), RGB(59, 64, 74), RGB(62, 68, 81), RGB(171, 178, 191), RGB(139, 147, 165), RGB(97, 175, 239), RGB(47, 52, 63), RGB(171, 178, 191), RGB(59, 64, 74), RGB(97, 175, 239)}},
+    {L"One Light", false, {RGB(250, 250, 250), RGB(242, 242, 242), RGB(231, 231, 231), RGB(240, 240, 240), RGB(231, 231, 231), RGB(208, 208, 208), RGB(56, 58, 66), RGB(107, 111, 119), RGB(64, 120, 242), RGB(242, 242, 242), RGB(56, 58, 66), RGB(231, 231, 231), RGB(64, 120, 242)}},
+    {L"Rose Pine", true, {RGB(25, 23, 36), RGB(31, 29, 46), RGB(38, 35, 58), RGB(19, 17, 30), RGB(38, 35, 58), RGB(64, 61, 82), RGB(224, 222, 244), RGB(156, 154, 179), RGB(235, 111, 146), RGB(31, 29, 46), RGB(224, 222, 244), RGB(38, 35, 58), RGB(235, 111, 146)}},
+    {L"Rose Pine Moon", true, {RGB(35, 33, 54), RGB(42, 39, 63), RGB(49, 48, 74), RGB(29, 27, 48), RGB(49, 48, 74), RGB(68, 65, 90), RGB(224, 222, 244), RGB(179, 176, 214), RGB(234, 154, 151), RGB(42, 39, 63), RGB(224, 222, 244), RGB(49, 48, 74), RGB(234, 154, 151)}},
+    {L"Solarized Dark", true, {RGB(0, 43, 54), RGB(7, 54, 66), RGB(10, 60, 71), RGB(0, 37, 48), RGB(10, 60, 71), RGB(15, 59, 70), RGB(147, 161, 161), RGB(131, 148, 150), RGB(181, 137, 0), RGB(7, 54, 66), RGB(147, 161, 161), RGB(10, 60, 71), RGB(181, 137, 0)}},
+    {L"Solarized Light", false, {RGB(253, 246, 227), RGB(238, 232, 213), RGB(228, 221, 200), RGB(243, 236, 217), RGB(228, 221, 200), RGB(214, 207, 181), RGB(88, 110, 117), RGB(101, 123, 131), RGB(181, 137, 0), RGB(238, 232, 213), RGB(88, 110, 117), RGB(228, 221, 200), RGB(181, 137, 0)}},
+    {L"Tokyo Night", true, {RGB(26, 27, 38), RGB(36, 40, 59), RGB(47, 51, 77), RGB(20, 21, 32), RGB(47, 51, 77), RGB(65, 72, 104), RGB(192, 202, 245), RGB(169, 177, 214), RGB(122, 162, 247), RGB(36, 40, 59), RGB(192, 202, 245), RGB(47, 51, 77), RGB(122, 162, 247)}},
+};
 
 struct ColorKey {
   const wchar_t* key;
@@ -591,215 +73,138 @@ constexpr ColorKey kColorKeys[] = {
     {L"focus", &ThemeColors::focus},
 };
 
+std::wstring PresetsPath() {
+  const std::wstring folder = util::GetAppDataFolder();
+  return folder.empty() ? std::wstring() : util::JoinPath(folder, L"theme_presets.rktheme");
+}
+
 bool ApplyField(
     ThemePreset* preset,
-    const std::wstring& key,
+    std::wstring_view key,
     const std::wstring& value
 ) {
-  if (!preset) {
-    return false;
-  }
-  const std::wstring key_lower = ToLower(key);
-  if (key_lower == L"name") {
+  if (util::EqualsInsensitive(key, L"name")) {
     preset->name = value;
     return true;
   }
-  if (key_lower == L"dark") {
-    if (value == L"1" || _wcsicmp(value.c_str(), L"true") == 0) {
-      preset->is_dark = true;
-      return true;
-    }
-    if (value == L"0" || _wcsicmp(value.c_str(), L"false") == 0) {
-      preset->is_dark = false;
-      return true;
-    }
-    return false;
+  if (util::EqualsInsensitive(key, L"dark")) {
+    const bool dark = value == L"1" || util::EqualsInsensitive(value, L"true");
+    preset->is_dark = dark;
+    return dark || value == L"0" || util::EqualsInsensitive(value, L"false");
   }
-  for (const ColorKey& field : kColorKeys) {
-    if (key_lower != field.key) {
-      continue;
-    }
-    COLORREF color = RGB(0, 0, 0);
-    if (!ParseColorHex(value, &color)) {
-      return false;
-    }
-    preset->colors.*field.member = color;
-    return true;
-  }
-  return true;
+  const auto field = std::find_if(std::begin(kColorKeys), std::end(kColorKeys), [&](const ColorKey& entry) { return util::EqualsInsensitive(key, entry.key); });
+  return field == std::end(kColorKeys) || ParseColorHex(value, &(preset->colors.*field->member));
 }
 
-void ResolveLegacyField(
-    ThemePreset* preset
-) {
-  if (preset && preset->colors.field == CLR_INVALID) {
-    preset->colors.field = preset->colors.surface;
-  }
-}
-
-bool LoadFromStream(
-    std::wistream& file,
+bool ParsePresets(
+    const std::wstring& content,
     std::vector<ThemePreset>* presets,
     std::wstring* error
 ) {
-  if (!presets) {
-    return false;
-  }
   presets->clear();
   ThemePreset current;
-  current.colors.field = CLR_INVALID;
   bool in_preset = false;
-  std::wstring line;
+  auto finish = [&]() {
+    if (in_preset) {
+      if (current.name.empty()) {
+        return false;
+      }
+      if (current.colors.field == CLR_INVALID) {
+        current.colors.field = current.colors.surface;
+      }
+      presets->push_back(current);
+    }
+    current = ThemePreset{};
+    current.colors.field = CLR_INVALID;
+    return true;
+  };
   auto fail = [&](const std::wstring& text) {
     if (error) {
-      *error = L"The theme preset file contains an entry RegKit cannot "
-               L"parse:\n" +
-               text;
+      *error = L"The theme preset file contains an entry RegKit cannot parse:\n" + text;
     }
     presets->clear();
     return false;
   };
-  while (std::getline(file, line)) {
-    line = Trim(line);
-    if (line.empty()) {
-      continue;
-    }
+  for (const std::wstring& line : util::SplitLines(content)) {
     if (line == kPresetSection) {
-      if (in_preset) {
-        if (current.name.empty()) {
-          return fail(kPresetSection);
-        }
-        ResolveLegacyField(&current);
-        presets->push_back(current);
+      if (!finish()) {
+        return fail(kPresetSection);
       }
-      current = ThemePreset{};
-      current.colors.field = CLR_INVALID;
       in_preset = true;
       continue;
     }
     if (!in_preset) {
       continue;
     }
-    size_t sep = line.find(L'=');
-    if (sep == std::wstring::npos) {
-      return fail(line);
-    }
-    if (!ApplyField(&current, Trim(line.substr(0, sep)), Trim(line.substr(sep + 1)))) {
+    const size_t sep = line.find(L'=');
+    if (sep == std::wstring::npos || !ApplyField(&current, util::TrimWhitespace(std::wstring_view(line).substr(0, sep)), util::TrimWhitespace(std::wstring_view(line).substr(sep + 1)))) {
       return fail(line);
     }
   }
-  if (in_preset) {
-    if (current.name.empty()) {
-      return fail(kPresetSection);
+  return finish() || fail(kPresetSection);
+}
+
+bool WritePresetFile(
+    const std::wstring& path,
+    const std::vector<ThemePreset>& presets,
+    std::wstring* error
+) {
+  std::vector<std::wstring> lines;
+  for (const ThemePreset& preset : presets) {
+    if (preset.name.empty()) {
+      continue;
     }
-    ResolveLegacyField(&current);
-    presets->push_back(current);
+    lines.push_back(kPresetSection);
+    lines.push_back(L"name=" + preset.name);
+    lines.push_back(preset.is_dark ? L"dark=1" : L"dark=0");
+    for (const ColorKey& field : kColorKeys) {
+      lines.push_back(std::wstring(field.key) + L"=" + FormatColorHex(preset.colors.*field.member));
+    }
   }
-  return true;
+  if (util::WriteTextFile(path, util::JoinLines(lines) + L"\r\n", false)) {
+    return true;
+  }
+  if (error) {
+    *error = L"Failed to write the theme preset file.";
+  }
+  return false;
 }
 
 } // namespace
 
-std::wstring ThemePresetStore::PresetsPath() {
-  std::wstring folder = util::GetAppDataFolder();
-  if (folder.empty()) {
-    return L"";
-  }
-  return util::JoinPath(folder, L"theme_presets.rktheme");
-}
-
 std::vector<ThemePreset> ThemePresetStore::BuiltInPresets() {
   std::vector<ThemePreset> presets;
-  presets.push_back(MakePreset(L"Default Dark", DarkDefaults(), true));
-  presets.push_back(MakePreset(L"Default Light", LightDefaults(), false));
-  presets.push_back(MakePreset(L"Ayu Dark", AyuDark(), true));
-  presets.push_back(MakePreset(L"Ayu Light", AyuLight(), false));
-  presets.push_back(MakePreset(L"Catppuccin Frappe", CatppuccinFrappe(), true));
-  presets.push_back(MakePreset(L"Catppuccin Latte", CatppuccinLatte(), false));
-  presets.push_back(MakePreset(L"Catppuccin Macchiato", CatppuccinMacchiato(), true));
-  presets.push_back(MakePreset(L"Catppuccin Mocha", CatppuccinMocha(), true));
-  presets.push_back(MakePreset(L"Dracula", Dracula(), true));
-  presets.push_back(MakePreset(L"Everforest Dark", EverforestDark(), true));
-  presets.push_back(MakePreset(L"Everforest Light", EverforestLight(), false));
-  presets.push_back(MakePreset(L"Gruvbox Dark", GruvboxDark(), true));
-  presets.push_back(MakePreset(L"Gruvbox Light", GruvboxLight(), false));
-  presets.push_back(MakePreset(L"Horizon", Horizon(), true));
-  presets.push_back(MakePreset(L"Kanagawa Dragon", KanagawaDragon(), true));
-  presets.push_back(MakePreset(L"Kanagawa Lotus", KanagawaLotus(), false));
-  presets.push_back(MakePreset(L"Kanagawa Wave", KanagawaWave(), true));
-  presets.push_back(MakePreset(L"Material", Material(), true));
-  presets.push_back(MakePreset(L"Monokai", Monokai(), true));
-  presets.push_back(MakePreset(L"Night Owl", NightOwl(), true));
-  presets.push_back(MakePreset(L"Nord", NordDark(), true));
-  presets.push_back(MakePreset(L"One Dark", OneDark(), true));
-  presets.push_back(MakePreset(L"One Light", OneLight(), false));
-  presets.push_back(MakePreset(L"Rose Pine", RosePine(), true));
-  presets.push_back(MakePreset(L"Rose Pine Moon", RosePineMoon(), true));
-  presets.push_back(MakePreset(L"Solarized Dark", SolarizedDark(), true));
-  presets.push_back(MakePreset(L"Solarized Light", SolarizedLight(), false));
-  presets.push_back(MakePreset(L"Tokyo Night", TokyoNight(), true));
+  presets.reserve(std::size(kBuiltInPresets));
+  for (const BuiltInPreset& preset : kBuiltInPresets) {
+    presets.push_back({preset.name, preset.colors, preset.is_dark});
+  }
   return presets;
+}
+
+const ThemePreset* FindThemePreset(
+    const std::vector<ThemePreset>& presets,
+    std::wstring_view name
+) {
+  const auto found = std::find_if(presets.begin(), presets.end(), [&](const ThemePreset& preset) { return util::EqualsInsensitive(preset.name, name); });
+  return found != presets.end() ? &*found : (presets.empty() ? nullptr : &presets.front());
 }
 
 bool ThemePresetStore::Load(
     std::vector<ThemePreset>* presets,
     std::wstring* error
 ) {
-  if (presets) {
-    presets->clear();
-  }
   if (error) {
     error->clear();
   }
-  std::wstring path = PresetsPath();
-  if (path.empty()) {
-    if (error) {
-      *error = L"Failed to resolve the theme presets path.";
-    }
-    return false;
-  }
-  std::wifstream file(path);
-  if (!file.is_open()) {
-    return false;
-  }
-  std::vector<ThemePreset> loaded;
-  if (!LoadFromStream(file, &loaded, error)) {
-    return false;
-  }
-  if (presets) {
-    *presets = std::move(loaded);
-  }
-  return true;
+  std::wstring content;
+  return util::ReadTextFile(PresetsPath(), &content) && ParsePresets(content, presets, error);
 }
 
 bool ThemePresetStore::Save(
     const std::vector<ThemePreset>& presets,
     std::wstring* error
 ) {
-  if (error) {
-    error->clear();
-  }
-  std::wstring path = PresetsPath();
-  if (path.empty()) {
-    if (error) {
-      *error = L"Failed to resolve the theme presets path.";
-    }
-    return false;
-  }
-  std::wofstream file(path, std::ios::trunc);
-  if (!file.is_open()) {
-    if (error) {
-      *error = L"Failed to open the theme presets file.";
-    }
-    return false;
-  }
-  for (const auto& preset : presets) {
-    if (preset.name.empty()) {
-      continue;
-    }
-    WritePreset(file, preset);
-  }
-  return true;
+  return WritePresetFile(PresetsPath(), presets, error);
 }
 
 bool ThemePresetStore::ImportFromFile(
@@ -807,39 +212,15 @@ bool ThemePresetStore::ImportFromFile(
     std::vector<ThemePreset>* presets,
     std::wstring* error
 ) {
-  if (presets) {
-    presets->clear();
+  std::wstring content;
+  const bool read = util::ReadTextFile(path, &content);
+  if (read && ParsePresets(content, presets, error) && !presets->empty()) {
+    return true;
   }
-  if (error) {
-    error->clear();
+  if (error && (!read || presets->empty())) {
+    *error = read ? L"No theme presets were found in the file." : L"Failed to open the theme preset file.";
   }
-  if (path.empty()) {
-    if (error) {
-      *error = L"Invalid theme preset file path.";
-    }
-    return false;
-  }
-  std::wifstream file(path);
-  if (!file.is_open()) {
-    if (error) {
-      *error = L"Failed to open the theme preset file.";
-    }
-    return false;
-  }
-  std::vector<ThemePreset> loaded;
-  if (!LoadFromStream(file, &loaded, error)) {
-    return false;
-  }
-  if (loaded.empty()) {
-    if (error) {
-      *error = L"No theme presets were found in the file.";
-    }
-    return false;
-  }
-  if (presets) {
-    *presets = std::move(loaded);
-  }
-  return true;
+  return false;
 }
 
 bool ThemePresetStore::ExportToFile(
@@ -847,39 +228,16 @@ bool ThemePresetStore::ExportToFile(
     const std::vector<ThemePreset>& presets,
     std::wstring* error
 ) {
-  if (error) {
-    error->clear();
-  }
-  if (path.empty()) {
-    if (error) {
-      *error = L"Invalid theme preset file path.";
-    }
-    return false;
-  }
-  std::wofstream file(path, std::ios::trunc);
-  if (!file.is_open()) {
-    if (error) {
-      *error = L"Failed to write the theme preset file.";
-    }
-    return false;
-  }
-  for (const auto& preset : presets) {
-    if (preset.name.empty()) {
-      continue;
-    }
-    WritePreset(file, preset);
-  }
-  return true;
+  return WritePresetFile(path, presets, error);
 }
 
 std::wstring FormatColorHex(
     COLORREF color
 ) {
-  wchar_t buffer[16] = {};
+  wchar_t buffer[8] = {};
   swprintf_s(buffer, L"#%02X%02X%02X", GetRValue(color), GetGValue(color), GetBValue(color));
   return buffer;
 }
-
 bool ParseColorHex(
     const std::wstring& text,
     COLORREF* color
@@ -887,7 +245,7 @@ bool ParseColorHex(
   if (!color) {
     return false;
   }
-  std::wstring value = Trim(text);
+  std::wstring value = util::TrimWhitespace(text);
   if (value.size() == 7 && value[0] == L'#') {
     unsigned int rgb = 0;
     if (swscanf_s(value.c_str() + 1, L"%06x", &rgb) == 1) {

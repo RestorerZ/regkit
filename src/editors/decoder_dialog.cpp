@@ -11,6 +11,7 @@
 #include "registry/value_format.h"
 
 #include "resource.h"
+#include "win32/text_transform.h"
 
 #include <algorithm>
 #include <span>
@@ -116,7 +117,7 @@ void RunDecoder(
   if (id == DecoderId::kRawBytes) {
     const size_t shown = std::min(bytes.size(), kRawBytePreviewLimit);
     const std::span<const BYTE> span(bytes.data(), shown);
-    text.append(L"\r\n").append(binary_text::Hex(span));
+    text.append(L"\r\n").append(util::ToHex(span, L' ', true));
     text.append(L"\r\n\r\n").append(binary_text::Preview(span, 1, false));
     if (shown != bytes.size()) {
       text.append(L"\r\n\r\nShowing the first ")

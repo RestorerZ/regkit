@@ -11,6 +11,7 @@
 #include "registry/value_format.h"
 
 #include "resource.h"
+#include "win32/text_transform.h"
 
 #include <initializer_list>
 #include <utility>
@@ -94,7 +95,7 @@ INT_PTR CALLBACK DialogProc(
   );
   if (message == WM_INITDIALOG) {
     state = reinterpret_cast<State*>(lparam);
-    state->text = binary_text::Hex(state->request->data);
+    state->text = util::ToHex(state->request->data, L' ', true);
     SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
     SetWindowTextW(dialog, L"Edit Value");
     SetDlgItemTextW(dialog, IDC_LABEL, L"Hex bytes:");
@@ -207,7 +208,7 @@ INT_PTR CALLBACK DialogProc(
       if (!EditBitfield(dialog, request, &result)) {
         return TRUE;
       }
-      SetDlgItemTextW(dialog, IDC_EDIT, binary_text::Hex(result.data).c_str());
+      SetDlgItemTextW(dialog, IDC_EDIT, util::ToHex(result.data, L' ', true).c_str());
       UpdatePreview(dialog, state);
       return TRUE;
     }

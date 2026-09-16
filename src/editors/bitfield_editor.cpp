@@ -13,6 +13,7 @@
 #include "win32/window_metrics.h"
 
 #include "resource.h"
+#include "win32/text_transform.h"
 
 #include <commctrl.h>
 #include <windowsx.h>
@@ -94,13 +95,6 @@ int RowForBit(
   return appearance::FindListViewItemByData(list, static_cast<LPARAM>(bit));
 }
 
-int CompareText(
-    const std::wstring& left,
-    const std::wstring& right
-) {
-  return _wcsicmp(left.c_str(), right.c_str());
-}
-
 int CALLBACK CompareBitRows(
     LPARAM left_data,
     LPARAM right_data,
@@ -126,7 +120,7 @@ int CALLBACK CompareBitRows(
     const Field* left_field = editor->definition().FieldForBit(left);
     const Field* right_field = editor->definition().FieldForBit(right);
     if (column == kColumnField) {
-      result = CompareText(
+      result = util::CompareListText(
           left_field ? left_field->name : std::wstring(),
           right_field ? right_field->name : std::wstring()
       );
@@ -136,7 +130,7 @@ int CALLBACK CompareBitRows(
       result = left_value < right_value ? -1 : left_value > right_value ? 1
                                                                         : 0;
     } else if (column == kColumnMeaning) {
-      result = CompareText(
+      result = util::CompareListText(
           left_field ? RowMeaning(*left_field, editor->value) : std::wstring(),
           right_field ? RowMeaning(*right_field, editor->value) : std::wstring()
       );
@@ -220,18 +214,6 @@ const std::wstring& RowMeaning(
     }
   }
   return field.meaning;
-}
-
-std::wstring DisplayName(
-    const Definition& definition
-) {
-  if (!definition.name.empty()) {
-    return definition.name;
-  }
-  if (!definition.value_name.empty()) {
-    return definition.value_name;
-  }
-  return L"Unnamed definition";
 }
 
 bool FitsWindow(
@@ -338,7 +320,7 @@ void RefreshCombo(
   SendMessageW(combo, WM_SETREDRAW, FALSE, 0);
   SendMessageW(combo, CB_RESETCONTENT, 0, 0);
   for (size_t i = 0; i < editor->choices.size(); ++i) {
-    const std::wstring label = i == 0 ? std::wstring(L"(none)") : DisplayName(editor->choices[i]);
+    const std::wstring label = i == 0 ? std::wstring(L"(none)") : bitfield::DisplayName(editor->choices[i]);
     if (static_cast<int>(i) != editor->choice && !dialog_support::Matches(label, filter)) {
       continue;
     }
@@ -424,7 +406,7 @@ bool AcceptDefinition(
     return false;
   }
   if (!definition.value_name.empty() &&
-      _wcsicmp(definition.value_name.c_str(), editor.value_name.c_str()) != 0) {
+      !util::EqualsInsensitive(definition.value_name, editor.value_name)) {
     std::wstring message = L"This definition was made for a different value.\r\n\r\nDefinition: ";
     message.append(definition.value_name).append(L"\r\nThis value: ").append(editor.value_name.empty() ? L"(Default)" : editor.value_name);
     message.append(L"\r\n\r\nUse it anyway?");
@@ -456,7 +438,7 @@ void LoadFromFile(
     if (!FitsWindow(*editor, definition)) {
       continue;
     }
-    if (_wcsicmp(definition.value_name.c_str(), editor->value_name.c_str()) == 0) {
+    if (util::EqualsInsensitive(definition.value_name, editor->value_name)) {
       named.push_back(std::move(definition));
     } else {
       fitting.push_back(std::move(definition));
@@ -499,7 +481,7 @@ void SaveCurrent(
     return;
   }
   DefinitionFile file;
-  file.name = DisplayName(definition);
+  file.name = bitfield::DisplayName(definition);
   file.definitions.push_back(definition);
   std::wstring error;
   if (!bitfield::Save(path, file, &error)) {

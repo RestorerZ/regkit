@@ -7,6 +7,7 @@
 #include "registry/value_format.h"
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
+#include "win32/text_transform.h"
 
 #include <algorithm>
 #include <functional>
@@ -32,7 +33,7 @@ bool SameSource(
     const Source& second
 ) noexcept {
   return first.kind == second.kind &&
-         _wcsicmp(first.name.c_str(), second.name.c_str()) == 0;
+         util::EqualsInsensitive(first.name, second.name);
 }
 
 std::wstring SourceLabel(
@@ -147,14 +148,7 @@ Match Matcher::Find(
     return location;
   }
 
-  const int position = FindStringOrdinal(
-      FIND_FROMSTART,
-      text.data(),
-      static_cast<int>(text.size()),
-      query_.c_str(),
-      static_cast<int>(query_.size()),
-      TRUE
-  );
+  const int position = util::FindInsensitive(text, query_);
   if (position >= 0) {
     location.matched = true;
     location.start = static_cast<size_t>(position);
@@ -171,13 +165,7 @@ bool IsExcludedPath(
     return false;
   }
   for (const auto& exclude : excludes) {
-    if (exclude.empty() || path.size() < exclude.size()) {
-      continue;
-    }
-    if (CompareStringOrdinal(path.c_str(), static_cast<int>(exclude.size()), exclude.c_str(), static_cast<int>(exclude.size()), TRUE) != CSTR_EQUAL) {
-      continue;
-    }
-    if (path.size() == exclude.size() || path[exclude.size()] == L'\\') {
+    if (!exclude.empty() && util::StartsWithInsensitive(path, exclude) && (path.size() == exclude.size() || path[exclude.size()] == L'\\')) {
       return true;
     }
   }
@@ -214,32 +202,6 @@ std::wstring TypeText(
 
 namespace {
 
-int CompareText(
-    std::wstring_view left,
-    std::wstring_view right
-) {
-  if (left.empty()) {
-    return right.empty() ? 0 : 1;
-  }
-  if (right.empty()) {
-    return -1;
-  }
-  const int result = CompareStringOrdinal(
-      left.data(),
-      static_cast<int>(left.size()),
-      right.data(),
-      static_cast<int>(right.size()),
-      TRUE
-  );
-  if (result == CSTR_LESS_THAN) {
-    return -1;
-  }
-  if (result == CSTR_GREATER_THAN) {
-    return 1;
-  }
-  return 0;
-}
-
 int CompareNumeric(
     uint64_t left,
     uint64_t right
@@ -257,11 +219,11 @@ int CompareResult(
 ) {
   switch (column) {
   case 0:
-    return CompareText(left.key_path, right.key_path);
+    return util::CompareListText(left.key_path, right.key_path);
   case 1:
-    return CompareText(DisplayName(left), DisplayName(right));
+    return util::CompareListText(DisplayName(left), DisplayName(right));
   case 3:
-    return CompareText(left.data_text, right.data_text);
+    return util::CompareListText(left.data_text, right.data_text);
   case 4:
     return CompareNumeric(left.data_size, right.data_size);
   case 5:
@@ -272,7 +234,7 @@ int CompareResult(
             right.modified.dwLowDateTime
     );
   default:
-    return CompareText(left.key_path, right.key_path);
+    return util::CompareListText(left.key_path, right.key_path);
   }
 }
 
@@ -304,7 +266,7 @@ void SortResults(
                            labels.find(std::make_pair(left.kind, left.type))->second;
                        const std::wstring& right_text =
                            labels.find(std::make_pair(right.kind, right.type))->second;
-                       const int result = CompareText(left_text, right_text);
+                       const int result = util::CompareListText(left_text, right_text);
                        return result != 0 && (ascending ? result < 0 : result > 0); });
     return;
   }
@@ -374,11 +336,7 @@ std::wstring BuildMirrorPath(
   }
   const std::wstring& prefix = context->mirror_prefix;
   const std::wstring& subkey = task.subkey;
-  if (subkey.size() < prefix.size() ||
-      CompareStringOrdinal(subkey.c_str(), static_cast<int>(prefix.size()), prefix.c_str(), static_cast<int>(prefix.size()), TRUE) != CSTR_EQUAL) {
-    return std::wstring();
-  }
-  if (subkey.size() > prefix.size() && subkey[prefix.size()] != L'\\') {
+  if (!util::StartsWithInsensitive(subkey, prefix) || (subkey.size() > prefix.size() && subkey[prefix.size()] != L'\\')) {
     return std::wstring();
   }
   std::wstring path = context->mirror_root;
@@ -447,9 +405,9 @@ HexQuery ParseHexQuery(
   }
   for (size_t i = start; i < query.size(); ++i) {
     wchar_t ch = query[i];
-    if (iswxdigit(ch)) {
+    if (util::HexDigitValue(ch) >= 0) {
       digits.push_back(ch);
-      if (!iswdigit(ch)) {
+      if (ch > L'9') {
         digits_only = false;
       }
     } else if (ch == L' ' || ch == L'\t' || ch == L',' || ch == L';' || ch == L'-' || ch == L':') {
@@ -467,27 +425,8 @@ HexQuery ParseHexQuery(
     digits.insert(digits.begin(), L'0');
   }
   result.bytes.reserve(digits.size() / 2);
-  auto hex_value = [](wchar_t ch) -> int {
-    if (ch >= L'0' && ch <= L'9') {
-      return ch - L'0';
-    }
-    if (ch >= L'a' && ch <= L'f') {
-      return ch - L'a' + 10;
-    }
-    if (ch >= L'A' && ch <= L'F') {
-      return ch - L'A' + 10;
-    }
-    return -1;
-  };
   for (size_t i = 0; i < digits.size(); i += 2) {
-    int hi = hex_value(digits[i]);
-    int lo = hex_value(digits[i + 1]);
-    if (hi < 0 || lo < 0) {
-      result.bytes.clear();
-      result.hex_only = false;
-      return result;
-    }
-    result.bytes.push_back(static_cast<BYTE>((hi << 4) | lo));
+    result.bytes.push_back(static_cast<BYTE>((util::HexDigitValue(digits[i]) << 4) | util::HexDigitValue(digits[i + 1])));
   }
   result.parsed = !result.bytes.empty();
   return result;
@@ -650,12 +589,7 @@ bool IsTypeAllowed(
   if (criteria.allowed_types.empty()) {
     return true;
   }
-  for (DWORD allowed : criteria.allowed_types) {
-    if (allowed == type) {
-      return true;
-    }
-  }
-  return false;
+  return std::find(criteria.allowed_types.begin(), criteria.allowed_types.end(), type) != criteria.allowed_types.end();
 }
 
 bool IsSizeAllowed(

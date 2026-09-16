@@ -3,180 +3,102 @@
 
 #include "workspace/favorites.h"
 
-#include <algorithm>
-#include <cwchar>
-#include <fstream>
-#include <vector>
-
-#include <windows.h>
-
-#include <shlobj.h>
-
-#include "win32/system_error.h"
+#include "win32/file_text.h"
+#include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
+#include "win32/system_error.h"
+#include "win32/text_transform.h"
+
+#include <algorithm>
 
 namespace regkit::workspace {
 
 namespace {
 
-using util::FormatWin32Error;
-
-bool EnsureDirectory(
-    const std::wstring& path
-) {
-  if (path.empty()) {
-    return false;
-  }
-  DWORD attrs = GetFileAttributesW(path.c_str());
-  if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY)) {
-    return true;
-  }
-  return CreateDirectoryW(path.c_str(), nullptr) != 0;
-}
-
 bool LoadFromFile(
     const std::wstring& path,
     std::vector<std::wstring>* favorites
 ) {
-  if (!favorites) {
-    return false;
-  }
-  favorites->clear();
-  if (path.empty()) {
-    return false;
-  }
-  std::wifstream file(path);
-  if (!file.is_open()) {
-    return false;
-  }
-  std::wstring line;
-  while (std::getline(file, line)) {
-    if (!line.empty()) {
-      favorites->push_back(line);
-    }
-  }
-  return true;
+  std::wstring content;
+  const bool loaded = !path.empty() && util::ReadTextFile(path, &content);
+  *favorites = util::SplitLines(content);
+  return loaded;
 }
 
 bool SaveToFile(
     const std::wstring& path,
     const std::vector<std::wstring>& favorites
 ) {
-  if (path.empty()) {
-    return false;
+  return !path.empty() && util::WriteTextFile(path, util::JoinLines(favorites), false);
+}
+
+size_t MergeUnique(
+    std::vector<std::wstring>* favorites,
+    const std::vector<std::wstring>& additions
+) {
+  const size_t before = favorites->size();
+  for (const std::wstring& entry : additions) {
+    const bool present = std::any_of(favorites->begin(), favorites->end(), [&](const std::wstring& existing) { return util::EqualsInsensitive(existing, entry); });
+    if (!entry.empty() && !present) {
+      favorites->push_back(entry);
+    }
   }
-  std::wofstream file(path, std::ios::trunc);
-  if (!file.is_open()) {
-    return false;
-  }
-  for (const auto& entry : favorites) {
-    file << entry << L"\n";
-  }
-  return true;
+  return favorites->size() - before;
 }
 
 } // namespace
 
 std::wstring FavoritesStore::FavoritesPath() {
-  PWSTR appdata = nullptr;
-  if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_CREATE, nullptr, &appdata))) {
-    return L"";
-  }
-  std::wstring base(appdata);
-  CoTaskMemFree(appdata);
-  std::wstring dir = util::JoinPath(base, L"Noverse\\RegKit");
-  EnsureDirectory(dir);
-  return util::JoinPath(dir, L"favorites.txt");
+  const std::wstring folder = util::GetAppDataFolder();
+  return folder.empty() ? std::wstring() : util::JoinPath(folder, L"favorites.txt");
 }
 
 bool FavoritesStore::Load(
     std::vector<std::wstring>* favorites
 ) {
-  std::wstring path = FavoritesPath();
-  if (path.empty()) {
-    return false;
-  }
-  if (LoadFromFile(path, favorites)) {
-    return true;
-  }
-  if (favorites) {
-    favorites->clear();
-  }
-  return true;
+  const std::wstring path = FavoritesPath();
+  LoadFromFile(path, favorites);
+  return !path.empty();
 }
 
 bool FavoritesStore::Save(
     const std::vector<std::wstring>& favorites
 ) {
-  std::wstring path = FavoritesPath();
-  return SaveToFile(path, favorites);
+  return SaveToFile(FavoritesPath(), favorites);
 }
 
 bool FavoritesStore::Add(
     const std::wstring& path
 ) {
-  if (path.empty()) {
-    return false;
-  }
   std::vector<std::wstring> favorites;
   Load(&favorites);
-  auto it = std::find_if(favorites.begin(), favorites.end(), [&](const std::wstring& entry) { return _wcsicmp(entry.c_str(), path.c_str()) == 0; });
-  if (it == favorites.end()) {
-    favorites.push_back(path);
-    return Save(favorites);
-  }
-  return true;
+  return !path.empty() && (MergeUnique(&favorites, {path}) == 0 || Save(favorites));
 }
 
 bool FavoritesStore::Remove(
     const std::wstring& path
 ) {
-  if (path.empty()) {
-    return false;
-  }
   std::vector<std::wstring> favorites;
   Load(&favorites);
-  auto end = std::remove_if(favorites.begin(), favorites.end(), [&](const std::wstring& entry) { return _wcsicmp(entry.c_str(), path.c_str()) == 0; });
-  if (end != favorites.end()) {
-    favorites.erase(end, favorites.end());
-    return Save(favorites);
-  }
-  return true;
+  const size_t removed = std::erase_if(favorites, [&](const std::wstring& entry) { return util::EqualsInsensitive(entry, path); });
+  return !path.empty() && (removed == 0 || Save(favorites));
 }
 
 bool FavoritesStore::ImportFromFile(
     const std::wstring& path
 ) {
-  if (path.empty()) {
-    return false;
-  }
   std::vector<std::wstring> imported;
   if (!LoadFromFile(path, &imported)) {
     return false;
   }
-  if (imported.empty()) {
-    return true;
-  }
   std::vector<std::wstring> favorites;
   Load(&favorites);
-  for (const auto& entry : imported) {
-    if (entry.empty()) {
-      continue;
-    }
-    auto it = std::find_if(favorites.begin(), favorites.end(), [&](const std::wstring& existing) { return _wcsicmp(existing.c_str(), entry.c_str()) == 0; });
-    if (it == favorites.end()) {
-      favorites.push_back(entry);
-    }
-  }
-  return Save(favorites);
+  return MergeUnique(&favorites, imported) == 0 || Save(favorites);
 }
 
 bool FavoritesStore::ExportToFile(
     const std::wstring& path
 ) {
-  if (path.empty()) {
-    return false;
-  }
   std::vector<std::wstring> favorites;
   Load(&favorites);
   return SaveToFile(path, favorites);
@@ -193,32 +115,22 @@ bool FavoritesStore::ImportFromRegedit(
   if (!LoadRegedit(&named, error)) {
     return false;
   }
-  if (named.empty()) {
-    return true;
-  }
   std::vector<std::wstring> imported;
   imported.reserve(named.size());
   for (auto& favorite : named) {
     imported.push_back(std::move(favorite.path));
   }
-
   std::vector<std::wstring> favorites;
   Load(&favorites);
-  size_t before = favorites.size();
-  for (const auto& entry : imported) {
-    auto it = std::find_if(favorites.begin(), favorites.end(), [&](const std::wstring& existing) { return _wcsicmp(existing.c_str(), entry.c_str()) == 0; });
-    if (it == favorites.end()) {
-      favorites.push_back(entry);
-    }
-  }
-  if (!Save(favorites)) {
+  const size_t added = MergeUnique(&favorites, imported);
+  if (added != 0 && !Save(favorites)) {
     if (error) {
       *error = L"Failed to save favorites.";
     }
     return false;
   }
   if (imported_count) {
-    *imported_count = favorites.size() - before;
+    *imported_count = added;
   }
   return true;
 }
@@ -227,90 +139,49 @@ bool FavoritesStore::LoadRegedit(
     std::vector<NamedFavorite>* favorites,
     std::wstring* error
 ) {
-  if (!favorites) {
-    return false;
-  }
   favorites->clear();
   if (error) {
     error->clear();
   }
-
-  const wchar_t* key_path = L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\Regedit\\Favorites";
-  HKEY key = nullptr;
-  LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, key_path, 0, KEY_READ, &key);
+  util::UniqueHKey key;
+  LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\Regedit\\Favorites", 0, KEY_READ, key.put());
+  DWORD value_count = 0;
+  DWORD max_name = 0;
+  DWORD max_data = 0;
+  if (result == ERROR_SUCCESS) {
+    result = RegQueryInfoKeyW(key.get(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &value_count, &max_name, &max_data, nullptr, nullptr);
+  }
   if (result == ERROR_FILE_NOT_FOUND || result == ERROR_PATH_NOT_FOUND) {
     return true;
   }
   if (result != ERROR_SUCCESS) {
     if (error) {
-      *error = FormatWin32Error(result);
+      *error = util::FormatWin32Error(result);
     }
     return false;
   }
-
-  DWORD value_count = 0;
-  DWORD max_value_name = 0;
-  DWORD max_value_len = 0;
-  result = RegQueryInfoKeyW(key, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &value_count, &max_value_name, &max_value_len, nullptr, nullptr);
-  if (result != ERROR_SUCCESS) {
-    RegCloseKey(key);
-    if (error) {
-      *error = FormatWin32Error(result);
-    }
-    return false;
-  }
-
-  favorites->reserve(value_count);
-  std::wstring name(max_value_name + 1, L'\0');
-  std::vector<BYTE> data(max_value_len + sizeof(wchar_t));
-
-  for (DWORD i = 0; i < value_count; ++i) {
-    DWORD name_len = max_value_name + 1;
-    DWORD data_len = max_value_len;
+  std::wstring name(max_name + 1, L'\0');
+  std::vector<BYTE> data(max_data + sizeof(wchar_t));
+  for (DWORD index = 0; index < value_count; ++index) {
+    DWORD name_length = static_cast<DWORD>(name.size());
+    DWORD data_length = static_cast<DWORD>(data.size());
     DWORD type = 0;
-    LONG enum_result = RegEnumValueW(key, i, name.data(), &name_len, nullptr, &type, data.data(), &data_len);
-    if (enum_result == ERROR_MORE_DATA) {
-      name.resize(name_len + 1);
-      data.resize(data_len + sizeof(wchar_t));
-      enum_result = RegEnumValueW(key, i, name.data(), &name_len, nullptr, &type, data.data(), &data_len);
-    }
-    if (enum_result != ERROR_SUCCESS) {
+    if (RegEnumValueW(key.get(), index, name.data(), &name_length, nullptr, &type, data.data(), &data_length) != ERROR_SUCCESS ||
+        (type != REG_SZ && type != REG_EXPAND_SZ)) {
       continue;
     }
-    if (type != REG_SZ && type != REG_EXPAND_SZ) {
-      continue;
-    }
-    if (data_len == 0) {
-      continue;
-    }
-    size_t wchar_count = data_len / sizeof(wchar_t);
-    std::wstring value(reinterpret_cast<const wchar_t*>(data.data()), wchar_count);
-    while (!value.empty() && value.back() == L'\0') {
-      value.pop_back();
-    }
-    if (value.empty()) {
-      continue;
-    }
+    std::wstring value(reinterpret_cast<const wchar_t*>(data.data()), data_length / sizeof(wchar_t));
+    value.resize(wcsnlen_s(value.c_str(), value.size()));
     if (type == REG_EXPAND_SZ) {
-      DWORD expanded_len = ExpandEnvironmentStringsW(value.c_str(), nullptr, 0);
-      if (expanded_len > 0) {
-        std::wstring expanded(expanded_len, L'\0');
-        DWORD written = ExpandEnvironmentStringsW(value.c_str(), expanded.data(), expanded_len);
-        if (written > 0 && written <= expanded_len && !expanded.empty()) {
-          if (expanded.back() == L'\0') {
-            expanded.pop_back();
-          }
-          value = std::move(expanded);
-        }
+      std::wstring expanded = util::ExpandEnvironmentStringsDynamic(value);
+      if (!expanded.empty()) {
+        value = std::move(expanded);
       }
     }
-    NamedFavorite favorite;
-    favorite.name.assign(name.data(), name_len);
-    favorite.path = std::move(value);
-    favorites->push_back(std::move(favorite));
+    if (!value.empty()) {
+      favorites->push_back({std::wstring(name.data(), name_length), std::move(value)});
+    }
   }
-
-  RegCloseKey(key);
   return true;
 }
 

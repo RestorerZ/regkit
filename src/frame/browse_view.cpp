@@ -1,6 +1,8 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+#include <functional>
+
 #include "frame/window_detail.h"
 
 namespace regkit {
@@ -133,43 +135,65 @@ void MainWindow::Impl::CreateHistoryColumns() {
   ApplyHistoryColumns();
 }
 
-void MainWindow::Impl::ApplyValueColumns() {
-  HWND list = browse_.values().hwnd();
-  if (!list) {
-    return;
-  }
+namespace {
+
+void RebuildListColumns(
+    HWND list,
+    const std::vector<ColumnInfo>& columns,
+    const std::vector<int>& widths,
+    const std::vector<bool>& visible,
+    std::vector<int>* subitems,
+    const std::function<bool(size_t)>& skip = nullptr
+) {
   HWND header = ListView_GetHeader(list);
   SendMessageW(list, WM_SETREDRAW, FALSE, 0);
   if (header) {
     SendMessageW(header, WM_SETREDRAW, FALSE, 0);
   }
-
-  int count = header ? Header_GetItemCount(header) : 0;
-  for (int i = count - 1; i >= 0; --i) {
+  for (int i = (header ? Header_GetItemCount(header) : 0) - 1; i >= 0; --i) {
     ListView_DeleteColumn(list, i);
   }
-
-  value_column_subitems_.clear();
+  if (subitems) {
+    subitems->clear();
+  }
   int insert_index = 0;
-  for (size_t i = 0; i < browse_.columns().items.size(); ++i) {
-    if (i < browse_.columns().visible.size() && !browse_.columns().visible[i]) {
+  for (size_t i = 0; i < columns.size(); ++i) {
+    if ((i < visible.size() && !visible[i]) || (skip && skip(i))) {
       continue;
     }
     LVCOLUMNW col = {};
     col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_FMT | LVCF_SUBITEM;
-    col.pszText = const_cast<wchar_t*>(browse_.columns().items[i].title.c_str());
-    int width = browse_.columns().widths[i];
-    if (width <= 0) {
-      width = browse_.columns().items[i].width;
-    }
-    col.cx = width;
-    col.fmt = browse_.columns().items[i].fmt;
+    col.pszText = const_cast<wchar_t*>(columns[i].title.c_str());
+    col.cx = i < widths.size() && widths[i] > 0 ? widths[i] : columns[i].width;
+    col.fmt = columns[i].fmt;
     col.iSubItem = static_cast<int>(i);
     ListView_InsertColumn(list, insert_index++, &col);
-    value_column_subitems_.push_back(static_cast<int>(i));
+    if (subitems) {
+      subitems->push_back(static_cast<int>(i));
+    }
   }
+}
 
-  header = ListView_GetHeader(list);
+void FinishListColumns(
+    HWND list
+) {
+  if (HWND header = ListView_GetHeader(list)) {
+    SendMessageW(header, WM_SETREDRAW, TRUE, 0);
+  }
+  SendMessageW(list, WM_SETREDRAW, TRUE, 0);
+  RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
+}
+
+} // namespace
+
+void MainWindow::Impl::ApplyValueColumns() {
+  HWND list = browse_.values().hwnd();
+  if (!list) {
+    return;
+  }
+  RebuildListColumns(list, browse_.columns().items, browse_.columns().widths, browse_.columns().visible, &value_column_subitems_);
+
+  HWND header = ListView_GetHeader(list);
   if (header) {
     int size_display = FindListViewColumnBySubItem(list, kValueColSize);
     if (size_display >= 0) {
@@ -182,55 +206,18 @@ void MainWindow::Impl::ApplyValueColumns() {
     }
   }
   appearance::UpdateListViewSort(list, browse_.columns().sort_column, browse_.columns().sort_ascending);
-  if (header) {
-    AttachHeader(header);
-    SendMessageW(header, WM_SETREDRAW, TRUE, 0);
-  }
-  SendMessageW(list, WM_SETREDRAW, TRUE, 0);
-  RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
+  AttachHeader(ListView_GetHeader(list));
+  FinishListColumns(list);
 }
 
 void MainWindow::Impl::ApplyHistoryColumns() {
   if (!history_list_) {
     return;
   }
-  HWND header = ListView_GetHeader(history_list_);
-  SendMessageW(history_list_, WM_SETREDRAW, FALSE, 0);
-  if (header) {
-    SendMessageW(header, WM_SETREDRAW, FALSE, 0);
-  }
-
-  int count = header ? Header_GetItemCount(header) : 0;
-  for (int i = count - 1; i >= 0; --i) {
-    ListView_DeleteColumn(history_list_, i);
-  }
-
-  int insert_index = 0;
-  for (size_t i = 0; i < history_columns_.size(); ++i) {
-    if (i < history_column_visible_.size() && !history_column_visible_[i]) {
-      continue;
-    }
-    LVCOLUMNW col = {};
-    col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_FMT | LVCF_SUBITEM;
-    col.pszText = const_cast<wchar_t*>(history_columns_[i].title.c_str());
-    int width = history_column_widths_[i];
-    if (width <= 0) {
-      width = history_columns_[i].width;
-    }
-    col.cx = width;
-    col.fmt = history_columns_[i].fmt;
-    col.iSubItem = static_cast<int>(i);
-    ListView_InsertColumn(history_list_, insert_index++, &col);
-  }
-
+  RebuildListColumns(history_list_, history_columns_, history_column_widths_, history_column_visible_, nullptr);
   appearance::UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
-  header = ListView_GetHeader(history_list_);
-  if (header) {
-    AttachHeader(header);
-    SendMessageW(header, WM_SETREDRAW, TRUE, 0);
-  }
-  SendMessageW(history_list_, WM_SETREDRAW, TRUE, 0);
-  RedrawWindow(history_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
+  AttachHeader(ListView_GetHeader(history_list_));
+  FinishListColumns(history_list_);
 }
 
 void MainWindow::Impl::CreateSearchColumns() {
@@ -318,48 +305,10 @@ void MainWindow::Impl::ApplySearchColumns(
   const auto& columns = compare ? compare_columns_ : search_columns_;
   auto& widths = compare ? compare_column_widths_ : search_column_widths_;
   auto& visible = compare ? compare_column_visible_ : search_column_visible_;
-  HWND header = ListView_GetHeader(search_results_list_);
-  SendMessageW(search_results_list_, WM_SETREDRAW, FALSE, 0);
-  if (header) {
-    SendMessageW(header, WM_SETREDRAW, FALSE, 0);
-  }
-
-  int count = header ? Header_GetItemCount(header) : 0;
-  for (int i = count - 1; i >= 0; --i) {
-    ListView_DeleteColumn(search_results_list_, i);
-  }
-
-  search_column_subitems_.clear();
   const bool result_available = compare && IsCompareResultColumnAvailable();
-  int insert_index = 0;
-  for (size_t i = 0; i < columns.size(); ++i) {
-    if (compare && i == 4 && !result_available) {
-      continue;
-    }
-    if (i < visible.size() && !visible[i]) {
-      continue;
-    }
-    search_column_subitems_.push_back(static_cast<int>(i));
-    LVCOLUMNW col = {};
-    col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_FMT | LVCF_SUBITEM;
-    col.pszText = const_cast<wchar_t*>(columns[i].title.c_str());
-    int width = widths[i];
-    if (width <= 0) {
-      width = columns[i].width;
-    }
-    col.cx = width;
-    col.fmt = columns[i].fmt;
-    col.iSubItem = static_cast<int>(i);
-    ListView_InsertColumn(search_results_list_, insert_index++, &col);
-  }
-
-  header = ListView_GetHeader(search_results_list_);
-  if (header) {
-    AttachHeader(header);
-    SendMessageW(header, WM_SETREDRAW, TRUE, 0);
-  }
-  SendMessageW(search_results_list_, WM_SETREDRAW, TRUE, 0);
-  RedrawWindow(search_results_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
+  RebuildListColumns(search_results_list_, columns, widths, visible, &search_column_subitems_, [&](size_t index) { return compare && index == 4 && !result_available; });
+  AttachHeader(ListView_GetHeader(search_results_list_));
+  FinishListColumns(search_results_list_);
   compare_columns_active_ = compare;
   compare_result_column_active_ = result_available;
 }

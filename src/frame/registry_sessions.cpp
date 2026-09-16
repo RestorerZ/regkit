@@ -4,6 +4,7 @@
 #include "frame/window_detail.h"
 
 #include "win32/file_dialog.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 using namespace window_detail;
@@ -221,7 +222,7 @@ void MainWindow::Impl::SelectDefaultTreeItem() {
     tvi.pszText = text;
     tvi.cchTextMax = static_cast<int>(_countof(text));
     if (TreeView_GetItem(browse_.tree().hwnd(), &tvi)) {
-      if (_wcsicmp(text, kRootKeysGroupLabel) == 0) {
+      if (util::EqualsInsensitive(text, kRootKeysGroupLabel)) {
         standard_group = group;
         break;
       }
@@ -738,7 +739,7 @@ bool MainWindow::Impl::SaveOfflineRegistry() {
   }
 
   std::wstring path;
-  if (!PromptSaveFile(hwnd_, L"Hive Files (*.*)\0*.*\0", &path)) {
+  if (!ui::PromptSaveFile(hwnd_, ui::kHiveFileFilter, &path)) {
     return false;
   }
 
@@ -889,10 +890,18 @@ bool MainWindow::Impl::ResolveExternalJumpTarget(
   return false;
 }
 
+bool MainWindow::Impl::ActivateLocalRegistryTab() {
+  const int sel = TabCtrl_GetCurSel(tab_);
+  if (sel < 0 || static_cast<size_t>(sel) >= tabs_.size() || tabs_[static_cast<size_t>(sel)].kind != TabEntry::Kind::kRegistry) {
+    ActivateRegistryTab();
+  }
+  return registry_mode_ == RegistryMode::kLocal || SwitchToLocalRegistry();
+}
+
 bool MainWindow::Impl::NavigateToExternalJump(
     const std::wstring& target
 ) {
-  if (registry_mode_ != RegistryMode::kLocal && !SwitchToLocalRegistry()) {
+  if (!ActivateLocalRegistryTab()) {
     return false;
   }
   std::wstring key_path;
@@ -928,19 +937,8 @@ bool MainWindow::Impl::NavigateToResolvedExternalJump(
     const std::wstring& key_path,
     const std::wstring& value_name
 ) {
-  if (key_path.empty()) {
+  if (key_path.empty() || !ActivateLocalRegistryTab()) {
     return false;
-  }
-
-  int sel = TabCtrl_GetCurSel(tab_);
-  if (sel < 0 || static_cast<size_t>(sel) >= tabs_.size() || tabs_[static_cast<size_t>(sel)].kind != TabEntry::Kind::kRegistry) {
-    ActivateRegistryTab();
-  }
-
-  if (registry_mode_ != RegistryMode::kLocal) {
-    if (!SwitchToLocalRegistry()) {
-      return false;
-    }
   }
 
   ApplyViewVisibility();

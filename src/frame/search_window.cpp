@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 
@@ -17,7 +18,7 @@ std::wstring MainWindow::Impl::NormalizeRegistryPath(
       return;
     }
     const std::wstring prefix = label + L"\\";
-    if (registry_path::StartsWith(path, prefix)) {
+    if (util::StartsWithInsensitive(path, prefix)) {
       path.erase(0, prefix.size());
     }
   };
@@ -94,8 +95,7 @@ bool MainWindow::Impl::CreateRegistryPath(
   current.subkey.clear();
   bool created = false;
   for (const auto& part : parts) {
-    RegistryNode child = current;
-    child.subkey = current.subkey.empty() ? part : current.subkey + L"\\" + part;
+    RegistryNode child = registry_path::ChildNode(current, part);
     KeyInfo info = {};
     if (!RegistryStore::QueryKeyInfo(child, &info)) {
       if (!RegistryStore::CreateKey(current, part)) {
@@ -519,7 +519,7 @@ void MainWindow::Impl::StartSearch(
       if (options.search_standard_hives) {
         for (const auto& path : options.root_paths) {
           for (const auto& root : local_roots) {
-            if (_wcsicmp(root.path_name.c_str(), path.c_str()) == 0 || _wcsicmp(root.display_name.c_str(), path.c_str()) == 0) {
+            if (util::EqualsInsensitive(root.path_name, path) || util::EqualsInsensitive(root.display_name, path)) {
               add_root(root, 0);
               break;
             }
@@ -920,33 +920,6 @@ enum class DataReplace {
   kRejected
 };
 
-bool ParseUnsignedText(
-    const std::wstring& text,
-    int base,
-    uint64_t* out
-) {
-  std::wstring trimmed = TrimWhitespace(text);
-  if (trimmed.empty() || trimmed.front() == L'-' || trimmed.front() == L'+') {
-    return false;
-  }
-  if (trimmed.size() > 2 && trimmed[0] == L'0' &&
-      (trimmed[1] == L'x' || trimmed[1] == L'X')) {
-    base = 16;
-    trimmed.erase(0, 2);
-  }
-  if (trimmed.empty()) {
-    return false;
-  }
-  errno = 0;
-  wchar_t* stop = nullptr;
-  const unsigned long long parsed = wcstoull(trimmed.c_str(), &stop, base);
-  if (!stop || *stop != L'\0' || errno == ERANGE) {
-    return false;
-  }
-  *out = parsed;
-  return true;
-}
-
 std::wstring PaddedHex(
     uint64_t value,
     size_t width
@@ -984,15 +957,8 @@ bool ParseHexBytesStrict(
     }
     int value = 0;
     for (size_t offset = 0; offset < 2; ++offset) {
-      const wchar_t c = text[start + offset];
-      int digit = 0;
-      if (c >= L'0' && c <= L'9') {
-        digit = c - L'0';
-      } else if (c >= L'a' && c <= L'f') {
-        digit = 10 + (c - L'a');
-      } else if (c >= L'A' && c <= L'F') {
-        digit = 10 + (c - L'A');
-      } else {
+      const int digit = util::HexDigitValue(text[start + offset]);
+      if (digit < 0) {
         return false;
       }
       value = value * 16 + digit;
@@ -1103,7 +1069,7 @@ DataReplace ReplaceValueData(
           continue;
         }
         uint64_t parsed = 0;
-        if (!ParseUnsignedText(updated, form.base, &parsed)) {
+        if (!util::ParseUnsignedNumber(updated, form.base, &parsed)) {
           return DataReplace::kRejected;
         }
         if (width == sizeof(DWORD) && parsed > MAXDWORD) {
@@ -1116,7 +1082,7 @@ DataReplace ReplaceValueData(
     }
   default:
     {
-      const std::wstring text = util::ToHex(data.data(), data.size(), 0);
+      const std::wstring text = util::ToHex(data);
       std::wstring updated;
       if (!matcher.Replace(text, &updated) || updated == text) {
         return DataReplace::kUnchanged;
@@ -1319,7 +1285,7 @@ void MainWindow::Impl::StartReplace(
             auto subkeys =
                 RegistryStore::EnumSubKeyNames(node, false);
             for (const auto& name : subkeys) {
-              stack.push_back(MakeChildNode(node, name));
+              stack.push_back(ChildNode(node, name));
             }
           }
         }

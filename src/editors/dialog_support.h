@@ -6,6 +6,8 @@
 #include <windows.h>
 #include <commctrl.h>
 
+#include "win32/text_transform.h"
+
 #include <initializer_list>
 #include <string>
 #include <vector>
@@ -21,7 +23,12 @@ void Initialize(HWND dialog, HFONT* owned_font, std::initializer_list<int> borde
 void AllowNewlines(HWND dialog, int control_id);
 void ReleaseFont(HFONT* font);
 bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam, INT_PTR* result);
-std::wstring ReadText(HWND dialog, int control_id);
+inline std::wstring ReadText(
+    HWND dialog,
+    int control_id
+) {
+  return util::DialogText(dialog, control_id);
+}
 
 void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColumn> columns);
 void RefreshListViewTheme(HWND list);

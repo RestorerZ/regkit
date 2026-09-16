@@ -10,21 +10,6 @@
 #include <cwctype>
 
 namespace regkit::changes {
-namespace {
-
-bool HasText(
-    const std::wstring& text
-) {
-  for (wchar_t character : text) {
-    if (!iswspace(character)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-} // namespace
-
 std::wstring ValueComments::ValueKey(
     const std::wstring& path,
     const std::wstring& name,
@@ -69,18 +54,6 @@ bool ValueComments::Save(
 ) const {
   return !path.empty() &&
          util::WriteTextFile(path, SerializeComments(*this), false);
-}
-
-bool ValueComments::Import(
-    const std::wstring& path
-) {
-  return Load(path);
-}
-
-bool ValueComments::Export(
-    const std::wstring& path
-) const {
-  return Save(path);
 }
 
 void ValueComments::Clear() {
@@ -135,8 +108,8 @@ bool ParseComments(
     if (fields.size() < 5) {
       return false;
     }
-    if (_wcsicmp(fields[0].c_str(), L"value") != 0 &&
-        _wcsicmp(fields[0].c_str(), L"name") != 0) {
+    const bool value_entry = util::EqualsInsensitive(fields[0], L"value");
+    if (!value_entry && !util::EqualsInsensitive(fields[0], L"name")) {
       return false;
     }
     CommentEntry entry;
@@ -153,10 +126,10 @@ bool ParseComments(
       return false;
     }
     entry.text = record_fields::Unescape(fields[4]);
-    if (!HasText(entry.text)) {
+    if (util::IsBlank(entry.text)) {
       continue;
     }
-    if (_wcsicmp(fields[0].c_str(), L"value") == 0) {
+    if (value_entry) {
       document.value_entries.push_back(std::move(entry));
     } else {
       document.name_entries.push_back(std::move(entry));
@@ -170,35 +143,20 @@ std::wstring SerializeComments(
     const ValueComments& comments
 ) {
   std::wstring content;
-  for (const auto& pair : comments.value_entries()) {
-    const CommentEntry& entry = pair.second;
-    if (!HasText(entry.text)) {
-      continue;
+  auto append = [&](const wchar_t* kind, const std::wstring& path, const CommentEntry& entry) {
+    if (util::IsBlank(entry.text)) {
+      return;
     }
-    content.append(L"value\t");
-    content.append(record_fields::Escape(entry.path));
-    content.push_back(L'\t');
-    content.append(record_fields::Escape(entry.name));
-    content.push_back(L'\t');
-    content.append(std::to_wstring(entry.type));
-    content.push_back(L'\t');
-    content.append(record_fields::Escape(entry.text));
-    content.push_back(L'\n');
+    content.append(kind).append(L"\t").append(record_fields::Escape(path)).append(L"\t");
+    content.append(record_fields::Escape(entry.name)).append(L"\t").append(std::to_wstring(entry.type)).append(L"\t");
+    content.append(record_fields::Escape(entry.text)).append(L"\n");
+  };
+  for (const auto& pair : comments.value_entries()) {
+    append(L"value", pair.second.path, pair.second);
   }
   for (const auto& pair : comments.name_entries()) {
-    const CommentEntry& entry = pair.second;
-    if (!HasText(entry.text)) {
-      continue;
-    }
-    content.append(L"name\t\t");
-    content.append(record_fields::Escape(entry.name));
-    content.push_back(L'\t');
-    content.append(std::to_wstring(entry.type));
-    content.push_back(L'\t');
-    content.append(record_fields::Escape(entry.text));
-    content.push_back(L'\n');
+    append(L"name", L"", pair.second);
   }
   return content;
 }
-
 } // namespace regkit::changes

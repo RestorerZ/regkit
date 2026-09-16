@@ -40,6 +40,8 @@ public:
   std::wstring Finish() &&;
 
 private:
+  void AppendKeyHeader(std::wstring_view prefix, std::wstring_view path);
+
   std::wstring output_;
 };
 

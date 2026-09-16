@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
+#include "win32/text_transform.h"
 
 namespace regkit {
 using namespace window_detail;
@@ -68,7 +69,7 @@ void MainWindow::Impl::RefreshMatchingTreeNodes() {
     }
     wchar_t text[256] = {};
     if (label_of(item, text, static_cast<int>(_countof(text))) &&
-        _wcsicmp(text, wanted) == 0) {
+        util::EqualsInsensitive(text, wanted)) {
       matches.emplace_back(depth, item);
     }
   }

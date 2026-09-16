@@ -25,7 +25,7 @@ bool ChooseFile(
     HWND owner,
     std::wstring* path
 ) {
-  const HRESULT hr = win32::ChooseFileToOpen(owner, L"Hive Files (*.*)\0*.*\0", path);
+  const HRESULT hr = win32::ChooseFileToOpen(owner, ui::kHiveFileFilter, path);
   if (FAILED(hr) && !win32::DialogCancelled(hr)) {
     ui::ShowError(owner, win32::FormatDialogError(hr));
   }

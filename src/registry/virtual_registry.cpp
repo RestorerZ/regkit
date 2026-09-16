@@ -3,7 +3,7 @@
 
 #include "registry/registry_backends.h"
 
-#include "registry/registry_path.h"
+#include "registry/key_algorithms.h"
 #include "win32/text_transform.h"
 
 #include <algorithm>
@@ -23,59 +23,19 @@ struct RootEntry {
 std::mutex g_roots_mutex;
 std::unordered_map<HKEY, RootEntry> g_roots;
 
-VirtualRegistryKey* FindKey(
-    VirtualRegistryKey* root,
+template <typename Key>
+Key* FindKey(
+    Key* current,
     const std::wstring& subkey
 ) {
-  if (!root) {
-    return nullptr;
-  }
-  if (subkey.empty()) {
-    return root;
-  }
-  VirtualRegistryKey* current = root;
   for (const auto& part : registry_path::Split(subkey)) {
-    auto child = current->children.find(util::ToLower(part));
-    if (child == current->children.end()) {
-      return nullptr;
+    if (!current) {
+      break;
     }
-    current = child->second.get();
+    const auto child = current->children.find(util::ToLower(part));
+    current = child == current->children.end() ? nullptr : child->second.get();
   }
   return current;
-}
-
-const VirtualRegistryKey* FindKey(
-    const VirtualRegistryKey* root,
-    const std::wstring& subkey
-) {
-  if (!root) {
-    return nullptr;
-  }
-  if (subkey.empty()) {
-    return root;
-  }
-  const VirtualRegistryKey* current = root;
-  for (const auto& part : registry_path::Split(subkey)) {
-    auto child = current->children.find(util::ToLower(part));
-    if (child == current->children.end()) {
-      return nullptr;
-    }
-    current = child->second.get();
-  }
-  return current;
-}
-
-bool SplitNode(
-    const RegistryNode& node,
-    std::wstring* parent,
-    std::wstring* name
-) {
-  if (!parent || !name) {
-    return false;
-  }
-  *parent = registry_path::Parent(node.subkey);
-  *name = registry_path::Leaf(node.subkey);
-  return !name->empty();
 }
 
 std::vector<std::wstring> ChildNames(
@@ -90,7 +50,7 @@ std::vector<std::wstring> ChildNames(
     }
   }
   if (sorted) {
-    std::sort(names.begin(), names.end(), [](const std::wstring& left, const std::wstring& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
+    SortNames(&names);
   }
   return names;
 }
@@ -217,7 +177,7 @@ bool EnumKeyStreaming(
       values.push_back(&value.second);
     }
     if (ordered) {
-      std::sort(values.begin(), values.end(), [](const RegistryValue* left, const RegistryValue* right) { return _wcsicmp(left->name.c_str(), right->name.c_str()) < 0; });
+      std::sort(values.begin(), values.end(), [](const RegistryValue* left, const RegistryValue* right) { return util::CompareInsensitive(left->name, right->name) < 0; });
     }
     for (const RegistryValue* value : values) {
       ValueInfo info;
@@ -290,12 +250,12 @@ bool DeleteKey(
     const RegistryNode& node
 ) {
   std::unique_lock<std::shared_mutex> lock(*data.mutex);
-  std::wstring parent_path;
+  RegistryNode parent_node;
   std::wstring name;
-  if (!SplitNode(node, &parent_path, &name)) {
+  if (!SplitNode(node, &parent_node, &name)) {
     return false;
   }
-  VirtualRegistryKey* parent = FindKey(data.root.get(), parent_path);
+  VirtualRegistryKey* parent = FindKey(data.root.get(), parent_node.subkey);
   return parent &&
          parent->children.erase(util::ToLower(name)) != 0;
 }
@@ -306,12 +266,12 @@ bool RenameKey(
     const std::wstring& new_name
 ) {
   std::unique_lock<std::shared_mutex> lock(*data.mutex);
-  std::wstring parent_path;
+  RegistryNode parent_node;
   std::wstring old_name;
-  if (!SplitNode(node, &parent_path, &old_name)) {
+  if (!SplitNode(node, &parent_node, &old_name)) {
     return false;
   }
-  VirtualRegistryKey* parent = FindKey(data.root.get(), parent_path);
+  VirtualRegistryKey* parent = FindKey(data.root.get(), parent_node.subkey);
   if (!parent) {
     return false;
   }

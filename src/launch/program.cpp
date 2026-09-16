@@ -24,11 +24,13 @@
 #include "appearance/theme.h"
 #include "appearance/presets.h"
 #include "appearance/feedback.h"
+#include "workspace/settings.h"
 #include "win32/handle_owner.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
 #include "win32/file_text.h"
 #include "win32/process_rights.h"
+#include "win32/registry_native.h"
 #include "win32/restart.h"
 #include "win32/shell_integration.h"
 #include "win32/shell_paths.h"
@@ -52,14 +54,9 @@ constexpr wchar_t kInstallRegeditReplacementArg[] =
 constexpr wchar_t kUninstallRegeditReplacementArg[] =
     L"--uninstall-regedit-replacement";
 
-using util::FormatWin32Error;
-using util::TrimWhitespace;
+constexpr const wchar_t* kRegeditNames[] = {L"regedit.exe", L"regedit", L"regedt32.exe", L"regedt32"};
 
-bool ParseBool(
-    const std::wstring& value
-) {
-  return (_wcsicmp(value.c_str(), L"1") == 0 || _wcsicmp(value.c_str(), L"true") == 0 || _wcsicmp(value.c_str(), L"yes") == 0);
-}
+using util::FormatWin32Error;
 
 std::vector<std::wstring> GetCommandLineArgs() {
   int argc = 0;
@@ -84,68 +81,27 @@ void ApplyDataDirOverride(
   }
   SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
   const std::wstring probe = util::JoinPath(dir, L"session.probe");
-  HANDLE handle = CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
-  if (handle == INVALID_HANDLE_VALUE) {
-    return;
+  const util::UniqueHandle handle(CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr));
+  if (handle) {
+    SetEnvironmentVariableW(L"REGKIT_DATA_DIR", dir.c_str());
   }
-  CloseHandle(handle);
-  SetEnvironmentVariableW(L"REGKIT_DATA_DIR", dir.c_str());
 }
 
 bool HasCommandLineArg(
     const std::vector<std::wstring>& args,
     const wchar_t* arg
 ) {
-  if (!arg || !*arg) {
-    return false;
-  }
-  for (const auto& entry : args) {
-    if (_wcsicmp(entry.c_str(), arg) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool HasRegExtension(
-    const std::wstring& path
-) {
-  size_t dot = path.find_last_of(L'.');
-  if (dot == std::wstring::npos) {
-    return false;
-  }
-  std::wstring ext = path.substr(dot);
-  return _wcsicmp(ext.c_str(), L".reg") == 0;
-}
-
-std::wstring BaseName(
-    const std::wstring& path
-) {
-  size_t slash = path.find_last_of(L"\\/");
-  if (slash == std::wstring::npos) {
-    return path;
-  }
-  return path.substr(slash + 1);
+  return std::any_of(args.begin(), args.end(), [&](const std::wstring& entry) { return util::EqualsInsensitive(entry, arg); });
 }
 
 bool IsRegeditLaunchArg(
     const std::wstring& arg
 ) {
-  const bool drive_absolute =
-      arg.size() >= 3 && iswalpha(arg[0]) && arg[1] == L':' &&
-      (arg[2] == L'\\' || arg[2] == L'/');
-  const bool unc_absolute =
-      arg.size() >= 3 &&
-      ((arg[0] == L'\\' && arg[1] == L'\\') ||
-       (arg[0] == L'/' && arg[1] == L'/'));
-  if (!drive_absolute && !unc_absolute) {
-    return false;
-  }
-  std::wstring name = BaseName(arg);
-  return _wcsicmp(name.c_str(), L"regedit.exe") == 0 ||
-         _wcsicmp(name.c_str(), L"regedit") == 0 ||
-         _wcsicmp(name.c_str(), L"regedt32.exe") == 0 ||
-         _wcsicmp(name.c_str(), L"regedt32") == 0;
+  const bool drive_absolute = arg.size() >= 3 && iswalpha(arg[0]) && arg[1] == L':' && (arg[2] == L'\\' || arg[2] == L'/');
+  const bool unc_absolute = arg.size() >= 3 && ((arg[0] == L'\\' && arg[1] == L'\\') || (arg[0] == L'/' && arg[1] == L'/'));
+  const std::wstring name = regkit::registry_path::Leaf(arg);
+  return (drive_absolute || unc_absolute) &&
+         std::any_of(std::begin(kRegeditNames), std::end(kRegeditNames), [&](const wchar_t* regedit) { return util::EqualsInsensitive(name, regedit); });
 }
 
 bool IsInterceptedRegeditLaunch(
@@ -180,7 +136,7 @@ std::vector<std::wstring> RegFilesFromArgs(
     if (arg.empty() || arg[0] == L'-' || arg[0] == L'/' || IsRegeditLaunchArg(arg)) {
       continue;
     }
-    if (HasRegExtension(arg)) {
+    if (util::HasFileExtension(arg, L".reg")) {
       files.push_back(arg);
     }
   }
@@ -192,65 +148,6 @@ bool LooksLikeRegistryPath(
 ) {
   regkit::RegistryNode node;
   return regkit::registry_path::ParseRoot(arg, &node);
-}
-
-bool ReadRegeditLastKey(
-    std::wstring* out
-) {
-  if (!out) {
-    return false;
-  }
-  out->clear();
-
-  HKEY key = nullptr;
-  LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\Regedit", 0, KEY_QUERY_VALUE, &key);
-  if (result != ERROR_SUCCESS) {
-    return false;
-  }
-
-  DWORD type = 0;
-  DWORD size = 0;
-  result = RegQueryValueExW(key, L"LastKey", nullptr, &type, nullptr, &size);
-  if (result != ERROR_SUCCESS || (type != REG_SZ && type != REG_EXPAND_SZ) ||
-      size < sizeof(wchar_t) || size % sizeof(wchar_t) != 0) {
-    RegCloseKey(key);
-    return false;
-  }
-
-  std::wstring value;
-  value.resize(size / sizeof(wchar_t));
-  result = RegQueryValueExW(key, L"LastKey", nullptr, &type, reinterpret_cast<LPBYTE>(value.data()), &size);
-  RegCloseKey(key);
-  if (result != ERROR_SUCCESS) {
-    return false;
-  }
-
-  while (!value.empty() && value.back() == L'\0') {
-    value.pop_back();
-  }
-  if (value.empty()) {
-    return false;
-  }
-
-  if (type == REG_EXPAND_SZ) {
-    DWORD needed = ExpandEnvironmentStringsW(value.c_str(), nullptr, 0);
-    if (needed > 1) {
-      std::wstring expanded;
-      expanded.resize(needed);
-      DWORD written = ExpandEnvironmentStringsW(value.c_str(), expanded.data(), needed);
-      if (written > 0 && written <= needed) {
-        while (!expanded.empty() && expanded.back() == L'\0') {
-          expanded.pop_back();
-        }
-        if (!expanded.empty()) {
-          value = std::move(expanded);
-        }
-      }
-    }
-  }
-
-  *out = value;
-  return true;
 }
 
 bool ResolveExternalJumpTarget(
@@ -265,7 +162,7 @@ bool ResolveExternalJumpTarget(
   std::wstring explicit_key_path;
   for (size_t index = 0; index < args.size(); ++index) {
     const std::wstring& arg = args[index];
-    if (_wcsicmp(arg.c_str(), L"--goto") == 0 || _wcsicmp(arg.c_str(), L"/goto") == 0) {
+    if (util::EqualsInsensitive(arg, L"--goto") || util::EqualsInsensitive(arg, L"/goto")) {
       if (index + 1 < args.size()) {
         explicit_key_path = args[++index];
       }
@@ -300,7 +197,7 @@ bool ResolveExternalJumpTarget(
   if (!intercepted_regedit) {
     return false;
   }
-  return ReadRegeditLastKey(out);
+  return util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\Regedit", L"LastKey", out) == ERROR_SUCCESS && !out->empty();
 }
 
 bool IsOwnRegKitWindow(
@@ -323,7 +220,7 @@ bool IsOwnRegKitWindow(
     return false;
   }
   const std::wstring ours = util::GetModulePath();
-  return !ours.empty() && _wcsicmp(theirs.c_str(), ours.c_str()) == 0;
+  return !ours.empty() && util::EqualsInsensitive(theirs, ours);
 }
 
 BOOL CALLBACK FindRegKitWindowProc(
@@ -373,270 +270,78 @@ bool SendTextToRegKit(
          accepted != 0;
 }
 
-struct StartupSettings {
-  bool single_instance = true;
-  bool always_run_as_admin = false;
-  bool always_run_as_system = false;
-  bool always_run_as_trustedinstaller = false;
-  regkit::ThemeMode theme_mode = regkit::ThemeMode::kSystem;
-  std::wstring theme_preset;
-};
-
-bool ReadSettingsFileContent(
-    std::wstring* content
-) {
-  if (!content) {
-    return false;
-  }
-  content->clear();
-  std::wstring folder = util::GetAppDataFolder();
-  if (folder.empty()) {
-    return false;
-  }
-  std::wstring path = util::JoinPath(folder, L"settings.ini");
-  HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (file == INVALID_HANDLE_VALUE) {
-    return false;
-  }
-  LARGE_INTEGER size = {};
-  constexpr LONGLONG kMaxSettingsBytes = 1 * 1024 * 1024;
-  if (!GetFileSizeEx(file, &size) || size.QuadPart <= 0 ||
-      size.QuadPart > kMaxSettingsBytes) {
-    CloseHandle(file);
-    return false;
-  }
-  std::string buffer(static_cast<size_t>(size.QuadPart), '\0');
-  DWORD read = 0;
-  bool ok = ReadFile(file, buffer.data(), static_cast<DWORD>(buffer.size()), &read, nullptr) != 0;
-  CloseHandle(file);
-  if (!ok || read == 0) {
-    return false;
-  }
-  buffer.resize(read);
-  if (buffer.size() >= 3 && static_cast<unsigned char>(buffer[0]) == 0xEF && static_cast<unsigned char>(buffer[1]) == 0xBB && static_cast<unsigned char>(buffer[2]) == 0xBF) {
-    buffer.erase(0, 3);
-  }
-  *content = util::Utf8ToWide(buffer);
-  return !content->empty();
-}
-
-StartupSettings LoadStartupSettings() {
-  StartupSettings settings;
-  std::wstring content;
-  if (!ReadSettingsFileContent(&content)) {
-    return settings;
-  }
-
-  size_t start = 0;
-  while (start < content.size()) {
-    size_t end = content.find(L'\n', start);
-    if (end == std::wstring::npos) {
-      end = content.size();
-    }
-    std::wstring line = content.substr(start, end - start);
-    if (!line.empty() && line.back() == L'\r') {
-      line.pop_back();
-    }
-    start = end + 1;
-    if (line.empty()) {
-      continue;
-    }
-    size_t sep = line.find(L'=');
-    if (sep == std::wstring::npos) {
-      continue;
-    }
-    std::wstring key = TrimWhitespace(line.substr(0, sep));
-    std::wstring value = TrimWhitespace(line.substr(sep + 1));
-    if (_wcsicmp(key.c_str(), L"single_instance") == 0) {
-      settings.single_instance = ParseBool(value);
-    } else if (_wcsicmp(key.c_str(), L"always_run_as_admin") == 0) {
-      settings.always_run_as_admin = ParseBool(value);
-    } else if (_wcsicmp(key.c_str(), L"always_run_as_system") == 0) {
-      settings.always_run_as_system = ParseBool(value);
-    } else if (_wcsicmp(key.c_str(), L"always_run_as_trustedinstaller") == 0) {
-      settings.always_run_as_trustedinstaller = ParseBool(value);
-    } else if (_wcsicmp(key.c_str(), L"theme_mode") == 0) {
-      if (_wcsicmp(value.c_str(), L"dark") == 0) {
-        settings.theme_mode = regkit::ThemeMode::kDark;
-      } else if (_wcsicmp(value.c_str(), L"light") == 0) {
-        settings.theme_mode = regkit::ThemeMode::kLight;
-      } else if (_wcsicmp(value.c_str(), L"custom") == 0) {
-        settings.theme_mode = regkit::ThemeMode::kCustom;
-      } else {
-        settings.theme_mode = regkit::ThemeMode::kSystem;
-      }
-    } else if (_wcsicmp(key.c_str(), L"theme_preset") == 0) {
-      settings.theme_preset = value;
-    }
+regkit::workspace::Settings LoadStartupSettings() {
+  regkit::workspace::Settings settings;
+  const std::wstring folder = util::GetAppDataFolder();
+  if (!folder.empty()) {
+    regkit::workspace::LoadSettings(util::JoinPath(folder, L"settings.ini"), &settings);
   }
   return settings;
 }
 
 void ApplyStartupTheme(
-    const StartupSettings& settings
+    const regkit::workspace::Settings& settings
 ) {
-  if (settings.theme_mode == regkit::ThemeMode::kCustom) {
+  const regkit::ThemeMode mode = regkit::ParseThemeMode(settings.theme_mode);
+  if (mode == regkit::ThemeMode::kCustom) {
     std::vector<regkit::ThemePreset> presets;
-    if (!regkit::ThemePresetStore::Load(&presets)) {
+    if (!regkit::ThemePresetStore::Load(&presets) || presets.empty()) {
       presets = regkit::ThemePresetStore::BuiltInPresets();
     }
-    if (!presets.empty()) {
-      auto it = std::find_if(presets.begin(), presets.end(), [&](const regkit::ThemePreset& preset) { return _wcsicmp(preset.name.c_str(), settings.theme_preset.c_str()) == 0; });
-      if (it == presets.end()) {
-        it = presets.begin();
-      }
-      regkit::Theme::SetCustomColors(it->colors, it->is_dark);
-      regkit::Theme::SetMode(regkit::ThemeMode::kCustom);
-      return;
+    if (const regkit::ThemePreset* preset = regkit::FindThemePreset(presets, settings.theme_preset)) {
+      regkit::Theme::SetCustomColors(preset->colors, preset->is_dark);
     }
   }
-  regkit::Theme::SetMode(settings.theme_mode);
+  regkit::Theme::SetMode(mode);
 }
 
-bool RelaunchAsAdmin(
+struct RestartTarget {
+  const wchar_t* arg;
+  bool (*is_current)();
+  bool (*launch)(const std::wstring&, const std::wstring&, DWORD*, bool*);
+  const wchar_t* request_failure;
+  const wchar_t* launch_failure;
+};
+
+constexpr RestartTarget kSystemTarget = {kRestartSystemArg, util::IsProcessSystem, util::LaunchProcessAsSystem, L"Failed to request SYSTEM restart.", L"Failed to restart with SYSTEM rights."};
+constexpr RestartTarget kTrustedInstallerTarget = {kRestartTiArg, util::IsProcessTrustedInstaller, util::LaunchProcessAsTrustedInstaller, L"Failed to request TrustedInstaller restart.", L"Failed to restart with TrustedInstaller rights."};
+
+bool RestartAs(
+    const RestartTarget& target,
     DWORD parent_pid,
-    const std::vector<std::wstring>& original_args
+    const std::vector<std::wstring>& original_args,
+    int* exit_code
 ) {
+  if (target.is_current()) {
+    return false;
+  }
   const std::wstring exe_path = util::GetModulePath();
   if (exe_path.empty()) {
+    regkit::ui::ShowError(nullptr, L"Failed to locate the executable path.");
     return false;
   }
-  return SUCCEEDED(regkit::win32::LaunchElevated(
-      nullptr,
-      exe_path,
-      regkit::win32::RestartArguments(nullptr, parent_pid, original_args)
-  ));
-}
-
-constexpr wchar_t kImpersonationLostMessage[] =
-    L"RegKit couldn't restore its own security context and must close now.";
-
-bool RestartAsSystem(
-    DWORD parent_pid,
-    std::wstring* error_message,
-    bool* launched,
-    const std::vector<std::wstring>& original_args,
-    bool* impersonation_lost = nullptr
-) {
-  if (error_message) {
-    error_message->clear();
-  }
-  if (launched) {
-    *launched = false;
-  }
-  if (util::IsProcessSystem()) {
-    return true;
-  }
-  std::wstring exe_path = util::GetModulePath();
-  if (exe_path.empty()) {
-    if (error_message) {
-      *error_message = L"Failed to locate the executable path.";
-    }
-    return false;
-  }
+  const std::wstring arguments = regkit::win32::RestartArguments(target.arg, parent_pid, original_args);
+  *exit_code = 0;
   if (!util::IsProcessElevated()) {
-    const HRESULT hr = regkit::win32::LaunchElevated(
-        nullptr,
-        exe_path,
-        regkit::win32::RestartArguments(kRestartSystemArg, parent_pid, original_args)
-    );
-    if (FAILED(hr)) {
-      if (error_message) {
-        *error_message = L"Failed to request SYSTEM restart.";
-      }
-      return false;
+    if (SUCCEEDED(regkit::win32::LaunchElevated(nullptr, exe_path, arguments))) {
+      return true;
     }
-    if (launched) {
-      *launched = true;
-    }
-    return true;
+    regkit::ui::ShowError(nullptr, target.request_failure);
+    return false;
   }
-
-  std::wstring command_line = L"\"";
-  command_line += exe_path;
-  command_line += L"\" ";
-  command_line += regkit::win32::RestartArguments(kRestartSystemArg, parent_pid, original_args);
   DWORD error = 0;
-  if (!util::LaunchProcessAsSystem(command_line, L"", &error, impersonation_lost)) {
-    if (error_message) {
-      std::wstring message = L"Failed to restart with SYSTEM rights.";
-      std::wstring detail = FormatWin32Error(error);
-      if (!detail.empty()) {
-        message += L"\n";
-        message += detail;
-      }
-      *error_message = message;
-    }
-    return false;
-  }
-  if (launched) {
-    *launched = true;
-  }
-  return true;
-}
-
-bool RestartAsTrustedInstaller(
-    DWORD parent_pid,
-    std::wstring* error_message,
-    bool* launched,
-    const std::vector<std::wstring>& original_args,
-    bool* impersonation_lost = nullptr
-) {
-  if (error_message) {
-    error_message->clear();
-  }
-  if (launched) {
-    *launched = false;
-  }
-  if (util::IsProcessTrustedInstaller()) {
+  bool impersonation_lost = false;
+  const bool launched = target.launch(L"\"" + exe_path + L"\" " + arguments, L"", &error, &impersonation_lost);
+  if (impersonation_lost) {
+    regkit::ui::ShowError(nullptr, L"RegKit couldn't restore its own security context and must close now.");
+    *exit_code = launched ? 0 : 1;
     return true;
   }
-  std::wstring exe_path = util::GetModulePath();
-  if (exe_path.empty()) {
-    if (error_message) {
-      *error_message = L"Failed to locate the executable path.";
-    }
-    return false;
+  if (!launched) {
+    const std::wstring detail = FormatWin32Error(error);
+    regkit::ui::ShowError(nullptr, detail.empty() ? target.launch_failure : std::wstring(target.launch_failure) + L"\n" + detail);
   }
-  if (!util::IsProcessElevated()) {
-    const HRESULT hr = regkit::win32::LaunchElevated(
-        nullptr,
-        exe_path,
-        regkit::win32::RestartArguments(kRestartTiArg, parent_pid, original_args)
-    );
-    if (FAILED(hr)) {
-      if (error_message) {
-        *error_message = L"Failed to request TrustedInstaller restart.";
-      }
-      return false;
-    }
-    if (launched) {
-      *launched = true;
-    }
-    return true;
-  }
-
-  std::wstring command_line = L"\"";
-  command_line += exe_path;
-  command_line += L"\" ";
-  command_line += regkit::win32::RestartArguments(kRestartTiArg, parent_pid, original_args);
-  DWORD error = 0;
-  if (!util::LaunchProcessAsTrustedInstaller(command_line, L"", &error, impersonation_lost)) {
-    if (error_message) {
-      std::wstring message = L"Failed to restart with TrustedInstaller rights.";
-      std::wstring detail = FormatWin32Error(error);
-      if (!detail.empty()) {
-        message += L"\n";
-        message += detail;
-      }
-      *error_message = message;
-    }
-    return false;
-  }
-  if (launched) {
-    *launched = true;
-  }
-  return true;
+  return launched;
 }
 
 } // namespace
@@ -692,85 +397,29 @@ int WINAPI wWinMain(
       )) {
     return cli_exit;
   }
-  const StartupSettings startup_settings = LoadStartupSettings();
+  const regkit::workspace::Settings startup_settings = LoadStartupSettings();
   ApplyStartupTheme(startup_settings);
   std::wstring startup_jump_target;
   const bool external_jump_requested = ResolveExternalJumpTarget(args, &startup_jump_target);
   const bool edit_reg_file_requested = HasCommandLineArg(args, kEditRegFileArg);
   const std::vector<std::wstring> reg_files = RegFilesFromArgs(args);
-  const bool restart_system = HasCommandLineArg(args, kRestartSystemArg);
   const bool stay_as_user = HasCommandLineArg(args, kRestartUserArg);
-  const bool restart_ti = HasCommandLineArg(args, kRestartTiArg);
   const DWORD restart_parent_pid = regkit::win32::RestartParentPid(args);
-  const DWORD handoff_pid =
-      restart_parent_pid != 0 ? restart_parent_pid : GetCurrentProcessId();
-  bool impersonation_lost = false;
-  if (restart_ti) {
-    std::wstring error;
-    bool launched = false;
-    const bool ok = RestartAsTrustedInstaller(handoff_pid, &error, &launched, args, &impersonation_lost);
-    if (impersonation_lost) {
-      regkit::ui::ShowError(nullptr, kImpersonationLostMessage);
-      return launched ? 0 : 1;
+  const DWORD handoff_pid = restart_parent_pid != 0 ? restart_parent_pid : GetCurrentProcessId();
+  const RestartTarget* restart_target =
+      HasCommandLineArg(args, kRestartTiArg)                                                                 ? &kTrustedInstallerTarget
+      : HasCommandLineArg(args, kRestartSystemArg)                                                           ? &kSystemTarget
+      : !stay_as_user && startup_settings.always_run_as_trustedinstaller && !util::IsProcessTrustedInstaller() ? &kTrustedInstallerTarget
+      : !stay_as_user && startup_settings.always_run_as_system && !util::IsProcessSystem()                     ? &kSystemTarget
+                                                                                                             : nullptr;
+  int restart_exit = 0;
+  if (restart_target) {
+    if (RestartAs(*restart_target, handoff_pid, args, &restart_exit)) {
+      return restart_exit;
     }
-    if (ok) {
-      if (launched) {
-        return 0;
-      }
-    } else if (!error.empty()) {
-      regkit::ui::ShowError(nullptr, error);
-    }
-  } else if (restart_system) {
-    std::wstring error;
-    bool launched = false;
-    const bool ok = RestartAsSystem(handoff_pid, &error, &launched, args, &impersonation_lost);
-    if (impersonation_lost) {
-      regkit::ui::ShowError(nullptr, kImpersonationLostMessage);
-      return launched ? 0 : 1;
-    }
-    if (ok) {
-      if (launched) {
-        return 0;
-      }
-    } else if (!error.empty()) {
-      regkit::ui::ShowError(nullptr, error);
-    }
-  } else if (!stay_as_user && startup_settings.always_run_as_trustedinstaller &&
-             !util::IsProcessTrustedInstaller()) {
-    std::wstring error;
-    bool launched = false;
-    const bool ok = RestartAsTrustedInstaller(handoff_pid, &error, &launched, args, &impersonation_lost);
-    if (impersonation_lost) {
-      regkit::ui::ShowError(nullptr, kImpersonationLostMessage);
-      return launched ? 0 : 1;
-    }
-    if (ok) {
-      if (launched) {
-        return 0;
-      }
-    } else if (!error.empty()) {
-      regkit::ui::ShowError(nullptr, error);
-    }
-  } else if (!stay_as_user && startup_settings.always_run_as_system &&
-             !util::IsProcessSystem()) {
-    std::wstring error;
-    bool launched = false;
-    const bool ok = RestartAsSystem(handoff_pid, &error, &launched, args, &impersonation_lost);
-    if (impersonation_lost) {
-      regkit::ui::ShowError(nullptr, kImpersonationLostMessage);
-      return launched ? 0 : 1;
-    }
-    if (ok) {
-      if (launched) {
-        return 0;
-      }
-    } else if (!error.empty()) {
-      regkit::ui::ShowError(nullptr, error);
-    }
-  } else if ((HasCommandLineArg(args, kRestartAdminArg) ||
-              (!stay_as_user && startup_settings.always_run_as_admin)) &&
-             !util::IsProcessElevated()) {
-    if (RelaunchAsAdmin(handoff_pid, args)) {
+  } else if ((HasCommandLineArg(args, kRestartAdminArg) || (!stay_as_user && startup_settings.always_run_as_admin)) && !util::IsProcessElevated()) {
+    const std::wstring exe_path = util::GetModulePath();
+    if (!exe_path.empty() && SUCCEEDED(regkit::win32::LaunchElevated(nullptr, exe_path, regkit::win32::RestartArguments(nullptr, handoff_pid, args)))) {
       return 0;
     }
     regkit::ui::ShowError(nullptr, L"Administrator restart was cancelled.");
@@ -793,9 +442,9 @@ int WINAPI wWinMain(
 
   regkit::win32::WaitForParentExit(restart_parent_pid);
 
-  HANDLE instance_mutex = nullptr;
+  util::UniqueHandle instance_mutex;
   if (startup_settings.single_instance) {
-    instance_mutex = CreateMutexW(nullptr, TRUE, L"RegKit.SingleInstance");
+    instance_mutex.reset(CreateMutexW(nullptr, TRUE, L"RegKit.SingleInstance"));
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
       HWND existing = FindRunningRegKitWindow();
       if (existing) {
@@ -827,9 +476,6 @@ int WINAPI wWinMain(
         if (handed_off) {
           ShowWindow(existing, SW_RESTORE);
           SetForegroundWindow(existing);
-          if (instance_mutex) {
-            CloseHandle(instance_mutex);
-          }
           return 0;
         }
       }
@@ -839,9 +485,6 @@ int WINAPI wWinMain(
   regkit::MainWindow window;
   if (!window.Create(instance)) {
     regkit::ui::ShowError(nullptr, L"Failed to create the main window.");
-    if (instance_mutex) {
-      CloseHandle(instance_mutex);
-    }
     return 1;
   }
   if (external_jump_requested && !startup_jump_target.empty()) {
@@ -869,9 +512,6 @@ int WINAPI wWinMain(
     }
     TranslateMessage(&msg);
     DispatchMessageW(&msg);
-  }
-  if (instance_mutex) {
-    CloseHandle(instance_mutex);
   }
   BufferedPaintUnInit();
   return static_cast<int>(msg.wParam);

@@ -16,20 +16,6 @@
 namespace regkit::regfile {
 namespace {
 
-std::wstring Trim(
-    std::wstring_view text
-) {
-  size_t first = 0;
-  while (first < text.size() && iswspace(text[first])) {
-    ++first;
-  }
-  size_t last = text.size();
-  while (last > first && iswspace(text[last - 1])) {
-    --last;
-  }
-  return std::wstring(text.substr(first, last - first));
-}
-
 bool ParseQuoted(
     std::wstring_view text,
     std::wstring* output,
@@ -69,7 +55,7 @@ bool ParseQuoted(
         return true;
       }
       for (size_t rest = index + 1; rest < text.size(); ++rest) {
-        if (text[rest] != L' ' && text[rest] != L'	') {
+        if (text[rest] != L' ' && text[rest] != L'\t') {
           return false;
         }
       }
@@ -101,45 +87,6 @@ size_t FindAssignment(
   return std::wstring_view::npos;
 }
 
-DWORD TypeFromCode(
-    unsigned long code
-) {
-  switch (code) {
-  case 0x0:
-    return REG_NONE;
-  case 0x1:
-    return REG_SZ;
-  case 0x2:
-    return REG_EXPAND_SZ;
-  case 0x3:
-    return REG_BINARY;
-  case 0x4:
-    return REG_DWORD;
-  case 0x5:
-    return REG_DWORD_BIG_ENDIAN;
-  case 0x6:
-    return REG_LINK;
-  case 0x7:
-    return REG_MULTI_SZ;
-  case 0x8:
-    return REG_RESOURCE_LIST;
-  case 0x9:
-    return REG_FULL_RESOURCE_DESCRIPTOR;
-  case 0xA:
-    return REG_RESOURCE_REQUIREMENTS_LIST;
-  case 0xB:
-    return REG_QWORD;
-  default:
-    return static_cast<DWORD>(code);
-  }
-}
-
-DWORD TypeCode(
-    DWORD type
-) {
-  return value_format::NormalizeType(type);
-}
-
 std::wstring Escape(
     std::wstring_view text
 ) {
@@ -169,22 +116,6 @@ std::wstring Escape(
       output.push_back(character);
       break;
     }
-  }
-  return output;
-}
-
-std::wstring Hex(
-    std::span<const BYTE> data
-) {
-  std::wstring output;
-  output.reserve(data.size() * 3);
-  for (size_t index = 0; index < data.size(); ++index) {
-    if (index != 0) {
-      output.push_back(L',');
-    }
-    wchar_t byte[3] = {};
-    swprintf_s(byte, L"%02x", data[index]);
-    output += byte;
   }
   return output;
 }
@@ -257,46 +188,49 @@ std::wstring SerializeValue(
     return output;
   }
   if (type == REG_BINARY && value.type == REG_BINARY) {
-    return L"hex:" + Hex(value.data);
+    return L"hex:" + util::ToHex(value.data, L',');
   }
   wchar_t code[16] = {};
-  swprintf_s(code, L"%x", TypeCode(value.type));
-  return L"hex(" + std::wstring(code) + L"):" + Hex(value.data);
+  swprintf_s(code, L"%x", type);
+  return L"hex(" + std::wstring(code) + L"):" + util::ToHex(value.data, L',');
+}
+
+constexpr std::wstring_view kRegFileHeader = L"Windows Registry Editor Version 5.00\r\n\r\n";
+
+std::wstring ValueNamePrefix(
+    const std::wstring& name
+) {
+  return name.empty() ? L"@=" : L"\"" + Escape(name) + L"\"=";
 }
 
 } // namespace
 
+Writer::Writer()
+    : output_(kRegFileHeader) {
+}
+
+void Writer::AppendKeyHeader(
+    std::wstring_view prefix,
+    std::wstring_view path
+) {
+  if (output_.size() > kRegFileHeader.size()) {
+    output_ += L"\r\n";
+  }
+  output_.append(prefix).append(path).append(L"]\r\n");
+}
+
 void Writer::AppendRemovedKey(
     std::wstring_view path
 ) {
-  if (output_.size() >
-      std::wstring_view(L"Windows Registry Editor Version 5.00\r\n\r\n")
-          .size()) {
-    output_ += L"\r\n";
-  }
-  output_ += L"[-";
-  output_.append(path);
-  output_ += L"]\r\n";
+  AppendKeyHeader(L"[-", path);
 }
 
 void Writer::AppendRemovedValues(
     const std::vector<std::wstring>& names
 ) {
   for (const std::wstring& name : names) {
-    std::wstring line;
-    if (name.empty()) {
-      line = L"@=-";
-    } else {
-      line.push_back(L'"');
-      line += Escape(name);
-      line += L"\"=-";
-    }
-    AppendWrapped(&output_, line);
+    AppendWrapped(&output_, ValueNamePrefix(name) + L"-");
   }
-}
-
-Writer::Writer()
-    : output_(L"Windows Registry Editor Version 5.00\r\n\r\n") {
 }
 
 void Writer::AppendKey(
@@ -304,35 +238,16 @@ void Writer::AppendKey(
     std::vector<const Value*> values,
     bool sorted
 ) {
-  if (output_.size() >
-      std::wstring_view(L"Windows Registry Editor Version 5.00\r\n\r\n")
-          .size()) {
-    output_ += L"\r\n";
-  }
-  output_.push_back(L'[');
-  output_.append(path);
-  output_ += L"]\r\n";
+  AppendKeyHeader(L"[", path);
   if (sorted) {
     std::sort(values.begin(), values.end(), [](const Value* left, const Value* right) {
-              if (left->name.empty() != right->name.empty()) {
-                return left->name.empty();
-              }
-              return _wcsicmp(left->name.c_str(), right->name.c_str()) < 0; });
+      return left->name.empty() != right->name.empty() ? left->name.empty() : util::CompareInsensitive(left->name, right->name) < 0;
+    });
   }
   for (const Value* value : values) {
-    std::wstring line;
-    if (value->name.empty()) {
-      line = L"@=";
-    } else {
-      line.push_back(L'"');
-      line += Escape(value->name);
-      line += L"\"=";
-    }
-    line += SerializeValue(*value);
-    AppendWrapped(&output_, line);
+    AppendWrapped(&output_, ValueNamePrefix(value->name) + SerializeValue(*value));
   }
 }
-
 std::wstring Writer::Finish() && {
   return std::move(output_);
 }
@@ -412,20 +327,20 @@ bool Parse(
     if (stopped()) {
       return false;
     }
-    const std::wstring line = Trim(raw);
+    const std::wstring line = util::TrimWhitespace(raw);
     if (line.empty() || line.front() == L';' ||
-        registry_path::StartsWith(line, L"Windows Registry Editor") ||
-        registry_path::StartsWith(line, L"REGEDIT4")) {
+        util::StartsWithInsensitive(line, L"Windows Registry Editor") ||
+        util::StartsWithInsensitive(line, L"REGEDIT4")) {
       continue;
     }
     if (line.front() == L'[' && line.back() == L']') {
-      std::wstring path = Trim(
+      std::wstring path = util::TrimWhitespace(
           std::wstring_view(line).substr(1, line.size() - 2)
       );
       bool removed = false;
       if (!path.empty() && path.front() == L'-') {
         removed = true;
-        path = Trim(std::wstring_view(path).substr(1));
+        path = util::TrimWhitespace(std::wstring_view(path).substr(1));
       }
       if (path.empty()) {
         return fail(line);
@@ -447,10 +362,10 @@ bool Parse(
     if (equals == std::wstring::npos) {
       return fail(line);
     }
-    const std::wstring name_text = Trim(
+    const std::wstring name_text = util::TrimWhitespace(
         std::wstring_view(line).substr(0, equals)
     );
-    const std::wstring data_text = Trim(
+    const std::wstring data_text = util::TrimWhitespace(
         std::wstring_view(line).substr(equals + 1)
     );
     if (name_text.empty() || data_text.empty()) {
@@ -477,8 +392,8 @@ bool Parse(
       }
       value.type = REG_SZ;
       value.data = value_format::StringData(text);
-    } else if (registry_path::StartsWith(data_text, L"dword:")) {
-      const std::wstring number_text = Trim(
+    } else if (util::StartsWithInsensitive(data_text, L"dword:")) {
+      const std::wstring number_text = util::TrimWhitespace(
           std::wstring_view(data_text).substr(6)
       );
       if (number_text.empty()) {
@@ -495,7 +410,7 @@ bool Parse(
       value.type = REG_DWORD;
       value.data.resize(sizeof(number));
       std::memcpy(value.data.data(), &number, sizeof(number));
-    } else if (registry_path::StartsWith(data_text, L"hex")) {
+    } else if (util::StartsWithInsensitive(data_text, L"hex")) {
       const size_t colon = data_text.find(L':');
       if (colon == std::wstring::npos) {
         return fail(line);
@@ -513,7 +428,7 @@ bool Parse(
         if (code.empty() || !stop || *stop != L'\0' || errno == ERANGE) {
           return fail(line);
         }
-        value.type = TypeFromCode(parsed);
+        value.type = static_cast<DWORD>(parsed);
       } else if (colon != 3) {
         return fail(line);
       }

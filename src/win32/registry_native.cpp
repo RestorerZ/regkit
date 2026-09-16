@@ -211,62 +211,38 @@ bool DeleteNativeRegistryKey(
   return key && delete_key && NT_SUCCESS(delete_key(reinterpret_cast<HANDLE>(key)));
 }
 
-bool ReadRegistryString(
+LONG ReadRegistryString(
     HKEY root,
     const wchar_t* subkey,
     const wchar_t* value_name,
     std::wstring* value
 ) {
-  if (!value) {
-    return false;
-  }
+  constexpr DWORD kTypes = RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ;
   value->clear();
-  constexpr DWORD kMaximumBytes = 16u * 1024u * 1024u;
-  for (int attempt = 0; attempt < 3; ++attempt) {
+  LONG result = ERROR_MORE_DATA;
+  for (int attempt = 0; attempt < 3 && result == ERROR_MORE_DATA; ++attempt) {
     DWORD size = 0;
-    LONG result = RegGetValueW(root, subkey, value_name, RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ, nullptr, nullptr, &size);
-    if (result != ERROR_SUCCESS || size < sizeof(wchar_t) ||
-        size > kMaximumBytes || size % sizeof(wchar_t) != 0) {
-      return false;
-    }
-    value->resize(size / sizeof(wchar_t));
-    result = RegGetValueW(root, subkey, value_name, RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ, nullptr, value->data(), &size);
-    if (result == ERROR_MORE_DATA) {
-      continue;
-    }
+    result = RegGetValueW(root, subkey, value_name, kTypes, nullptr, nullptr, &size);
     if (result != ERROR_SUCCESS) {
-      value->clear();
-      return false;
+      return result;
     }
-    while (!value->empty() && value->back() == L'\0') {
-      value->pop_back();
-    }
-    return true;
+    value->resize(size / sizeof(wchar_t) + 1);
+    size = static_cast<DWORD>(value->size() * sizeof(wchar_t));
+    result = RegGetValueW(root, subkey, value_name, kTypes, nullptr, value->data(), &size);
+    value->resize(result == ERROR_SUCCESS ? wcsnlen_s(value->c_str(), size / sizeof(wchar_t)) : 0);
   }
-  value->clear();
-  return false;
+  return result;
 }
 
 LONG WriteRegistryString(
-    HKEY key,
+    HKEY root,
+    const wchar_t* subkey,
     const wchar_t* value_name,
     const std::wstring& value
 ) {
-  if (!key) {
-    return ERROR_INVALID_HANDLE;
-  }
-  if (value.size() >=
-      (std::numeric_limits<DWORD>::max)() / sizeof(wchar_t)) {
+  if (value.size() >= (std::numeric_limits<DWORD>::max)() / sizeof(wchar_t) - 1) {
     return ERROR_INVALID_DATA;
   }
-  return RegSetValueExW(
-      key,
-      value_name,
-      0,
-      REG_SZ,
-      reinterpret_cast<const BYTE*>(value.c_str()),
-      static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t))
-  );
+  return RegSetKeyValueW(root, subkey, value_name, REG_SZ, value.c_str(), static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t)));
 }
-
 } // namespace util

@@ -143,17 +143,7 @@ bool ParseResults(
   }
   std::vector<Result> results;
   bool versioned = false;
-  size_t start = 0;
-  while (start < content.size()) {
-    size_t end = content.find(L'\n', start);
-    if (end == std::wstring::npos) {
-      end = content.size();
-    }
-    std::wstring line = content.substr(start, end - start);
-    start = end + 1;
-    if (!line.empty() && line.back() == L'\r') {
-      line.pop_back();
-    }
+  for (const std::wstring& line : record_fields::Lines(content)) {
     if (line.empty()) {
       continue;
     }
@@ -209,24 +199,8 @@ bool LoadResults(
   if (!results || path.empty()) {
     return false;
   }
-  std::vector<BYTE> bytes;
-  if (!util::ReadFileBytes(path, &bytes, kMaxResultFileBytes)) {
-    return false;
-  }
-  size_t offset = 0;
-  if (bytes.size() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB &&
-      bytes[2] == 0xBF) {
-    offset = 3;
-  }
-  const std::string_view payload(
-      reinterpret_cast<const char*>(bytes.data() + offset),
-      bytes.size() - offset
-  );
-  const std::wstring content = util::Utf8ToWide(payload);
-  if (content.empty() && !payload.empty()) {
-    return false;
-  }
-  return ParseResults(content, results);
+  std::wstring content;
+  return util::ReadTextFile(path, &content, nullptr, kMaxResultFileBytes) && ParseResults(content, results);
 }
 
 bool SaveResults(

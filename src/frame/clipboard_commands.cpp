@@ -58,7 +58,7 @@ bool MainWindow::Impl::HandleFavoritesCommand(
   case cmd::kFavoritesImport:
     {
       std::wstring path;
-      if (!PromptOpenFilePath(hwnd_, L"Favorites Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0\0", &path)) {
+      if (!ui::PromptOpenFile(hwnd_, L"Favorites Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0\0", &path)) {
         return true;
       }
       if (!FavoritesStore::ImportFromFile(path)) {
@@ -88,7 +88,7 @@ bool MainWindow::Impl::HandleFavoritesCommand(
   case cmd::kFavoritesExport:
     {
       std::wstring path;
-      if (!PromptSaveFilePath(hwnd_, L"Favorites Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0\0", &path)) {
+      if (!ui::PromptSaveFile(hwnd_, L"Favorites Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0\0", &path)) {
         return true;
       }
       if (!FavoritesStore::ExportToFile(path)) {
@@ -279,7 +279,7 @@ bool MainWindow::Impl::HandleClipboardCommand(
                 clipboard_.value = entry;
               }
             } else if (row && row->kind == rowkind::kKey) {
-              RegistryNode child = MakeChildNode(*browse_.current_node(), row->extra);
+              RegistryNode child = ChildNode(*browse_.current_node(), row->extra);
               clipboard_.kind = ClipboardItem::Kind::kKey;
               clipboard_.source_parent = *browse_.current_node();
               clipboard_.name = row->extra;
@@ -310,7 +310,7 @@ bool MainWindow::Impl::HandleClipboardCommand(
         return true;
       }
       if (row && row->kind == rowkind::kKey) {
-        RegistryNode child = MakeChildNode(*browse_.current_node(), row->extra);
+        RegistryNode child = ChildNode(*browse_.current_node(), row->extra);
         clipboard_.kind = ClipboardItem::Kind::kKey;
         clipboard_.source_parent = *browse_.current_node();
         clipboard_.name = row->extra;
@@ -345,7 +345,7 @@ bool MainWindow::Impl::HandleEditToolsCommand(
       int index = -1;
       const ListRow* row = SelectedValueRow(browse_.values(), &index);
       if (row && row->kind == rowkind::kKey && !row->extra.empty()) {
-        RegistryNode child = MakeChildNode(*browse_.current_node(), row->extra);
+        RegistryNode child = ChildNode(*browse_.current_node(), row->extra);
         ShowPermissionsDialog(child);
       } else {
         ShowPermissionsDialog(*browse_.current_node());

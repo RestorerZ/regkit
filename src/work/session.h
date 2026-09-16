@@ -43,7 +43,6 @@ public:
 
   bool IsCurrent(uint64_t generation) const noexcept;
   bool running() const noexcept;
-  uint64_t generation() const noexcept;
 
 private:
   uint64_t StartPrepared(Task task);

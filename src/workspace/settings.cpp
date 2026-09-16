@@ -9,66 +9,123 @@
 
 #include <algorithm>
 #include <cwchar>
-#include <limits>
+#include <span>
 
 namespace regkit::workspace {
 namespace {
 
-bool Boolean(
-    const std::wstring& value
+struct BoolField {
+  const wchar_t* key;
+  bool Settings::*member;
+};
+
+struct IntField {
+  const wchar_t* key;
+  int Settings::*member;
+};
+
+struct TextField {
+  const wchar_t* key;
+  std::wstring Settings::*member;
+};
+
+constexpr BoolField kBoolFields[] = {
+    {L"clear_history_on_exit", &Settings::clear_history_on_exit},
+    {L"clear_tabs_on_exit", &Settings::clear_tabs_on_exit},
+    {L"view_toolbar", &Settings::show_toolbar},
+    {L"view_address_bar", &Settings::show_address_bar},
+    {L"view_filter_bar", &Settings::show_filter_bar},
+    {L"view_tab_control", &Settings::show_tab_control},
+    {L"view_tree", &Settings::show_tree},
+    {L"view_history", &Settings::show_history},
+    {L"view_status_bar", &Settings::show_status_bar},
+    {L"view_keys_in_list", &Settings::show_keys_in_list},
+    {L"view_simulated_keys", &Settings::show_simulated_keys},
+    {L"view_extra_hives", &Settings::show_extra_hives},
+    {L"view_value_grid", &Settings::show_value_grid},
+    {L"save_tree_state", &Settings::save_tree_state},
+    {L"auto_check_updates", &Settings::auto_check_updates},
+    {L"default_reset_enabled", &Settings::default_reset_enabled},
+    {L"always_run_as_admin", &Settings::always_run_as_admin},
+    {L"always_run_as_system", &Settings::always_run_as_system},
+    {L"always_run_as_trustedinstaller", &Settings::always_run_as_trustedinstaller},
+    {L"always_on_top", &Settings::always_on_top},
+    {L"single_instance", &Settings::single_instance},
+    {L"read_only", &Settings::read_only},
+    {L"font_italic", &Settings::font_italic},
+};
+
+constexpr IntField kPositiveFields[] = {
+    {L"tree_width", &Settings::tree_width},
+    {L"history_height", &Settings::history_height},
+    {L"font_size", &Settings::font_size},
+    {L"font_weight", &Settings::font_weight},
+};
+
+constexpr IntField kPlacementFields[] = {
+    {L"window_x", &Settings::window_x},
+    {L"window_y", &Settings::window_y},
+    {L"window_width", &Settings::window_width},
+    {L"window_height", &Settings::window_height},
+};
+
+constexpr TextField kTextFields[] = {
+    {L"theme_mode", &Settings::theme_mode},
+    {L"theme_preset", &Settings::theme_preset},
+    {L"icon_set", &Settings::icon_set},
+    {L"font_face", &Settings::font_face},
+};
+
+template <typename Field>
+const Field* FindField(
+    const std::wstring& key,
+    std::span<const Field> fields
 ) {
-  return _wtoi(value.c_str()) != 0 ||
-         _wcsicmp(value.c_str(), L"true") == 0 ||
-         _wcsicmp(value.c_str(), L"yes") == 0;
+  for (const Field& field : fields) {
+    if (util::EqualsInsensitive(key, field.key)) {
+      return &field;
+    }
+  }
+  return nullptr;
 }
 
 bool Indexed(
     const std::wstring& key,
-    const wchar_t* prefix,
-    int* index
+    std::wstring_view prefix,
+    size_t* index
 ) {
-  const size_t length = wcslen(prefix);
-  if (!index || key.size() <= length ||
-      _wcsnicmp(key.c_str(), prefix, length) != 0) {
+  if (key.size() <= prefix.size() || !util::StartsWithInsensitive(key, prefix)) {
     return false;
   }
-  const wchar_t* start = key.c_str() + length;
+  const wchar_t* start = key.c_str() + prefix.size();
   wchar_t* end = nullptr;
-  const long value = wcstol(start, &end, 10);
-  if (end == start || *end != L'\0' || value < 0 ||
-      value > std::numeric_limits<int>::max()) {
+  const unsigned long value = wcstoul(start, &end, 10);
+  if (end == start || *end != L'\0' || value > 4096) {
     return false;
   }
-  *index = static_cast<int>(value);
+  *index = value;
   return true;
 }
 
-void BooleanLine(
-    std::wstring* output,
-    const wchar_t* key,
-    bool value
+template <typename T>
+void SetIndexed(
+    std::vector<T>* items,
+    size_t index,
+    T value,
+    T fill = T()
 ) {
-  output->append(key);
-  output->append(value ? L"=1\n" : L"=0\n");
+  if (index >= items->size()) {
+    items->resize(index + 1, fill);
+  }
+  (*items)[index] = value;
 }
 
-void TextLine(
+void Line(
     std::wstring* output,
-    const wchar_t* key,
-    const std::wstring& value
+    std::wstring_view key,
+    std::wstring_view value
 ) {
-  output->append(key);
-  output->push_back(L'=');
-  output->append(value);
-  output->push_back(L'\n');
-}
-
-void NumberLine(
-    std::wstring* output,
-    const wchar_t* key,
-    int value
-) {
-  TextLine(output, key, std::to_wstring(value));
+  output->append(key).append(L"=").append(value).append(L"\n");
 }
 
 } // namespace
@@ -82,115 +139,40 @@ Settings ParseSettings(
     if (separator == std::wstring::npos) {
       continue;
     }
-    const std::wstring key =
-        util::TrimWhitespace(line.substr(0, separator));
-    const std::wstring value =
-        util::TrimWhitespace(line.substr(separator + 1));
-    int index = -1;
-#define REGKIT_BOOL(name, member)         \
-  if (_wcsicmp(key.c_str(), name) == 0) { \
-    settings.member = Boolean(value);     \
-  }
-    REGKIT_BOOL(L"clear_history_on_exit", clear_history_on_exit)
-    else REGKIT_BOOL(L"clear_tabs_on_exit", clear_tabs_on_exit) else REGKIT_BOOL(L"view_toolbar", show_toolbar) else REGKIT_BOOL(L"view_address_bar", show_address_bar) else REGKIT_BOOL(L"view_filter_bar", show_filter_bar) else REGKIT_BOOL(L"view_tab_control", show_tab_control) else REGKIT_BOOL(L"view_tree", show_tree) else REGKIT_BOOL(L"view_history", show_history) else REGKIT_BOOL(L"view_status_bar", show_status_bar) else REGKIT_BOOL(L"view_keys_in_list", show_keys_in_list) else REGKIT_BOOL(L"view_simulated_keys", show_simulated_keys) else REGKIT_BOOL(L"view_extra_hives", show_extra_hives) else REGKIT_BOOL(L"view_value_grid", show_value_grid) else REGKIT_BOOL(L"save_tree_state", save_tree_state) else REGKIT_BOOL(L"always_run_as_admin", always_run_as_admin) else REGKIT_BOOL(L"always_run_as_system", always_run_as_system) else REGKIT_BOOL(L"always_run_as_trustedinstaller", always_run_as_trustedinstaller) else REGKIT_BOOL(L"always_on_top", always_on_top) else REGKIT_BOOL(L"single_instance", single_instance) else REGKIT_BOOL(L"read_only", read_only) else REGKIT_BOOL(L"auto_check_updates", auto_check_updates) else REGKIT_BOOL(L"default_reset_enabled", default_reset_enabled)
-#undef REGKIT_BOOL
-        else if (_wcsicmp(key.c_str(), L"window_x") == 0) {
-      settings.window_x = _wtoi(value.c_str());
+    const std::wstring key = util::TrimWhitespace(std::wstring_view(line).substr(0, separator));
+    const std::wstring value = util::TrimWhitespace(std::wstring_view(line).substr(separator + 1));
+    const int number = _wtoi(value.c_str());
+    size_t index = 0;
+    if (const auto* bool_field = FindField<BoolField>(key, kBoolFields)) {
+      settings.*(bool_field->member) = util::ParseBool(value);
+    } else if (const auto* positive_field = FindField<IntField>(key, kPositiveFields)) {
+      if (number > 0) {
+        settings.*(positive_field->member) = number;
+      }
+    } else if (const auto* placement_field = FindField<IntField>(key, kPlacementFields)) {
+      settings.*(placement_field->member) = number;
       settings.window_placement_present = true;
-    }
-    else if (_wcsicmp(key.c_str(), L"window_y") == 0) {
-      settings.window_y = _wtoi(value.c_str());
+    } else if (const auto* text_field = FindField<TextField>(key, kTextFields)) {
+      settings.*(text_field->member) = value;
+    } else if (util::EqualsInsensitive(key, L"window_maximized")) {
+      settings.window_maximized = util::ParseBool(value);
       settings.window_placement_present = true;
-    }
-    else if (_wcsicmp(key.c_str(), L"window_width") == 0) {
-      settings.window_width = _wtoi(value.c_str());
-      settings.window_placement_present = true;
-    }
-    else if (_wcsicmp(key.c_str(), L"window_height") == 0) {
-      settings.window_height = _wtoi(value.c_str());
-      settings.window_placement_present = true;
-    }
-    else if (_wcsicmp(key.c_str(), L"window_maximized") == 0) {
-      settings.window_maximized = Boolean(value);
-      settings.window_placement_present = true;
-    }
-    else if (_wcsicmp(key.c_str(), L"save_tabs") == 0) {
-      settings.save_tabs = Boolean(value);
+    } else if (util::EqualsInsensitive(key, L"save_tabs")) {
+      settings.save_tabs = util::ParseBool(value);
       settings.save_tab_kinds = settings.save_tabs ? kSaveTabsAll : 0;
-    }
-    else if (_wcsicmp(key.c_str(), L"save_tab_types") == 0) {
-      settings.save_tab_kinds = _wtoi(value.c_str()) & kSaveTabsAll;
+    } else if (util::EqualsInsensitive(key, L"save_tab_types")) {
+      settings.save_tab_kinds = number & kSaveTabsAll;
       settings.save_tabs = settings.save_tab_kinds != 0;
-    }
-    else if (_wcsicmp(key.c_str(), L"tree_width") == 0) {
-      const int width = _wtoi(value.c_str());
-      if (width > 0) {
-        settings.tree_width = width;
-      }
-    }
-    else if (_wcsicmp(key.c_str(), L"history_height") == 0) {
-      const int height = _wtoi(value.c_str());
-      if (height > 0) {
-        settings.history_height = height;
-      }
-    }
-    else if (_wcsicmp(key.c_str(), L"theme_mode") == 0) {
-      settings.theme_mode = value;
-    }
-    else if (_wcsicmp(key.c_str(), L"theme_preset") == 0) {
-      settings.theme_preset = value;
-    }
-    else if (_wcsicmp(key.c_str(), L"icon_set") == 0) {
-      settings.icon_set = value;
-    }
-    else if (_wcsicmp(key.c_str(), L"font_use_default") == 0) {
-      settings.use_custom_font = !Boolean(value);
-    }
-    else if (_wcsicmp(key.c_str(), L"font_face") == 0) {
-      settings.font_face = value;
-    }
-    else if (_wcsicmp(key.c_str(), L"font_size") == 0) {
-      const int size = _wtoi(value.c_str());
-      if (size > 0) {
-        settings.font_size = size;
-      }
-    }
-    else if (_wcsicmp(key.c_str(), L"font_weight") == 0) {
-      const int weight = _wtoi(value.c_str());
-      if (weight > 0) {
-        settings.font_weight = weight;
-      }
-    }
-    else if (_wcsicmp(key.c_str(), L"font_italic") == 0) {
-      settings.font_italic = Boolean(value);
-    }
-    else if (Indexed(key, L"trace_recent_", &index)) {
-      if (static_cast<size_t>(index) >= settings.recent_traces.size()) {
-        settings.recent_traces.resize(static_cast<size_t>(index) + 1);
-      }
-      settings.recent_traces[static_cast<size_t>(index)] = value;
-    }
-    else if (Indexed(key, L"default_recent_", &index)) {
-      if (static_cast<size_t>(index) >= settings.recent_defaults.size()) {
-        settings.recent_defaults.resize(static_cast<size_t>(index) + 1);
-      }
-      settings.recent_defaults[static_cast<size_t>(index)] = value;
-    }
-    else if (Indexed(key, L"value_column_width_", &index)) {
-      if (static_cast<size_t>(index) >=
-          settings.value_column_widths.size()) {
-        settings.value_column_widths.resize(static_cast<size_t>(index) + 1);
-      }
-      settings.value_column_widths[static_cast<size_t>(index)] =
-          _wtoi(value.c_str());
-    }
-    else if (Indexed(key, L"value_column_visible_", &index)) {
-      if (static_cast<size_t>(index) >=
-          settings.value_column_visible.size()) {
-        settings.value_column_visible.resize(static_cast<size_t>(index) + 1, true);
-      }
-      settings.value_column_visible[static_cast<size_t>(index)] =
-          Boolean(value);
+    } else if (util::EqualsInsensitive(key, L"font_use_default")) {
+      settings.use_custom_font = !util::ParseBool(value);
+    } else if (Indexed(key, L"trace_recent_", &index)) {
+      SetIndexed(&settings.recent_traces, index, value);
+    } else if (Indexed(key, L"default_recent_", &index)) {
+      SetIndexed(&settings.recent_defaults, index, value);
+    } else if (Indexed(key, L"value_column_width_", &index)) {
+      SetIndexed(&settings.value_column_widths, index, number);
+    } else if (Indexed(key, L"value_column_visible_", &index)) {
+      SetIndexed(&settings.value_column_visible, index, util::ParseBool(value), true);
     }
   }
   if (settings.always_run_as_trustedinstaller) {
@@ -206,76 +188,41 @@ std::wstring SerializeSettings(
     const Settings& settings
 ) {
   std::wstring content;
-  BooleanLine(&content, L"clear_history_on_exit", settings.clear_history_on_exit);
-  BooleanLine(&content, L"clear_tabs_on_exit", settings.clear_tabs_on_exit);
-  BooleanLine(&content, L"view_toolbar", settings.show_toolbar);
-  BooleanLine(&content, L"view_address_bar", settings.show_address_bar);
-  BooleanLine(&content, L"view_filter_bar", settings.show_filter_bar);
-  BooleanLine(&content, L"view_tab_control", settings.show_tab_control);
-  BooleanLine(&content, L"view_tree", settings.show_tree);
-  BooleanLine(&content, L"view_history", settings.show_history);
-  BooleanLine(&content, L"view_status_bar", settings.show_status_bar);
-  BooleanLine(&content, L"view_keys_in_list", settings.show_keys_in_list);
-  BooleanLine(&content, L"view_simulated_keys", settings.show_simulated_keys);
-  BooleanLine(&content, L"view_extra_hives", settings.show_extra_hives);
-  BooleanLine(&content, L"view_value_grid", settings.show_value_grid);
-  BooleanLine(&content, L"save_tree_state", settings.save_tree_state);
-  BooleanLine(&content, L"save_tabs", settings.save_tabs);
-  NumberLine(&content, L"save_tab_types", settings.save_tab_kinds);
-  BooleanLine(&content, L"auto_check_updates", settings.auto_check_updates);
-  BooleanLine(&content, L"default_reset_enabled", settings.default_reset_enabled);
-  BooleanLine(&content, L"always_run_as_admin", settings.always_run_as_admin);
-  BooleanLine(&content, L"always_run_as_system", settings.always_run_as_system);
-  BooleanLine(&content, L"always_run_as_trustedinstaller", settings.always_run_as_trustedinstaller);
+  for (const BoolField& field : kBoolFields) {
+    Line(&content, field.key, settings.*(field.member) ? L"1" : L"0");
+  }
+  for (const IntField& field : kPositiveFields) {
+    if (settings.*(field.member) > 0) {
+      Line(&content, field.key, std::to_wstring(settings.*(field.member)));
+    }
+  }
+  for (const TextField& field : kTextFields) {
+    Line(&content, field.key, settings.*(field.member));
+  }
   if (settings.window_width > 0 && settings.window_height > 0) {
-    NumberLine(&content, L"window_x", settings.window_x);
-    NumberLine(&content, L"window_y", settings.window_y);
-    NumberLine(&content, L"window_width", settings.window_width);
-    NumberLine(&content, L"window_height", settings.window_height);
-    BooleanLine(&content, L"window_maximized", settings.window_maximized);
+    for (const IntField& field : kPlacementFields) {
+      Line(&content, field.key, std::to_wstring(settings.*(field.member)));
+    }
+    Line(&content, L"window_maximized", settings.window_maximized ? L"1" : L"0");
   }
-  BooleanLine(&content, L"always_on_top", settings.always_on_top);
-  BooleanLine(&content, L"single_instance", settings.single_instance);
-  BooleanLine(&content, L"read_only", settings.read_only);
-  TextLine(&content, L"theme_mode", settings.theme_mode);
-  TextLine(&content, L"theme_preset", settings.theme_preset);
-  TextLine(&content, L"icon_set", settings.icon_set);
-  NumberLine(&content, L"tree_width", settings.tree_width);
-  NumberLine(&content, L"history_height", settings.history_height);
-  BooleanLine(&content, L"font_use_default", !settings.use_custom_font);
-  if (!settings.font_face.empty()) {
-    TextLine(&content, L"font_face", settings.font_face);
-  }
-  if (settings.font_size > 0) {
-    NumberLine(&content, L"font_size", settings.font_size);
-  }
-  NumberLine(&content, L"font_weight", settings.font_weight);
-  BooleanLine(&content, L"font_italic", settings.font_italic);
+  Line(&content, L"save_tabs", settings.save_tabs ? L"1" : L"0");
+  Line(&content, L"save_tab_types", std::to_wstring(settings.save_tab_kinds));
+  Line(&content, L"font_use_default", settings.use_custom_font ? L"0" : L"1");
   for (size_t index = 0; index < settings.recent_traces.size(); ++index) {
     if (!settings.recent_traces[index].empty()) {
-      TextLine(&content, (L"trace_recent_" + std::to_wstring(index)).c_str(), settings.recent_traces[index]);
+      Line(&content, L"trace_recent_" + std::to_wstring(index), settings.recent_traces[index]);
     }
   }
   for (size_t index = 0; index < settings.recent_defaults.size(); ++index) {
     if (!settings.recent_defaults[index].empty()) {
-      TextLine(&content, (L"default_recent_" + std::to_wstring(index)).c_str(), settings.recent_defaults[index]);
+      Line(&content, L"default_recent_" + std::to_wstring(index), settings.recent_defaults[index]);
     }
   }
-  const size_t columns =
-      std::max(settings.value_column_widths.size(), settings.value_column_visible.size());
+  const size_t columns = std::max(settings.value_column_widths.size(), settings.value_column_visible.size());
   for (size_t index = 0; index < columns; ++index) {
-    const int width = index < settings.value_column_widths.size()
-                          ? settings.value_column_widths[index]
-                          : 0;
-    const bool visible = index < settings.value_column_visible.size()
-                             ? settings.value_column_visible[index]
-                             : true;
-    NumberLine(&content, (L"value_column_width_" + std::to_wstring(index)).c_str(), width);
-    BooleanLine(
-        &content,
-        (L"value_column_visible_" + std::to_wstring(index)).c_str(),
-        visible
-    );
+    const bool visible = index >= settings.value_column_visible.size() || settings.value_column_visible[index];
+    Line(&content, L"value_column_width_" + std::to_wstring(index), std::to_wstring(index < settings.value_column_widths.size() ? settings.value_column_widths[index] : 0));
+    Line(&content, L"value_column_visible_" + std::to_wstring(index), visible ? L"1" : L"0");
   }
   return content;
 }
@@ -284,11 +231,8 @@ bool LoadSettings(
     const std::wstring& path,
     Settings* settings
 ) {
-  if (!settings) {
-    return false;
-  }
   std::wstring content;
-  if (!util::ReadTextFile(path, &content)) {
+  if (!settings || !util::ReadTextFile(path, &content)) {
     return false;
   }
   *settings = ParseSettings(content, std::move(*settings));
@@ -299,8 +243,7 @@ bool SaveSettings(
     const std::wstring& path,
     const Settings& settings
 ) {
-  return !path.empty() &&
-         util::WriteTextFile(path, SerializeSettings(settings), false);
+  return !path.empty() && util::WriteTextFile(path, SerializeSettings(settings), false);
 }
 
 } // namespace regkit::workspace

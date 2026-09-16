@@ -32,6 +32,21 @@ void ResumeRedraw(
   SendMessageW(tree, WM_SETREDRAW, TRUE, 0);
   RedrawWindow(tree, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
 }
+
+HTREEITEM InsertFolderItem(
+    HWND tree,
+    HTREEITEM parent,
+    const wchar_t* label
+) {
+  TVINSERTSTRUCTW insert = {};
+  insert.hParent = parent;
+  insert.hInsertAfter = TVI_LAST;
+  insert.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
+  insert.item.pszText = const_cast<wchar_t*>(label);
+  insert.item.iImage = kFolderIconIndex;
+  insert.item.iSelectedImage = kFolderIconIndex;
+  return TreeView_InsertItem(tree, &insert);
+}
 } // namespace
 
 void RegistryTree::Create(
@@ -102,51 +117,12 @@ void RegistryTree::PopulateRoots(
   nodes_.clear();
   nodes_.reserve(roots.size() + 3);
 
-  TVINSERTSTRUCTW insert = {};
-  insert.hParent = TVI_ROOT;
-  insert.hInsertAfter = TVI_LAST;
-  insert.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
-  insert.item.pszText = const_cast<wchar_t*>(root_label_.c_str());
-  insert.item.iImage = kFolderIconIndex;
-  insert.item.iSelectedImage = kFolderIconIndex;
-  insert.item.lParam = 0;
-  root_item_ = TreeView_InsertItem(hwnd_, &insert);
-  standard_group_item_ = nullptr;
-  real_group_item_ = nullptr;
-
-  bool has_standard = false;
-  bool has_real = false;
-  if (!regedit_layout_) {
-    for (const auto& root_entry : roots) {
-      if (root_entry.group == RegistryRootGroup::kReal) {
-        has_real = true;
-      } else {
-        has_standard = true;
-      }
-    }
-  }
-  if (!regedit_layout_ && has_standard) {
-    TVINSERTSTRUCTW standard_group = {};
-    standard_group.hParent = root_item_;
-    standard_group.hInsertAfter = TVI_LAST;
-    standard_group.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
-    standard_group.item.pszText = const_cast<wchar_t*>(kRootKeysGroupLabel);
-    standard_group.item.iImage = kFolderIconIndex;
-    standard_group.item.iSelectedImage = kFolderIconIndex;
-    standard_group.item.lParam = 0;
-    standard_group_item_ = TreeView_InsertItem(hwnd_, &standard_group);
-  }
-  if (!regedit_layout_ && has_real) {
-    TVINSERTSTRUCTW real_root = {};
-    real_root.hParent = root_item_;
-    real_root.hInsertAfter = TVI_LAST;
-    real_root.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
-    real_root.item.pszText = const_cast<wchar_t*>(kRealGroupLabel);
-    real_root.item.iImage = kFolderIconIndex;
-    real_root.item.iSelectedImage = kFolderIconIndex;
-    real_root.item.lParam = 0;
-    real_group_item_ = TreeView_InsertItem(hwnd_, &real_root);
-  }
+  root_item_ = InsertFolderItem(hwnd_, TVI_ROOT, root_label_.c_str());
+  const auto has_group = [&](bool real) {
+    return !regedit_layout_ && std::any_of(roots.begin(), roots.end(), [&](const RegistryRootEntry& entry) { return (entry.group == RegistryRootGroup::kReal) == real; });
+  };
+  standard_group_item_ = has_group(false) ? InsertFolderItem(hwnd_, root_item_, kRootKeysGroupLabel) : nullptr;
+  real_group_item_ = has_group(true) ? InsertFolderItem(hwnd_, root_item_, kRealGroupLabel) : nullptr;
 
   for (const auto& root_entry : roots) {
     if (regedit_layout_ && root_entry.group == RegistryRootGroup::kReal) {
@@ -164,7 +140,7 @@ void RegistryTree::PopulateRoots(
       icon_index = icon_resolver_(*stored);
     }
 
-    if (!regedit_layout_ && root_entry.group == RegistryRootGroup::kReal && real_group_item_ && _wcsicmp(root_entry.display_name.c_str(), kRealGroupLabel) == 0 && root_entry.subkey_prefix.empty()) {
+    if (!regedit_layout_ && root_entry.group == RegistryRootGroup::kReal && real_group_item_ && util::EqualsInsensitive(root_entry.display_name, kRealGroupLabel) && root_entry.subkey_prefix.empty()) {
       TVITEMW item = {};
       item.mask = TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
       item.hItem = real_group_item_;
@@ -312,7 +288,7 @@ HTREEITEM RegistryTree::InsertChild(
     if (!TreeView_GetItem(hwnd_, &item)) {
       continue;
     }
-    const int order = _wcsicmp(text, label.c_str());
+    const int order = util::CompareInsensitive(text, label);
     if (order == 0) {
       return sibling;
     }
@@ -322,12 +298,8 @@ HTREEITEM RegistryTree::InsertChild(
     after = sibling;
   }
 
-  auto child = std::make_unique<RegistryNode>();
-  child->root = parent_node->root;
-  child->root_name = parent_node->root_name;
-  child->subkey = parent_node->subkey.empty()
-                      ? name
-                      : parent_node->subkey + L"\\" + name;
+  auto child = std::make_unique<RegistryNode>(registry_path::ChildNode(*parent_node, name));
+  child->simulated = false;
   RegistryNode* stored = StoreNode(std::move(child));
 
   TVINSERTSTRUCTW insert = {};
@@ -399,21 +371,14 @@ bool RegistryTree::AddChildren(
   for (const auto& name : virtual_children) {
     entries.push_back({name, registry_path::DisplayName(name), true});
   }
-  std::sort(entries.begin(), entries.end(), [](const ChildEntry& left, const ChildEntry& right) { return _wcsicmp(left.label.c_str(), right.label.c_str()) < 0; });
+  std::sort(entries.begin(), entries.end(), [](const ChildEntry& left, const ChildEntry& right) { return util::CompareInsensitive(left.label, right.label) < 0; });
 
   if (!entries.empty()) {
     nodes_.reserve(nodes_.size() + entries.size());
   }
   for (const auto& entry : entries) {
     const std::wstring& name = entry.name;
-    auto child = std::make_unique<RegistryNode>();
-    child->root = node->root;
-    child->root_name = node->root_name;
-    if (node->subkey.empty()) {
-      child->subkey = name;
-    } else {
-      child->subkey = node->subkey + L"\\" + name;
-    }
+    auto child = std::make_unique<RegistryNode>(registry_path::ChildNode(*node, name));
     child->simulated = entry.simulated;
     RegistryNode* stored = StoreNode(std::move(child));
 

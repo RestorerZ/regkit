@@ -23,7 +23,7 @@ void RecentItems::Add(
     return;
   }
   const auto existing =
-      std::find_if(items_.begin(), items_.end(), [&](const std::wstring& item) { return _wcsicmp(item.c_str(), cleaned.c_str()) == 0; });
+      std::find_if(items_.begin(), items_.end(), [&](const std::wstring& item) { return util::EqualsInsensitive(item, cleaned); });
   if (existing != items_.end()) {
     items_.erase(existing);
   }
@@ -49,7 +49,7 @@ void RecentItems::Normalize() {
       continue;
     }
     const bool duplicate =
-        std::any_of(normalized.begin(), normalized.end(), [&](const std::wstring& existing) { return _wcsicmp(existing.c_str(), cleaned.c_str()) == 0; });
+        std::any_of(normalized.begin(), normalized.end(), [&](const std::wstring& existing) { return util::EqualsInsensitive(existing, cleaned); });
     if (!duplicate) {
       normalized.push_back(std::move(cleaned));
       if (normalized.size() == maximum_) {

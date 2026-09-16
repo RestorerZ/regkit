@@ -29,24 +29,6 @@ const wchar_t* AnsiCharTable() {
 
 } // namespace
 
-std::wstring Hex(
-    std::span<const BYTE> data
-) {
-  if (data.empty()) {
-    return {};
-  }
-  std::wstring text;
-  text.reserve(data.size() * 3 - 1);
-  for (const BYTE byte : data) {
-    if (!text.empty()) {
-      text.push_back(L' ');
-    }
-    text.push_back(kHexDigits[byte >> 4]);
-    text.push_back(kHexDigits[byte & 0x0F]);
-  }
-  return text;
-}
-
 std::wstring Preview(
     std::span<const BYTE> data,
     int group_bytes,

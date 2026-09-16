@@ -13,9 +13,9 @@
 namespace regkit::appearance {
 
 void SetControlFont(HWND control, HFONT font);
+void SetDialogFont(HWND dialog, HFONT font);
 void Place(HWND control, int x, int y, int width, int height);
 void RestoreDialogOwner(HWND owner, bool* restored);
-void PositionDialog(HWND dialog, HWND owner, int width, int height);
 void CenterWindow(HWND window, HWND owner);
 void ApplyDpiChange(HWND window, LPARAM suggested_rect);
 void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi);
@@ -54,5 +54,28 @@ private:
 };
 
 void AttachThemedBorder(HWND control);
+
+struct DialogWindow {
+  HWND hwnd = nullptr;
+  HWND owner = nullptr;
+  HFONT font = nullptr;
+  HWND focus = nullptr;
+  int default_id = IDOK;
+  bool accepted = false;
+  bool owner_restored = false;
+};
+
+template <typename State>
+State* DialogWindowState(
+    HWND hwnd
+) {
+  return static_cast<State*>(reinterpret_cast<DialogWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA)));
+}
+
+SIZE DialogWindowSize(HWND owner, int client_width, int client_height, DWORD extra_style = 0);
+void ApplyDialogTheme(HWND dialog);
+void CloseDialogWindow(DialogWindow* dialog, bool accepted);
+LRESULT DefDialogWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
+bool RunDialogWindow(DialogWindow* dialog, const wchar_t* class_name, WNDPROC proc, const wchar_t* title, SIZE size, DWORD extra_style = 0);
 
 } // namespace regkit::appearance
