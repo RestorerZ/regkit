@@ -77,7 +77,8 @@ public:
         directory.empty() ? std::wstring() : util::JoinPath(directory, L"offreg.dll");
     const DWORD attributes = path.empty() ? INVALID_FILE_ATTRIBUTES : GetFileAttributesW(path.c_str());
     if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
-      load_error_ = path.empty() ? ERROR_MOD_NOT_FOUND : attributes == INVALID_FILE_ATTRIBUTES ? GetLastError() : ERROR_ACCESS_DENIED;
+      load_error_ = path.empty() ? ERROR_MOD_NOT_FOUND : attributes == INVALID_FILE_ATTRIBUTES ? GetLastError()
+                                                                                               : ERROR_ACCESS_DENIED;
       return;
     }
     module_ = LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);

@@ -51,7 +51,8 @@ Status MapError(
 
 class Pattern {
 public:
-  Pattern(pcre2_code_16* code, bool whole) noexcept : code_(code), whole_(whole) {
+  Pattern(pcre2_code_16* code, bool whole) noexcept
+      : code_(code), whole_(whole) {
   }
   ~Pattern() {
     pcre2_code_free_16(code_);

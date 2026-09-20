@@ -898,7 +898,6 @@ bool LaunchNewInstance(
   return reinterpret_cast<intptr_t>(result) > 32;
 }
 
-
 HWND AddTooltip(
     HWND owner,
     HWND control,
