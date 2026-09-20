@@ -15,7 +15,6 @@
 #include <exception>
 #include <functional>
 #include <limits>
-#include <regex>
 #include <string_view>
 
 #include <pathcch.h>

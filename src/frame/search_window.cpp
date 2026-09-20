@@ -453,7 +453,7 @@ void MainWindow::Impl::StartSearch(
   match_options.use_regex = options.criteria.use_regex;
   auto matcher = std::make_shared<const search::Matcher>(match_options);
   if (!matcher->valid()) {
-    ui::ShowError(hwnd_, L"Invalid regex.");
+    ui::ShowError(hwnd_, search::regex::ErrorText(matcher->error()));
     return;
   }
 
@@ -627,6 +627,7 @@ void MainWindow::Impl::StartSearch(
   CancelSearch();
 
   search::Criteria criteria = options.criteria;
+  criteria.matcher = matcher;
   criteria.start_nodes = start_nodes;
 
   std::wstring label = L"Find";
@@ -898,6 +899,7 @@ void MainWindow::Impl::StartSearch(
               }
             }
           };
+          search::regex::Status regex_status = search::regex::Status::kNoMatch;
           const bool ok = search::Run(
               criteria,
               &cancel,
@@ -907,11 +909,12 @@ void MainWindow::Impl::StartSearch(
                 }
                 return publish_batch(std::move(rows));
               },
-              progress_cb
+              progress_cb,
+              &regex_status
           );
           flush();
-          if (!ok) {
-            PostMessageW(hwnd_, frame::message_id::kSearchFailed, static_cast<WPARAM>(generation), 0);
+          if (!ok || regex_status != search::regex::Status::kNoMatch) {
+            PostMessageW(hwnd_, frame::message_id::kSearchFailed, static_cast<WPARAM>(generation), static_cast<LPARAM>(regex_status));
             return;
           }
         }
@@ -1013,6 +1016,19 @@ void WriteNumber(
   }
 }
 
+DataReplace ApplyReplace(
+    const search::Replacer& matcher,
+    const std::wstring& text,
+    std::wstring* updated
+) {
+  const search::regex::Status status = matcher.Replace(text, updated);
+  if (status == search::regex::Status::kMatch) {
+    return *updated == text ? DataReplace::kUnchanged : DataReplace::kChanged;
+  }
+  return status == search::regex::Status::kNoMatch ? DataReplace::kUnchanged
+                                                   : DataReplace::kRejected;
+}
+
 DataReplace ReplaceValueData(
     const search::Replacer& matcher,
     DWORD type,
@@ -1033,8 +1049,9 @@ DataReplace ReplaceValueData(
           static_cast<DWORD>(data.size())
       );
       std::wstring updated;
-      if (!matcher.Replace(text, &updated) || updated == text) {
-        return DataReplace::kUnchanged;
+      const DataReplace applied = ApplyReplace(matcher, text, &updated);
+      if (applied != DataReplace::kChanged) {
+        return applied;
       }
       *out = value_format::StringData(updated);
       return DataReplace::kChanged;
@@ -1045,7 +1062,11 @@ DataReplace ReplaceValueData(
       bool changed = false;
       for (auto& part : parts) {
         std::wstring updated;
-        if (matcher.Replace(part, &updated) && updated != part) {
+        const DataReplace applied = ApplyReplace(matcher, part, &updated);
+        if (applied == DataReplace::kRejected) {
+          return applied;
+        }
+        if (applied == DataReplace::kChanged) {
           part = std::move(updated);
           changed = true;
         }
@@ -1084,7 +1105,11 @@ DataReplace ReplaceValueData(
 
       for (const auto& form : forms) {
         std::wstring updated;
-        if (!matcher.Replace(*form.text, &updated) || updated == *form.text) {
+        const DataReplace applied = ApplyReplace(matcher, *form.text, &updated);
+        if (applied == DataReplace::kRejected) {
+          return applied;
+        }
+        if (applied == DataReplace::kUnchanged) {
           continue;
         }
         uint64_t parsed = 0;
@@ -1103,8 +1128,9 @@ DataReplace ReplaceValueData(
     {
       const std::wstring text = util::ToHex(data);
       std::wstring updated;
-      if (!matcher.Replace(text, &updated) || updated == text) {
-        return DataReplace::kUnchanged;
+      const DataReplace applied = ApplyReplace(matcher, text, &updated);
+      if (applied != DataReplace::kChanged) {
+        return applied;
       }
       std::vector<BYTE> bytes;
       if (!ParseHexBytesStrict(updated, &bytes)) {
@@ -1144,7 +1170,7 @@ void MainWindow::Impl::StartReplace(
 
   search::Replacer matcher(options);
   if (!matcher.valid()) {
-    ui::ShowError(hwnd_, L"Invalid replace pattern.");
+    ui::ShowError(hwnd_, search::regex::ErrorText(matcher.error()));
     return;
   }
 
@@ -1206,7 +1232,7 @@ void MainWindow::Impl::StartReplace(
             std::wstring current_name = value.name;
             std::wstring replaced_name;
             if (options.replace_values && !current_name.empty() &&
-                matcher.Replace(current_name, &replaced_name) &&
+                matcher.Replace(current_name, &replaced_name) == search::regex::Status::kMatch &&
                 replaced_name != current_name) {
               if (replaced_name.empty()) {
                 continue;
@@ -1294,7 +1320,8 @@ void MainWindow::Impl::StartReplace(
           if (options.replace_keys && !node.subkey.empty()) {
             const std::wstring leaf = LeafName(node);
             std::wstring renamed;
-            if (!leaf.empty() && matcher.Replace(leaf, &renamed) &&
+            if (!leaf.empty() &&
+                matcher.Replace(leaf, &renamed) == search::regex::Status::kMatch &&
                 renamed != leaf && !renamed.empty()) {
               key_renames.emplace_back(node, renamed);
             }

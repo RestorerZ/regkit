@@ -19,7 +19,6 @@
 #include <exception>
 #include <functional>
 #include <limits>
-#include <regex>
 
 #include <commdlg.h>
 #include <pathcch.h>

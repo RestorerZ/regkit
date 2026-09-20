@@ -19,42 +19,40 @@ Replacer::Replacer(
   if (!valid_ || !use_regex_) {
     return;
   }
-  try {
-    auto flags = std::regex_constants::ECMAScript;
-    if (!match_case_) {
-      flags |= std::regex_constants::icase;
-    }
-    regex_ = std::wregex(query_, flags);
-  } catch (const std::regex_error&) {
-    valid_ = false;
-  }
+  regex::Options regex_options;
+  regex_options.ignore_case = !match_case_;
+  regex_options.whole = match_whole_;
+  pattern_ = regex::Compile(query_, regex_options, &error_);
+  session_ = regex::Session(pattern_);
+  valid_ = session_.valid();
+}
+
+Replacer::Replacer(
+    const Replacer& other
+)
+    : query_(other.query_), replacement_(other.replacement_),
+      pattern_(other.pattern_), session_(other.pattern_), error_(other.error_),
+      use_regex_(other.use_regex_), match_case_(other.match_case_),
+      match_whole_(other.match_whole_), valid_(other.valid_) {
+}
+
+const regex::Error& Replacer::error() const noexcept {
+  return error_;
 }
 
 bool Replacer::valid() const noexcept {
   return valid_;
 }
 
-bool Replacer::Replace(
+regex::Status Replacer::Replace(
     const std::wstring& text,
     std::wstring* result
 ) const {
   if (!result || !valid_) {
-    return false;
+    return regex::Status::kFailed;
   }
   if (use_regex_) {
-    if (match_whole_) {
-      std::wsmatch match;
-      if (!std::regex_match(text, match, regex_)) {
-        return false;
-      }
-      *result = match.format(replacement_);
-      return true;
-    }
-    if (!std::regex_search(text, regex_)) {
-      return false;
-    }
-    *result = std::regex_replace(text, regex_, replacement_);
-    return true;
+    return session_.Replace(text, replacement_, result, nullptr);
   }
 
   if (match_whole_) {
@@ -69,16 +67,16 @@ bool Replacer::Replace(
                   TRUE
               ) == CSTR_EQUAL;
     if (!matched) {
-      return false;
+      return regex::Status::kNoMatch;
     }
     *result = replacement_;
-    return true;
+    return regex::Status::kMatch;
   }
 
   if (match_case_) {
     size_t position = text.find(query_);
     if (position == std::wstring::npos) {
-      return false;
+      return regex::Status::kNoMatch;
     }
     std::wstring replaced;
     size_t cursor = 0;
@@ -90,7 +88,7 @@ bool Replacer::Replace(
     }
     replaced.append(text, cursor, std::wstring::npos);
     *result = std::move(replaced);
-    return true;
+    return regex::Status::kMatch;
   }
 
   size_t cursor = 0;
@@ -108,11 +106,11 @@ bool Replacer::Replace(
     matched = true;
   }
   if (!matched) {
-    return false;
+    return regex::Status::kNoMatch;
   }
   replaced.append(text, cursor, std::wstring::npos);
   *result = std::move(replaced);
-  return true;
+  return regex::Status::kMatch;
 }
 
 } // namespace regkit::search

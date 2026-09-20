@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.23)
-project(RegKit LANGUAGES CXX)
+project(RegKit LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -42,6 +42,7 @@ endif()
 include(cmake/RegKitTarget.cmake)
 include(cmake/VerifyTargetGraph.cmake)
 
+add_subdirectory(redist/pcre2)
 add_subdirectory(src)
 
 add_executable(RegKit WIN32

@@ -42,6 +42,7 @@ bool PromptSaveFile(HWND owner, const wchar_t* filter, std::wstring* path);
 inline constexpr wchar_t kRegFileFilter[] = L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0\0";
 inline constexpr wchar_t kHiveFileFilter[] = L"Hive Files (*.*)\0*.*\0";
 bool LaunchNewInstance(const std::wstring& arguments = std::wstring());
+HWND AddTooltip(HWND owner, HWND control, const wchar_t* text);
 
 } // namespace ui
 } // namespace regkit

@@ -1,7 +1,7 @@
 ﻿#define AppId "4678f42c-c6a2-4df9-bc2a-dddbd2613045"
 #define AppName "RegKit"
 #define AppExeName "regkit.exe"
-#define AppVersion "0.0.1.1"
+#define AppVersion "0.0.1.2"
 #define AppPublisher "nohuto"
 #define AppCopyright "(C) 2026 nohuto"
 #define AppURL "https://github.com/nohuto/regkit"
@@ -56,6 +56,7 @@ Name: "bitfields"; Description: "Install bitfield definitions"; GroupDescription
 [Files]
 Source: "{#BuildDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\offreg.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\redist\pcre2\LICENCE.md"; DestDir: "{app}\licences"; DestName: "PCRE2-LICENCE.md"; Flags: ignoreversion
 Source: "{#BuildDir}\assets\*"; DestDir: "{app}\assets"; Excludes: "bitfields\*,defaults\*,records\*"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#BuildDir}\assets\defaults\*"; DestDir: "{app}\assets\defaults"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: defaults
 Source: "{#BuildDir}\assets\bitfields\*"; DestDir: "{app}\assets\bitfields"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: bitfields

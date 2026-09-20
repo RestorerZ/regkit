@@ -6,12 +6,12 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <regex>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "registry/registry_store.h"
+#include "search/regex.h"
 
 namespace regkit::search {
 
@@ -26,18 +26,24 @@ struct Match {
   bool matched = false;
   size_t start = std::wstring::npos;
   size_t length = 0;
+  regex::Status status = regex::Status::kNoMatch;
 };
 
 class Matcher {
 public:
   explicit Matcher(const TextOptions& options);
+  Matcher(const Matcher& other);
+  Matcher(Matcher&&) noexcept = default;
 
   bool valid() const noexcept;
+  const regex::Error& error() const noexcept;
   Match Find(std::wstring_view text) const;
 
 private:
   std::wstring query_;
-  std::wregex regex_;
+  regex::PatternRef pattern_;
+  regex::Session session_;
+  regex::Error error_;
   bool use_regex_ = false;
   bool match_case_ = false;
   bool match_whole_ = false;
@@ -93,6 +99,7 @@ struct Criteria {
   std::vector<std::wstring> exclude_paths;
   uint64_t max_results = 1000;
   Provider provider = Provider::kLocal;
+  std::shared_ptr<const Matcher> matcher;
 };
 
 enum class MatchField : uint8_t {
@@ -143,7 +150,7 @@ using ProgressCallback =
 using ResultBatch = std::vector<Result>;
 using BatchCallback = std::function<bool(ResultBatch&&)>;
 
-bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCallback& publish, const ProgressCallback& progress);
+bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCallback& publish, const ProgressCallback& progress, regex::Status* status = nullptr);
 
 void SortResults(std::vector<Result>* results, int column, bool ascending);
 

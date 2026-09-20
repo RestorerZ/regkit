@@ -547,7 +547,9 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(
       search_running_ = false;
       search_duration_ms_ = 0;
       search_duration_valid_ = false;
-      ui::ShowError(hwnd_, L"Invalid regex.");
+      const auto regex_status = static_cast<search::regex::Status>(lparam);
+      const std::wstring detail = search::regex::StatusText(regex_status);
+      ui::ShowError(hwnd_, detail.empty() ? std::wstring(L"The find text isn't a valid regular expression.") : detail);
       ApplyViewVisibility();
       UpdateStatus();
       return 0;

@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include <regex>
 #include <string>
+
+#include "search/regex.h"
 
 namespace regkit::search {
 
@@ -26,14 +27,19 @@ struct ReplaceOptions {
 class Replacer {
 public:
   explicit Replacer(const ReplaceOptions& options);
+  Replacer(const Replacer& other);
+  Replacer(Replacer&&) noexcept = default;
 
   bool valid() const noexcept;
-  bool Replace(const std::wstring& text, std::wstring* result) const;
+  const regex::Error& error() const noexcept;
+  regex::Status Replace(const std::wstring& text, std::wstring* result) const;
 
 private:
   std::wstring query_;
   std::wstring replacement_;
-  std::wregex regex_;
+  regex::PatternRef pattern_;
+  regex::Session session_;
+  regex::Error error_;
   bool use_regex_ = false;
   bool match_case_ = false;
   bool match_whole_ = false;

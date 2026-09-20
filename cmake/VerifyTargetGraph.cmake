@@ -1,5 +1,5 @@
 function(regkit_verify_dependency_order)
-    set(allowed_targets regkit_compile_settings)
+    set(allowed_targets regkit_compile_settings pcre2_16)
 
     foreach(target IN LISTS ARGN)
         if (NOT TARGET ${target})

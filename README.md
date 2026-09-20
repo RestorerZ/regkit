@@ -25,6 +25,7 @@ RegKit adds functionality that native regedit doesn't support:
 - Loading/unloading hives
 - Local/remote/offline registry
 - Undo/redo, copy/paste (entire keys), replace, performant 'Find'
+- Regular expressions for Find/Replace via PCRE2 (syntax: [pcre2syntax](https://pcre2project.github.io/pcre2/doc/pcre2syntax/), [pcre2pattern](https://pcre2project.github.io/pcre2/doc/pcre2pattern/))
 - Address bar accepts multiple registry path formats (abbreviated HK*, full root, regedit address bar, `.reg` header, `reg:` link, PowerShell drive/provider, escaped)
 - Copy Key Path As menu for the same formats (to copy/paste into the address bar)
 - Copy Value Name / Copy Value Data from value context menus

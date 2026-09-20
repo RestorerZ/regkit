@@ -572,6 +572,13 @@ LRESULT CALLBACK SearchDialogProc(
       state->match_case = CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchCase), nullptr, nullptr);
       state->match_whole = CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMatchWhole), nullptr, nullptr);
       state->use_regex = CreateWindowExW(0, L"BUTTON", L"Regular expressions", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptUseRegex), nullptr, nullptr);
+      ui::AddTooltip(
+          hwnd,
+          state->use_regex,
+          L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
+          L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, \\X.\n"
+          L"Matching is unicode aware and ignores case unless 'Match case' is set."
+      );
       state->skip_links = CreateWindowExW(0, L"BUTTON", L"Skip symbolic links", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptSkipLinks), nullptr, nullptr);
       state->min_size = CreateWindowExW(0, L"BUTTON", L"Min data size (bytes):", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSize), nullptr, nullptr);
       state->min_size_edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptMinSizeEdit), nullptr, nullptr);
@@ -784,11 +791,13 @@ LRESULT CALLBACK SearchDialogProc(
         }
       case kFindButton:
         {
-          wchar_t query[512] = {};
-          GetWindowTextW(state->find_combo, query, static_cast<int>(_countof(query)));
-          std::wstring query_text = query;
+          std::wstring query_text = util::WindowText(state->find_combo);
           if (query_text.empty()) {
             ui::ShowWarning(hwnd, L"Enter a search term.");
+            return 0;
+          }
+          if (IsChecked(state->use_regex) && query_text.size() > search::regex::kMaxPatternLength) {
+            ui::ShowWarning(hwnd, L"The regular expression is too long.");
             return 0;
           }
           bool keys = IsChecked(state->options_keys);

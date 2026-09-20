@@ -898,4 +898,28 @@ bool LaunchNewInstance(
   return reinterpret_cast<intptr_t>(result) > 32;
 }
 
+
+HWND AddTooltip(
+    HWND owner,
+    HWND control,
+    const wchar_t* text
+) {
+  if (!owner || !control || !text) {
+    return nullptr;
+  }
+  HWND tip = CreateWindowExW(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr, WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, owner, nullptr, nullptr, nullptr);
+  if (!tip) {
+    return nullptr;
+  }
+  TOOLINFOW info = {};
+  info.cbSize = sizeof(info);
+  info.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
+  info.hwnd = owner;
+  info.uId = reinterpret_cast<UINT_PTR>(control);
+  info.lpszText = const_cast<wchar_t*>(text);
+  SendMessageW(tip, TTM_ADDTOOL, 0, reinterpret_cast<LPARAM>(&info));
+  SendMessageW(tip, TTM_SETMAXTIPWIDTH, 0, 600);
+  SetDarkWindowTheme(tip, Theme::UseDarkMode());
+  return tip;
+}
 } // namespace regkit::ui

@@ -18,7 +18,6 @@
 #include <iterator>
 #include <map>
 #include <mutex>
-#include <regex>
 #include <string_view>
 #include <thread>
 #include <utility>
@@ -80,43 +79,49 @@ Matcher::Matcher(
   if (!valid_ || !use_regex_) {
     return;
   }
-  // compile once as this matcher is reused for every key & value
-  try {
-    auto flags = std::regex_constants::ECMAScript;
-    if (!match_case_) {
-      flags |= std::regex_constants::icase;
-    }
-    regex_ = std::wregex(query_, flags);
-  } catch (const std::regex_error&) {
-    valid_ = false;
-  }
+  // compile once
+  regex::Options regex_options;
+  regex_options.ignore_case = !match_case_;
+  regex_options.whole = match_whole_;
+  pattern_ = regex::Compile(query_, regex_options, &error_);
+  session_ = regex::Session(pattern_);
+  valid_ = session_.valid();
+}
+
+Matcher::Matcher(
+    const Matcher& other
+)
+    : query_(other.query_), pattern_(other.pattern_), session_(other.pattern_),
+      error_(other.error_), use_regex_(other.use_regex_),
+      match_case_(other.match_case_), match_whole_(other.match_whole_),
+      valid_(other.valid_) {
 }
 
 bool Matcher::valid() const noexcept {
   return valid_;
 }
 
+const regex::Error& Matcher::error() const noexcept {
+  return error_;
+}
+
 Match Matcher::Find(
     std::wstring_view text
 ) const {
   Match location;
-  if (!valid_ || text.empty()) {
+  if (!valid_) {
+    location.status = regex::Status::kFailed;
     return location;
   }
   if (use_regex_) {
-    std::match_results<std::wstring_view::const_iterator> match;
-    if (match_whole_) {
-      if (std::regex_match(text.begin(), text.end(), match, regex_)) {
-        location.matched = true;
-        location.start = 0;
-        location.length = static_cast<size_t>(match.length());
-      }
-    } else if (std::regex_search(text.begin(), text.end(), match, regex_)) {
-      location.matched = true;
-      location.start =
-          static_cast<size_t>(std::distance(text.begin(), match[0].first));
-      location.length = static_cast<size_t>(match.length());
-    }
+    const regex::Found found = session_.Find(text);
+    location.status = found.status;
+    location.matched = found.status == regex::Status::kMatch;
+    location.start = found.start;
+    location.length = found.length;
+    return location;
+  }
+  if (text.empty()) {
     return location;
   }
 
@@ -479,26 +484,51 @@ DataMatch MatchValueData(
     std::wstring* scratch
 ) {
   DataMatch result;
-  if (!data || size == 0) {
+  if (!data && size != 0) {
     return result;
   }
 
   DWORD base_type = value_format::NormalizeType(type);
-  if (base_type == REG_SZ || base_type == REG_EXPAND_SZ || base_type == REG_LINK || base_type == REG_MULTI_SZ) {
+  if (base_type == REG_MULTI_SZ) {
+    // match each item
+    size_t display_start = 0;
+    for (const std::wstring& item : value_format::MultiStringItems({data, size - size % sizeof(wchar_t)})) {
+      const Match match = matcher.Find(item);
+      result.match.status = match.status;
+      if (match.matched) {
+        result.matched = true;
+        result.match = match;
+        result.match.start = display_start + match.start;
+        result.data_text = value_format::DisplayData(type, data, size, false);
+        return result;
+      }
+      display_start += item.size() + 1;
+    }
+    return result;
+  }
+  if (base_type == REG_SZ || base_type == REG_EXPAND_SZ || base_type == REG_LINK) {
     // search string data in place and format it only after a match
     std::wstring_view view;
-    if (!BuildStringView(data, size, &view)) {
-      return result;
-    }
+    BuildStringView(data, size, &view);
     Match match = matcher.Find(view);
     if (!match.matched) {
+      result.match.status = match.status;
       return result;
     }
     result.matched = true;
     result.match = match;
-    result.data_text = value_format::DisplayData(type, data, size, false);
-    if (result.data_text != view) {
-      result.match = matcher.Find(result.data_text);
+    std::wstring display = value_format::DisplayData(type, data, size, false);
+    // keep the highlight valid by showing whichever text the match came from
+    if (display == view) {
+      result.data_text = std::move(display);
+      return result;
+    }
+    const Match display_match = matcher.Find(display);
+    if (display_match.matched) {
+      result.match = display_match;
+      result.data_text = std::move(display);
+    } else {
+      result.data_text = std::wstring(view);
     }
     return result;
   }
@@ -682,7 +712,8 @@ bool Run(
     const Criteria& criteria,
     std::atomic_bool* cancel_flag,
     const BatchCallback& publish,
-    const ProgressCallback& progress
+    const ProgressCallback& progress,
+    regex::Status* status
 ) {
   if (criteria.query.empty() || criteria.start_nodes.empty()) {
     return false;
@@ -693,12 +724,14 @@ bool Run(
   match_options.match_case = criteria.match_case;
   match_options.match_whole = criteria.match_whole;
   match_options.use_regex = criteria.use_regex;
-  const Matcher matcher(match_options);
-  if (!matcher.valid()) {
+  const Matcher base_matcher =
+      criteria.matcher ? Matcher(*criteria.matcher) : Matcher(match_options);
+  if (!base_matcher.valid()) {
     return false;
   }
-  // parse hex once before workers search binary values
-  const HexQuery hex_query = ParseHexQuery(criteria.query);
+  std::atomic<int> worst_status(static_cast<int>(regex::Status::kNoMatch));
+  const HexQuery hex_query =
+      criteria.use_regex ? HexQuery() : ParseHexQuery(criteria.query);
   const bool has_excludes = !criteria.exclude_paths.empty();
   // skip values/child keys when the selected search fields dont need them
   const bool want_values = criteria.search_values || criteria.search_data;
@@ -859,6 +892,16 @@ bool Run(
   };
 
   auto worker = [&]() {
+    // one match session per worker
+    const Matcher matcher(base_matcher);
+    auto record_status = [&](regex::Status found) {
+      if (found != regex::Status::kMatch && found != regex::Status::kNoMatch) {
+        int previous = worst_status.load();
+        while (previous == static_cast<int>(regex::Status::kNoMatch) &&
+               !worst_status.compare_exchange_weak(previous, static_cast<int>(found))) {
+        }
+      }
+    };
     // reuse buffers and vectors across all keys handled by this worker
     EnumerationScratch scratch;
     std::wstring widen_scratch;
@@ -986,12 +1029,14 @@ bool Run(
           Match name_match;
           if (criteria.search_values) {
             name_match = matcher.Find(display_name);
+            record_status(name_match.status);
           }
 
           DataMatch data_match;
           // skip data matching when value name already matches
           if (!name_match.matched && criteria.search_data) {
             data_match = MatchValueData(matcher, hex_query, value.type, data, data_size, &widen_scratch);
+            record_status(data_match.match.status);
           }
           if (!name_match.matched && !data_match.matched) {
             return true;
@@ -1081,6 +1126,7 @@ bool Run(
             is_key_in_range()) {
           const std::wstring leaf = registry_path::DisplayName(TaskLeaf(entry));
           const Match key_match = matcher.Find(leaf);
+          record_status(key_match.status);
           if (key_match.matched) {
             Result result;
             result.source = entry.context ? entry.context->source : 0;
@@ -1169,6 +1215,9 @@ bool Run(
   }
 
   report_progress(true);
+  if (status) {
+    *status = static_cast<regex::Status>(worst_status.load());
+  }
   return true;
 }
 
