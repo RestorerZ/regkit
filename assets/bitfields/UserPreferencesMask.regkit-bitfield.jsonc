@@ -1,0 +1,235 @@
+{
+  "format": "regkit-bitfield",
+  "name": "UserPreferencesMask",
+  "definitions": [
+    {
+      "name": "UserPreferencesMask",
+      "value_name": "UserPreferencesMask",
+      "key_paths": [
+        "\\Control Panel\\Desktop"
+      ],
+      "bit_width": 64,
+      "comment": "Per user interface preferences win32k reads, see https://noverse.dev/docs/win-config/visibility/minimal-visual-effects/#userpreferencesmask",
+      "fields": [
+        {
+          "name": "Active window tracking",
+          "bits": [0],
+          "meaning": "Sets active window tracking (activating the window the mouse is on) either on or off, ACTIVEWINDOWTRACKING. This master switch must be on to enable window tracking, see bit 6, 0x40",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Menu animation",
+          "bits": [1],
+          "meaning": "Enables or disables fade\/slide menu animation, MENUANIMATION. This master switch must be on for any menu animation to occur; menu effect depends on value of bit 9, 0x200",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Combo box animation",
+          "bits": [2],
+          "meaning": "Enables or disables the slide-open effect for combo boxes, COMBOBOXANIMATION",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "List box smooth scrolling",
+          "bits": [3],
+          "meaning": "Enables or disables the smooth-scrolling effect for list boxes, LISTBOXSMOOTHSCROLLING",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Gradient captions",
+          "bits": [4],
+          "meaning": "Enables or disables the gradient effect for window title bars, GRADIENTCAPTIONS.The gradient effect is possible only if the system has a color depth of more than 256 colors and applies to classic (unthemed) windows only",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Keyboard cues",
+          "bits": [5],
+          "meaning": "Sets the underlining of menu access key letters, KEYBOARDCUES or MENUUNDERLINES",
+	  "states": [
+	      { "value": 0, "name": "Underline only is activated from the keyboard" },
+	      { "value": 1, "name": "Always underline menu access keys" }
+	  ]
+        },
+        {
+          "name": "Active window tracking Z-order",
+          "bits": [6],
+          "meaning": "Determines whether windows activated through active window tracking will be brought to the top, ACTIVEWNDTRKZORDER, see bit 0, 0x1. The delay time before activation is controlled by a parameter HKCU\\Control Panel\\Desktop!ActiveWndTrkTimeout",
+	"states": [
+	    { "value": 0, "name": "Disabled" },
+	    { "value": 1, "name": "Enabled" }
+	]
+        },
+        {
+          "name": "Hot tracking",
+          "bits": [7],
+          "meaning": "Enables or disables hot tracking of user-interface elements such as menu names on menu bars, HOTTRACKING. Hot-tracking means that when the cursor moves over an item, it is highlighted but not selected",
+	  "states": [
+	      { "value": 0, "name": "Disabled. Note: Disabling it does not affect the shell windows" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Reserved",
+          "bits": [8],
+          "meaning": "Reserved, NO_FLAG"
+        },
+	{
+          "name": "Menu animation style",
+          "bits": [9],
+          "meaning": "Menu fade, MENUFADE. If the bit is set, the fading style is used; if the bit is cleared, the sliding style is used. This flag is ignored unless bit 1, 0x2 is not set",
+	  "states": [
+	      { "value": 0, "name": "The sliding style is used" },
+	      { "value": 1, "name": "The fading style is used" }
+	  ]
+        },
+        {
+          "name": "Selection fade",
+          "bits": [10],
+          "meaning": "Determines whether the selection fade effect is enabled, SELECTIONFADE. The selected menu will remain on the screen briefly and then fade out after the user makes a selection",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Tooltip animation",
+          "bits": [11],
+          "meaning": "Enables or disables fade\/slide effects for ToolTip animation, TOOLTIPANIMATION; ToolTip effect depends on value of bit 12, 0x1000",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Tooltip animation style",
+          "bits": [12],
+          "meaning": "Tooltip fade, TOOLTIPFADE. If the bit is set, the fading style is used; if the bit is cleared, the sliding style is used. The tooltip fade effect is possible only if the system has a color depth of more than 256 colors. This flag is ignored unless bit 11, 0x1000 is not set",
+	  "states": [
+	      { "value": 0, "name": "The sliding style is used" },
+	      { "value": 1, "name": "The fading style is used" }
+	  ]
+        },
+        {
+          "name": "Cursor shadow",
+          "bits": [13],
+          "meaning": "Enables or disables a shadow around the cursor, CURSORSHADOW. This effect appears only if the system has a color depth of more than 256 colors",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Mouse sonar",
+          "bits": [14],
+          "meaning": "Turns the Sonar accessibility feature on or off, MOUSESONAR. This feature briefly shows several concentric circles around the mouse pointer when the user presses and releases the CTRL key",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "ClickLock",
+          "bits": [15],
+          "meaning": "Turns the Mouse ClickLock accessibility feature on or off, MOUSECLICKLOCK. This feature temporarily locks down the primary mouse button when that button is clicked and held down for the time specified by HKCU\\Control Panel\\Desktop!ClickLockTime",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Mouse vanish",
+          "bits": [16],
+          "meaning": "Turns the Vanish feature on or off, MOUSEVANISH. This feature hides the mouse pointer when the user types; the pointer reappears when the user moves the mouse",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Flat menus",
+          "bits": [17],
+          "meaning": "Enables or disables flat menu appearance for native User menus, FLATMENU. When enabled, the menu bar uses COLOR_MENUBAR for the menubar background, COLOR_MENU for the menu-popup background, COLOR_MENUHILIGHT for the fill of the current menu selection, and COLOR_HILIGHT for the outline of the current menu selection. If disabled, menus are drawn using the same metrics and colors as in Windows 2000. Note: According to the documentation, these colors are not supported in >= WinNT 10",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Window shadows",
+          "bits": [18],
+          "meaning": "Enables or disables the drop shadow effect, DROPSHADOW. The shadow effect for window elements and top‑level windows depends on several conditions and may not be displayed, regardless of whether this flag is set or not",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Master UI effects",
+          "bits": [31],
+          "meaning": "Enables or disables UI effects, UIEFFECTS. When is set, individual effects can be turned on\/off through dedicated bits, but when it is 0, it overrides those other bits and the effects are off. The UI effects include: MENUANIMATION, COMBOBOXANIMATION, LISTBOXSMOOTHSCROLLING, GRADIENTCAPTIONS, KEYBOARDCUES, HOTTRACKING, SELECTIONFADE, TOOLTIPANIMATION, CURSORSHADOW",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Overlapped content",
+          "bits": [32],
+          "meaning": "Turns overlapped content on or off, DISABLEOVERLAPPEDCONTENT. Overlapping content includes: background images, textured backgrounds, watermarks, alpha blending, and transparency",
+	  "states": [
+	      { "value": 0, "name": "Enabled" },
+	      { "value": 1, "name": "Disabled" }
+	  ]
+        },
+        {
+          "name": "Animate controls and elements inside windows",
+          "bits": [33],
+          "meaning": "Turns client area animations on or off, CLIENTAREAANIMATION",
+	  "states": [
+	      { "value": 0, "name": "Disabled" },
+	      { "value": 1, "name": "Enabled" }
+	  ]
+        },
+        {
+          "name": "Font smoothing",
+          "bits": [36],
+          "meaning": "Sets the font smoothing type, CLEARTYPE",
+	  "states": [
+	      { "value": 0, "name": "Standard anti-aliasing is used" },
+	      { "value": 1, "name": "ClearType is used" }
+	  ]
+        },
+        {
+          "name": "Speech recognition",
+          "bits": [37],
+          "meaning": "Turns speech recognition on or off, SPEECHRECOGNITION (untested)"
+        },
+        {
+          "name": "Global input-settings updates",
+          "bits": [39],
+          "meaning": "Suppress/apply global input-settings updates on focus/delegation changes (untested) (0x00000080 in high dword)"
+        },
+        {
+          "name": "Pen button yield",
+          "bits": [41],
+          "meaning": "Pen button yield / pen quick-launch hotkey (untested) (0x00000200 in high dword)"
+        }
+      ]
+    }
+  ]
+}
