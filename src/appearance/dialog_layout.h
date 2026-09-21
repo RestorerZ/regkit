@@ -54,6 +54,7 @@ private:
 };
 
 void AttachThemedBorder(HWND control);
+void DetachThemedBorder(HWND control);
 
 struct DialogWindow {
   HWND hwnd = nullptr;

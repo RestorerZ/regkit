@@ -1568,17 +1568,17 @@ void MainWindow::Impl::StartStartupCacheLoad(
         auto payload = std::make_unique<StartupCachePayload>();
         payload->generation = generation;
 
-        std::wstring comments_path = CommentsPath();
         std::wstring comments_content;
-        if (!comments_path.empty() &&
-            util::ReadTextFile(comments_path, &comments_content, nullptr, util::kMaxCommentFileBytes)) {
-          changes::CommentDocument comments;
-          if (changes::ParseComments(comments_content, &comments)) {
-            payload->value_comments = std::move(comments.value_entries);
-            payload->name_comments = std::move(comments.name_entries);
-            payload->comments_loaded = true;
-          }
+        const std::wstring defaults_path = util::JoinPath(util::GetModuleDirectory(), L"assets\\comments\\default-comments.rkc");
+        if (util::ReadTextFile(defaults_path, &comments_content, nullptr, util::kMaxCommentFileBytes) &&
+            (!changes::ParseComments(comments_content, &payload->default_comments) || !changes::ValidateCatalog(payload->default_comments))) {
+          payload->default_comments = {};
         }
+        const std::wstring comments_path = CommentsPath();
+        if (!comments_path.empty() && util::ReadTextFile(comments_path, &comments_content, nullptr, util::kMaxCommentFileBytes)) {
+          payload->comments_unreadable = !changes::ParseComments(comments_content, &payload->user_comments);
+        }
+        payload->comments_loaded = true;
         if (cancel.load()) {
           return;
         }
@@ -1644,25 +1644,22 @@ void MainWindow::Impl::ApplyStartupCachePayload(
   startup_cache_session_.Join();
 
   if (owned->comments_loaded) {
-    std::unordered_map<std::wstring, changes::CommentEntry>
-        merged_value_comments;
-    std::unordered_map<std::wstring, changes::CommentEntry>
-        merged_name_comments;
-    for (auto& entry : owned->value_comments) {
-      merged_value_comments[changes::ValueComments::ValueKey(entry.path, entry.name, entry.type)] = std::move(entry);
-    }
-    for (auto& entry : owned->name_comments) {
-      merged_name_comments[changes::ValueComments::NameKey(entry.name, entry.type)] = std::move(entry);
-    }
-    for (auto& pair : value_comments_.value_entries()) {
-      merged_value_comments[pair.first] = std::move(pair.second);
-    }
-    for (auto& pair : value_comments_.name_entries()) {
-      merged_name_comments[pair.first] = std::move(pair.second);
-    }
+    default_comments_.Clear();
+    default_comments_.Merge(owned->default_comments);
+    changes::ValueComments loaded;
+    loaded.Merge(owned->user_comments);
     // comments added during startup override older copies loaded from disk
-    value_comments_.value_entries() = std::move(merged_value_comments);
-    value_comments_.name_entries() = std::move(merged_name_comments);
+    for (const auto& pair : value_comments_.values()) {
+      loaded.SetValue(pair.second);
+    }
+    for (const changes::CommentRule& rule : value_comments_.rules()) {
+      loaded.SetRule(rule);
+    }
+    value_comments_ = std::move(loaded);
+    comments_unreadable_ = owned->comments_unreadable;
+    if (comments_unreadable_) {
+      ui::PromptKeyChoice(hwnd_, L"The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed.", CommentsPath(), L"Comments", L"OK", L"", L"");
+    }
     RefreshValueListComments();
     UpdateSearchResultsView();
   }

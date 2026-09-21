@@ -94,16 +94,11 @@ bool Indexed(
     std::wstring_view prefix,
     size_t* index
 ) {
-  if (key.size() <= prefix.size() || !util::StartsWithInsensitive(key, prefix)) {
+  uint64_t value = 0;
+  if (!util::StartsWithInsensitive(key, prefix) || !record_fields::ParseUnsigned(std::wstring_view(key).substr(prefix.size()), 4096, &value)) {
     return false;
   }
-  const wchar_t* start = key.c_str() + prefix.size();
-  wchar_t* end = nullptr;
-  const unsigned long value = wcstoul(start, &end, 10);
-  if (end == start || *end != L'\0' || value > 4096) {
-    return false;
-  }
-  *index = value;
+  *index = static_cast<size_t>(value);
   return true;
 }
 
@@ -134,7 +129,7 @@ Settings ParseSettings(
     const std::wstring& content,
     Settings settings
 ) {
-  for (const std::wstring& line : record_fields::Lines(content)) {
+  for (const std::wstring_view line : record_fields::Lines(content)) {
     const size_t separator = line.find(L'=');
     if (separator == std::wstring::npos) {
       continue;

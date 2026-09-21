@@ -82,6 +82,14 @@ void AttachThemedBorder(
   SetWindowPos(control, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 }
 
+void DetachThemedBorder(
+    HWND control
+) {
+  RemoveWindowSubclass(control, ThemedBorderProc, kThemedBorderSubclassId);
+  SetWindowLongPtrW(control, GWL_STYLE, GetWindowLongPtrW(control, GWL_STYLE) & ~WS_BORDER);
+  SetWindowPos(control, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+}
+
 void SetControlFont(
     HWND control,
     HFONT font

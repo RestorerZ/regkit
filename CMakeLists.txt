@@ -111,6 +111,10 @@ add_custom_command(TARGET RegKit POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/assets/bitfields"
         "$<TARGET_FILE_DIR:RegKit>/assets/bitfields"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:RegKit>/assets/comments"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/assets/comments"
+        "$<TARGET_FILE_DIR:RegKit>/assets/comments"
 )
 
 if (MSVC)

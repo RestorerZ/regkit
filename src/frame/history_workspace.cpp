@@ -783,17 +783,27 @@ std::wstring MainWindow::Impl::CommentsPath() const {
   return util::JoinPath(folder, L"comments.tsv");
 }
 
+std::wstring MainWindow::Impl::CommentKeyPath(
+    const RegistryNode& node
+) const {
+  const std::wstring path = registry_path::Build(node);
+  return registry_mode_ == RegistryMode::kRemote && !remote_machine_.empty() ? L"\\\\" + StripMachinePrefix(remote_machine_) + L"\\" + path : path;
+}
+
 bool MainWindow::Impl::SaveComments() const {
-  return value_comments_.Save(CommentsPath());
+  return !comments_unreadable_ && value_comments_.Save(CommentsPath());
 }
 
 bool MainWindow::Impl::ImportCommentsFromFile(
     const std::wstring& path
 ) {
-  if (!value_comments_.Load(path)) {
+  std::wstring content;
+  changes::CommentDocument document;
+  if (!util::ReadTextFile(path, &content, nullptr, util::kMaxCommentFileBytes) || !changes::ParseComments(content, &document)) {
     return false;
   }
-  if (!value_comments_.Save(CommentsPath())) {
+  value_comments_.Merge(document);
+  if (!SaveComments()) {
     ui::ShowError(hwnd_, L"Comments were imported but couldn't be saved.");
   }
   RefreshValueListComments();
@@ -810,31 +820,15 @@ void MainWindow::Impl::RefreshValueListComments() {
   if (!browse_.current_node()) {
     return;
   }
-  std::wstring path = registry_path::Build(*browse_.current_node());
+  const std::wstring path = CommentKeyPath(*browse_.current_node());
   bool changed = false;
   for (auto& row : browse_.values().rows()) {
-    if (row.kind != rowkind::kValue) {
-      if (!row.comment.empty()) {
-        row.comment.clear();
-        changed = true;
-      }
-      continue;
+    std::wstring display;
+    if (row.kind == rowkind::kValue) {
+      display = FormatCommentDisplay(changes::ResolveComment(value_comments_, default_comments_, {path, row.extra, row.value_type, row.value_data_size}).text);
     }
-    std::wstring value_key = changes::ValueComments::ValueKey(path, row.extra, row.value_type);
-    std::wstring text;
-    auto it = value_comments_.value_entries().find(value_key);
-    if (it != value_comments_.value_entries().end()) {
-      text = it->second.text;
-    } else {
-      std::wstring name_key = changes::ValueComments::NameKey(row.extra, row.value_type);
-      auto it2 = value_comments_.name_entries().find(name_key);
-      if (it2 != value_comments_.name_entries().end()) {
-        text = it2->second.text;
-      }
-    }
-    std::wstring display = FormatCommentDisplay(text);
     if (row.comment != display) {
-      row.comment = display;
+      row.comment = std::move(display);
       changed = true;
     }
   }
@@ -858,87 +852,98 @@ bool MainWindow::Impl::EditValueComments(
   if (!browse_.current_node() || rows.empty()) {
     return false;
   }
-  std::wstring path = registry_path::Build(*browse_.current_node());
-
-  auto resolve_comment = [&](const ListRow& row, bool* from_name) {
-    std::wstring value_key = changes::ValueComments::ValueKey(path, row.extra, row.value_type);
-    auto value_it = value_comments_.value_entries().find(value_key);
-    if (value_it != value_comments_.value_entries().end()) {
-      if (from_name) {
-        *from_name = false;
-      }
-      return value_it->second.text;
-    }
-    std::wstring name_key = changes::ValueComments::NameKey(row.extra, row.value_type);
-    auto name_it = value_comments_.name_entries().find(name_key);
-    if (name_it != value_comments_.name_entries().end()) {
-      if (from_name) {
-        *from_name = true;
-      }
-      return name_it->second.text;
-    }
-    if (from_name) {
-      *from_name = false;
-    }
-    return std::wstring();
-  };
-
-  std::wstring initial;
-  bool apply_all = true;
-  bool have_initial = false;
-  bool comments_match = true;
+  const std::wstring path = CommentKeyPath(*browse_.current_node());
+  const changes::ValueComments none;
+  std::vector<changes::CommentTarget> targets;
   for (const auto& row : rows) {
     if (row.kind != rowkind::kValue || row.simulated) {
       return false;
     }
-    bool from_name = false;
-    std::wstring comment = resolve_comment(row, &from_name);
-    if (!have_initial) {
-      initial = std::move(comment);
-      have_initial = true;
-    } else if (comment != initial) {
-      comments_match = false;
-    }
-    apply_all = apply_all && from_name;
+    targets.push_back({path, row.extra, row.value_type, row.value_data_size});
   }
-  if (!comments_match) {
-    initial.clear();
-    apply_all = false;
+
+  const changes::CommentTarget& first = targets.front();
+  const changes::ResolvedComment shown = changes::ResolveComment(value_comments_, default_comments_, first);
+  bool same_text = true;
+  bool same_type = true;
+  bool same_size = true;
+  bool can_restore = false;
+  for (const changes::CommentTarget& target : targets) {
+    const changes::ResolvedComment resolved = changes::ResolveComment(value_comments_, default_comments_, target);
+    same_text = same_text && resolved.text == shown.text;
+    same_type = same_type && target.type == first.type;
+    same_size = same_size && target.data_size == first.data_size;
+    can_restore = can_restore || ((resolved.source == changes::CommentSource::kUserValue || resolved.source == changes::CommentSource::kUserRule) &&
+                                  changes::ResolveComment(none, default_comments_, target).source != changes::CommentSource::kNone);
   }
 
   editors::CommentRequest request;
-  request.text = initial;
-  request.apply_to_same_name = apply_all;
+  request.text = same_text ? shown.text : std::wstring();
+  request.scope.key_path = path;
+  const changes::CommentRule* edited_rule = same_text && shown.source == changes::CommentSource::kUserRule ? value_comments_.FindRule(shown.rule_id) : nullptr;
+  if (edited_rule) {
+    request.scope.rule = true;
+    request.scope.same_type = edited_rule->type.has_value();
+    request.scope.same_size = edited_rule->data_size.has_value();
+    request.scope.in_key = edited_rule->key_scope != changes::CommentKeyScope::kAny;
+    request.scope.include_subkeys = edited_rule->key_scope == changes::CommentKeyScope::kRecursive;
+    if (request.scope.in_key) {
+      request.scope.key_path = edited_rule->key_path;
+    }
+  }
+  request.name = L"\"" + (first.name.empty() ? std::wstring(L"(Default)") : first.name) + L"\"";
+  request.type = same_type ? value_format::TypeName(first.type) : L"Different types";
+  request.size = same_size ? std::to_wstring(first.data_size) + (first.data_size == 1 ? L" byte" : L" bytes") : L"Different lengths";
+  request.multiple = targets.size() > 1;
+  request.can_restore = can_restore;
+  const std::wstring edited_id = edited_rule ? edited_rule->id : std::wstring();
   editors::CommentResult result;
   if (!editors::EditComment(hwnd_, request, &result)) {
     return false;
   }
-  std::wstring updated = std::move(result.text);
-  const bool apply_all_out = result.apply_to_same_name;
-  if (util::IsBlank(updated)) {
-    updated.clear();
-  }
 
-  for (const auto& row : rows) {
-    std::wstring value_key = changes::ValueComments::ValueKey(path, row.extra, row.value_type);
-    std::wstring name_key = changes::ValueComments::NameKey(row.extra, row.value_type);
-    if (updated.empty()) {
-      value_comments_.value_entries().erase(value_key);
-      value_comments_.name_entries().erase(name_key);
-    } else if (apply_all_out) {
-      changes::CommentEntry entry;
-      entry.name = row.extra;
-      entry.type = row.value_type;
-      entry.text = updated;
-      value_comments_.name_entries()[name_key] = std::move(entry);
-      value_comments_.value_entries().erase(value_key);
+  const std::wstring text = util::IsBlank(result.text) ? std::wstring() : std::move(result.text);
+  for (const changes::CommentTarget& target : targets) {
+    const bool default_visible = !changes::ResolveComment(none, default_comments_, target).text.empty();
+    if (result.restore_default) {
+      const changes::ResolvedComment user = changes::ResolveComment(value_comments_, none, target);
+      if (user.source == changes::CommentSource::kUserValue) {
+        value_comments_.EraseValue(target);
+      } else if (user.source == changes::CommentSource::kUserRule) {
+        value_comments_.EraseRule(user.rule_id);
+      }
+    } else if (!result.scope.rule) {
+      if (text.empty() && !default_visible) {
+        value_comments_.EraseValue(target);
+      } else {
+        value_comments_.SetValue({target.path, target.name, target.type, text});
+      }
     } else {
-      changes::CommentEntry entry;
-      entry.path = path;
-      entry.name = row.extra;
-      entry.type = row.value_type;
-      entry.text = updated;
-      value_comments_.value_entries()[value_key] = std::move(entry);
+      changes::CommentRule rule;
+      rule.name = target.name;
+      if (result.scope.same_type) {
+        rule.type = target.type;
+      }
+      if (result.scope.same_size) {
+        rule.data_size = target.data_size;
+      }
+      if (result.scope.in_key) {
+        rule.key_scope = result.scope.include_subkeys ? changes::CommentKeyScope::kRecursive : changes::CommentKeyScope::kExact;
+        rule.key_path = changes::NormalizeKeyPath(util::TrimWhitespace(result.scope.key_path));
+      }
+      if (rule.key_scope != changes::CommentKeyScope::kAny && rule.key_path.empty()) {
+        rule.key_scope = changes::CommentKeyScope::kAny;
+      }
+      rule.text = text;
+      const changes::CommentRule* existing = value_comments_.FindEquivalentRule(rule);
+      rule.id = existing ? existing->id : targets.size() == 1 ? edited_id
+                                                              : std::wstring();
+      value_comments_.EraseValue(target);
+      if (text.empty() && !default_visible) {
+        value_comments_.EraseRule(rule.id);
+      } else {
+        value_comments_.SetRule(std::move(rule));
+      }
     }
   }
   if (!SaveComments()) {
@@ -1028,7 +1033,7 @@ void MainWindow::Impl::LoadSettings() {
   history_height_ = settings.history_height;
   theme_mode_ = ParseThemeMode(settings.theme_mode);
   active_theme_preset_ = std::move(settings.theme_preset);
-  icon_set_ = IsKnownIconSetName(settings.icon_set) ? std::move(settings.icon_set) : kIconSetClassic;
+  icon_set_ = IsKnownIconSetName(settings.icon_set) ? std::move(settings.icon_set) : kIconSetPhosphor;
   use_custom_font_ = settings.use_custom_font;
   if (!settings.font_face.empty()) {
     wcsncpy_s(custom_font_.lfFaceName, settings.font_face.c_str(), _TRUNCATE);
@@ -1099,7 +1104,7 @@ void MainWindow::Impl::SaveSettings() const {
   settings.history_height = history_height_;
   settings.theme_mode = ThemeModeName(theme_mode_);
   settings.theme_preset = active_theme_preset_;
-  settings.icon_set = IsKnownIconSetName(icon_set_) ? icon_set_ : kIconSetClassic;
+  settings.icon_set = IsKnownIconSetName(icon_set_) ? icon_set_ : kIconSetPhosphor;
   settings.use_custom_font = use_custom_font_;
   settings.font_face = custom_font_.lfFaceName;
   settings.font_size = appearance::FontPointSize(custom_font_, 9);

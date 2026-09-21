@@ -69,12 +69,12 @@ It includes built in presets and a theme editor to customize colors, presets can
 
 Use `Options > Icons` to switch between the built-in sets:
 
-- Classic (default, icons from Windows 7 & 11 system files)
-- Phosphor
+- Classic ([win-icons](https://github.com/nohuto/win-icons))
+- Phosphor (default)
 
 You can set your own ico set via `%LOCALAPPDATA%\Noverse\RegKit\icons` (use naming of icons listed below). If `icons\dark` and `icons\light` exist, regkit uses them for dark/light modes, if not it will use the root `icons` folder for both modes.
 
-See [win-icons](https://github.com/nohuto/win-icons) for a collection of icons.
+See [win-icons](https://github.com/nohuto/win-icons) for a collection of icons, which you can use to create your own set.
 
 ### Previews
 

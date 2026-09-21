@@ -88,40 +88,19 @@ void DecodeRevert(
     const std::vector<std::wstring>& fields,
     HistoryEntry* entry
 ) {
-  if (!entry || fields.size() < 11) {
+  uint64_t kind = 0;
+  uint64_t type = 0;
+  ValueEntry value;
+  if (!entry || fields.size() < 11 ||
+      !record_fields::ParseUnsigned(fields[7], static_cast<uint64_t>(HistoryEntry::RevertKind::kDeleteKey), &kind) ||
+      !record_fields::ParseUnsigned(fields[9], MAXDWORD, &type) ||
+      !value_format::ParseHex(fields[10], &value.data)) {
     return;
   }
-  try {
-    size_t kind_consumed = 0;
-    const int kind = std::stoi(fields[7], &kind_consumed);
-    if (kind_consumed != fields[7].size()) {
-      return;
-    }
-    if (kind < static_cast<int>(HistoryEntry::RevertKind::kNone) ||
-        kind > static_cast<int>(HistoryEntry::RevertKind::kDeleteKey)) {
-      return;
-    }
-    entry->revert_kind = static_cast<HistoryEntry::RevertKind>(kind);
-    entry->revert_value.name = record_fields::Unescape(fields[8]);
-    size_t type_consumed = 0;
-    const unsigned long type = std::stoul(fields[9], &type_consumed);
-    if (type_consumed != fields[9].size()) {
-      entry->revert_kind = HistoryEntry::RevertKind::kNone;
-      return;
-    }
-    if (type > std::numeric_limits<DWORD>::max()) {
-      entry->revert_kind = HistoryEntry::RevertKind::kNone;
-      return;
-    }
-    entry->revert_value.type = static_cast<DWORD>(type);
-    if (!value_format::ParseHex(record_fields::Unescape(fields[10]), &entry->revert_value.data)) {
-      entry->revert_kind = HistoryEntry::RevertKind::kNone;
-      entry->revert_value = {};
-    }
-  } catch (...) {
-    entry->revert_kind = HistoryEntry::RevertKind::kNone;
-    entry->revert_value = {};
-  }
+  value.name = fields[8];
+  value.type = static_cast<DWORD>(type);
+  entry->revert_kind = static_cast<HistoryEntry::RevertKind>(kind);
+  entry->revert_value = std::move(value);
 }
 
 } // namespace
@@ -176,31 +155,22 @@ HistoryDocument ParseHistory(
     const std::wstring& content
 ) {
   HistoryDocument document;
-  for (const std::wstring& line : record_fields::Lines(content)) {
+  for (const std::wstring_view line : record_fields::Lines(content)) {
     if (line.empty()) {
       continue;
     }
-    const auto fields = record_fields::Split(line);
-    if (fields.size() < 5) {
-      continue;
-    }
+    auto fields = record_fields::DecodeRecord(line);
     HistoryEntry entry;
-    try {
-      size_t consumed = 0;
-      entry.timestamp = std::stoull(fields[0], &consumed);
-      if (consumed != fields[0].size()) {
-        continue;
-      }
-    } catch (...) {
+    if (fields.size() < 5 || !record_fields::ParseUnsigned(fields[0], UINT64_MAX, &entry.timestamp)) {
       continue;
     }
-    entry.time_text = record_fields::Unescape(fields[1]);
-    entry.action = record_fields::Unescape(fields[2]);
-    entry.old_data = record_fields::Unescape(fields[3]);
-    entry.new_data = record_fields::Unescape(fields[4]);
+    entry.time_text = std::move(fields[1]);
+    entry.action = std::move(fields[2]);
+    entry.old_data = std::move(fields[3]);
+    entry.new_data = std::move(fields[4]);
     if (fields.size() >= 7) {
-      entry.key_path = record_fields::Unescape(fields[5]);
-      entry.value_name = record_fields::Unescape(fields[6]);
+      entry.key_path = std::move(fields[5]);
+      entry.value_name = std::move(fields[6]);
     }
     if (fields.size() >= 11) {
       document.source_version = HistoryDocument::kCurrentVersion;
@@ -214,28 +184,8 @@ HistoryDocument ParseHistory(
 std::wstring SerializeHistoryEntry(
     const HistoryEntry& entry
 ) {
-  std::wstring line = std::to_wstring(entry.timestamp);
-  const std::wstring fields[] = {
-      entry.time_text,
-      entry.action,
-      entry.old_data,
-      entry.new_data,
-      entry.key_path,
-      entry.value_name
-  };
-  for (const std::wstring& field : fields) {
-    line.push_back(L'\t');
-    line.append(record_fields::Escape(field));
-  }
-  line.push_back(L'\t');
-  line.append(std::to_wstring(static_cast<int>(entry.revert_kind)));
-  line.push_back(L'\t');
-  line.append(record_fields::Escape(entry.revert_value.name));
-  line.push_back(L'\t');
-  line.append(std::to_wstring(entry.revert_value.type));
-  line.push_back(L'\t');
-  line.append(record_fields::Escape(util::ToHex(entry.revert_value.data)));
-  line.push_back(L'\n');
+  std::wstring line;
+  record_fields::AppendRecord(&line, {std::to_wstring(entry.timestamp), entry.time_text, entry.action, entry.old_data, entry.new_data, entry.key_path, entry.value_name, std::to_wstring(static_cast<int>(entry.revert_kind)), entry.revert_value.name, std::to_wstring(entry.revert_value.type), util::ToHex(entry.revert_value.data)});
   return line;
 }
 

@@ -103,8 +103,9 @@ private:
   struct StartupCachePayload : work::MoveOnly {
     uint64_t generation = 0;
     std::vector<HistoryEntry> history_entries;
-    std::vector<changes::CommentEntry> value_comments;
-    std::vector<changes::CommentEntry> name_comments;
+    changes::CommentDocument user_comments;
+    changes::CommentDocument default_comments;
+    bool comments_unreadable = false;
     std::wstring tree_selected_path;
     std::vector<std::wstring> tree_expanded_paths;
     bool history_loaded = false;
@@ -468,6 +469,7 @@ private:
   bool ExportCommentsToFile(const std::wstring& path) const;
   void RefreshValueListComments();
   std::wstring CommentsPath() const;
+  std::wstring CommentKeyPath(const RegistryNode& node) const;
   bool EditValueComments(const std::vector<ListRow>& rows);
   bool RestartAsAdmin();
   bool RestartAsUser();
@@ -680,7 +682,7 @@ private:
   bool single_instance_ = true;
   bool read_only_ = false;
   ThemeMode theme_mode_ = ThemeMode::kSystem;
-  std::wstring icon_set_ = L"classic";
+  std::wstring icon_set_ = L"phosphor";
   std::wstring icon_dir_;
   bool updating_value_list_ = false;
   bool value_list_loading_ = false;
@@ -995,6 +997,8 @@ private:
   uint64_t last_trace_refresh_tick_ = 0;
   uint64_t last_default_refresh_tick_ = 0;
   changes::ValueComments value_comments_;
+  changes::ValueComments default_comments_;
+  bool comments_unreadable_ = false;
   util::UniqueHKey registry_root_;
   std::vector<std::wstring> favorites_cache_;
   std::vector<workspace::NamedFavorite> regedit_favorites_;

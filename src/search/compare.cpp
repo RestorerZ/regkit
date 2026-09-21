@@ -387,22 +387,7 @@ std::wstring SerializeRows(
 ) {
   std::wstring content = L"version=2\n";
   for (const Row& row : rows) {
-    content += record_fields::Escape(row.key_path);
-    content += L'\t';
-    content += record_fields::Escape(row.first_key_path);
-    content += L'\t';
-    content += record_fields::Escape(row.second_key_path);
-    content += L'\t';
-    content += record_fields::Escape(row.value_name);
-    content += L'\t';
-    content += record_fields::Escape(row.first_text);
-    content += L'\t';
-    content += record_fields::Escape(row.second_text);
-    content += L'\t';
-    content += (row.is_key ? L"1" : L"0");
-    content += L'\t';
-    content += (row.matches ? L"1" : L"0");
-    content += L'\n';
+    record_fields::AppendRecord(&content, {row.key_path, row.first_key_path, row.second_key_path, row.value_name, row.first_text, row.second_text, row.is_key ? L"1" : L"0", row.matches ? L"1" : L"0"});
   }
   return content;
 }
@@ -415,24 +400,24 @@ bool ParseRows(
     return false;
   }
   std::vector<Row> parsed;
-  for (const std::wstring& line : record_fields::Lines(content)) {
-    if (line.empty() || line.rfind(L"version=", 0) == 0) {
+  for (const std::wstring_view line : record_fields::Lines(content)) {
+    if (line.empty() || line.starts_with(L"version=")) {
       continue;
     }
-    const auto fields = record_fields::Split(line);
+    auto fields = record_fields::DecodeRecord(line);
     // keep usable cache rows when one line is incomplete
     if (fields.size() < 7) {
       continue;
     }
     Row row;
-    row.key_path = record_fields::Unescape(fields[0]);
-    row.first_key_path = record_fields::Unescape(fields[1]);
-    row.second_key_path = record_fields::Unescape(fields[2]);
-    row.value_name = record_fields::Unescape(fields[3]);
-    row.first_text = record_fields::Unescape(fields[4]);
-    row.second_text = record_fields::Unescape(fields[5]);
-    row.is_key = _wtoi(fields[6].c_str()) != 0;
-    row.matches = fields.size() >= 8 && _wtoi(fields[7].c_str()) != 0;
+    row.key_path = std::move(fields[0]);
+    row.first_key_path = std::move(fields[1]);
+    row.second_key_path = std::move(fields[2]);
+    row.value_name = std::move(fields[3]);
+    row.first_text = std::move(fields[4]);
+    row.second_text = std::move(fields[5]);
+    row.is_key = fields[6] == L"1";
+    row.matches = fields.size() >= 8 && fields[7] == L"1";
     parsed.push_back(std::move(row));
   }
   *rows = std::move(parsed);

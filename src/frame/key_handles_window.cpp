@@ -460,6 +460,7 @@ INT_PTR CALLBACK DialogProc(
       SendMessageW(dialog, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_APPICON), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED)));
       SendDlgItemMessageW(dialog, IDC_KH_FILTER, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(L"Filter"));
       support::SetupListView(state->list, 0, {{L"Process", 150}, {L"PID", 60}, {L"Handle", 80}, {L"Object Address", 140}, {L"Key", 400}, {L"Access", 300}, {L"Attributes", 90}, {L"Native Name", 400}});
+      appearance::DetachThemedBorder(state->list);
       using namespace appearance;
       state->resizer.Attach(dialog, {
                                         {IDC_KH_FILTER, kAnchorLeft | kAnchorTop | kAnchorRight},

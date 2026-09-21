@@ -225,8 +225,8 @@ DWORD CloseKeyHandles(
   const ULONG_PTR self = GetCurrentProcessId();
   for (const KeyHandle& target : targets) {
     const bool unchanged = target.process_id != self && std::any_of(keys.begin(), keys.end(), [&](const HandleEntry& entry) {
-      return entry.process_id == target.process_id && entry.handle == target.handle && reinterpret_cast<ULONG_PTR>(entry.object) == target.object && entry.access == target.access;
-    });
+                             return entry.process_id == target.process_id && entry.handle == target.handle && reinterpret_cast<ULONG_PTR>(entry.object) == target.object && entry.access == target.access;
+                           });
     if (!unchanged) {
       result = ERROR_INVALID_HANDLE;
       continue;

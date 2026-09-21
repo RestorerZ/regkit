@@ -7,6 +7,8 @@
 #include "win32/file_text.h"
 #include "win32/text_transform.h"
 
+#include <climits>
+
 namespace regkit::workspace {
 
 namespace {
@@ -45,29 +47,30 @@ const KindName* FindKind(
 }
 
 void AppendField(
-    std::wstring* content,
+    std::vector<std::wstring>* fields,
     const wchar_t* key,
     const std::wstring& value
 ) {
-  if (value.empty()) {
-    return;
+  if (!value.empty()) {
+    fields->push_back(key + value);
   }
-  content->push_back(L'\t');
-  content->append(key);
-  content->append(record_fields::Escape(value));
 }
 
 void AppendNumber(
-    std::wstring* content,
+    std::vector<std::wstring>* fields,
     const wchar_t* key,
     int value
 ) {
-  if (value == 0) {
-    return;
+  if (value != 0) {
+    fields->push_back(key + std::to_wstring(value));
   }
-  content->push_back(L'\t');
-  content->append(key);
-  content->append(std::to_wstring(value));
+}
+
+int Number(
+    std::wstring_view text
+) {
+  uint64_t value = 0;
+  return record_fields::ParseUnsigned(text, INT_MAX, &value) ? static_cast<int>(value) : 0;
 }
 
 void ParseLegacyRegistryTab(
@@ -76,19 +79,18 @@ void ParseLegacyRegistryTab(
     PersistedTab* tab
 ) {
   if (fields.size() >= 4) {
-    tab->selected_path = record_fields::Unescape(fields[3]);
+    tab->selected_path = fields[3];
   }
   size_t first_expanded = 4;
   if (source_version >= 2) {
     if (fields.size() >= 5) {
-      tab->selected_value = record_fields::Unescape(fields[4]);
+      tab->selected_value = fields[4];
     }
     first_expanded = 5;
   }
   for (size_t index = first_expanded; index < fields.size(); ++index) {
-    std::wstring path = record_fields::Unescape(fields[index]);
-    if (!path.empty()) {
-      tab->expanded_paths.push_back(std::move(path));
+    if (!fields[index].empty()) {
+      tab->expanded_paths.push_back(fields[index]);
     }
   }
 }
@@ -98,13 +100,13 @@ void ParseTaggedFields(
     PersistedTab* tab
 ) {
   for (size_t index = 3; index < fields.size(); ++index) {
-    const std::wstring& field = fields[index];
+    const std::wstring_view field = fields[index];
     const size_t separator = field.find(L'=');
-    if (separator == std::wstring::npos) {
+    if (separator == std::wstring_view::npos) {
       continue;
     }
-    const std::wstring key = field.substr(0, separator);
-    const std::wstring value = record_fields::Unescape(field.substr(separator + 1));
+    const std::wstring_view key = field.substr(0, separator);
+    const std::wstring value(field.substr(separator + 1));
     if (key == L"path") {
       tab->selected_path = value;
     } else if (key == L"val") {
@@ -122,23 +124,23 @@ void ParseTaggedFields(
     } else if (key == L"machine") {
       tab->remote_machine = value;
     } else if (key == L"mode") {
-      tab->registry_mode = _wtoi(value.c_str());
+      tab->registry_mode = Number(value);
     } else if (key == L"top") {
-      tab->value_top_index = _wtoi(value.c_str());
+      tab->value_top_index = Number(value);
     } else if (key == L"cmp") {
-      tab->is_compare = _wtoi(value.c_str()) != 0;
+      tab->is_compare = Number(value) != 0;
     } else if (key == L"cmpf") {
-      tab->compare_filter = _wtoi(value.c_str());
+      tab->compare_filter = Number(value);
     } else if (key == L"s1k") {
-      tab->first_source_kind = _wtoi(value.c_str());
+      tab->first_source_kind = Number(value);
     } else if (key == L"s1f") {
       tab->first_source_file = value;
     } else if (key == L"s2k") {
-      tab->second_source_kind = _wtoi(value.c_str());
+      tab->second_source_kind = Number(value);
     } else if (key == L"s2f") {
       tab->second_source_file = value;
     } else if (key == L"srck") {
-      tab->source_kinds.push_back(_wtoi(value.c_str()));
+      tab->source_kinds.push_back(Number(value));
     } else if (key == L"srcn") {
       tab->source_names.push_back(value);
     }
@@ -151,33 +153,33 @@ TabState ParseTabs(
     const std::wstring& content
 ) {
   TabState state;
-  for (const std::wstring& line : record_fields::Lines(content)) {
+  for (const std::wstring_view line : record_fields::Lines(content)) {
     if (line.empty()) {
       continue;
     }
-    if (line.rfind(L"version=", 0) == 0) {
-      state.source_version = _wtoi(line.substr(8).c_str());
+    if (line.starts_with(L"version=")) {
+      state.source_version = Number(line.substr(8));
       continue;
     }
-    if (line.rfind(L"active=", 0) == 0) {
-      state.active_index = _wtoi(line.substr(7).c_str());
+    if (line.starts_with(L"active=")) {
+      state.active_index = Number(line.substr(7));
       continue;
     }
-    const auto fields = record_fields::Split(line);
+    const auto fields = record_fields::DecodeRecord(line);
     const KindName* kind = fields.size() >= 3 && util::EqualsInsensitive(fields[0], L"tab") ? FindKind(fields[1]) : nullptr;
     if (!kind) {
       continue;
     }
     PersistedTab tab;
     tab.kind = kind->kind;
-    tab.label = record_fields::Unescape(fields[2]);
+    tab.label = fields[2];
     if (state.source_version >= 3) {
       ParseTaggedFields(fields, &tab);
     } else if (tab.kind == PersistedTab::Kind::kSearch) {
       if (fields.size() < 4) {
         continue;
       }
-      tab.search_cache_file = record_fields::Unescape(fields[3]);
+      tab.search_cache_file = fields[3];
     } else {
       ParseLegacyRegistryTab(fields, state.source_version, &tab);
     }
@@ -197,41 +199,32 @@ std::wstring SerializeTabs(
                          L"\nactive=" + std::to_wstring(state.active_index) +
                          L"\n";
   for (const PersistedTab& tab : state.tabs) {
-    content.append(L"tab\t");
-    content.append(KindTag(tab.kind));
-    content.push_back(L'\t');
-    content.append(record_fields::Escape(tab.label));
-    AppendField(&content, L"path=", tab.selected_path);
-    AppendField(&content, L"val=", tab.selected_value);
+    std::vector<std::wstring> fields = {L"tab", KindTag(tab.kind), tab.label};
+    AppendField(&fields, L"path=", tab.selected_path);
+    AppendField(&fields, L"val=", tab.selected_value);
     for (const std::wstring& value : tab.selected_values) {
-      AppendField(&content, L"sel=", value);
+      AppendField(&fields, L"sel=", value);
     }
     for (const std::wstring& path : tab.expanded_paths) {
-      AppendField(&content, L"exp=", path);
+      AppendField(&fields, L"exp=", path);
     }
-    AppendField(&content, L"cache=", tab.search_cache_file);
-    AppendField(&content, L"ccache=", tab.compare_cache_file);
-    AppendField(&content, L"src=", tab.source_path);
-    AppendField(&content, L"machine=", tab.remote_machine);
-    AppendNumber(&content, L"mode=", tab.registry_mode);
-    AppendNumber(&content, L"top=", tab.value_top_index);
-    AppendNumber(&content, L"cmp=", tab.is_compare ? 1 : 0);
-    AppendNumber(&content, L"cmpf=", tab.compare_filter);
-    AppendNumber(&content, L"s1k=", tab.first_source_kind);
-    AppendField(&content, L"s1f=", tab.first_source_file);
-    AppendNumber(&content, L"s2k=", tab.second_source_kind);
-    AppendField(&content, L"s2f=", tab.second_source_file);
+    AppendField(&fields, L"cache=", tab.search_cache_file);
+    AppendField(&fields, L"ccache=", tab.compare_cache_file);
+    AppendField(&fields, L"src=", tab.source_path);
+    AppendField(&fields, L"machine=", tab.remote_machine);
+    AppendNumber(&fields, L"mode=", tab.registry_mode);
+    AppendNumber(&fields, L"top=", tab.value_top_index);
+    AppendNumber(&fields, L"cmp=", tab.is_compare ? 1 : 0);
+    AppendNumber(&fields, L"cmpf=", tab.compare_filter);
+    AppendNumber(&fields, L"s1k=", tab.first_source_kind);
+    AppendField(&fields, L"s1f=", tab.first_source_file);
+    AppendNumber(&fields, L"s2k=", tab.second_source_kind);
+    AppendField(&fields, L"s2f=", tab.second_source_file);
     for (size_t i = 0; i < tab.source_kinds.size(); ++i) {
-      content.push_back(L'\t');
-      content.append(L"srck=");
-      content.append(std::to_wstring(tab.source_kinds[i]));
-      content.push_back(L'\t');
-      content.append(L"srcn=");
-      content.append(record_fields::Escape(
-          i < tab.source_names.size() ? tab.source_names[i] : std::wstring()
-      ));
+      fields.push_back(L"srck=" + std::to_wstring(tab.source_kinds[i]));
+      fields.push_back(L"srcn=" + (i < tab.source_names.size() ? tab.source_names[i] : std::wstring()));
     }
-    content.push_back(L'\n');
+    record_fields::AppendRecord(&content, fields);
   }
   return content;
 }

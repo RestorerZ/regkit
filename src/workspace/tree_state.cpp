@@ -39,7 +39,7 @@ TreeState ParseTreeState(
     const std::wstring& content
 ) {
   TreeState state;
-  for (const std::wstring& line : record_fields::Lines(content)) {
+  for (const std::wstring_view line : record_fields::Lines(content)) {
     if (line.empty() || line.front() == L'#') {
       continue;
     }

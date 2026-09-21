@@ -137,9 +137,9 @@ std::vector<std::wstring> LoadSearchHistory() {
   std::wstring content;
   const std::wstring path = SearchHistoryPath();
   if (!path.empty() && util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes)) {
-    for (std::wstring& line : record_fields::Lines(content)) {
+    for (const std::wstring_view line : record_fields::Lines(content)) {
       if (!line.empty()) {
-        items.push_back(std::move(line));
+        items.emplace_back(line);
       }
     }
   }
@@ -251,24 +251,8 @@ bool ParseUint64(
     const std::wstring& text,
     uint64_t* out
 ) {
-  if (!out) {
-    return false;
-  }
   *out = 0;
-  if (text.empty()) {
-    return false;
-  }
-  if (text.find_first_not_of(L"0123456789") != std::wstring::npos) {
-    return false;
-  }
-  errno = 0;
-  wchar_t* end = nullptr;
-  unsigned long long value = wcstoull(text.c_str(), &end, 10);
-  if (!end || end == text.c_str() || *end != L'\0' || errno == ERANGE) {
-    return false;
-  }
-  *out = static_cast<uint64_t>(value);
-  return true;
+  return record_fields::ParseUnsigned(text, UINT64_MAX, out);
 }
 
 bool GetDateTimeValue(
