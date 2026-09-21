@@ -394,12 +394,10 @@ void MainWindow::Impl::BuildMenus() {
   AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(theme_menu), L"Theme");
   HMENU icon_menu = CreatePopupMenu();
   auto icon_flags = [&](const wchar_t* name) -> UINT { return MF_STRING | (util::EqualsInsensitive(icon_set_, name) ? MF_CHECKED : MF_UNCHECKED); };
-  AppendMenuW(icon_menu, icon_flags(kIconSetDefault), cmd::kOptionsIconSetDefault, L"Phosphor + RegEdit");
+  AppendMenuW(icon_menu, icon_flags(kIconSetClassic), cmd::kOptionsIconSetClassic, L"Classic");
   AppendMenuW(icon_menu, icon_flags(kIconSetPhosphor), cmd::kOptionsIconSetPhosphor, L"Phosphor");
   AppendMenuW(icon_menu, icon_flags(kIconSetLucide), cmd::kOptionsIconSetLucide, L"Lucide");
   AppendMenuW(icon_menu, icon_flags(kIconSetMaterialSymbols), cmd::kOptionsIconSetMaterialSymbols, L"Material Symbols");
-  AppendMenuW(icon_menu, icon_flags(kIconSetNative), cmd::kOptionsIconSetNative, L"Windows");
-  AppendMenuW(icon_menu, icon_flags(kIconSetClassic), cmd::kOptionsIconSetClassic, L"Windows 7");
   AppendMenuW(icon_menu, icon_flags(kIconSetCustom), cmd::kOptionsIconSetCustom, L"Custom");
   AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(icon_menu), L"Icons");
   AppendMenuW(options_menu, MF_STRING, cmd::kViewFont, L"Font...");

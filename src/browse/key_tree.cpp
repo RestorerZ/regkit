@@ -12,6 +12,8 @@ namespace regkit {
 
 namespace {
 constexpr int kFolderIconIndex = 0;
+constexpr int kRootKeysIconIndex = 5;
+constexpr int kRegistryIconIndex = 6;
 constexpr wchar_t kRootKeysGroupLabel[] = L"Root Keys";
 constexpr wchar_t kRealGroupLabel[] = L"REGISTRY";
 #ifndef TVS_EX_DOUBLEBUFFER
@@ -36,15 +38,16 @@ void ResumeRedraw(
 HTREEITEM InsertFolderItem(
     HWND tree,
     HTREEITEM parent,
-    const wchar_t* label
+    const wchar_t* label,
+    int icon = kFolderIconIndex
 ) {
   TVINSERTSTRUCTW insert = {};
   insert.hParent = parent;
   insert.hInsertAfter = TVI_LAST;
   insert.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
   insert.item.pszText = const_cast<wchar_t*>(label);
-  insert.item.iImage = kFolderIconIndex;
-  insert.item.iSelectedImage = kFolderIconIndex;
+  insert.item.iImage = icon;
+  insert.item.iSelectedImage = icon;
   return TreeView_InsertItem(tree, &insert);
 }
 } // namespace
@@ -95,8 +98,10 @@ void RegistryTree::SetVirtualChildProvider(
 }
 
 void RegistryTree::SetRootLabel(
-    const std::wstring& label
+    const std::wstring& label,
+    int icon
 ) {
+  root_icon_ = icon;
   if (label.empty()) {
     root_label_ = L"Computer";
     return;
@@ -117,13 +122,13 @@ void RegistryTree::PopulateRoots(
   nodes_.clear();
   nodes_.reserve(roots.size() + 3);
 
-  root_item_ = InsertFolderItem(hwnd_, TVI_ROOT, root_label_.c_str());
+  root_item_ = InsertFolderItem(hwnd_, TVI_ROOT, root_label_.c_str(), root_icon_);
   // group root keys unless regedit layout needs a flat tree
   const auto has_group = [&](bool real) {
     return !regedit_layout_ && std::any_of(roots.begin(), roots.end(), [&](const RegistryRootEntry& entry) { return (entry.group == RegistryRootGroup::kReal) == real; });
   };
-  standard_group_item_ = has_group(false) ? InsertFolderItem(hwnd_, root_item_, kRootKeysGroupLabel) : nullptr;
-  real_group_item_ = has_group(true) ? InsertFolderItem(hwnd_, root_item_, kRealGroupLabel) : nullptr;
+  standard_group_item_ = has_group(false) ? InsertFolderItem(hwnd_, root_item_, kRootKeysGroupLabel, kRootKeysIconIndex) : nullptr;
+  real_group_item_ = has_group(true) ? InsertFolderItem(hwnd_, root_item_, kRealGroupLabel, kRegistryIconIndex) : nullptr;
 
   for (const auto& root_entry : roots) {
     if (regedit_layout_ && root_entry.group == RegistryRootGroup::kReal) {
@@ -141,14 +146,12 @@ void RegistryTree::PopulateRoots(
       icon_index = icon_resolver_(*stored);
     }
 
-    // reuse the REGISTRY group item as real registry root
+    // reuse REGISTRY group item as real registry root
     if (!regedit_layout_ && root_entry.group == RegistryRootGroup::kReal && real_group_item_ && util::EqualsInsensitive(root_entry.display_name, kRealGroupLabel) && root_entry.subkey_prefix.empty()) {
       TVITEMW item = {};
-      item.mask = TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
+      item.mask = TVIF_PARAM | TVIF_CHILDREN;
       item.hItem = real_group_item_;
       item.lParam = reinterpret_cast<LPARAM>(stored);
-      item.iImage = icon_index;
-      item.iSelectedImage = icon_index;
       item.cChildren = I_CHILDRENCALLBACK;
       TreeView_SetItem(hwnd_, &item);
       continue;

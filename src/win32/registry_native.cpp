@@ -97,10 +97,14 @@ LONG OpenNative(
 UniqueHKey OpenNativeRegistryKey(
     const std::wstring& path,
     REGSAM access,
-    bool open_link
+    bool open_link,
+    LONG* error
 ) {
   UniqueHKey key;
-  OpenNative(nullptr, path, access, open_link, &key);
+  const LONG result = OpenNative(nullptr, path, access, open_link, &key);
+  if (error) {
+    *error = result;
+  }
   return key;
 }
 

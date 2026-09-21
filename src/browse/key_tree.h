@@ -25,7 +25,7 @@ public:
   void SetImageList(HIMAGELIST image_list);
   void SetIconResolver(std::function<int(const RegistryNode&)> resolver);
   void SetVirtualChildProvider(std::function<void(const RegistryNode&, const std::unordered_set<std::wstring>&, std::vector<std::wstring>*)> provider);
-  void SetRootLabel(const std::wstring& label);
+  void SetRootLabel(const std::wstring& label, int icon = 0);
   void SetRegEditLayout(bool enabled);
 
   void PopulateRoots(const std::vector<RegistryRootEntry>& roots);
@@ -55,6 +55,7 @@ private:
   std::function<int(const RegistryNode&)> icon_resolver_;
   std::function<void(const RegistryNode&, const std::unordered_set<std::wstring>&, std::vector<std::wstring>*)> virtual_child_provider_;
   std::wstring root_label_ = L"Computer";
+  int root_icon_ = 0;
   bool regedit_layout_ = false;
 };
 

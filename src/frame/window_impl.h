@@ -193,11 +193,10 @@ private:
   bool ShouldUseLightIcons() const;
   std::wstring ResolveIconDir(bool use_light) const;
   std::wstring ResolveIconPath(const wchar_t* filename) const;
-  HICON LoadThemeIcon(const wchar_t* filename, int light_id, int dark_id, int size, UINT dpi) const;
   void ApplyGridToolbarIcons();
   void LayoutValueGridToolbar();
   void SetValueGridEnabled(bool enabled, bool persist);
-  ToolbarIcon MakeToolbarIcon(const wchar_t* filename, int light_id, int dark_id, bool use_light) const;
+  ToolbarIcon MakeToolbarIcon(const wchar_t* filename, int resource_id) const;
   void CreateValueColumns();
   void CreateHistoryColumns();
   void CreateSearchColumns();
@@ -281,6 +280,7 @@ private:
   void ApplyRegistryRoots(const std::vector<RegistryRootEntry>& roots);
   std::vector<std::wstring> BuildVisibleTreePathParts(const std::wstring& path) const;
   std::wstring TreeRootLabel() const;
+  int TreeRootIcon() const;
   void SelectDefaultTreeItem();
   void CaptureRegistryTabState(int index);
   void ResetRegistryTreeState();
@@ -679,7 +679,7 @@ private:
   bool single_instance_ = true;
   bool read_only_ = false;
   ThemeMode theme_mode_ = ThemeMode::kSystem;
-  std::wstring icon_set_ = L"phosphor-regedit";
+  std::wstring icon_set_ = L"classic";
   std::wstring icon_dir_;
   bool updating_value_list_ = false;
   bool value_list_loading_ = false;

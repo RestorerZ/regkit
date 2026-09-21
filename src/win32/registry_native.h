@@ -9,7 +9,7 @@
 
 namespace util {
 
-UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access, bool open_link = false);
+UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access, bool open_link = false, LONG* error = nullptr);
 UniqueHKey OpenNativeRegistryRoot();
 LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool open_link, UniqueHKey* key);
 LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWORD options, UniqueHKey* key, DWORD* disposition);

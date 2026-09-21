@@ -145,7 +145,8 @@ bool RegistryStore::QueryKeyInfo(
 
 bool RegistryStore::QuerySymbolicLinkTarget(
     const RegistryNode& node,
-    std::wstring* target
+    std::wstring* target,
+    bool* denied
 ) {
   if (!target) {
     return false;
@@ -156,7 +157,7 @@ bool RegistryStore::QuerySymbolicLinkTarget(
   }
   return registry_backend::offline::Owns(node.root)
              ? registry_backend::offline::QuerySymbolicLinkTarget(node, target)
-             : registry_backend::live::QuerySymbolicLinkTarget(node, target);
+             : registry_backend::live::QuerySymbolicLinkTarget(node, target, denied);
 }
 
 std::vector<std::wstring> RegistryStore::EnumSubKeyNames(

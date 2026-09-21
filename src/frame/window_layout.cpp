@@ -596,7 +596,8 @@ int MainWindow::Impl::KeyIconIndex(
     return kFolderSimIconIndex;
   }
   std::wstring link_target;
-  if (RegistryStore::QuerySymbolicLinkTarget(node, &link_target)) {
+  bool denied = false;
+  if (RegistryStore::QuerySymbolicLinkTarget(node, &link_target, &denied)) {
     if (is_link) {
       *is_link = true;
     }
@@ -616,13 +617,13 @@ int MainWindow::Impl::KeyIconIndex(
     }
     return kDatabaseIconIndex;
   }
-  return kFolderIconIndex;
+  return denied ? kFolderDeniedIconIndex : kFolderIconIndex;
 }
 
 std::wstring MainWindow::Impl::ResolveIconDir(
     bool use_light
 ) const {
-  if (IsIconSetName(icon_set_, kIconSetPhosphor)) {
+  if (IsIconSetName(icon_set_, kIconSetClassic)) {
     return L"";
   }
   if (IsIconSetName(icon_set_, kIconSetCustom)) {
@@ -672,7 +673,7 @@ bool MainWindow::Impl::ShouldUseLightIcons() const {
 }
 
 void MainWindow::Impl::ApplyGridToolbarIcons() {
-  appearance::SetListGridIcon(ResolveIconPath(L"grid.ico"));
+  appearance::ReloadListGridIcons();
   appearance::SetListGridChangedCallback(
       [](void* context, bool enabled) {
         static_cast<MainWindow::Impl*>(context)->SetValueGridEnabled(enabled, true);
@@ -696,33 +697,12 @@ void MainWindow::Impl::SetValueGridEnabled(
   }
 }
 
-HICON MainWindow::Impl::LoadThemeIcon(
-    const wchar_t* filename,
-    int light_id,
-    int dark_id,
-    int size,
-    UINT dpi
-) const {
-  std::wstring path = ResolveIconPath(filename);
-  HICON icon = nullptr;
-  if (!path.empty()) {
-    icon = util::LoadIconFromFile(path, size, dpi);
-  }
-  // fall back to built in icons when a custom icon cant be loaded
-  if (!icon) {
-    icon = util::LoadIconResource(ShouldUseLightIcons() ? light_id : dark_id, size, dpi);
-  }
-  return icon;
-}
-
 ToolbarIcon MainWindow::Impl::MakeToolbarIcon(
     const wchar_t* filename,
-    int light_id,
-    int dark_id,
-    bool use_light
+    int resource_id
 ) const {
   ToolbarIcon icon;
-  icon.resource_id = use_light ? light_id : dark_id;
+  icon.resource_id = resource_id;
   icon.path = ResolveIconPath(filename);
   return icon;
 }
@@ -746,20 +726,20 @@ void MainWindow::Impl::ReloadThemeIcons() {
 
   toolbar_.LoadIcons(
       {
-          MakeToolbarIcon(L"local-registry.ico", IDI_ICON_LIGHT_LOCAL_REGISTRY, IDI_ICON_DARK_LOCAL_REGISTRY, use_light),
-          MakeToolbarIcon(L"remote-registry.ico", IDI_ICON_LIGHT_REMOTE_REGISTRY, IDI_ICON_DARK_REMOTE_REGISTRY, use_light),
-          MakeToolbarIcon(L"offline-registry.ico", IDI_ICON_LIGHT_OFFLINE_REGISTRY, IDI_ICON_DARK_OFFLINE_REGISTRY, use_light),
-          MakeToolbarIcon(L"search.ico", IDI_ICON_LIGHT_SEARCH, IDI_ICON_DARK_SEARCH, use_light),
-          MakeToolbarIcon(L"replace.ico", IDI_ICON_LIGHT_REPLACE, IDI_ICON_DARK_REPLACE, use_light),
-          MakeToolbarIcon(L"undo.ico", IDI_ICON_LIGHT_UNDO, IDI_ICON_DARK_UNDO, use_light),
-          MakeToolbarIcon(L"redo.ico", IDI_ICON_LIGHT_REDO, IDI_ICON_DARK_REDO, use_light),
-          MakeToolbarIcon(L"copy.ico", IDI_ICON_LIGHT_COPY, IDI_ICON_DARK_COPY, use_light),
-          MakeToolbarIcon(L"paste.ico", IDI_ICON_LIGHT_PASTE, IDI_ICON_DARK_PASTE, use_light),
-          MakeToolbarIcon(L"delete.ico", IDI_ICON_LIGHT_DELETE, IDI_ICON_DARK_DELETE, use_light),
-          MakeToolbarIcon(L"refresh.ico", IDI_ICON_LIGHT_REFRESH, IDI_ICON_DARK_REFRESH, use_light),
-          MakeToolbarIcon(L"back.ico", IDI_ICON_LIGHT_BACK, IDI_ICON_DARK_BACK, use_light),
-          MakeToolbarIcon(L"forward.ico", IDI_ICON_LIGHT_FORWARD, IDI_ICON_DARK_FORWARD, use_light),
-          MakeToolbarIcon(L"up.ico", IDI_ICON_LIGHT_UP, IDI_ICON_DARK_UP, use_light),
+          MakeToolbarIcon(L"local-registry.ico", IDI_ICON_LOCAL_REGISTRY),
+          MakeToolbarIcon(L"remote-registry.ico", IDI_ICON_REMOTE_REGISTRY),
+          MakeToolbarIcon(L"offline-registry.ico", IDI_ICON_OFFLINE_REGISTRY),
+          MakeToolbarIcon(L"search.ico", IDI_ICON_SEARCH),
+          MakeToolbarIcon(L"replace.ico", IDI_ICON_REPLACE),
+          MakeToolbarIcon(L"undo.ico", IDI_ICON_UNDO),
+          MakeToolbarIcon(L"redo.ico", IDI_ICON_REDO),
+          MakeToolbarIcon(L"copy.ico", IDI_ICON_COPY),
+          MakeToolbarIcon(L"paste.ico", IDI_ICON_PASTE),
+          MakeToolbarIcon(L"delete.ico", IDI_ICON_DELETE),
+          MakeToolbarIcon(L"refresh.ico", IDI_ICON_REFRESH),
+          MakeToolbarIcon(L"back.ico", IDI_ICON_BACK),
+          MakeToolbarIcon(L"forward.ico", IDI_ICON_FORWARD),
+          MakeToolbarIcon(L"up.ico", IDI_ICON_UP),
       },
       kToolbarIconSize,
       kToolbarGlyphSize
@@ -780,7 +760,7 @@ void MainWindow::Impl::ReloadThemeIcons() {
     DestroyIcon(address_go_icon_);
     address_go_icon_ = nullptr;
   }
-  address_go_icon_ = LoadThemeIcon(L"forward.ico", IDI_ICON_LIGHT_FORWARD, IDI_ICON_DARK_FORWARD, kToolbarGlyphSize, dpi);
+  address_go_icon_ = util::LoadIconResource(use_light ? IDI_ICON_LIGHT_GO : IDI_ICON_DARK_GO, kToolbarGlyphSize, dpi);
   ApplyGridToolbarIcons();
   LayoutValueGridToolbar();
 

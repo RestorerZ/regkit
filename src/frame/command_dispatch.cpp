@@ -79,8 +79,6 @@ CommandArea ClassifyCommand(
     return CommandArea::kView;
   case cmd::kOptionsEditContextMenu:
   case cmd::kOptionsResetSettings:
-  case cmd::kOptionsIconSetNative:
-  case cmd::kOptionsIconSetClassic:
     return CommandArea::kWorkspaceAppearance;
   default:
     break;

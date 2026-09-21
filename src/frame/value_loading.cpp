@@ -50,7 +50,8 @@ void MainWindow::Impl::StartValueListWorker() {
             return metadata.image_index;
           }
           std::wstring link_target;
-          if (RegistryStore::QuerySymbolicLinkTarget(node, &link_target)) {
+          bool denied = false;
+          if (RegistryStore::QuerySymbolicLinkTarget(node, &link_target, &denied)) {
             if (is_link) {
               *is_link = true;
             }
@@ -58,6 +59,9 @@ void MainWindow::Impl::StartValueListWorker() {
             metadata.is_link = true;
             key_metadata_cache.emplace(std::move(cache_key), metadata);
             return metadata.image_index;
+          }
+          if (denied) {
+            metadata.image_index = kFolderDeniedIconIndex;
           }
           key_metadata_cache.emplace(std::move(cache_key), metadata);
           return metadata.image_index;
@@ -435,7 +439,7 @@ void MainWindow::Impl::StartValueListWorker() {
               row.type = L"TRACE";
               row.data = L"(value not set)";
               row.read_on_boot = format_read_on_boot(gather_labels(value_lower));
-              row.image_index = kValueIconIndex;
+              row.image_index = kTraceIconIndex;
               row.kind = rowkind::kValue;
               row.extra = value_name;
               row.data_ready = true;

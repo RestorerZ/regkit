@@ -1028,11 +1028,7 @@ void MainWindow::Impl::LoadSettings() {
   history_height_ = settings.history_height;
   theme_mode_ = ParseThemeMode(settings.theme_mode);
   active_theme_preset_ = std::move(settings.theme_preset);
-  icon_set_ = IsIconSetName(settings.icon_set, kIconSetLegacyDefault)
-                  ? kIconSetDefault
-                  : (IsKnownIconSetName(settings.icon_set)
-                         ? std::move(settings.icon_set)
-                         : kIconSetDefault);
+  icon_set_ = IsKnownIconSetName(settings.icon_set) ? std::move(settings.icon_set) : kIconSetClassic;
   use_custom_font_ = settings.use_custom_font;
   if (!settings.font_face.empty()) {
     wcsncpy_s(custom_font_.lfFaceName, settings.font_face.c_str(), _TRUNCATE);
@@ -1103,7 +1099,7 @@ void MainWindow::Impl::SaveSettings() const {
   settings.history_height = history_height_;
   settings.theme_mode = ThemeModeName(theme_mode_);
   settings.theme_preset = active_theme_preset_;
-  settings.icon_set = IsKnownIconSetName(icon_set_) ? icon_set_ : kIconSetDefault;
+  settings.icon_set = IsKnownIconSetName(icon_set_) ? icon_set_ : kIconSetClassic;
   settings.use_custom_font = use_custom_font_;
   settings.font_face = custom_font_.lfFaceName;
   settings.font_size = appearance::FontPointSize(custom_font_, 9);

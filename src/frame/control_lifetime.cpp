@@ -299,14 +299,19 @@ LRESULT MainWindow::Impl::HandleToolbarNotification(
 ) {
   if (header->hwndFrom == toolbar_.hwnd() && header->code == NM_CUSTOMDRAW) {
     auto* draw = reinterpret_cast<NMTBCUSTOMDRAW*>(lparam);
-    if (!draw || !Theme::UseDarkMode()) {
+    if (!draw) {
+      return CDRF_DODEFAULT;
+    }
+    const Theme& theme = Theme::Current();
+    if (draw->nmcd.dwDrawStage == CDDS_PREPAINT) {
+      FillRect(draw->nmcd.hdc, &draw->nmcd.rc, theme.BackgroundBrush());
+    }
+    if (!Theme::UseDarkMode()) {
       return CDRF_DODEFAULT;
     }
     HWND bar = header->hwndFrom;
-    const Theme& theme = Theme::Current();
     switch (draw->nmcd.dwDrawStage) {
     case CDDS_PREPAINT:
-      FillRect(draw->nmcd.hdc, &draw->nmcd.rc, theme.BackgroundBrush());
       return CDRF_NOTIFYITEMDRAW;
     case CDDS_ITEMPREPAINT:
       {
@@ -1252,6 +1257,8 @@ LRESULT MainWindow::Impl::HandleSearchNotification(
     if (disp->item.mask & LVIF_IMAGE) {
       if (search::IsKeyRow(result)) {
         disp->item.iImage = kFolderIconIndex;
+      } else if (result.kind == search::ResultKind::kTraceValue) {
+        disp->item.iImage = kTraceIconIndex;
       } else if (UseBinaryValueIcon(result.type)) {
         disp->item.iImage = kBinaryIconIndex;
       } else {
@@ -1393,6 +1400,9 @@ bool MainWindow::Impl::OnCreate() {
     info.uId = reinterpret_cast<UINT_PTR>(browse_.values().hwnd());
     info.lpszText = LPSTR_TEXTCALLBACKW;
     SendMessageW(value_tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&info));
+    info.uId = reinterpret_cast<UINT_PTR>(browse_.go_button());
+    info.lpszText = const_cast<wchar_t*>(L"Go");
+    SendMessageW(value_tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&info));
     SendMessageW(value_tooltip_, TTM_SETMAXTIPWIDTH, 0, kValueTooltipMaxWidth);
     SetDarkWindowTheme(value_tooltip_, Theme::UseDarkMode());
   }
@@ -1473,7 +1483,7 @@ bool MainWindow::Impl::OnCreate() {
   browse_.roots() = RegistryStore::DefaultRoots(show_extra_hives_);
   AppendRealRegistryRoot(&browse_.roots());
   browse_.tree().SetRegEditLayout(false);
-  browse_.tree().SetRootLabel(TreeRootLabel());
+  browse_.tree().SetRootLabel(TreeRootLabel(), TreeRootIcon());
   browse_.tree().PopulateRoots(browse_.roots());
 
   int initial_tab = tab_ ? TabCtrl_GetCurSel(tab_) : -1;

@@ -49,7 +49,6 @@ struct SortContext {
 
 std::vector<ListRegistration> registrations;
 bool grid_enabled = false;
-std::wstring grid_icon_path;
 ListGridChangedCallback grid_changed = nullptr;
 void* grid_changed_context = nullptr;
 
@@ -117,17 +116,8 @@ void ApplyGridIcon(
   }
   const UINT dpi = win32::DpiForWindow(entry->toolbar);
   const int size = util::ScaleForDpi(kGridGlyphSize, dpi);
-  HICON icon = grid_icon_path.empty()
-                   ? nullptr
-                   : util::LoadIconFromFile(grid_icon_path, kGridGlyphSize, dpi);
-  if (!icon) {
-    icon = util::LoadIconResource(
-        Theme::UseDarkMode() ? IDI_ICON_LIGHT_GRID : IDI_ICON_DARK_GRID,
-        kGridGlyphSize,
-        dpi
-    );
-  }
-  HIMAGELIST images = ImageList_Create(size, size, ILC_COLOR32 | ILC_MASK, 1, 1);
+  HICON icon = util::LoadIconResource(Theme::UseDarkMode() ? IDI_ICON_LIGHT_GRID : IDI_ICON_DARK_GRID, kGridGlyphSize, dpi);
+  HIMAGELIST images = ImageList_Create(size, size, ILC_COLOR32, 1, 1);
   if (images) {
     ImageList_SetBkColor(images, CLR_NONE);
     util::ImageListAddOrBlank(images, icon, size);
@@ -447,10 +437,7 @@ void SetListGridEnabled(
   }
 }
 
-void SetListGridIcon(
-    const std::wstring& path
-) {
-  grid_icon_path = path;
+void ReloadListGridIcons() {
   for (ListRegistration& entry : registrations) {
     ApplyGridIcon(&entry);
   }

@@ -22,29 +22,30 @@ void MainWindow::Impl::BuildImageLists() {
 
   const int base_icon_size = kToolbarIconSize;
   const int icon_size = util::ScaleForDpi(base_icon_size, dpi);
-  tree_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32 | ILC_MASK, 4, 2);
-  list_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32 | ILC_MASK, 6, 2);
+  tree_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 10, 2);
+  list_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 8, 2);
   ImageList_SetBkColor(tree_images_, CLR_NONE);
   ImageList_SetBkColor(list_images_, CLR_NONE);
 
-  auto add_icon = [&](HIMAGELIST list, const wchar_t* name, int light_id, int dark_id) {
-    HICON icon = LoadThemeIcon(name, light_id, dark_id, base_icon_size, dpi);
+  auto add_icon = [&](HIMAGELIST list, int resource_id) {
+    HICON icon = util::LoadIconResource(resource_id, base_icon_size, dpi);
     util::ImageListAddOrBlank(list, icon, icon_size);
     if (icon) {
       DestroyIcon(icon);
     }
   };
 
-  add_icon(tree_images_, L"folder.ico", IDI_ICON_LIGHT_FOLDER, IDI_ICON_DARK_FOLDER);
-  add_icon(tree_images_, L"symlink.ico", IDI_ICON_LIGHT_SYMLINK, IDI_ICON_DARK_SYMLINK);
-  add_icon(tree_images_, L"database.ico", IDI_ICON_LIGHT_DATABASE, IDI_ICON_DARK_DATABASE);
-  add_icon(tree_images_, L"folder-sim.ico", IDI_ICON_LIGHT_FOLDER_SIM, IDI_ICON_DARK_FOLDER_SIM);
-  add_icon(list_images_, L"folder.ico", IDI_ICON_LIGHT_FOLDER, IDI_ICON_DARK_FOLDER);
-  add_icon(list_images_, L"symlink.ico", IDI_ICON_LIGHT_SYMLINK, IDI_ICON_DARK_SYMLINK);
-  add_icon(list_images_, L"database.ico", IDI_ICON_LIGHT_DATABASE, IDI_ICON_DARK_DATABASE);
-  add_icon(list_images_, L"folder-sim.ico", IDI_ICON_LIGHT_FOLDER_SIM, IDI_ICON_DARK_FOLDER_SIM);
-  add_icon(list_images_, L"text.ico", IDI_ICON_LIGHT_TEXT, IDI_ICON_DARK_TEXT);
-  add_icon(list_images_, L"binary.ico", IDI_ICON_LIGHT_BINARY, IDI_ICON_DARK_BINARY);
+  for (HIMAGELIST list : {tree_images_, list_images_}) {
+    for (int id : {IDI_ICON_FOLDER, IDI_ICON_SYMLINK, IDI_ICON_DATABASE, IDI_ICON_FOLDER_SIM, IDI_ICON_FOLDER_DENIED}) {
+      add_icon(list, id);
+    }
+  }
+  for (int id : {IDI_ICON_ROOT_KEYS, IDI_APPICON, IDI_ICON_LOCAL_REGISTRY, IDI_ICON_REMOTE_REGISTRY, IDI_ICON_OFFLINE_REGISTRY}) {
+    add_icon(tree_images_, id);
+  }
+  for (int id : {IDI_ICON_TEXT, IDI_ICON_BINARY, IDI_ICON_TRACE}) {
+    add_icon(list_images_, id);
+  }
 }
 
 void MainWindow::Impl::CreateValueColumns() {

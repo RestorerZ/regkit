@@ -64,10 +64,15 @@ bool QueryKeyInfo(
 
 bool QuerySymbolicLinkTarget(
     const RegistryNode& node,
-    std::wstring* target
+    std::wstring* target,
+    bool* denied
 ) {
   target->clear();
-  LiveKey key(util::OpenNativeRegistryKey(registry_path::BuildNative(node), KEY_QUERY_VALUE, true));
+  LONG error = ERROR_SUCCESS;
+  LiveKey key(util::OpenNativeRegistryKey(registry_path::BuildNative(node), KEY_QUERY_VALUE, true, &error));
+  if (denied) {
+    *denied = error == ERROR_ACCESS_DENIED;
+  }
   return key && ReadLinkTarget(key, target) && !target->empty();
 }
 

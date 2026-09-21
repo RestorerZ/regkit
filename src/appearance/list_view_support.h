@@ -29,7 +29,7 @@ void LayoutListViews(HWND owner);
 void RefreshListView(HWND list);
 
 void SetListGridEnabled(bool enabled);
-void SetListGridIcon(const std::wstring& path);
+void ReloadListGridIcons();
 void SetListGridChangedCallback(ListGridChangedCallback callback, void* context);
 
 bool HandleListViewCommand(HWND owner, int command);

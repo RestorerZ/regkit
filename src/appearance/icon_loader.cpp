@@ -179,7 +179,7 @@ void ImageListAddOrBlank(
   info.bmiHeader.biCompression = BI_RGB;
   void* bits = nullptr;
   if (HBITMAP blank = CreateDIBSection(nullptr, &info, DIB_RGB_COLORS, &bits, nullptr, 0)) {
-    ImageList_AddMasked(list, blank, RGB(0, 0, 0));
+    ImageList_Add(list, blank, nullptr);
     DeleteObject(blank);
   }
 }

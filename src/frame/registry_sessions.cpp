@@ -126,7 +126,7 @@ void MainWindow::Impl::ApplyRegistryRoots(
   current_key_count_ = 0;
   current_value_count_ = 0;
   browse_.tree().SetRegEditLayout(false);
-  browse_.tree().SetRootLabel(TreeRootLabel());
+  browse_.tree().SetRootLabel(TreeRootLabel(), TreeRootIcon());
   browse_.tree().PopulateRoots(browse_.roots());
   ResetNavigationState();
   UpdateStatus();
@@ -212,6 +212,10 @@ std::wstring MainWindow::Impl::TreeRootLabel() const {
     return std::wstring(buffer, size);
   }
   return L"Computer";
+}
+
+int MainWindow::Impl::TreeRootIcon() const {
+  return kLocalRegistryIconIndex + static_cast<int>(registry_mode_);
 }
 
 void MainWindow::Impl::SelectDefaultTreeItem() {

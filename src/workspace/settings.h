@@ -58,7 +58,7 @@ struct Settings {
 
   std::wstring theme_mode = L"system";
   std::wstring theme_preset;
-  std::wstring icon_set = L"phosphor-regedit";
+  std::wstring icon_set = L"classic";
 
   bool use_custom_font = false;
   std::wstring font_face;

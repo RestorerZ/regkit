@@ -12,7 +12,7 @@ namespace live {
 
 bool HasSubKeys(const RegistryNode& node);
 bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);
-bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target);
+bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, bool* denied = nullptr);
 std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node, bool sorted);
 bool EnumKeyStreaming(
     const RegistryNode& node,
