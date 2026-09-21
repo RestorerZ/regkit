@@ -79,6 +79,8 @@ constexpr wchar_t kIconSetPhosphor[] = L"phosphor";
 constexpr wchar_t kIconSetLegacyDefault[] = L"default";
 constexpr wchar_t kIconSetLucide[] = L"lucide";
 constexpr wchar_t kIconSetMaterialSymbols[] = L"materialsymbols";
+constexpr wchar_t kIconSetNative[] = L"native";
+constexpr wchar_t kIconSetClassic[] = L"classic";
 constexpr wchar_t kIconSetCustom[] = L"custom";
 
 inline bool IsIconSetName(
@@ -95,6 +97,8 @@ inline bool IsKnownIconSetName(
          IsIconSetName(value, kIconSetPhosphor) ||
          IsIconSetName(value, kIconSetLucide) ||
          IsIconSetName(value, kIconSetMaterialSymbols) ||
+         IsIconSetName(value, kIconSetNative) ||
+         IsIconSetName(value, kIconSetClassic) ||
          IsIconSetName(value, kIconSetCustom);
 }
 

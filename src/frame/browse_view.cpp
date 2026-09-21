@@ -22,8 +22,8 @@ void MainWindow::Impl::BuildImageLists() {
 
   const int base_icon_size = kToolbarIconSize;
   const int icon_size = util::ScaleForDpi(base_icon_size, dpi);
-  tree_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 4, 2);
-  list_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 6, 2);
+  tree_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32 | ILC_MASK, 4, 2);
+  list_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32 | ILC_MASK, 6, 2);
   ImageList_SetBkColor(tree_images_, CLR_NONE);
   ImageList_SetBkColor(list_images_, CLR_NONE);
 

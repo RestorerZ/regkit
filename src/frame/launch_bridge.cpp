@@ -124,6 +124,14 @@ bool MainWindow::Impl::RestartAfterCacheClear(
   // dont restore tab data when its cache was cleared
   const bool restore_session =
       kind != CacheKind::kAll && kind != CacheKind::kTabs;
+  // tabs carry their own tree state
+  if (kind == CacheKind::kTreeState) {
+    for (TabEntry& entry : tabs_) {
+      entry.selected_path.clear();
+      entry.expanded_paths.clear();
+    }
+    ResetRegistryTreeState();
+  }
   if (restore_session && !SaveSessionForRestart()) {
     return false;
   }

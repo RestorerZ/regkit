@@ -38,7 +38,7 @@ void Toolbar::LoadIcons(
   int icon_size = util::ScaleForDpi(base_icon_size, dpi);
   int button_padding = util::ScaleForDpi(6, dpi);
 
-  image_list_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, static_cast<int>(icons.size()), 0);
+  image_list_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32 | ILC_MASK, static_cast<int>(icons.size()), 0);
   ImageList_SetBkColor(image_list_, CLR_NONE);
   SendMessageW(hwnd_, TB_SETBITMAPSIZE, 0, MAKELPARAM(icon_size, icon_size));
   SendMessageW(hwnd_, TB_SETBUTTONSIZE, 0, MAKELPARAM(icon_size + button_padding, icon_size + button_padding));

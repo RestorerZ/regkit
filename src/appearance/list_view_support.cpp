@@ -127,7 +127,7 @@ void ApplyGridIcon(
         dpi
     );
   }
-  HIMAGELIST images = ImageList_Create(size, size, ILC_COLOR32, 1, 1);
+  HIMAGELIST images = ImageList_Create(size, size, ILC_COLOR32 | ILC_MASK, 1, 1);
   if (images) {
     ImageList_SetBkColor(images, CLR_NONE);
     util::ImageListAddOrBlank(images, icon, size);

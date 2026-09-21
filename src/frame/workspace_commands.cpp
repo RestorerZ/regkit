@@ -33,6 +33,8 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(
   case cmd::kOptionsIconSetPhosphor:
   case cmd::kOptionsIconSetLucide:
   case cmd::kOptionsIconSetMaterialSymbols:
+  case cmd::kOptionsIconSetNative:
+  case cmd::kOptionsIconSetClassic:
   case cmd::kOptionsIconSetCustom:
     return HandleWindowAppearanceCommand(command_id);
   case cmd::kOptionsRestartAdmin:
@@ -127,6 +129,18 @@ bool MainWindow::Impl::HandleWindowAppearanceCommand(
     return true;
   case cmd::kOptionsIconSetMaterialSymbols:
     icon_set_ = kIconSetMaterialSymbols;
+    ReloadThemeIcons();
+    SaveSettings();
+    BuildMenus();
+    return true;
+  case cmd::kOptionsIconSetNative:
+    icon_set_ = kIconSetNative;
+    ReloadThemeIcons();
+    SaveSettings();
+    BuildMenus();
+    return true;
+  case cmd::kOptionsIconSetClassic:
+    icon_set_ = kIconSetClassic;
     ReloadThemeIcons();
     SaveSettings();
     BuildMenus();

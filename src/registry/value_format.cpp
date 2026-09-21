@@ -9,6 +9,7 @@
 #include <shlobj.h>
 #include <shlwapi.h>
 
+#include <algorithm>
 #include <cstring>
 #include <cwctype>
 
@@ -126,46 +127,61 @@ std::wstring Data(
   return util::ToHex({data, size});
 }
 
-bool IsLocalIndirectSource(
+bool IsTrustedResourcePath(
+    const wchar_t* full
+) {
+  static const std::vector<std::wstring> roots = [] {
+    std::vector<std::wstring> list;
+    for (const KNOWNFOLDERID& folder : {FOLDERID_Windows, FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86}) {
+      PWSTR root = nullptr;
+      if (SUCCEEDED(SHGetKnownFolderPath(folder, 0, nullptr, &root))) {
+        list.emplace_back(root);
+      }
+      CoTaskMemFree(root);
+    }
+    wchar_t native[MAX_PATH] = {};
+    DWORD size = sizeof(native);
+    if (RegGetValueW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion", L"ProgramW6432Dir", RRF_RT_REG_SZ | RRF_SUBKEY_WOW6464KEY, nullptr, native, &size) == ERROR_SUCCESS) {
+      list.emplace_back(native);
+    }
+    return list;
+  }();
+  return std::any_of(roots.begin(), roots.end(), [&](const std::wstring& root) {
+    return _wcsnicmp(full, root.c_str(), root.size()) == 0 && full[root.size()] == L'\\';
+  });
+}
+
+std::wstring TrustedIndirectString(
     const std::wstring& value
 ) {
-  if (value.size() < 2) {
-    return false;
-  }
-  const bool package = value[1] == L'{';
+  const bool package = value.size() > 1 && value[1] == L'{';
+  const size_t start = package ? 2 : 1;
   const size_t end = package ? value.find(L'?') : value.find_last_of(L',');
-  std::wstring source = util::ExpandEnvironmentStringsDynamic(value.substr(package ? 2 : 1, end == std::wstring::npos ? std::wstring::npos : end - (package ? 2 : 1)));
+  std::wstring source = util::ExpandEnvironmentStringsDynamic(value.substr(start, end == std::wstring::npos ? std::wstring::npos : end - start));
   if (package && (source.size() < 2 || source[1] != L':')) {
-    return true;
+    return value;
   }
-  if (source.size() < 3 || source.find(L"://") != std::wstring::npos || !iswalpha(source[0]) || source[1] != L':' ||
-      (source[2] != L'\\' && source[2] != L'/')) {
-    return false;
+  // only module name = System32
+  if (source.find_first_of(L"\\/:") == std::wstring::npos) {
+    wchar_t system[MAX_PATH] = {};
+    const UINT length = GetSystemDirectoryW(system, MAX_PATH);
+    source.insert(0, std::wstring(system, length < MAX_PATH ? length : 0) + L'\\');
   }
-  const UINT drive_type = GetDriveTypeW(source.substr(0, 3).c_str());
-  if (drive_type != DRIVE_FIXED && drive_type != DRIVE_RAMDISK) {
-    return false;
-  }
-  if (!util::IsProcessPrivileged()) {
-    return true;
+  if (source.size() < 3 || !iswalpha(source[0]) || source[1] != L':' || (source[2] != L'\\' && source[2] != L'/')) {
+    return {};
   }
   wchar_t full[MAX_PATH] = {};
   const DWORD length = GetFullPathNameW(source.c_str(), MAX_PATH, full, nullptr);
   if (length == 0 || length >= MAX_PATH) {
-    return false;
+    return {};
   }
-  for (const KNOWNFOLDERID& folder : {FOLDERID_Windows, FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86}) {
-    PWSTR root = nullptr;
-    const bool trusted = SUCCEEDED(SHGetKnownFolderPath(folder, 0, nullptr, &root)) && _wcsnicmp(full, root, wcslen(root)) == 0 && full[wcslen(root)] == L'\\';
-    CoTaskMemFree(root);
-    if (trusted) {
-      return true;
-    }
+  const wchar_t drive[] = {full[0], L':', L'\\', L'\0'};
+  const UINT drive_type = GetDriveTypeW(drive);
+  if ((drive_type != DRIVE_FIXED && drive_type != DRIVE_RAMDISK) ||
+      (util::IsProcessPrivileged() && !IsTrustedResourcePath(full))) {
+    return {};
   }
-  wchar_t native_program_files[MAX_PATH] = {};
-  DWORD native_size = sizeof(native_program_files);
-  const size_t native_length = RegGetValueW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion", L"ProgramW6432Dir", RRF_RT_REG_SZ | RRF_SUBKEY_WOW6464KEY, nullptr, native_program_files, &native_size) == ERROR_SUCCESS ? wcslen(native_program_files) : 0;
-  return native_length > 0 && _wcsnicmp(full, native_program_files, native_length) == 0 && full[native_length] == L'\\';
+  return value.substr(0, start) + full + (end == std::wstring::npos ? std::wstring() : value.substr(end));
 }
 
 std::wstring DisplayData(
@@ -179,14 +195,16 @@ std::wstring DisplayData(
   if (value.empty()) {
     return value;
   }
-  if (resolve_indirect && (base_type == REG_SZ || base_type == REG_EXPAND_SZ) &&
-      value.front() == L'@' && IsLocalIndirectSource(value)) {
+  const std::wstring indirect = resolve_indirect && (base_type == REG_SZ || base_type == REG_EXPAND_SZ) && value.front() == L'@'
+                                    ? TrustedIndirectString(value)
+                                    : std::wstring();
+  if (!indirect.empty()) {
     std::wstring resolved(1024, L'\0');
     HRESULT result =
-        SHLoadIndirectString(value.c_str(), resolved.data(), static_cast<UINT>(resolved.size()), nullptr);
+        SHLoadIndirectString(indirect.c_str(), resolved.data(), static_cast<UINT>(resolved.size()), nullptr);
     if (result == HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER)) {
       resolved.assign(4096, L'\0');
-      result = SHLoadIndirectString(value.c_str(), resolved.data(), static_cast<UINT>(resolved.size()), nullptr);
+      result = SHLoadIndirectString(indirect.c_str(), resolved.data(), static_cast<UINT>(resolved.size()), nullptr);
     }
     if (SUCCEEDED(result)) {
       while (!resolved.empty() && resolved.back() == L'\0') {

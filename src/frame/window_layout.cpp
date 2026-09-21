@@ -751,7 +751,6 @@ void MainWindow::Impl::ReloadThemeIcons() {
           MakeToolbarIcon(L"offline-registry.ico", IDI_ICON_LIGHT_OFFLINE_REGISTRY, IDI_ICON_DARK_OFFLINE_REGISTRY, use_light),
           MakeToolbarIcon(L"search.ico", IDI_ICON_LIGHT_SEARCH, IDI_ICON_DARK_SEARCH, use_light),
           MakeToolbarIcon(L"replace.ico", IDI_ICON_LIGHT_REPLACE, IDI_ICON_DARK_REPLACE, use_light),
-          MakeToolbarIcon(L"export.ico", IDI_ICON_LIGHT_EXPORT, IDI_ICON_DARK_EXPORT, use_light),
           MakeToolbarIcon(L"undo.ico", IDI_ICON_LIGHT_UNDO, IDI_ICON_DARK_UNDO, use_light),
           MakeToolbarIcon(L"redo.ico", IDI_ICON_LIGHT_REDO, IDI_ICON_DARK_REDO, use_light),
           MakeToolbarIcon(L"copy.ico", IDI_ICON_LIGHT_COPY, IDI_ICON_DARK_COPY, use_light),

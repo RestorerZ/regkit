@@ -54,6 +54,8 @@ using window_detail::kIconSetCustom;
 using window_detail::kIconSetDefault;
 using window_detail::kIconSetLucide;
 using window_detail::kIconSetMaterialSymbols;
+using window_detail::kIconSetNative;
+using window_detail::kIconSetClassic;
 using window_detail::kIconSetPhosphor;
 using window_detail::LeafName;
 using window_detail::MakeValueListRow;
