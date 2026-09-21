@@ -237,7 +237,7 @@ void Layout(
   GetWindowRect(state->list, &list);
   MapWindowPoints(nullptr, dialog, reinterpret_cast<POINT*>(&bar), 2);
   MapWindowPoints(nullptr, dialog, reinterpret_cast<POINT*>(&list), 2);
-  SetWindowPos(state->list, nullptr, 0, list.top, client.right, bar.top - list.top, SWP_NOZORDER | SWP_NOACTIVATE);
+  SetWindowPos(state->list, nullptr, -1, list.top, client.right + 2, bar.top - list.top + 1, SWP_NOZORDER | SWP_NOACTIVATE);
   support::LayoutGridToggles(dialog);
 }
 
@@ -460,7 +460,7 @@ INT_PTR CALLBACK DialogProc(
       SendMessageW(dialog, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_APPICON), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED)));
       SendDlgItemMessageW(dialog, IDC_KH_FILTER, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(L"Filter"));
       support::SetupListView(state->list, 0, {{L"Process", 150}, {L"PID", 60}, {L"Handle", 80}, {L"Object Address", 140}, {L"Key", 400}, {L"Access", 300}, {L"Attributes", 90}, {L"Native Name", 400}});
-      appearance::DetachThemedBorder(state->list);
+      SetWindowPos(state->status, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
       using namespace appearance;
       state->resizer.Attach(dialog, {
                                         {IDC_KH_FILTER, kAnchorLeft | kAnchorTop | kAnchorRight},

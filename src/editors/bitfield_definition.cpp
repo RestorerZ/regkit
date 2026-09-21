@@ -3,6 +3,7 @@
 
 #include "editors/bitfield_definition.h"
 
+#include "records/json.h"
 #include "win32/file_text.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
@@ -19,737 +20,192 @@ constexpr wchar_t kFormat[] = L"regkit-bitfield";
 constexpr wchar_t kExtension[] = L".regkit-bitfield.json";
 constexpr int kMaxDepth = 8;
 
-enum FileMember {
-  kFileFormat = 1 << 0,
-  kFileName = 1 << 1,
-  kFileComment = 1 << 2,
-  kFileDefinitions = 1 << 3,
+enum Member : unsigned {
+  kFormatMember = 1u << 0,
+  kNameMember = 1u << 1,
+  kCommentMember = 1u << 2,
+  kDefinitionsMember = 1u << 3,
+  kValueNameMember = 1u << 4,
+  kKeyPathsMember = 1u << 5,
+  kBitWidthMember = 1u << 6,
+  kByteOffsetMember = 1u << 7,
+  kFieldsMember = 1u << 8,
+  kBitsMember = 1u << 9,
+  kMeaningMember = 1u << 10,
+  kStatesMember = 1u << 11,
+  kValueMember = 1u << 12,
 };
 
-enum DefinitionMember {
-  kDefName = 1 << 0,
-  kDefValueName = 1 << 1,
-  kDefKeyPaths = 1 << 2,
-  kDefBitWidth = 1 << 3,
-  kDefByteOffset = 1 << 4,
-  kDefComment = 1 << 5,
-  kDefFields = 1 << 6,
-};
+template <typename Read>
+bool ReadMembers(
+    json::Reader& reader,
+    const wchar_t* owner,
+    unsigned* seen,
+    Read&& read
+) {
+  *seen = 0;
+  return reader.Object([&](const std::wstring& name) {
+    unsigned flag = 0;
+    if (!read(name, &flag)) {
+      return false;
+    }
+    if (flag == 0) {
+      return reader.Fail((std::wstring(owner) + L" contains an unknown member.").c_str());
+    }
+    if (*seen & flag) {
+      return reader.Fail((std::wstring(owner) + L" contains a duplicate member.").c_str());
+    }
+    *seen |= flag;
+    return true;
+  });
+}
 
-enum FieldMember {
-  kFieldName = 1 << 0,
-  kFieldBits = 1 << 1,
-  kFieldMeaning = 1 << 2,
-  kFieldStates = 1 << 3,
-};
-
-enum StateMember {
-  kStateValue = 1 << 0,
-  kStateName = 1 << 1,
-  kStateMeaning = 1 << 2,
-};
-
-class Parser {
-public:
-  Parser(std::wstring_view text, std::wstring* error)
-      : ptr_(text.data()), end_(text.data() + text.size()), error_(error) {
-  }
-
-  bool ReadFile(DefinitionFile* file);
-
-private:
-  bool Fail(const wchar_t* message);
-  void SkipSpace();
-  bool Literal(wchar_t expected);
-  bool ReadString(std::wstring* out, size_t limit);
-  bool ReadUnsigned(uint64_t* out);
-  bool ReadPaths(std::vector<std::wstring>* paths);
-  bool ReadBits(std::vector<unsigned>* bits);
-  bool ReadState(State* state);
-  bool ReadStates(std::vector<State>* states);
-  bool ReadField(Field* field);
-  bool ReadFields(std::vector<Field>* fields);
-  bool ReadDefinition(Definition* definition);
-  bool ReadDefinitions(std::vector<Definition>* definitions);
-  bool Hex4(unsigned* out);
-  bool Enter();
-  void Leave() {
-    --depth_;
-  }
-
-  wchar_t Peek(size_t offset = 0) const {
-    return static_cast<size_t>(end_ - ptr_) > offset ? ptr_[offset] : L'\0';
-  }
-  wchar_t PeekAdvance() {
-    const wchar_t character = Peek();
-    Advance();
-    return character;
-  }
-  void Advance(size_t count = 1) {
-    ptr_ += count < static_cast<size_t>(end_ - ptr_) ? count : static_cast<size_t>(end_ - ptr_);
-  }
-
-  const wchar_t* ptr_ = nullptr;
-  const wchar_t* end_ = nullptr;
-  std::wstring* error_ = nullptr;
-  int depth_ = 0;
-};
-
-bool Parser::Fail(
+bool Require(
+    json::Reader& reader,
+    unsigned seen,
+    unsigned required,
     const wchar_t* message
 ) {
-  if (error_ && error_->empty()) {
-    *error_ = message;
-  }
-  return false;
+  return (seen & required) == required || reader.Fail(message);
 }
 
-bool Parser::Enter() {
-  // limit nested arrays & objects
-  if (++depth_ > kMaxDepth) {
-    return Fail(L"The definition file is nested too deeply.");
-  }
-  return true;
-}
-
-void Parser::SkipSpace() {
-  while (Peek() == L' ' || Peek() == L'\t' || Peek() == L'\r' || Peek() == L'\n') {
-    Advance();
-  }
-}
-
-bool Parser::Literal(
-    wchar_t expected
-) {
-  SkipSpace();
-  if (Peek() != expected) {
-    return Fail(L"The definition file isn't valid JSON.");
-  }
-  Advance();
-  return true;
-}
-
-bool Parser::Hex4(
-    unsigned* out
-) {
-  unsigned value = 0;
-  for (int i = 0; i < 4; ++i) {
-    const wchar_t c = Peek(i);
-    unsigned digit = 0;
-    if (c >= L'0' && c <= L'9') {
-      digit = static_cast<unsigned>(c - L'0');
-    } else if (c >= L'a' && c <= L'f') {
-      digit = static_cast<unsigned>(c - L'a') + 10;
-    } else if (c >= L'A' && c <= L'F') {
-      digit = static_cast<unsigned>(c - L'A') + 10;
-    } else {
-      return false;
-    }
-    value = (value << 4) | digit;
-  }
-  Advance(4);
-  *out = value;
-  return true;
-}
-
-bool Parser::ReadString(
-    std::wstring* out,
-    size_t limit
-) {
-  if (!Literal(L'"')) {
-    return false;
-  }
-  out->clear();
-  for (;;) {
-    const wchar_t c = Peek();
-    if (c == L'\0') {
-      return Fail(L"The definition file ends inside a string.");
-    }
-    if (c == L'"') {
-      Advance();
-      break;
-    }
-    if (c < 0x20) {
-      return Fail(L"A string contains an unescaped control character.");
-    }
-    if (c != L'\\') {
-      out->push_back(c);
-      Advance();
-      continue;
-    }
-    Advance();
-    const wchar_t escape = PeekAdvance();
-    if (escape == L'\0') {
-      return Fail(L"The definition file ends inside a string.");
-    }
-    switch (escape) {
-    case L'"':
-    case L'\\':
-    case L'/':
-      out->push_back(escape);
-      break;
-    case L'b':
-      out->push_back(L'\b');
-      break;
-    case L'f':
-      out->push_back(L'\f');
-      break;
-    case L'n':
-      out->push_back(L'\n');
-      break;
-    case L'r':
-      out->push_back(L'\r');
-      break;
-    case L't':
-      out->push_back(L'\t');
-      break;
-    case L'u':
-      {
-        unsigned first = 0;
-        if (!Hex4(&first)) {
-          return Fail(L"A string contains a malformed escape.");
-        }
-        if (first >= 0xDC00 && first <= 0xDFFF) {
-          return Fail(L"A string contains a lone surrogate.");
-        }
-        if (first >= 0xD800 && first <= 0xDBFF) {
-          if (Peek(0) != L'\\' || Peek(1) != L'u') {
-            return Fail(L"A string contains a lone surrogate.");
-          }
-          Advance(2);
-          unsigned second = 0;
-          if (!Hex4(&second) || second < 0xDC00 || second > 0xDFFF) {
-            return Fail(L"A string contains a lone surrogate.");
-          }
-          out->push_back(static_cast<wchar_t>(first));
-          out->push_back(static_cast<wchar_t>(second));
-          break;
-        }
-        out->push_back(static_cast<wchar_t>(first));
-        break;
-      }
-    default:
-      return Fail(L"A string contains an unsupported escape.");
-    }
-    if (out->size() > limit) {
-      return Fail(L"A text member is longer than the format allows.");
-    }
-  }
-  if (out->size() > limit) {
-    return Fail(L"A text member is longer than the format allows.");
-  }
-  return true;
-}
-
-bool Parser::ReadUnsigned(
-    uint64_t* out
-) {
-  SkipSpace();
-  if (Peek() < L'0' || Peek() > L'9') {
-    return Fail(L"An unsigned number was expected.");
-  }
-  if (Peek(0) == L'0' && Peek(1) >= L'0' && Peek(1) <= L'9') {
-    return Fail(L"A number has a leading zero.");
-  }
-  uint64_t value = 0;
-  while (Peek() >= L'0' && Peek() <= L'9') {
-    if (value > 0x0FFFFFFFFFFFFFFFull) {
-      return Fail(L"A number is out of range.");
-    }
-    value = value * 10 + static_cast<uint64_t>(Peek() - L'0');
-    Advance();
-  }
-  if (Peek() == L'.' || Peek() == L'e' || Peek() == L'E' || Peek() == L'-' || Peek() == L'+') {
-    return Fail(L"Only unsigned integers are supported.");
-  }
-  *out = value;
-  return true;
-}
-
-bool Parser::ReadPaths(
-    std::vector<std::wstring>* paths
-) {
-  if (!Enter() || !Literal(L'[')) {
-    return false;
-  }
-  SkipSpace();
-  if (Peek() == L']') {
-    Advance();
-    Leave();
-    return true;
-  }
-  for (;;) {
-    if (paths->size() >= kMaxPaths) {
-      return Fail(L"A definition lists too many key paths.");
-    }
-    std::wstring path;
-    if (!ReadString(&path, kMaxPathLength)) {
-      return false;
-    }
-    paths->push_back(std::move(path));
-    SkipSpace();
-    if (Peek() == L',') {
-      Advance();
-      continue;
-    }
-    break;
-  }
-  if (!Literal(L']')) {
-    return false;
-  }
-  Leave();
-  return true;
-}
-
-bool Parser::ReadBits(
-    std::vector<unsigned>* bits
-) {
-  if (!Enter() || !Literal(L'[')) {
-    return false;
-  }
-  SkipSpace();
-  if (Peek() == L']') {
-    Advance();
-    return Fail(L"A field lists no bits.");
-  }
-  for (;;) {
-    uint64_t value = 0;
-    if (!ReadUnsigned(&value)) {
-      return false;
-    }
-    if (value >= 64) {
-      return Fail(L"A field uses a bit outside the declared width.");
-    }
-    if (!bits->empty() && value <= bits->back()) {
-      return Fail(L"Field bits must be unique and in ascending order.");
-    }
-    bits->push_back(static_cast<unsigned>(value));
-    SkipSpace();
-    if (Peek() == L',') {
-      Advance();
-      continue;
-    }
-    break;
-  }
-  if (!Literal(L']')) {
-    return false;
-  }
-  Leave();
-  return true;
-}
-
-bool Parser::ReadState(
+bool ReadState(
+    json::Reader& reader,
     State* state
 ) {
-  if (!Enter() || !Literal(L'{')) {
-    return false;
-  }
   unsigned seen = 0;
-  for (;;) {
-    std::wstring member;
-    if (!ReadString(&member, kMaxNameLength) || !Literal(L':')) {
-      return false;
-    }
-    unsigned flag = 0;
-    if (member == L"value") {
-      flag = kStateValue;
-      if (!ReadUnsigned(&state->value)) {
-        return false;
-      }
-    } else if (member == L"name") {
-      flag = kStateName;
-      if (!ReadString(&state->name, kMaxNameLength)) {
-        return false;
-      }
-    } else if (member == L"meaning") {
-      flag = kStateMeaning;
-      if (!ReadString(&state->meaning, kMaxMeaningLength)) {
-        return false;
-      }
-    } else {
-      return Fail(L"A state contains an unknown member.");
-    }
-    if (seen & flag) {
-      return Fail(L"A state contains a duplicate member.");
-    }
-    seen |= flag;
-    SkipSpace();
-    if (Peek() == L',') {
-      Advance();
-      continue;
-    }
-    break;
-  }
-  if (!Literal(L'}')) {
-    return false;
-  }
-  Leave();
-  if ((seen & (kStateValue | kStateName)) != (kStateValue | kStateName)) {
-    return Fail(L"A state is missing its value or name.");
-  }
-  return true;
+  return ReadMembers(reader, L"A state", &seen, [&](const std::wstring& name, unsigned* flag) {
+           if (name == L"value") {
+             *flag = kValueMember;
+             return reader.Unsigned(&state->value);
+           }
+           if (name == L"name") {
+             *flag = kNameMember;
+             return reader.String(&state->name, kMaxNameLength);
+           }
+           if (name == L"meaning") {
+             *flag = kMeaningMember;
+             return reader.String(&state->meaning, kMaxMeaningLength);
+           }
+           return true;
+         }) &&
+         Require(reader, seen, kValueMember | kNameMember, L"A state is missing its value or name.");
 }
 
-bool Parser::ReadStates(
-    std::vector<State>* states
-) {
-  if (!Enter() || !Literal(L'[')) {
-    return false;
-  }
-  SkipSpace();
-  if (Peek() == L']') {
-    Advance();
-    Leave();
-    return true;
-  }
-  for (;;) {
-    if (states->size() >= 256) {
-      return Fail(L"A field lists more than 256 states.");
-    }
-    State state;
-    if (!ReadState(&state)) {
-      return false;
-    }
-    states->push_back(std::move(state));
-    SkipSpace();
-    if (Peek() == L',') {
-      Advance();
-      continue;
-    }
-    break;
-  }
-  if (!Literal(L']')) {
-    return false;
-  }
-  Leave();
-  return true;
-}
-
-bool Parser::ReadField(
+bool ReadField(
+    json::Reader& reader,
     Field* field
 ) {
-  if (!Enter() || !Literal(L'{')) {
-    return false;
-  }
   unsigned seen = 0;
-  for (;;) {
-    std::wstring member;
-    if (!ReadString(&member, kMaxNameLength) || !Literal(L':')) {
-      return false;
-    }
-    unsigned flag = 0;
-    if (member == L"name") {
-      flag = kFieldName;
-      if (!ReadString(&field->name, kMaxNameLength)) {
-        return false;
-      }
-    } else if (member == L"bits") {
-      flag = kFieldBits;
-      if (!ReadBits(&field->bits)) {
-        return false;
-      }
-    } else if (member == L"meaning") {
-      flag = kFieldMeaning;
-      if (!ReadString(&field->meaning, kMaxMeaningLength)) {
-        return false;
-      }
-    } else if (member == L"states") {
-      flag = kFieldStates;
-      if (!ReadStates(&field->states)) {
-        return false;
-      }
-    } else {
-      return Fail(L"A field contains an unknown member.");
-    }
-    if (seen & flag) {
-      return Fail(L"A field contains a duplicate member.");
-    }
-    seen |= flag;
-    SkipSpace();
-    if (Peek() == L',') {
-      Advance();
-      continue;
-    }
-    break;
-  }
-  if (!Literal(L'}')) {
-    return false;
-  }
-  Leave();
-  if ((seen & (kFieldName | kFieldBits)) != (kFieldName | kFieldBits)) {
-    return Fail(L"A field is missing its name or bits.");
-  }
-  return true;
+  return ReadMembers(reader, L"A field", &seen, [&](const std::wstring& name, unsigned* flag) {
+           if (name == L"name") {
+             *flag = kNameMember;
+             return reader.String(&field->name, kMaxNameLength);
+           }
+           if (name == L"bits") {
+             *flag = kBitsMember;
+             return reader.Array([&] {
+               uint64_t bit = 0;
+               if (!reader.Unsigned(&bit)) {
+                 return false;
+               }
+               if (bit >= 64) {
+                 return reader.Fail(L"A field uses a bit outside the declared width.");
+               }
+               if (!field->bits.empty() && bit <= field->bits.back()) {
+                 return reader.Fail(L"Field bits must be unique and in ascending order.");
+               }
+               field->bits.push_back(static_cast<unsigned>(bit));
+               return true;
+             }) && (!field->bits.empty() || reader.Fail(L"A field lists no bits."));
+           }
+           if (name == L"meaning") {
+             *flag = kMeaningMember;
+             return reader.String(&field->meaning, kMaxMeaningLength);
+           }
+           if (name == L"states") {
+             *flag = kStatesMember;
+             return reader.Array([&] {
+               return (field->states.size() < 256 || reader.Fail(L"A field lists more than 256 states.")) && ReadState(reader, &field->states.emplace_back());
+             });
+           }
+           return true;
+         }) &&
+         Require(reader, seen, kNameMember | kBitsMember, L"A field is missing its name or bits.");
 }
 
-bool Parser::ReadFields(
-    std::vector<Field>* fields
-) {
-  if (!Enter() || !Literal(L'[')) {
-    return false;
-  }
-  SkipSpace();
-  if (Peek() == L']') {
-    Advance();
-    Leave();
-    return true;
-  }
-  for (;;) {
-    if (fields->size() >= 64) {
-      return Fail(L"A definition contains more than 64 fields.");
-    }
-    Field field;
-    if (!ReadField(&field)) {
-      return false;
-    }
-    fields->push_back(std::move(field));
-    SkipSpace();
-    if (Peek() == L',') {
-      Advance();
-      continue;
-    }
-    break;
-  }
-  if (!Literal(L']')) {
-    return false;
-  }
-  Leave();
-  return true;
-}
-
-bool Parser::ReadDefinition(
+bool ReadDefinition(
+    json::Reader& reader,
     Definition* definition
 ) {
-  if (!Enter() || !Literal(L'{')) {
-    return false;
-  }
   unsigned seen = 0;
-  for (;;) {
-    std::wstring member;
-    if (!ReadString(&member, kMaxNameLength) || !Literal(L':')) {
-      return false;
-    }
-    unsigned flag = 0;
-    if (member == L"name") {
-      flag = kDefName;
-      if (!ReadString(&definition->name, kMaxNameLength)) {
-        return false;
-      }
-    } else if (member == L"value_name") {
-      flag = kDefValueName;
-      if (!ReadString(&definition->value_name, kMaxNameLength)) {
-        return false;
-      }
-    } else if (member == L"key_paths") {
-      flag = kDefKeyPaths;
-      if (!ReadPaths(&definition->key_paths)) {
-        return false;
-      }
-    } else if (member == L"bit_width") {
-      flag = kDefBitWidth;
-      uint64_t width = 0;
-      if (!ReadUnsigned(&width)) {
-        return false;
-      }
-      if (!ValidWidth(static_cast<unsigned>(width))) {
-        return Fail(L"The bit width must be 8, 16, 32, or 64.");
-      }
-      definition->bit_width = static_cast<unsigned>(width);
-    } else if (member == L"byte_offset") {
-      flag = kDefByteOffset;
-      uint64_t offset = 0;
-      if (!ReadUnsigned(&offset)) {
-        return false;
-      }
-      if (offset > kMaxByteOffset) {
-        return Fail(L"The byte offset is out of range.");
-      }
-      definition->byte_offset = static_cast<unsigned>(offset);
-    } else if (member == L"comment") {
-      flag = kDefComment;
-      if (!ReadString(&definition->comment, kMaxCommentLength)) {
-        return false;
-      }
-    } else if (member == L"fields") {
-      flag = kDefFields;
-      if (!ReadFields(&definition->fields)) {
-        return false;
-      }
-    } else {
-      return Fail(L"A definition contains an unknown member.");
-    }
-    if (seen & flag) {
-      return Fail(L"A definition contains a duplicate member.");
-    }
-    seen |= flag;
-    SkipSpace();
-    if (Peek() == L',') {
-      Advance();
-      continue;
-    }
-    break;
-  }
-  if (!Literal(L'}')) {
-    return false;
-  }
-  Leave();
-  constexpr unsigned required = kDefValueName | kDefBitWidth;
-  if ((seen & required) != required) {
-    return Fail(L"A definition is missing its value name or bit width.");
-  }
-  return true;
+  return ReadMembers(reader, L"A definition", &seen, [&](const std::wstring& name, unsigned* flag) {
+           uint64_t number = 0;
+           if (name == L"name") {
+             *flag = kNameMember;
+             return reader.String(&definition->name, kMaxNameLength);
+           }
+           if (name == L"value_name") {
+             *flag = kValueNameMember;
+             return reader.String(&definition->value_name, kMaxNameLength);
+           }
+           if (name == L"key_paths") {
+             *flag = kKeyPathsMember;
+             return reader.Array([&] {
+               return (definition->key_paths.size() < kMaxPaths || reader.Fail(L"A definition lists too many key paths.")) && reader.String(&definition->key_paths.emplace_back(), kMaxPathLength);
+             });
+           }
+           if (name == L"bit_width") {
+             *flag = kBitWidthMember;
+             definition->bit_width = 0;
+             return reader.Unsigned(&number) && ((ValidWidth(static_cast<unsigned>(number)) && number <= 64) || reader.Fail(L"The bit width must be 8, 16, 32, or 64.")) && (definition->bit_width = static_cast<unsigned>(number), true);
+           }
+           if (name == L"byte_offset") {
+             *flag = kByteOffsetMember;
+             return reader.Unsigned(&number) && (number <= kMaxByteOffset || reader.Fail(L"The byte offset is out of range.")) && (definition->byte_offset = static_cast<unsigned>(number), true);
+           }
+           if (name == L"comment") {
+             *flag = kCommentMember;
+             return reader.String(&definition->comment, kMaxCommentLength);
+           }
+           if (name == L"fields") {
+             *flag = kFieldsMember;
+             return reader.Array([&] {
+               return (definition->fields.size() < 64 || reader.Fail(L"A definition contains more than 64 fields.")) && ReadField(reader, &definition->fields.emplace_back());
+             });
+           }
+           return true;
+         }) &&
+         Require(reader, seen, kValueNameMember | kBitWidthMember, L"A definition is missing its value name or bit width.");
 }
 
-bool Parser::ReadDefinitions(
-    std::vector<Definition>* definitions
-) {
-  if (!Enter() || !Literal(L'[')) {
-    return false;
-  }
-  SkipSpace();
-  if (Peek() == L']') {
-    Advance();
-    return Fail(L"The file contains no definitions.");
-  }
-  for (;;) {
-    Definition definition;
-    if (!ReadDefinition(&definition)) {
-      return false;
-    }
-    definitions->push_back(std::move(definition));
-    SkipSpace();
-    if (Peek() == L',') {
-      Advance();
-      continue;
-    }
-    break;
-  }
-  if (!Literal(L']')) {
-    return false;
-  }
-  Leave();
-  return true;
-}
-
-bool Parser::ReadFile(
+bool ReadFile(
+    json::Reader& reader,
     DefinitionFile* file
 ) {
-  if (!Literal(L'{')) {
-    return false;
-  }
   unsigned seen = 0;
-  for (;;) {
-    std::wstring member;
-    if (!ReadString(&member, kMaxNameLength) || !Literal(L':')) {
-      return false;
-    }
-    unsigned flag = 0;
-    if (member == L"format") {
-      flag = kFileFormat;
-      std::wstring format;
-      if (!ReadString(&format, kMaxNameLength)) {
-        return false;
-      }
-      if (format != kFormat) {
-        return Fail(L"The file isn't a RegKit bitfield definition.");
-      }
-    } else if (member == L"name") {
-      flag = kFileName;
-      if (!ReadString(&file->name, kMaxNameLength)) {
-        return false;
-      }
-    } else if (member == L"comment") {
-      flag = kFileComment;
-      if (!ReadString(&file->comment, kMaxCommentLength)) {
-        return false;
-      }
-    } else if (member == L"definitions") {
-      flag = kFileDefinitions;
-      if (!ReadDefinitions(&file->definitions)) {
-        return false;
-      }
-    } else {
-      return Fail(L"The file contains an unknown member.");
-    }
-    if (seen & flag) {
-      return Fail(L"The file contains a duplicate member.");
-    }
-    seen |= flag;
-    SkipSpace();
-    if (Peek() == L',') {
-      Advance();
-      continue;
-    }
-    break;
-  }
-  if (!Literal(L'}')) {
-    return false;
-  }
-  SkipSpace();
-  if (Peek() != L'\0') {
-    return Fail(L"The definition file contains trailing content.");
-  }
-  constexpr unsigned required = kFileFormat | kFileDefinitions;
-  if ((seen & required) != required) {
-    return Fail(L"The file is missing a required member.");
-  }
-  return true;
-}
-
-void AppendEscaped(
-    std::wstring* out,
-    const std::wstring& text
-) {
-  out->push_back(L'"');
-  for (size_t i = 0; i < text.size(); ++i) {
-    const wchar_t c = text[i];
-    switch (c) {
-    case L'"':
-      out->append(L"\\\"");
-      continue;
-    case L'\\':
-      out->append(L"\\\\");
-      continue;
-    case L'\b':
-      out->append(L"\\b");
-      continue;
-    case L'\f':
-      out->append(L"\\f");
-      continue;
-    case L'\n':
-      out->append(L"\\n");
-      continue;
-    case L'\r':
-      out->append(L"\\r");
-      continue;
-    case L'\t':
-      out->append(L"\\t");
-      continue;
-    default:
-      break;
-    }
-    bool escape = c < 0x20 || c == 0x7F;
-    if (c >= 0xD800 && c <= 0xDBFF) {
-      const wchar_t next = i + 1 < text.size() ? text[i + 1] : 0;
-      if (next >= 0xDC00 && next <= 0xDFFF) {
-        out->push_back(c);
-        out->push_back(next);
-        ++i;
-        continue;
-      }
-      escape = true;
-    } else if (c >= 0xDC00 && c <= 0xDFFF) {
-      escape = true;
-    }
-    if (escape) {
-      wchar_t buffer[8] = {};
-      swprintf_s(buffer, L"\\u%04X", static_cast<unsigned>(c));
-      out->append(buffer);
-      continue;
-    }
-    out->push_back(c);
-  }
-  out->push_back(L'"');
+  return ReadMembers(reader, L"The file", &seen, [&](const std::wstring& name, unsigned* flag) {
+           if (name == L"format") {
+             *flag = kFormatMember;
+             std::wstring format;
+             return reader.String(&format, kMaxNameLength) && (format == kFormat || reader.Fail(L"The file isn't a RegKit bitfield definition."));
+           }
+           if (name == L"name") {
+             *flag = kNameMember;
+             return reader.String(&file->name, kMaxNameLength);
+           }
+           if (name == L"comment") {
+             *flag = kCommentMember;
+             return reader.String(&file->comment, kMaxCommentLength);
+           }
+           if (name == L"definitions") {
+             *flag = kDefinitionsMember;
+             return reader.Array([&] { return ReadDefinition(reader, &file->definitions.emplace_back()); }) &&
+                    (!file->definitions.empty() || reader.Fail(L"The file contains no definitions."));
+           }
+           return true;
+         }) &&
+         reader.End() && Require(reader, seen, kFormatMember | kDefinitionsMember, L"The file is missing a required member.");
 }
 
 void AppendMember(
@@ -759,7 +215,7 @@ void AppendMember(
     const std::wstring& text
 ) {
   out->append(indent).append(L"\"").append(name).append(L"\": ");
-  AppendEscaped(out, text);
+  json::AppendString(out, text);
 }
 
 std::wstring BundleDirectory() {
@@ -1081,8 +537,8 @@ bool Parse(
   }
   DefinitionFile parsed;
   std::wstring message;
-  Parser parser(text, &message);
-  if (!parser.ReadFile(&parsed)) {
+  json::Reader reader(text, &message, kMaxDepth);
+  if (!ReadFile(reader, &parsed)) {
     if (error) {
       *error = message.empty() ? L"The definition file isn't valid JSON." : message;
     }
@@ -1140,7 +596,7 @@ std::wstring Serialize(
       out.append(L",\n      \"key_paths\": [\n");
       for (size_t i = 0; i < definition.key_paths.size(); ++i) {
         out.append(L"        ");
-        AppendEscaped(&out, definition.key_paths[i]);
+        json::AppendString(&out, definition.key_paths[i]);
         out.append(i + 1 < definition.key_paths.size() ? L",\n" : L"\n");
       }
       out.append(L"      ]");

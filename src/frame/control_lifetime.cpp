@@ -1569,10 +1569,10 @@ void MainWindow::Impl::StartStartupCacheLoad(
         payload->generation = generation;
 
         std::wstring comments_content;
-        const std::wstring defaults_path = util::JoinPath(util::GetModuleDirectory(), L"assets\\comments\\default-comments.rkc");
+        const std::wstring defaults_path = util::JoinPath(util::GetModuleDirectory(), L"assets\\comments\\default-comments.json");
         if (util::ReadTextFile(defaults_path, &comments_content, nullptr, util::kMaxCommentFileBytes) &&
             (!changes::ParseComments(comments_content, &payload->default_comments) || !changes::ValidateCatalog(payload->default_comments))) {
-          payload->default_comments = {};
+          payload->default_comments.clear();
         }
         const std::wstring comments_path = CommentsPath();
         if (!comments_path.empty() && util::ReadTextFile(comments_path, &comments_content, nullptr, util::kMaxCommentFileBytes)) {
@@ -1649,12 +1649,7 @@ void MainWindow::Impl::ApplyStartupCachePayload(
     changes::ValueComments loaded;
     loaded.Merge(owned->user_comments);
     // comments added during startup override older copies loaded from disk
-    for (const auto& pair : value_comments_.values()) {
-      loaded.SetValue(pair.second);
-    }
-    for (const changes::CommentRule& rule : value_comments_.rules()) {
-      loaded.SetRule(rule);
-    }
+    loaded.Merge(value_comments_.rules());
     value_comments_ = std::move(loaded);
     comments_unreadable_ = owned->comments_unreadable;
     if (comments_unreadable_) {

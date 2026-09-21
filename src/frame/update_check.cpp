@@ -5,6 +5,7 @@
 #include <cstdlib>
 
 #include "frame/window_detail.h"
+#include "records/json.h"
 
 #include <bcrypt.h>
 #include <winhttp.h>
@@ -20,7 +21,7 @@ namespace {
 
 constexpr wchar_t kReleasesPage[] = L"https://github.com/nohuto/regkit/releases";
 constexpr wchar_t kLatestReleaseUrl[] = L"https://api.github.com/repos/nohuto/regkit/releases/latest";
-constexpr const char* kSetupSuffix = sizeof(void*) == 8 ? "-x64.exe" : "-x86.exe";
+constexpr const wchar_t* kSetupSuffix = sizeof(void*) == 8 ? L"-x64.exe" : L"-x86.exe";
 constexpr size_t kMaxReleaseJsonBytes = 4ull * 1024ull * 1024ull;
 constexpr size_t kMaxSetupBytes = 192ull * 1024ull * 1024ull;
 
@@ -95,20 +96,37 @@ std::wstring HttpGet(
   return ErrorText(ERROR_CANCELLED);
 }
 
-std::string JsonText(
-    const std::string& json,
-    size_t* pos,
-    const char* key
+bool ReadRelease(
+    const std::string& body,
+    std::wstring* version,
+    std::wstring* url,
+    std::wstring* digest
 ) {
-  size_t start = json.find(std::string("\"") + key + "\"", *pos);
-  start = start == std::string::npos ? start : json.find('"', json.find(':', start));
-  const size_t end = start == std::string::npos ? start : json.find('"', start + 1);
-  if (end == std::string::npos) {
-    *pos = std::string::npos;
-    return {};
-  }
-  *pos = end + 1;
-  return json.substr(start + 1, end - start - 1);
+  const std::wstring text = util::Utf8ToWide(body);
+  json::Reader reader(text, nullptr);
+  const std::wstring_view suffix(kSetupSuffix);
+  return reader.Object([&](const std::wstring& member) {
+    if (member == L"tag_name") {
+      return reader.String(version, 64);
+    }
+    if (member != L"assets") {
+      return reader.Skip();
+    }
+    return reader.Array([&] {
+      std::wstring name;
+      std::wstring link;
+      std::wstring hash;
+      const bool read = reader.Object([&](const std::wstring& field) {
+        std::wstring* out = field == L"name" ? &name : field == L"browser_download_url" ? &link : field == L"digest" ? &hash : nullptr;
+        return out && reader.Next() == L'"' ? reader.String(out) : reader.Skip();
+      });
+      if (read && url->empty() && name.starts_with(L"RegKit-Setup-") && name.size() > suffix.size() && name.ends_with(suffix)) {
+        *url = std::move(link);
+        *digest = std::move(hash);
+      }
+      return read;
+    });
+  }) && reader.End();
 }
 
 std::array<int, 4> VersionParts(
@@ -257,23 +275,11 @@ void MainWindow::Impl::CheckForUpdates(
     payload->silent = silent;
     std::string json;
     std::wstring error = HttpGet(kLatestReleaseUrl, cancel, &json, kMaxReleaseJsonBytes);
-    size_t pos = 0;
-    payload->version = util::Utf8ToWide(JsonText(json, &pos, "tag_name"));
-    if (error.empty() && payload->version.empty()) {
+    std::wstring digest;
+    if (error.empty() && (!ReadRelease(json, &payload->version, &payload->download_url, &digest) || payload->version.empty())) {
       error = L"The response didn't contain a release.";
     }
-    for (pos = json.find("\"assets\""); error.empty() && pos != std::string::npos;) {
-      const std::string name = JsonText(json, &pos, "name");
-      size_t asset = pos;
-      const std::string url = JsonText(json, &pos, "browser_download_url");
-      if (name.rfind("RegKit-Setup-", 0) == 0 && name.size() > strlen(kSetupSuffix) &&
-          name.compare(name.size() - strlen(kSetupSuffix), std::string::npos, kSetupSuffix) == 0) {
-        const std::string digest = JsonText(json, &asset, "digest");
-        payload->download_url = util::Utf8ToWide(url);
-        payload->sha256 = asset <= pos && digest.rfind("sha256:", 0) == 0 ? digest.substr(7) : std::string();
-        break;
-      }
-    }
+    payload->sha256 = digest.starts_with(L"sha256:") ? util::WideToUtf8(digest.substr(7)) : std::string();
     if (cancel.load()) {
       return;
     }

@@ -3,25 +3,38 @@
 
 #include "changes/value_comments.h"
 
-#include "records/escaped_fields.h"
+#include "records/json.h"
+#include "registry/value_format.h"
 #include "win32/file_text.h"
 #include "win32/text_transform.h"
 
 #include <algorithm>
 #include <tuple>
+#include <unordered_set>
 
 namespace regkit::changes {
 
 namespace {
 
-constexpr wchar_t kHeaderTag[] = L"regkit-comments";
+constexpr wchar_t kFormat[] = L"regkit-comments";
+constexpr size_t kMaxTextLength = 65536;
+constexpr size_t kMaxPathLength = 32767;
 
-std::wstring ValueKey(
-    const std::wstring& path,
-    const std::wstring& name,
-    DWORD type
+std::wstring NormalizeKeyPath(
+    std::wstring path
 ) {
-  return util::ToLower(path) + L'\t' + util::ToLower(name) + L'\t' + std::to_wstring(type);
+  while (!path.empty() && path.back() == L'\\') {
+    path.pop_back();
+  }
+  return path;
+}
+
+std::wstring ConditionKey(
+    const CommentRule& rule
+) {
+  return util::ToLower(rule.name) + L'\t' + (rule.type ? std::to_wstring(*rule.type) : L"*") + L'\t' +
+         (rule.data_size ? std::to_wstring(*rule.data_size) : L"*") + L'\t' + std::to_wstring(static_cast<int>(rule.key_scope)) +
+         L'\t' + util::ToLower(NormalizeKeyPath(rule.key_path));
 }
 
 bool KeyMatches(
@@ -57,149 +70,129 @@ auto Specificity(
   return std::tuple(scope, depth, static_cast<int>(rule.type.has_value()) + static_cast<int>(rule.data_size.has_value()));
 }
 
-bool SameConditions(
-    const CommentRule& left,
-    const CommentRule& right
+bool ReadType(
+    json::Reader& reader,
+    std::optional<DWORD>* type
 ) {
-  return util::EqualsInsensitive(left.name, right.name) && left.type == right.type &&
-         left.data_size == right.data_size && left.key_scope == right.key_scope &&
-         util::EqualsInsensitive(left.key_path, right.key_path);
-}
-
-bool ParseOptional(
-    std::wstring_view field,
-    uint64_t maximum,
-    std::optional<uint64_t>* value
-) {
-  uint64_t parsed = 0;
-  if (field == L"*") {
-    value->reset();
-    return true;
+  if (reader.Next() == L'"') {
+    std::wstring name;
+    if (!reader.String(&name, 64)) {
+      return false;
+    }
+    for (DWORD candidate = REG_NONE; candidate <= REG_QWORD; ++candidate) {
+      if (util::EqualsInsensitive(name, value_format::TypeName(candidate))) {
+        *type = candidate;
+        return true;
+      }
+    }
+    return reader.Fail(L"A comment has an unknown registry type.");
   }
-  if (!record_fields::ParseUnsigned(field, maximum, &parsed)) {
+  uint64_t value = 0;
+  if (!reader.Unsigned(&value)) {
     return false;
   }
-  *value = parsed;
+  if (value > MAXDWORD) {
+    return reader.Fail(L"A comment type is out of range.");
+  }
+  *type = static_cast<DWORD>(value);
   return true;
 }
 
-std::wstring Optional(
-    const std::optional<uint64_t>& value
-) {
-  return value ? std::to_wstring(*value) : L"*";
-}
-
-bool ParseRule(
-    std::vector<std::wstring>& fields,
+bool ReadRule(
+    json::Reader& reader,
     CommentRule* rule
 ) {
-  static constexpr std::pair<const wchar_t*, CommentKeyScope> kScopes[] = {{L"any", CommentKeyScope::kAny}, {L"key", CommentKeyScope::kExact}, {L"tree", CommentKeyScope::kRecursive}};
-  if (fields.size() != 8) {
-    return false;
-  }
-  const auto scope = std::find_if(std::begin(kScopes), std::end(kScopes), [&](const auto& entry) { return fields[5] == entry.first; });
-  std::optional<uint64_t> type;
-  std::optional<uint64_t> size;
-  if (fields[1].empty() || scope == std::end(kScopes) ||
-      !ParseOptional(fields[3], MAXDWORD, &type) || !ParseOptional(fields[4], UINT64_MAX, &size)) {
-    return false;
-  }
-  rule->id = std::move(fields[1]);
-  rule->name = std::move(fields[2]);
-  if (type) {
-    rule->type = static_cast<DWORD>(*type);
-  }
-  rule->data_size = size;
-  rule->key_scope = scope->second;
-  rule->key_path = NormalizeKeyPath(std::move(fields[6]));
-  rule->text = std::move(fields[7]);
-  return (rule->key_scope == CommentKeyScope::kAny) == rule->key_path.empty();
+  unsigned seen = 0;
+  const auto claim = [&](unsigned bit) {
+    const bool first = (seen & bit) == 0;
+    seen |= bit;
+    return first || reader.Fail(L"A comment contains a duplicate member.");
+  };
+  const bool read = reader.Object([&](const std::wstring& member) {
+    if (member == L"name") {
+      return claim(1) && reader.String(&rule->name, kMaxPathLength);
+    }
+    if (member == L"text") {
+      return claim(2) && reader.String(&rule->text, kMaxTextLength);
+    }
+    if (member == L"type") {
+      return claim(4) && ReadType(reader, &rule->type);
+    }
+    if (member == L"size") {
+      uint64_t size = 0;
+      return claim(8) && reader.Unsigned(&size) && (rule->data_size = size, true);
+    }
+    if (member == L"key" || member == L"tree") {
+      rule->key_scope = member == L"key" ? CommentKeyScope::kExact : CommentKeyScope::kRecursive;
+      return claim(16) && reader.String(&rule->key_path, kMaxPathLength) &&
+             (!(rule->key_path = NormalizeKeyPath(std::move(rule->key_path))).empty() || reader.Fail(L"A comment has an empty key."));
+    }
+    return reader.Fail(L"A comment contains an unknown member.");
+  });
+  return read && ((seen & 3) == 3 || reader.Fail(L"A comment is missing its name or text."));
 }
 
-const wchar_t* ScopeName(
-    CommentKeyScope scope
+void AppendMember(
+    std::wstring* out,
+    const wchar_t* name,
+    std::wstring_view value,
+    bool quote
 ) {
-  return scope == CommentKeyScope::kExact ? L"key" : scope == CommentKeyScope::kRecursive ? L"tree"
-                                                                                          : L"any";
+  out->append(L",\n      \"").append(name).append(L"\": ");
+  if (quote) {
+    json::AppendString(out, value);
+  } else {
+    out->append(value);
+  }
 }
 
 } // namespace
-
-std::wstring NormalizeKeyPath(
-    std::wstring path
-) {
-  while (!path.empty() && path.back() == L'\\') {
-    path.pop_back();
-  }
-  return path;
-}
 
 bool ValueComments::Load(
     const std::wstring& path
 ) {
   std::wstring content;
-  CommentDocument document;
-  if (!util::ReadTextFile(path, &content, nullptr, util::kMaxCommentFileBytes) || !ParseComments(content, &document)) {
+  std::vector<CommentRule> rules;
+  if (!util::ReadTextFile(path, &content, nullptr, util::kMaxCommentFileBytes) || !ParseComments(content, &rules)) {
     return false;
   }
   Clear();
-  Merge(document);
+  Merge(rules);
   return true;
 }
 
 bool ValueComments::Save(
     const std::wstring& path
 ) const {
-  return !path.empty() &&
-         util::WriteTextFile(path, SerializeComments(*this), false);
+  return !path.empty() && util::WriteTextFile(path, SerializeComments(*this), false);
 }
 
 void ValueComments::Clear() {
-  values_.clear();
   rules_.clear();
-  rule_index_.clear();
+  index_.clear();
 }
 
 void ValueComments::Merge(
-    const CommentDocument& document
+    const std::vector<CommentRule>& rules
 ) {
-  for (const CommentEntry& entry : document.value_entries) {
-    values_[ValueKey(entry.path, entry.name, entry.type)] = entry;
-  }
-  for (CommentRule rule : document.rules) {
-    const CommentRule* existing = FindRule(rule.id);
-    if (existing && !SameConditions(*existing, rule)) {
-      rule.id.clear();
+  rules_.insert(rules_.end(), rules.begin(), rules.end());
+  std::unordered_set<std::wstring> seen;
+  std::vector<CommentRule> unique;
+  for (auto rule = rules_.rbegin(); rule != rules_.rend(); ++rule) {
+    rule->key_path = NormalizeKeyPath(std::move(rule->key_path));
+    if (seen.insert(ConditionKey(*rule)).second) {
+      unique.push_back(std::move(*rule));
     }
-    SetRule(std::move(rule));
   }
+  rules_.assign(std::make_move_iterator(unique.rbegin()), std::make_move_iterator(unique.rend()));
+  Reindex();
 }
 
-const CommentEntry* ValueComments::FindValue(
+const CommentRule* ValueComments::Match(
     const CommentTarget& target
 ) const {
-  const auto found = values_.find(ValueKey(target.path, target.name, target.type));
-  return found == values_.end() ? nullptr : &found->second;
-}
-
-void ValueComments::SetValue(
-    CommentEntry entry
-) {
-  std::wstring key = ValueKey(entry.path, entry.name, entry.type);
-  values_[std::move(key)] = std::move(entry);
-}
-
-bool ValueComments::EraseValue(
-    const CommentTarget& target
-) {
-  return values_.erase(ValueKey(target.path, target.name, target.type)) != 0;
-}
-
-const CommentRule* ValueComments::MatchRule(
-    const CommentTarget& target
-) const {
-  const auto candidates = rule_index_.find(util::ToLower(target.name));
-  if (candidates == rule_index_.end()) {
+  const auto candidates = index_.find(util::ToLower(target.name));
+  if (candidates == index_.end()) {
     return nullptr;
   }
   const CommentRule* best = nullptr;
@@ -212,45 +205,18 @@ const CommentRule* ValueComments::MatchRule(
   return best;
 }
 
-const CommentRule* ValueComments::FindRule(
-    const std::wstring& id
-) const {
-  const auto found = std::find_if(rules_.begin(), rules_.end(), [&](const CommentRule& rule) { return rule.id == id; });
-  return id.empty() || found == rules_.end() ? nullptr : &*found;
-}
-
-const CommentRule* ValueComments::FindEquivalentRule(
-    const CommentRule& rule
-) const {
-  const auto found = std::find_if(rules_.begin(), rules_.end(), [&](const CommentRule& existing) { return SameConditions(existing, rule); });
-  return found == rules_.end() ? nullptr : &*found;
-}
-
-void ValueComments::SetRule(
+void ValueComments::Set(
     CommentRule rule
 ) {
-  if (rule.id.empty()) {
-    rule.id = util::RandomFileSuffix(L"").substr(1);
-  }
-  rule.key_path = NormalizeKeyPath(std::move(rule.key_path));
-  const auto found = std::find_if(rules_.begin(), rules_.end(), [&](const CommentRule& existing) { return existing.id == rule.id; });
-  if (found != rules_.end()) {
-    rules_.erase(found);
-  }
-  rules_.push_back(std::move(rule));
-  Reindex();
+  Merge({std::move(rule)});
 }
 
-bool ValueComments::EraseRule(
-    const std::wstring& id
+void ValueComments::Erase(
+    const CommentRule& rule
 ) {
-  const auto removed = std::erase_if(rules_, [&](const CommentRule& rule) { return rule.id == id; });
+  const std::wstring key = ConditionKey(rule);
+  std::erase_if(rules_, [&](const CommentRule& existing) { return ConditionKey(existing) == key; });
   Reindex();
-  return removed != 0;
-}
-
-const std::unordered_map<std::wstring, CommentEntry>& ValueComments::values() const noexcept {
-  return values_;
 }
 
 const std::vector<CommentRule>& ValueComments::rules() const noexcept {
@@ -258,85 +224,57 @@ const std::vector<CommentRule>& ValueComments::rules() const noexcept {
 }
 
 void ValueComments::Reindex() {
-  rule_index_.clear();
+  index_.clear();
   for (size_t index = 0; index < rules_.size(); ++index) {
-    rule_index_[util::ToLower(rules_[index].name)].push_back(index);
+    index_[util::ToLower(rules_[index].name)].push_back(index);
   }
 }
 
 bool ParseComments(
     const std::wstring& content,
-    CommentDocument* out
+    std::vector<CommentRule>* out,
+    std::wstring* error
 ) {
-  CommentDocument document;
-  bool first = true;
-  for (const std::wstring_view line : record_fields::Lines(content)) {
-    if (line.empty()) {
-      continue;
+  std::vector<CommentRule> rules;
+  json::Reader reader(content, error, 4);
+  bool format = false;
+  const bool read = reader.Object([&](const std::wstring& member) {
+    if (member == L"format") {
+      std::wstring value;
+      format = reader.String(&value, 64) && value == kFormat;
+      return format || reader.Fail(L"The file isn't a RegKit comments file.");
     }
-    if (first && line.starts_with(kHeaderTag)) {
-      uint64_t version = 0;
-      if (!record_fields::ParseHeader(line, kHeaderTag, &version) || version < 2 || version > CommentDocument::kCurrentVersion) {
-        return false;
-      }
-      document.source_version = static_cast<int>(version);
-      first = false;
-      continue;
+    if (member == L"comments") {
+      return reader.Array([&] { return ReadRule(reader, &rules.emplace_back()); });
     }
-    first = false;
-    auto fields = record_fields::DecodeRecord(line);
-    if (util::IsBlank(fields.back())) {
-      fields.back().clear();
-    }
-    if (fields[0] == L"rule" && document.source_version >= 2) {
-      CommentRule rule;
-      if (!ParseRule(fields, &rule)) {
-        return false;
-      }
-      document.rules.push_back(std::move(rule));
-      continue;
-    }
-    uint64_t type = 0;
-    const bool value_entry = fields[0] == L"value";
-    if (fields.size() != 5 || (!value_entry && fields[0] != L"name") ||
-        !record_fields::ParseUnsigned(fields[3], MAXDWORD, &type)) {
-      return false;
-    }
-    if (value_entry) {
-      document.value_entries.push_back({std::move(fields[1]), std::move(fields[2]), static_cast<DWORD>(type), std::move(fields[4])});
-    } else {
-      CommentRule rule;
-      rule.id = util::RandomFileSuffix(L"").substr(1);
-      rule.name = std::move(fields[2]);
-      rule.type = static_cast<DWORD>(type);
-      rule.text = std::move(fields[4]);
-      document.rules.push_back(std::move(rule));
+    return reader.Fail(L"The file contains an unknown member.");
+  });
+  if (!read || !reader.End() || (!format && !reader.Fail(L"The file isn't a RegKit comments file."))) {
+    return false;
+  }
+  for (CommentRule& rule : rules) {
+    if (util::IsBlank(rule.text)) {
+      rule.text.clear();
     }
   }
-  *out = std::move(document);
+  *out = std::move(rules);
   return true;
 }
 
 bool ValidateCatalog(
-    const CommentDocument& document
+    const std::vector<CommentRule>& rules
 ) {
-  for (const CommentEntry& entry : document.value_entries) {
-    if (util::IsBlank(entry.text)) {
-      return false;
-    }
-  }
-  for (size_t left = 0; left < document.rules.size(); ++left) {
-    const CommentRule& rule = document.rules[left];
+  for (size_t left = 0; left < rules.size(); ++left) {
+    const CommentRule& rule = rules[left];
     if (util::IsBlank(rule.text)) {
       return false;
     }
-    for (size_t right = left + 1; right < document.rules.size(); ++right) {
-      const CommentRule& other = document.rules[right];
-      const bool overlap = util::EqualsInsensitive(rule.name, other.name) && Specificity(rule) == Specificity(other) &&
-                           (!rule.type || !other.type || rule.type == other.type) &&
-                           (!rule.data_size || !other.data_size || rule.data_size == other.data_size) &&
-                           (rule.key_scope == CommentKeyScope::kAny || util::EqualsInsensitive(rule.key_path, other.key_path));
-      if (overlap) {
+    for (size_t right = left + 1; right < rules.size(); ++right) {
+      const CommentRule& other = rules[right];
+      if (util::EqualsInsensitive(rule.name, other.name) && Specificity(rule) == Specificity(other) &&
+          (!rule.type || !other.type || rule.type == other.type) &&
+          (!rule.data_size || !other.data_size || rule.data_size == other.data_size) &&
+          (rule.key_scope == CommentKeyScope::kAny || util::EqualsInsensitive(rule.key_path, other.key_path))) {
         return false;
       }
     }
@@ -347,22 +285,38 @@ bool ValidateCatalog(
 std::wstring SerializeComments(
     const ValueComments& comments
 ) {
-  std::wstring content;
-  record_fields::AppendHeader(&content, kHeaderTag, CommentDocument::kCurrentVersion);
-  std::vector<const std::pair<const std::wstring, CommentEntry>*> values;
-  for (const auto& pair : comments.values()) {
-    values.push_back(&pair);
-  }
-  std::sort(values.begin(), values.end(), [](const auto* left, const auto* right) { return left->first < right->first; });
-  for (const auto* pair : values) {
-    const CommentEntry& entry = pair->second;
-    record_fields::AppendRecord(&content, {L"value", entry.path, entry.name, std::to_wstring(entry.type), entry.text});
-  }
+  std::wstring out = L"{\n  \"format\": \"regkit-comments\",\n  \"comments\": [";
+  bool first = true;
   for (const CommentRule& rule : comments.rules()) {
-    const std::optional<uint64_t> type = rule.type ? std::optional<uint64_t>(*rule.type) : std::nullopt;
-    record_fields::AppendRecord(&content, {L"rule", rule.id, rule.name, Optional(type), Optional(rule.data_size), ScopeName(rule.key_scope), rule.key_path, rule.text});
+    out.append(first ? L"\n    {\n      \"name\": " : L",\n    {\n      \"name\": ");
+    json::AppendString(&out, rule.name);
+    if (rule.type) {
+      const bool named = *rule.type <= REG_QWORD;
+      AppendMember(&out, L"type", named ? value_format::TypeName(*rule.type) : std::to_wstring(*rule.type), named);
+    }
+    if (rule.data_size) {
+      AppendMember(&out, L"size", std::to_wstring(*rule.data_size), false);
+    }
+    if (rule.key_scope != CommentKeyScope::kAny) {
+      AppendMember(&out, rule.key_scope == CommentKeyScope::kExact ? L"key" : L"tree", rule.key_path, true);
+    }
+    AppendMember(&out, L"text", rule.text, true);
+    out.append(L"\n    }");
+    first = false;
   }
-  return content;
+  out.append(first ? L"]\n}\n" : L"\n  ]\n}\n");
+  return out;
+}
+
+CommentRule ValueRule(
+    const CommentTarget& target
+) {
+  CommentRule rule;
+  rule.name = target.name;
+  rule.type = target.type;
+  rule.key_scope = CommentKeyScope::kExact;
+  rule.key_path = NormalizeKeyPath(target.path);
+  return rule;
 }
 
 ResolvedComment ResolveComment(
@@ -370,13 +324,9 @@ ResolvedComment ResolveComment(
     const ValueComments& defaults,
     const CommentTarget& target
 ) {
-  const std::pair<const ValueComments*, CommentSource> layers[] = {{&user, CommentSource::kUserValue}, {&defaults, CommentSource::kDefaultValue}};
-  for (const auto& [comments, source] : layers) {
-    if (const CommentEntry* entry = comments->FindValue(target)) {
-      return {entry->text, source, {}};
-    }
-    if (const CommentRule* rule = comments->MatchRule(target)) {
-      return {rule->text, static_cast<CommentSource>(static_cast<int>(source) + 1), rule->id};
+  for (const auto& [comments, source] : {std::pair{&user, CommentSource::kUser}, std::pair{&defaults, CommentSource::kDefault}}) {
+    if (const CommentRule* rule = comments->Match(target)) {
+      return {rule->text, source, *rule};
     }
   }
   return {};

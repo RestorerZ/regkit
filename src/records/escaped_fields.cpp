@@ -155,21 +155,4 @@ bool ParseUnsigned(
   return true;
 }
 
-void AppendHeader(
-    std::wstring* output,
-    std::wstring_view tag,
-    uint64_t version
-) {
-  AppendRecord(output, {tag, std::to_wstring(version)});
-}
-
-bool ParseHeader(
-    std::wstring_view line,
-    std::wstring_view tag,
-    uint64_t* version
-) {
-  return line.size() > tag.size() + 1 && line.substr(0, tag.size()) == tag && line[tag.size()] == L'\t' &&
-         ParseUnsigned(line.substr(tag.size() + 1), UINT32_MAX, version);
-}
-
 } // namespace regkit::record_fields

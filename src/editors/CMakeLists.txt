@@ -19,6 +19,7 @@ target_include_directories(regkit_editors PUBLIC
 )
 target_link_libraries(regkit_editors PRIVATE
     regkit_appearance
+    regkit_records
     regkit_registry
     regkit_win32
     comctl32

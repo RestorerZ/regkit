@@ -23,34 +23,17 @@ enum class CommentKeyScope {
 
 enum class CommentSource {
   kNone,
-  kUserValue,
-  kUserRule,
-  kDefaultValue,
-  kDefaultRule,
-};
-
-struct CommentEntry {
-  std::wstring path;
-  std::wstring name;
-  DWORD type = 0;
-  std::wstring text;
+  kUser,
+  kDefault,
 };
 
 struct CommentRule {
-  std::wstring id;
   std::wstring name;
   std::optional<DWORD> type;
   std::optional<uint64_t> data_size;
   CommentKeyScope key_scope = CommentKeyScope::kAny;
   std::wstring key_path;
   std::wstring text;
-};
-
-struct CommentDocument {
-  static constexpr int kCurrentVersion = 2;
-  int source_version = 1;
-  std::vector<CommentEntry> value_entries;
-  std::vector<CommentRule> rules;
 };
 
 struct CommentTarget {
@@ -63,7 +46,7 @@ struct CommentTarget {
 struct ResolvedComment {
   std::wstring text;
   CommentSource source = CommentSource::kNone;
-  std::wstring rule_id;
+  CommentRule rule;
 };
 
 class ValueComments {
@@ -71,33 +54,23 @@ public:
   bool Load(const std::wstring& path);
   bool Save(const std::wstring& path) const;
   void Clear();
-  void Merge(const CommentDocument& document);
-
-  const CommentEntry* FindValue(const CommentTarget& target) const;
-  void SetValue(CommentEntry entry);
-  bool EraseValue(const CommentTarget& target);
-
-  const CommentRule* MatchRule(const CommentTarget& target) const;
-  const CommentRule* FindRule(const std::wstring& id) const;
-  const CommentRule* FindEquivalentRule(const CommentRule& rule) const;
-  void SetRule(CommentRule rule);
-  bool EraseRule(const std::wstring& id);
-
-  const std::unordered_map<std::wstring, CommentEntry>& values() const noexcept;
+  void Merge(const std::vector<CommentRule>& rules);
+  const CommentRule* Match(const CommentTarget& target) const;
+  void Set(CommentRule rule);
+  void Erase(const CommentRule& rule);
   const std::vector<CommentRule>& rules() const noexcept;
 
 private:
   void Reindex();
 
-  std::unordered_map<std::wstring, CommentEntry> values_;
   std::vector<CommentRule> rules_;
-  std::unordered_map<std::wstring, std::vector<size_t>> rule_index_;
+  std::unordered_map<std::wstring, std::vector<size_t>> index_;
 };
 
-bool ParseComments(const std::wstring& content, CommentDocument* out);
-bool ValidateCatalog(const CommentDocument& document);
+bool ParseComments(const std::wstring& content, std::vector<CommentRule>* out, std::wstring* error = nullptr);
+bool ValidateCatalog(const std::vector<CommentRule>& rules);
 std::wstring SerializeComments(const ValueComments& comments);
-std::wstring NormalizeKeyPath(std::wstring path);
+CommentRule ValueRule(const CommentTarget& target);
 ResolvedComment ResolveComment(const ValueComments& user, const ValueComments& defaults, const CommentTarget& target);
 
 } // namespace regkit::changes

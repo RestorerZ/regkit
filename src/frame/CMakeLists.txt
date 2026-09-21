@@ -58,6 +58,7 @@ target_link_libraries(regkit_frame PRIVATE
     regkit_trace
     regkit_defaults
     regkit_regfile
+    regkit_records
     regkit_registry
     regkit_win32
     advapi32

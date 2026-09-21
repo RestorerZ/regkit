@@ -103,8 +103,8 @@ private:
   struct StartupCachePayload : work::MoveOnly {
     uint64_t generation = 0;
     std::vector<HistoryEntry> history_entries;
-    changes::CommentDocument user_comments;
-    changes::CommentDocument default_comments;
+    std::vector<changes::CommentRule> user_comments;
+    std::vector<changes::CommentRule> default_comments;
     bool comments_unreadable = false;
     std::wstring tree_selected_path;
     std::vector<std::wstring> tree_expanded_paths;
