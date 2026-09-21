@@ -615,7 +615,7 @@ int MainWindow::Impl::KeyIconIndex(
     if (is_hive_root) {
       *is_hive_root = true;
     }
-    return kDatabaseIconIndex;
+    return denied ? kDatabaseDeniedIconIndex : kDatabaseIconIndex;
   }
   return denied ? kFolderDeniedIconIndex : kFolderIconIndex;
 }

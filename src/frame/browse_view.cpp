@@ -22,8 +22,8 @@ void MainWindow::Impl::BuildImageLists() {
 
   const int base_icon_size = kToolbarIconSize;
   const int icon_size = util::ScaleForDpi(base_icon_size, dpi);
-  tree_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 10, 2);
-  list_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 8, 2);
+  tree_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 11, 2);
+  list_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 9, 2);
   ImageList_SetBkColor(tree_images_, CLR_NONE);
   ImageList_SetBkColor(list_images_, CLR_NONE);
 
@@ -36,7 +36,7 @@ void MainWindow::Impl::BuildImageLists() {
   };
 
   for (HIMAGELIST list : {tree_images_, list_images_}) {
-    for (int id : {IDI_ICON_FOLDER, IDI_ICON_SYMLINK, IDI_ICON_DATABASE, IDI_ICON_FOLDER_SIM, IDI_ICON_FOLDER_DENIED}) {
+    for (int id : {IDI_ICON_FOLDER, IDI_ICON_SYMLINK, IDI_ICON_DATABASE, IDI_ICON_FOLDER_SIM, IDI_ICON_FOLDER_DENIED, IDI_ICON_DATABASE_DENIED}) {
       add_icon(list, id);
     }
   }

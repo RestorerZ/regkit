@@ -43,12 +43,6 @@ void MainWindow::Impl::StartValueListWorker() {
             return cached->second.image_index;
           }
           KeyMetadata metadata;
-          std::wstring nt_path = registry_path::BuildNative(node);
-          if (!nt_path.empty() && task->hive_roots && task->hive_roots->find(ToLower(nt_path)) != task->hive_roots->end()) {
-            metadata.image_index = kDatabaseIconIndex;
-            key_metadata_cache.emplace(std::move(cache_key), metadata);
-            return metadata.image_index;
-          }
           std::wstring link_target;
           bool denied = false;
           if (RegistryStore::QuerySymbolicLinkTarget(node, &link_target, &denied)) {
@@ -60,7 +54,10 @@ void MainWindow::Impl::StartValueListWorker() {
             key_metadata_cache.emplace(std::move(cache_key), metadata);
             return metadata.image_index;
           }
-          if (denied) {
+          std::wstring nt_path = registry_path::BuildNative(node);
+          if (!nt_path.empty() && task->hive_roots && task->hive_roots->find(ToLower(nt_path)) != task->hive_roots->end()) {
+            metadata.image_index = denied ? kDatabaseDeniedIconIndex : kDatabaseIconIndex;
+          } else if (denied) {
             metadata.image_index = kFolderDeniedIconIndex;
           }
           key_metadata_cache.emplace(std::move(cache_key), metadata);
