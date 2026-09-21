@@ -65,6 +65,7 @@ constexpr int kEditInvertSelection = 2138;
 constexpr int kEditDecodeValue = 2139;
 constexpr int kToolsBitfieldDefinitions = 2140;
 constexpr int kEditBits = 2141;
+constexpr int kToolsKeyHandles = 2142;
 
 constexpr int kRegistryLocal = 2120;
 constexpr int kRegistryNetwork = 2121;
@@ -139,8 +140,6 @@ constexpr int kOptionsAlwaysRunTrustedInstaller = 2467;
 constexpr int kOptionsThemePresets = 2468;
 constexpr int kOptionsIconSetClassic = 2469;
 constexpr int kOptionsIconSetPhosphor = 2470;
-constexpr int kOptionsIconSetLucide = 2471;
-constexpr int kOptionsIconSetMaterialSymbols = 2472;
 constexpr int kOptionsIconSetCustom = 2473;
 constexpr int kHistoryOpenTarget = 2481;
 constexpr int kHistoryRevert = 2482;

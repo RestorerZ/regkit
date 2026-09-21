@@ -45,69 +45,6 @@ UINT ResolveDpi(
   return get_system_dpi ? get_system_dpi() : 96;
 }
 
-bool GetIconSize(
-    HICON icon,
-    int* width,
-    int* height
-) {
-  if (!icon) {
-    return false;
-  }
-  ICONINFO info = {};
-  if (!GetIconInfo(icon, &info)) {
-    return false;
-  }
-  BITMAP bmp = {};
-  int w = 0;
-  int h = 0;
-  if (info.hbmColor && GetObject(info.hbmColor, sizeof(bmp), &bmp) == sizeof(bmp)) {
-    w = bmp.bmWidth;
-    h = bmp.bmHeight;
-  } else if (info.hbmMask && GetObject(info.hbmMask, sizeof(bmp), &bmp) == sizeof(bmp)) {
-    w = bmp.bmWidth;
-    h = bmp.bmHeight / 2;
-  }
-  if (info.hbmColor) {
-    DeleteObject(info.hbmColor);
-  }
-  if (info.hbmMask) {
-    DeleteObject(info.hbmMask);
-  }
-  if (w <= 0 || h <= 0) {
-    return false;
-  }
-  if (width) {
-    *width = w;
-  }
-  if (height) {
-    *height = h;
-  }
-  return true;
-}
-
-HICON EnsureIconSize(
-    HICON icon,
-    int size
-) {
-  if (!icon || size <= 0) {
-    return icon;
-  }
-  int width = 0;
-  int height = 0;
-  if (GetIconSize(icon, &width, &height) && width == size && height == size) {
-    return icon;
-  }
-  HICON resized = static_cast<HICON>(CopyImage(icon, IMAGE_ICON, size, size, LR_COPYFROMRESOURCE));
-  if (!resized) {
-    resized = static_cast<HICON>(CopyImage(icon, IMAGE_ICON, size, size, 0));
-  }
-  if (resized) {
-    DestroyIcon(icon);
-    return resized;
-  }
-  return icon;
-}
-
 } // namespace
 
 int ScaleForDpi(
@@ -139,7 +76,7 @@ HICON LoadIconResource(
   if (!icon) {
     icon = static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(resource_id), IMAGE_ICON, scaled, scaled, LR_DEFAULTCOLOR));
   }
-  return EnsureIconSize(icon, scaled);
+  return icon;
 }
 
 HICON LoadIconFromFile(
@@ -155,7 +92,7 @@ HICON LoadIconFromFile(
   if (!icon) {
     icon = static_cast<HICON>(LoadImageW(nullptr, path.c_str(), IMAGE_ICON, scaled, scaled, LR_LOADFROMFILE | LR_DEFAULTCOLOR));
   }
-  return EnsureIconSize(icon, scaled);
+  return icon;
 }
 
 void ImageListAddOrBlank(

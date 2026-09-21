@@ -1700,6 +1700,10 @@ void MainWindow::Impl::ApplyStartupCachePayload(
 }
 
 void MainWindow::Impl::OnDestroy() {
+  if (IsWindow(key_handles_window_)) {
+    DestroyWindow(key_handles_window_);
+  }
+  key_handles_window_ = nullptr;
   appearance::SetListGridChangedCallback(nullptr, nullptr);
   appearance::ReleaseListViews(hwnd_);
   if (hwnd_) {

@@ -63,6 +63,7 @@ CommandArea ClassifyCommand(
     return CommandArea::kMutation;
   case cmd::kEditDecodeValue:
   case cmd::kToolsBitfieldDefinitions:
+  case cmd::kToolsKeyHandles:
     return CommandArea::kTools;
   case cmd::kEditInvertSelection:
   case cmd::kTreeToggleExpand:

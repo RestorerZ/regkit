@@ -3,6 +3,8 @@
 
 #include "frame/window_detail.h"
 
+#include "appearance/dialog_layout.h"
+
 namespace regkit {
 using namespace window_detail;
 
@@ -102,6 +104,9 @@ void MainWindow::Impl::ApplyThemeToChildren() {
   appearance::RefreshListView(search_results_list_);
   theme.ApplyToTabControl(tab_);
   theme.ApplyToStatusBar(status_bar_);
+  if (IsWindow(key_handles_window_)) {
+    appearance::ApplyDialogTheme(key_handles_window_);
+  }
 
   if (browse_.address()) {
     SetDarkWindowTheme(browse_.address(), Theme::UseDarkMode());

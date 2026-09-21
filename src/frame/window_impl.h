@@ -585,6 +585,7 @@ private:
   HWND history_label_ = nullptr;
   HWND history_close_btn_ = nullptr;
   HWND history_list_ = nullptr;
+  HWND key_handles_window_ = nullptr;
   HWND status_bar_ = nullptr;
   HWND search_progress_ = nullptr;
   browse::Pane browse_;

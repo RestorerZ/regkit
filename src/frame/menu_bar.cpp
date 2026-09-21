@@ -396,8 +396,6 @@ void MainWindow::Impl::BuildMenus() {
   auto icon_flags = [&](const wchar_t* name) -> UINT { return MF_STRING | (util::EqualsInsensitive(icon_set_, name) ? MF_CHECKED : MF_UNCHECKED); };
   AppendMenuW(icon_menu, icon_flags(kIconSetClassic), cmd::kOptionsIconSetClassic, L"Classic");
   AppendMenuW(icon_menu, icon_flags(kIconSetPhosphor), cmd::kOptionsIconSetPhosphor, L"Phosphor");
-  AppendMenuW(icon_menu, icon_flags(kIconSetLucide), cmd::kOptionsIconSetLucide, L"Lucide");
-  AppendMenuW(icon_menu, icon_flags(kIconSetMaterialSymbols), cmd::kOptionsIconSetMaterialSymbols, L"Material Symbols");
   AppendMenuW(icon_menu, icon_flags(kIconSetCustom), cmd::kOptionsIconSetCustom, L"Custom");
   AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(icon_menu), L"Icons");
   AppendMenuW(options_menu, MF_STRING, cmd::kViewFont, L"Font...");
@@ -487,6 +485,7 @@ void MainWindow::Impl::BuildMenus() {
 
   HMENU tools_menu = CreatePopupMenu();
   append_menu(tools_menu, MF_STRING, cmd::kOptionsCompareRegistries, L"Compare Registries...");
+  append_menu(tools_menu, MF_STRING, cmd::kToolsKeyHandles, L"Key Handles...");
   HMENU bitfield_menu = CreatePopupMenu();
   AppendMenuW(bitfield_menu, MF_STRING, cmd::kToolsBitfieldDefinitions, L"New Definition File...");
   const std::vector<editors::bitfield::DefinitionFile>& bitfield_files = editors::bitfield::BundledFiles();

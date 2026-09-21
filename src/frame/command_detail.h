@@ -51,8 +51,6 @@ using window_detail::FileBaseName;
 using window_detail::FileNameOnly;
 using window_detail::FindChildByText;
 using window_detail::kIconSetCustom;
-using window_detail::kIconSetLucide;
-using window_detail::kIconSetMaterialSymbols;
 using window_detail::kIconSetClassic;
 using window_detail::kIconSetPhosphor;
 using window_detail::LeafName;

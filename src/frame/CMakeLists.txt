@@ -9,6 +9,7 @@ regkit_add_library(regkit_frame
     default_commands.cpp
     file_view_commands.cpp
     history_workspace.cpp
+    key_handles_window.cpp
     launch_bridge.cpp
     main_window.cpp
     menu_bar.cpp

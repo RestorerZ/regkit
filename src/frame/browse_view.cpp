@@ -27,25 +27,20 @@ void MainWindow::Impl::BuildImageLists() {
   ImageList_SetBkColor(tree_images_, CLR_NONE);
   ImageList_SetBkColor(list_images_, CLR_NONE);
 
-  auto add_icon = [&](HIMAGELIST list, int resource_id) {
-    HICON icon = util::LoadIconResource(resource_id, base_icon_size, dpi);
-    util::ImageListAddOrBlank(list, icon, icon_size);
-    if (icon) {
-      DestroyIcon(icon);
+  auto add_icons = [&](std::initializer_list<HIMAGELIST> lists, std::initializer_list<int> resource_ids) {
+    for (const int resource_id : resource_ids) {
+      HICON icon = util::LoadIconResource(resource_id, base_icon_size, dpi);
+      for (HIMAGELIST list : lists) {
+        util::ImageListAddOrBlank(list, icon, icon_size);
+      }
+      if (icon) {
+        DestroyIcon(icon);
+      }
     }
   };
-
-  for (HIMAGELIST list : {tree_images_, list_images_}) {
-    for (int id : {IDI_ICON_FOLDER, IDI_ICON_SYMLINK, IDI_ICON_DATABASE, IDI_ICON_FOLDER_SIM, IDI_ICON_FOLDER_DENIED, IDI_ICON_DATABASE_DENIED}) {
-      add_icon(list, id);
-    }
-  }
-  for (int id : {IDI_ICON_ROOT_KEYS, IDI_APPICON, IDI_ICON_LOCAL_REGISTRY, IDI_ICON_REMOTE_REGISTRY, IDI_ICON_OFFLINE_REGISTRY}) {
-    add_icon(tree_images_, id);
-  }
-  for (int id : {IDI_ICON_TEXT, IDI_ICON_BINARY, IDI_ICON_TRACE}) {
-    add_icon(list_images_, id);
-  }
+  add_icons({tree_images_, list_images_}, {IDI_ICON_FOLDER, IDI_ICON_SYMLINK, IDI_ICON_DATABASE, IDI_ICON_FOLDER_SIM, IDI_ICON_FOLDER_DENIED, IDI_ICON_DATABASE_DENIED});
+  add_icons({tree_images_}, {IDI_ICON_ROOT_KEYS, IDI_APPICON, IDI_ICON_LOCAL_REGISTRY, IDI_ICON_REMOTE_REGISTRY, IDI_ICON_OFFLINE_REGISTRY});
+  add_icons({list_images_}, {IDI_ICON_TEXT, IDI_ICON_BINARY, IDI_ICON_TRACE});
 }
 
 void MainWindow::Impl::CreateValueColumns() {

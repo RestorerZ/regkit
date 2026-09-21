@@ -5,6 +5,7 @@
 
 #include "editors/bitfield_definition_editor.h"
 #include "editors/decoder_dialog.h"
+#include "frame/key_handles_window.h"
 
 namespace regkit {
 using namespace command_detail;
@@ -24,6 +25,30 @@ bool MainWindow::Impl::HandleToolsCommand(
   switch (command_id) {
   case cmd::kToolsBitfieldDefinitions:
     editors::ShowBitfieldDefinitionEditor(hwnd_, std::wstring());
+    return true;
+  case cmd::kToolsKeyHandles:
+    if (IsWindow(key_handles_window_)) {
+      ShowWindow(key_handles_window_, SW_RESTORE);
+      SetForegroundWindow(key_handles_window_);
+      return true;
+    }
+    key_handles_window_ = ShowKeyHandlesWindow(hwnd_, [this](const std::wstring& path, bool new_tab) {
+      if (IsIconic(hwnd_)) {
+        ShowWindow(hwnd_, SW_RESTORE);
+      }
+      if (new_tab) {
+        OpenLocalRegistryTab();
+      } else {
+        ActivateLocalRegistryTab();
+      }
+      ApplyViewVisibility();
+      UpdateStatus();
+      if (!SelectTreePath(path)) {
+        ui::ShowError(key_handles_window_, L"The key couldn't be found.");
+        return;
+      }
+      SetForegroundWindow(hwnd_);
+    });
     return true;
   case cmd::kEditDecodeValue:
     {

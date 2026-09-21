@@ -184,6 +184,9 @@ void MainWindow::Impl::FocusPane(
 bool MainWindow::Impl::TranslateAccelerator(
     const MSG& msg
 ) {
+  if (key_handles_window_ && IsDialogMessageW(key_handles_window_, const_cast<MSG*>(&msg))) {
+    return true;
+  }
   if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) {
     const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
     const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
