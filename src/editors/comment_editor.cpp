@@ -58,7 +58,14 @@ void InitControls(
     const State* state
 ) {
   const CommentRequest& request = *state->request;
-  SetDlgItemTextW(dialog, IDC_EDIT, request.text.c_str());
+  std::wstring text;
+  for (const wchar_t ch : request.text) {
+    if (ch == L'\n' && (text.empty() || text.back() != L'\r')) {
+      text.push_back(L'\r');
+    }
+    text.push_back(ch);
+  }
+  SetDlgItemTextW(dialog, IDC_EDIT, text.c_str());
   CheckRadioButton(dialog, IDC_COMMENT_VALUE, IDC_COMMENT_RULE, request.scope.rule ? IDC_COMMENT_RULE : IDC_COMMENT_VALUE);
   if (request.multiple) {
     SetDlgItemTextW(dialog, IDC_COMMENT_VALUE, L"Selected values only");
@@ -134,6 +141,7 @@ INT_PTR CALLBACK DialogProc(
   case IDOK:
   case IDC_COMMENT_RESTORE:
     state->value.text = dialog_support::ReadText(dialog, IDC_EDIT);
+    std::erase(state->value.text, L'\r');
     state->value.scope = ReadScope(dialog);
     state->value.restore_default = LOWORD(wparam) == IDC_COMMENT_RESTORE;
     state->accepted = true;

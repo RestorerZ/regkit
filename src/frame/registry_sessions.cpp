@@ -762,44 +762,53 @@ bool MainWindow::Impl::SaveOfflineRegistry() {
 }
 
 void MainWindow::Impl::NavigateToAddress() {
-  std::wstring path = NormalizeRegistryPath(util::WindowText(browse_.address()));
+  std::wstring path;
+  std::wstring value_name;
+  bool value_missing = false;
+  if (ResolveJumpTarget(util::WindowText(browse_.address()), &path, &value_name, &value_missing)) {
+    if (!SelectTreePath(path)) {
+      return;
+    }
+    UpdateAddressBar(browse_.current_node());
+    if (value_name.empty()) {
+      return;
+    }
+    if (value_missing) {
+      ui::PromptKeyChoice(hwnd_, L"The key was opened, but it doesn't contain this value:", registry_path::DisplayName(value_name), L"Value not found", L"OK", L"", L"");
+    } else {
+      SelectValueWhenReady(value_name);
+    }
+    return;
+  }
   if (path.empty()) {
     return;
   }
-  std::wstring jump_key_path;
-  std::wstring jump_value_name;
-  if (ResolveExternalJumpTarget(path, &jump_key_path, &jump_value_name) && !jump_value_name.empty()) {
-    NavigateToResolvedExternalJump(jump_key_path, jump_value_name);
+  std::wstring nearest;
+  if (!FindNearestExistingPath(path, &nearest) || nearest.empty()) {
+    ui::ShowWarning(hwnd_, L"Registry path not found.");
     return;
   }
-  if (!SelectTreePath(path)) {
-    std::wstring nearest;
-    if (!FindNearestExistingPath(path, &nearest) || nearest.empty()) {
-      ui::ShowWarning(hwnd_, L"Registry path not found.");
-      return;
-    }
-    std::wstring message = L"The registry key doesn't exist:";
-    if (read_only_) {
-      message += L"\nRead only mode is enabled.";
-      int result = ui::PromptKeyChoice(hwnd_, message, path, L"Registry path not found", L"Go to nearest key", L"", L"Cancel", {150, 70, 70});
-      if (result == IDYES) {
-        SelectTreePath(nearest);
-      }
-      return;
-    }
-    int result = ui::PromptKeyChoice(hwnd_, message, path, L"Registry path not found", L"Go to nearest key", L"Create key", L"Cancel", {150, 100, 70});
+  std::wstring message = L"The registry key doesn't exist:";
+  if (read_only_) {
+    message += L"\nRead only mode is enabled.";
+    int result = ui::PromptKeyChoice(hwnd_, message, path, L"Registry path not found", L"Go to nearest key", L"", L"Cancel", {150, 70, 70});
     if (result == IDYES) {
       SelectTreePath(nearest);
+    }
+    return;
+  }
+  int result = ui::PromptKeyChoice(hwnd_, message, path, L"Registry path not found", L"Go to nearest key", L"Create key", L"Cancel", {150, 100, 70});
+  if (result == IDYES) {
+    SelectTreePath(nearest);
+    return;
+  }
+  if (result == IDNO) {
+    if (!CreateRegistryPath(path)) {
+      ui::ShowError(hwnd_, L"Failed to create registry key.");
       return;
     }
-    if (result == IDNO) {
-      if (!CreateRegistryPath(path)) {
-        ui::ShowError(hwnd_, L"Failed to create registry key.");
-        return;
-      }
-      RefreshTreePath(nearest);
-      SelectTreePath(path);
-    }
+    RefreshTreePath(nearest);
+    SelectTreePath(path);
   }
 }
 
@@ -814,42 +823,73 @@ void MainWindow::Impl::ApplyQueuedExternalJump() {
   }
 }
 
-bool MainWindow::Impl::ResolveExternalJumpTarget(
+bool MainWindow::Impl::ResolveJumpTarget(
     const std::wstring& target,
     std::wstring* key_path,
-    std::wstring* value_name
+    std::wstring* value_name,
+    bool* value_missing
 ) const {
-  if (!key_path || !value_name) {
-    return false;
-  }
-  key_path->clear();
-  value_name->clear();
-
-  std::wstring normalized = NormalizeRegistryPath(target);
-  if (normalized.empty()) {
-    return false;
-  }
-
+  const auto unwrap = [](std::wstring text, std::wstring_view pairs) {
+    text = util::TrimWhitespace(text);
+    for (size_t pair = 0; pair + 1 < pairs.size(); pair += 2) {
+      if (text.size() >= 2 && text.front() == pairs[pair] && text.back() == pairs[pair + 1]) {
+        return util::TrimWhitespace(std::wstring_view(text).substr(1, text.size() - 2));
+      }
+    }
+    return text;
+  };
   RegistryNode node;
   KeyInfo info = {};
-  if (ResolvePathToNode(normalized, &node) && RegistryStore::QueryKeyInfo(node, &info)) {
-    *key_path = std::move(normalized);
-    return true;
+  ValueEntry value;
+  const auto key_exists = [&](const std::wstring& path) {
+    return !path.empty() && ResolvePathToNode(path, &node) && RegistryStore::QueryKeyInfo(node, &info);
+  };
+  value_name->clear();
+  *value_missing = false;
+  const std::wstring text = unwrap(target, L"\"\"''[]");
+  *key_path = NormalizeRegistryPath(text);
+  if (key_path->empty() || key_exists(*key_path)) {
+    return !key_path->empty();
   }
 
-  for (size_t slash = normalized.rfind(L'\\'); slash != std::wstring::npos && slash > 0 && slash + 1 < normalized.size(); slash = normalized.rfind(L'\\', slash - 1)) {
-    ValueEntry value;
-    if (ResolvePathToNode(normalized.substr(0, slash), &node) && RegistryStore::QueryValue(node, normalized.substr(slash + 1), &value)) {
+  std::wstring missing_key;
+  std::wstring existing_key;
+  std::wstring existing_name;
+  for (size_t split = 1; split < text.size(); ++split) {
+    const bool colon = text[split] == L':' && (iswspace(text[split - 1]) || split + 1 == text.size() || iswspace(text[split + 1]));
+    if (text[split] != L'!' && !colon) {
+      continue;
+    }
+    const std::wstring key = NormalizeRegistryPath(text.substr(0, split));
+    const std::wstring name = registry_path::RawName(colon ? unwrap(text.substr(split + 1), L"\"\"") : text.substr(split + 1));
+    if (!key_exists(key)) {
+      missing_key = missing_key.empty() ? key : missing_key;
+      continue;
+    }
+    if (name.empty() || RegistryStore::QueryValue(node, name, &value)) {
+      *key_path = key;
+      *value_name = name;
+      return true;
+    }
+    existing_key = key;
+    existing_name = name;
+  }
+  if (!existing_key.empty()) {
+    *key_path = existing_key;
+    *value_name = existing_name;
+    *value_missing = true;
+    return true;
+  }
+  const std::wstring normalized = *key_path;
+  for (size_t slash = normalized.rfind(L'\\'); slash != std::wstring::npos && slash > 0; slash = normalized.rfind(L'\\', slash - 1)) {
+    if (key_exists(normalized.substr(0, slash)) && RegistryStore::QueryValue(node, normalized.substr(slash + 1), &value)) {
       *key_path = normalized.substr(0, slash);
       *value_name = normalized.substr(slash + 1);
       return true;
     }
   }
-
-  std::wstring nearest;
-  if (FindNearestExistingPath(normalized, &nearest) && !nearest.empty()) {
-    *key_path = std::move(nearest);
-    return true;
+  if (!missing_key.empty()) {
+    *key_path = missing_key;
   }
   return false;
 }
@@ -907,10 +947,11 @@ bool MainWindow::Impl::NavigateToExternalJump(
   }
   std::wstring key_path;
   std::wstring value_name;
-  if (!ResolveExternalJumpTarget(target, &key_path, &value_name)) {
+  bool value_missing = false;
+  if (!ResolveJumpTarget(target, &key_path, &value_name, &value_missing) && !FindNearestExistingPath(std::wstring(key_path), &key_path)) {
     return false;
   }
-  return NavigateToResolvedExternalJump(key_path, value_name);
+  return NavigateToResolvedExternalJump(key_path, value_missing ? std::wstring() : value_name);
 }
 
 bool MainWindow::Impl::SearchResultOpensInNewTab() const {

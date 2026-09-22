@@ -337,7 +337,7 @@ private:
   bool NavigateToExternalJump(const std::wstring& target);
   void QueueCompatJump(const RegistryNode& node);
   void FlushExternalNavigation();
-  bool ResolveExternalJumpTarget(const std::wstring& target, std::wstring* key_path, std::wstring* value_name) const;
+  bool ResolveJumpTarget(const std::wstring& target, std::wstring* key_path, std::wstring* value_name, bool* value_missing) const;
   bool LoadTraceFromFile(const std::wstring& label, const std::wstring& path, const trace::Selection* selection_override = nullptr);
   bool LoadBundledTrace(const std::wstring& label, const trace::Selection* selection_override = nullptr);
   std::wstring ResolveBundledTracePath(const std::wstring& label) const;

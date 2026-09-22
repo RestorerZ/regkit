@@ -219,7 +219,7 @@ bool Pane::SelectValue(
   }
   for (size_t index = 0; index < values_.RowCount(); ++index) {
     const ListRow* row = values_.RowAt(static_cast<int>(index));
-    if (!row || row->kind != rowkind::kValue || row->extra != name) {
+    if (!row || row->kind != rowkind::kValue || !util::EqualsInsensitive(row->extra, name)) {
       continue;
     }
     ListView_SetItemState(values_.hwnd(), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);

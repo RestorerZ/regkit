@@ -8,8 +8,11 @@ BinPackArguments: false
 BinPackParameters: false
 ColumnLimit: 0
 IndentCaseBlocks: true
+IndentWidth: 4
 InsertNewlineAtEOF: true
 KeepEmptyLinesAtTheStartOfBlocks: false
 PointerAlignment: Left
 ReflowComments: false
 SortIncludes: Never
+TabWidth: 4
+UseTab: Never

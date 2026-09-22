@@ -176,6 +176,8 @@ constexpr int kDefaultBundledMax = 2799;
 
 constexpr int kResetDefaultBase = 2900;
 constexpr int kResetDefaultMax = 2959;
+constexpr int kOpenLinkBase = 2960;
+constexpr int kOpenLinkMax = 2979;
 
 constexpr int kRegEditFavoriteBase = 3000;
 constexpr int kRegEditFavoriteMax = 3999;

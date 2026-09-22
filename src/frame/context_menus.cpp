@@ -7,6 +7,49 @@
 namespace regkit {
 using namespace command_detail;
 
+namespace {
+
+std::vector<std::wstring> FindLinks(
+    std::wstring_view text
+) {
+  std::vector<std::wstring> links;
+  for (size_t start = 0; start < text.size() && links.size() <= cmd::kOpenLinkMax - cmd::kOpenLinkBase; ++start) {
+    const size_t scheme = util::StartsWithInsensitive(text.substr(start), L"https://") ? 8 : util::StartsWithInsensitive(text.substr(start), L"http://") ? 7 : 0;
+    if (!scheme || (start > 0 && iswalnum(text[start - 1]))) {
+      continue;
+    }
+    size_t end = start + scheme;
+    while (end < text.size() && text[end] > L' ' && !wcschr(L"\"'<>`", text[end])) {
+      ++end;
+    }
+    std::wstring link(text.substr(start, end - start));
+    while (link.size() > scheme && wcschr(L".,;:!?)]}", link.back()) &&
+           (link.back() != L')' || std::count(link.begin(), link.end(), L'(') < std::count(link.begin(), link.end(), L')'))) {
+      link.pop_back();
+    }
+    if (link.size() > scheme && std::find(links.begin(), links.end(), link) == links.end()) {
+      links.push_back(std::move(link));
+    }
+    start = end - 1;
+  }
+  return links;
+}
+
+std::wstring MenuLabel(
+    std::wstring text
+) {
+  if (text.size() > 96) {
+    text.resize(93);
+    text += L"...";
+  }
+  for (size_t amp = text.find(L'&'); amp != std::wstring::npos; amp = text.find(L'&', amp + 2)) {
+    text.insert(amp, 1, L'&');
+  }
+  return text;
+}
+
+} // namespace
+
 void MainWindow::Impl::RecordNavigation(
     const std::wstring& path
 ) {
@@ -257,6 +300,7 @@ void MainWindow::Impl::ShowValueContextMenu(
   SetFocus(browse_.values().hwnd());
 
   HMENU menu = CreatePopupMenu();
+  std::vector<std::wstring> links;
   if (row && row->kind == rowkind::kKey) {
     bool is_simulated = row->simulated;
     bool can_rename = !row->extra.empty();
@@ -348,6 +392,23 @@ void MainWindow::Impl::ShowValueContextMenu(
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, single_flags, cmd::kEditCopyValueName, L"Copy Value Name");
     AppendMenuW(menu, single_flags, cmd::kEditCopyValueData, L"Copy Value Data");
+    if (single_value && browse_.current_node()) {
+      std::wstring text = changes::ResolveComment(value_comments_, default_comments_, {CommentKeyPath(*browse_.current_node()), row->extra, row->value_type, row->value_data_size}).text;
+      ValueEntry entry;
+      if ((row->value_type == REG_SZ || row->value_type == REG_EXPAND_SZ || row->value_type == REG_MULTI_SZ) && GetValueEntry(*browse_.current_node(), row->extra, &entry)) {
+        text = value_format::DisplayData(entry.type, entry.data.data(), static_cast<DWORD>(entry.data.size())) + L'\n' + text;
+      }
+      links = FindLinks(text);
+    }
+    if (links.size() == 1) {
+      AppendMenuW(menu, MF_STRING, cmd::kOpenLinkBase, L"Open Link");
+    } else if (!links.empty()) {
+      HMENU link_menu = CreatePopupMenu();
+      for (size_t link = 0; link < links.size(); ++link) {
+        AppendMenuW(link_menu, MF_STRING, cmd::kOpenLinkBase + link, MenuLabel(links[link]).c_str());
+      }
+      AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(link_menu), L"Open Link");
+    }
     AppendMenuW(menu, export_flags, cmd::kFileExport, L"Export...");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, modify_flags, cmd::kEditRename, L"Rename");
@@ -391,7 +452,9 @@ void MainWindow::Impl::ShowValueContextMenu(
   int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
   DestroyMenu(menu);
 
-  if (command != 0) {
+  if (command >= cmd::kOpenLinkBase && command < cmd::kOpenLinkBase + static_cast<int>(links.size())) {
+    ui::ReportFileDialogResult(hwnd_, win32::ShellOpen(hwnd_, links[command - cmd::kOpenLinkBase].c_str()));
+  } else if (command != 0) {
     HandleMenuCommand(command);
   }
 }
