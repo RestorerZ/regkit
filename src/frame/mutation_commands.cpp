@@ -516,13 +516,21 @@ bool MainWindow::Impl::HandleModifyCommand(
         return true;
       }
       std::vector<ListRow> selected_rows = SelectedListRows(browse_.values());
-      if (selected_rows.empty()) {
-        return true;
+      const std::wstring path = CommentKeyPath(*browse_.current_node());
+      std::vector<changes::CommentTarget> targets;
+      if (GetFocus() == browse_.tree().hwnd() || selected_rows.empty()) {
+        targets.push_back({path, {}, 0, 0, true});
+      } else if (selected_rows.size() == 1 && selected_rows.front().kind == rowkind::kKey && !selected_rows.front().extra.empty()) {
+        targets.push_back({registry_path::JoinSubkey(path, selected_rows.front().extra), {}, 0, 0, true});
+      } else {
+        for (const ListRow& row : selected_rows) {
+          if (row.kind != rowkind::kValue || row.simulated) {
+            return true;
+          }
+          targets.push_back({path, row.extra, row.value_type, row.value_data_size});
+        }
       }
-      if (std::any_of(selected_rows.begin(), selected_rows.end(), [](const ListRow& row) { return row.kind != rowkind::kValue || row.simulated; })) {
-        return true;
-      }
-      EditValueComments(selected_rows);
+      EditComments(targets);
       return true;
     }
   default:

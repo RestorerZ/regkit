@@ -470,7 +470,7 @@ private:
   void RefreshValueListComments();
   std::wstring CommentsPath() const;
   std::wstring CommentKeyPath(const RegistryNode& node) const;
-  bool EditValueComments(const std::vector<ListRow>& rows);
+  bool EditComments(const std::vector<changes::CommentTarget>& targets);
   bool RestartAsAdmin();
   bool RestartAsUser();
   bool RestartCurrentInstance();

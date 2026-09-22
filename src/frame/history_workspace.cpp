@@ -826,6 +826,8 @@ void MainWindow::Impl::RefreshValueListComments() {
     std::wstring display;
     if (row.kind == rowkind::kValue) {
       display = FormatCommentDisplay(changes::ResolveComment(value_comments_, default_comments_, {path, row.extra, row.value_type, row.value_data_size}).text);
+    } else if (row.kind == rowkind::kKey && !row.extra.empty()) {
+      display = FormatCommentDisplay(changes::ResolveComment(value_comments_, default_comments_, {registry_path::JoinSubkey(path, row.extra), {}, 0, 0, true}).text);
     }
     if (row.comment != display) {
       row.comment = std::move(display);
@@ -846,22 +848,13 @@ void MainWindow::Impl::RefreshValueListComments() {
   }
 }
 
-bool MainWindow::Impl::EditValueComments(
-    const std::vector<ListRow>& rows
+bool MainWindow::Impl::EditComments(
+    const std::vector<changes::CommentTarget>& targets
 ) {
-  if (!browse_.current_node() || rows.empty()) {
+  if (targets.empty()) {
     return false;
   }
-  const std::wstring path = CommentKeyPath(*browse_.current_node());
   const changes::ValueComments none;
-  std::vector<changes::CommentTarget> targets;
-  for (const auto& row : rows) {
-    if (row.kind != rowkind::kValue || row.simulated) {
-      return false;
-    }
-    targets.push_back({path, row.extra, row.value_type, row.value_data_size});
-  }
-
   const changes::CommentTarget& first = targets.front();
   const changes::ResolvedComment shown = changes::ResolveComment(value_comments_, default_comments_, first);
   bool same_text = true;
@@ -881,8 +874,9 @@ bool MainWindow::Impl::EditValueComments(
   const bool broad = edits_rule && (shown.rule.key_scope != value_rule.key_scope || shown.rule.type != value_rule.type || shown.rule.data_size ||
                                     !util::EqualsInsensitive(shown.rule.key_path, value_rule.key_path));
   editors::CommentRequest request;
+  request.key = first.key;
   request.text = same_text ? shown.text : std::wstring();
-  request.scope.key_path = path;
+  request.scope.key_path = first.path;
   if (broad) {
     request.scope.rule = true;
     request.scope.same_type = shown.rule.type.has_value();

@@ -26,6 +26,7 @@ struct CommentRequest {
   std::wstring size;
   bool multiple = false;
   bool can_restore = false;
+  bool key = false;
 };
 
 struct CommentResult {

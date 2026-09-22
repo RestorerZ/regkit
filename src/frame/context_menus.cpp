@@ -232,6 +232,7 @@ void MainWindow::Impl::ShowTreeContextMenu(
   AppendMenuW(menu, edit_flags, cmd::kEditCopyKey, L"Copy Key Name");
   AppendMenuW(menu, edit_flags, cmd::kEditCopyKeyPath, L"Copy Key Path");
   AppendMenuW(menu, MF_POPUP | (has_node ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), L"Copy Key Path As");
+  AppendMenuW(menu, edit_flags, cmd::kEditModifyComment, L"Modify Comment...");
   if (!is_simulated) {
     AppendMenuW(menu, modify_flags, cmd::kEditPermissions, L"Permissions...");
     if (can_open_hive) {
@@ -331,6 +332,7 @@ void MainWindow::Impl::ShowValueContextMenu(
     AppendMenuW(menu, edit_flags, cmd::kEditCopyKey, L"Copy Key Name");
     AppendMenuW(menu, edit_flags, cmd::kEditCopyKeyPath, L"Copy Key Path");
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), L"Copy Key Path As");
+    AppendMenuW(menu, MF_STRING | (can_rename ? 0 : MF_GRAYED), cmd::kEditModifyComment, L"Modify Comment...");
     if (!is_simulated) {
       AppendMenuW(menu, modify_flags, cmd::kEditPermissions, L"Permissions...");
       if (can_open_hive) {

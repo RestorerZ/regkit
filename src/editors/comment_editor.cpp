@@ -79,7 +79,9 @@ void InitControls(
   SetDlgItemTextW(dialog, IDC_COMMENT_SIZE_TEXT, request.size.c_str());
   SetDlgItemTextW(dialog, IDC_COMMENT_KEY_PATH, request.scope.key_path.c_str());
   ShowWindow(GetDlgItem(dialog, IDC_COMMENT_RESTORE), request.can_restore ? SW_SHOW : SW_HIDE);
-  UpdateControls(dialog);
+  if (!request.key) {
+    UpdateControls(dialog);
+  }
 }
 
 INT_PTR CALLBACK DialogProc(
@@ -108,7 +110,7 @@ INT_PTR CALLBACK DialogProc(
                                       {IDC_COMMENT_SIZE, kAnchorLeft | kAnchorBottom},
                                       {IDC_COMMENT_SIZE_TEXT, kAnchorLeft | kAnchorRight | kAnchorBottom},
                                       {IDC_COMMENT_KEY, kAnchorLeft | kAnchorBottom},
-                                      {IDC_COMMENT_KEY_PATH, kAnchorLeft | kAnchorRight | kAnchorBottom},
+                                      {IDC_COMMENT_KEY_PATH, kAnchorLeft | kAnchorRight | (state->request->key ? kAnchorTop : kAnchorBottom)},
                                       {IDC_COMMENT_SUBKEYS, kAnchorLeft | kAnchorBottom},
                                       {IDC_COMMENT_RESTORE, kAnchorLeft | kAnchorBottom},
                                       {IDOK, kAnchorRight | kAnchorBottom},
@@ -171,7 +173,7 @@ bool EditComment(
 ) {
   State state;
   state.request = &request;
-  const INT_PTR dialog_result = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_COMMENT), owner, DialogProc, reinterpret_cast<LPARAM>(&state));
+  const INT_PTR dialog_result = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(request.key ? IDD_KEY_COMMENT : IDD_COMMENT), owner, DialogProc, reinterpret_cast<LPARAM>(&state));
   if (dialog_result != IDOK || !state.accepted) {
     return false;
   }

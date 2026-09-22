@@ -34,6 +34,7 @@ struct CommentRule {
   CommentKeyScope key_scope = CommentKeyScope::kAny;
   std::wstring key_path;
   std::wstring text;
+  bool key = false;
 };
 
 struct CommentTarget {
@@ -41,6 +42,7 @@ struct CommentTarget {
   std::wstring name;
   DWORD type = 0;
   uint64_t data_size = 0;
+  bool key = false;
 };
 
 struct ResolvedComment {
@@ -65,6 +67,7 @@ private:
 
   std::vector<CommentRule> rules_;
   std::unordered_map<std::wstring, std::vector<size_t>> index_;
+  std::unordered_map<std::wstring, size_t> key_index_;
 };
 
 bool ParseComments(const std::wstring& content, std::vector<CommentRule>* out, std::wstring* error = nullptr);

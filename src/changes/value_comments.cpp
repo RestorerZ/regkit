@@ -32,7 +32,7 @@ std::wstring NormalizeKeyPath(
 std::wstring ConditionKey(
     const CommentRule& rule
 ) {
-  return util::ToLower(rule.name) + L'\t' + (rule.type ? std::to_wstring(*rule.type) : L"*") + L'\t' +
+  return (rule.key ? L"k\t" : L"v\t") + util::ToLower(rule.name) + L'\t' + (rule.type ? std::to_wstring(*rule.type) : L"*") + L'\t' +
          (rule.data_size ? std::to_wstring(*rule.data_size) : L"*") + L'\t' + std::to_wstring(static_cast<int>(rule.key_scope)) +
          L'\t' + util::ToLower(NormalizeKeyPath(rule.key_path));
 }
@@ -129,7 +129,12 @@ bool ReadRule(
     }
     return reader.Fail(L"A comment contains an unknown member.");
   });
-  return read && ((seen & 3) == 3 || reader.Fail(L"A comment is missing its name or text."));
+  if (!read || ((seen & 2) == 0 && !reader.Fail(L"A comment is missing its text."))) {
+    return false;
+  }
+  rule->key = (seen & 1) == 0;
+  return !rule->key || ((seen & 12) == 0 && rule->key_scope == CommentKeyScope::kExact) ||
+         reader.Fail(L"A key comment needs a key and can't have a name, type, size or tree.");
 }
 
 void AppendMember(
@@ -138,7 +143,7 @@ void AppendMember(
     std::wstring_view value,
     bool quote
 ) {
-  out->append(L",\n      \"").append(name).append(L"\": ");
+  out->append(out->back() == L'{' ? L"\n      \"" : L",\n      \"").append(name).append(L"\": ");
   if (quote) {
     json::AppendString(out, value);
   } else {
@@ -169,7 +174,7 @@ bool ValueComments::Save(
 
 void ValueComments::Clear() {
   rules_.clear();
-  index_.clear();
+  Reindex();
 }
 
 void ValueComments::Merge(
@@ -191,6 +196,10 @@ void ValueComments::Merge(
 const CommentRule* ValueComments::Match(
     const CommentTarget& target
 ) const {
+  if (target.key) {
+    const auto match = key_index_.find(util::ToLower(NormalizeKeyPath(target.path)));
+    return match == key_index_.end() ? nullptr : &rules_[match->second];
+  }
   const auto candidates = index_.find(util::ToLower(target.name));
   if (candidates == index_.end()) {
     return nullptr;
@@ -225,8 +234,13 @@ const std::vector<CommentRule>& ValueComments::rules() const noexcept {
 
 void ValueComments::Reindex() {
   index_.clear();
+  key_index_.clear();
   for (size_t index = 0; index < rules_.size(); ++index) {
-    index_[util::ToLower(rules_[index].name)].push_back(index);
+    if (rules_[index].key) {
+      key_index_[util::ToLower(rules_[index].key_path)] = index;
+    } else {
+      index_[util::ToLower(rules_[index].name)].push_back(index);
+    }
   }
 }
 
@@ -271,7 +285,7 @@ bool ValidateCatalog(
     }
     for (size_t right = left + 1; right < rules.size(); ++right) {
       const CommentRule& other = rules[right];
-      if (util::EqualsInsensitive(rule.name, other.name) && Specificity(rule) == Specificity(other) &&
+      if (rule.key == other.key && util::EqualsInsensitive(rule.name, other.name) && Specificity(rule) == Specificity(other) &&
           (!rule.type || !other.type || rule.type == other.type) &&
           (!rule.data_size || !other.data_size || rule.data_size == other.data_size) &&
           (rule.key_scope == CommentKeyScope::kAny || util::EqualsInsensitive(rule.key_path, other.key_path))) {
@@ -288,8 +302,10 @@ std::wstring SerializeComments(
   std::wstring out = L"{\n  \"format\": \"regkit-comments\",\n  \"comments\": [";
   bool first = true;
   for (const CommentRule& rule : comments.rules()) {
-    out.append(first ? L"\n    {\n      \"name\": " : L",\n    {\n      \"name\": ");
-    json::AppendString(&out, rule.name);
+    out.append(first ? L"\n    {" : L",\n    {");
+    if (!rule.key) {
+      AppendMember(&out, L"name", rule.name, true);
+    }
     if (rule.type) {
       const bool named = *rule.type <= REG_QWORD;
       AppendMember(&out, L"type", named ? value_format::TypeName(*rule.type) : std::to_wstring(*rule.type), named);
@@ -312,8 +328,9 @@ CommentRule ValueRule(
     const CommentTarget& target
 ) {
   CommentRule rule;
-  rule.name = target.name;
-  rule.type = target.type;
+  rule.key = target.key;
+  rule.name = target.key ? std::wstring() : target.name;
+  rule.type = target.key ? std::nullopt : std::optional<DWORD>(target.type);
   rule.key_scope = CommentKeyScope::kExact;
   rule.key_path = NormalizeKeyPath(target.path);
   return rule;
