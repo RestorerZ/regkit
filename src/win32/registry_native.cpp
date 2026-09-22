@@ -214,7 +214,7 @@ bool DeleteNativeRegistryKey(HKEY key)
 
 LONG ReadRegistryString(HKEY root, const wchar_t* subkey, const wchar_t* value_name, std::wstring* value)
 {
-    constexpr DWORD kTypes = RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ;
+    constexpr DWORD kTypes = RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ | RRF_NOEXPAND;
     value->clear();
     LONG result = ERROR_MORE_DATA;
     for (int attempt = 0; attempt < 3 && result == ERROR_MORE_DATA; ++attempt)
