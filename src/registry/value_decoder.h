@@ -10,52 +10,59 @@
 #include <string>
 #include <vector>
 
-namespace regkit::value_decoder {
+namespace regkit::value_decoder
+{
 
-enum class TransformId {
-  kNone,
-  kBase64,
-  kBase64Url,
-  kHex,
-  kPercent,
+enum class TransformId
+{
+    kNone,
+    kBase64,
+    kBase64Url,
+    kHex,
+    kPercent,
 };
 
-enum class DecoderId {
-  kRawBytes,
-  kUtf8,
-  kUtf16Le,
-  kUtf16Be,
-  kAscii,
-  kFileTime,
-  kSystemTime,
-  kUnixSeconds,
-  kUnixMilliseconds,
-  kGuid,
-  kSid,
-  kSecurityDescriptor,
-  kIpv4,
-  kIpv6,
+enum class DecoderId
+{
+    kRawBytes,
+    kUtf8,
+    kUtf16Le,
+    kUtf16Be,
+    kAscii,
+    kFileTime,
+    kSystemTime,
+    kUnixSeconds,
+    kUnixMilliseconds,
+    kGuid,
+    kSid,
+    kSecurityDescriptor,
+    kIpv4,
+    kIpv6,
 };
 
-struct TransformEntry {
-  TransformId id = TransformId::kNone;
-  const wchar_t* name = nullptr;
+struct TransformEntry
+{
+    TransformId id = TransformId::kNone;
+    const wchar_t* name = nullptr;
 };
 
-struct DecoderEntry {
-  DecoderId id = DecoderId::kRawBytes;
-  const wchar_t* name = nullptr;
+struct DecoderEntry
+{
+    DecoderId id = DecoderId::kRawBytes;
+    const wchar_t* name = nullptr;
 };
 
-struct Field {
-  std::wstring name;
-  std::wstring value;
+struct Field
+{
+    std::wstring name;
+    std::wstring value;
 };
 
-struct Decoded {
-  bool ok = false;
-  std::wstring error;
-  std::vector<Field> fields;
+struct Decoded
+{
+    bool ok = false;
+    std::wstring error;
+    std::vector<Field> fields;
 };
 
 std::vector<TransformEntry> AvailableTransforms(DWORD type, const std::vector<BYTE>& data);

@@ -8,19 +8,22 @@
 #include <functional>
 #include <string>
 
-namespace regkit::editors {
+namespace regkit::editors
+{
 
-struct LoadHiveResult {
-  std::wstring file;
-  std::wstring key_name;
-  HKEY root = HKEY_LOCAL_MACHINE;
+struct LoadHiveResult
+{
+    std::wstring file;
+    std::wstring key_name;
+    HKEY root = HKEY_LOCAL_MACHINE;
 };
 
 bool ChooseHiveToLoad(HWND owner, LoadHiveResult* result);
 
-struct SymbolicLinkResult {
-  std::wstring name;
-  std::wstring target;
+struct SymbolicLinkResult
+{
+    std::wstring name;
+    std::wstring target;
 };
 
 using BrowseKeyCallback = std::function<bool(HWND, std::wstring*)>;

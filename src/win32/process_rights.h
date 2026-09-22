@@ -13,25 +13,28 @@
 #include <string>
 #include <vector>
 
-namespace util {
+namespace util
+{
 
 bool EnableTokenPrivilege(HANDLE token, const wchar_t* name, TOKEN_PRIVILEGES* previous = nullptr);
 
-class PrivilegeScope {
-public:
-  explicit PrivilegeScope(std::initializer_list<const wchar_t*> names);
-  ~PrivilegeScope();
-  PrivilegeScope(const PrivilegeScope&) = delete;
-  PrivilegeScope& operator=(const PrivilegeScope&) = delete;
+class PrivilegeScope
+{
+  public:
+    explicit PrivilegeScope(std::initializer_list<const wchar_t*> names);
+    ~PrivilegeScope();
+    PrivilegeScope(const PrivilegeScope&) = delete;
+    PrivilegeScope& operator=(const PrivilegeScope&) = delete;
 
-  bool held() const noexcept {
-    return held_;
-  }
+    bool held() const noexcept
+    {
+        return held_;
+    }
 
-private:
-  UniqueHandle token_;
-  std::vector<TOKEN_PRIVILEGES> previous_;
-  bool held_ = false;
+  private:
+    UniqueHandle token_;
+    std::vector<TOKEN_PRIVILEGES> previous_;
+    bool held_ = false;
 };
 
 std::wstring GetCurrentUserSidString();

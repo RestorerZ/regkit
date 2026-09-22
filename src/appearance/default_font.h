@@ -7,7 +7,8 @@
 
 #include <windows.h>
 
-namespace regkit::ui {
+namespace regkit::ui
+{
 
 LOGFONTW DefaultUIFontLogFont();
 LOGFONTW DefaultUIFontLogFont(UINT dpi);

@@ -9,10 +9,10 @@
 #include <functional>
 #include <vector>
 
-namespace regkit::defaults {
+namespace regkit::defaults
+{
 
-using NormalizePath =
-    std::function<std::wstring(const std::wstring& path)>;
+using NormalizePath = std::function<std::wstring(const std::wstring& path)>;
 
 bool Load(const std::wstring& path, const NormalizePath& normalize, Data* data, std::vector<Entry>* entries, std::wstring* error, const std::atomic_bool* cancel = nullptr);
 

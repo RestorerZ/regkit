@@ -6,9 +6,11 @@
 #include "win32/windows_config.h"
 
 #include <windows.h>
+
 #include <commctrl.h>
 
-namespace regkit::appearance {
+namespace regkit::appearance
+{
 
 void PaintListHeader(HWND header, HFONT font);
 void ReleaseListHeaderTheme(HWND header);

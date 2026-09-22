@@ -10,7 +10,8 @@
 #include <string>
 #include <vector>
 
-namespace regkit {
+namespace regkit
+{
 
 bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error);
 bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error, std::wstring* open_after_path);

@@ -12,20 +12,23 @@
 #include <string_view>
 #include <vector>
 
-namespace regkit {
+namespace regkit
+{
 
 struct RegistryNode;
 
-namespace registry_path {
+namespace registry_path
+{
 
-enum class Style {
-  kFull,
-  kAbbreviated,
-  kRegEditAddress,
-  kRegFileHeader,
-  kPowerShellDrive,
-  kPowerShellProvider,
-  kEscaped,
+enum class Style
+{
+    kFull,
+    kAbbreviated,
+    kRegEditAddress,
+    kRegFileHeader,
+    kPowerShellDrive,
+    kPowerShellProvider,
+    kEscaped,
 };
 
 inline constexpr wchar_t kNullSymbol = 0x2400;

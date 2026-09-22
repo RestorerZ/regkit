@@ -6,7 +6,8 @@
 #include <string>
 #include <string_view>
 
-namespace util {
+namespace util
+{
 
 std::wstring GetModuleDirectory();
 std::wstring GetModulePath();

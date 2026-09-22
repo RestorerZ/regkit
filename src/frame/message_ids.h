@@ -7,7 +7,8 @@
 
 #include <windows.h>
 
-namespace regkit::frame::message_id {
+namespace regkit::frame::message_id
+{
 
 constexpr UINT kAddressEnter = WM_APP + 10;
 constexpr UINT kFocusAddressBar = WM_APP + 11;

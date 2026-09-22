@@ -3,14 +3,15 @@
 
 #pragma once
 
-#include "win32/windows_config.h"
 #include "search/replace.h"
+#include "win32/windows_config.h"
 
 #include <windows.h>
 
 #include <string>
 
-namespace regkit {
+namespace regkit
+{
 
 using ReplaceDialogResult = search::ReplaceOptions;
 

@@ -1,18 +1,14 @@
-BasedOnStyle: LLVM
+BasedOnStyle: Microsoft
 
 AlignAfterOpenBracket: BlockIndent
 AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
-AllowShortFunctionsOnASingleLine: None
+
 BinPackArguments: false
 BinPackParameters: false
+
 ColumnLimit: 0
 IndentCaseBlocks: true
-IndentWidth: 4
 InsertNewlineAtEOF: true
-KeepEmptyLinesAtTheStartOfBlocks: false
 PointerAlignment: Left
-ReflowComments: false
 SortIncludes: Never
-TabWidth: 4
-UseTab: Never

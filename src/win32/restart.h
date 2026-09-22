@@ -10,7 +10,8 @@
 #include <string>
 #include <vector>
 
-namespace regkit::win32 {
+namespace regkit::win32
+{
 
 inline constexpr wchar_t kRestartSystemArg[] = L"--restart-system";
 inline constexpr wchar_t kRestartTiArg[] = L"--restart-ti";

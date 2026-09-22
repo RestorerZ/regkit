@@ -6,11 +6,13 @@
 #include "win32/windows_config.h"
 
 #include <windows.h>
+
 #include <commctrl.h>
 
 #include <string>
 
-namespace util {
+namespace util
+{
 
 int ScaleForDpi(int size, UINT dpi);
 HICON LoadIconResource(int resource_id, int size, UINT dpi);

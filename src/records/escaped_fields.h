@@ -10,7 +10,8 @@
 #include <string_view>
 #include <vector>
 
-namespace regkit::record_fields {
+namespace regkit::record_fields
+{
 
 std::wstring Escape(std::wstring_view text);
 std::wstring Unescape(std::wstring_view text);

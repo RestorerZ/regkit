@@ -4,8 +4,10 @@
 #pragma once
 
 #include <cstdint>
-namespace regkit {
-namespace cmd {
+namespace regkit
+{
+namespace cmd
+{
 
 constexpr int kFileExit = 2000;
 constexpr int kFileImport = 2001;
@@ -195,8 +197,10 @@ constexpr int kHeaderToggleBase = 4100;
 } // namespace cmd
 } // namespace regkit
 
-namespace regkit {
-namespace rowkind {
+namespace regkit
+{
+namespace rowkind
+{
 
 constexpr std::intptr_t kKey = 1;
 constexpr std::intptr_t kValue = 2;

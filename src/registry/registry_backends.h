@@ -6,27 +6,17 @@
 #include "registry/registry_store.h"
 #include "registry/virtual_registry.h"
 
-namespace regkit::registry_backend {
+namespace regkit::registry_backend
+{
 
-namespace live {
+namespace live
+{
 
 bool HasSubKeys(const RegistryNode& node);
 bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);
 bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, bool* denied = nullptr);
 std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node, bool sorted);
-bool EnumKeyStreaming(
-    const RegistryNode& node,
-    bool include_values,
-    bool include_data,
-    bool include_subkeys,
-    RegistryStore::KeyEnumResult* out_info,
-    const RegistryStore::ValueStreamCallback& value_callback,
-    const RegistryStore::SubkeyStreamCallback& subkey_callback,
-    DWORD max_data_size,
-    EnumerationScratch* scratch,
-    bool ordered,
-    bool open_link = false
-);
+bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, RegistryStore::KeyEnumResult* out_info, const RegistryStore::ValueStreamCallback& value_callback, const RegistryStore::SubkeyStreamCallback& subkey_callback, DWORD max_data_size, EnumerationScratch* scratch, bool ordered, bool open_link = false);
 bool QueryValue(const RegistryNode& node, const std::wstring& value_name, ValueEntry* out);
 bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target, DWORD* error);
 bool ReadKeyLink(const RegistryNode& node, std::wstring* target);
@@ -41,7 +31,8 @@ bool RenameValue(const RegistryNode& node, const std::wstring& old_name, const s
 
 } // namespace live
 
-namespace offline {
+namespace offline
+{
 
 bool OpenHive(const std::wstring& path, HKEY* root, std::wstring* error);
 bool SaveHive(HKEY root, const std::wstring& path, std::wstring* error);
@@ -55,18 +46,7 @@ bool HasSubKeys(const RegistryNode& node);
 bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);
 bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target);
 std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node, bool sorted);
-bool EnumKeyStreaming(
-    const RegistryNode& node,
-    bool include_values,
-    bool include_data,
-    bool include_subkeys,
-    RegistryStore::KeyEnumResult* out_info,
-    const RegistryStore::ValueStreamCallback& value_callback,
-    const RegistryStore::SubkeyStreamCallback& subkey_callback,
-    DWORD max_data_size,
-    EnumerationScratch* scratch,
-    bool ordered
-);
+bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, RegistryStore::KeyEnumResult* out_info, const RegistryStore::ValueStreamCallback& value_callback, const RegistryStore::SubkeyStreamCallback& subkey_callback, DWORD max_data_size, EnumerationScratch* scratch, bool ordered);
 bool QueryValue(const RegistryNode& node, const std::wstring& value_name, ValueEntry* out);
 bool CreateKey(const RegistryNode& node, const std::wstring& name);
 bool DeleteKey(const RegistryNode& node);
@@ -79,7 +59,8 @@ bool WriteKeySecurity(const RegistryNode& node, const std::vector<BYTE>& descrip
 
 } // namespace offline
 
-namespace virtual_store {
+namespace virtual_store
+{
 
 HKEY RegisterRoot(const std::wstring& root_name, const std::shared_ptr<VirtualRegistryData>& data);
 void UnregisterRoot(HKEY root);
@@ -88,19 +69,7 @@ std::shared_ptr<VirtualRegistryData> FindRoot(HKEY root, std::wstring* root_name
 bool HasSubKeys(const VirtualRegistryData& data, const RegistryNode& node);
 bool QueryKeyInfo(const VirtualRegistryData& data, const RegistryNode& node, KeyInfo* info);
 std::vector<std::wstring> EnumSubKeyNames(const VirtualRegistryData& data, const RegistryNode& node, bool sorted);
-bool EnumKeyStreaming(
-    const VirtualRegistryData& data,
-    const RegistryNode& node,
-    bool include_values,
-    bool include_data,
-    bool include_subkeys,
-    RegistryStore::KeyEnumResult* out_info,
-    const RegistryStore::ValueStreamCallback& value_callback,
-    const RegistryStore::SubkeyStreamCallback& subkey_callback,
-    DWORD max_data_size,
-    EnumerationScratch* scratch,
-    bool ordered
-);
+bool EnumKeyStreaming(const VirtualRegistryData& data, const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, RegistryStore::KeyEnumResult* out_info, const RegistryStore::ValueStreamCallback& value_callback, const RegistryStore::SubkeyStreamCallback& subkey_callback, DWORD max_data_size, EnumerationScratch* scratch, bool ordered);
 bool QueryValue(const VirtualRegistryData& data, const RegistryNode& node, const std::wstring& value_name, ValueEntry* out);
 bool CreateKey(VirtualRegistryData& data, const RegistryNode& node, const std::wstring& name);
 bool DeleteKey(VirtualRegistryData& data, const RegistryNode& node);

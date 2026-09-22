@@ -13,15 +13,15 @@
 #include <string_view>
 #include <vector>
 
-namespace util {
+namespace util
+{
 
-inline constexpr int HexDigitValue(
-    wchar_t character
-) {
-  return character >= L'0' && character <= L'9'   ? character - L'0'
-         : character >= L'a' && character <= L'f' ? character - L'a' + 10
-         : character >= L'A' && character <= L'F' ? character - L'A' + 10
-                                                  : -1;
+inline constexpr int HexDigitValue(wchar_t character)
+{
+    return character >= L'0' && character <= L'9'   ? character - L'0'
+           : character >= L'a' && character <= L'f' ? character - L'a' + 10
+           : character >= L'A' && character <= L'F' ? character - L'A' + 10
+                                                    : -1;
 }
 std::wstring WindowText(HWND window);
 std::wstring DialogText(HWND dialog, int control_id);

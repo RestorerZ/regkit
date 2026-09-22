@@ -7,43 +7,46 @@
 
 #include "search/regex.h"
 
-namespace regkit::search {
+namespace regkit::search
+{
 
-struct ReplaceOptions {
-  std::wstring find_text;
-  std::wstring replace_text;
-  std::wstring start_key;
-  bool recursive = true;
-  bool match_case = false;
-  bool match_whole = false;
-  bool use_regex = false;
-  bool replace_keys = false;
-  bool replace_values = true;
-  bool replace_data = true;
-  bool number_decimal = true;
-  bool number_hex = false;
+struct ReplaceOptions
+{
+    std::wstring find_text;
+    std::wstring replace_text;
+    std::wstring start_key;
+    bool recursive = true;
+    bool match_case = false;
+    bool match_whole = false;
+    bool use_regex = false;
+    bool replace_keys = false;
+    bool replace_values = true;
+    bool replace_data = true;
+    bool number_decimal = true;
+    bool number_hex = false;
 };
 
-class Replacer {
-public:
-  explicit Replacer(const ReplaceOptions& options);
-  Replacer(const Replacer& other);
-  Replacer(Replacer&&) noexcept = default;
+class Replacer
+{
+  public:
+    explicit Replacer(const ReplaceOptions& options);
+    Replacer(const Replacer& other);
+    Replacer(Replacer&&) noexcept = default;
 
-  bool valid() const noexcept;
-  const regex::Error& error() const noexcept;
-  regex::Status Replace(const std::wstring& text, std::wstring* result) const;
+    bool valid() const noexcept;
+    const regex::Error& error() const noexcept;
+    regex::Status Replace(const std::wstring& text, std::wstring* result) const;
 
-private:
-  std::wstring query_;
-  std::wstring replacement_;
-  regex::PatternRef pattern_;
-  regex::Session session_;
-  regex::Error error_;
-  bool use_regex_ = false;
-  bool match_case_ = false;
-  bool match_whole_ = false;
-  bool valid_ = true;
+  private:
+    std::wstring query_;
+    std::wstring replacement_;
+    regex::PatternRef pattern_;
+    regex::Session session_;
+    regex::Error error_;
+    bool use_regex_ = false;
+    bool match_case_ = false;
+    bool match_whole_ = false;
+    bool valid_ = true;
 };
 
 } // namespace regkit::search

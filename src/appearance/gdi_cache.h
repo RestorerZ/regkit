@@ -7,7 +7,8 @@
 
 #include <windows.h>
 
-namespace regkit::appearance {
+namespace regkit::appearance
+{
 
 HBRUSH CachedBrush(COLORREF color);
 HPEN CachedPen(COLORREF color, int width = 1);

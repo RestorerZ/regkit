@@ -10,20 +10,23 @@
 #include <string>
 #include <vector>
 
-namespace regkit::editors {
+namespace regkit::editors
+{
 
-struct BitfieldRequest {
-  std::wstring value_name;
-  std::wstring key_path;
-  uint64_t value = 0;
-  unsigned bit_count = 32;
-  std::span<const BYTE> data;
-  bool read_only = false;
+struct BitfieldRequest
+{
+    std::wstring value_name;
+    std::wstring key_path;
+    uint64_t value = 0;
+    unsigned bit_count = 32;
+    std::span<const BYTE> data;
+    bool read_only = false;
 };
 
-struct BitfieldResult {
-  uint64_t value = 0;
-  std::vector<BYTE> data;
+struct BitfieldResult
+{
+    uint64_t value = 0;
+    std::vector<BYTE> data;
 };
 
 bool EditBitfield(HWND owner, const BitfieldRequest& request, BitfieldResult* result);

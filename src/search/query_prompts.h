@@ -10,7 +10,8 @@
 #include <string>
 #include <vector>
 
-namespace regkit::query_prompts {
+namespace regkit::query_prompts
+{
 
 bool ShowDataTypes(HWND owner, std::vector<DWORD>* types);
 bool ShowRegistryKey(HWND owner, std::wstring* selected_path);

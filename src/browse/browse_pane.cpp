@@ -8,394 +8,397 @@
 
 #include <algorithm>
 
-namespace regkit::browse {
+namespace regkit::browse
+{
 
-namespace {
+namespace
+{
 
 constexpr DWORD kTypeSelectTimeoutMs = 1000;
 
 } // namespace
 
-bool Pane::Create(
-    const CreateRequest& request
-) {
-  if (!request.parent || !request.instance) {
-    return false;
-  }
-  address_ = CreateWindowExW(
-      0,
-      L"EDIT",
-      L"",
-      WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
-      0,
-      0,
-      0,
-      0,
-      request.parent,
-      reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.address_id)),
-      request.instance,
-      nullptr
-  );
-  go_button_ = CreateWindowExW(
-      0,
-      L"BUTTON",
-      L"",
-      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-      0,
-      0,
-      0,
-      0,
-      request.parent,
-      reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.go_id)),
-      request.instance,
-      nullptr
-  );
-  filter_ = CreateWindowExW(
-      0,
-      L"EDIT",
-      L"",
-      WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
-      0,
-      0,
-      0,
-      0,
-      request.parent,
-      reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.filter_id)),
-      request.instance,
-      nullptr
-  );
-  tree_.Create(request.parent, request.instance, request.tree_id, false, true);
-  values_.Create(request.parent, request.instance, request.values_id);
-  if (!address_ || !go_button_ || !filter_ || !tree_.hwnd() ||
-      !values_.hwnd()) {
-    return false;
-  }
+bool Pane::Create(const CreateRequest& request)
+{
+    if (!request.parent || !request.instance)
+    {
+        return false;
+    }
+    address_ = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, request.parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.address_id)), request.instance, nullptr);
+    go_button_ =
+        CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0, 0, request.parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.go_id)), request.instance, nullptr);
+    filter_ = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, request.parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.filter_id)), request.instance, nullptr);
+    tree_.Create(request.parent, request.instance, request.tree_id, false, true);
+    values_.Create(request.parent, request.instance, request.values_id);
+    if (!address_ || !go_button_ || !filter_ || !tree_.hwnd() || !values_.hwnd())
+    {
+        return false;
+    }
 
-  if (request.address_proc &&
-      !SetWindowSubclass(address_, request.address_proc, request.address_subclass_id, request.callback_context)) {
-    return false;
-  }
-  if (request.filter_proc &&
-      !SetWindowSubclass(filter_, request.filter_proc, request.filter_subclass_id, request.callback_context)) {
-    return false;
-  }
-  if (request.tree_proc &&
-      !SetWindowSubclass(tree_.hwnd(), request.tree_proc, request.tree_subclass_id, request.callback_context)) {
-    return false;
-  }
-  if (request.values_proc &&
-      !SetWindowSubclass(values_.hwnd(), request.values_proc, request.values_subclass_id, request.callback_context)) {
-    return false;
-  }
-  return true;
+    if (request.address_proc &&
+        !SetWindowSubclass(address_, request.address_proc, request.address_subclass_id, request.callback_context))
+    {
+        return false;
+    }
+    if (request.filter_proc &&
+        !SetWindowSubclass(filter_, request.filter_proc, request.filter_subclass_id, request.callback_context))
+    {
+        return false;
+    }
+    if (request.tree_proc &&
+        !SetWindowSubclass(tree_.hwnd(), request.tree_proc, request.tree_subclass_id, request.callback_context))
+    {
+        return false;
+    }
+    if (request.values_proc &&
+        !SetWindowSubclass(values_.hwnd(), request.values_proc, request.values_subclass_id, request.callback_context))
+    {
+        return false;
+    }
+    return true;
 }
 
-HWND Pane::address() const noexcept {
-  return address_;
+HWND Pane::address() const noexcept
+{
+    return address_;
 }
-HWND Pane::go_button() const noexcept {
-  return go_button_;
+HWND Pane::go_button() const noexcept
+{
+    return go_button_;
 }
-HWND Pane::filter() const noexcept {
-  return filter_;
+HWND Pane::filter() const noexcept
+{
+    return filter_;
 }
-RegistryTree& Pane::tree() noexcept {
-  return tree_;
+RegistryTree& Pane::tree() noexcept
+{
+    return tree_;
 }
-const RegistryTree& Pane::tree() const noexcept {
-  return tree_;
+const RegistryTree& Pane::tree() const noexcept
+{
+    return tree_;
 }
-ValueList& Pane::values() noexcept {
-  return values_;
+ValueList& Pane::values() noexcept
+{
+    return values_;
 }
-const ValueList& Pane::values() const noexcept {
-  return values_;
+const ValueList& Pane::values() const noexcept
+{
+    return values_;
 }
-RegistryNode* Pane::current_node() const noexcept {
-  return current_node_;
+RegistryNode* Pane::current_node() const noexcept
+{
+    return current_node_;
 }
-void Pane::set_current_node(
-    RegistryNode* node
-) noexcept {
-  current_node_ = node;
+void Pane::set_current_node(RegistryNode* node) noexcept
+{
+    current_node_ = node;
 }
-std::vector<RegistryRootEntry>& Pane::roots() noexcept {
-  return roots_;
+std::vector<RegistryRootEntry>& Pane::roots() noexcept
+{
+    return roots_;
 }
-const std::vector<RegistryRootEntry>& Pane::roots() const noexcept {
-  return roots_;
+const std::vector<RegistryRootEntry>& Pane::roots() const noexcept
+{
+    return roots_;
 }
-ColumnState& Pane::columns() noexcept {
-  return columns_;
+ColumnState& Pane::columns() noexcept
+{
+    return columns_;
 }
-const ColumnState& Pane::columns() const noexcept {
-  return columns_;
+const ColumnState& Pane::columns() const noexcept
+{
+    return columns_;
 }
 
-bool Pane::RecordNavigation(
-    const std::wstring& path
-) {
-  if (path.empty()) {
-    return false;
-  }
-  if (programmatic_navigation_) {
+bool Pane::RecordNavigation(const std::wstring& path)
+{
+    if (path.empty())
+    {
+        return false;
+    }
+    if (programmatic_navigation_)
+    {
+        programmatic_navigation_ = false;
+        return false;
+    }
+    if (navigation_index_ >= 0 && navigation_index_ < static_cast<int>(navigation_history_.size()) &&
+        navigation_history_[static_cast<size_t>(navigation_index_)] == path)
+    {
+        return false;
+    }
+    if (navigation_index_ + 1 < static_cast<int>(navigation_history_.size()))
+    {
+        navigation_history_.erase(navigation_history_.begin() + navigation_index_ + 1, navigation_history_.end());
+    }
+    navigation_history_.push_back(path);
+    navigation_index_ = static_cast<int>(navigation_history_.size()) - 1;
+    return true;
+}
+
+std::optional<std::wstring> Pane::Back()
+{
+    if (navigation_index_ <= 0)
+    {
+        return std::nullopt;
+    }
+    --navigation_index_;
+    programmatic_navigation_ = true;
+    return navigation_history_[static_cast<size_t>(navigation_index_)];
+}
+
+std::optional<std::wstring> Pane::Forward()
+{
+    if (navigation_index_ + 1 >= static_cast<int>(navigation_history_.size()))
+    {
+        return std::nullopt;
+    }
+    ++navigation_index_;
+    programmatic_navigation_ = true;
+    return navigation_history_[static_cast<size_t>(navigation_index_)];
+}
+
+std::optional<std::wstring> Pane::Up()
+{
+    if (!current_node_ || current_node_->subkey.empty())
+    {
+        return std::nullopt;
+    }
+    programmatic_navigation_ = true;
+    return registry_path::Parent(registry_path::Build(*current_node_));
+}
+
+void Pane::UndoNavigation(int delta)
+{
+    navigation_index_ += delta;
+    if (navigation_index_ < -1)
+    {
+        navigation_index_ = -1;
+    }
     programmatic_navigation_ = false;
-    return false;
-  }
-  if (navigation_index_ >= 0 &&
-      navigation_index_ < static_cast<int>(navigation_history_.size()) &&
-      navigation_history_[static_cast<size_t>(navigation_index_)] == path) {
-    return false;
-  }
-  if (navigation_index_ + 1 <
-      static_cast<int>(navigation_history_.size())) {
-    navigation_history_.erase(
-        navigation_history_.begin() + navigation_index_ + 1,
-        navigation_history_.end()
-    );
-  }
-  navigation_history_.push_back(path);
-  navigation_index_ = static_cast<int>(navigation_history_.size()) - 1;
-  return true;
 }
 
-std::optional<std::wstring> Pane::Back() {
-  if (navigation_index_ <= 0) {
-    return std::nullopt;
-  }
-  --navigation_index_;
-  programmatic_navigation_ = true;
-  return navigation_history_[static_cast<size_t>(navigation_index_)];
+NavigationAvailability Pane::navigation() const noexcept
+{
+    NavigationAvailability available;
+    available.back = navigation_index_ > 0;
+    available.forward = navigation_index_ + 1 < static_cast<int>(navigation_history_.size());
+    available.up = current_node_ && !current_node_->subkey.empty();
+    return available;
 }
 
-std::optional<std::wstring> Pane::Forward() {
-  if (navigation_index_ + 1 >=
-      static_cast<int>(navigation_history_.size())) {
-    return std::nullopt;
-  }
-  ++navigation_index_;
-  programmatic_navigation_ = true;
-  return navigation_history_[static_cast<size_t>(navigation_index_)];
-}
-
-std::optional<std::wstring> Pane::Up() {
-  if (!current_node_ || current_node_->subkey.empty()) {
-    return std::nullopt;
-  }
-  programmatic_navigation_ = true;
-  return registry_path::Parent(registry_path::Build(*current_node_));
-}
-
-void Pane::UndoNavigation(
-    int delta
-) {
-  navigation_index_ += delta;
-  if (navigation_index_ < -1) {
+void Pane::ResetNavigation()
+{
+    navigation_history_.clear();
     navigation_index_ = -1;
-  }
-  programmatic_navigation_ = false;
+    programmatic_navigation_ = false;
 }
 
-NavigationAvailability Pane::navigation() const noexcept {
-  NavigationAvailability available;
-  available.back = navigation_index_ > 0;
-  available.forward = navigation_index_ + 1 <
-                      static_cast<int>(navigation_history_.size());
-  available.up = current_node_ && !current_node_->subkey.empty();
-  return available;
-}
-
-void Pane::ResetNavigation() {
-  navigation_history_.clear();
-  navigation_index_ = -1;
-  programmatic_navigation_ = false;
-}
-
-bool Pane::SelectValue(
-    const std::wstring& name
-) {
-  if (!values_.hwnd()) {
+bool Pane::SelectValue(const std::wstring& name)
+{
+    if (!values_.hwnd())
+    {
+        return false;
+    }
+    for (size_t index = 0; index < values_.RowCount(); ++index)
+    {
+        const ListRow* row = values_.RowAt(static_cast<int>(index));
+        if (!row || row->kind != rowkind::kValue || !util::EqualsInsensitive(row->extra, name))
+        {
+            continue;
+        }
+        ListView_SetItemState(values_.hwnd(), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+        ListView_SetItemState(values_.hwnd(), static_cast<int>(index), LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+        ListView_EnsureVisible(values_.hwnd(), static_cast<int>(index), FALSE);
+        return true;
+    }
     return false;
-  }
-  for (size_t index = 0; index < values_.RowCount(); ++index) {
-    const ListRow* row = values_.RowAt(static_cast<int>(index));
-    if (!row || row->kind != rowkind::kValue || !util::EqualsInsensitive(row->extra, name)) {
-      continue;
+}
+
+void Pane::UpdateTypeBuffer(wchar_t ch, DWORD now, std::wstring* buffer, DWORD* tick)
+{
+    if (!buffer || !tick)
+    {
+        return;
+    }
+    if (now - *tick > kTypeSelectTimeoutMs)
+    {
+        buffer->clear();
+    }
+    *tick = now;
+    if (ch == L'\b')
+    {
+        if (!buffer->empty())
+        {
+            buffer->pop_back();
+        }
+    }
+    else
+    {
+        buffer->push_back(ch);
+    }
+}
+
+void Pane::TypeSelectValues(wchar_t ch, DWORD now)
+{
+    if (!values_.hwnd())
+    {
+        return;
+    }
+    UpdateTypeBuffer(ch, now, &value_type_buffer_, &value_type_tick_);
+    if (value_type_buffer_.empty() || values_.RowCount() == 0)
+    {
+        return;
+    }
+
+    int match = -1;
+    for (size_t index = 0; index < values_.RowCount(); ++index)
+    {
+        const ListRow* row = values_.RowAt(static_cast<int>(index));
+        if (row && util::StartsWithInsensitive(row->name, value_type_buffer_))
+        {
+            match = static_cast<int>(index);
+            break;
+        }
+    }
+    if (match < 0)
+    {
+        std::wstring nearest;
+        for (size_t index = 0; index < values_.RowCount(); ++index)
+        {
+            const ListRow* row = values_.RowAt(static_cast<int>(index));
+            if (row && util::CompareInsensitive(row->name, value_type_buffer_) >= 0 &&
+                (match < 0 || util::CompareInsensitive(row->name, nearest) < 0))
+            {
+                match = static_cast<int>(index);
+                nearest = row->name;
+            }
+        }
+    }
+    if (match < 0)
+    {
+        match = static_cast<int>(values_.RowCount() - 1);
     }
     ListView_SetItemState(values_.hwnd(), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-    ListView_SetItemState(values_.hwnd(), static_cast<int>(index), LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-    ListView_EnsureVisible(values_.hwnd(), static_cast<int>(index), FALSE);
-    return true;
-  }
-  return false;
+    ListView_SetItemState(values_.hwnd(), match, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+    ListView_EnsureVisible(values_.hwnd(), match, FALSE);
 }
 
-void Pane::UpdateTypeBuffer(
-    wchar_t ch,
-    DWORD now,
-    std::wstring* buffer,
-    DWORD* tick
-) {
-  if (!buffer || !tick) {
-    return;
-  }
-  if (now - *tick > kTypeSelectTimeoutMs) {
-    buffer->clear();
-  }
-  *tick = now;
-  if (ch == L'\b') {
-    if (!buffer->empty()) {
-      buffer->pop_back();
+void Pane::TypeSelectTree(wchar_t ch, DWORD now)
+{
+    if (!tree_.hwnd())
+    {
+        return;
     }
-  } else {
-    buffer->push_back(ch);
-  }
-}
+    UpdateTypeBuffer(ch, now, &tree_type_buffer_, &tree_type_tick_);
+    if (tree_type_buffer_.empty())
+    {
+        return;
+    }
+    const HTREEITEM selected = TreeView_GetSelection(tree_.hwnd());
+    if (!selected)
+    {
+        return;
+    }
 
-void Pane::TypeSelectValues(
-    wchar_t ch,
-    DWORD now
-) {
-  if (!values_.hwnd()) {
-    return;
-  }
-  UpdateTypeBuffer(ch, now, &value_type_buffer_, &value_type_tick_);
-  if (value_type_buffer_.empty() || values_.RowCount() == 0) {
-    return;
-  }
-
-  int match = -1;
-  for (size_t index = 0; index < values_.RowCount(); ++index) {
-    const ListRow* row = values_.RowAt(static_cast<int>(index));
-    if (row && util::StartsWithInsensitive(row->name, value_type_buffer_)) {
-      match = static_cast<int>(index);
-      break;
-    }
-  }
-  if (match < 0) {
-    std::wstring nearest;
-    for (size_t index = 0; index < values_.RowCount(); ++index) {
-      const ListRow* row = values_.RowAt(static_cast<int>(index));
-      if (row && util::CompareInsensitive(row->name, value_type_buffer_) >= 0 &&
-          (match < 0 || util::CompareInsensitive(row->name, nearest) < 0)) {
-        match = static_cast<int>(index);
-        nearest = row->name;
-      }
-    }
-  }
-  if (match < 0) {
-    match = static_cast<int>(values_.RowCount() - 1);
-  }
-  ListView_SetItemState(values_.hwnd(), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-  ListView_SetItemState(values_.hwnd(), match, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-  ListView_EnsureVisible(values_.hwnd(), match, FALSE);
-}
-
-void Pane::TypeSelectTree(
-    wchar_t ch,
-    DWORD now
-) {
-  if (!tree_.hwnd()) {
-    return;
-  }
-  UpdateTypeBuffer(ch, now, &tree_type_buffer_, &tree_type_tick_);
-  if (tree_type_buffer_.empty()) {
-    return;
-  }
-  const HTREEITEM selected = TreeView_GetSelection(tree_.hwnd());
-  if (!selected) {
-    return;
-  }
-
-  auto load_children = [&](HTREEITEM item) {
-    RegistryNode* node = tree_.NodeFromItem(item);
-    if (!node || node->children_loaded) {
-      return;
-    }
-    NMTREEVIEWW info = {};
-    info.action = TVE_EXPAND;
-    info.itemNew.hItem = item;
-    tree_.OnItemExpanding(&info);
-  };
-  auto children = [&](HTREEITEM parent) {
-    std::vector<HTREEITEM> items;
-    HTREEITEM item = parent ? TreeView_GetChild(tree_.hwnd(), parent)
-                            : TreeView_GetRoot(tree_.hwnd());
-    for (; item; item = TreeView_GetNextSibling(tree_.hwnd(), item)) {
-      items.push_back(item);
-      if (!tree_.IsGroupItem(item)) {
-        continue;
-      }
-      for (HTREEITEM sub = TreeView_GetChild(tree_.hwnd(), item); sub;
-           sub = TreeView_GetNextSibling(tree_.hwnd(), sub)) {
-        items.push_back(sub);
-      }
-    }
-    return items;
-  };
-  auto text = [&](HTREEITEM item) {
-    wchar_t buffer[256] = {};
-    TVITEMW value = {};
-    value.hItem = item;
-    value.mask = TVIF_TEXT;
-    value.pszText = buffer;
-    value.cchTextMax = static_cast<int>(_countof(buffer));
-    return TreeView_GetItem(tree_.hwnd(), &value)
-               ? std::wstring(buffer)
-               : std::wstring();
-  };
-  auto find = [&](const std::vector<HTREEITEM>& items) -> HTREEITEM {
-    if (items.empty()) {
-      return nullptr;
-    }
-    size_t start = 0;
-    const auto selected_item = std::find(items.begin(), items.end(), selected);
-    if (selected_item != items.end()) {
-      start = static_cast<size_t>(selected_item - items.begin());
-    }
-    for (int exact = 1; exact >= 0; --exact) {
-      for (size_t offset = 0; offset < items.size(); ++offset) {
-        const HTREEITEM item = items[(start + offset) % items.size()];
-        const std::wstring item_text = text(item);
-        const bool matched = exact
-                                 ? util::EqualsInsensitive(item_text, tree_type_buffer_)
-                                 : util::StartsWithInsensitive(item_text, tree_type_buffer_);
-        if (matched) {
-          return item;
+    auto load_children = [&](HTREEITEM item) {
+        RegistryNode* node = tree_.NodeFromItem(item);
+        if (!node || node->children_loaded)
+        {
+            return;
         }
-      }
-    }
-    return nullptr;
-  };
+        NMTREEVIEWW info = {};
+        info.action = TVE_EXPAND;
+        info.itemNew.hItem = item;
+        tree_.OnItemExpanding(&info);
+    };
+    auto children = [&](HTREEITEM parent) {
+        std::vector<HTREEITEM> items;
+        HTREEITEM item = parent ? TreeView_GetChild(tree_.hwnd(), parent) : TreeView_GetRoot(tree_.hwnd());
+        for (; item; item = TreeView_GetNextSibling(tree_.hwnd(), item))
+        {
+            items.push_back(item);
+            if (!tree_.IsGroupItem(item))
+            {
+                continue;
+            }
+            for (HTREEITEM sub = TreeView_GetChild(tree_.hwnd(), item); sub;
+                 sub = TreeView_GetNextSibling(tree_.hwnd(), sub))
+            {
+                items.push_back(sub);
+            }
+        }
+        return items;
+    };
+    auto text = [&](HTREEITEM item) {
+        wchar_t buffer[256] = {};
+        TVITEMW value = {};
+        value.hItem = item;
+        value.mask = TVIF_TEXT;
+        value.pszText = buffer;
+        value.cchTextMax = static_cast<int>(_countof(buffer));
+        return TreeView_GetItem(tree_.hwnd(), &value) ? std::wstring(buffer) : std::wstring();
+    };
+    auto find = [&](const std::vector<HTREEITEM>& items) -> HTREEITEM {
+        if (items.empty())
+        {
+            return nullptr;
+        }
+        size_t start = 0;
+        const auto selected_item = std::find(items.begin(), items.end(), selected);
+        if (selected_item != items.end())
+        {
+            start = static_cast<size_t>(selected_item - items.begin());
+        }
+        for (int exact = 1; exact >= 0; --exact)
+        {
+            for (size_t offset = 0; offset < items.size(); ++offset)
+            {
+                const HTREEITEM item = items[(start + offset) % items.size()];
+                const std::wstring item_text = text(item);
+                const bool matched = exact ? util::EqualsInsensitive(item_text, tree_type_buffer_)
+                                           : util::StartsWithInsensitive(item_text, tree_type_buffer_);
+                if (matched)
+                {
+                    return item;
+                }
+            }
+        }
+        return nullptr;
+    };
 
-  HTREEITEM target = nullptr;
-  if (tree_type_select_descend_) {
-    load_children(selected);
-    target = find(children(selected));
-  }
-  const HTREEITEM parent = TreeView_GetParent(tree_.hwnd(), selected);
-  if (!target) {
-    if (parent) {
-      load_children(parent);
+    HTREEITEM target = nullptr;
+    if (tree_type_select_descend_)
+    {
+        load_children(selected);
+        target = find(children(selected));
     }
-    target = find(children(parent));
-  }
-  if (!target && !tree_type_select_descend_) {
-    load_children(selected);
-    target = find(children(selected));
-  }
-  if (target) {
-    tree_type_select_descend_ = false;
-    TreeView_SelectItem(tree_.hwnd(), target);
-    TreeView_EnsureVisible(tree_.hwnd(), target);
-  }
+    const HTREEITEM parent = TreeView_GetParent(tree_.hwnd(), selected);
+    if (!target)
+    {
+        if (parent)
+        {
+            load_children(parent);
+        }
+        target = find(children(parent));
+    }
+    if (!target && !tree_type_select_descend_)
+    {
+        load_children(selected);
+        target = find(children(selected));
+    }
+    if (target)
+    {
+        tree_type_select_descend_ = false;
+        TreeView_SelectItem(tree_.hwnd(), target);
+        TreeView_EnsureVisible(tree_.hwnd(), target);
+    }
 }
 
-void Pane::set_tree_type_select_descend(
-    bool descend
-) noexcept {
-  tree_type_buffer_.clear();
-  tree_type_select_descend_ = descend;
+void Pane::set_tree_type_select_descend(bool descend) noexcept
+{
+    tree_type_buffer_.clear();
+    tree_type_select_descend_ = descend;
 }
 
 } // namespace regkit::browse

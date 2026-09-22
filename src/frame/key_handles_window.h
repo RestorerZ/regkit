@@ -10,7 +10,8 @@
 #include <functional>
 #include <string>
 
-namespace regkit {
+namespace regkit
+{
 
 using KeyHandlesNavigate = std::function<void(const std::wstring& path, bool new_tab)>;
 

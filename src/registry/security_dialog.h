@@ -9,7 +9,8 @@
 
 #include "registry/registry_store.h"
 
-namespace regkit {
+namespace regkit
+{
 
 bool ShowRegistryPermissions(HWND owner, const RegistryNode& node);
 

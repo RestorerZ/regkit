@@ -7,11 +7,13 @@
 
 #include <windows.h>
 
-namespace regkit {
+namespace regkit
+{
 
-struct FontDialogResult {
-  bool use_default = true;
-  LOGFONTW font = {};
+struct FontDialogResult
+{
+    bool use_default = true;
+    LOGFONTW font = {};
 };
 
 bool ShowFontDialog(HWND owner, const LOGFONTW& default_font, bool use_default, const LOGFONTW& current, FontDialogResult* out);

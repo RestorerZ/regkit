@@ -7,65 +7,77 @@
 
 #include <algorithm>
 
-namespace regkit::workspace {
+namespace regkit::workspace
+{
 
-RecentItems::RecentItems(
-    size_t maximum
-) noexcept
-    : maximum_(maximum) {
+RecentItems::RecentItems(size_t maximum) noexcept
+    : maximum_(maximum)
+{
 }
 
-void RecentItems::Add(
-    const std::wstring& path
-) {
-  std::wstring cleaned = util::TrimWhitespace(path);
-  if (cleaned.empty()) {
-    return;
-  }
-  const auto existing =
-      std::find_if(items_.begin(), items_.end(), [&](const std::wstring& item) { return util::EqualsInsensitive(item, cleaned); });
-  if (existing != items_.end()) {
-    items_.erase(existing);
-  }
-  items_.insert(items_.begin(), std::move(cleaned));
-  if (items_.size() > maximum_) {
-    items_.resize(maximum_);
-  }
-}
-
-void RecentItems::Replace(
-    std::vector<std::wstring> paths
-) {
-  items_ = std::move(paths);
-  Normalize();
-}
-
-void RecentItems::Normalize() {
-  std::vector<std::wstring> normalized;
-  normalized.reserve(std::min(items_.size(), maximum_));
-  for (const std::wstring& item : items_) {
-    std::wstring cleaned = util::TrimWhitespace(item);
-    if (cleaned.empty()) {
-      continue;
+void RecentItems::Add(const std::wstring& path)
+{
+    std::wstring cleaned = util::TrimWhitespace(path);
+    if (cleaned.empty())
+    {
+        return;
     }
-    const bool duplicate =
-        std::any_of(normalized.begin(), normalized.end(), [&](const std::wstring& existing) { return util::EqualsInsensitive(existing, cleaned); });
-    if (!duplicate) {
-      normalized.push_back(std::move(cleaned));
-      if (normalized.size() == maximum_) {
-        break;
-      }
+    const auto existing = std::find_if(
+        items_.begin(),
+        items_.end(),
+        [&](const std::wstring& item) { return util::EqualsInsensitive(item, cleaned); }
+    );
+    if (existing != items_.end())
+    {
+        items_.erase(existing);
     }
-  }
-  items_.swap(normalized);
+    items_.insert(items_.begin(), std::move(cleaned));
+    if (items_.size() > maximum_)
+    {
+        items_.resize(maximum_);
+    }
 }
 
-const std::vector<std::wstring>& RecentItems::items() const noexcept {
-  return items_;
+void RecentItems::Replace(std::vector<std::wstring> paths)
+{
+    items_ = std::move(paths);
+    Normalize();
 }
 
-std::vector<std::wstring>& RecentItems::items() noexcept {
-  return items_;
+void RecentItems::Normalize()
+{
+    std::vector<std::wstring> normalized;
+    normalized.reserve(std::min(items_.size(), maximum_));
+    for (const std::wstring& item : items_)
+    {
+        std::wstring cleaned = util::TrimWhitespace(item);
+        if (cleaned.empty())
+        {
+            continue;
+        }
+        const bool duplicate = std::any_of(normalized.begin(), normalized.end(), [&](const std::wstring& existing) {
+            return util::EqualsInsensitive(existing, cleaned);
+        });
+        if (!duplicate)
+        {
+            normalized.push_back(std::move(cleaned));
+            if (normalized.size() == maximum_)
+            {
+                break;
+            }
+        }
+    }
+    items_.swap(normalized);
+}
+
+const std::vector<std::wstring>& RecentItems::items() const noexcept
+{
+    return items_;
+}
+
+std::vector<std::wstring>& RecentItems::items() noexcept
+{
+    return items_;
 }
 
 } // namespace regkit::workspace

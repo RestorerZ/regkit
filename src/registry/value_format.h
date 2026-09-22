@@ -12,7 +12,8 @@
 #include <string_view>
 #include <vector>
 
-namespace regkit::value_format {
+namespace regkit::value_format
+{
 
 DWORD NormalizeType(DWORD type);
 std::wstring TypeName(DWORD type);

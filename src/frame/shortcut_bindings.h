@@ -7,13 +7,15 @@
 
 #include "frame/command_ids.h"
 
-namespace regkit::frame {
+namespace regkit::frame
+{
 
-struct ShortcutBinding {
-  BYTE modifiers;
-  WORD key;
-  int command;
-  const wchar_t* text;
+struct ShortcutBinding
+{
+    BYTE modifiers;
+    WORD key;
+    int command;
+    const wchar_t* text;
 };
 
 inline constexpr ShortcutBinding kShortcutBindings[] = {

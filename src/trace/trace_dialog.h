@@ -3,30 +3,33 @@
 
 #pragma once
 
-#include "win32/windows_config.h"
 #include "trace/trace_data.h"
+#include "win32/windows_config.h"
 
 #include <windows.h>
 
 #include <string>
 #include <vector>
 
-namespace regkit {
+namespace regkit
+{
 
-struct KeyValueDialogEntry {
-  std::wstring key_path;
-  std::wstring display_path;
-  bool has_value = false;
-  std::wstring value_name;
-  DWORD value_type = 0;
-  std::wstring value_data;
-  std::vector<BYTE> value_raw;
+struct KeyValueDialogEntry
+{
+    std::wstring key_path;
+    std::wstring display_path;
+    bool has_value = false;
+    std::wstring value_name;
+    DWORD value_type = 0;
+    std::wstring value_data;
+    std::vector<BYTE> value_raw;
 };
 
-struct TraceDialogOptions {
-  std::wstring title;
-  std::wstring prompt;
-  bool show_values = true;
+struct TraceDialogOptions
+{
+    std::wstring title;
+    std::wstring prompt;
+    bool show_values = true;
 };
 
 using TraceDialogReadyCallback = void (*)(HWND hwnd, void* context);

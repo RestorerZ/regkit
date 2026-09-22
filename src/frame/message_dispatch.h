@@ -7,16 +7,18 @@
 
 #include <windows.h>
 
-namespace regkit::frame {
+namespace regkit::frame
+{
 
-enum class MessageArea {
-  kUnknown,
-  kLifecycle,
-  kLayoutInput,
-  kWorker,
-  kExternal,
-  kAppearance,
-  kBrowse,
+enum class MessageArea
+{
+    kUnknown,
+    kLifecycle,
+    kLayoutInput,
+    kWorker,
+    kExternal,
+    kAppearance,
+    kBrowse,
 };
 
 MessageArea ClassifyMessage(UINT message) noexcept;

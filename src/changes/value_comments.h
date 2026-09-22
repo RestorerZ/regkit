@@ -13,61 +13,68 @@
 #include <unordered_map>
 #include <vector>
 
-namespace regkit::changes {
+namespace regkit::changes
+{
 
-enum class CommentKeyScope {
-  kAny,
-  kExact,
-  kRecursive,
+enum class CommentKeyScope
+{
+    kAny,
+    kExact,
+    kRecursive,
 };
 
-enum class CommentSource {
-  kNone,
-  kUser,
-  kDefault,
+enum class CommentSource
+{
+    kNone,
+    kUser,
+    kDefault,
 };
 
-struct CommentRule {
-  std::wstring name;
-  std::optional<DWORD> type;
-  std::optional<uint64_t> data_size;
-  CommentKeyScope key_scope = CommentKeyScope::kAny;
-  std::wstring key_path;
-  std::wstring text;
-  bool key = false;
+struct CommentRule
+{
+    std::wstring name;
+    std::optional<DWORD> type;
+    std::optional<uint64_t> data_size;
+    CommentKeyScope key_scope = CommentKeyScope::kAny;
+    std::wstring key_path;
+    std::wstring text;
+    bool key = false;
 };
 
-struct CommentTarget {
-  std::wstring path;
-  std::wstring name;
-  DWORD type = 0;
-  uint64_t data_size = 0;
-  bool key = false;
+struct CommentTarget
+{
+    std::wstring path;
+    std::wstring name;
+    DWORD type = 0;
+    uint64_t data_size = 0;
+    bool key = false;
 };
 
-struct ResolvedComment {
-  std::wstring text;
-  CommentSource source = CommentSource::kNone;
-  CommentRule rule;
+struct ResolvedComment
+{
+    std::wstring text;
+    CommentSource source = CommentSource::kNone;
+    CommentRule rule;
 };
 
-class ValueComments {
-public:
-  bool Load(const std::wstring& path);
-  bool Save(const std::wstring& path) const;
-  void Clear();
-  void Merge(const std::vector<CommentRule>& rules);
-  const CommentRule* Match(const CommentTarget& target) const;
-  void Set(CommentRule rule);
-  void Erase(const CommentRule& rule);
-  const std::vector<CommentRule>& rules() const noexcept;
+class ValueComments
+{
+  public:
+    bool Load(const std::wstring& path);
+    bool Save(const std::wstring& path) const;
+    void Clear();
+    void Merge(const std::vector<CommentRule>& rules);
+    const CommentRule* Match(const CommentTarget& target) const;
+    void Set(CommentRule rule);
+    void Erase(const CommentRule& rule);
+    const std::vector<CommentRule>& rules() const noexcept;
 
-private:
-  void Reindex();
+  private:
+    void Reindex();
 
-  std::vector<CommentRule> rules_;
-  std::unordered_map<std::wstring, std::vector<size_t>> index_;
-  std::unordered_map<std::wstring, size_t> key_index_;
+    std::vector<CommentRule> rules_;
+    std::unordered_map<std::wstring, std::vector<size_t>> index_;
+    std::unordered_map<std::wstring, size_t> key_index_;
 };
 
 bool ParseComments(const std::wstring& content, std::vector<CommentRule>* out, std::wstring* error = nullptr);

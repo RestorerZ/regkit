@@ -11,22 +11,25 @@
 #include <string>
 #include <vector>
 
-namespace win32 {
+namespace win32
+{
 
-struct KeyHandle {
-  ULONG_PTR process_id = 0;
-  ULONG_PTR handle = 0;
-  ULONG_PTR object = 0;
-  ACCESS_MASK access = 0;
-  ULONG attributes = 0;
-  std::wstring process;
-  std::wstring name;
+struct KeyHandle
+{
+    ULONG_PTR process_id = 0;
+    ULONG_PTR handle = 0;
+    ULONG_PTR object = 0;
+    ACCESS_MASK access = 0;
+    ULONG attributes = 0;
+    std::wstring process;
+    std::wstring name;
 };
 
-struct KeyHandleSnapshot {
-  std::vector<KeyHandle> handles;
-  size_t inaccessible_processes = 0;
-  DWORD error = ERROR_SUCCESS;
+struct KeyHandleSnapshot
+{
+    std::vector<KeyHandle> handles;
+    size_t inaccessible_processes = 0;
+    DWORD error = ERROR_SUCCESS;
 };
 
 KeyHandleSnapshot SnapshotKeyHandles(const std::atomic_bool& cancel);

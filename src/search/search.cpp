@@ -10,11 +10,11 @@
 #include "win32/text_transform.h"
 
 #include <algorithm>
-#include <functional>
 #include <condition_variable>
 #include <cstring>
 #include <cwchar>
 #include <cwctype>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <mutex>
@@ -25,646 +25,690 @@
 
 #include <windows.h>
 
-namespace regkit::search {
+namespace regkit::search
+{
 
-bool SameSource(
-    const Source& first,
-    const Source& second
-) noexcept {
-  return first.kind == second.kind &&
-         util::EqualsInsensitive(first.name, second.name);
+bool SameSource(const Source& first, const Source& second) noexcept
+{
+    return first.kind == second.kind && util::EqualsInsensitive(first.name, second.name);
 }
 
-std::wstring SourceLabel(
-    const Source& source
-) {
-  switch (source.kind) {
-  case Source::Kind::kRemote:
-    return source.name.empty() ? L"Network Registry" : source.name;
-  case Source::Kind::kOffline:
-  case Source::Kind::kRegFile:
+std::wstring SourceLabel(const Source& source)
+{
+    switch (source.kind)
     {
-      const size_t slash = source.name.find_last_of(L"\\/");
-      return slash == std::wstring::npos ? source.name
-                                         : source.name.substr(slash + 1);
+    case Source::Kind::kRemote:
+        return source.name.empty() ? L"Network Registry" : source.name;
+    case Source::Kind::kOffline:
+    case Source::Kind::kRegFile:
+        {
+            const size_t slash = source.name.find_last_of(L"\\/");
+            return slash == std::wstring::npos ? source.name : source.name.substr(slash + 1);
+        }
+    default:
+        break;
     }
-  default:
-    break;
-  }
-  return L"Local Registry";
+    return L"Local Registry";
 }
 
-const wchar_t* MatchFieldLabel(
-    MatchField field
-) noexcept {
-  switch (field) {
-  case MatchField::kPath:
-    return L"Key";
-  case MatchField::kName:
-    return L"Value";
-  case MatchField::kData:
-    return L"Data";
-  default:
-    break;
-  }
-  return nullptr;
+const wchar_t* MatchFieldLabel(MatchField field) noexcept
+{
+    switch (field)
+    {
+    case MatchField::kPath:
+        return L"Key";
+    case MatchField::kName:
+        return L"Value";
+    case MatchField::kData:
+        return L"Data";
+    default:
+        break;
+    }
+    return nullptr;
 }
 
-Matcher::Matcher(
-    const TextOptions& options
-)
-    : query_(options.query), use_regex_(options.use_regex),
-      match_case_(options.match_case), match_whole_(options.match_whole),
-      valid_(!query_.empty()) {
-  if (!valid_ || !use_regex_) {
-    return;
-  }
-  // compile once
-  regex::Options regex_options;
-  regex_options.ignore_case = !match_case_;
-  regex_options.whole = match_whole_;
-  pattern_ = regex::Compile(query_, regex_options, &error_);
-  session_ = regex::Session(pattern_);
-  valid_ = session_.valid();
+Matcher::Matcher(const TextOptions& options)
+    : query_(options.query), use_regex_(options.use_regex), match_case_(options.match_case),
+      match_whole_(options.match_whole), valid_(!query_.empty())
+{
+    if (!valid_ || !use_regex_)
+    {
+        return;
+    }
+    // compile once
+    regex::Options regex_options;
+    regex_options.ignore_case = !match_case_;
+    regex_options.whole = match_whole_;
+    pattern_ = regex::Compile(query_, regex_options, &error_);
+    session_ = regex::Session(pattern_);
+    valid_ = session_.valid();
 }
 
-Matcher::Matcher(
-    const Matcher& other
-)
-    : query_(other.query_), pattern_(other.pattern_), session_(other.pattern_),
-      error_(other.error_), use_regex_(other.use_regex_),
-      match_case_(other.match_case_), match_whole_(other.match_whole_),
-      valid_(other.valid_) {
+Matcher::Matcher(const Matcher& other)
+    : query_(other.query_), pattern_(other.pattern_), session_(other.pattern_), error_(other.error_),
+      use_regex_(other.use_regex_), match_case_(other.match_case_), match_whole_(other.match_whole_),
+      valid_(other.valid_)
+{
 }
 
-bool Matcher::valid() const noexcept {
-  return valid_;
+bool Matcher::valid() const noexcept
+{
+    return valid_;
 }
 
-const regex::Error& Matcher::error() const noexcept {
-  return error_;
+const regex::Error& Matcher::error() const noexcept
+{
+    return error_;
 }
 
-Match Matcher::Find(
-    std::wstring_view text
-) const {
-  Match location;
-  if (!valid_) {
-    location.status = regex::Status::kFailed;
-    return location;
-  }
-  if (use_regex_) {
-    const regex::Found found = session_.Find(text);
-    location.status = found.status;
-    location.matched = found.status == regex::Status::kMatch;
-    location.start = found.start;
-    location.length = found.length;
-    return location;
-  }
-  if (text.empty()) {
-    return location;
-  }
+Match Matcher::Find(std::wstring_view text) const
+{
+    Match location;
+    if (!valid_)
+    {
+        location.status = regex::Status::kFailed;
+        return location;
+    }
+    if (use_regex_)
+    {
+        const regex::Found found = session_.Find(text);
+        location.status = found.status;
+        location.matched = found.status == regex::Status::kMatch;
+        location.start = found.start;
+        location.length = found.length;
+        return location;
+    }
+    if (text.empty())
+    {
+        return location;
+    }
 
-  if (match_whole_) {
-    const bool matched =
-        match_case_
-            ? text == query_
-            : CompareStringOrdinal(
-                  text.data(),
-                  static_cast<int>(text.size()),
-                  query_.c_str(),
-                  static_cast<int>(query_.size()),
-                  TRUE
-              ) == CSTR_EQUAL;
-    if (matched) {
-      location.matched = true;
-      location.start = 0;
-      location.length = text.size();
+    if (match_whole_)
+    {
+        const bool matched = match_case_
+                                 ? text == query_
+                                 : CompareStringOrdinal(text.data(), static_cast<int>(text.size()), query_.c_str(), static_cast<int>(query_.size()), TRUE) == CSTR_EQUAL;
+        if (matched)
+        {
+            location.matched = true;
+            location.start = 0;
+            location.length = text.size();
+        }
+        return location;
+    }
+
+    if (match_case_)
+    {
+        const size_t position = text.find(query_);
+        if (position != std::wstring::npos)
+        {
+            location.matched = true;
+            location.start = position;
+            location.length = query_.size();
+        }
+        return location;
+    }
+
+    const int position = util::FindInsensitive(text, query_);
+    if (position >= 0)
+    {
+        location.matched = true;
+        location.start = static_cast<size_t>(position);
+        location.length = query_.size();
     }
     return location;
-  }
-
-  if (match_case_) {
-    const size_t position = text.find(query_);
-    if (position != std::wstring::npos) {
-      location.matched = true;
-      location.start = position;
-      location.length = query_.size();
-    }
-    return location;
-  }
-
-  const int position = util::FindInsensitive(text, query_);
-  if (position >= 0) {
-    location.matched = true;
-    location.start = static_cast<size_t>(position);
-    location.length = query_.size();
-  }
-  return location;
 }
 
-bool IsExcludedPath(
-    const std::wstring& path,
-    const std::vector<std::wstring>& excludes
-) {
-  if (excludes.empty()) {
+bool IsExcludedPath(const std::wstring& path, const std::vector<std::wstring>& excludes)
+{
+    if (excludes.empty())
+    {
+        return false;
+    }
+    for (const auto& exclude : excludes)
+    {
+        if (!exclude.empty() && util::StartsWithInsensitive(path, exclude) &&
+            (path.size() == exclude.size() || path[exclude.size()] == L'\\'))
+        {
+            return true;
+        }
+    }
     return false;
-  }
-  for (const auto& exclude : excludes) {
-    if (!exclude.empty() && util::StartsWithInsensitive(path, exclude) && (path.size() == exclude.size() || path[exclude.size()] == L'\\')) {
-      return true;
+}
+
+bool IsKeyRow(const Result& result) noexcept
+{
+    return result.kind == ResultKind::kKey || result.kind == ResultKind::kTraceKey;
+}
+
+std::wstring_view DisplayName(const Result& result) noexcept
+{
+    if (IsKeyRow(result))
+    {
+        return std::wstring_view();
     }
-  }
-  return false;
+    return result.value_name.empty() ? std::wstring_view(L"(Default)") : std::wstring_view(result.value_name);
 }
 
-bool IsKeyRow(
-    const Result& result
-) noexcept {
-  return result.kind == ResultKind::kKey || result.kind == ResultKind::kTraceKey;
+std::wstring TypeText(const Result& result)
+{
+    if (IsKeyRow(result))
+    {
+        return L"Key";
+    }
+    if (result.kind == ResultKind::kTraceValue)
+    {
+        return L"TRACE";
+    }
+    return value_format::TypeName(result.type);
 }
 
-std::wstring_view DisplayName(
-    const Result& result
-) noexcept {
-  if (IsKeyRow(result)) {
-    return std::wstring_view();
-  }
-  return result.value_name.empty() ? std::wstring_view(L"(Default)")
-                                   : std::wstring_view(result.value_name);
+namespace
+{
+
+int CompareNumeric(uint64_t left, uint64_t right)
+{
+    if (left == right)
+    {
+        return 0;
+    }
+    return left < right ? -1 : 1;
 }
 
-std::wstring TypeText(
-    const Result& result
-) {
-  if (IsKeyRow(result)) {
-    return L"Key";
-  }
-  if (result.kind == ResultKind::kTraceValue) {
-    return L"TRACE";
-  }
-  return value_format::TypeName(result.type);
-}
-
-namespace {
-
-int CompareNumeric(
-    uint64_t left,
-    uint64_t right
-) {
-  if (left == right) {
-    return 0;
-  }
-  return left < right ? -1 : 1;
-}
-
-int CompareResult(
-    const Result& left,
-    const Result& right,
-    int column
-) {
-  switch (column) {
-  case 0:
-    return util::CompareListText(left.key_path, right.key_path);
-  case 1:
-    return util::CompareListText(DisplayName(left), DisplayName(right));
-  case 3:
-    return util::CompareListText(left.data_text, right.data_text);
-  case 4:
-    return CompareNumeric(left.data_size, right.data_size);
-  case 5:
-    return CompareNumeric(
-        (static_cast<uint64_t>(left.modified.dwHighDateTime) << 32) |
-            left.modified.dwLowDateTime,
-        (static_cast<uint64_t>(right.modified.dwHighDateTime) << 32) |
-            right.modified.dwLowDateTime
-    );
-  default:
-    return util::CompareListText(left.key_path, right.key_path);
-  }
+int CompareResult(const Result& left, const Result& right, int column)
+{
+    switch (column)
+    {
+    case 0:
+        return util::CompareListText(left.key_path, right.key_path);
+    case 1:
+        return util::CompareListText(DisplayName(left), DisplayName(right));
+    case 3:
+        return util::CompareListText(left.data_text, right.data_text);
+    case 4:
+        return CompareNumeric(left.data_size, right.data_size);
+    case 5:
+        return CompareNumeric((static_cast<uint64_t>(left.modified.dwHighDateTime) << 32) | left.modified.dwLowDateTime, (static_cast<uint64_t>(right.modified.dwHighDateTime) << 32) | right.modified.dwLowDateTime);
+    default:
+        return util::CompareListText(left.key_path, right.key_path);
+    }
 }
 
 } // namespace
 
-void SortResults(
-    std::vector<Result>* results,
-    int column,
-    bool ascending
-) {
-  if (!results || results->size() < 2) {
-    return;
-  }
-  if (column == 2) {
-    // cache type labels as sorting calls the comparator many times
-    std::map<std::pair<ResultKind, DWORD>, std::wstring> labels;
-    auto label_of = [&labels](const Result& row) -> const std::wstring& {
-      const auto key = std::make_pair(row.kind, row.type);
-      auto found = labels.find(key);
-      if (found == labels.end()) {
-        found = labels.emplace(key, TypeText(row)).first;
-      }
-      return found->second;
-    };
-    for (const auto& row : *results) {
-      label_of(row);
+void SortResults(std::vector<Result>* results, int column, bool ascending)
+{
+    if (!results || results->size() < 2)
+    {
+        return;
     }
-    std::stable_sort(results->begin(), results->end(), [&labels, ascending](const Result& left, const Result& right) {
-                       const std::wstring& left_text =
-                           labels.find(std::make_pair(left.kind, left.type))->second;
-                       const std::wstring& right_text =
-                           labels.find(std::make_pair(right.kind, right.type))->second;
-                       const int result = util::CompareListText(left_text, right_text);
-                       return result != 0 && (ascending ? result < 0 : result > 0); });
-    return;
-  }
-  std::stable_sort(results->begin(), results->end(), [column, ascending](const Result& left, const Result& right) {
-                     const int result = CompareResult(left, right, column);
-                     return result != 0 && (ascending ? result < 0 : result > 0); });
+    if (column == 2)
+    {
+        // cache type labels as sorting calls the comparator many times
+        std::map<std::pair<ResultKind, DWORD>, std::wstring> labels;
+        auto label_of = [&labels](const Result& row) -> const std::wstring& {
+            const auto key = std::make_pair(row.kind, row.type);
+            auto found = labels.find(key);
+            if (found == labels.end())
+            {
+                found = labels.emplace(key, TypeText(row)).first;
+            }
+            return found->second;
+        };
+        for (const auto& row : *results)
+        {
+            label_of(row);
+        }
+        std::stable_sort(
+            results->begin(),
+            results->end(),
+            [&labels, ascending](const Result& left, const Result& right) {
+                const std::wstring& left_text = labels.find(std::make_pair(left.kind, left.type))->second;
+                const std::wstring& right_text = labels.find(std::make_pair(right.kind, right.type))->second;
+                const int result = util::CompareListText(left_text, right_text);
+                return result != 0 && (ascending ? result < 0 : result > 0);
+            }
+        );
+        return;
+    }
+    std::stable_sort(results->begin(), results->end(), [column, ascending](const Result& left, const Result& right) {
+        const int result = CompareResult(left, right, column);
+        return result != 0 && (ascending ? result < 0 : result > 0);
+    });
 }
 
-namespace {
+namespace
+{
 
-struct RootContext {
-  HKEY root = nullptr;
-  uint16_t source = 0;
-  std::wstring root_name;
-  std::wstring display_root;
-  std::wstring base_subkey;
-  std::wstring mirror_root;
-  std::wstring mirror_prefix;
-  bool machine_classes = false;
+struct RootContext
+{
+    HKEY root = nullptr;
+    uint16_t source = 0;
+    std::wstring root_name;
+    std::wstring display_root;
+    std::wstring base_subkey;
+    std::wstring mirror_root;
+    std::wstring mirror_prefix;
+    bool machine_classes = false;
 };
 
-struct NodeTask {
-  const RootContext* context = nullptr;
-  std::wstring subkey;
+struct NodeTask
+{
+    const RootContext* context = nullptr;
+    std::wstring subkey;
 };
 
-std::wstring BuildDisplayPath(
-    const NodeTask& task
-) {
-  if (!task.context) {
-    return task.subkey;
-  }
-  if (task.subkey.empty()) {
-    return task.context->display_root;
-  }
-  if (task.context->display_root.empty()) {
-    return registry_path::DisplayName(task.subkey);
-  }
-  std::wstring path;
-  path.reserve(task.context->display_root.size() + task.subkey.size() + 1);
-  path.append(task.context->display_root);
-  path.push_back(L'\\');
-  path.append(registry_path::DisplayName(task.subkey));
-  return path;
-}
-
-std::wstring_view TaskLeaf(
-    const NodeTask& task
-) {
-  if (task.subkey.empty()) {
-    return task.context ? std::wstring_view(task.context->display_root)
-                        : std::wstring_view();
-  }
-  const size_t slash = task.subkey.find_last_of(L'\\');
-  if (slash == std::wstring::npos) {
-    return std::wstring_view(task.subkey);
-  }
-  return std::wstring_view(task.subkey).substr(slash + 1);
-}
-
-std::wstring BuildMirrorPath(
-    const NodeTask& task
-) {
-  const RootContext* context = task.context;
-  if (!context || context->mirror_root.empty()) {
-    return std::wstring();
-  }
-  const std::wstring& prefix = context->mirror_prefix;
-  const std::wstring& subkey = task.subkey;
-  if (!util::StartsWithInsensitive(subkey, prefix) || (subkey.size() > prefix.size() && subkey[prefix.size()] != L'\\')) {
-    return std::wstring();
-  }
-  std::wstring path = context->mirror_root;
-  if (subkey.size() > prefix.size()) {
+std::wstring BuildDisplayPath(const NodeTask& task)
+{
+    if (!task.context)
+    {
+        return task.subkey;
+    }
+    if (task.subkey.empty())
+    {
+        return task.context->display_root;
+    }
+    if (task.context->display_root.empty())
+    {
+        return registry_path::DisplayName(task.subkey);
+    }
+    std::wstring path;
+    path.reserve(task.context->display_root.size() + task.subkey.size() + 1);
+    path.append(task.context->display_root);
     path.push_back(L'\\');
-    path.append(registry_path::DisplayName(std::wstring_view(subkey).substr(prefix.size() + 1)));
-  }
-  return path;
+    path.append(registry_path::DisplayName(task.subkey));
+    return path;
 }
 
-bool UserClassesOverrides(
-    const std::wstring& relative,
-    const std::wstring* value_name
-) {
-  std::wstring path = L"SOFTWARE\\Classes";
-  if (!relative.empty()) {
-    path.push_back(L'\\');
-    path.append(relative);
-  }
-  util::UniqueHKey key;
-  if (util::OpenRegistryPath(HKEY_CURRENT_USER, path, KEY_QUERY_VALUE | win32::kDefaultRegistryView, false, &key) != ERROR_SUCCESS) {
-    return false;
-  }
-  return !value_name ||
-         RegQueryValueExW(key.get(), value_name->c_str(), nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS;
-}
-
-RegistryNode TaskNode(
-    const NodeTask& task
-) {
-  RegistryNode node;
-  if (task.context) {
-    node.root = task.context->root;
-    node.root_name = task.context->root_name;
-    const std::wstring& base = task.context->base_subkey;
-    if (!base.empty()) {
-      node.subkey.reserve(base.size() + task.subkey.size() + 1);
-      node.subkey.append(base);
-      if (!task.subkey.empty()) {
-        node.subkey.push_back(L'\\');
-        node.subkey.append(task.subkey);
-      }
-      return node;
+std::wstring_view TaskLeaf(const NodeTask& task)
+{
+    if (task.subkey.empty())
+    {
+        return task.context ? std::wstring_view(task.context->display_root) : std::wstring_view();
     }
-  }
-  node.subkey = task.subkey;
-  return node;
-}
-
-struct HexQuery {
-  bool hex_only = false;
-  bool parsed = false;
-  bool digits_only = false;
-  std::vector<BYTE> bytes;
-};
-HexQuery ParseHexQuery(
-    const std::wstring& query
-) {
-  HexQuery result;
-  std::wstring digits;
-  digits.reserve(query.size());
-  bool digits_only = true;
-  size_t start = 0;
-  if (query.size() >= 2 && query[0] == L'0' && (query[1] == L'x' || query[1] == L'X')) {
-    start = 2;
-  }
-  for (size_t i = start; i < query.size(); ++i) {
-    wchar_t ch = query[i];
-    if (util::HexDigitValue(ch) >= 0) {
-      digits.push_back(ch);
-      if (ch > L'9') {
-        digits_only = false;
-      }
-    } else if (ch == L' ' || ch == L'\t' || ch == L',' || ch == L';' || ch == L'-' || ch == L':') {
-      continue;
-    } else {
-      return result;
+    const size_t slash = task.subkey.find_last_of(L'\\');
+    if (slash == std::wstring::npos)
+    {
+        return std::wstring_view(task.subkey);
     }
-  }
-  result.hex_only = true;
-  result.digits_only = digits_only;
-  if (digits.empty()) {
+    return std::wstring_view(task.subkey).substr(slash + 1);
+}
+
+std::wstring BuildMirrorPath(const NodeTask& task)
+{
+    const RootContext* context = task.context;
+    if (!context || context->mirror_root.empty())
+    {
+        return std::wstring();
+    }
+    const std::wstring& prefix = context->mirror_prefix;
+    const std::wstring& subkey = task.subkey;
+    if (!util::StartsWithInsensitive(subkey, prefix) ||
+        (subkey.size() > prefix.size() && subkey[prefix.size()] != L'\\'))
+    {
+        return std::wstring();
+    }
+    std::wstring path = context->mirror_root;
+    if (subkey.size() > prefix.size())
+    {
+        path.push_back(L'\\');
+        path.append(registry_path::DisplayName(std::wstring_view(subkey).substr(prefix.size() + 1)));
+    }
+    return path;
+}
+
+bool UserClassesOverrides(const std::wstring& relative, const std::wstring* value_name)
+{
+    std::wstring path = L"SOFTWARE\\Classes";
+    if (!relative.empty())
+    {
+        path.push_back(L'\\');
+        path.append(relative);
+    }
+    util::UniqueHKey key;
+    if (util::OpenRegistryPath(HKEY_CURRENT_USER, path, KEY_QUERY_VALUE | win32::kDefaultRegistryView, false, &key) !=
+        ERROR_SUCCESS)
+    {
+        return false;
+    }
+    return !value_name ||
+           RegQueryValueExW(key.get(), value_name->c_str(), nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS;
+}
+
+RegistryNode TaskNode(const NodeTask& task)
+{
+    RegistryNode node;
+    if (task.context)
+    {
+        node.root = task.context->root;
+        node.root_name = task.context->root_name;
+        const std::wstring& base = task.context->base_subkey;
+        if (!base.empty())
+        {
+            node.subkey.reserve(base.size() + task.subkey.size() + 1);
+            node.subkey.append(base);
+            if (!task.subkey.empty())
+            {
+                node.subkey.push_back(L'\\');
+                node.subkey.append(task.subkey);
+            }
+            return node;
+        }
+    }
+    node.subkey = task.subkey;
+    return node;
+}
+
+struct HexQuery
+{
+    bool hex_only = false;
+    bool parsed = false;
+    bool digits_only = false;
+    std::vector<BYTE> bytes;
+};
+HexQuery ParseHexQuery(const std::wstring& query)
+{
+    HexQuery result;
+    std::wstring digits;
+    digits.reserve(query.size());
+    bool digits_only = true;
+    size_t start = 0;
+    if (query.size() >= 2 && query[0] == L'0' && (query[1] == L'x' || query[1] == L'X'))
+    {
+        start = 2;
+    }
+    for (size_t i = start; i < query.size(); ++i)
+    {
+        wchar_t ch = query[i];
+        if (util::HexDigitValue(ch) >= 0)
+        {
+            digits.push_back(ch);
+            if (ch > L'9')
+            {
+                digits_only = false;
+            }
+        }
+        else if (ch == L' ' || ch == L'\t' || ch == L',' || ch == L';' || ch == L'-' || ch == L':')
+        {
+            continue;
+        }
+        else
+        {
+            return result;
+        }
+    }
+    result.hex_only = true;
+    result.digits_only = digits_only;
+    if (digits.empty())
+    {
+        return result;
+    }
+    if ((digits.size() % 2) != 0)
+    {
+        digits.insert(digits.begin(), L'0');
+    }
+    result.bytes.reserve(digits.size() / 2);
+    for (size_t i = 0; i < digits.size(); i += 2)
+    {
+        result.bytes.push_back(
+            static_cast<BYTE>((util::HexDigitValue(digits[i]) << 4) | util::HexDigitValue(digits[i + 1]))
+        );
+    }
+    result.parsed = !result.bytes.empty();
     return result;
-  }
-  if ((digits.size() % 2) != 0) {
-    digits.insert(digits.begin(), L'0');
-  }
-  result.bytes.reserve(digits.size() / 2);
-  for (size_t i = 0; i < digits.size(); i += 2) {
-    result.bytes.push_back(static_cast<BYTE>((util::HexDigitValue(digits[i]) << 4) | util::HexDigitValue(digits[i + 1])));
-  }
-  result.parsed = !result.bytes.empty();
-  return result;
 }
 
-bool BuildStringView(
-    const BYTE* data,
-    DWORD size,
-    std::wstring_view* view
-) {
-  if (!view) {
-    return false;
-  }
-  *view = std::wstring_view();
-  if (!data || size < sizeof(wchar_t)) {
-    return false;
-  }
-  size_t count = size / sizeof(wchar_t);
-  if (count == 0) {
-    return false;
-  }
-  const wchar_t* text = reinterpret_cast<const wchar_t*>(data);
-  while (count > 0 && text[count - 1] == L'\0') {
-    --count;
-  }
-  *view = std::wstring_view(text, count);
-  return true;
+bool BuildStringView(const BYTE* data, DWORD size, std::wstring_view* view)
+{
+    if (!view)
+    {
+        return false;
+    }
+    *view = std::wstring_view();
+    if (!data || size < sizeof(wchar_t))
+    {
+        return false;
+    }
+    size_t count = size / sizeof(wchar_t);
+    if (count == 0)
+    {
+        return false;
+    }
+    const wchar_t* text = reinterpret_cast<const wchar_t*>(data);
+    while (count > 0 && text[count - 1] == L'\0')
+    {
+        --count;
+    }
+    *view = std::wstring_view(text, count);
+    return true;
 }
 
-bool IsBinaryType(
-    DWORD base_type
-) {
-  return base_type == REG_BINARY || base_type == REG_RESOURCE_LIST || base_type == REG_FULL_RESOURCE_DESCRIPTOR || base_type == REG_RESOURCE_REQUIREMENTS_LIST || base_type == REG_NONE;
+bool IsBinaryType(DWORD base_type)
+{
+    return base_type == REG_BINARY || base_type == REG_RESOURCE_LIST || base_type == REG_FULL_RESOURCE_DESCRIPTOR ||
+           base_type == REG_RESOURCE_REQUIREMENTS_LIST || base_type == REG_NONE;
 }
 
-struct DataMatch {
-  bool matched = false;
-  Match match;
-  std::wstring data_text;
+struct DataMatch
+{
+    bool matched = false;
+    Match match;
+    std::wstring data_text;
 };
 
-DataMatch MatchValueData(
-    const Matcher& matcher,
-    const HexQuery& hex_query,
-    DWORD type,
-    const BYTE* data,
-    DWORD size,
-    std::wstring* scratch
-) {
-  DataMatch result;
-  if (!data && size != 0) {
-    return result;
-  }
+DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWORD type, const BYTE* data, DWORD size, std::wstring* scratch)
+{
+    DataMatch result;
+    if (!data && size != 0)
+    {
+        return result;
+    }
 
-  DWORD base_type = value_format::NormalizeType(type);
-  if (base_type == REG_MULTI_SZ) {
-    // match each item
-    size_t display_start = 0;
-    for (const std::wstring& item : value_format::MultiStringItems({data, size - size % sizeof(wchar_t)})) {
-      const Match match = matcher.Find(item);
-      result.match.status = match.status;
-      if (match.matched) {
+    DWORD base_type = value_format::NormalizeType(type);
+    if (base_type == REG_MULTI_SZ)
+    {
+        // match each item
+        size_t display_start = 0;
+        for (const std::wstring& item : value_format::MultiStringItems({data, size - size % sizeof(wchar_t)}))
+        {
+            const Match match = matcher.Find(item);
+            result.match.status = match.status;
+            if (match.matched)
+            {
+                result.matched = true;
+                result.match = match;
+                result.match.start = display_start + match.start;
+                result.data_text = value_format::DisplayData(type, data, size, false);
+                return result;
+            }
+            display_start += item.size() + 1;
+        }
+        return result;
+    }
+    if (base_type == REG_SZ || base_type == REG_EXPAND_SZ || base_type == REG_LINK)
+    {
+        // search string data in place and format it only after a match
+        std::wstring_view view;
+        BuildStringView(data, size, &view);
+        Match match = matcher.Find(view);
+        if (!match.matched)
+        {
+            result.match.status = match.status;
+            return result;
+        }
         result.matched = true;
         result.match = match;
-        result.match.start = display_start + match.start;
-        result.data_text = value_format::DisplayData(type, data, size, false);
+        std::wstring display = value_format::DisplayData(type, data, size, false);
+        // keep the highlight valid by showing whichever text the match came from
+        if (display == view)
+        {
+            result.data_text = std::move(display);
+            return result;
+        }
+        const Match display_match = matcher.Find(display);
+        if (display_match.matched)
+        {
+            result.match = display_match;
+            result.data_text = std::move(display);
+        }
+        else
+        {
+            result.data_text = std::wstring(view);
+        }
         return result;
-      }
-      display_start += item.size() + 1;
     }
-    return result;
-  }
-  if (base_type == REG_SZ || base_type == REG_EXPAND_SZ || base_type == REG_LINK) {
-    // search string data in place and format it only after a match
-    std::wstring_view view;
-    BuildStringView(data, size, &view);
-    Match match = matcher.Find(view);
-    if (!match.matched) {
-      result.match.status = match.status;
-      return result;
+
+    if (IsBinaryType(base_type))
+    {
+        if (hex_query.hex_only && hex_query.parsed && !hex_query.bytes.empty())
+        {
+            const size_t needle = hex_query.bytes.size();
+            if (needle <= size)
+            {
+                const BYTE* begin = data;
+                const BYTE* end = data + size;
+                const BYTE* hit = nullptr;
+                if (needle <= 2)
+                {
+                    for (const BYTE* p = begin; p + needle <= end; ++p)
+                    {
+                        if (memcmp(p, hex_query.bytes.data(), needle) == 0)
+                        {
+                            hit = p;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    const std::boyer_moore_horspool_searcher searcher(hex_query.bytes.begin(), hex_query.bytes.end());
+                    const BYTE* found = std::search(begin, end, searcher);
+                    hit = found == end ? nullptr : found;
+                }
+                if (hit)
+                {
+                    const size_t offset = static_cast<size_t>(hit - begin);
+                    result.matched = true;
+                    result.data_text = value_format::Data(type, data, size);
+                    result.match.matched = true;
+                    result.match.start = offset * 3;
+                    result.match.length = needle * 3 - 1;
+                    return result;
+                }
+            }
+            if (!hex_query.digits_only)
+            {
+                return result;
+            }
+        }
+
+        auto accept_bytes = [&](size_t byte_start, size_t byte_length) {
+            result.matched = true;
+            result.data_text = value_format::Data(type, data, size);
+            if (byte_length > 0)
+            {
+                result.match.matched = true;
+                result.match.start = byte_start * 3;
+                result.match.length = byte_length * 3 - 1;
+            }
+        };
+
+        if (scratch)
+        {
+            // reuse each worker buffer
+            scratch->assign(size, L'\0');
+            for (DWORD i = 0; i < size; ++i)
+            {
+                (*scratch)[i] = static_cast<wchar_t>(data[i]);
+            }
+            const Match match = matcher.Find(*scratch);
+            if (match.matched)
+            {
+                accept_bytes(match.start, match.length);
+                return result;
+            }
+        }
+
+        if (size >= sizeof(wchar_t) && (size % sizeof(wchar_t)) == 0 &&
+            (reinterpret_cast<uintptr_t>(data) % alignof(wchar_t)) == 0)
+        {
+            const std::wstring_view wide(reinterpret_cast<const wchar_t*>(data), size / sizeof(wchar_t));
+            const Match match = matcher.Find(wide);
+            if (match.matched)
+            {
+                accept_bytes(match.start * sizeof(wchar_t), match.length * sizeof(wchar_t));
+                return result;
+            }
+        }
+        return result;
+    }
+
+    std::wstring text = value_format::DisplayData(type, data, size, false);
+    Match match = matcher.Find(text);
+    if (!match.matched)
+    {
+        return result;
     }
     result.matched = true;
     result.match = match;
-    std::wstring display = value_format::DisplayData(type, data, size, false);
-    // keep the highlight valid by showing whichever text the match came from
-    if (display == view) {
-      result.data_text = std::move(display);
-      return result;
-    }
-    const Match display_match = matcher.Find(display);
-    if (display_match.matched) {
-      result.match = display_match;
-      result.data_text = std::move(display);
-    } else {
-      result.data_text = std::wstring(view);
-    }
+    result.data_text = std::move(text);
     return result;
-  }
-
-  if (IsBinaryType(base_type)) {
-    if (hex_query.hex_only && hex_query.parsed && !hex_query.bytes.empty()) {
-      const size_t needle = hex_query.bytes.size();
-      if (needle <= size) {
-        const BYTE* begin = data;
-        const BYTE* end = data + size;
-        const BYTE* hit = nullptr;
-        if (needle <= 2) {
-          for (const BYTE* p = begin; p + needle <= end; ++p) {
-            if (memcmp(p, hex_query.bytes.data(), needle) == 0) {
-              hit = p;
-              break;
-            }
-          }
-        } else {
-          const std::boyer_moore_horspool_searcher searcher(
-              hex_query.bytes.begin(),
-              hex_query.bytes.end()
-          );
-          const BYTE* found = std::search(begin, end, searcher);
-          hit = found == end ? nullptr : found;
-        }
-        if (hit) {
-          const size_t offset = static_cast<size_t>(hit - begin);
-          result.matched = true;
-          result.data_text = value_format::Data(type, data, size);
-          result.match.matched = true;
-          result.match.start = offset * 3;
-          result.match.length = needle * 3 - 1;
-          return result;
-        }
-      }
-      if (!hex_query.digits_only) {
-        return result;
-      }
-    }
-
-    auto accept_bytes = [&](size_t byte_start, size_t byte_length) {
-      result.matched = true;
-      result.data_text = value_format::Data(type, data, size);
-      if (byte_length > 0) {
-        result.match.matched = true;
-        result.match.start = byte_start * 3;
-        result.match.length = byte_length * 3 - 1;
-      }
-    };
-
-    if (scratch) {
-      // reuse each worker buffer
-      scratch->assign(size, L'\0');
-      for (DWORD i = 0; i < size; ++i) {
-        (*scratch)[i] = static_cast<wchar_t>(data[i]);
-      }
-      const Match match = matcher.Find(*scratch);
-      if (match.matched) {
-        accept_bytes(match.start, match.length);
-        return result;
-      }
-    }
-
-    if (size >= sizeof(wchar_t) && (size % sizeof(wchar_t)) == 0 &&
-        (reinterpret_cast<uintptr_t>(data) % alignof(wchar_t)) == 0) {
-      const std::wstring_view wide(reinterpret_cast<const wchar_t*>(data), size / sizeof(wchar_t));
-      const Match match = matcher.Find(wide);
-      if (match.matched) {
-        accept_bytes(match.start * sizeof(wchar_t), match.length * sizeof(wchar_t));
-        return result;
-      }
-    }
-    return result;
-  }
-
-  std::wstring text = value_format::DisplayData(type, data, size, false);
-  Match match = matcher.Find(text);
-  if (!match.matched) {
-    return result;
-  }
-  result.matched = true;
-  result.match = match;
-  result.data_text = std::move(text);
-  return result;
 }
 
-bool IsTypeAllowed(
-    const Criteria& criteria,
-    DWORD type
-) {
-  if (criteria.allowed_types.empty()) {
+bool IsTypeAllowed(const Criteria& criteria, DWORD type)
+{
+    if (criteria.allowed_types.empty())
+    {
+        return true;
+    }
+    return std::find(criteria.allowed_types.begin(), criteria.allowed_types.end(), type) !=
+           criteria.allowed_types.end();
+}
+
+bool IsSizeAllowed(const Criteria& criteria, DWORD size)
+{
+    if (criteria.use_min_size && size < criteria.min_size)
+    {
+        return false;
+    }
+    if (criteria.use_max_size && size > criteria.max_size)
+    {
+        return false;
+    }
     return true;
-  }
-  return std::find(criteria.allowed_types.begin(), criteria.allowed_types.end(), type) != criteria.allowed_types.end();
 }
 
-bool IsSizeAllowed(
-    const Criteria& criteria,
-    DWORD size
-) {
-  if (criteria.use_min_size && size < criteria.min_size) {
-    return false;
-  }
-  if (criteria.use_max_size && size > criteria.max_size) {
-    return false;
-  }
-  return true;
-}
-
-bool IsKeyInRange(
-    const Criteria& criteria,
-    const FILETIME& last_write
-) {
-  if (!criteria.use_modified_from && !criteria.use_modified_to) {
+bool IsKeyInRange(const Criteria& criteria, const FILETIME& last_write)
+{
+    if (!criteria.use_modified_from && !criteria.use_modified_to)
+    {
+        return true;
+    }
+    if (last_write.dwLowDateTime == 0 && last_write.dwHighDateTime == 0)
+    {
+        return false;
+    }
+    if (criteria.use_modified_from)
+    {
+        if (CompareFileTime(&last_write, &criteria.modified_from) < 0)
+        {
+            return false;
+        }
+    }
+    if (criteria.use_modified_to)
+    {
+        if (CompareFileTime(&last_write, &criteria.modified_to) > 0)
+        {
+            return false;
+        }
+    }
     return true;
-  }
-  if (last_write.dwLowDateTime == 0 && last_write.dwHighDateTime == 0) {
-    return false;
-  }
-  if (criteria.use_modified_from) {
-    if (CompareFileTime(&last_write, &criteria.modified_from) < 0) {
-      return false;
-    }
-  }
-  if (criteria.use_modified_to) {
-    if (CompareFileTime(&last_write, &criteria.modified_to) > 0) {
-      return false;
-    }
-  }
-  return true;
 }
 
 } // namespace
 
-namespace {
+namespace
+{
 
 constexpr size_t kResultBatchSize = 128;
 constexpr size_t kNodeChunkSize = 24;
@@ -674,551 +718,595 @@ constexpr unsigned int kLocalWorkerLimit = 4;
 constexpr unsigned int kRemoteWorkerLimit = 2;
 constexpr unsigned int kOfflineWorkerLimit = 4;
 
-unsigned int WorkerPolicy(
-    const Criteria& criteria
-) {
-  if (!criteria.recursive) {
-    return 1u;
-  }
-  Provider provider = criteria.provider;
-  if (provider == Provider::kLocal) {
-    for (const auto& start : criteria.start_nodes) {
-      const RegistryNode& node = start.node;
-      if (RegistryStore::IsVirtualRoot(node.root)) {
-        provider = Provider::kVirtual;
-        break;
-      }
-      if (RegistryStore::IsOfflineRoot(node.root)) {
-        provider = Provider::kOffline;
-        break;
-      }
+unsigned int WorkerPolicy(const Criteria& criteria)
+{
+    if (!criteria.recursive)
+    {
+        return 1u;
     }
-  }
-  switch (provider) {
-  case Provider::kRemote:
-    return kRemoteWorkerLimit;
-  case Provider::kOffline:
-  case Provider::kVirtual:
-    return kOfflineWorkerLimit;
-  case Provider::kLocal:
-  default:
-    return kLocalWorkerLimit;
-  }
+    Provider provider = criteria.provider;
+    if (provider == Provider::kLocal)
+    {
+        for (const auto& start : criteria.start_nodes)
+        {
+            const RegistryNode& node = start.node;
+            if (RegistryStore::IsVirtualRoot(node.root))
+            {
+                provider = Provider::kVirtual;
+                break;
+            }
+            if (RegistryStore::IsOfflineRoot(node.root))
+            {
+                provider = Provider::kOffline;
+                break;
+            }
+        }
+    }
+    switch (provider)
+    {
+    case Provider::kRemote:
+        return kRemoteWorkerLimit;
+    case Provider::kOffline:
+    case Provider::kVirtual:
+        return kOfflineWorkerLimit;
+    case Provider::kLocal:
+    default:
+        return kLocalWorkerLimit;
+    }
 }
 
 } // namespace
 
-bool Run(
-    const Criteria& criteria,
-    std::atomic_bool* cancel_flag,
-    const BatchCallback& publish,
-    const ProgressCallback& progress,
-    regex::Status* status
-) {
-  if (criteria.query.empty() || criteria.start_nodes.empty()) {
-    return false;
-  }
-
-  TextOptions match_options;
-  match_options.query = criteria.query;
-  match_options.match_case = criteria.match_case;
-  match_options.match_whole = criteria.match_whole;
-  match_options.use_regex = criteria.use_regex;
-  const Matcher base_matcher =
-      criteria.matcher ? Matcher(*criteria.matcher) : Matcher(match_options);
-  if (!base_matcher.valid()) {
-    return false;
-  }
-  std::atomic<int> worst_status(static_cast<int>(regex::Status::kNoMatch));
-  const HexQuery hex_query =
-      criteria.use_regex ? HexQuery() : ParseHexQuery(criteria.query);
-  const bool has_excludes = !criteria.exclude_paths.empty();
-  // skip values/child keys when the selected search fields dont need them
-  const bool want_values = criteria.search_values || criteria.search_data;
-  const bool want_subkeys = criteria.recursive;
-  // values above the size limit need metadata only
-  const DWORD enum_max_data =
-      criteria.use_max_size && criteria.max_size < MAXDWORD
-          ? static_cast<DWORD>(criteria.max_size)
-          : MAXDWORD;
-
-  std::vector<std::unique_ptr<RootContext>> contexts;
-  contexts.reserve(criteria.start_nodes.size());
-  std::mutex mutex;
-  std::condition_variable cv;
-  std::vector<NodeTask> stack;
-  stack.reserve(criteria.start_nodes.size());
-
-  const wchar_t kClassesSubkey[] = L"SOFTWARE\\Classes";
-  std::wstring merged_classes_root;
-  bool machine_in_scope = false;
-  bool user_in_scope = false;
-  if (criteria.provider == Provider::kLocal) {
-    for (const auto& start : criteria.start_nodes) {
-      const RegistryNode& node = start.node;
-      if (!node.subkey.empty()) {
-        continue;
-      }
-      if (node.root == HKEY_CLASSES_ROOT) {
-        RegistryNode root_only = node;
-        merged_classes_root = registry_path::Build(root_only);
-      } else if (node.root == HKEY_LOCAL_MACHINE) {
-        machine_in_scope = true;
-      } else if (node.root == HKEY_CURRENT_USER) {
-        user_in_scope = true;
-      }
-    }
-  }
-  const bool mirror_classes = !merged_classes_root.empty();
-
-  for (const auto& start : criteria.start_nodes) {
-    const RegistryNode& node = start.node;
-    RegistryNode root_only = node;
-    root_only.subkey.clear();
-    const std::wstring display_root = registry_path::Build(root_only);
-    const bool whole_root = node.subkey.empty();
-
-    struct Store {
-      HKEY root;
-      const wchar_t* base;
-    };
-    Store stores[2] = {{node.root, nullptr}, {nullptr, nullptr}};
-    size_t store_count = 1;
-    // search HKCR through backing stores not already covered by another root
-    if (mirror_classes && whole_root && node.root == HKEY_CLASSES_ROOT) {
-      store_count = 0;
-      if (!machine_in_scope) {
-        stores[store_count++] = {HKEY_LOCAL_MACHINE, kClassesSubkey};
-      }
-      if (!user_in_scope) {
-        stores[store_count++] = {HKEY_CURRENT_USER, kClassesSubkey};
-      }
-    }
-
-    for (size_t i = 0; i < store_count; ++i) {
-      auto context = std::make_unique<RootContext>();
-      context->root = stores[i].root;
-      context->source = start.source;
-      context->display_root = display_root;
-      if (stores[i].base) {
-        context->base_subkey = stores[i].base;
-        context->machine_classes = stores[i].root == HKEY_LOCAL_MACHINE;
-      } else {
-        context->root_name = node.root_name;
-        if (mirror_classes && whole_root &&
-            (node.root == HKEY_LOCAL_MACHINE || node.root == HKEY_CURRENT_USER)) {
-          context->mirror_root = merged_classes_root;
-          context->mirror_prefix = kClassesSubkey;
-          context->machine_classes = node.root == HKEY_LOCAL_MACHINE;
-        }
-      }
-      NodeTask task;
-      task.context = context.get();
-      task.subkey = node.subkey;
-      stack.push_back(std::move(task));
-      contexts.push_back(std::move(context));
-    }
-  }
-
-  std::atomic<uint64_t> searched_keys(0);
-  std::atomic<uint64_t> total_keys(stack.size());
-  std::atomic<uint64_t> last_reported(0);
-  std::atomic<uint64_t> last_reported_tick(0);
-  int active = 0;
-  bool done = false;
-  std::atomic_bool stop(false);
-  std::mutex publish_mutex;
-
-  auto should_stop = [&]() -> bool {
-    return stop.load() || (cancel_flag && cancel_flag->load());
-  };
-
-  auto request_stop = [&]() {
-    stop.store(true);
-    cv.notify_all();
-  };
-
-  auto report_progress = [&](bool force) {
-    if (!progress) {
-      return;
-    }
-    uint64_t searched = searched_keys.load();
-    const uint64_t total = total_keys.load();
-    uint64_t last = last_reported.load();
-    const uint64_t now = GetTickCount64();
-    const uint64_t last_tick = last_reported_tick.load();
-    if (!force && searched - last < kProgressKeyInterval &&
-        now - last_tick < kProgressTickInterval && total != searched) {
-      return;
-    }
-    if (last_reported.compare_exchange_strong(last, searched)) {
-      last_reported_tick.store(now);
-      progress(searched, total);
-    }
-  };
-
-  const uint64_t max_results = criteria.max_results;
-  uint64_t emitted = 0;
-
-  auto publish_batch = [&](ResultBatch& batch) -> bool {
-    if (batch.empty()) {
-      return true;
-    }
-    bool accepted = true;
-    bool reached_limit = false;
+bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCallback& publish, const ProgressCallback& progress, regex::Status* status)
+{
+    if (criteria.query.empty() || criteria.start_nodes.empty())
     {
-      std::lock_guard<std::mutex> lock(publish_mutex);
-      if (max_results > 0) {
-        const uint64_t room = emitted < max_results ? max_results - emitted : 0;
-        if (batch.size() > room) {
-          batch.resize(static_cast<size_t>(room));
-        }
-        emitted += batch.size();
-        reached_limit = emitted >= max_results;
-      }
-      if (!batch.empty()) {
-        accepted = !publish || publish(std::move(batch));
-      }
+        return false;
     }
-    if (reached_limit) {
-      accepted = false;
-    }
-    batch.clear();
-    batch.reserve(kResultBatchSize);
-    if (!accepted) {
-      request_stop();
-    }
-    return accepted;
-  };
 
-  auto worker = [&]() {
-    // one match session per worker
-    const Matcher matcher(base_matcher);
-    auto record_status = [&](regex::Status found) {
-      if (found != regex::Status::kMatch && found != regex::Status::kNoMatch) {
-        int previous = worst_status.load();
-        while (previous == static_cast<int>(regex::Status::kNoMatch) &&
-               !worst_status.compare_exchange_weak(previous, static_cast<int>(found))) {
+    TextOptions match_options;
+    match_options.query = criteria.query;
+    match_options.match_case = criteria.match_case;
+    match_options.match_whole = criteria.match_whole;
+    match_options.use_regex = criteria.use_regex;
+    const Matcher base_matcher = criteria.matcher ? Matcher(*criteria.matcher) : Matcher(match_options);
+    if (!base_matcher.valid())
+    {
+        return false;
+    }
+    std::atomic<int> worst_status(static_cast<int>(regex::Status::kNoMatch));
+    const HexQuery hex_query = criteria.use_regex ? HexQuery() : ParseHexQuery(criteria.query);
+    const bool has_excludes = !criteria.exclude_paths.empty();
+    // skip values/child keys when the selected search fields dont need them
+    const bool want_values = criteria.search_values || criteria.search_data;
+    const bool want_subkeys = criteria.recursive;
+    // values above the size limit need metadata only
+    const DWORD enum_max_data =
+        criteria.use_max_size && criteria.max_size < MAXDWORD ? static_cast<DWORD>(criteria.max_size) : MAXDWORD;
+
+    std::vector<std::unique_ptr<RootContext>> contexts;
+    contexts.reserve(criteria.start_nodes.size());
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::vector<NodeTask> stack;
+    stack.reserve(criteria.start_nodes.size());
+
+    const wchar_t kClassesSubkey[] = L"SOFTWARE\\Classes";
+    std::wstring merged_classes_root;
+    bool machine_in_scope = false;
+    bool user_in_scope = false;
+    if (criteria.provider == Provider::kLocal)
+    {
+        for (const auto& start : criteria.start_nodes)
+        {
+            const RegistryNode& node = start.node;
+            if (!node.subkey.empty())
+            {
+                continue;
+            }
+            if (node.root == HKEY_CLASSES_ROOT)
+            {
+                RegistryNode root_only = node;
+                merged_classes_root = registry_path::Build(root_only);
+            }
+            else if (node.root == HKEY_LOCAL_MACHINE)
+            {
+                machine_in_scope = true;
+            }
+            else if (node.root == HKEY_CURRENT_USER)
+            {
+                user_in_scope = true;
+            }
         }
-      }
+    }
+    const bool mirror_classes = !merged_classes_root.empty();
+
+    for (const auto& start : criteria.start_nodes)
+    {
+        const RegistryNode& node = start.node;
+        RegistryNode root_only = node;
+        root_only.subkey.clear();
+        const std::wstring display_root = registry_path::Build(root_only);
+        const bool whole_root = node.subkey.empty();
+
+        struct Store
+        {
+            HKEY root;
+            const wchar_t* base;
+        };
+        Store stores[2] = {{node.root, nullptr}, {nullptr, nullptr}};
+        size_t store_count = 1;
+        // search HKCR through backing stores not already covered by another root
+        if (mirror_classes && whole_root && node.root == HKEY_CLASSES_ROOT)
+        {
+            store_count = 0;
+            if (!machine_in_scope)
+            {
+                stores[store_count++] = {HKEY_LOCAL_MACHINE, kClassesSubkey};
+            }
+            if (!user_in_scope)
+            {
+                stores[store_count++] = {HKEY_CURRENT_USER, kClassesSubkey};
+            }
+        }
+
+        for (size_t i = 0; i < store_count; ++i)
+        {
+            auto context = std::make_unique<RootContext>();
+            context->root = stores[i].root;
+            context->source = start.source;
+            context->display_root = display_root;
+            if (stores[i].base)
+            {
+                context->base_subkey = stores[i].base;
+                context->machine_classes = stores[i].root == HKEY_LOCAL_MACHINE;
+            }
+            else
+            {
+                context->root_name = node.root_name;
+                if (mirror_classes && whole_root && (node.root == HKEY_LOCAL_MACHINE || node.root == HKEY_CURRENT_USER))
+                {
+                    context->mirror_root = merged_classes_root;
+                    context->mirror_prefix = kClassesSubkey;
+                    context->machine_classes = node.root == HKEY_LOCAL_MACHINE;
+                }
+            }
+            NodeTask task;
+            task.context = context.get();
+            task.subkey = node.subkey;
+            stack.push_back(std::move(task));
+            contexts.push_back(std::move(context));
+        }
+    }
+
+    std::atomic<uint64_t> searched_keys(0);
+    std::atomic<uint64_t> total_keys(stack.size());
+    std::atomic<uint64_t> last_reported(0);
+    std::atomic<uint64_t> last_reported_tick(0);
+    int active = 0;
+    bool done = false;
+    std::atomic_bool stop(false);
+    std::mutex publish_mutex;
+
+    auto should_stop = [&]() -> bool { return stop.load() || (cancel_flag && cancel_flag->load()); };
+
+    auto request_stop = [&]() {
+        stop.store(true);
+        cv.notify_all();
     };
-    // reuse buffers and vectors across all keys handled by this worker
-    EnumerationScratch scratch;
-    std::wstring widen_scratch;
-    ResultBatch batch;
-    batch.reserve(kResultBatchSize);
-    std::vector<NodeTask> local;
-    std::vector<NodeTask> children;
-    uint64_t local_searched = 0;
-    uint64_t local_tick = GetTickCount64();
 
-    auto flush_progress = [&](bool force) {
-      if (local_searched == 0 && !force) {
-        return;
-      }
-      const uint64_t now = GetTickCount64();
-      if (!force && local_searched < kProgressKeyInterval &&
-          now - local_tick < kProgressTickInterval) {
-        return;
-      }
-      searched_keys.fetch_add(local_searched);
-      local_searched = 0;
-      local_tick = now;
-      report_progress(force);
+    auto report_progress = [&](bool force) {
+        if (!progress)
+        {
+            return;
+        }
+        uint64_t searched = searched_keys.load();
+        const uint64_t total = total_keys.load();
+        uint64_t last = last_reported.load();
+        const uint64_t now = GetTickCount64();
+        const uint64_t last_tick = last_reported_tick.load();
+        if (!force && searched - last < kProgressKeyInterval && now - last_tick < kProgressTickInterval &&
+            total != searched)
+        {
+            return;
+        }
+        if (last_reported.compare_exchange_strong(last, searched))
+        {
+            last_reported_tick.store(now);
+            progress(searched, total);
+        }
     };
 
-    for (;;) {
-      if (local.empty()) {
-        std::unique_lock<std::mutex> lock(mutex);
-        cv.wait(lock, [&]() { return done || should_stop() || !stack.empty(); });
-        if (done || should_stop()) {
-          break;
-        }
-        if (stack.empty()) {
-          continue;
-        }
+    const uint64_t max_results = criteria.max_results;
+    uint64_t emitted = 0;
 
-        const size_t take = std::min(kNodeChunkSize, stack.size());
-        local.insert(local.end(), std::make_move_iterator(stack.end() - take), std::make_move_iterator(stack.end()));
-        stack.erase(stack.end() - take, stack.end());
-        active += 1;
-      }
-
-      while (!local.empty() && !should_stop()) {
-        NodeTask entry = std::move(local.back());
-        local.pop_back();
-        ++local_searched;
-        flush_progress(false);
-
-        std::wstring display_path;
-        // build display paths only when filtering/returning a match
-        auto path_text = [&]() -> const std::wstring& {
-          if (display_path.empty()) {
-            display_path = BuildDisplayPath(entry);
-          }
-          return display_path;
-        };
-
-        const bool classes_direct =
-            entry.context && entry.context->machine_classes &&
-            !entry.context->base_subkey.empty();
-        auto classes_shadowed = [&](const std::wstring* value_name) -> bool {
-          if (!entry.context || !entry.context->machine_classes) {
-            return false;
-          }
-          if (classes_direct) {
-            return UserClassesOverrides(entry.subkey, value_name);
-          }
-          const size_t prefix = entry.context->mirror_prefix.size();
-          return UserClassesOverrides(
-              entry.subkey.size() > prefix
-                  ? entry.subkey.substr(prefix + 1)
-                  : std::wstring(),
-              value_name
-          );
-        };
-
-        std::wstring mirror_path;
-        bool mirror_built = false;
-        auto mirror_text = [&]() -> const std::wstring& {
-          if (!mirror_built) {
-            mirror_built = true;
-            mirror_path = BuildMirrorPath(entry);
-            if (!mirror_path.empty() && has_excludes &&
-                IsExcludedPath(mirror_path, criteria.exclude_paths)) {
-              mirror_path.clear();
-            }
-          }
-          return mirror_path;
-        };
-
-        if (has_excludes &&
-            IsExcludedPath(path_text(), criteria.exclude_paths)) {
-          continue;
-        }
-
-        RegistryStore::KeyEnumResult enum_result;
-        bool key_range_checked = false;
-        bool key_in_range = true;
-
-        auto is_key_in_range = [&]() -> bool {
-          if (!criteria.use_modified_from && !criteria.use_modified_to) {
+    auto publish_batch = [&](ResultBatch& batch) -> bool {
+        if (batch.empty())
+        {
             return true;
-          }
-          if (!key_range_checked) {
-            key_range_checked = true;
-            key_in_range = enum_result.info_valid &&
-                           IsKeyInRange(criteria, enum_result.info.last_write);
-          }
-          return key_in_range;
+        }
+        bool accepted = true;
+        bool reached_limit = false;
+        {
+            std::lock_guard<std::mutex> lock(publish_mutex);
+            if (max_results > 0)
+            {
+                const uint64_t room = emitted < max_results ? max_results - emitted : 0;
+                if (batch.size() > room)
+                {
+                    batch.resize(static_cast<size_t>(room));
+                }
+                emitted += batch.size();
+                reached_limit = emitted >= max_results;
+            }
+            if (!batch.empty())
+            {
+                accepted = !publish || publish(std::move(batch));
+            }
+        }
+        if (reached_limit)
+        {
+            accepted = false;
+        }
+        batch.clear();
+        batch.reserve(kResultBatchSize);
+        if (!accepted)
+        {
+            request_stop();
+        }
+        return accepted;
+    };
+
+    auto worker = [&]() {
+        // one match session per worker
+        const Matcher matcher(base_matcher);
+        auto record_status = [&](regex::Status found) {
+            if (found != regex::Status::kMatch && found != regex::Status::kNoMatch)
+            {
+                int previous = worst_status.load();
+                while (previous == static_cast<int>(regex::Status::kNoMatch) &&
+                       !worst_status.compare_exchange_weak(previous, static_cast<int>(found)))
+                {
+                }
+            }
+        };
+        // reuse buffers and vectors across all keys handled by this worker
+        EnumerationScratch scratch;
+        std::wstring widen_scratch;
+        ResultBatch batch;
+        batch.reserve(kResultBatchSize);
+        std::vector<NodeTask> local;
+        std::vector<NodeTask> children;
+        uint64_t local_searched = 0;
+        uint64_t local_tick = GetTickCount64();
+
+        auto flush_progress = [&](bool force) {
+            if (local_searched == 0 && !force)
+            {
+                return;
+            }
+            const uint64_t now = GetTickCount64();
+            if (!force && local_searched < kProgressKeyInterval && now - local_tick < kProgressTickInterval)
+            {
+                return;
+            }
+            searched_keys.fetch_add(local_searched);
+            local_searched = 0;
+            local_tick = now;
+            report_progress(force);
         };
 
-        children.clear();
-        auto value_cb = [&](const ValueInfo& value, const BYTE* data, DWORD data_size) -> bool {
-          if (should_stop()) {
-            return false;
-          }
-          // reject by metadata before searching value names/data
-          if ((criteria.skip_links && value.type == REG_LINK) ||
-              !IsTypeAllowed(criteria, value.type) ||
-              !IsSizeAllowed(criteria, data_size) || !is_key_in_range()) {
-            return true;
-          }
-          const std::wstring display_name =
-              value.name.empty() ? std::wstring(L"(Default)") : value.name;
-          Match name_match;
-          if (criteria.search_values) {
-            name_match = matcher.Find(display_name);
-            record_status(name_match.status);
-          }
+        for (;;)
+        {
+            if (local.empty())
+            {
+                std::unique_lock<std::mutex> lock(mutex);
+                cv.wait(lock, [&]() { return done || should_stop() || !stack.empty(); });
+                if (done || should_stop())
+                {
+                    break;
+                }
+                if (stack.empty())
+                {
+                    continue;
+                }
 
-          DataMatch data_match;
-          // skip data matching when value name already matches
-          if (!name_match.matched && criteria.search_data) {
-            data_match = MatchValueData(matcher, hex_query, value.type, data, data_size, &widen_scratch);
-            record_status(data_match.match.status);
-          }
-          if (!name_match.matched && !data_match.matched) {
-            return true;
-          }
-
-          Result result;
-          result.source = entry.context ? entry.context->source : 0;
-          result.key_path = path_text();
-          result.value_name = value.name;
-          result.type = value.type;
-          result.data_size = data_size;
-          result.kind = ResultKind::kValue;
-          if (enum_result.info_valid) {
-            result.modified = enum_result.info.last_write;
-          }
-          if (data_match.matched) {
-            result.data_text = std::move(data_match.data_text);
-            result.data_state = DataState::kLoaded;
-            result.match_field = MatchField::kData;
-            if (data_match.match.matched) {
-              result.match_start = static_cast<uint32_t>(data_match.match.start);
-              result.match_length =
-                  static_cast<uint32_t>(data_match.match.length);
+                const size_t take = std::min(kNodeChunkSize, stack.size());
+                local.insert(local.end(), std::make_move_iterator(stack.end() - take), std::make_move_iterator(stack.end()));
+                stack.erase(stack.end() - take, stack.end());
+                active += 1;
             }
-          } else {
-            // leave name matches unloaded until UI needs their data
-            result.data_state = DataState::kNotLoaded;
-          }
-          if (name_match.matched) {
-            result.match_field = MatchField::kName;
-            result.match_start = static_cast<uint32_t>(name_match.start);
-            result.match_length = static_cast<uint32_t>(name_match.length);
-          }
 
-          const bool shadowed =
-              (classes_direct || !mirror_text().empty()) &&
-              classes_shadowed(&value.name);
-          if (shadowed && classes_direct) {
-            return true;
-          }
-          if (!shadowed && !mirror_text().empty()) {
-            Result merged = result;
-            merged.key_path = mirror_text();
-            batch.push_back(std::move(merged));
-          }
-          batch.push_back(std::move(result));
-          if (batch.size() >= kResultBatchSize && !publish_batch(batch)) {
-            return false;
-          }
-          return true;
-        };
+            while (!local.empty() && !should_stop())
+            {
+                NodeTask entry = std::move(local.back());
+                local.pop_back();
+                ++local_searched;
+                flush_progress(false);
 
-        auto subkey_cb = [&](const std::wstring& name) -> bool {
-          if (should_stop()) {
-            return false;
-          }
-          NodeTask child;
-          child.context = entry.context;
-          child.subkey.reserve(entry.subkey.size() + name.size() + 1);
-          child.subkey.append(entry.subkey);
-          if (!entry.subkey.empty()) {
-            child.subkey.push_back(L'\\');
-          }
-          child.subkey.append(name);
-          children.push_back(std::move(child));
-          return true;
-        };
+                std::wstring display_path;
+                // build display paths only when filtering/returning a match
+                auto path_text = [&]() -> const std::wstring& {
+                    if (display_path.empty())
+                    {
+                        display_path = BuildDisplayPath(entry);
+                    }
+                    return display_path;
+                };
 
-        const RegistryNode node = TaskNode(entry);
-        const bool enumerated = RegistryStore::EnumKeyStreaming(
-            node,
-            want_values,
-            criteria.search_data,
-            want_subkeys,
-            &enum_result,
-            want_values ? RegistryStore::ValueStreamCallback(value_cb)
-                        : RegistryStore::ValueStreamCallback(),
-            want_subkeys ? RegistryStore::SubkeyStreamCallback(subkey_cb)
-                         : RegistryStore::SubkeyStreamCallback(),
-            enum_max_data,
-            &scratch,
-            false,
-            criteria.skip_links
-        );
+                const bool classes_direct =
+                    entry.context && entry.context->machine_classes && !entry.context->base_subkey.empty();
+                auto classes_shadowed = [&](const std::wstring* value_name) -> bool {
+                    if (!entry.context || !entry.context->machine_classes)
+                    {
+                        return false;
+                    }
+                    if (classes_direct)
+                    {
+                        return UserClassesOverrides(entry.subkey, value_name);
+                    }
+                    const size_t prefix = entry.context->mirror_prefix.size();
+                    return UserClassesOverrides(
+                        entry.subkey.size() > prefix ? entry.subkey.substr(prefix + 1) : std::wstring(),
+                        value_name
+                    );
+                };
 
-        if (enumerated && enum_result.info_valid && criteria.search_keys &&
-            is_key_in_range()) {
-          const std::wstring leaf = registry_path::DisplayName(TaskLeaf(entry));
-          const Match key_match = matcher.Find(leaf);
-          record_status(key_match.status);
-          if (key_match.matched) {
-            Result result;
-            result.source = entry.context ? entry.context->source : 0;
-            result.key_path = path_text();
-            result.kind = ResultKind::kKey;
-            result.data_state = DataState::kNotApplicable;
-            result.modified = enum_result.info.last_write;
-            const size_t path_start = result.key_path.size() >= leaf.size()
-                                          ? result.key_path.size() - leaf.size()
-                                          : 0;
-            result.match_field = MatchField::kPath;
-            result.match_start =
-                static_cast<uint32_t>(path_start + key_match.start);
-            result.match_length = static_cast<uint32_t>(key_match.length);
+                std::wstring mirror_path;
+                bool mirror_built = false;
+                auto mirror_text = [&]() -> const std::wstring& {
+                    if (!mirror_built)
+                    {
+                        mirror_built = true;
+                        mirror_path = BuildMirrorPath(entry);
+                        if (!mirror_path.empty() && has_excludes && IsExcludedPath(mirror_path, criteria.exclude_paths))
+                        {
+                            mirror_path.clear();
+                        }
+                    }
+                    return mirror_path;
+                };
 
-            const bool shadowed =
-                (classes_direct || !mirror_text().empty()) &&
-                classes_shadowed(nullptr);
-            if (!shadowed && !mirror_text().empty()) {
-              Result merged = result;
-              merged.key_path = mirror_text();
-              const size_t merged_start =
-                  merged.key_path.size() >= leaf.size()
-                      ? merged.key_path.size() - leaf.size()
-                      : 0;
-              merged.match_start =
-                  static_cast<uint32_t>(merged_start + key_match.start);
-              batch.push_back(std::move(merged));
+                if (has_excludes && IsExcludedPath(path_text(), criteria.exclude_paths))
+                {
+                    continue;
+                }
+
+                RegistryStore::KeyEnumResult enum_result;
+                bool key_range_checked = false;
+                bool key_in_range = true;
+
+                auto is_key_in_range = [&]() -> bool {
+                    if (!criteria.use_modified_from && !criteria.use_modified_to)
+                    {
+                        return true;
+                    }
+                    if (!key_range_checked)
+                    {
+                        key_range_checked = true;
+                        key_in_range = enum_result.info_valid && IsKeyInRange(criteria, enum_result.info.last_write);
+                    }
+                    return key_in_range;
+                };
+
+                children.clear();
+                auto value_cb = [&](const ValueInfo& value, const BYTE* data, DWORD data_size) -> bool {
+                    if (should_stop())
+                    {
+                        return false;
+                    }
+                    // reject by metadata before searching value names/data
+                    if ((criteria.skip_links && value.type == REG_LINK) || !IsTypeAllowed(criteria, value.type) ||
+                        !IsSizeAllowed(criteria, data_size) || !is_key_in_range())
+                    {
+                        return true;
+                    }
+                    const std::wstring display_name = value.name.empty() ? std::wstring(L"(Default)") : value.name;
+                    Match name_match;
+                    if (criteria.search_values)
+                    {
+                        name_match = matcher.Find(display_name);
+                        record_status(name_match.status);
+                    }
+
+                    DataMatch data_match;
+                    // skip data matching when value name already matches
+                    if (!name_match.matched && criteria.search_data)
+                    {
+                        data_match = MatchValueData(matcher, hex_query, value.type, data, data_size, &widen_scratch);
+                        record_status(data_match.match.status);
+                    }
+                    if (!name_match.matched && !data_match.matched)
+                    {
+                        return true;
+                    }
+
+                    Result result;
+                    result.source = entry.context ? entry.context->source : 0;
+                    result.key_path = path_text();
+                    result.value_name = value.name;
+                    result.type = value.type;
+                    result.data_size = data_size;
+                    result.kind = ResultKind::kValue;
+                    if (enum_result.info_valid)
+                    {
+                        result.modified = enum_result.info.last_write;
+                    }
+                    if (data_match.matched)
+                    {
+                        result.data_text = std::move(data_match.data_text);
+                        result.data_state = DataState::kLoaded;
+                        result.match_field = MatchField::kData;
+                        if (data_match.match.matched)
+                        {
+                            result.match_start = static_cast<uint32_t>(data_match.match.start);
+                            result.match_length = static_cast<uint32_t>(data_match.match.length);
+                        }
+                    }
+                    else
+                    {
+                        // leave name matches unloaded until UI needs their data
+                        result.data_state = DataState::kNotLoaded;
+                    }
+                    if (name_match.matched)
+                    {
+                        result.match_field = MatchField::kName;
+                        result.match_start = static_cast<uint32_t>(name_match.start);
+                        result.match_length = static_cast<uint32_t>(name_match.length);
+                    }
+
+                    const bool shadowed = (classes_direct || !mirror_text().empty()) && classes_shadowed(&value.name);
+                    if (shadowed && classes_direct)
+                    {
+                        return true;
+                    }
+                    if (!shadowed && !mirror_text().empty())
+                    {
+                        Result merged = result;
+                        merged.key_path = mirror_text();
+                        batch.push_back(std::move(merged));
+                    }
+                    batch.push_back(std::move(result));
+                    if (batch.size() >= kResultBatchSize && !publish_batch(batch))
+                    {
+                        return false;
+                    }
+                    return true;
+                };
+
+                auto subkey_cb = [&](const std::wstring& name) -> bool {
+                    if (should_stop())
+                    {
+                        return false;
+                    }
+                    NodeTask child;
+                    child.context = entry.context;
+                    child.subkey.reserve(entry.subkey.size() + name.size() + 1);
+                    child.subkey.append(entry.subkey);
+                    if (!entry.subkey.empty())
+                    {
+                        child.subkey.push_back(L'\\');
+                    }
+                    child.subkey.append(name);
+                    children.push_back(std::move(child));
+                    return true;
+                };
+
+                const RegistryNode node = TaskNode(entry);
+                const bool enumerated = RegistryStore::EnumKeyStreaming(
+                    node,
+                    want_values,
+                    criteria.search_data,
+                    want_subkeys,
+                    &enum_result,
+                    want_values ? RegistryStore::ValueStreamCallback(value_cb) : RegistryStore::ValueStreamCallback(),
+                    want_subkeys ? RegistryStore::SubkeyStreamCallback(subkey_cb)
+                                 : RegistryStore::SubkeyStreamCallback(),
+                    enum_max_data,
+                    &scratch,
+                    false,
+                    criteria.skip_links
+                );
+
+                if (enumerated && enum_result.info_valid && criteria.search_keys && is_key_in_range())
+                {
+                    const std::wstring leaf = registry_path::DisplayName(TaskLeaf(entry));
+                    const Match key_match = matcher.Find(leaf);
+                    record_status(key_match.status);
+                    if (key_match.matched)
+                    {
+                        Result result;
+                        result.source = entry.context ? entry.context->source : 0;
+                        result.key_path = path_text();
+                        result.kind = ResultKind::kKey;
+                        result.data_state = DataState::kNotApplicable;
+                        result.modified = enum_result.info.last_write;
+                        const size_t path_start =
+                            result.key_path.size() >= leaf.size() ? result.key_path.size() - leaf.size() : 0;
+                        result.match_field = MatchField::kPath;
+                        result.match_start = static_cast<uint32_t>(path_start + key_match.start);
+                        result.match_length = static_cast<uint32_t>(key_match.length);
+
+                        const bool shadowed = (classes_direct || !mirror_text().empty()) && classes_shadowed(nullptr);
+                        if (!shadowed && !mirror_text().empty())
+                        {
+                            Result merged = result;
+                            merged.key_path = mirror_text();
+                            const size_t merged_start =
+                                merged.key_path.size() >= leaf.size() ? merged.key_path.size() - leaf.size() : 0;
+                            merged.match_start = static_cast<uint32_t>(merged_start + key_match.start);
+                            batch.push_back(std::move(merged));
+                        }
+                        if (!shadowed || !classes_direct)
+                        {
+                            batch.push_back(std::move(result));
+                        }
+                        if (batch.size() >= kResultBatchSize && !publish_batch(batch))
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                if (!should_stop() && want_subkeys && !children.empty())
+                {
+                    std::lock_guard<std::mutex> lock(mutex);
+                    stack.insert(stack.end(), std::make_move_iterator(children.begin()), std::make_move_iterator(children.end()));
+                    total_keys.fetch_add(static_cast<uint64_t>(children.size()));
+                    cv.notify_all();
+                }
             }
-            if (!shadowed || !classes_direct) {
-              batch.push_back(std::move(result));
+
+            publish_batch(batch);
+            flush_progress(false);
+
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                active -= 1;
+                if (stack.empty() && active == 0)
+                {
+                    done = true;
+                    cv.notify_all();
+                }
             }
-            if (batch.size() >= kResultBatchSize && !publish_batch(batch)) {
-              break;
+            if (should_stop())
+            {
+                break;
             }
-          }
         }
 
-        if (!should_stop() && want_subkeys && !children.empty()) {
-          std::lock_guard<std::mutex> lock(mutex);
-          stack.insert(stack.end(), std::make_move_iterator(children.begin()), std::make_move_iterator(children.end()));
-          total_keys.fetch_add(static_cast<uint64_t>(children.size()));
-          cv.notify_all();
-        }
-      }
+        publish_batch(batch);
+        flush_progress(true);
+    };
 
-      publish_batch(batch);
-      flush_progress(false);
+    unsigned int worker_count = std::thread::hardware_concurrency();
+    if (worker_count == 0)
+    {
+        worker_count = 1;
+    }
+    worker_count = std::min(worker_count, WorkerPolicy(criteria));
+    // avoid extra threads when the search starts from only a few roots
+    worker_count =
+        static_cast<unsigned int>(std::min<size_t>(worker_count, std::max<size_t>(1, criteria.start_nodes.size() * 4)));
 
-      {
-        std::lock_guard<std::mutex> lock(mutex);
-        active -= 1;
-        if (stack.empty() && active == 0) {
-          done = true;
-          cv.notify_all();
-        }
-      }
-      if (should_stop()) {
-        break;
-      }
+    std::vector<std::thread> workers;
+    workers.reserve(worker_count > 0 ? worker_count - 1 : 0);
+    for (unsigned int i = 1; i < worker_count; ++i)
+    {
+        workers.emplace_back(worker);
+    }
+    worker();
+    for (auto& thread : workers)
+    {
+        thread.join();
     }
 
-    publish_batch(batch);
-    flush_progress(true);
-  };
-
-  unsigned int worker_count = std::thread::hardware_concurrency();
-  if (worker_count == 0) {
-    worker_count = 1;
-  }
-  worker_count = std::min(worker_count, WorkerPolicy(criteria));
-  // avoid extra threads when the search starts from only a few roots
-  worker_count = static_cast<unsigned int>(std::min<size_t>(
-      worker_count,
-      std::max<size_t>(1, criteria.start_nodes.size() * 4)
-  ));
-
-  std::vector<std::thread> workers;
-  workers.reserve(worker_count > 0 ? worker_count - 1 : 0);
-  for (unsigned int i = 1; i < worker_count; ++i) {
-    workers.emplace_back(worker);
-  }
-  worker();
-  for (auto& thread : workers) {
-    thread.join();
-  }
-
-  report_progress(true);
-  if (status) {
-    *status = static_cast<regex::Status>(worst_status.load());
-  }
-  return true;
+    report_progress(true);
+    if (status)
+    {
+        *status = static_cast<regex::Status>(worst_status.load());
+    }
+    return true;
 }
 
 } // namespace regkit::search

@@ -7,7 +7,8 @@
 
 #include <windows.h>
 
-namespace regkit::appearance {
+namespace regkit::appearance
+{
 
 int SystemFontDpi();
 int FontPointSize(const LOGFONTW& font, int zero_height_fallback = 0);

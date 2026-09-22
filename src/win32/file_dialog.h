@@ -9,7 +9,8 @@
 
 #include <string>
 
-namespace regkit::win32 {
+namespace regkit::win32
+{
 
 HRESULT ChooseFileToOpen(HWND owner, const wchar_t* filter, std::wstring* path);
 HRESULT ChooseFileToSave(HWND owner, const wchar_t* filter, const wchar_t* suggested_name, std::wstring* path);

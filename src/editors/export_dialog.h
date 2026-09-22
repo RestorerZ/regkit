@@ -7,12 +7,14 @@
 
 #include <string>
 
-namespace regkit::editors {
+namespace regkit::editors
+{
 
-struct ExportRequest {
-  std::wstring path;
-  bool include_subkeys = true;
-  bool open_after = false;
+struct ExportRequest
+{
+    std::wstring path;
+    bool include_subkeys = true;
+    bool open_after = false;
 };
 
 using ExportResult = ExportRequest;

@@ -12,44 +12,49 @@
 #include <unordered_map>
 #include <vector>
 
-namespace regkit::search::compare {
+namespace regkit::search::compare
+{
 
-struct Row {
-  std::wstring key_path;
-  std::wstring first_key_path;
-  std::wstring second_key_path;
-  std::wstring value_name;
-  std::wstring first_text;
-  std::wstring second_text;
-  bool is_key = false;
-  bool matches = false;
+struct Row
+{
+    std::wstring key_path;
+    std::wstring first_key_path;
+    std::wstring second_key_path;
+    std::wstring value_name;
+    std::wstring first_text;
+    std::wstring second_text;
+    bool is_key = false;
+    bool matches = false;
 };
 
-struct Value {
-  std::wstring name;
-  DWORD type = REG_NONE;
-  std::vector<BYTE> data;
+struct Value
+{
+    std::wstring name;
+    DWORD type = REG_NONE;
+    std::vector<BYTE> data;
 };
 
-struct Key {
-  std::wstring relative_path;
-  std::unordered_map<std::wstring, Value> values;
+struct Key
+{
+    std::wstring relative_path;
+    std::unordered_map<std::wstring, Value> values;
 };
 
-struct Snapshot {
-  std::wstring label;
-  std::wstring base_path;
-  std::unordered_map<std::wstring, Key> keys;
+struct Snapshot
+{
+    std::wstring label;
+    std::wstring base_path;
+    std::unordered_map<std::wstring, Key> keys;
 };
 
-enum class RowFilter {
-  kDifferences,
-  kMatches,
-  kAll,
+enum class RowFilter
+{
+    kDifferences,
+    kMatches,
+    kAll,
 };
 
-using NormalizePath =
-    std::function<std::wstring(const std::wstring& path)>;
+using NormalizePath = std::function<std::wstring(const std::wstring& path)>;
 
 bool CaptureRegistry(const std::wstring& base_path, const RegistryNode& base_node, bool recursive, Snapshot* snapshot, std::wstring* error = nullptr, std::atomic_bool* cancel = nullptr);
 

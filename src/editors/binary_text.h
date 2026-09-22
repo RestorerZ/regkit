@@ -10,7 +10,8 @@
 #include <span>
 #include <string>
 
-namespace regkit::editors::binary_text {
+namespace regkit::editors::binary_text
+{
 
 std::wstring Preview(std::span<const BYTE> data, int group_bytes, bool unicode);
 

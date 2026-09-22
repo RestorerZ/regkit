@@ -5,12 +5,14 @@
 
 #include <span>
 
-namespace regkit::frame {
+namespace regkit::frame
+{
 
-struct ResearchLink {
-  const wchar_t* name;
-  const wchar_t* url;
-  bool separator_after = false;
+struct ResearchLink
+{
+    const wchar_t* name;
+    const wchar_t* url;
+    bool separator_after = false;
 };
 
 std::span<const ResearchLink> ResearchLinks() noexcept;

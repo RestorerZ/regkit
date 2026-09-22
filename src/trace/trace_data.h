@@ -10,39 +10,41 @@
 #include <unordered_set>
 #include <vector>
 
-namespace regkit::trace {
+namespace regkit::trace
+{
 
-struct Entry {
-  std::wstring key_path;
-  std::wstring display_path;
-  bool has_value = false;
-  std::wstring value_name;
+struct Entry
+{
+    std::wstring key_path;
+    std::wstring display_path;
+    bool has_value = false;
+    std::wstring value_name;
 };
 
-struct Selection {
-  bool select_all = false;
-  bool recursive = true;
-  std::vector<std::wstring> key_paths;
-  std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
-      values_by_key;
+struct Selection
+{
+    bool select_all = false;
+    bool recursive = true;
+    std::vector<std::wstring> key_paths;
+    std::unordered_map<std::wstring, std::unordered_set<std::wstring>> values_by_key;
 };
 
-struct KeyValues {
-  std::unordered_set<std::wstring> values_lower;
-  std::vector<std::wstring> values_display;
+struct KeyValues
+{
+    std::unordered_set<std::wstring> values_lower;
+    std::vector<std::wstring> values_display;
 };
 
-struct Data {
-  std::wstring label;
-  std::wstring source_path;
-  std::unordered_map<std::wstring, KeyValues> values_by_key;
-  std::unordered_map<std::wstring, std::unordered_map<std::wstring, std::wstring>>
-      children_by_key;
-  std::vector<std::wstring> key_paths;
-  std::vector<std::wstring> display_key_paths;
-  std::unordered_map<std::wstring, std::wstring> display_to_key;
-  std::shared_ptr<std::shared_mutex> mutex =
-      std::make_shared<std::shared_mutex>();
+struct Data
+{
+    std::wstring label;
+    std::wstring source_path;
+    std::unordered_map<std::wstring, KeyValues> values_by_key;
+    std::unordered_map<std::wstring, std::unordered_map<std::wstring, std::wstring>> children_by_key;
+    std::vector<std::wstring> key_paths;
+    std::vector<std::wstring> display_key_paths;
+    std::unordered_map<std::wstring, std::wstring> display_to_key;
+    std::shared_ptr<std::shared_mutex> mutex = std::make_shared<std::shared_mutex>();
 };
 
 bool IncludesKey(const Selection& selection, const std::wstring& key_lower);

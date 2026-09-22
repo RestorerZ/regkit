@@ -4,227 +4,230 @@
 #include "frame/command_detail.h"
 #include "frame/research_links.h"
 
-namespace regkit {
+namespace regkit
+{
 using namespace command_detail;
 
-bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(
-    int command_id
-) {
-  if (const auto* link = frame::ResearchLinkForCommand(command_id)) {
-    const HRESULT hr = win32::ShellOpen(hwnd_, link->url);
-    if (FAILED(hr)) {
-      ui::ShowError(hwnd_, win32::FormatDialogError(hr));
+bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(int command_id)
+{
+    if (const auto* link = frame::ResearchLinkForCommand(command_id))
+    {
+        const HRESULT hr = win32::ShellOpen(hwnd_, link->url);
+        if (FAILED(hr))
+        {
+            ui::ShowError(hwnd_, win32::FormatDialogError(hr));
+        }
+        return true;
     }
-    return true;
-  }
-  if (command_id >= cmd::kTabClose && command_id <= cmd::kTabSelectMax) {
-    return HandleTabCommand(command_id);
-  }
-  switch (command_id) {
-  case cmd::kWindowNew:
-  case cmd::kWindowClose:
-  case cmd::kWindowAlwaysOnTop:
-  case cmd::kOptionsThemeSystem:
-  case cmd::kOptionsThemeLight:
-  case cmd::kOptionsThemeDark:
-  case cmd::kOptionsThemeCustom:
-  case cmd::kOptionsThemePresets:
-  case cmd::kOptionsIconSetPhosphor:
-  case cmd::kOptionsIconSetClassic:
-  case cmd::kOptionsIconSetCustom:
-    return HandleWindowAppearanceCommand(command_id);
-  case cmd::kOptionsRestartAdmin:
-  case cmd::kOptionsRestartUser:
-  case cmd::kOptionsAlwaysRunAdmin:
-  case cmd::kOptionsRestartSystem:
-  case cmd::kOptionsAlwaysRunSystem:
-  case cmd::kOptionsRestartTrustedInstaller:
-  case cmd::kOptionsAlwaysRunTrustedInstaller:
-  case cmd::kOptionsReplaceRegEdit:
-  case cmd::kOptionsEditContextMenu:
-  case cmd::kOptionsSingleInstance:
-  case cmd::kOptionsHiveFileDir:
-  case cmd::kOptionsResetSettings:
-  case cmd::kHelpAbout:
-  case cmd::kHelpContents:
-  case cmd::kHelpCheckUpdates:
-  case cmd::kHelpAutoCheckUpdates:
-    return HandleLaunchHelpCommand(command_id);
-  case cmd::kFavoritesAdd:
-  case cmd::kFavoritesRemove:
-  case cmd::kFavoritesEdit:
-  case cmd::kFavoritesImport:
-  case cmd::kFavoritesImportRegEdit:
-  case cmd::kFavoritesExport:
-    return HandleFavoritesCommand(command_id);
-  default:
-    return false;
-  }
+    if (command_id >= cmd::kTabClose && command_id <= cmd::kTabSelectMax)
+    {
+        return HandleTabCommand(command_id);
+    }
+    switch (command_id)
+    {
+    case cmd::kWindowNew:
+    case cmd::kWindowClose:
+    case cmd::kWindowAlwaysOnTop:
+    case cmd::kOptionsThemeSystem:
+    case cmd::kOptionsThemeLight:
+    case cmd::kOptionsThemeDark:
+    case cmd::kOptionsThemeCustom:
+    case cmd::kOptionsThemePresets:
+    case cmd::kOptionsIconSetPhosphor:
+    case cmd::kOptionsIconSetClassic:
+    case cmd::kOptionsIconSetCustom:
+        return HandleWindowAppearanceCommand(command_id);
+    case cmd::kOptionsRestartAdmin:
+    case cmd::kOptionsRestartUser:
+    case cmd::kOptionsAlwaysRunAdmin:
+    case cmd::kOptionsRestartSystem:
+    case cmd::kOptionsAlwaysRunSystem:
+    case cmd::kOptionsRestartTrustedInstaller:
+    case cmd::kOptionsAlwaysRunTrustedInstaller:
+    case cmd::kOptionsReplaceRegEdit:
+    case cmd::kOptionsEditContextMenu:
+    case cmd::kOptionsSingleInstance:
+    case cmd::kOptionsHiveFileDir:
+    case cmd::kOptionsResetSettings:
+    case cmd::kHelpAbout:
+    case cmd::kHelpContents:
+    case cmd::kHelpCheckUpdates:
+    case cmd::kHelpAutoCheckUpdates:
+        return HandleLaunchHelpCommand(command_id);
+    case cmd::kFavoritesAdd:
+    case cmd::kFavoritesRemove:
+    case cmd::kFavoritesEdit:
+    case cmd::kFavoritesImport:
+    case cmd::kFavoritesImportRegEdit:
+    case cmd::kFavoritesExport:
+        return HandleFavoritesCommand(command_id);
+    default:
+        return false;
+    }
 }
 
-bool MainWindow::Impl::HandleWindowAppearanceCommand(
-    int command_id
-) {
-  switch (command_id) {
-  case cmd::kWindowNew:
-    ui::LaunchNewInstance();
-    return true;
-  case cmd::kWindowClose:
-    PostMessageW(hwnd_, WM_CLOSE, 0, 0);
-    return true;
-  case cmd::kWindowAlwaysOnTop:
-    always_on_top_ = !always_on_top_;
-    ApplyAlwaysOnTop();
-    SaveSettings();
-    BuildMenus();
-    return true;
-  case cmd::kOptionsThemeSystem:
-    theme_mode_ = ThemeMode::kSystem;
-    Theme::SetMode(theme_mode_);
-    ApplySystemTheme();
-    SaveSettings();
-    BuildMenus();
-    return true;
-  case cmd::kOptionsThemeLight:
-    theme_mode_ = ThemeMode::kLight;
-    Theme::SetMode(theme_mode_);
-    ApplySystemTheme();
-    SaveSettings();
-    BuildMenus();
-    return true;
-  case cmd::kOptionsThemeDark:
-    theme_mode_ = ThemeMode::kDark;
-    Theme::SetMode(theme_mode_);
-    ApplySystemTheme();
-    SaveSettings();
-    BuildMenus();
-    return true;
-  case cmd::kOptionsThemeCustom:
-    ApplyThemePresetByName(active_theme_preset_, true);
-    return true;
-  case cmd::kOptionsThemePresets:
-    ShowThemePresetsDialog();
-    return true;
-  case cmd::kOptionsIconSetPhosphor:
-    icon_set_ = kIconSetPhosphor;
-    ReloadThemeIcons();
-    SaveSettings();
-    BuildMenus();
-    return true;
-  case cmd::kOptionsIconSetClassic:
-    icon_set_ = kIconSetClassic;
-    ReloadThemeIcons();
-    SaveSettings();
-    BuildMenus();
-    return true;
-  case cmd::kOptionsIconSetCustom:
-    icon_set_ = kIconSetCustom;
-    ReloadThemeIcons();
-    SaveSettings();
-    BuildMenus();
-    return true;
-  default:
-    return false;
-  }
+bool MainWindow::Impl::HandleWindowAppearanceCommand(int command_id)
+{
+    switch (command_id)
+    {
+    case cmd::kWindowNew:
+        ui::LaunchNewInstance();
+        return true;
+    case cmd::kWindowClose:
+        PostMessageW(hwnd_, WM_CLOSE, 0, 0);
+        return true;
+    case cmd::kWindowAlwaysOnTop:
+        always_on_top_ = !always_on_top_;
+        ApplyAlwaysOnTop();
+        SaveSettings();
+        BuildMenus();
+        return true;
+    case cmd::kOptionsThemeSystem:
+        theme_mode_ = ThemeMode::kSystem;
+        Theme::SetMode(theme_mode_);
+        ApplySystemTheme();
+        SaveSettings();
+        BuildMenus();
+        return true;
+    case cmd::kOptionsThemeLight:
+        theme_mode_ = ThemeMode::kLight;
+        Theme::SetMode(theme_mode_);
+        ApplySystemTheme();
+        SaveSettings();
+        BuildMenus();
+        return true;
+    case cmd::kOptionsThemeDark:
+        theme_mode_ = ThemeMode::kDark;
+        Theme::SetMode(theme_mode_);
+        ApplySystemTheme();
+        SaveSettings();
+        BuildMenus();
+        return true;
+    case cmd::kOptionsThemeCustom:
+        ApplyThemePresetByName(active_theme_preset_, true);
+        return true;
+    case cmd::kOptionsThemePresets:
+        ShowThemePresetsDialog();
+        return true;
+    case cmd::kOptionsIconSetPhosphor:
+        icon_set_ = kIconSetPhosphor;
+        ReloadThemeIcons();
+        SaveSettings();
+        BuildMenus();
+        return true;
+    case cmd::kOptionsIconSetClassic:
+        icon_set_ = kIconSetClassic;
+        ReloadThemeIcons();
+        SaveSettings();
+        BuildMenus();
+        return true;
+    case cmd::kOptionsIconSetCustom:
+        icon_set_ = kIconSetCustom;
+        ReloadThemeIcons();
+        SaveSettings();
+        BuildMenus();
+        return true;
+    default:
+        return false;
+    }
 }
 
-bool MainWindow::Impl::HandleLaunchHelpCommand(
-    int command_id
-) {
-  switch (command_id) {
-  case cmd::kOptionsRestartAdmin:
-    RestartAsAdmin();
-    return true;
-  case cmd::kOptionsRestartUser:
-    RestartAsUser();
-    return true;
-  case cmd::kOptionsAlwaysRunAdmin:
-    always_run_as_admin_ = !always_run_as_admin_;
-    if (always_run_as_admin_) {
-      always_run_as_system_ = false;
-      always_run_as_trustedinstaller_ = false;
+bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
+{
+    switch (command_id)
+    {
+    case cmd::kOptionsRestartAdmin:
+        RestartAsAdmin();
+        return true;
+    case cmd::kOptionsRestartUser:
+        RestartAsUser();
+        return true;
+    case cmd::kOptionsAlwaysRunAdmin:
+        always_run_as_admin_ = !always_run_as_admin_;
+        if (always_run_as_admin_)
+        {
+            always_run_as_system_ = false;
+            always_run_as_trustedinstaller_ = false;
+        }
+        SaveSettings();
+        BuildMenus();
+        if (always_run_as_admin_ && !util::IsProcessElevated())
+        {
+            RestartAsAdmin();
+        }
+        return true;
+    case cmd::kOptionsRestartSystem:
+        RestartAsSystem();
+        return true;
+    case cmd::kOptionsAlwaysRunSystem:
+        always_run_as_system_ = !always_run_as_system_;
+        if (always_run_as_system_)
+        {
+            always_run_as_admin_ = false;
+            always_run_as_trustedinstaller_ = false;
+        }
+        SaveSettings();
+        BuildMenus();
+        if (always_run_as_system_ && !util::IsProcessSystem())
+        {
+            RestartAsSystem();
+        }
+        return true;
+    case cmd::kOptionsRestartTrustedInstaller:
+        RestartAsTrustedInstaller();
+        return true;
+    case cmd::kOptionsAlwaysRunTrustedInstaller:
+        always_run_as_trustedinstaller_ = !always_run_as_trustedinstaller_;
+        if (always_run_as_trustedinstaller_)
+        {
+            always_run_as_admin_ = false;
+            always_run_as_system_ = false;
+        }
+        SaveSettings();
+        BuildMenus();
+        if (always_run_as_trustedinstaller_ && !util::IsProcessTrustedInstaller())
+        {
+            RestartAsTrustedInstaller();
+        }
+        return true;
+    case cmd::kOptionsReplaceRegEdit:
+        ReplaceRegEdit(!replace_regedit_);
+        return true;
+    case cmd::kOptionsEditContextMenu:
+        SetEditContextMenu(!edit_context_menu_);
+        return true;
+    case cmd::kOptionsSingleInstance:
+        single_instance_ = !single_instance_;
+        SaveSettings();
+        BuildMenus();
+        return true;
+    case cmd::kOptionsHiveFileDir:
+        OpenHiveFileDir();
+        return true;
+    case cmd::kOptionsResetSettings:
+        if (ui::PromptChoice(hwnd_, L"Reset all settings and restart RegKit?", L"Reset settings", L"Reset", L"", L"Cancel") == IDYES)
+        {
+            reset_settings_on_close_ = true;
+            PostMessageW(hwnd_, WM_CLOSE, 0, 0);
+        }
+        return true;
+    case cmd::kHelpAbout:
+        ui::ShowAbout(hwnd_);
+        return true;
+    case cmd::kHelpContents:
+        win32::ShellOpen(hwnd_, kHelpUrl);
+        return true;
+    case cmd::kHelpCheckUpdates:
+        CheckForUpdates(false);
+        return true;
+    case cmd::kHelpAutoCheckUpdates:
+        auto_check_updates_ = !auto_check_updates_;
+        SaveSettings();
+        BuildMenus();
+        return true;
+    default:
+        return false;
     }
-    SaveSettings();
-    BuildMenus();
-    if (always_run_as_admin_ && !util::IsProcessElevated()) {
-      RestartAsAdmin();
-    }
-    return true;
-  case cmd::kOptionsRestartSystem:
-    RestartAsSystem();
-    return true;
-  case cmd::kOptionsAlwaysRunSystem:
-    always_run_as_system_ = !always_run_as_system_;
-    if (always_run_as_system_) {
-      always_run_as_admin_ = false;
-      always_run_as_trustedinstaller_ = false;
-    }
-    SaveSettings();
-    BuildMenus();
-    if (always_run_as_system_ && !util::IsProcessSystem()) {
-      RestartAsSystem();
-    }
-    return true;
-  case cmd::kOptionsRestartTrustedInstaller:
-    RestartAsTrustedInstaller();
-    return true;
-  case cmd::kOptionsAlwaysRunTrustedInstaller:
-    always_run_as_trustedinstaller_ = !always_run_as_trustedinstaller_;
-    if (always_run_as_trustedinstaller_) {
-      always_run_as_admin_ = false;
-      always_run_as_system_ = false;
-    }
-    SaveSettings();
-    BuildMenus();
-    if (always_run_as_trustedinstaller_ &&
-        !util::IsProcessTrustedInstaller()) {
-      RestartAsTrustedInstaller();
-    }
-    return true;
-  case cmd::kOptionsReplaceRegEdit:
-    ReplaceRegEdit(!replace_regedit_);
-    return true;
-  case cmd::kOptionsEditContextMenu:
-    SetEditContextMenu(!edit_context_menu_);
-    return true;
-  case cmd::kOptionsSingleInstance:
-    single_instance_ = !single_instance_;
-    SaveSettings();
-    BuildMenus();
-    return true;
-  case cmd::kOptionsHiveFileDir:
-    OpenHiveFileDir();
-    return true;
-  case cmd::kOptionsResetSettings:
-    if (ui::PromptChoice(
-            hwnd_,
-            L"Reset all settings and restart RegKit?",
-            L"Reset settings",
-            L"Reset",
-            L"",
-            L"Cancel"
-        ) == IDYES) {
-      reset_settings_on_close_ = true;
-      PostMessageW(hwnd_, WM_CLOSE, 0, 0);
-    }
-    return true;
-  case cmd::kHelpAbout:
-    ui::ShowAbout(hwnd_);
-    return true;
-  case cmd::kHelpContents:
-    win32::ShellOpen(hwnd_, kHelpUrl);
-    return true;
-  case cmd::kHelpCheckUpdates:
-    CheckForUpdates(false);
-    return true;
-  case cmd::kHelpAutoCheckUpdates:
-    auto_check_updates_ = !auto_check_updates_;
-    SaveSettings();
-    BuildMenus();
-    return true;
-  default:
-    return false;
-  }
 }
 
 } // namespace regkit

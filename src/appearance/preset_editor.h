@@ -12,7 +12,8 @@
 
 #include "appearance/presets.h"
 
-namespace regkit::appearance {
+namespace regkit::appearance
+{
 
 using ThemePresetApply = void (*)(void* context, const std::vector<ThemePreset>& presets, const std::wstring& active_name);
 using ThemePresetNamePrompt = bool (*)(void* context, HWND owner, const wchar_t* title, const std::wstring& initial, std::wstring* name);

@@ -10,13 +10,15 @@
 #include <string>
 #include <vector>
 
-namespace regkit::editors {
+namespace regkit::editors
+{
 
-struct DecodeRequest {
-  std::wstring value_name;
-  std::wstring key_path;
-  DWORD type = REG_NONE;
-  std::vector<BYTE> data;
+struct DecodeRequest
+{
+    std::wstring value_name;
+    std::wstring key_path;
+    DWORD type = REG_NONE;
+    std::vector<BYTE> data;
 };
 
 void ShowValueDecoder(HWND owner, const DecodeRequest& request);

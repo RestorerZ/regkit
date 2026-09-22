@@ -9,7 +9,8 @@
 
 #include <string>
 
-namespace util {
+namespace util
+{
 
 std::wstring FormatWin32Error(DWORD code);
 

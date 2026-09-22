@@ -7,7 +7,8 @@
 
 #include <windows.h>
 
-namespace regkit::appearance::metrics {
+namespace regkit::appearance::metrics
+{
 
 inline constexpr int kDialogContentMargin = 12;
 inline constexpr int kDialogButtonRightMargin = 16;
@@ -30,11 +31,9 @@ inline constexpr int kButtonMinWidth = 70;
 inline constexpr int kButtonHeight = 22;
 inline constexpr int kButtonGap = 10;
 
-inline int Scaled(
-    int value,
-    UINT dpi
-) {
-  return dpi == 96 ? value : MulDiv(value, static_cast<int>(dpi), 96);
+inline int Scaled(int value, UINT dpi)
+{
+    return dpi == 96 ? value : MulDiv(value, static_cast<int>(dpi), 96);
 }
 
 } // namespace regkit::appearance::metrics

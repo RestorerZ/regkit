@@ -9,51 +9,56 @@
 #include <string>
 #include <vector>
 
-namespace regkit {
+namespace regkit
+{
 
-struct HistoryEntry {
-  enum class RevertKind {
-    kNone,
-    kSetValue,
-    kDeleteValue,
-    kDeleteKey,
-  };
+struct HistoryEntry
+{
+    enum class RevertKind
+    {
+        kNone,
+        kSetValue,
+        kDeleteValue,
+        kDeleteKey,
+    };
 
-  uint64_t timestamp = 0;
-  std::wstring time_text;
-  std::wstring action;
-  std::wstring old_data;
-  std::wstring new_data;
-  std::wstring key_path;
-  std::wstring value_name;
-  RevertKind revert_kind = RevertKind::kNone;
-  ValueEntry revert_value;
+    uint64_t timestamp = 0;
+    std::wstring time_text;
+    std::wstring action;
+    std::wstring old_data;
+    std::wstring new_data;
+    std::wstring key_path;
+    std::wstring value_name;
+    RevertKind revert_kind = RevertKind::kNone;
+    ValueEntry revert_value;
 };
 
-namespace changes {
+namespace changes
+{
 
-struct HistoryDocument {
-  static constexpr int kCurrentVersion = 2;
-  int source_version = 1;
-  std::vector<HistoryEntry> entries;
+struct HistoryDocument
+{
+    static constexpr int kCurrentVersion = 2;
+    int source_version = 1;
+    std::vector<HistoryEntry> entries;
 };
 
-using QueryValue =
-    std::function<bool(const std::wstring&, const std::wstring&, ValueEntry*)>;
+using QueryValue = std::function<bool(const std::wstring&, const std::wstring&, ValueEntry*)>;
 using PathExists = std::function<bool(const std::wstring&)>;
 
-class ChangeHistory {
-public:
-  HistoryEntry Append(HistoryEntry entry, size_t maximum);
-  void Replace(std::vector<HistoryEntry> entries, size_t maximum);
-  void Clear();
-  void Sort(int column, bool ascending);
+class ChangeHistory
+{
+  public:
+    HistoryEntry Append(HistoryEntry entry, size_t maximum);
+    void Replace(std::vector<HistoryEntry> entries, size_t maximum);
+    void Clear();
+    void Sort(int column, bool ascending);
 
-  const std::vector<HistoryEntry>& entries() const noexcept;
-  std::vector<HistoryEntry>& entries() noexcept;
+    const std::vector<HistoryEntry>& entries() const noexcept;
+    std::vector<HistoryEntry>& entries() noexcept;
 
-private:
-  std::vector<HistoryEntry> entries_;
+  private:
+    std::vector<HistoryEntry> entries_;
 };
 
 HistoryDocument ParseHistory(const std::wstring& content);

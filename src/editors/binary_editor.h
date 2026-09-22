@@ -11,16 +11,19 @@
 #include <string>
 #include <vector>
 
-namespace regkit::editors {
+namespace regkit::editors
+{
 
-struct BinaryRequest {
-  std::wstring value_name;
-  std::span<const BYTE> data;
-  bool read_only = false;
+struct BinaryRequest
+{
+    std::wstring value_name;
+    std::span<const BYTE> data;
+    bool read_only = false;
 };
 
-struct BinaryResult {
-  std::vector<BYTE> data;
+struct BinaryResult
+{
+    std::vector<BYTE> data;
 };
 
 bool EditBinary(HWND owner, const BinaryRequest& request, BinaryResult* result);

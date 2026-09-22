@@ -5,149 +5,138 @@
 
 #include "frame/command_ids.h"
 
-namespace regkit::frame {
+namespace regkit::frame
+{
 
-CommandArea ClassifyCommand(
-    int command_id
-) noexcept {
-  if ((command_id >= cmd::kFavoritesItemBase &&
-       command_id <= cmd::kFavoritesItemMax) ||
-      (command_id >= cmd::kTraceRecentBase &&
-       command_id <= cmd::kTraceRecentMax) ||
-      (command_id >= cmd::kDefaultRecentBase &&
-       command_id <= cmd::kDefaultRecentMax) ||
-      (command_id >= cmd::kDefaultBundledBase &&
-       command_id <= cmd::kDefaultBundledMax) ||
-      (command_id >= cmd::kRegEditFavoriteBase &&
-       command_id <= cmd::kRegEditFavoriteMax)) {
-    return CommandArea::kDynamic;
-  }
-  if (command_id >= cmd::kResearchItemBase &&
-      command_id <= cmd::kResearchItemMax) {
-    return CommandArea::kWorkspaceAppearance;
-  }
-  if ((command_id >= cmd::kFileExit &&
-       command_id <= cmd::kFileExportComments) ||
-      command_id == cmd::kFileSave ||
-      command_id == cmd::kFileOpenRegFile ||
-      (command_id >= cmd::kFileClearCacheAll &&
-       command_id <= cmd::kFileRestart)) {
-    return CommandArea::kFile;
-  }
-  if (command_id >= cmd::kNewKey &&
-      command_id <= cmd::kNewExpandString) {
-    return CommandArea::kMutation;
-  }
-  if (command_id >= cmd::kToolsBitfieldFileBase &&
-      command_id <= cmd::kToolsBitfieldFileMax) {
-    return CommandArea::kTools;
-  }
-  if (command_id >= cmd::kResetDefaultBase &&
-      command_id <= cmd::kResetDefaultMax) {
-    return CommandArea::kMutation;
-  }
-  switch (command_id) {
-  case cmd::kTraceEditRecent:
-  case cmd::kDefaultEditRecent:
-    return CommandArea::kTraceDefaults;
-  case cmd::kEditModify:
-  case cmd::kNewSymbolicLink:
-  case cmd::kEditModifyBinary:
-  case cmd::kEditChangeType:
-  case cmd::kEditResetDefault:
-  case cmd::kEditModifyComment:
-  case cmd::kEditBits:
-  case cmd::kEditRename:
-  case cmd::kEditDelete:
-  case cmd::kCreateSimulatedKey:
-    return CommandArea::kMutation;
-  case cmd::kEditDecodeValue:
-  case cmd::kToolsBitfieldDefinitions:
-  case cmd::kToolsKeyHandles:
-    return CommandArea::kTools;
-  case cmd::kEditInvertSelection:
-  case cmd::kTreeToggleExpand:
-  case cmd::kTreeExpandAll:
-  case cmd::kOptionsSaveTabs:
-  case cmd::kOptionsSaveTabsLocal:
-  case cmd::kOptionsSaveTabsOffline:
-  case cmd::kOptionsSaveTabsRemote:
-  case cmd::kOptionsSaveTabsSearch:
-  case cmd::kOptionsSaveTabsCompare:
-  case cmd::kOptionsSaveTabsRegFile:
-  case cmd::kOptionsReadOnly:
-  case cmd::kOptionsCompareRegistries:
-    return CommandArea::kView;
-  case cmd::kOptionsEditContextMenu:
-  case cmd::kOptionsResetSettings:
-    return CommandArea::kWorkspaceAppearance;
-  default:
-    break;
-  }
-  if ((command_id >= cmd::kEditCopyKey &&
-       command_id <= cmd::kEditCopyValueData) ||
-      (command_id >= cmd::kRegistryLocal &&
-       command_id <= cmd::kRegistryOffline) ||
-      (command_id >= cmd::kNavBack && command_id <= cmd::kTreeExpandAll)) {
-    return CommandArea::kNavigateClipboard;
-  }
-  if (command_id >= cmd::kViewRefresh &&
-      command_id <= cmd::kViewFocusFilter) {
-    return CommandArea::kView;
-  }
-  if ((command_id >= cmd::kTraceLoad23H2 &&
-       command_id <= cmd::kTraceClearRecent) ||
-      (command_id >= cmd::kDefaultLoadCustom &&
-       command_id <= cmd::kDefaultClearRecent)) {
-    return CommandArea::kTraceDefaults;
-  }
-  if ((command_id >= cmd::kFavoritesAdd &&
-       command_id <= cmd::kFavoritesImportRegEdit) ||
-      (command_id >= cmd::kWindowNew &&
-       command_id <= cmd::kTabSelectMax) ||
-      (command_id >= cmd::kOptionsThemeSystem &&
-       command_id <= cmd::kOptionsResetSettings) ||
-      (command_id >= cmd::kHelpAbout &&
-       command_id <= cmd::kHelpAutoCheckUpdates)) {
-    return CommandArea::kWorkspaceAppearance;
-  }
-  return CommandArea::kUnknown;
+CommandArea ClassifyCommand(int command_id) noexcept
+{
+    if ((command_id >= cmd::kFavoritesItemBase && command_id <= cmd::kFavoritesItemMax) ||
+        (command_id >= cmd::kTraceRecentBase && command_id <= cmd::kTraceRecentMax) ||
+        (command_id >= cmd::kDefaultRecentBase && command_id <= cmd::kDefaultRecentMax) ||
+        (command_id >= cmd::kDefaultBundledBase && command_id <= cmd::kDefaultBundledMax) ||
+        (command_id >= cmd::kRegEditFavoriteBase && command_id <= cmd::kRegEditFavoriteMax))
+    {
+        return CommandArea::kDynamic;
+    }
+    if (command_id >= cmd::kResearchItemBase && command_id <= cmd::kResearchItemMax)
+    {
+        return CommandArea::kWorkspaceAppearance;
+    }
+    if ((command_id >= cmd::kFileExit && command_id <= cmd::kFileExportComments) || command_id == cmd::kFileSave ||
+        command_id == cmd::kFileOpenRegFile ||
+        (command_id >= cmd::kFileClearCacheAll && command_id <= cmd::kFileRestart))
+    {
+        return CommandArea::kFile;
+    }
+    if (command_id >= cmd::kNewKey && command_id <= cmd::kNewExpandString)
+    {
+        return CommandArea::kMutation;
+    }
+    if (command_id >= cmd::kToolsBitfieldFileBase && command_id <= cmd::kToolsBitfieldFileMax)
+    {
+        return CommandArea::kTools;
+    }
+    if (command_id >= cmd::kResetDefaultBase && command_id <= cmd::kResetDefaultMax)
+    {
+        return CommandArea::kMutation;
+    }
+    switch (command_id)
+    {
+    case cmd::kTraceEditRecent:
+    case cmd::kDefaultEditRecent:
+        return CommandArea::kTraceDefaults;
+    case cmd::kEditModify:
+    case cmd::kNewSymbolicLink:
+    case cmd::kEditModifyBinary:
+    case cmd::kEditChangeType:
+    case cmd::kEditResetDefault:
+    case cmd::kEditModifyComment:
+    case cmd::kEditBits:
+    case cmd::kEditRename:
+    case cmd::kEditDelete:
+    case cmd::kCreateSimulatedKey:
+        return CommandArea::kMutation;
+    case cmd::kEditDecodeValue:
+    case cmd::kToolsBitfieldDefinitions:
+    case cmd::kToolsKeyHandles:
+        return CommandArea::kTools;
+    case cmd::kEditInvertSelection:
+    case cmd::kTreeToggleExpand:
+    case cmd::kTreeExpandAll:
+    case cmd::kOptionsSaveTabs:
+    case cmd::kOptionsSaveTabsLocal:
+    case cmd::kOptionsSaveTabsOffline:
+    case cmd::kOptionsSaveTabsRemote:
+    case cmd::kOptionsSaveTabsSearch:
+    case cmd::kOptionsSaveTabsCompare:
+    case cmd::kOptionsSaveTabsRegFile:
+    case cmd::kOptionsReadOnly:
+    case cmd::kOptionsCompareRegistries:
+        return CommandArea::kView;
+    case cmd::kOptionsEditContextMenu:
+    case cmd::kOptionsResetSettings:
+        return CommandArea::kWorkspaceAppearance;
+    default:
+        break;
+    }
+    if ((command_id >= cmd::kEditCopyKey && command_id <= cmd::kEditCopyValueData) ||
+        (command_id >= cmd::kRegistryLocal && command_id <= cmd::kRegistryOffline) ||
+        (command_id >= cmd::kNavBack && command_id <= cmd::kTreeExpandAll))
+    {
+        return CommandArea::kNavigateClipboard;
+    }
+    if (command_id >= cmd::kViewRefresh && command_id <= cmd::kViewFocusFilter)
+    {
+        return CommandArea::kView;
+    }
+    if ((command_id >= cmd::kTraceLoad23H2 && command_id <= cmd::kTraceClearRecent) ||
+        (command_id >= cmd::kDefaultLoadCustom && command_id <= cmd::kDefaultClearRecent))
+    {
+        return CommandArea::kTraceDefaults;
+    }
+    if ((command_id >= cmd::kFavoritesAdd && command_id <= cmd::kFavoritesImportRegEdit) ||
+        (command_id >= cmd::kWindowNew && command_id <= cmd::kTabSelectMax) ||
+        (command_id >= cmd::kOptionsThemeSystem && command_id <= cmd::kOptionsResetSettings) ||
+        (command_id >= cmd::kHelpAbout && command_id <= cmd::kHelpAutoCheckUpdates))
+    {
+        return CommandArea::kWorkspaceAppearance;
+    }
+    return CommandArea::kUnknown;
 }
 
-bool DispatchCommand(
-    int command_id,
-    const CommandContext& context
-) {
-  CommandHandler handler = nullptr;
-  switch (ClassifyCommand(command_id)) {
-  case CommandArea::kDynamic:
-    handler = context.dynamic;
-    break;
-  case CommandArea::kFile:
-    handler = context.file;
-    break;
-  case CommandArea::kView:
-    handler = context.view;
-    break;
-  case CommandArea::kTraceDefaults:
-    handler = context.trace_defaults;
-    break;
-  case CommandArea::kWorkspaceAppearance:
-    handler = context.workspace_appearance;
-    break;
-  case CommandArea::kNavigateClipboard:
-    handler = context.navigate_clipboard;
-    break;
-  case CommandArea::kMutation:
-    handler = context.mutation;
-    break;
-  case CommandArea::kTools:
-    handler = context.tools;
-    break;
-  case CommandArea::kUnknown:
-    break;
-  }
-  return handler && handler(context.context, command_id);
+bool DispatchCommand(int command_id, const CommandContext& context)
+{
+    CommandHandler handler = nullptr;
+    switch (ClassifyCommand(command_id))
+    {
+    case CommandArea::kDynamic:
+        handler = context.dynamic;
+        break;
+    case CommandArea::kFile:
+        handler = context.file;
+        break;
+    case CommandArea::kView:
+        handler = context.view;
+        break;
+    case CommandArea::kTraceDefaults:
+        handler = context.trace_defaults;
+        break;
+    case CommandArea::kWorkspaceAppearance:
+        handler = context.workspace_appearance;
+        break;
+    case CommandArea::kNavigateClipboard:
+        handler = context.navigate_clipboard;
+        break;
+    case CommandArea::kMutation:
+        handler = context.mutation;
+        break;
+    case CommandArea::kTools:
+        handler = context.tools;
+        break;
+    case CommandArea::kUnknown:
+        break;
+    }
+    return handler && handler(context.context, command_id);
 }
 
 } // namespace regkit::frame

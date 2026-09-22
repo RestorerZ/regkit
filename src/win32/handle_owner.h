@@ -5,106 +5,121 @@
 
 #include "win32/windows_config.h"
 
-#include <objbase.h>
 #include <windows.h>
+
+#include <objbase.h>
 
 #include <utility>
 
-namespace util {
+namespace util
+{
 
-class ComInit {
-public:
-  explicit ComInit(
-      DWORD flags = COINIT_APARTMENTTHREADED
-  ) noexcept
-      : hr_(CoInitializeEx(nullptr, flags)) {
-  }
-  ~ComInit() {
-    if (SUCCEEDED(hr_)) {
-      CoUninitialize();
+class ComInit
+{
+  public:
+    explicit ComInit(DWORD flags = COINIT_APARTMENTTHREADED) noexcept
+        : hr_(CoInitializeEx(nullptr, flags))
+    {
     }
-  }
-  ComInit(const ComInit&) = delete;
-  ComInit& operator=(const ComInit&) = delete;
+    ~ComInit()
+    {
+        if (SUCCEEDED(hr_))
+        {
+            CoUninitialize();
+        }
+    }
+    ComInit(const ComInit&) = delete;
+    ComInit& operator=(const ComInit&) = delete;
 
-  bool ok() const noexcept {
-    return SUCCEEDED(hr_);
-  }
+    bool ok() const noexcept
+    {
+        return SUCCEEDED(hr_);
+    }
 
-private:
-  HRESULT hr_;
+  private:
+    HRESULT hr_;
 };
 
 template <typename T, typename Close>
-class UniqueResource {
-public:
-  UniqueResource() noexcept = default;
-  explicit UniqueResource(
-      T value
-  ) noexcept
-      : value_(value) {
-  }
-  ~UniqueResource() {
-    reset();
-  }
-  UniqueResource(const UniqueResource&) = delete;
-  UniqueResource& operator=(const UniqueResource&) = delete;
-  UniqueResource(
-      UniqueResource&& other
-  ) noexcept
-      : value_(other.release()) {
-  }
-  UniqueResource& operator=(
-      UniqueResource&& other
-  ) noexcept {
-    if (this != &other) {
-      reset(other.release());
+class UniqueResource
+{
+  public:
+    UniqueResource() noexcept = default;
+    explicit UniqueResource(T value) noexcept
+        : value_(value)
+    {
     }
-    return *this;
-  }
-
-  T get() const noexcept {
-    return value_;
-  }
-  T* put() noexcept {
-    reset();
-    return &value_;
-  }
-  T release() noexcept {
-    return std::exchange(value_, T{});
-  }
-  void reset(
-      T value = T{}
-  ) noexcept {
-    if (*this) {
-      Close{}(value_);
+    ~UniqueResource()
+    {
+        reset();
     }
-    value_ = value;
-  }
-  explicit operator bool() const noexcept {
-    return value_ && static_cast<void*>(value_) != INVALID_HANDLE_VALUE;
-  }
+    UniqueResource(const UniqueResource&) = delete;
+    UniqueResource& operator=(const UniqueResource&) = delete;
+    UniqueResource(UniqueResource&& other) noexcept
+        : value_(other.release())
+    {
+    }
+    UniqueResource& operator=(UniqueResource&& other) noexcept
+    {
+        if (this != &other)
+        {
+            reset(other.release());
+        }
+        return *this;
+    }
 
-private:
-  T value_ = T{};
+    T get() const noexcept
+    {
+        return value_;
+    }
+    T* put() noexcept
+    {
+        reset();
+        return &value_;
+    }
+    T release() noexcept
+    {
+        return std::exchange(value_, T{});
+    }
+    void reset(T value = T{}) noexcept
+    {
+        if (*this)
+        {
+            Close{}(value_);
+        }
+        value_ = value;
+    }
+    explicit operator bool() const noexcept
+    {
+        return value_ && static_cast<void*>(value_) != INVALID_HANDLE_VALUE;
+    }
+
+  private:
+    T value_ = T{};
 };
 
-struct CloseKey {
-  void operator()(HKEY key) const noexcept {
-    RegCloseKey(key);
-  }
+struct CloseKey
+{
+    void operator()(HKEY key) const noexcept
+    {
+        RegCloseKey(key);
+    }
 };
 
-struct CloseKernelHandle {
-  void operator()(HANDLE handle) const noexcept {
-    CloseHandle(handle);
-  }
+struct CloseKernelHandle
+{
+    void operator()(HANDLE handle) const noexcept
+    {
+        CloseHandle(handle);
+    }
 };
 
-struct DeleteGdiObject {
-  void operator()(HGDIOBJ object) const noexcept {
-    DeleteObject(object);
-  }
+struct DeleteGdiObject
+{
+    void operator()(HGDIOBJ object) const noexcept
+    {
+        DeleteObject(object);
+    }
 };
 
 using UniqueHKey = UniqueResource<HKEY, CloseKey>;

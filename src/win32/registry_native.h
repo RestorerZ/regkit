@@ -7,7 +7,8 @@
 
 #include <string>
 
-namespace util {
+namespace util
+{
 
 UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access, bool open_link = false, LONG* error = nullptr);
 UniqueHKey OpenNativeRegistryRoot();
