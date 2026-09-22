@@ -453,6 +453,20 @@
       "text": "https://noverse.dev/docs/win-config/system/page-combining/#disablepagecombining"
     },
     {
+      "name": "MaxThreadsPerProcess",
+      "type": "REG_DWORD",
+      "size": 4,
+      "key": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
+      "text": "https://noverse.dev/docs/win-config/system/mmcss-values/#maxthreadsperprocess--maxthreadstotal"
+    },
+    {
+      "name": "MaxThreadsTotal",
+      "type": "REG_DWORD",
+      "size": 4,
+      "key": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
+      "text": "https://noverse.dev/docs/win-config/system/mmcss-values/#maxthreadsperprocess--maxthreadstotal"
+    },
+    {
       "name": "ShellState",
       "type": "REG_BINARY",
       "size": 36,

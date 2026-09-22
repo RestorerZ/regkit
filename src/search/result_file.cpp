@@ -22,7 +22,7 @@ constexpr uint64_t kMaxResultFileBytes = 256ull * 1024 * 1024;
 MatchField ToMatchField(int value)
 {
     return value < 0 || value > static_cast<int>(MatchField::kDefault) ? MatchField::kNone
-                                                                    : static_cast<MatchField>(value);
+                                                                       : static_cast<MatchField>(value);
 }
 
 Result ParseLegacyRecord(const std::vector<std::wstring>& fields)
