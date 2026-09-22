@@ -11,6 +11,7 @@
 #include <shlobj.h>
 #include <shobjidl.h>
 
+#include <string_view>
 #include <vector>
 
 namespace regkit::win32 {
@@ -86,7 +87,6 @@ HRESULT ShowDialog(
     REFCLSID clsid,
     const wchar_t* filter,
     FILEOPENDIALOGOPTIONS extra_options,
-    const wchar_t* default_extension,
     const wchar_t* suggested_name,
     std::wstring* path
 ) {
@@ -116,8 +116,11 @@ HRESULT ShowDialog(
       dialog->SetFileTypeIndex(1);
     }
   }
-  if (default_extension && *default_extension) {
-    dialog->SetDefaultExtension(default_extension);
+  if (IsEqualCLSID(clsid, CLSID_FileSaveDialog) && !specs.empty()) {
+    const std::wstring_view spec = specs.front().pszSpec;
+    if (spec.starts_with(L"*.") && spec != L"*.*") {
+      dialog->SetDefaultExtension(std::wstring(spec.substr(2, spec.find(L';') - 2)).c_str());
+    }
   }
   if (suggested_name && *suggested_name) {
     dialog->SetFileName(suggested_name);
@@ -149,24 +152,23 @@ HRESULT ChooseFileToOpen(
     const wchar_t* filter,
     std::wstring* path
 ) {
-  return ShowDialog(owner, CLSID_FileOpenDialog, filter, 0, nullptr, nullptr, path);
+  return ShowDialog(owner, CLSID_FileOpenDialog, filter, 0, nullptr, path);
 }
 
 HRESULT ChooseFileToSave(
     HWND owner,
     const wchar_t* filter,
-    const wchar_t* default_extension,
     const wchar_t* suggested_name,
     std::wstring* path
 ) {
-  return ShowDialog(owner, CLSID_FileSaveDialog, filter, 0, default_extension, suggested_name, path);
+  return ShowDialog(owner, CLSID_FileSaveDialog, filter, 0, suggested_name, path);
 }
 
 HRESULT ChooseFolder(
     HWND owner,
     std::wstring* path
 ) {
-  return ShowDialog(owner, CLSID_FileOpenDialog, nullptr, FOS_PICKFOLDERS, nullptr, nullptr, path);
+  return ShowDialog(owner, CLSID_FileOpenDialog, nullptr, FOS_PICKFOLDERS, nullptr, path);
 }
 
 HRESULT ChooseComputer(

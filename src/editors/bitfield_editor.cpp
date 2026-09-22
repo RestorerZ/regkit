@@ -473,7 +473,6 @@ void SaveCurrent(
   const HRESULT hr = win32::ChooseFileToSave(
       dialog,
       bitfield::FileFilter(),
-      bitfield::FileExtension(),
       bitfield::SuggestedFileName(definition.value_name.empty() ? editor->value_name : definition.value_name).c_str(),
       &path
   );

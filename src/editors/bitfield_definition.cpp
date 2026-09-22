@@ -712,8 +712,4 @@ const wchar_t* FileFilter() {
   return L"RegKit bitfield definitions (*.regkit-bitfield.json)\0*.regkit-bitfield.json\0JSON files (*.json)\0*.json\0";
 }
 
-const wchar_t* FileExtension() {
-  return kExtension;
-}
-
 } // namespace regkit::editors::bitfield

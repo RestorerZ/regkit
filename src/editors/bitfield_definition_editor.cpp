@@ -505,7 +505,6 @@ bool SaveToFile(
   const HRESULT hr = win32::ChooseFileToSave(
       owner,
       bitfield::FileFilter(),
-      bitfield::FileExtension(),
       suggested.c_str(),
       &path
   );

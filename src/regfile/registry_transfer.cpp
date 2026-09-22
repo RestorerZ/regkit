@@ -385,7 +385,7 @@ bool ExportRegFileSelection(
   }
   const std::wstring first_name = !value_names.empty() ? (value_names.front().empty() ? L"Default" : value_names.front()) : subkey_names.front();
   std::wstring path;
-  if (!ui::ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, kRegFileFilter, L"reg", util::EnsureFileExtension(SanitizeFileName(first_name), L".reg").c_str(), &path))) {
+  if (!ui::ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, kRegFileFilter, util::EnsureFileExtension(SanitizeFileName(first_name), L".reg").c_str(), &path))) {
     return false;
   }
   path = util::EnsureFileExtension(path, L".reg");

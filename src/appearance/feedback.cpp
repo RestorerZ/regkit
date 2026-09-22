@@ -867,7 +867,7 @@ bool PromptSaveFile(
     const wchar_t* filter,
     std::wstring* path
 ) {
-  return ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, filter, nullptr, nullptr, path));
+  return ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, filter, nullptr, path));
 }
 
 bool ReportFileDialogResult(

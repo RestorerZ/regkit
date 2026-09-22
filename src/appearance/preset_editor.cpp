@@ -782,7 +782,7 @@ LRESULT CALLBACK ThemePresetWindowProc(
       case kExportPresetId:
         {
           std::wstring path;
-          if (!ui::ReportFileDialogResult(hwnd, win32::ChooseFileToSave(hwnd, kThemeFilter, L"rktheme", nullptr, &path))) {
+          if (!ui::ReportFileDialogResult(hwnd, win32::ChooseFileToSave(hwnd, kThemeFilter, nullptr, &path))) {
             return 0;
           }
           std::wstring error;

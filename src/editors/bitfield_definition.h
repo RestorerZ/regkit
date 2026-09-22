@@ -81,6 +81,5 @@ const std::vector<DefinitionFile>& BundledFiles();
 std::vector<Definition> Matching(const std::wstring& key_path, const std::wstring& value_name);
 std::wstring SuggestedFileName(const std::wstring& value_name);
 const wchar_t* FileFilter();
-const wchar_t* FileExtension();
 
 } // namespace regkit::editors::bitfield

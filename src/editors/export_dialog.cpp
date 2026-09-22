@@ -28,7 +28,6 @@ bool ChoosePath(
   const HRESULT hr = win32::ChooseFileToSave(
       owner,
       L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0",
-      L"reg",
       path && !path->empty() ? path->c_str() : nullptr,
       path
   );
