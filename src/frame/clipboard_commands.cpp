@@ -413,6 +413,7 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id)
             SearchDialogResult options = last_search_;
             SearchSources sources;
             sources.traces = HasActiveTraces();
+            sources.defaults = !active_defaults_.empty();
             sources.registry_root = registry_root_.get() != nullptr;
             sources.offline = !offline_roots_.empty();
             sources.reg_files = std::any_of(tabs_.begin(), tabs_.end(), [](const TabEntry& tab) {

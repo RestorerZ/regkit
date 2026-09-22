@@ -61,6 +61,10 @@ const wchar_t* MatchFieldLabel(MatchField field) noexcept
         return L"Value";
     case MatchField::kData:
         return L"Data";
+    case MatchField::kComment:
+        return L"Comment";
+    case MatchField::kDefault:
+        return L"Default";
     default:
         break;
     }
@@ -778,7 +782,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
     const HexQuery hex_query = criteria.use_regex ? HexQuery() : ParseHexQuery(criteria.query);
     const bool has_excludes = !criteria.exclude_paths.empty();
     // skip values/child keys when the selected search fields dont need them
-    const bool want_values = criteria.search_values || criteria.search_data;
+    const bool want_values = criteria.search_values || criteria.search_data || criteria.comment_text || criteria.default_text;
     const bool want_subkeys = criteria.recursive;
     // values above the size limit need metadata only
     const DWORD enum_max_data =
@@ -1116,9 +1120,26 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                         data_match = MatchValueData(matcher, hex_query, value.type, data, data_size, &widen_scratch);
                         record_status(data_match.match.status);
                     }
+                    MatchField extra_field = MatchField::kNone;
                     if (!name_match.matched && !data_match.matched)
                     {
-                        return true;
+                        const auto extra = [&](const std::wstring& text, MatchField field) {
+                            const Match match = matcher.Find(text);
+                            record_status(match.status);
+                            extra_field = match.matched ? field : MatchField::kNone;
+                        };
+                        if (criteria.comment_text)
+                        {
+                            extra(criteria.comment_text(path_text(), &value.name, value.type, data_size), MatchField::kComment);
+                        }
+                        if (extra_field == MatchField::kNone && criteria.default_text)
+                        {
+                            extra(criteria.default_text(path_text(), value.name), MatchField::kDefault);
+                        }
+                        if (extra_field == MatchField::kNone)
+                        {
+                            return true;
+                        }
                     }
 
                     Result result;
@@ -1147,6 +1168,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                     {
                         // leave name matches unloaded until UI needs their data
                         result.data_state = DataState::kNotLoaded;
+                        result.match_field = extra_field;
                     }
                     if (name_match.matched)
                     {
@@ -1208,12 +1230,22 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                     criteria.skip_links
                 );
 
-                if (enumerated && enum_result.info_valid && criteria.search_keys && is_key_in_range())
+                if (enumerated && enum_result.info_valid && (criteria.search_keys || criteria.comment_text) && is_key_in_range())
                 {
                     const std::wstring leaf = registry_path::DisplayName(TaskLeaf(entry));
-                    const Match key_match = matcher.Find(leaf);
-                    record_status(key_match.status);
-                    if (key_match.matched)
+                    Match key_match;
+                    if (criteria.search_keys)
+                    {
+                        key_match = matcher.Find(leaf);
+                        record_status(key_match.status);
+                    }
+                    Match comment_match;
+                    if (!key_match.matched && criteria.comment_text)
+                    {
+                        comment_match = matcher.Find(criteria.comment_text(path_text(), nullptr, 0, 0));
+                        record_status(comment_match.status);
+                    }
+                    if (key_match.matched || comment_match.matched)
                     {
                         Result result;
                         result.source = entry.context ? entry.context->source : 0;
@@ -1223,8 +1255,8 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                         result.modified = enum_result.info.last_write;
                         const size_t path_start =
                             result.key_path.size() >= leaf.size() ? result.key_path.size() - leaf.size() : 0;
-                        result.match_field = MatchField::kPath;
-                        result.match_start = static_cast<uint32_t>(path_start + key_match.start);
+                        result.match_field = key_match.matched ? MatchField::kPath : MatchField::kComment;
+                        result.match_start = key_match.matched ? static_cast<uint32_t>(path_start + key_match.start) : 0u;
                         result.match_length = static_cast<uint32_t>(key_match.length);
 
                         const bool shadowed = (classes_direct || !mirror_text().empty()) && classes_shadowed(nullptr);
@@ -1234,7 +1266,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                             merged.key_path = mirror_text();
                             const size_t merged_start =
                                 merged.key_path.size() >= leaf.size() ? merged.key_path.size() - leaf.size() : 0;
-                            merged.match_start = static_cast<uint32_t>(merged_start + key_match.start);
+                            merged.match_start = key_match.matched ? static_cast<uint32_t>(merged_start + key_match.start) : 0u;
                             batch.push_back(std::move(merged));
                         }
                         if (!shadowed || !classes_direct)

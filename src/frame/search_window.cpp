@@ -735,6 +735,47 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
     search::Criteria criteria = options.criteria;
     criteria.matcher = matcher;
     criteria.start_nodes = start_nodes;
+    if (criteria.search_comments)
+    {
+        const auto comments = std::make_shared<const std::pair<changes::ValueComments, changes::ValueComments>>(value_comments_, default_comments_);
+        criteria.comment_text = [comments](const std::wstring& path, const std::wstring* name, DWORD type, DWORD size) {
+            return changes::ResolveComment(comments->first, comments->second, {path, name ? *name : std::wstring(), type, size, !name}).text;
+        };
+    }
+    if (options.search_default_data && !active_defaults_.empty())
+    {
+        criteria.default_text = [defaults = active_defaults_](const std::wstring& path, const std::wstring& name) {
+            thread_local std::wstring last_path;
+            thread_local std::wstring key_lower;
+            if (path != last_path)
+            {
+                last_path = path;
+                const std::wstring normalized = NormalizeTraceKeyPathBasic(path);
+                key_lower = ToLower(normalized.empty() ? path : normalized);
+            }
+            const std::wstring value_lower = ToLower(name);
+            std::wstring text;
+            for (const auto& set : defaults)
+            {
+                if (!set.data || !set.selection || !trace::IncludesKey(*set.selection, key_lower) || !trace::IncludesValue(*set.selection, key_lower, value_lower))
+                {
+                    continue;
+                }
+                std::shared_lock<std::shared_mutex> lock(*set.data->mutex);
+                const auto key = set.data->values_by_key.find(key_lower);
+                if (key == set.data->values_by_key.end())
+                {
+                    continue;
+                }
+                const auto value = key->second.values.find(value_lower);
+                if (value != key->second.values.end())
+                {
+                    text.append(value->second.data).push_back(L'\n');
+                }
+            }
+            return text;
+        };
+    }
 
     std::wstring label = L"Find";
     if (!criteria.query.empty())

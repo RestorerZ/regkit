@@ -90,6 +90,7 @@ struct Criteria
     bool search_keys = true;
     bool search_values = true;
     bool search_data = true;
+    bool search_comments = false;
     bool match_case = false;
     bool match_whole = false;
     bool use_regex = false;
@@ -109,6 +110,8 @@ struct Criteria
     uint64_t max_results = 1000;
     Provider provider = Provider::kLocal;
     std::shared_ptr<const Matcher> matcher;
+    std::function<std::wstring(const std::wstring& key_path, const std::wstring* value_name, DWORD type, DWORD data_size)> comment_text;
+    std::function<std::wstring(const std::wstring& key_path, const std::wstring& value_name)> default_text;
 };
 
 enum class MatchField : uint8_t
@@ -117,6 +120,8 @@ enum class MatchField : uint8_t
     kPath,
     kName,
     kData,
+    kComment,
+    kDefault,
 };
 
 const wchar_t* MatchFieldLabel(MatchField field) noexcept;

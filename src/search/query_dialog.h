@@ -30,6 +30,7 @@ enum class SearchResultMode
 struct SearchSources
 {
     bool traces = false;
+    bool defaults = false;
     bool registry_root = true;
     bool offline = false;
     bool reg_files = false;
@@ -45,6 +46,7 @@ struct SearchDialogResult
     bool search_standard_hives = true;
     bool search_registry_root = false;
     bool search_trace_values = true;
+    bool search_default_data = false;
     bool search_offline_hives = false;
     bool search_reg_files = false;
     bool search_remote_registry = false;

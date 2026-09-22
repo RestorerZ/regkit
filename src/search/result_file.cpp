@@ -21,7 +21,7 @@ constexpr uint64_t kMaxResultFileBytes = 256ull * 1024 * 1024;
 
 MatchField ToMatchField(int value)
 {
-    return value < 0 || value > static_cast<int>(MatchField::kData) ? MatchField::kNone
+    return value < 0 || value > static_cast<int>(MatchField::kDefault) ? MatchField::kNone
                                                                     : static_cast<MatchField>(value);
 }
 
@@ -64,7 +64,7 @@ bool ParseVersionedRecord(std::vector<std::wstring>&& fields, Result* out)
     if (!record_fields::ParseUnsigned(fields[3], MAXDWORD, &type) ||
         !record_fields::ParseUnsigned(fields[4], MAXDWORD, &data_size) ||
         !record_fields::ParseUnsigned(fields[5], UINT64_MAX, &modified) ||
-        !record_fields::ParseUnsigned(fields[6], static_cast<uint64_t>(MatchField::kData), &match_field) ||
+        !record_fields::ParseUnsigned(fields[6], static_cast<uint64_t>(MatchField::kDefault), &match_field) ||
         !record_fields::ParseUnsigned(fields[7], UINT32_MAX, &match_start) ||
         !record_fields::ParseUnsigned(fields[8], UINT32_MAX, &match_length) ||
         !record_fields::ParseUnsigned(fields[9], static_cast<uint64_t>(ResultKind::kTraceValue), &kind) ||

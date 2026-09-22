@@ -62,6 +62,8 @@ enum ControlId
     kOptOfflineHives = 136,
     kOptRegFiles = 137,
     kOptRemoteRegistry = 138,
+    kOptComments = 139,
+    kOptDefaultData = 144,
     kModifiedLabel = 140,
     kModifiedFrom = 141,
     kModifiedDash = 142,
@@ -96,6 +98,8 @@ struct SearchDialogState : appearance::DialogWindow
     HWND options_standard = nullptr;
     HWND options_registry = nullptr;
     HWND options_trace = nullptr;
+    HWND options_comments = nullptr;
+    HWND options_defaults = nullptr;
     HWND options_offline = nullptr;
     HWND options_reg_files = nullptr;
     HWND options_remote = nullptr;
@@ -414,6 +418,7 @@ void UpdateDialogEnableState(SearchDialogState* state)
     EnableWindow(state->exclude_button, exclude_checked);
 
     EnableWindow(state->options_trace, state->sources.traces);
+    EnableWindow(state->options_defaults, state->sources.defaults);
     EnableWindow(state->options_registry, state->sources.registry_root);
     EnableWindow(state->options_offline, state->sources.offline);
     EnableWindow(state->options_reg_files, state->sources.reg_files);
@@ -477,7 +482,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     appearance::Place(state->scope_recursive, combo_x, gy + control_pitch * 2 + check_inset, Scaled(140, dpi), check_h);
     y += where_h + block_gap;
 
-    const int options_h = group_top + row_pitch * 8 + check_h + group_bottom;
+    const int options_h = group_top + row_pitch * 10 + check_h + group_bottom;
     appearance::Place(GetDlgItem(hwnd, kOptionsGroup), x, y, group_w, options_h);
     gy = y + group_top;
     const int left_x = x + group_inset;
@@ -488,12 +493,14 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     appearance::Place(state->options_keys, left_x, option_row(0), scope_col_w, check_h);
     appearance::Place(state->options_values, left_x, option_row(1), scope_col_w, check_h);
     appearance::Place(state->options_data, left_x, option_row(2), scope_col_w, check_h);
-    appearance::Place(state->options_standard, left_x, option_row(3), hive_col_w, check_h);
-    appearance::Place(state->options_registry, left_x, option_row(4), hive_col_w, check_h);
-    appearance::Place(state->options_trace, left_x, option_row(5), hive_col_w, check_h);
-    appearance::Place(state->options_offline, left_x, option_row(6), hive_col_w, check_h);
-    appearance::Place(state->options_reg_files, left_x, option_row(7), hive_col_w, check_h);
-    appearance::Place(state->options_remote, left_x, option_row(8), hive_col_w, check_h);
+    appearance::Place(state->options_comments, left_x, option_row(3), scope_col_w, check_h);
+    appearance::Place(state->options_standard, left_x, option_row(4), hive_col_w, check_h);
+    appearance::Place(state->options_registry, left_x, option_row(5), hive_col_w, check_h);
+    appearance::Place(state->options_trace, left_x, option_row(6), hive_col_w, check_h);
+    appearance::Place(state->options_defaults, left_x, option_row(7), hive_col_w, check_h);
+    appearance::Place(state->options_offline, left_x, option_row(8), hive_col_w, check_h);
+    appearance::Place(state->options_reg_files, left_x, option_row(9), hive_col_w, check_h);
+    appearance::Place(state->options_remote, left_x, option_row(10), hive_col_w, check_h);
 
     const int size_label_w = Scaled(180, dpi);
     const int size_edit_x = right_x + Scaled(188, dpi);
@@ -600,6 +607,8 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                 CreateWindowExW(0, L"BUTTON", L"Search values", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptValues), nullptr, nullptr);
             state->options_data =
                 CreateWindowExW(0, L"BUTTON", L"Search data", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptData), nullptr, nullptr);
+            state->options_comments =
+                CreateWindowExW(0, L"BUTTON", L"Search comments", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptComments), nullptr, nullptr);
             state->options_data_types =
                 CreateWindowExW(0, L"BUTTON", L"Data Types...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptDataTypes), nullptr, nullptr);
             state->match_case =
@@ -654,6 +663,8 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                 CreateWindowExW(0, L"BUTTON", L"Search REGISTRY", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegistryRoot), nullptr, nullptr);
             state->options_trace =
                 CreateWindowExW(0, L"BUTTON", L"Search Trace Values", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptTraceValues), nullptr, nullptr);
+            state->options_defaults =
+                CreateWindowExW(0, L"BUTTON", L"Search Default Data", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptDefaultData), nullptr, nullptr);
             state->options_offline =
                 CreateWindowExW(0, L"BUTTON", L"Search Offline Hives", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptOfflineHives), nullptr, nullptr);
             state->options_reg_files = CreateWindowExW(0, L"BUTTON", L"Search .reg File Tabs", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptRegFiles), nullptr, nullptr);
@@ -773,6 +784,7 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                 SetChecked(state->options_keys, initial->criteria.search_keys);
                 SetChecked(state->options_values, initial->criteria.search_values);
                 SetChecked(state->options_data, initial->criteria.search_data);
+                SetChecked(state->options_comments, initial->criteria.search_comments);
                 SetChecked(state->match_case, initial->criteria.match_case);
                 SetChecked(state->match_whole, initial->criteria.match_whole);
                 SetChecked(state->use_regex, initial->criteria.use_regex);
@@ -809,6 +821,7 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                 SetChecked(state->options_standard, standard_hives);
                 SetChecked(state->options_registry, registry_root);
                 SetChecked(state->options_trace, trace_values);
+                SetChecked(state->options_defaults, initial->search_default_data && state->sources.defaults);
                 SetChecked(state->options_offline, initial->search_offline_hives && state->sources.offline);
                 SetChecked(state->options_reg_files, initial->search_reg_files && state->sources.reg_files);
                 SetChecked(state->options_remote, initial->search_remote_registry && state->sources.remote);
@@ -936,7 +949,9 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                     bool keys = IsChecked(state->options_keys);
                     bool values = IsChecked(state->options_values);
                     bool data = IsChecked(state->options_data);
-                    if (!keys && !values && !data)
+                    bool comments = IsChecked(state->options_comments);
+                    bool default_data = state->sources.defaults && IsChecked(state->options_defaults);
+                    if (!keys && !values && !data && !comments && !default_data)
                     {
                         ui::ShowWarning(hwnd, L"Select at least one search option.");
                         return 0;
@@ -966,6 +981,7 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                     result.criteria.search_keys = keys;
                     result.criteria.search_values = values;
                     result.criteria.search_data = data;
+                    result.criteria.search_comments = comments;
                     result.criteria.match_case = IsChecked(state->match_case);
                     result.criteria.match_whole = IsChecked(state->match_whole);
                     result.criteria.use_regex = IsChecked(state->use_regex);
@@ -1028,6 +1044,7 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                     result.search_standard_hives = standard_hives;
                     result.search_registry_root = registry_root;
                     result.search_trace_values = trace_values;
+                    result.search_default_data = default_data;
                     result.search_offline_hives = offline_hives;
                     result.search_reg_files = reg_files;
                     result.search_remote_registry = remote_registry;
@@ -1118,7 +1135,7 @@ bool ShowSearchDialog(HWND owner, SearchDialogResult* result, const SearchSource
     state.sources = available;
     const UINT dpi = win32::DpiForWindow(owner);
     return result &&
-           appearance::RunDialogWindow(&state, kDialogClass, SearchDialogProc, L"Find", {appearance::metrics::Scaled(600, dpi), appearance::metrics::Scaled(700, dpi)});
+           appearance::RunDialogWindow(&state, kDialogClass, SearchDialogProc, L"Find", {appearance::metrics::Scaled(600, dpi), appearance::metrics::Scaled(744, dpi)});
 }
 
 } // namespace regkit
