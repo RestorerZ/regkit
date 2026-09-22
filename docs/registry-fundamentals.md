@@ -40,7 +40,7 @@ ffffd20e294dd2c4     WC
 
 ### [`\REGISTRY` Tree View](https://projectzero.google/2024/10/the-windows-registry-adventure-4-hives.html)
 
-![](https://github.com/nohuto/regkit/blob/main/assets/images/REGISTRYview.png?raw=true)
+![](https://github.com/nohuto/regkit/blob/main/docs/images/REGISTRYview.png?raw=true)
 
 ## `\REGISTRY` Only Keys
 
@@ -123,7 +123,7 @@ Key handle = process handle to an open registry `Key` object, functions such as 
 
 The `Access` column shows the [access rights](https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-key-security-and-access-rights):
 
-![](https://github.com/nohuto/regkit/blob/main/assets/images/key-handles-access.png?raw=true)
+![](https://github.com/nohuto/regkit/blob/main/docs/images/key-handles-access.png?raw=true)
 
 | Value | Meaning |
 | --- | --- |
