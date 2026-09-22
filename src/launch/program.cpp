@@ -50,6 +50,7 @@ constexpr wchar_t kInstallEditContextMenuArg[] = L"--install-edit-context-menu";
 constexpr wchar_t kUninstallEditContextMenuArg[] = L"--uninstall-edit-context-menu";
 constexpr wchar_t kInstallRegEditReplacementArg[] = L"--install-regedit-replacement";
 constexpr wchar_t kUninstallRegEditReplacementArg[] = L"--uninstall-regedit-replacement";
+constexpr wchar_t kOverrideArg[] = L"--override";
 
 constexpr const wchar_t* kRegEditNames[] = {L"regedit.exe", L"regedit", L"regedt32.exe", L"regedt32"};
 
@@ -413,8 +414,12 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show)
         }
         else
         {
-            result =
-                regkit::win32::SetRegEditReplacement(exe_path, HasCommandLineArg(args, kInstallRegEditReplacementArg));
+            bool conflict = false;
+            result = regkit::win32::SetRegEditReplacement(exe_path, HasCommandLineArg(args, kInstallRegEditReplacementArg), &conflict, HasCommandLineArg(args, kOverrideArg));
+            if (result != ERROR_SUCCESS && conflict)
+            {
+                return 2;
+            }
         }
         return result == ERROR_SUCCESS ? 0 : 1;
     }

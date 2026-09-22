@@ -35,6 +35,8 @@ UninstallDisplayIcon={app}\{#AppExeName}
 SignTool=regkit
 WizardSmallImageFile=images\small-55.png,images\small-69.png,images\small-83.png,images\small-97.png,images\small-110.png,images\small-138.png
 WizardImageFile=images\large-100.png,images\large-125.png,images\large-150.png,images\large-175.png,images\large-200.png,images\large-250.png
+WizardSmallImageFileDynamicDark=images\small-55.png,images\small-69.png,images\small-83.png,images\small-97.png,images\small-110.png,images\small-138.png
+WizardImageFileDynamicDark=images\large-100.png,images\large-125.png,images\large-150.png,images\large-175.png,images\large-200.png,images\large-250.png
 Compression=lzma2
 SolidCompression=yes
 ChangesAssociations=yes
@@ -44,7 +46,7 @@ ArchitecturesInstallIn64BitMode=x64os
 #endif
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
-WizardStyle=modern
+WizardStyle=modern dynamic
 OutputDir=dist
 OutputBaseFilename=RegKit-Setup-{#AppVersion}-{#Arch}
 
@@ -94,15 +96,69 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\DefaultIcon"; Va
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\SupportedTypes"; ValueType: string; ValueName: ".reg"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\shell\open\command"; ValueType: string; ValueData: """{app}\{#AppExeName}"" ""%1"""
 [Code]
+function ConfirmOverride: Boolean;
+var
+  Form: TSetupForm;
+  Text: TNewStaticText;
+  OverrideButton, CancelButton: TNewButton;
+  W: Integer;
+begin
+  Result := False;
+  if WizardSilent then
+    exit;
+  Form := CreateCustomForm(ScaleX(380), ScaleY(100), False, False);
+  try
+    Form.Caption := 'Replace RegEdit';
+    Text := TNewStaticText.Create(Form);
+    Text.Parent := Form;
+    Text.AutoSize := False;
+    Text.WordWrap := True;
+    Text.Left := ScaleX(12);
+    Text.Top := ScaleY(12);
+    Text.Width := Form.ClientWidth - ScaleX(24);
+    Text.Height := Form.ClientHeight - ScaleY(12 + 23 + 24);
+    Text.Caption := 'RegEdit already has a Debugger entry owned by another program.'#13#10#13#10'Override the existing entry?';
+
+    OverrideButton := TNewButton.Create(Form);
+    OverrideButton.Parent := Form;
+    OverrideButton.Caption := 'Override';
+    OverrideButton.ModalResult := mrOk;
+
+    CancelButton := TNewButton.Create(Form);
+    CancelButton.Parent := Form;
+    CancelButton.Caption := 'Cancel';
+    CancelButton.ModalResult := mrCancel;
+    CancelButton.Cancel := True;
+    CancelButton.Default := True;
+
+    W := Form.CalculateButtonWidth([OverrideButton.Caption, CancelButton.Caption]);
+    CancelButton.SetBounds(Form.ClientWidth - ScaleX(12) - W, Form.ClientHeight - ScaleY(12 + 23), W, ScaleY(23));
+    OverrideButton.SetBounds(CancelButton.Left - ScaleX(6) - W, CancelButton.Top, W, ScaleY(23));
+
+    Form.ActiveControl := CancelButton;
+    Form.FlipAndCenterIfNeeded(True, WizardForm, False);
+    Result := Form.ShowModal = mrOk;
+  finally
+    Form.Free;
+  end;
+end;
+
 procedure InstallRegEditReplacement;
 var
   ResultCode: Integer;
 begin
   if not WizardIsTaskSelected('replace_regedit') then
     exit;
-  if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--install-regedit-replacement', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then begin
-    RaiseException('RegEdit replacement couldn''t be installed. Another program may already own its Debugger entry, or non administrators can modify the install folder.');
+  if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--install-regedit-replacement', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    ResultCode := 1;
+  if ResultCode = 2 then begin
+    if not ConfirmOverride then
+      exit;
+    if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--install-regedit-replacement --override', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+      ResultCode := 1;
   end;
+  if ResultCode <> 0 then
+    SuppressibleMsgBox('RegEdit replacement couldn''t be installed. Non administrators may be able to modify the install folder.', mbError, MB_OK, IDOK);
 end;
 
 procedure RemoveRegEditReplacement;
