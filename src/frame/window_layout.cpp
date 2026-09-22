@@ -725,10 +725,6 @@ int MainWindow::Impl::KeyIconIndex(const RegistryNode& node, bool* is_link, bool
 
 std::wstring MainWindow::Impl::ResolveIconDir(bool use_light) const
 {
-    if (IsIconSetName(icon_set_, kIconSetClassic))
-    {
-        return L"";
-    }
     if (IsIconSetName(icon_set_, kIconSetCustom))
     {
         std::wstring root = util::JoinPath(util::GetAppDataFolder(), L"icons");
@@ -744,16 +740,12 @@ std::wstring MainWindow::Impl::ResolveIconDir(bool use_light) const
         }
         return IsDirectoryPath(root) ? root : L"";
     }
-    if (!IsKnownIconSetName(icon_set_))
+    const std::wstring base = AssetsIconsRoot();
+    if (!IsIconSetName(icon_set_, kIconSetClassic) || base.empty())
     {
         return L"";
     }
-    std::wstring base = AssetsIconsRoot();
-    if (base.empty())
-    {
-        return L"";
-    }
-    std::wstring dir = util::JoinPath(util::JoinPath(base, icon_set_), use_light ? L"light" : L"dark");
+    const std::wstring dir = util::JoinPath(base, kIconSetClassic);
     return IsDirectoryPath(dir) ? dir : L"";
 }
 
@@ -811,7 +803,7 @@ void MainWindow::Impl::SetValueGridEnabled(bool enabled, bool persist)
 ToolbarIcon MainWindow::Impl::MakeToolbarIcon(const wchar_t* filename, int resource_id) const
 {
     ToolbarIcon icon;
-    icon.resource_id = resource_id;
+    icon.resource_id = resource_id + (ShouldUseLightIcons() ? IDI_ICON_LIGHT_OFFSET : 0);
     icon.path = ResolveIconPath(filename);
     return icon;
 }

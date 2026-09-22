@@ -1,7 +1,6 @@
-﻿#define AppId "4678f42c-c6a2-4df9-bc2a-dddbd2613045"
+#define AppId "4678f42c-c6a2-4df9-bc2a-dddbd2613045"
 #define AppName "RegKit"
 #define AppExeName "regkit.exe"
-#define AppVersion "0.0.1.2"
 #define AppPublisher "nohuto"
 #define AppCopyright "(C) 2026 nohuto"
 #define AppURL "https://github.com/nohuto/regkit"
@@ -13,6 +12,7 @@
 #else
   #define BuildDir "..\\build\\Release"
 #endif
+#define AppVersion GetVersionNumbersString(AddBackslash(BuildDir) + AppExeName)
 
 [Setup]
 AppId={#AppId}
@@ -32,6 +32,9 @@ DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 SetupIconFile=..\assets\icons\regkit.ico
 UninstallDisplayIcon={app}\{#AppExeName}
+SignTool=regkit
+WizardSmallImageFile=images\small-55.png,images\small-69.png,images\small-83.png,images\small-97.png,images\small-110.png,images\small-138.png
+WizardImageFile=images\large-100.png,images\large-125.png,images\large-150.png,images\large-175.png,images\large-200.png,images\large-250.png
 Compression=lzma2
 SolidCompression=yes
 ChangesAssociations=yes
@@ -45,24 +48,41 @@ WizardStyle=modern
 OutputDir=dist
 OutputBaseFilename=RegKit-Setup-{#AppVersion}-{#Arch}
 
+[Messages]
+PrivilegesRequiredOverrideTitle=Install Mode
+PrivilegesRequiredOverrideInstruction=Select install mode
+PrivilegesRequiredOverrideText1=Install %1 for:
+PrivilegesRequiredOverrideAllUsersRecommended=&All users
+PrivilegesRequiredOverrideCurrentUser=&Only me
+
+[Types]
+Name: "full"; Description: "Full installation"
+Name: "minimal"; Description: "Minimal installation"
+Name: "custom"; Description: "Custom installation"; Flags: iscustom
+
+[Components]
+Name: "main"; Description: "RegKit"; Types: full minimal custom; Flags: fixed
+Name: "icons"; Description: "Classic toolbar icon set"; Types: full
+Name: "comments"; Description: "Default comments"; Types: full
+Name: "traces"; Description: "Trace files for the Trace menu"; Types: full
+Name: "bitfields"; Description: "Bitfield definitions"; Types: full
+Name: "defaults"; Description: "Registry exports for the Default menu"; Types: full
+
 [Tasks]
 Name: "startmenu"; Description: "Start Menu shortcut"; GroupDescription: "Shortcuts:"; Flags: checkedonce
 Name: "desktopicon"; Description: "Desktop shortcut"; GroupDescription: "Shortcuts:"
 Name: "replace_regedit"; Description: "Replace RegEdit"; GroupDescription: "Integration:"; Check: IsAdminInstallMode
 Name: "edit_context_menu"; Description: "Add ""Edit"" Context Menu"; GroupDescription: "Integration:"; Flags: checkedonce
-Name: "defaults"; Description: "Install registry exports used by the Default menu (~200 MB)"; GroupDescription: "Optional data:"
-Name: "bitfields"; Description: "Install bitfield definitions"; GroupDescription: "Optional data:"
 
 [Files]
-Source: "{#BuildDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BuildDir}\offreg.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\redist\pcre2\LICENCE.md"; DestDir: "{app}\licences"; DestName: "PCRE2-LICENCE.md"; Flags: ignoreversion
-Source: "{#BuildDir}\assets\*"; DestDir: "{app}\assets"; Excludes: "bitfields\*,defaults\*,records\*"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#BuildDir}\assets\defaults\*"; DestDir: "{app}\assets\defaults"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: defaults
-Source: "{#BuildDir}\assets\bitfields\*"; DestDir: "{app}\assets\bitfields"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: bitfields
-Source: "{#BuildDir}\assets\records\23H2.txt"; DestDir: "{app}\assets\records"; Flags: ignoreversion
-Source: "{#BuildDir}\assets\records\24H2.txt"; DestDir: "{app}\assets\records"; Flags: ignoreversion
-Source: "{#BuildDir}\assets\records\25H2.txt"; DestDir: "{app}\assets\records"; Flags: ignoreversion
+Source: "{#BuildDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Components: main
+Source: "{#BuildDir}\offreg.dll"; DestDir: "{app}"; Flags: ignoreversion; Components: main
+Source: "..\redist\pcre2\LICENCE.md"; DestDir: "{app}\licences"; DestName: "PCRE2-LICENCE.md"; Flags: ignoreversion; Components: main
+Source: "{#BuildDir}\assets\icons\classic\*"; DestDir: "{app}\assets\icons\classic"; Flags: ignoreversion; Components: icons
+Source: "{#BuildDir}\assets\comments\*"; DestDir: "{app}\assets\comments"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: comments
+Source: "{#BuildDir}\assets\records\*"; DestDir: "{app}\assets\records"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: traces
+Source: "{#BuildDir}\assets\bitfields\*"; DestDir: "{app}\assets\bitfields"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: bitfields
+Source: "{#BuildDir}\assets\defaults\*"; DestDir: "{app}\assets\defaults"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: defaults
 
 [Icons]
 Name: "{autoprograms}\RegKit\RegKit"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: startmenu
