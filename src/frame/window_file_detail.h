@@ -113,4 +113,4 @@ VirtualRegistryKey* EnsureVirtualKey(VirtualRegistryKey* root, const std::wstrin
 
 bool ParseRegFileToVirtualRoots(const std::wstring& path, std::vector<ParsedRegFileRoot>* roots, std::wstring* error, const std::atomic_bool* cancel, bool* cancelled);
 
-} // namespace
+} // namespace regkit::window_detail

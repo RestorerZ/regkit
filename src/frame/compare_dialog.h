@@ -20,7 +20,6 @@ enum class CompareSourceType
     kNetwork = 3,
 };
 
-
 struct CompareDialogSelection
 {
     CompareSourceType type = CompareSourceType::kRegistry;

@@ -787,4 +787,4 @@ std::wstring ResolveOfflineRootName(const std::wstring& path, bool is_dir, const
     return L"HKEY_LOCAL_MACHINE";
 }
 
-} // namespace
+} // namespace regkit::window_detail

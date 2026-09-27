@@ -26,7 +26,6 @@ using namespace window_detail;
 namespace
 {
 
-
 const wchar_t* CompareSourceLabel(CompareSourceType type)
 {
     switch (type)
@@ -764,6 +763,5 @@ bool ShowCompareDialog(HWND owner, const CompareDialogDefaults& defaults, Compar
     out->filter = state.data.filter;
     return true;
 }
-
 
 } // namespace regkit::command_detail

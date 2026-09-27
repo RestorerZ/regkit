@@ -290,4 +290,4 @@ bool ParseRegFileToVirtualRoots(const std::wstring& path, std::vector<ParsedRegF
     return true;
 }
 
-} // namespace
+} // namespace regkit::window_detail

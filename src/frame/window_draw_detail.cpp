@@ -324,4 +324,4 @@ int CalcListViewColumnFitWidth(HWND list, int column, int min_width)
     return width;
 }
 
-} // namespace
+} // namespace regkit::window_detail

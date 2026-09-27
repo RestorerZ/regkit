@@ -470,4 +470,4 @@ HTREEITEM FindChildByText(HWND tree, HTREEITEM parent, const std::wstring& text)
     return nullptr;
 }
 
-} // namespace
+} // namespace regkit::window_detail

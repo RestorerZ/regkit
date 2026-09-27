@@ -136,4 +136,4 @@ void CollectOfflineHivesInFolder(const std::wstring& folder, std::vector<Offline
 
 std::wstring ResolveOfflineRootName(const std::wstring& path, bool is_dir, const RegistryNode* current_node);
 
-} // namespace
+} // namespace regkit::window_detail

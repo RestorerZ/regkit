@@ -121,4 +121,4 @@ void ApplyFont(HWND hwnd, HFONT font);
 
 HTREEITEM FindChildByText(HWND tree, HTREEITEM parent, const std::wstring& text);
 
-} // namespace
+} // namespace regkit::window_detail
