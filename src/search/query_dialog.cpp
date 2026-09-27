@@ -539,7 +539,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     const int result_h = group_top + row_pitch * 2 + control_pitch + line_h + group_bottom;
     appearance::Place(GetDlgItem(hwnd, kResultGroup), x, y, group_w, result_h);
     const int result_gy = y + group_top;
-    appearance::Place(state->result_reuse, x + group_inset, result_gy, Scaled(220, dpi), check_h);
+    appearance::Place(state->result_reuse, x + group_inset, result_gy, Scaled(260, dpi), check_h);
     appearance::Place(state->result_new, x + group_inset, result_gy + row_pitch, Scaled(240, dpi), check_h);
     appearance::Place(state->result_open_new_tab, x + group_inset, result_gy + row_pitch * 2, Scaled(200, dpi), check_h);
     const int limit_row = result_gy + row_pitch * 2 + control_pitch;
