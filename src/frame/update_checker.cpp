@@ -310,7 +310,7 @@ void UpdateChecker::Check(bool silent)
     }
     running_ = true;
     HWND owner = owner_;
-    session_.Start(L"Update Check", [owner, silent](uint64_t, std::atomic_bool& cancel) {
+    session_.Start(L"UpdateCheckThread", [owner, silent](uint64_t, std::atomic_bool& cancel) {
         auto payload = std::make_unique<UpdateCheckPayload>();
         payload->silent = silent;
         std::string json;
@@ -348,7 +348,7 @@ void UpdateChecker::Download(const UpdateCheckPayload& release)
     SetStatus(L"Downloading RegKit " + release.version + L"...");
     HWND owner = owner_;
     session_.Start(
-        L"Update Download",
+        L"UpdateDownloadThread",
         [owner, url = release.download_url, sha256 = release.sha256](uint64_t, std::atomic_bool& cancel) {
             auto payload = std::make_unique<UpdateCheckPayload>();
             payload->sha256 = sha256;

@@ -17,7 +17,7 @@ void MainWindow::Impl::StartDefaultLoadWorker()
     }
     std::wstring active_path = ActiveDefaultsPath();
     const HWND hwnd = hwnd_;
-    default_load_session_.StartIfIdle(L"Defaults Load", [this, active_path, hwnd](uint64_t generation, const std::atomic_bool& cancel) {
+    default_load_session_.StartIfIdle(L"DefaultsLoadThread", [this, active_path, hwnd](uint64_t generation, const std::atomic_bool& cancel) {
         auto payload = std::make_unique<DefaultLoadPayload>();
         payload->generation = generation;
         std::wstring content;

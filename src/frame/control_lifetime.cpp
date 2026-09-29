@@ -1757,7 +1757,7 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
     int history_sort_column = history_sort_column_;
     bool history_sort_ascending = history_sort_ascending_;
     const HWND hwnd = hwnd_;
-    startup_cache_session_.Start(L"Startup Cache", [this, load_tree_state, history_max_rows, history_sort_column, history_sort_ascending, hwnd](uint64_t generation, const std::atomic_bool& cancel) {
+    startup_cache_session_.Start(L"StartupCacheThread", [this, load_tree_state, history_max_rows, history_sort_column, history_sort_ascending, hwnd](uint64_t generation, const std::atomic_bool& cancel) {
         auto payload = std::make_unique<StartupCachePayload>();
         payload->generation = generation;
 

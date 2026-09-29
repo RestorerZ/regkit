@@ -1326,7 +1326,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
     workers.reserve(worker_count > 0 ? worker_count - 1 : 0);
     for (unsigned int i = 1; i < worker_count; ++i)
     {
-        work::NameThread(workers.emplace_back(worker), L"Search Worker");
+        work::NameThread(workers.emplace_back(worker), L"SearchWorkerThread");
     }
     worker();
     for (auto& thread : workers)

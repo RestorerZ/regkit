@@ -165,7 +165,7 @@ void MainWindow::Impl::StartRegFileParse(const std::wstring& path, const std::ws
     session->source_lower = session_key;
     HWND hwnd = hwnd_;
     RegFileParseSession* session_ptr = session.get();
-    session->work.Start(L"Reg File Parse", [this, session_ptr, hwnd](uint64_t generation, std::atomic_bool& cancel) {
+    session->work.Start(L"RegFileParseThread", [this, session_ptr, hwnd](uint64_t generation, std::atomic_bool& cancel) {
         auto payload = std::make_unique<RegFileParsePayload>();
         payload->generation = generation;
         payload->source_path = session_ptr->source_path;

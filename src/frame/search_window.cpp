@@ -886,7 +886,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
     bool trace_enabled = want_trace;
     bool registry_enabled = want_registry && !criteria.start_nodes.empty();
 
-    const uint64_t generation = search_session_.Start(L"Search", [this, criteria, traces, exclude_paths, scope_lower, scope_recursive, trace_enabled, registry_enabled, matcher](uint64_t generation, std::atomic_bool& cancel) mutable {
+    const uint64_t generation = search_session_.Start(L"SearchThread", [this, criteria, traces, exclude_paths, scope_lower, scope_recursive, trace_enabled, registry_enabled, matcher](uint64_t generation, std::atomic_bool& cancel) mutable {
         auto should_stop = [&]() { return cancel.load(); };
 
         auto publish_batch = [&](search::ResultBatch&& rows) -> bool {
@@ -1382,7 +1382,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
     const HWND hwnd = hwnd_;
     replace_result_pending_ = true;
     replace_session_.Start(
-        L"Replace",
+        L"ReplaceThread",
         [this, start, options, matcher, hwnd](uint64_t generation, std::atomic_bool& cancel) mutable {
             auto payload = std::make_unique<ReplacePayload>();
             payload->generation = generation;

@@ -15,7 +15,7 @@ void MainWindow::Impl::StartValueListWorker()
     {
         return;
     }
-    value_loader_.Start(L"Value List", [this](std::unique_ptr<ValueListTask> task, const std::atomic_bool& stopping) {
+    value_loader_.Start(L"ValueListThread", [this](std::unique_ptr<ValueListTask> task, const std::atomic_bool& stopping) {
         if (!task || stopping.load() || task->generation != value_list_generation_.load())
         {
             return;
@@ -545,7 +545,7 @@ void MainWindow::Impl::StartValuePreviewWorker()
     {
         return;
     }
-    value_preview_loader_.Start(L"Value Preview", [this](std::unique_ptr<ValuePreviewTask> task, const std::atomic_bool& stopping) {
+    value_preview_loader_.Start(L"ValuePreviewThread", [this](std::unique_ptr<ValuePreviewTask> task, const std::atomic_bool& stopping) {
         if (!task || task->generation != value_list_generation_.load())
         {
             return;
@@ -629,7 +629,7 @@ void MainWindow::Impl::StartSearchPreviewWorker()
     {
         return;
     }
-    search_preview_loader_.Start(L"Search Preview", [this](std::unique_ptr<SearchPreviewTask> task, const std::atomic_bool& stopping) {
+    search_preview_loader_.Start(L"SearchPreviewThread", [this](std::unique_ptr<SearchPreviewTask> task, const std::atomic_bool& stopping) {
         if (!task)
         {
             return;
@@ -721,7 +721,7 @@ void MainWindow::Impl::StartSearchSortWorker()
     {
         return;
     }
-    search_sort_loader_.Start(L"Search Sort", [this](std::unique_ptr<SearchSortTask> task, const std::atomic_bool& stopping) {
+    search_sort_loader_.Start(L"SearchSortThread", [this](std::unique_ptr<SearchSortTask> task, const std::atomic_bool& stopping) {
         if (!task)
         {
             return;
@@ -821,7 +821,7 @@ void MainWindow::Impl::StartSearchTabLoadWorker()
     {
         return;
     }
-    search_tab_loader_.Start(L"Search Tab Load", [](std::unique_ptr<SearchTabLoadTask> task, const std::atomic_bool& stopping) {
+    search_tab_loader_.Start(L"SearchTabLoadThread", [](std::unique_ptr<SearchTabLoadTask> task, const std::atomic_bool& stopping) {
         if (!task)
         {
             return;
