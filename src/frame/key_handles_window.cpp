@@ -285,7 +285,7 @@ void Refresh(HWND dialog, State* state)
 {
     state->scanning = true;
     UpdateStatus(state);
-    state->session.Start([dialog](uint64_t generation, std::atomic_bool& cancel) {
+    state->session.Start(L"Key Handle Scan", [dialog](uint64_t generation, std::atomic_bool& cancel) {
         ::win32::KeyHandleSnapshot snapshot = ::win32::SnapshotKeyHandles(cancel);
         if (cancel.load())
         {

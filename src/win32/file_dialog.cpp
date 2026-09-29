@@ -4,6 +4,7 @@
 #include "win32/file_dialog.h"
 
 #include "win32/handle_owner.h"
+#include "win32/process_rights.h"
 #include "win32/system_error.h"
 
 #include <objsel.h>
@@ -12,6 +13,7 @@
 #include <shobjidl.h>
 
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace regkit::win32
@@ -19,6 +21,8 @@ namespace regkit::win32
 
 namespace
 {
+
+FolderPrompt g_missing_desktop_prompt = nullptr;
 
 template <typename T>
 class ComPtr
@@ -143,6 +147,21 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
     {
         dialog->SetFileName(suggested_name);
     }
+    if (util::IsProcessSystem())
+    {
+        CoTaskString own_desktop;
+        if (g_missing_desktop_prompt && SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, KF_FLAG_DONT_VERIFY, nullptr, own_desktop.Receive())) &&
+            GetFileAttributesW(own_desktop.Get()) == INVALID_FILE_ATTRIBUTES && std::exchange(g_missing_desktop_prompt, nullptr)(owner, own_desktop.Get()))
+        {
+            CreateDirectoryW(own_desktop.Get(), nullptr);
+        }
+        IShellItem* desktop = nullptr;
+        if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Desktop, KF_FLAG_NO_ALIAS, util::OpenShellToken(TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE).get(), IID_PPV_ARGS(&desktop))))
+        {
+            dialog->SetFolder(desktop);
+            desktop->Release();
+        }
+    }
 
     hr = dialog->Show(owner);
     if (FAILED(hr))
@@ -167,6 +186,11 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
 }
 
 } // namespace
+
+void SetMissingDesktopPrompt(FolderPrompt prompt)
+{
+    g_missing_desktop_prompt = prompt;
+}
 
 HRESULT ChooseFileToOpen(HWND owner, const wchar_t* filter, std::wstring* path)
 {

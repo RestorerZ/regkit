@@ -1437,6 +1437,9 @@ bool MainWindow::Impl::OnCreate()
         ChangeWindowMessageFilterEx(hwnd_, WM_COPYDATA, MSGFLT_ALLOW, nullptr);
     }
     updates_.Attach(hwnd_, [this](const std::wstring& text) { SetStatusMessage(text); });
+    win32::SetMissingDesktopPrompt([](HWND owner, const std::wstring& path) {
+        return ui::PromptKeyChoice(owner, L"SYSTEM has no Desktop folder, so Windows reports \"Location is not available\" in file dialogs. Create this folder to prevent the error?", path, L"Create Folder", L"Create", L"", L"Cancel") == IDYES;
+    });
     ui_font_ = CreateUIFont();
     icon_font_ = CreateIconFont(10);
     custom_font_ = DefaultLogFont();
@@ -1754,7 +1757,7 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
     int history_sort_column = history_sort_column_;
     bool history_sort_ascending = history_sort_ascending_;
     const HWND hwnd = hwnd_;
-    startup_cache_session_.Start([this, load_tree_state, history_max_rows, history_sort_column, history_sort_ascending, hwnd](uint64_t generation, const std::atomic_bool& cancel) {
+    startup_cache_session_.Start(L"Startup Cache", [this, load_tree_state, history_max_rows, history_sort_column, history_sort_ascending, hwnd](uint64_t generation, const std::atomic_bool& cancel) {
         auto payload = std::make_unique<StartupCachePayload>();
         payload->generation = generation;
 

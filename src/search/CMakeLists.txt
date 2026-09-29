@@ -14,6 +14,7 @@ target_link_libraries(regkit_search PRIVATE
     regkit_records
     regkit_registry
     regkit_win32
+    regkit_work
 )
 
 regkit_add_library(regkit_search_dialogs

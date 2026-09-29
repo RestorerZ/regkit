@@ -18,7 +18,7 @@ void MainWindow::Impl::StartTraceLoadWorker()
     std::unordered_map<std::wstring, trace::Selection> selection_cache = trace_selection_cache_;
     std::wstring active_path = ActiveTracesPath();
     const HWND hwnd = hwnd_;
-    trace_load_session_.StartIfIdle([this, selection_cache = std::move(selection_cache), active_path, hwnd](uint64_t generation, const std::atomic_bool& cancel) mutable {
+    trace_load_session_.StartIfIdle(L"Trace Load", [this, selection_cache = std::move(selection_cache), active_path, hwnd](uint64_t generation, const std::atomic_bool& cancel) mutable {
         auto payload = std::make_unique<TraceLoadPayload>();
         payload->generation = generation;
         payload->selection_cache = std::move(selection_cache);

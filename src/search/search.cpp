@@ -8,6 +8,7 @@
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
 #include "win32/text_transform.h"
+#include "work/session.h"
 
 #include <algorithm>
 #include <condition_variable>
@@ -1325,7 +1326,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
     workers.reserve(worker_count > 0 ? worker_count - 1 : 0);
     for (unsigned int i = 1; i < worker_count; ++i)
     {
-        workers.emplace_back(worker);
+        work::NameThread(workers.emplace_back(worker), L"Search Worker");
     }
     worker();
     for (auto& thread : workers)

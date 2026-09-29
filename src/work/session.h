@@ -18,6 +18,8 @@
 namespace regkit::work
 {
 
+void NameThread(std::thread& thread, const wchar_t* name) noexcept;
+
 class MoveOnly
 {
   public:
@@ -38,8 +40,8 @@ class Session
     Session(const Session&) = delete;
     Session& operator=(const Session&) = delete;
 
-    uint64_t Start(Task task);
-    bool StartIfIdle(Task task, uint64_t* generation = nullptr);
+    uint64_t Start(const wchar_t* name, Task task);
+    bool StartIfIdle(const wchar_t* name, Task task, uint64_t* generation = nullptr);
     void Cancel() noexcept;
     void CancelAndJoin() noexcept;
     void Join() noexcept;
@@ -48,7 +50,7 @@ class Session
     bool running() const noexcept;
 
   private:
-    uint64_t StartPrepared(Task task);
+    uint64_t StartPrepared(const wchar_t* name, Task task);
 
     std::thread thread_;
     std::atomic_bool cancel_{false};
@@ -70,7 +72,7 @@ class LatestTask
     LatestTask(const LatestTask&) = delete;
     LatestTask& operator=(const LatestTask&) = delete;
 
-    void Start(Processor processor)
+    void Start(const wchar_t* name, Processor processor)
     {
         Stop();
         {
@@ -82,6 +84,7 @@ class LatestTask
         try
         {
             thread_ = std::thread([this]() { Run(); });
+            NameThread(thread_, name);
         }
         catch (const std::system_error&)
         {
@@ -193,7 +196,7 @@ class DebouncedTask
     DebouncedTask(const DebouncedTask&) = delete;
     DebouncedTask& operator=(const DebouncedTask&) = delete;
 
-    void Start(std::chrono::milliseconds delay, Handler handler)
+    void Start(const wchar_t* name, std::chrono::milliseconds delay, Handler handler)
     {
         Stop();
         {
@@ -206,6 +209,7 @@ class DebouncedTask
         try
         {
             thread_ = std::thread([this]() { Run(); });
+            NameThread(thread_, name);
         }
         catch (const std::system_error&)
         {

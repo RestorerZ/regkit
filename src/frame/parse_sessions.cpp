@@ -64,7 +64,7 @@ void MainWindow::Impl::StartTraceParseThread(TraceParseSession* session)
     HWND hwnd = hwnd_;
     std::wstring source = session->source_path;
     std::wstring source_lower = session->source_lower;
-    session->work.Start([this, session, hwnd, source, source_lower](uint64_t generation, std::atomic_bool& cancel) {
+    session->work.Start(L"Trace Parse", [this, session, hwnd, source, source_lower](uint64_t generation, std::atomic_bool& cancel) {
         constexpr size_t kBatchSize = 256;
         constexpr DWORD kBatchMs = 50;
         auto post_batch = [&](std::vector<KeyValueDialogEntry>* entries, bool done, const std::wstring& error, bool cancelled) {
@@ -137,7 +137,7 @@ void MainWindow::Impl::StartDefaultParseThread(DefaultParseSession* session)
     HWND hwnd = hwnd_;
     std::wstring source = session->source_path;
     std::wstring source_lower = session->source_lower;
-    session->work.Start([this, session, hwnd, source, source_lower](uint64_t generation, std::atomic_bool& cancel) {
+    session->work.Start(L"Default Parse", [this, session, hwnd, source, source_lower](uint64_t generation, std::atomic_bool& cancel) {
         constexpr size_t kBatchSize = 256;
         constexpr DWORD kBatchMs = 50;
         auto post_batch = [&](std::vector<KeyValueDialogEntry>* entries, bool done, const std::wstring& error, bool cancelled) {

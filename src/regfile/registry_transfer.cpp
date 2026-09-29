@@ -173,7 +173,7 @@ std::wstring ExportDefaultNameFromKeyPath(const std::wstring& key_path)
     const std::wstring file_name = util::EnsureFileExtension(SanitizeFileName(registry_path::Leaf(key_path)), L".reg");
     PWSTR desktop = nullptr;
     std::wstring path = file_name;
-    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, 0, nullptr, &desktop)))
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, 0, util::OpenShellToken(TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE).get(), &desktop)))
     {
         path = util::JoinPath(desktop, file_name);
     }

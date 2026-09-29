@@ -1263,7 +1263,7 @@ void MainWindow::Impl::StartTreeStateWorker()
     {
         return;
     }
-    tree_state_saver_.Start(std::chrono::seconds(2), [this](workspace::TreeState state) {
+    tree_state_saver_.Start(L"Tree State Saver", std::chrono::seconds(2), [this](workspace::TreeState state) {
         SaveTreeStateFile(state.selected_path, state.expanded_paths);
     });
 }

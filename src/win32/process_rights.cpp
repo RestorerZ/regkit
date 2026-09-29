@@ -563,6 +563,23 @@ bool IsProcessTrustedInstaller()
     return false;
 }
 
+UniqueHandle OpenShellToken(DWORD access)
+{
+    DWORD shell_pid = 0;
+    UniqueHandle token;
+    if (!GetWindowThreadProcessId(GetShellWindow(), &shell_pid) || shell_pid == 0)
+    {
+        SetLastError(ERROR_NOT_FOUND);
+        return token;
+    }
+    const UniqueHandle shell_process(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, shell_pid));
+    if (shell_process)
+    {
+        OpenProcessToken(shell_process.get(), access, token.put());
+    }
+    return token;
+}
+
 bool LaunchProcessAsShellUser(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code, bool* impersonation_lost)
 {
     if (impersonation_lost)
@@ -574,18 +591,10 @@ bool LaunchProcessAsShellUser(const std::wstring& command_line, const std::wstri
         SetLastError(ERROR_INVALID_PARAMETER);
         return ReportLaunch(false, error_code);
     }
-    DWORD shell_pid = 0;
-    const HWND shell = GetShellWindow();
-    if (!shell || !GetWindowThreadProcessId(shell, &shell_pid) || shell_pid == 0)
-    {
-        SetLastError(ERROR_NOT_FOUND);
-        return ReportLaunch(false, error_code);
-    }
     // shell token returns privileged restarts to the signed in user
-    UniqueHandle shell_process(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, shell_pid));
-    UniqueHandle shell_token;
+    const UniqueHandle shell_token = OpenShellToken(TOKEN_DUPLICATE);
     UniqueHandle target_token;
-    return ReportLaunch(shell_process && OpenProcessToken(shell_process.get(), TOKEN_DUPLICATE, shell_token.put()) && DuplicateTokenEx(shell_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenPrimary, target_token.put()) && LaunchWithToken(target_token.get(), command_line, work_dir, false), error_code);
+    return ReportLaunch(shell_token && DuplicateTokenEx(shell_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenPrimary, target_token.put()) && LaunchWithToken(target_token.get(), command_line, work_dir, false), error_code);
 }
 
 bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code, bool* impersonation_lost)

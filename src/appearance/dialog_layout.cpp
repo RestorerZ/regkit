@@ -349,6 +349,16 @@ LRESULT DefDialogWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return reinterpret_cast<LRESULT>(Theme::Current().ControlColor(reinterpret_cast<HDC>(wparam), reinterpret_cast<HWND>(lparam), static_cast<int>(message - WM_CTLCOLORMSGBOX)));
     case DM_GETDEFID:
         return MAKELRESULT(dialog ? dialog->default_id : IDOK, DC_HASDEFID);
+    case WM_NEXTDLGCTL:
+        if (HWND next = LOWORD(lparam) ? reinterpret_cast<HWND>(wparam) : GetNextDlgTabItem(hwnd, GetFocus(), wparam != 0))
+        {
+            SetFocus(next);
+            if (!LOWORD(lparam) && (SendMessageW(next, WM_GETDLGCODE, 0, 0) & DLGC_HASSETSEL))
+            {
+                SendMessageW(next, EM_SETSEL, 0, -1);
+            }
+        }
+        return 0;
     case WM_ACTIVATE:
         if (dialog && LOWORD(wparam) == WA_INACTIVE)
         {

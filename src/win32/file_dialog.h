@@ -12,6 +12,9 @@
 namespace regkit::win32
 {
 
+using FolderPrompt = bool (*)(HWND owner, const std::wstring& path);
+
+void SetMissingDesktopPrompt(FolderPrompt prompt);
 HRESULT ChooseFileToOpen(HWND owner, const wchar_t* filter, std::wstring* path);
 HRESULT ChooseFileToSave(HWND owner, const wchar_t* filter, const wchar_t* suggested_name, std::wstring* path);
 HRESULT ChooseFolder(HWND owner, std::wstring* path);

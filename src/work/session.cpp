@@ -5,28 +5,40 @@
 
 #include <system_error>
 
+#include <windows.h>
+
 namespace regkit::work
 {
+
+void NameThread(std::thread& thread, const wchar_t* name) noexcept
+{
+    using SetThreadDescriptionFn = HRESULT(WINAPI*)(HANDLE, PCWSTR);
+    static const auto set_description = reinterpret_cast<SetThreadDescriptionFn>(GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadDescription"));
+    if (set_description && thread.joinable())
+    {
+        set_description(thread.native_handle(), name);
+    }
+}
 
 Session::~Session()
 {
     CancelAndJoin();
 }
 
-uint64_t Session::Start(Task task)
+uint64_t Session::Start(const wchar_t* name, Task task)
 {
     CancelAndJoin();
-    return StartPrepared(std::move(task));
+    return StartPrepared(name, std::move(task));
 }
 
-bool Session::StartIfIdle(Task task, uint64_t* generation)
+bool Session::StartIfIdle(const wchar_t* name, Task task, uint64_t* generation)
 {
     if (running_.load())
     {
         return false;
     }
     Join();
-    const uint64_t started = StartPrepared(std::move(task));
+    const uint64_t started = StartPrepared(name, std::move(task));
     if (generation)
     {
         *generation = started;
@@ -65,7 +77,7 @@ bool Session::running() const noexcept
     return running_.load();
 }
 
-uint64_t Session::StartPrepared(Task task)
+uint64_t Session::StartPrepared(const wchar_t* name, Task task)
 {
     cancel_.store(false);
     const uint64_t generation = generation_.fetch_add(1) + 1;
@@ -88,6 +100,7 @@ uint64_t Session::StartPrepared(Task task)
                 running_.store(false);
             }
         });
+        NameThread(thread_, name);
     }
     catch (const std::system_error&)
     {
