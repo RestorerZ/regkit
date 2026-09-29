@@ -15,27 +15,12 @@ void MainWindow::Impl::OnSize(int width, int height)
     LayoutControls(width, height);
 }
 
-void MainWindow::Impl::OnPaint()
+void MainWindow::Impl::OnPrintClient(HDC mem_dc)
 {
-    PAINTSTRUCT ps = {};
-    HDC hdc = BeginPaint(hwnd_, &ps);
+    const Theme& theme = Theme::Current();
     RECT client = {};
     GetClientRect(hwnd_, &client);
-    if (IsRectEmpty(&ps.rcPaint) || client.right <= 0 || client.bottom <= 0)
-    {
-        EndPaint(hwnd_, &ps);
-        return;
-    }
-
-    const Theme& theme = Theme::Current();
-    HDC mem_dc = nullptr;
-    HPAINTBUFFER paint_buffer = BeginBufferedPaint(hdc, &ps.rcPaint, BPBF_COMPATIBLEBITMAP, nullptr, &mem_dc);
-    if (!mem_dc)
-    {
-        mem_dc = hdc;
-    }
-
-    FillRect(mem_dc, &ps.rcPaint, theme.BackgroundBrush());
+    FillRect(mem_dc, &client, theme.BackgroundBrush());
 
     HPEN pen = appearance::CachedPen(theme.BorderColor(), 1);
     HPEN old_pen = reinterpret_cast<HPEN>(SelectObject(mem_dc, pen));
@@ -60,12 +45,6 @@ void MainWindow::Impl::OnPaint()
 
     SelectObject(mem_dc, old_brush);
     SelectObject(mem_dc, old_pen);
-
-    if (paint_buffer)
-    {
-        EndBufferedPaint(paint_buffer, TRUE);
-    }
-    EndPaint(hwnd_, &ps);
 }
 
 void MainWindow::Impl::PaintMenuBarSeparator()

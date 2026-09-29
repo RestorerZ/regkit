@@ -374,18 +374,12 @@ LRESULT CALLBACK GroupBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM
         }
     case WM_ERASEBKGND:
         return 1;
-    case WM_PRINTCLIENT:
     case WM_PAINT:
-        {
-            PAINTSTRUCT ps = {};
-            HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
-            PaintGroupBox(hwnd, hdc);
-            if (msg == WM_PAINT)
-            {
-                EndPaint(hwnd, &ps);
-            }
-            return 0;
-        }
+        PaintBuffered(hwnd);
+        return 0;
+    case WM_PRINTCLIENT:
+        PaintGroupBox(hwnd, reinterpret_cast<HDC>(wparam));
+        return 0;
     default:
         break;
     }
@@ -400,26 +394,25 @@ LRESULT CALLBACK StatusBarSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
         RemoveWindowSubclass(hwnd, StatusBarSubclassProc, id);
         break;
     case WM_ERASEBKGND:
+        if (!Theme::UseDarkMode() && Theme::Mode() != ThemeMode::kCustom)
+        {
+            break;
+        }
+        return 1;
+    case WM_PAINT:
+        if (!Theme::UseDarkMode() && Theme::Mode() != ThemeMode::kCustom)
+        {
+            break;
+        }
+        PaintBuffered(hwnd);
+        return 0;
+    case WM_PRINTCLIENT:
         {
             if (!Theme::UseDarkMode() && Theme::Mode() != ThemeMode::kCustom)
             {
                 break;
             }
             HDC hdc = reinterpret_cast<HDC>(wparam);
-            RECT rc = {};
-            GetClientRect(hwnd, &rc);
-            FillRect(hdc, &rc, Theme::Current().BackgroundBrush());
-            return 1;
-        }
-    case WM_PRINTCLIENT:
-    case WM_PAINT:
-        {
-            if (!Theme::UseDarkMode() && Theme::Mode() != ThemeMode::kCustom)
-            {
-                break;
-            }
-            PAINTSTRUCT ps = {};
-            HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
             const Theme& theme = Theme::Current();
             COLORREF status_bg = theme.SurfaceColor();
             COLORREF status_text = theme.TextColor();
@@ -507,11 +500,6 @@ LRESULT CALLBACK StatusBarSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
             {
                 SelectObject(hdc, old_font);
             }
-
-            if (msg == WM_PAINT)
-            {
-                EndPaint(hwnd, &ps);
-            }
             return 0;
         }
     default:
@@ -528,17 +516,11 @@ LRESULT CALLBACK TreeViewSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM
         RemoveWindowSubclass(hwnd, TreeViewSubclassProc, id);
         break;
     case WM_ERASEBKGND:
+        if (!Theme::UseDarkMode())
         {
-            if (!Theme::UseDarkMode())
-            {
-                break;
-            }
-            HDC hdc = reinterpret_cast<HDC>(wparam);
-            RECT rc = {};
-            GetClientRect(hwnd, &rc);
-            FillRect(hdc, &rc, Theme::Current().PanelBrush());
-            return 1;
+            break;
         }
+        return 1;
     case WM_PRINTCLIENT:
         {
             if (!Theme::UseDarkMode())
@@ -839,28 +821,26 @@ LRESULT CALLBACK ComboBoxThemeSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, L
             break;
         }
         return 1;
+    case WM_PRINTCLIENT:
+        if (is_simple)
+        {
+            break;
+        }
+        PaintComboBox(hwnd, reinterpret_cast<HDC>(wparam), state);
+        return 0;
     case WM_PAINT:
         {
             if (is_simple)
             {
                 break;
             }
-            PAINTSTRUCT ps = {};
-            HDC hdc = BeginPaint(hwnd, &ps);
             if (cb_style != CBS_DROPDOWN)
             {
-                HDC buffered = nullptr;
-                HPAINTBUFFER buffer = BeginBufferedPaint(hdc, &ps.rcPaint, BPBF_COMPATIBLEBITMAP, nullptr, &buffered);
-                PaintComboBox(hwnd, buffered ? buffered : hdc, state);
-                if (buffer)
-                {
-                    EndBufferedPaint(buffer, TRUE);
-                }
+                PaintBuffered(hwnd);
+                return 0;
             }
-            else
-            {
-                PaintComboBox(hwnd, hdc, state);
-            }
+            PAINTSTRUCT ps = {};
+            PaintComboBox(hwnd, BeginPaint(hwnd, &ps), state);
             EndPaint(hwnd, &ps);
             return 0;
         }
@@ -1297,6 +1277,22 @@ void EnsureSubclass(HWND hwnd, SUBCLASSPROC proc, UINT_PTR id, DWORD_PTR data)
     {
         SetWindowSubclass(hwnd, proc, id, data);
     }
+}
+
+void PaintBuffered(HWND hwnd)
+{
+    PAINTSTRUCT ps = {};
+    if (const HDC target = BeginPaint(hwnd, &ps))
+    {
+        HDC hdc = nullptr;
+        const HPAINTBUFFER buffer = BeginBufferedPaint(target, &ps.rcPaint, BPBF_COMPATIBLEBITMAP, nullptr, &hdc);
+        SendMessageW(hwnd, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer ? hdc : target), PRF_CLIENT);
+        if (buffer)
+        {
+            EndBufferedPaint(buffer, TRUE);
+        }
+    }
+    EndPaint(hwnd, &ps);
 }
 
 void SetDarkWindowTheme(HWND hwnd, bool dark, const wchar_t* dark_theme, const wchar_t* light_theme)

@@ -107,5 +107,6 @@ void EnableImmersiveDarkMode(HWND hwnd, bool enabled);
 void AllowDarkModeForWindow(HWND hwnd, bool enabled);
 void SetDarkWindowTheme(HWND hwnd, bool dark, const wchar_t* dark_theme = L"DarkMode_Explorer", const wchar_t* light_theme = L"Explorer");
 void EnsureSubclass(HWND hwnd, SUBCLASSPROC proc, UINT_PTR id, DWORD_PTR data = 0);
+void PaintBuffered(HWND hwnd);
 
 } // namespace regkit

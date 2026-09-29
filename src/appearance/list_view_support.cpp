@@ -202,7 +202,12 @@ LRESULT CALLBACK HeaderProc(HWND header, UINT message, WPARAM wparam, LPARAM lpa
     }
     if (message == WM_PAINT)
     {
-        PaintListHeader(header, nullptr);
+        PaintBuffered(header);
+        return 0;
+    }
+    if (message == WM_PRINTCLIENT)
+    {
+        PaintListHeader(header, reinterpret_cast<HDC>(wparam));
         return 0;
     }
     if (message == WM_SIZE)

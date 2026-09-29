@@ -12,7 +12,7 @@
 namespace regkit::appearance
 {
 
-void PaintListHeader(HWND header, HFONT font);
+void PaintListHeader(HWND header, HDC hdc);
 void ReleaseListHeaderTheme(HWND header);
 
 void PaintListGrid(HWND list, HDC hdc, const RECT& area, int first_line_y, int row_height, COLORREF color);

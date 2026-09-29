@@ -167,7 +167,7 @@ class MainWindow::Impl
     void OnDestroy();
     void DiscardWorkerMessages();
     void OnSize(int width, int height);
-    void OnPaint();
+    void OnPrintClient(HDC hdc);
     void ApplyThemeToChildren();
     void ApplySystemTheme();
     void LoadThemePresets();

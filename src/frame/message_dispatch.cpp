@@ -61,6 +61,7 @@ MessageArea ClassifyMessage(UINT message) noexcept
         return MessageArea::kLayoutInput;
     case WM_ERASEBKGND:
     case WM_PAINT:
+    case WM_PRINTCLIENT:
     case WM_SETTINGCHANGE:
     case WM_THEMECHANGED:
     case WM_CTLCOLORSTATIC:

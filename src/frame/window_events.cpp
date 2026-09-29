@@ -551,13 +551,11 @@ LRESULT CALLBACK MainWindow::Impl::TabProc(HWND hwnd, UINT message, WPARAM wpara
         }
         break;
     case WM_PAINT:
-        {
-            PAINTSTRUCT ps = {};
-            HDC hdc = BeginPaint(hwnd, &ps);
-            self->PaintTabControl(hwnd, hdc);
-            EndPaint(hwnd, &ps);
-            return 0;
-        }
+        PaintBuffered(hwnd);
+        return 0;
+    case WM_PRINTCLIENT:
+        self->PaintTabControl(hwnd, reinterpret_cast<HDC>(wparam));
+        return 0;
     default:
         break;
     }

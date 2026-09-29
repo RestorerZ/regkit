@@ -244,18 +244,12 @@ LRESULT CALLBACK FontDialogGroupBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wpar
         break;
     case WM_ERASEBKGND:
         return 1;
-    case WM_PRINTCLIENT:
     case WM_PAINT:
-        {
-            PAINTSTRUCT ps = {};
-            HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
-            PaintFontDialogGroupBox(hwnd, hdc);
-            if (msg == WM_PAINT)
-            {
-                EndPaint(hwnd, &ps);
-            }
-            return 0;
-        }
+        PaintBuffered(hwnd);
+        return 0;
+    case WM_PRINTCLIENT:
+        PaintFontDialogGroupBox(hwnd, reinterpret_cast<HDC>(wparam));
+        return 0;
     default:
         break;
     }
@@ -278,11 +272,12 @@ LRESULT CALLBACK FontDialogSampleSubclassProc(HWND hwnd, UINT msg, WPARAM wparam
             InvalidateRect(hwnd, nullptr, TRUE);
             return result;
         }
-    case WM_PRINTCLIENT:
     case WM_PAINT:
+        PaintBuffered(hwnd);
+        return 0;
+    case WM_PRINTCLIENT:
         {
-            PAINTSTRUCT ps = {};
-            HDC hdc = (msg == WM_PAINT) ? BeginPaint(hwnd, &ps) : reinterpret_cast<HDC>(wparam);
+            HDC hdc = reinterpret_cast<HDC>(wparam);
             RECT rc = {};
             GetClientRect(hwnd, &rc);
 
@@ -306,10 +301,6 @@ LRESULT CALLBACK FontDialogSampleSubclassProc(HWND hwnd, UINT msg, WPARAM wparam
             if (old_font)
             {
                 SelectObject(hdc, old_font);
-            }
-            if (msg == WM_PAINT)
-            {
-                EndPaint(hwnd, &ps);
             }
             return 0;
         }

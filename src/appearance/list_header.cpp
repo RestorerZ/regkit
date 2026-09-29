@@ -39,35 +39,15 @@ HBRUSH HeaderSurfaceBrush(HWND header)
 
 } // namespace
 
-void PaintListHeader(HWND header, HFONT font)
+void PaintListHeader(HWND header, HDC hdc)
 {
-    if (!header)
-    {
-        return;
-    }
-    PAINTSTRUCT ps = {};
-    HDC target = BeginPaint(header, &ps);
-    if (!target)
-    {
-        return;
-    }
-    HDC hdc = nullptr;
-    HPAINTBUFFER buffer = BeginBufferedPaint(target, &ps.rcPaint, BPBF_COMPATIBLEBITMAP, nullptr, &hdc);
-    if (!hdc)
-    {
-        hdc = target;
-    }
-
     const Theme& theme = Theme::Current();
     HBRUSH surface = HeaderSurfaceBrush(header);
     RECT client = {};
     GetClientRect(header, &client);
     FillRect(hdc, &client, surface);
 
-    if (!font)
-    {
-        font = reinterpret_cast<HFONT>(SendMessageW(header, WM_GETFONT, 0, 0));
-    }
+    const HFONT font = reinterpret_cast<HFONT>(SendMessageW(header, WM_GETFONT, 0, 0));
     HFONT old_font = font ? reinterpret_cast<HFONT>(SelectObject(hdc, font)) : nullptr;
 
     HTHEME header_theme = HeaderTheme(header);
@@ -93,6 +73,8 @@ void PaintListHeader(HWND header, HFONT font)
     }
     const bool pressed = GetCapture() == header && GetKeyState(VK_LBUTTON) < 0;
 
+    RECT clip = {};
+    GetClipBox(hdc, &clip);
     const int count = Header_GetItemCount(header);
     for (int i = 0; i < count; ++i)
     {
@@ -102,7 +84,7 @@ void PaintListHeader(HWND header, HFONT font)
             continue;
         }
         RECT visible = {};
-        if (!IntersectRect(&visible, &rect, &ps.rcPaint))
+        if (!IntersectRect(&visible, &rect, &clip))
         {
             continue;
         }
@@ -158,11 +140,6 @@ void PaintListHeader(HWND header, HFONT font)
     {
         SelectObject(hdc, old_font);
     }
-    if (buffer)
-    {
-        EndBufferedPaint(buffer, TRUE);
-    }
-    EndPaint(header, &ps);
 }
 
 void ReleaseListHeaderTheme(HWND header)

@@ -1288,7 +1288,10 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
             return 1;
         }
     case WM_PAINT:
-        OnPaint();
+        PaintBuffered(hwnd_);
+        return 0;
+    case WM_PRINTCLIENT:
+        OnPrintClient(reinterpret_cast<HDC>(wparam));
         return 0;
     case WM_SETTINGCHANGE:
         {
