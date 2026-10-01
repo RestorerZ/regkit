@@ -138,6 +138,25 @@ bool RegistryStore::QuerySymbolicLinkTarget(const RegistryNode& node, std::wstri
                : registry_backend::live::QuerySymbolicLinkTarget(node, target, denied);
 }
 
+KeyInspection RegistryStore::InspectKey(const RegistryNode& node, bool want_info)
+{
+    KeyInspection result;
+    if (FindRoot(node.root) || registry_backend::offline::Owns(node.root))
+    {
+        std::wstring target;
+        result.link = QuerySymbolicLinkTarget(node, &target, &result.denied);
+    }
+    else
+    {
+        result = registry_backend::live::InspectKey(node, want_info);
+    }
+    if (want_info && !result.info_valid)
+    {
+        result.info_valid = QueryKeyInfo(node, &result.info);
+    }
+    return result;
+}
+
 std::vector<std::wstring> RegistryStore::EnumSubKeyNames(const RegistryNode& node, bool sorted)
 {
     return Dispatch(

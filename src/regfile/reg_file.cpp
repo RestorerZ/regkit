@@ -164,9 +164,9 @@ void AppendValue(std::wstring* output, const Value& value)
     {
         DWORD number = 0;
         std::memcpy(&number, value.data.data(), sizeof(number));
-        wchar_t text[24] = {};
-        swprintf_s(text, L"dword:%08x\r\n", number);
-        output->append(name).append(text);
+        wchar_t dword[24] = {};
+        swprintf_s(dword, L"dword:%08x\r\n", number);
+        output->append(name).append(dword);
         return;
     }
     wchar_t code[16] = {};

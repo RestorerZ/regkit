@@ -73,11 +73,6 @@ CacheAvailability InspectCacheFiles(const std::wstring& folder)
     return available;
 }
 
-UINT AvailabilityFlags(bool available)
-{
-    return MF_STRING | (available ? 0 : MF_GRAYED);
-}
-
 bool FileIsAvailable(const std::wstring& path)
 {
     if (path.empty())
@@ -214,6 +209,25 @@ void MainWindow::Impl::RefreshStorageMenuState(HMENU menu)
     if (has_reset)
     {
         EnableMenuItem(menu, cmd::kOptionsResetSettings, MF_BYCOMMAND | (FileIsAvailable(SettingsPath()) ? MF_ENABLED : MF_GRAYED));
+    }
+}
+
+void MainWindow::Impl::FillBitfieldMenu(HMENU menu)
+{
+    if (GetMenuItemCount(menu) != 1 || GetMenuItemID(menu, 0) != cmd::kToolsBitfieldDefinitions)
+    {
+        return;
+    }
+    const std::vector<editors::bitfield::DefinitionFile>& files = editors::bitfield::BundledFiles();
+    if (!files.empty())
+    {
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    }
+    for (size_t i = 0; i < files.size() && i <= static_cast<size_t>(cmd::kToolsBitfieldFileMax - cmd::kToolsBitfieldFileBase); ++i)
+    {
+        std::wstring label = files[i].name.empty() ? FileBaseName(files[i].path) : files[i].name;
+        label.append(L"   (").append(std::to_wstring(files[i].definitions.size())).append(L")");
+        AppendMenuW(menu, MF_STRING, cmd::kToolsBitfieldFileBase + i, label.c_str());
     }
 }
 
@@ -428,17 +442,16 @@ void MainWindow::Impl::BuildMenus()
     append_menu(options_menu, MF_STRING | (clear_history_on_exit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kFileClearHistoryOnExit, L"Clear History on Exit");
     append_menu(options_menu, MF_STRING | (clear_tabs_on_exit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kFileClearTabsOnExit, L"Clear Tabs on Exit");
     AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
-    const CacheAvailability cache = InspectCacheFiles(CacheFolderPath());
     HMENU clear_cache_menu = CreatePopupMenu();
-    AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.any), cmd::kFileClearCacheAll, L"Clear All");
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheAll, L"Clear All");
     AppendMenuW(clear_cache_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.tabs), cmd::kFileClearCacheTabs, L"Tab Sessions");
-    AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.history), cmd::kFileClearCacheHistory, L"Change History");
-    AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.search_history), cmd::kFileClearCacheSearchHistory, L"Search History");
-    AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.tree_state), cmd::kFileClearCacheTreeState, L"Tree State");
-    AppendMenuW(clear_cache_menu, AvailabilityFlags(cache.temporary), cmd::kFileClearCacheTemporary, L"Temporary Files");
-    AppendMenuW(options_menu, MF_POPUP | (cache.any ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(clear_cache_menu), L"Clear Caches");
-    AppendMenuW(options_menu, AvailabilityFlags(FileIsAvailable(SettingsPath())), cmd::kOptionsResetSettings, L"Reset Settings...");
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTabs, L"Tab Sessions");
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheHistory, L"Change History");
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheSearchHistory, L"Search History");
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTreeState, L"Tree State");
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTemporary, L"Temporary Files");
+    AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(clear_cache_menu), L"Clear Caches");
+    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsResetSettings, L"Reset Settings...");
     HMENU favorites_menu = CreatePopupMenu();
     AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesAdd, L"Add to Favorites...");
     AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesRemove, L"Remove Favorite");
@@ -468,20 +481,6 @@ void MainWindow::Impl::BuildMenus()
     append_menu(tools_menu, MF_STRING, cmd::kToolsKeyHandles, L"Key Handles...");
     HMENU bitfield_menu = CreatePopupMenu();
     AppendMenuW(bitfield_menu, MF_STRING, cmd::kToolsBitfieldDefinitions, L"New Definition File...");
-    const std::vector<editors::bitfield::DefinitionFile>& bitfield_files = editors::bitfield::BundledFiles();
-    if (!bitfield_files.empty())
-    {
-        AppendMenuW(bitfield_menu, MF_SEPARATOR, 0, nullptr);
-    }
-    for (size_t i = 0; i < bitfield_files.size() &&
-                       i <= static_cast<size_t>(cmd::kToolsBitfieldFileMax - cmd::kToolsBitfieldFileBase);
-         ++i)
-    {
-        std::wstring label =
-            bitfield_files[i].name.empty() ? FileBaseName(bitfield_files[i].path) : bitfield_files[i].name;
-        label.append(L"   (").append(std::to_wstring(bitfield_files[i].definitions.size())).append(L")");
-        AppendMenuW(bitfield_menu, MF_STRING, cmd::kToolsBitfieldFileBase + i, label.c_str());
-    }
     AppendMenuW(tools_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(bitfield_menu), L"Bit Definitions");
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(tools_menu), L"&Tools");
 

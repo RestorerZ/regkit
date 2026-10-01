@@ -23,59 +23,21 @@ void MainWindow::Impl::StartValueListWorker()
 
         auto payload = std::make_unique<ValueListPayload>();
         payload->generation = task->generation;
-        struct KeyMetadata
-        {
-            int image_index = kFolderIconIndex;
-            bool is_link = false;
-        };
-        std::unordered_map<std::wstring, KeyMetadata> key_metadata_cache;
-        key_metadata_cache.reserve(256);
-
-        auto resolve_key_icon = [&](const RegistryNode& node, bool* is_link) -> int {
-            if (is_link)
+        const std::wstring parent_native = ToLower(registry_path::BuildNative(task->snapshot));
+        const bool children_may_be_hives = task->hive_roots && !parent_native.empty() &&
+                                           std::any_of(task->hive_roots->begin(), task->hive_roots->end(), [&](const std::wstring& root) {
+                                               return registry_path::Parent(root) == parent_native;
+                                           });
+        auto key_icon = [&](const RegistryNode& node, const KeyInspection& inspection) -> int {
+            if (inspection.link)
             {
-                *is_link = false;
+                return kSymlinkIconIndex;
             }
-            if (node.simulated)
+            if (children_may_be_hives && task->hive_roots->contains(ToLower(registry_path::BuildNative(node))))
             {
-                return kFolderSimIconIndex;
+                return inspection.denied ? kDatabaseDeniedIconIndex : kDatabaseIconIndex;
             }
-            std::wstring cache_key = registry_path::Build(node);
-            auto cached = key_metadata_cache.find(cache_key);
-            if (cached != key_metadata_cache.end())
-            {
-                if (is_link)
-                {
-                    *is_link = cached->second.is_link;
-                }
-                return cached->second.image_index;
-            }
-            KeyMetadata metadata;
-            std::wstring link_target;
-            bool denied = false;
-            if (RegistryStore::QuerySymbolicLinkTarget(node, &link_target, &denied))
-            {
-                if (is_link)
-                {
-                    *is_link = true;
-                }
-                metadata.image_index = kSymlinkIconIndex;
-                metadata.is_link = true;
-                key_metadata_cache.emplace(std::move(cache_key), metadata);
-                return metadata.image_index;
-            }
-            std::wstring nt_path = registry_path::BuildNative(node);
-            if (!nt_path.empty() && task->hive_roots &&
-                task->hive_roots->find(ToLower(nt_path)) != task->hive_roots->end())
-            {
-                metadata.image_index = denied ? kDatabaseDeniedIconIndex : kDatabaseIconIndex;
-            }
-            else if (denied)
-            {
-                metadata.image_index = kFolderDeniedIconIndex;
-            }
-            key_metadata_cache.emplace(std::move(cache_key), metadata);
-            return metadata.image_index;
+            return inspection.denied ? kFolderDeniedIconIndex : kFolderIconIndex;
         };
 
         std::vector<std::wstring> subkeys;
@@ -260,32 +222,25 @@ void MainWindow::Impl::StartValueListWorker()
             {
                 ListRow row;
                 row.name = registry_path::DisplayName(name);
-                bool is_link = false;
                 const RegistryNode child = registry_path::ChildNode(task->snapshot, name);
-                row.image_index = resolve_key_icon(child, &is_link);
-                row.type = is_link ? L"Link" : L"Key";
+                const KeyInspection inspection = RegistryStore::InspectKey(child, task->include_dates || task->include_details);
+                row.image_index = key_icon(child, inspection);
+                row.type = inspection.link ? L"Link" : L"Key";
                 row.extra = name;
                 row.kind = rowkind::kKey;
-                if (task->include_dates || task->include_details)
+                const KeyInfo& info = inspection.info;
+                if (inspection.info_valid && task->include_dates)
                 {
-                    KeyInfo info = {};
-                    if (RegistryStore::QueryKeyInfo(child, &info))
-                    {
-                        if (task->include_dates)
-                        {
-                            row.date = FormatFileTime(info.last_write);
-                            row.date_value = FileTimeToUint64(info.last_write);
-                            row.has_date = (row.date_value != 0);
-                        }
-                        if (task->include_details)
-                        {
-                            row.detail_key_count = info.subkey_count;
-                            row.detail_value_count = info.value_count;
-                            row.has_details = true;
-                            row.details = L"Keys: " + std::to_wstring(info.subkey_count) + L", Values: " +
-                                          std::to_wstring(info.value_count);
-                        }
-                    }
+                    row.date = FormatFileTime(info.last_write);
+                    row.date_value = FileTimeToUint64(info.last_write);
+                    row.has_date = (row.date_value != 0);
+                }
+                if (inspection.info_valid && task->include_details)
+                {
+                    row.detail_key_count = info.subkey_count;
+                    row.detail_value_count = info.value_count;
+                    row.has_details = true;
+                    row.details = L"Keys: " + std::to_wstring(info.subkey_count) + L", Values: " + std::to_wstring(info.value_count);
                 }
                 payload->rows.emplace_back(std::move(row));
             }
@@ -297,9 +252,7 @@ void MainWindow::Impl::StartValueListWorker()
                 }
                 ListRow row;
                 row.name = registry_path::DisplayName(name);
-                RegistryNode child = registry_path::ChildNode(task->snapshot, name);
-                child.simulated = true;
-                row.image_index = resolve_key_icon(child, nullptr);
+                row.image_index = kFolderSimIconIndex;
                 row.simulated = true;
                 row.type = L"Key";
                 row.extra = name;

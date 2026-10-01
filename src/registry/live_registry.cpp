@@ -70,6 +70,21 @@ bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, boo
     return key && ReadLinkTarget(key, target) && !target->empty();
 }
 
+KeyInspection InspectKey(const RegistryNode& node, bool want_info)
+{
+    KeyInspection result;
+    LONG error = ERROR_SUCCESS;
+    LiveKey key(util::OpenNativeRegistryKey(registry_path::BuildNative(node), KEY_QUERY_VALUE, true, &error));
+    result.denied = error == ERROR_ACCESS_DENIED;
+    std::wstring target;
+    result.link = key && ReadLinkTarget(key, &target) && !target.empty();
+    if (key && want_info && !result.link)
+    {
+        result.info_valid = registry_backend::QueryKeyInfo(key, &result.info);
+    }
+    return result;
+}
+
 std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node, bool sorted)
 {
     LiveKey key(node, kKeyReadAccess);

@@ -1354,6 +1354,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
         {
             HMENU menu = reinterpret_cast<HMENU>(wparam);
             RefreshStorageMenuState(menu);
+            FillBitfieldMenu(menu);
             CheckMenuItem(menu, cmd::kViewGridLines, MF_BYCOMMAND | (show_value_grid_ ? MF_CHECKED : MF_UNCHECKED));
             UINT state = browse_.current_node() ? MF_ENABLED : MF_GRAYED;
             EnableMenuItem(menu, cmd::kEditPermissions, MF_BYCOMMAND | state);

@@ -64,6 +64,14 @@ struct KeyInfo
     FILETIME last_write = {};
 };
 
+struct KeyInspection
+{
+    bool link = false;
+    bool denied = false;
+    bool info_valid = false;
+    KeyInfo info;
+};
+
 class RegistryStore
 {
   public:
@@ -81,6 +89,7 @@ class RegistryStore
     static bool IsOfflineRoot(HKEY root);
     static bool QueryValue(const RegistryNode& node, const std::wstring& value_name, RegistryValue* out);
     static bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);
+    static KeyInspection InspectKey(const RegistryNode& node, bool want_info);
     static bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, bool* denied = nullptr);
     static bool OpenOfflineHive(const std::wstring& path, HKEY* root, std::wstring* error);
     static bool SaveOfflineHive(HKEY root, const std::wstring& path, std::wstring* error);

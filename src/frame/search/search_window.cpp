@@ -563,12 +563,12 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
             std::wstring key = ToLower(entry.path_name.empty() ? entry.display_name : entry.path_name);
             if (key.empty())
             {
-                return false;
+                return;
             }
             key.append(L"|").append(std::to_wstring(reinterpret_cast<uintptr_t>(entry.root)));
             if (!seen.insert(key).second)
             {
-                return false;
+                return;
             }
             RegistryNode node;
             node.root = entry.root;

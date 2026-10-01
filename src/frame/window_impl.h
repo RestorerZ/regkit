@@ -342,6 +342,7 @@ class MainWindow::Impl
     void RefreshBundledDefaultsCache();
     void BuildMenus();
     void RefreshStorageMenuState(HMENU menu);
+    void FillBitfieldMenu(HMENU menu);
     void BuildAccelerators();
     std::wstring CommandShortcutText(int command_id) const;
     std::wstring CommandTooltipText(int command_id) const;
