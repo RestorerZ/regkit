@@ -3,16 +3,13 @@
 
 #include "win32/shell_paths.h"
 
+#include "win32/system_api.h"
 #include "win32/text_transform.h"
-#include "win32/windows_config.h"
-
-#include <windows.h>
 
 #include <algorithm>
-#include <pathcch.h>
 #include <shlobj.h>
 
-namespace util
+namespace regkit::util
 {
 
 std::wstring GetModulePath()
@@ -39,25 +36,6 @@ std::wstring GetModulePath()
     }
 }
 
-namespace
-{
-
-using PathCchRemoveFileSpecFn = HRESULT(WINAPI*)(PWSTR, size_t);
-using PathCchCombineFn = HRESULT(WINAPI*)(PWSTR, size_t, PCWSTR, PCWSTR);
-
-template <typename Fn>
-Fn LoadPathFunction(const char* name)
-{
-    HMODULE module = GetModuleHandleW(L"kernelbase.dll");
-    if (!module)
-    {
-        module = LoadLibraryExW(L"kernelbase.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-    }
-    return module ? reinterpret_cast<Fn>(GetProcAddress(module, name)) : nullptr;
-}
-
-} // namespace
-
 std::wstring GetModuleDirectory()
 {
     std::wstring path = GetModulePath();
@@ -65,7 +43,7 @@ std::wstring GetModuleDirectory()
     {
         return {};
     }
-    static const auto remove_file_spec = LoadPathFunction<PathCchRemoveFileSpecFn>("PathCchRemoveFileSpec");
+    static const auto remove_file_spec = win32::ImportProc<HRESULT(WINAPI*)(PWSTR, size_t)>(L"kernelbase.dll", "PathCchRemoveFileSpec");
     if (remove_file_spec)
     {
         path.push_back(L'\0');
@@ -92,7 +70,7 @@ std::wstring JoinPath(const std::wstring& left, const std::wstring& right)
         return right;
     }
     const size_t capacity = std::min<size_t>(std::max<size_t>(MAX_PATH, left.size() + right.size() + 2), 32768);
-    static const auto combine = LoadPathFunction<PathCchCombineFn>("PathCchCombine");
+    static const auto combine = win32::ImportProc<HRESULT(WINAPI*)(PWSTR, size_t, PCWSTR, PCWSTR)>(L"kernelbase.dll", "PathCchCombine");
     if (combine)
     {
         std::wstring output(capacity, L'\0');
@@ -102,6 +80,12 @@ std::wstring JoinPath(const std::wstring& left, const std::wstring& right)
         }
     }
     return left.back() == L'\\' ? left + right : left + L"\\" + right;
+}
+
+std::wstring FileName(std::wstring_view path)
+{
+    const size_t separator = path.find_last_of(L"\\/");
+    return std::wstring(separator == std::wstring_view::npos ? path : path.substr(separator + 1));
 }
 
 std::wstring GetAppDataFolder()
@@ -159,4 +143,4 @@ std::wstring EnsureFileExtension(std::wstring path, std::wstring_view extension)
     return path;
 }
 
-} // namespace util
+} // namespace regkit::util

@@ -3,48 +3,22 @@
 
 #include "appearance/icon_loader.h"
 
+#include "win32/system_api.h"
+#include "win32/window_metrics.h"
+
 #include <commctrl.h>
 
-namespace util
+namespace regkit::appearance
 {
 
 namespace
 {
 
-using LoadIconWithScaleDownFn = HRESULT(WINAPI*)(HINSTANCE, PCWSTR, int, int, HICON*);
-
-LoadIconWithScaleDownFn ScaleDownLoader()
-{
-    static LoadIconWithScaleDownFn fn = [] {
-        HMODULE comctl = GetModuleHandleW(L"comctl32.dll");
-        return comctl ? reinterpret_cast<LoadIconWithScaleDownFn>(GetProcAddress(comctl, "LoadIconWithScaleDown"))
-                      : nullptr;
-    }();
-    return fn;
-}
-
 HICON LoadScaledDown(HINSTANCE instance, PCWSTR name, int size)
 {
-    LoadIconWithScaleDownFn fn = ScaleDownLoader();
+    static const auto load = win32::ImportProc<HRESULT(WINAPI*)(HINSTANCE, PCWSTR, int, int, HICON*)>(L"comctl32.dll", "LoadIconWithScaleDown");
     HICON icon = nullptr;
-    if (fn && SUCCEEDED(fn(instance, name, size, size, &icon)))
-    {
-        return icon;
-    }
-    return nullptr;
-}
-
-UINT ResolveDpi(UINT dpi)
-{
-    if (dpi != 0)
-    {
-        return dpi;
-    }
-    static UINT(WINAPI * get_system_dpi)() = [] {
-        HMODULE user32 = GetModuleHandleW(L"user32.dll");
-        return user32 ? reinterpret_cast<UINT(WINAPI*)()>(GetProcAddress(user32, "GetDpiForSystem")) : nullptr;
-    }();
-    return get_system_dpi ? get_system_dpi() : 96;
+    return load && SUCCEEDED(load(instance, name, size, size, &icon)) ? icon : nullptr;
 }
 
 } // namespace
@@ -55,7 +29,7 @@ int ScaleForDpi(int size, UINT dpi)
     {
         return size;
     }
-    dpi = ResolveDpi(dpi);
+    dpi = dpi != 0 ? dpi : win32::DpiForWindow(nullptr);
     if (dpi <= 96)
     {
         return size;
@@ -125,4 +99,4 @@ void ImageListAddOrBlank(HIMAGELIST list, HICON icon, int size)
     }
 }
 
-} // namespace util
+} // namespace regkit::appearance

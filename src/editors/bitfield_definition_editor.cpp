@@ -138,13 +138,6 @@ int CALLBACK CompareDefinitionFields(LPARAM left_data, LPARAM right_data, int co
                                                                                             : 0);
 }
 
-int SelectedFieldIndex(HWND list)
-{
-    LPARAM data = -1;
-    const int row = ListView_GetNextItem(list, -1, LVNI_SELECTED);
-    return appearance::ListViewItemData(list, row, &data) >= 0 ? static_cast<int>(data) : -1;
-}
-
 std::wstring BitsText(const Field& field)
 {
     std::wstring text;
@@ -623,7 +616,7 @@ void ChangeWidth(HWND dialog, Editor* state)
 void AddOrEditField(HWND dialog, Editor* state, bool create)
 {
     const HWND list = GetDlgItem(dialog, IDC_DEF_LIST);
-    const int selected = create ? -1 : SelectedFieldIndex(list);
+    const int selected = create ? -1 : appearance::SelectedListViewData(list);
     if (!create && selected < 0)
     {
         return;
@@ -661,7 +654,7 @@ void AddOrEditField(HWND dialog, Editor* state, bool create)
 void RemoveField(HWND dialog, Editor* state)
 {
     const HWND list = GetDlgItem(dialog, IDC_DEF_LIST);
-    const int selected = SelectedFieldIndex(list);
+    const int selected = appearance::SelectedListViewData(list);
     if (selected < 0)
     {
         return;

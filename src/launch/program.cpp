@@ -8,9 +8,9 @@
 #include <algorithm>
 #include <commctrl.h>
 #include <cwctype>
-#include <limits>
 #include <shellapi.h>
 #include <shlobj.h>
+#include <optional>
 #include <string>
 #include <uxtheme.h>
 #include <vector>
@@ -20,7 +20,7 @@
 #include "appearance/theme.h"
 #include "cli/reg_command.h"
 #include "frame/main_window.h"
-#include "frame/message_ids.h"
+#include "frame/window/message_ids.h"
 #include "regfile/registry_transfer.h"
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
@@ -31,20 +31,23 @@
 #include "win32/restart.h"
 #include "win32/shell_integration.h"
 #include "win32/shell_paths.h"
+#include "win32/system_api.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
 #include "workspace/settings.h"
 
+namespace regkit
+{
 namespace
 {
 
-using regkit::frame::message_id::kEditRegFileCopyDataId;
-using regkit::frame::message_id::kExternalJumpCopyDataId;
-using regkit::frame::message_id::kRegKitWindowProperty;
-using regkit::win32::kRestartAdminArg;
-using regkit::win32::kRestartSystemArg;
-using regkit::win32::kRestartTiArg;
-using regkit::win32::kRestartUserArg;
+using frame::message_id::kEditRegFileCopyDataId;
+using frame::message_id::kExternalJumpCopyDataId;
+using frame::message_id::kRegKitWindowProperty;
+using win32::kRestartAdminArg;
+using win32::kRestartSystemArg;
+using win32::kRestartTiArg;
+using win32::kRestartUserArg;
 constexpr wchar_t kEditRegFileArg[] = L"--edit-reg";
 constexpr wchar_t kInstallEditContextMenuArg[] = L"--install-edit-context-menu";
 constexpr wchar_t kUninstallEditContextMenuArg[] = L"--uninstall-edit-context-menu";
@@ -53,8 +56,6 @@ constexpr wchar_t kUninstallRegEditReplacementArg[] = L"--uninstall-regedit-repl
 constexpr wchar_t kOverrideArg[] = L"--override";
 
 constexpr const wchar_t* kRegEditNames[] = {L"regedit.exe", L"regedit", L"regedt32.exe", L"regedt32"};
-
-using util::FormatWin32Error;
 
 std::vector<std::wstring> GetCommandLineArgs()
 {
@@ -75,7 +76,7 @@ std::vector<std::wstring> GetCommandLineArgs()
 
 void ApplyDataDirOverride(const std::vector<std::wstring>& args)
 {
-    const std::wstring dir = regkit::win32::RestartDataDir(args);
+    const std::wstring dir = win32::RestartDataDir(args);
     if (dir.empty())
     {
         return;
@@ -102,21 +103,14 @@ bool IsRegEditLaunchArg(const std::wstring& arg)
         arg.size() >= 3 && iswalpha(arg[0]) && arg[1] == L':' && (arg[2] == L'\\' || arg[2] == L'/');
     const bool unc_absolute =
         arg.size() >= 3 && ((arg[0] == L'\\' && arg[1] == L'\\') || (arg[0] == L'/' && arg[1] == L'/'));
-    const std::wstring name = regkit::registry_path::Leaf(arg);
+    const std::wstring name = util::FileName(arg);
     return (drive_absolute || unc_absolute) &&
            std::any_of(std::begin(kRegEditNames), std::end(kRegEditNames), [&](const wchar_t* regedit) { return util::EqualsInsensitive(name, regedit); });
 }
 
 bool IsInterceptedRegEditLaunch(const std::vector<std::wstring>& args)
 {
-    for (const auto& arg : args)
-    {
-        if (IsRegEditLaunchArg(arg))
-        {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(args.begin(), args.end(), IsRegEditLaunchArg);
 }
 
 std::vector<std::wstring> StripRegEditLaunchArg(const std::vector<std::wstring>& args)
@@ -152,17 +146,12 @@ std::vector<std::wstring> RegFilesFromArgs(const std::vector<std::wstring>& args
 
 bool LooksLikeRegistryPath(const std::wstring& arg)
 {
-    regkit::RegistryNode node;
-    return regkit::registry_path::ParseRoot(arg, &node);
+    RegistryNode node;
+    return registry_path::ParseRoot(arg, &node);
 }
 
-bool ResolveExternalJumpTarget(const std::vector<std::wstring>& args, std::wstring* out)
+std::wstring ExternalJumpTarget(const std::vector<std::wstring>& args)
 {
-    if (!out)
-    {
-        return false;
-    }
-    out->clear();
     bool intercepted_regedit = false;
     std::wstring explicit_key_path;
     for (size_t index = 0; index < args.size(); ++index)
@@ -187,7 +176,7 @@ bool ResolveExternalJumpTarget(const std::vector<std::wstring>& args, std::wstri
         }
         if (arg[0] == L'-' || arg[0] == L'/')
         {
-            if (regkit::win32::ArgTakesValue(arg))
+            if (win32::ArgTakesValue(arg))
             {
                 ++index;
             }
@@ -200,21 +189,16 @@ bool ResolveExternalJumpTarget(const std::vector<std::wstring>& args, std::wstri
         }
         if (!explicit_key_path.empty())
         {
-            *out = explicit_key_path + L"\\" + arg;
-            return true;
+            return explicit_key_path + L"\\" + arg;
         }
     }
-    if (!explicit_key_path.empty())
+    std::wstring target = std::move(explicit_key_path);
+    if (target.empty() && intercepted_regedit &&
+        util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit", L"LastKey", &target) != ERROR_SUCCESS)
     {
-        *out = explicit_key_path;
-        return true;
+        target.clear();
     }
-    if (!intercepted_regedit)
-    {
-        return false;
-    }
-    return util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit", L"LastKey", out) == ERROR_SUCCESS &&
-           !out->empty();
+    return target;
 }
 
 bool IsOwnRegKitWindow(HWND hwnd)
@@ -284,33 +268,33 @@ bool SendTextToRegKit(HWND window, HWND sender, ULONG_PTR message_id, const std:
            accepted != 0;
 }
 
-regkit::workspace::Settings LoadStartupSettings()
+workspace::Settings LoadStartupSettings()
 {
-    regkit::workspace::Settings settings;
+    workspace::Settings settings;
     const std::wstring folder = util::GetAppDataFolder();
     if (!folder.empty())
     {
-        regkit::workspace::LoadSettings(util::JoinPath(folder, L"settings.ini"), &settings);
+        workspace::LoadSettings(util::JoinPath(folder, L"settings.ini"), &settings);
     }
     return settings;
 }
 
-void ApplyStartupTheme(const regkit::workspace::Settings& settings)
+void ApplyStartupTheme(const workspace::Settings& settings)
 {
-    const regkit::ThemeMode mode = regkit::ParseThemeMode(settings.theme_mode);
-    if (mode == regkit::ThemeMode::kCustom)
+    const ThemeMode mode = ParseThemeMode(settings.theme_mode);
+    if (mode == ThemeMode::kCustom)
     {
-        std::vector<regkit::ThemePreset> presets;
-        if (!regkit::ThemePresetStore::Load(&presets) || presets.empty())
+        std::vector<ThemePreset> presets;
+        if (!ThemePresetStore::Load(&presets) || presets.empty())
         {
-            presets = regkit::ThemePresetStore::BuiltInPresets();
+            presets = ThemePresetStore::BuiltInPresets();
         }
-        if (const regkit::ThemePreset* preset = regkit::FindThemePreset(presets, settings.theme_preset))
+        if (const ThemePreset* preset = FindThemePreset(presets, settings.theme_preset))
         {
-            regkit::Theme::SetCustomColors(preset->colors, preset->is_dark);
+            Theme::SetCustomColors(preset->colors, preset->is_dark);
         }
     }
-    regkit::Theme::SetMode(mode);
+    Theme::SetMode(mode);
 }
 
 struct RestartTarget
@@ -340,19 +324,19 @@ bool RestartAs(const RestartTarget& target, DWORD parent_pid, const std::vector<
     const std::wstring exe_path = util::GetModulePath();
     if (exe_path.empty())
     {
-        regkit::ui::ShowError(nullptr, L"Failed to locate the executable path.");
+        ui::ShowError(nullptr, L"Failed to locate the executable path.");
         return false;
     }
     // keep user arguments while replacing old internal restart flags
-    const std::wstring arguments = regkit::win32::RestartArguments(target.arg, parent_pid, original_args);
+    const std::wstring arguments = win32::RestartArguments(target.arg, parent_pid, original_args);
     *exit_code = 0;
     if (!util::IsProcessElevated())
     {
-        if (SUCCEEDED(regkit::win32::LaunchElevated(nullptr, exe_path, arguments)))
+        if (SUCCEEDED(win32::LaunchElevated(nullptr, exe_path, arguments)))
         {
             return true;
         }
-        regkit::ui::ShowError(nullptr, target.request_failure);
+        ui::ShowError(nullptr, target.request_failure);
         return false;
     }
     DWORD error = 0;
@@ -360,28 +344,128 @@ bool RestartAs(const RestartTarget& target, DWORD parent_pid, const std::vector<
     const bool launched = target.launch(L"\"" + exe_path + L"\" " + arguments, L"", &error, &impersonation_lost);
     if (impersonation_lost)
     {
-        regkit::ui::ShowError(nullptr, L"RegKit couldn't restore its own security context and must close now.");
+        ui::ShowError(nullptr, L"RegKit couldn't restore its own security context and must close now.");
         *exit_code = launched ? 0 : 1;
         return true;
     }
     if (!launched)
     {
-        const std::wstring detail = FormatWin32Error(error);
-        regkit::ui::ShowError(nullptr, detail.empty() ? target.launch_failure : std::wstring(target.launch_failure) + L"\n" + detail);
+        const std::wstring detail = util::FormatWin32Error(error);
+        ui::ShowError(nullptr, detail.empty() ? target.launch_failure : std::wstring(target.launch_failure) + L"\n" + detail);
     }
     return launched;
 }
 
-} // namespace
+std::optional<int> RunShellIntegrationCommand(const std::vector<std::wstring>& args)
+{
+    const bool install_menu = HasCommandLineArg(args, kInstallEditContextMenuArg);
+    const bool uninstall_menu = HasCommandLineArg(args, kUninstallEditContextMenuArg);
+    const bool install_replacement = HasCommandLineArg(args, kInstallRegEditReplacementArg);
+    if (!install_menu && !uninstall_menu && !install_replacement && !HasCommandLineArg(args, kUninstallRegEditReplacementArg))
+    {
+        return std::nullopt;
+    }
+    const std::wstring exe_path = util::GetModulePath();
+    if (exe_path.empty())
+    {
+        return 1;
+    }
+    LONG result = ERROR_SUCCESS;
+    if (install_menu)
+    {
+        result = win32::SetRegFileEditMenu(exe_path, true);
+    }
+    else if (uninstall_menu)
+    {
+        result = win32::RemoveRegFileEditMenuIfOwned(exe_path);
+    }
+    else
+    {
+        bool conflict = false;
+        result = win32::SetRegEditReplacement(exe_path, install_replacement, &conflict, HasCommandLineArg(args, kOverrideArg));
+        if (result != ERROR_SUCCESS && conflict)
+        {
+            return 2;
+        }
+    }
+    return result == ERROR_SUCCESS ? 0 : 1;
+}
+
+int MergeRegFiles(const std::vector<std::wstring>& reg_files)
+{
+    for (const auto& path : reg_files)
+    {
+        if (!ui::ConfirmRegFileMerge(nullptr, path))
+        {
+            return 0;
+        }
+        std::wstring error;
+        if (!ImportRegFileFromPath(path, &error))
+        {
+            ui::ShowRegFileMergeFailed(nullptr, path, error);
+            return 1;
+        }
+        ui::ShowRegFileMergeSucceeded(nullptr, path);
+    }
+    return 0;
+}
+
+bool HandOffToRunningInstance(HINSTANCE instance, const std::wstring& jump_target, const std::vector<std::wstring>& edit_files)
+{
+    HWND existing = FindRunningRegKitWindow();
+    if (!existing)
+    {
+        return false;
+    }
+    bool handed_off = true;
+    if (!jump_target.empty() || !edit_files.empty())
+    {
+        HWND sender = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, nullptr);
+        handed_off = sender != nullptr;
+        if (!jump_target.empty())
+        {
+            handed_off = SendTextToRegKit(existing, sender, kExternalJumpCopyDataId, jump_target) && handed_off;
+        }
+        for (const auto& path : edit_files)
+        {
+            handed_off = SendTextToRegKit(existing, sender, kEditRegFileCopyDataId, path) && handed_off;
+        }
+        if (sender)
+        {
+            DestroyWindow(sender);
+        }
+    }
+    if (handed_off)
+    {
+        ShowWindow(existing, SW_RESTORE);
+        SetForegroundWindow(existing);
+    }
+    return handed_off;
+}
+
+int RunMessageLoop(MainWindow& window)
+{
+    MSG msg = {};
+    for (BOOL available; (available = GetMessageW(&msg, nullptr, 0, 0)) != 0;)
+    {
+        if (available == -1)
+        {
+            ui::ShowError(nullptr, L"Message loop failed unexpectedly.");
+            return 1;
+        }
+        if (!window.TranslateAccelerator(msg))
+        {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+    }
+    return static_cast<int>(msg.wParam);
+}
 
 void ApplySafeDllSearchPolicy()
 {
-    const HMODULE kernel = GetModuleHandleW(L"kernel32.dll");
-    using SetDefaultDllDirectoriesFn = BOOL(WINAPI*)(DWORD);
     // resolve this at runtime as older winvers may not export it
-    const auto set_directories =
-        kernel ? reinterpret_cast<SetDefaultDllDirectoriesFn>(GetProcAddress(kernel, "SetDefaultDllDirectories"))
-               : nullptr;
+    const auto set_directories = win32::ImportProc<BOOL(WINAPI*)(DWORD)>(L"kernel32.dll", "SetDefaultDllDirectories");
     if (set_directories)
     {
         set_directories(LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_USER_DIRS);
@@ -390,45 +474,20 @@ void ApplySafeDllSearchPolicy()
     SetDllDirectoryW(L"");
 }
 
-int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show)
+int Run(HINSTANCE instance, int cmd_show)
 {
     ApplySafeDllSearchPolicy();
     const auto args = GetCommandLineArgs();
-    if (HasCommandLineArg(args, kInstallEditContextMenuArg) || HasCommandLineArg(args, kUninstallEditContextMenuArg) ||
-        HasCommandLineArg(args, kInstallRegEditReplacementArg) ||
-        HasCommandLineArg(args, kUninstallRegEditReplacementArg))
+    if (const std::optional<int> exit_code = RunShellIntegrationCommand(args))
     {
-        const std::wstring exe_path = util::GetModulePath();
-        if (exe_path.empty())
-        {
-            return 1;
-        }
-        LONG result = ERROR_SUCCESS;
-        if (HasCommandLineArg(args, kInstallEditContextMenuArg))
-        {
-            result = regkit::win32::SetRegFileEditMenu(exe_path, true);
-        }
-        else if (HasCommandLineArg(args, kUninstallEditContextMenuArg))
-        {
-            result = regkit::win32::RemoveRegFileEditMenuIfOwned(exe_path);
-        }
-        else
-        {
-            bool conflict = false;
-            result = regkit::win32::SetRegEditReplacement(exe_path, HasCommandLineArg(args, kInstallRegEditReplacementArg), &conflict, HasCommandLineArg(args, kOverrideArg));
-            if (result != ERROR_SUCCESS && conflict)
-            {
-                return 2;
-            }
-        }
-        return result == ERROR_SUCCESS ? 0 : 1;
+        return *exit_code;
     }
 
-    regkit::Theme::InitializeDarkModeSupport();
+    Theme::InitializeDarkModeSupport();
     util::ComInit com;
     if (!com.ok())
     {
-        regkit::ui::ShowError(nullptr, L"COM initialization failed.");
+        ui::ShowError(nullptr, L"COM initialization failed.");
         return 1;
     }
 
@@ -440,20 +499,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show)
     BufferedPaintInit();
 
     ApplyDataDirOverride(args);
-    const bool regedit_compat_requested = IsInterceptedRegEditLaunch(args);
     int cli_exit = 0;
-    if (regkit::cli::Execute(regedit_compat_requested ? StripRegEditLaunchArg(args) : args, &cli_exit))
+    if (cli::Execute(IsInterceptedRegEditLaunch(args) ? StripRegEditLaunchArg(args) : args, &cli_exit))
     {
         return cli_exit;
     }
-    const regkit::workspace::Settings startup_settings = LoadStartupSettings();
+    const workspace::Settings startup_settings = LoadStartupSettings();
     ApplyStartupTheme(startup_settings);
-    std::wstring startup_jump_target;
-    const bool external_jump_requested = ResolveExternalJumpTarget(args, &startup_jump_target);
+    const std::wstring jump_target = ExternalJumpTarget(args);
     const bool edit_reg_file_requested = HasCommandLineArg(args, kEditRegFileArg);
     const std::vector<std::wstring> reg_files = RegFilesFromArgs(args);
     const bool stay_as_user = HasCommandLineArg(args, kRestartUserArg);
-    const DWORD restart_parent_pid = regkit::win32::RestartParentPid(args);
+    const DWORD restart_parent_pid = win32::RestartParentPid(args);
     const DWORD handoff_pid = restart_parent_pid != 0 ? restart_parent_pid : GetCurrentProcessId();
     const RestartTarget* restart_target =
         HasCommandLineArg(args, kRestartTiArg)       ? &kTrustedInstallerTarget
@@ -474,129 +531,57 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show)
              !util::IsProcessElevated())
     {
         const std::wstring exe_path = util::GetModulePath();
-        if (!exe_path.empty() && SUCCEEDED(regkit::win32::LaunchElevated(
-                                     nullptr,
-                                     exe_path,
-                                     regkit::win32::RestartArguments(nullptr, handoff_pid, args)
-                                 )))
+        if (!exe_path.empty() && SUCCEEDED(win32::LaunchElevated(nullptr, exe_path, win32::RestartArguments(nullptr, handoff_pid, args))))
         {
             return 0;
         }
-        regkit::ui::ShowError(nullptr, L"Administrator restart was cancelled.");
+        ui::ShowError(nullptr, L"Administrator restart was cancelled.");
     }
 
     if (!edit_reg_file_requested && !reg_files.empty())
     {
-        for (const auto& path : reg_files)
-        {
-            if (!regkit::ui::ConfirmRegFileMerge(nullptr, path))
-            {
-                return 0;
-            }
-            std::wstring error;
-            if (!regkit::ImportRegFileFromPath(path, &error))
-            {
-                regkit::ui::ShowRegFileMergeFailed(nullptr, path, error);
-                return 1;
-            }
-            regkit::ui::ShowRegFileMergeSucceeded(nullptr, path);
-        }
-        return 0;
+        return MergeRegFiles(reg_files);
     }
 
-    regkit::win32::WaitForParentExit(restart_parent_pid);
+    win32::WaitForParentExit(restart_parent_pid);
 
+    const std::vector<std::wstring> edit_files = edit_reg_file_requested ? reg_files : std::vector<std::wstring>();
     util::UniqueHandle instance_mutex;
     if (startup_settings.single_instance)
     {
         instance_mutex.reset(CreateMutexW(nullptr, TRUE, L"RegKit.SingleInstance"));
         const DWORD mutex_error = GetLastError();
-        if (mutex_error == ERROR_ALREADY_EXISTS || mutex_error == ERROR_ACCESS_DENIED)
+        if ((mutex_error == ERROR_ALREADY_EXISTS || mutex_error == ERROR_ACCESS_DENIED) &&
+            HandOffToRunningInstance(instance, jump_target, edit_files))
         {
-            HWND existing = FindRunningRegKitWindow();
-            if (existing)
-            {
-                bool handed_off = true;
-                const bool has_handoff_data = (external_jump_requested && !startup_jump_target.empty()) ||
-                                              (edit_reg_file_requested && !reg_files.empty());
-                HWND sender = nullptr;
-                if (has_handoff_data)
-                {
-                    sender =
-                        CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, nullptr);
-                    if (!sender)
-                    {
-                        handed_off = false;
-                    }
-                }
-                if (sender && external_jump_requested && !startup_jump_target.empty() &&
-                    !SendTextToRegKit(existing, sender, kExternalJumpCopyDataId, startup_jump_target))
-                {
-                    handed_off = false;
-                }
-                if (sender && edit_reg_file_requested)
-                {
-                    for (const auto& path : reg_files)
-                    {
-                        if (!SendTextToRegKit(existing, sender, kEditRegFileCopyDataId, path))
-                        {
-                            handed_off = false;
-                        }
-                    }
-                }
-                if (sender)
-                {
-                    DestroyWindow(sender);
-                }
-                if (handed_off)
-                {
-                    ShowWindow(existing, SW_RESTORE);
-                    SetForegroundWindow(existing);
-                    return 0;
-                }
-            }
+            return 0;
         }
     }
 
-    regkit::MainWindow window;
+    MainWindow window;
     if (!window.Create(instance))
     {
-        regkit::ui::ShowError(nullptr, L"Failed to create the main window.");
+        ui::ShowError(nullptr, L"Failed to create the main window.");
         return 1;
     }
-    if (external_jump_requested && !startup_jump_target.empty())
+    if (!jump_target.empty())
     {
-        window.QueueExternalJump(startup_jump_target);
+        window.QueueExternalJump(jump_target);
     }
-    if (edit_reg_file_requested)
+    for (const auto& path : edit_files)
     {
-        for (const auto& path : reg_files)
-        {
-            window.OpenRegFileTab(path);
-        }
+        window.OpenRegFileTab(path);
     }
     window.Show(cmd_show);
-
-    MSG msg = {};
-    while (true)
-    {
-        const BOOL available = GetMessageW(&msg, nullptr, 0, 0);
-        if (available == 0)
-        {
-            break;
-        }
-        if (available == -1)
-        {
-            regkit::ui::ShowError(nullptr, L"Message loop failed unexpectedly.");
-            break;
-        }
-        if (window.TranslateAccelerator(msg))
-        {
-            continue;
-        }
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
-    }
+    const int exit_code = RunMessageLoop(window);
     BufferedPaintUnInit();
-    return static_cast<int>(msg.wParam);
+    return exit_code;
+}
+
+} // namespace
+} // namespace regkit
+
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int cmd_show)
+{
+    return regkit::Run(instance, cmd_show);
 }

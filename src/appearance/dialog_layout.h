@@ -13,6 +13,7 @@
 namespace regkit::appearance
 {
 
+HWND CreateControl(HWND parent, const wchar_t* class_name, const wchar_t* text, DWORD style, int id);
 void SetControlFont(HWND control, HFONT font);
 void SetDialogFont(HWND dialog, HFONT font);
 void Place(HWND control, int x, int y, int width, int height);

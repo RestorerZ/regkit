@@ -200,7 +200,7 @@ bool EnumKeyStreaming(const VirtualRegistryData& data, const RegistryNode& node,
     return true;
 }
 
-bool QueryValue(const VirtualRegistryData& data, const RegistryNode& node, const std::wstring& value_name, ValueEntry* out)
+bool QueryValue(const VirtualRegistryData& data, const RegistryNode& node, const std::wstring& value_name, RegistryValue* out)
 {
     std::shared_lock<std::shared_mutex> lock(*data.mutex);
     if (!out)

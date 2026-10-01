@@ -199,63 +199,24 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
     {
     case WM_CREATE:
         {
-            CreateWindowExW(0, L"STATIC", L"Find what:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kFindLabel), nullptr, nullptr);
-            state->find_edit = CreateWindowExW(
-                0,
-                L"EDIT",
-                L"",
-                WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE,
-                0,
-                0,
-                0,
-                0,
-                hwnd,
-                reinterpret_cast<HMENU>(kFindEdit),
-                nullptr,
-                nullptr
-            );
-            CreateWindowExW(0, L"STATIC", L"Replace with:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceLabel), nullptr, nullptr);
-            state->replace_edit = CreateWindowExW(
-                0,
-                L"EDIT",
-                L"",
-                WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE,
-                0,
-                0,
-                0,
-                0,
-                hwnd,
-                reinterpret_cast<HMENU>(kReplaceEdit),
-                nullptr,
-                nullptr
-            );
-            CreateWindowExW(0, L"BUTTON", L"Where to search", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kWhereGroup), nullptr, nullptr);
-            CreateWindowExW(0, L"STATIC", L"Key:", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyLabel), nullptr, nullptr);
-            state->key_edit = CreateWindowExW(
-                0,
-                L"EDIT",
-                L"",
-                WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE,
-                0,
-                0,
-                0,
-                0,
-                hwnd,
-                reinterpret_cast<HMENU>(kKeyEdit),
-                nullptr,
-                nullptr
-            );
+            appearance::CreateControl(hwnd, L"STATIC", L"Find what:", 0, kFindLabel);
+            state->find_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, kFindEdit);
+            appearance::CreateControl(hwnd, L"STATIC", L"Replace with:", 0, kReplaceLabel);
+            state->replace_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, kReplaceEdit);
+            appearance::CreateControl(hwnd, L"BUTTON", L"Where to search", BS_GROUPBOX, kWhereGroup);
+            appearance::CreateControl(hwnd, L"STATIC", L"Key:", 0, kKeyLabel);
+            state->key_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, kKeyEdit);
             state->key_browse =
-                CreateWindowExW(0, L"BUTTON", L"Browse...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kKeyBrowse), nullptr, nullptr);
-            CreateWindowExW(0, L"BUTTON", L"Options", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOptionsGroup), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Browse...", WS_TABSTOP | BS_PUSHBUTTON, kKeyBrowse);
+            appearance::CreateControl(hwnd, L"BUTTON", L"Options", BS_GROUPBOX, kOptionsGroup);
             state->recursive =
-                CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kRecursive), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Recursive", WS_TABSTOP | BS_AUTOCHECKBOX, kRecursive);
             state->match_case =
-                CreateWindowExW(0, L"BUTTON", L"Match case", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kMatchCase), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Match case", WS_TABSTOP | BS_AUTOCHECKBOX, kMatchCase);
             state->match_whole =
-                CreateWindowExW(0, L"BUTTON", L"Match whole string", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kMatchWhole), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Match whole string", WS_TABSTOP | BS_AUTOCHECKBOX, kMatchWhole);
             state->use_regex =
-                CreateWindowExW(0, L"BUTTON", L"Regular expressions", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kUseRegex), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Regular expressions", WS_TABSTOP | BS_AUTOCHECKBOX, kUseRegex);
             ui::AddTooltip(
                 hwnd,
                 state->use_regex,
@@ -266,18 +227,18 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
                 L"for a dollar."
             );
             state->search_keys =
-                CreateWindowExW(0, L"BUTTON", L"Replace in key names", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchKeys), nullptr, nullptr);
-            state->search_values = CreateWindowExW(0, L"BUTTON", L"Replace in value names", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchValues), nullptr, nullptr);
-            state->search_data = CreateWindowExW(0, L"BUTTON", L"Replace in value data", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSearchData), nullptr, nullptr);
-            CreateWindowExW(0, L"BUTTON", L"Value Data", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kValueDataGroup), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Replace in key names", WS_TABSTOP | BS_AUTOCHECKBOX, kSearchKeys);
+            state->search_values = appearance::CreateControl(hwnd, L"BUTTON", L"Replace in value names", WS_TABSTOP | BS_AUTOCHECKBOX, kSearchValues);
+            state->search_data = appearance::CreateControl(hwnd, L"BUTTON", L"Replace in value data", WS_TABSTOP | BS_AUTOCHECKBOX, kSearchData);
+            appearance::CreateControl(hwnd, L"BUTTON", L"Value Data", BS_GROUPBOX, kValueDataGroup);
             state->number_decimal =
-                CreateWindowExW(0, L"BUTTON", L"Numbers as decimal", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kNumberDecimal), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Numbers as decimal", WS_TABSTOP | BS_AUTOCHECKBOX, kNumberDecimal);
             state->number_hex =
-                CreateWindowExW(0, L"BUTTON", L"Numbers as hex", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kNumberHex), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Numbers as hex", WS_TABSTOP | BS_AUTOCHECKBOX, kNumberHex);
             state->replace_button =
-                CreateWindowExW(0, L"BUTTON", L"Replace", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kReplaceButton), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Replace", WS_TABSTOP | BS_DEFPUSHBUTTON, kReplaceButton);
             state->cancel_button =
-                CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
 
             const ReplaceDialogResult& initial = *state->out;
             SetWindowTextW(state->find_edit, initial.find_text.c_str());

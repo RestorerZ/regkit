@@ -14,10 +14,10 @@
 #include <winsvc.h>
 #include <wtsapi32.h>
 
+namespace regkit::util
+{
 namespace
 {
-
-using util::UniqueHandle;
 
 struct DestroyEnvironment
 {
@@ -35,8 +35,8 @@ struct CloseService
     }
 };
 
-using UniqueEnvironment = util::UniqueResource<LPVOID, DestroyEnvironment>;
-using UniqueService = util::UniqueResource<SC_HANDLE, CloseService>;
+using UniqueEnvironment = UniqueResource<LPVOID, DestroyEnvironment>;
+using UniqueService = UniqueResource<SC_HANDLE, CloseService>;
 
 constexpr DWORD kNoSession = static_cast<DWORD>(-1);
 
@@ -106,12 +106,12 @@ bool OpenSystemToken(DWORD session_id, HANDLE* token)
             {
                 continue;
             }
-            if (lsass_pid == 0 && process.SessionId == 0 && util::EqualsInsensitive(process.pProcessName, L"lsass.exe"))
+            if (lsass_pid == 0 && process.SessionId == 0 && EqualsInsensitive(process.pProcessName, L"lsass.exe"))
             {
                 lsass_pid = process.ProcessId;
             }
             else if (winlogon_pid == 0 && process.SessionId == session_id &&
-                     util::EqualsInsensitive(process.pProcessName, L"winlogon.exe"))
+                     EqualsInsensitive(process.pProcessName, L"winlogon.exe"))
             {
                 winlogon_pid = process.ProcessId;
             }
@@ -261,7 +261,7 @@ bool LaunchElevatedToken(const std::wstring& command_line, const std::wstring& w
     // get debug access before opening a protected SYSTEM process
     if (!OpenProcessToken(GetCurrentProcess(), MAXIMUM_ALLOWED, current_token.put()) ||
         !DuplicateTokenEx(current_token.get(), MAXIMUM_ALLOWED, nullptr, SecurityImpersonation, TokenImpersonation, current_impersonation.put()) ||
-        !util::EnableTokenPrivilege(current_impersonation.get(), SE_DEBUG_NAME) ||
+        !EnableTokenPrivilege(current_impersonation.get(), SE_DEBUG_NAME) ||
         !SetThreadToken(nullptr, current_impersonation.get()))
     {
         return false;
@@ -334,10 +334,48 @@ bool LaunchImpersonated(const std::wstring& command_line, const std::wstring& wo
     return launched;
 }
 
-} // namespace
-
-namespace util
+bool GrantsWriteToNonAdmins(const std::wstring& path, const std::vector<std::vector<BYTE>>& trusted_sids)
 {
+    constexpr ACCESS_MASK kWriteAccess = FILE_WRITE_DATA | FILE_APPEND_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES |
+                                         FILE_DELETE_CHILD | DELETE | WRITE_DAC | WRITE_OWNER | GENERIC_WRITE |
+                                         GENERIC_ALL;
+    PSECURITY_DESCRIPTOR descriptor = nullptr;
+    PSID owner = nullptr;
+    PACL dacl = nullptr;
+    if (GetNamedSecurityInfoW(path.c_str(), SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION, &owner, nullptr, &dacl, nullptr, &descriptor) != ERROR_SUCCESS)
+    {
+        return true;
+    }
+    const auto trusted = [&](PSID sid) {
+        return std::any_of(trusted_sids.begin(), trusted_sids.end(), [&](const std::vector<BYTE>& entry) {
+            return EqualSid(const_cast<PSID>(static_cast<const void*>(entry.data())), sid) != FALSE;
+        });
+    };
+    bool writable = !owner || !dacl || !trusted(owner);
+    for (DWORD index = 0; dacl && !writable && index < dacl->AceCount; ++index)
+    {
+        void* entry = nullptr;
+        if (!GetAce(dacl, index, &entry))
+        {
+            writable = true;
+            break;
+        }
+        const auto* header = static_cast<const ACE_HEADER*>(entry);
+        if ((header->AceFlags & INHERIT_ONLY_ACE) != 0 || header->AceType == ACCESS_DENIED_ACE_TYPE ||
+            header->AceType == ACCESS_DENIED_CALLBACK_ACE_TYPE)
+        {
+            continue;
+        }
+        const auto* ace = static_cast<const ACCESS_ALLOWED_ACE*>(entry);
+        writable =
+            (header->AceType != ACCESS_ALLOWED_ACE_TYPE && header->AceType != ACCESS_ALLOWED_CALLBACK_ACE_TYPE) ||
+            ((ace->Mask & kWriteAccess) != 0 && !trusted(const_cast<PSID>(static_cast<const void*>(&ace->SidStart))));
+    }
+    LocalFree(descriptor);
+    return writable;
+}
+
+} // namespace
 
 bool EnableTokenPrivilege(HANDLE token, const wchar_t* name, TOKEN_PRIVILEGES* previous)
 {
@@ -430,47 +468,6 @@ bool IsUacEnabled()
     DWORD size = sizeof(value);
     return RegGetValueW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", L"EnableLUA", RRF_RT_REG_DWORD, nullptr, &value, &size) != ERROR_SUCCESS ||
            value != 0;
-}
-
-bool GrantsWriteToNonAdmins(const std::wstring& path, const std::vector<std::vector<BYTE>>& trusted_sids)
-{
-    constexpr ACCESS_MASK kWriteAccess = FILE_WRITE_DATA | FILE_APPEND_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES |
-                                         FILE_DELETE_CHILD | DELETE | WRITE_DAC | WRITE_OWNER | GENERIC_WRITE |
-                                         GENERIC_ALL;
-    PSECURITY_DESCRIPTOR descriptor = nullptr;
-    PSID owner = nullptr;
-    PACL dacl = nullptr;
-    if (GetNamedSecurityInfoW(path.c_str(), SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION, &owner, nullptr, &dacl, nullptr, &descriptor) != ERROR_SUCCESS)
-    {
-        return true;
-    }
-    const auto trusted = [&](PSID sid) {
-        return std::any_of(trusted_sids.begin(), trusted_sids.end(), [&](const std::vector<BYTE>& entry) {
-            return EqualSid(const_cast<PSID>(static_cast<const void*>(entry.data())), sid) != FALSE;
-        });
-    };
-    bool writable = !owner || !dacl || !trusted(owner);
-    for (DWORD index = 0; dacl && !writable && index < dacl->AceCount; ++index)
-    {
-        void* entry = nullptr;
-        if (!GetAce(dacl, index, &entry))
-        {
-            writable = true;
-            break;
-        }
-        const auto* header = static_cast<const ACE_HEADER*>(entry);
-        if ((header->AceFlags & INHERIT_ONLY_ACE) != 0 || header->AceType == ACCESS_DENIED_ACE_TYPE ||
-            header->AceType == ACCESS_DENIED_CALLBACK_ACE_TYPE)
-        {
-            continue;
-        }
-        const auto* ace = static_cast<const ACCESS_ALLOWED_ACE*>(entry);
-        writable =
-            (header->AceType != ACCESS_ALLOWED_ACE_TYPE && header->AceType != ACCESS_ALLOWED_CALLBACK_ACE_TYPE) ||
-            ((ace->Mask & kWriteAccess) != 0 && !trusted(const_cast<PSID>(static_cast<const void*>(&ace->SidStart))));
-    }
-    LocalFree(descriptor);
-    return writable;
 }
 
 bool IsWritableByNonAdmins(const std::wstring& file_path)
@@ -607,4 +604,4 @@ bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std
     return LaunchImpersonated(command_line, work_dir, L"TrustedInstaller", error_code, impersonation_lost);
 }
 
-} // namespace util
+} // namespace regkit::util

@@ -7,6 +7,7 @@
 
 #include <windows.h>
 
+#include <cstdint>
 #include <span>
 #include <string>
 #include <string_view>
@@ -20,6 +21,8 @@ std::wstring TypeName(DWORD type);
 std::wstring Data(DWORD type, const BYTE* data, DWORD size);
 std::wstring DisplayData(DWORD type, const BYTE* data, DWORD size, bool resolve_indirect = true);
 
+uint64_t ReadUnsigned(std::span<const BYTE> data, size_t width, bool big_endian = false);
+std::vector<BYTE> UnsignedBytes(uint64_t value, size_t width, bool big_endian = false);
 bool ParseHex(std::wstring_view text, std::vector<BYTE>* output);
 std::vector<BYTE> StringData(std::wstring_view text);
 bool DecodeString(std::span<const BYTE> data, std::wstring* output);

@@ -85,6 +85,11 @@ void AttachThemedBorder(HWND control)
     SetWindowPos(control, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 }
 
+HWND CreateControl(HWND parent, const wchar_t* class_name, const wchar_t* text, DWORD style, int id)
+{
+    return CreateWindowExW(0, class_name, text, WS_CHILD | WS_VISIBLE | style, 0, 0, 0, 0, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), nullptr, nullptr);
+}
+
 void SetControlFont(HWND control, HFONT font)
 {
     if (control && font)

@@ -43,8 +43,6 @@ struct RegistryRootEntry
     RegistryRootGroup group = RegistryRootGroup::kStandard;
 };
 
-using ValueEntry = RegistryValue;
-
 struct ValueInfo
 {
     std::wstring name;
@@ -69,10 +67,6 @@ struct KeyInfo
 class RegistryStore
 {
   public:
-    using VirtualRegistryValue = RegistryValue;
-    using VirtualRegistryKey = regkit::VirtualRegistryKey;
-    using VirtualRegistryData = regkit::VirtualRegistryData;
-
     static std::vector<RegistryRootEntry> DefaultRoots(bool include_extra = false);
     static bool HasSubKeys(const RegistryNode& node);
     static std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node, bool sorted = true);
@@ -85,7 +79,7 @@ class RegistryStore
     };
     static bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, KeyEnumResult* out_info, const ValueStreamCallback& value_callback, const SubkeyStreamCallback& subkey_callback, DWORD max_data_size = MAXDWORD, EnumerationScratch* scratch = nullptr, bool ordered = true, bool open_link = false);
     static bool IsOfflineRoot(HKEY root);
-    static bool QueryValue(const RegistryNode& node, const std::wstring& value_name, ValueEntry* out);
+    static bool QueryValue(const RegistryNode& node, const std::wstring& value_name, RegistryValue* out);
     static bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);
     static bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, bool* denied = nullptr);
     static bool OpenOfflineHive(const std::wstring& path, HKEY* root, std::wstring* error);

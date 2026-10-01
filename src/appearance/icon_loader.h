@@ -11,7 +11,7 @@
 
 #include <string>
 
-namespace util
+namespace regkit::appearance
 {
 
 int ScaleForDpi(int size, UINT dpi);
@@ -19,4 +19,4 @@ HICON LoadIconResource(int resource_id, int size, UINT dpi);
 HICON LoadIconFromFile(const std::wstring& path, int size, UINT dpi);
 void ImageListAddOrBlank(HIMAGELIST list, HICON icon, int size);
 
-} // namespace util
+} // namespace regkit::appearance

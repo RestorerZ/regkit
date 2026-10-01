@@ -135,6 +135,9 @@ std::wstring Data(DWORD type, const BYTE* data, DWORD size)
     return util::ToHex({data, size});
 }
 
+namespace
+{
+
 bool IsTrustedResourcePath(const wchar_t* full)
 {
     static const std::vector<std::wstring> roots = [] {
@@ -200,6 +203,8 @@ std::wstring TrustedIndirectString(const std::wstring& value)
     return value.substr(0, start) + full + (end == std::wstring::npos ? std::wstring() : value.substr(end));
 }
 
+} // namespace
+
 std::wstring DisplayData(DWORD type, const BYTE* data, DWORD size, bool resolve_indirect)
 {
     const DWORD base_type = NormalizeType(type);
@@ -244,6 +249,30 @@ std::wstring DisplayData(DWORD type, const BYTE* data, DWORD size, bool resolve_
         }
     }
     return value;
+}
+
+uint64_t ReadUnsigned(std::span<const BYTE> data, size_t width, bool big_endian)
+{
+    if (width == 0 || width > sizeof(uint64_t) || data.size() < width)
+    {
+        return 0;
+    }
+    uint64_t value = 0;
+    for (size_t index = 0; index < width; ++index)
+    {
+        value = (value << 8) | data[big_endian ? index : width - 1 - index];
+    }
+    return value;
+}
+
+std::vector<BYTE> UnsignedBytes(uint64_t value, size_t width, bool big_endian)
+{
+    std::vector<BYTE> bytes(width, 0);
+    for (size_t index = 0; index < width && index < sizeof(uint64_t); ++index)
+    {
+        bytes[big_endian ? width - 1 - index : index] = static_cast<BYTE>(value >> (8 * index));
+    }
+    return bytes;
 }
 
 bool ParseHex(std::wstring_view text, std::vector<BYTE>* output)

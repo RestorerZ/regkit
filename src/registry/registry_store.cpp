@@ -176,7 +176,7 @@ bool RegistryStore::IsOfflineRoot(HKEY root)
     return registry_backend::offline::Owns(root);
 }
 
-bool RegistryStore::QueryValue(const RegistryNode& node, const std::wstring& value_name, ValueEntry* out)
+bool RegistryStore::QueryValue(const RegistryNode& node, const std::wstring& value_name, RegistryValue* out)
 {
     if (!out)
     {

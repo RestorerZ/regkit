@@ -145,18 +145,8 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         }
         return TRUE;
     }
-    if (message == WM_SIZE && state)
-    {
-        state->resizer.Apply(dialog);
-        return TRUE;
-    }
-    if (message == WM_GETMINMAXINFO && state)
-    {
-        state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
-        return TRUE;
-    }
     INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed))
+    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed, state ? &state->resizer : nullptr))
     {
         return themed;
     }

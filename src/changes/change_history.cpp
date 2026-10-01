@@ -52,11 +52,35 @@ void Trim(std::vector<HistoryEntry>* entries, size_t maximum)
     {
         return;
     }
-    auto cut = entries->end() - static_cast<std::ptrdiff_t>(maximum);
-    std::nth_element(entries->begin(), cut, entries->end(), [](const HistoryEntry& left, const HistoryEntry& right) {
-        return left.timestamp < right.timestamp;
-    });
-    entries->erase(entries->begin(), cut);
+    const size_t excess = entries->size() - maximum;
+    std::vector<uint64_t> stamps;
+    stamps.reserve(entries->size());
+    for (const HistoryEntry& entry : *entries)
+    {
+        stamps.push_back(entry.timestamp);
+    }
+    std::nth_element(stamps.begin(), stamps.begin() + static_cast<std::ptrdiff_t>(excess - 1), stamps.end());
+    const uint64_t cutoff = stamps[excess - 1];
+    size_t at_cutoff = excess - static_cast<size_t>(std::count_if(stamps.begin(), stamps.end(), [cutoff](uint64_t stamp) { return stamp < cutoff; }));
+    auto kept = entries->begin();
+    for (auto entry = entries->begin(); entry != entries->end(); ++entry)
+    {
+        if (entry->timestamp < cutoff)
+        {
+            continue;
+        }
+        if (entry->timestamp == cutoff && at_cutoff > 0)
+        {
+            --at_cutoff;
+            continue;
+        }
+        if (kept != entry)
+        {
+            *kept = std::move(*entry);
+        }
+        ++kept;
+    }
+    entries->erase(kept, entries->end());
 }
 
 void Stamp(HistoryEntry* entry)
@@ -80,7 +104,7 @@ void DecodeRevert(const std::vector<std::wstring>& fields, HistoryEntry* entry)
 {
     uint64_t kind = 0;
     uint64_t type = 0;
-    ValueEntry value;
+    RegistryValue value;
     if (!entry || fields.size() < 11 ||
         !record_fields::ParseUnsigned(fields[7], static_cast<uint64_t>(HistoryEntry::RevertKind::kDeleteKey), &kind) ||
         !record_fields::ParseUnsigned(fields[9], MAXDWORD, &type) || !value_format::ParseHex(fields[10], &value.data))
@@ -227,7 +251,7 @@ bool PrepareRevert(const HistoryEntry& entry, const QueryValue& query_value, His
     };
 
     std::wstring value_name;
-    ValueEntry current;
+    RegistryValue current;
     if (suffix(L"Create value ", &value_name))
     {
         prepared->value_name = std::move(value_name);

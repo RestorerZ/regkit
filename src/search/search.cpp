@@ -7,6 +7,7 @@
 #include "registry/value_format.h"
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
+#include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 #include "work/session.h"
 
@@ -42,10 +43,7 @@ std::wstring SourceLabel(const Source& source)
         return source.name.empty() ? L"Network Registry" : source.name;
     case Source::Kind::kOffline:
     case Source::Kind::kRegFile:
-        {
-            const size_t slash = source.name.find_last_of(L"\\/");
-            return slash == std::wstring::npos ? source.name : source.name.substr(slash + 1);
-        }
+        return util::FileName(source.name);
     default:
         break;
     }
@@ -162,6 +160,39 @@ Match Matcher::Find(std::wstring_view text) const
         location.length = query_.size();
     }
     return location;
+}
+
+regex::Status Matcher::Replace(std::wstring_view text, const std::wstring& replacement, std::wstring* out) const
+{
+    if (!out || !valid_)
+    {
+        return regex::Status::kFailed;
+    }
+    if (use_regex_)
+    {
+        return session_.Replace(text, replacement, out, nullptr);
+    }
+    std::wstring replaced;
+    size_t cursor = 0;
+    bool matched = false;
+    while (cursor < text.size())
+    {
+        const Match match = Find(text.substr(cursor));
+        if (!match.matched)
+        {
+            break;
+        }
+        matched = true;
+        replaced.append(text.substr(cursor, match.start)).append(replacement);
+        cursor += match.start + match.length;
+    }
+    if (!matched)
+    {
+        return regex::Status::kNoMatch;
+    }
+    replaced.append(text.substr(cursor));
+    *out = std::move(replaced);
+    return regex::Status::kMatch;
 }
 
 bool IsExcludedPath(const std::wstring& path, const std::vector<std::wstring>& excludes)

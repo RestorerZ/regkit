@@ -3,6 +3,8 @@
 
 #include "work/session.h"
 
+#include "win32/system_api.h"
+
 #include <system_error>
 
 #include <windows.h>
@@ -12,8 +14,7 @@ namespace regkit::work
 
 void NameThread(std::thread& thread, const wchar_t* name) noexcept
 {
-    using SetThreadDescriptionFn = HRESULT(WINAPI*)(HANDLE, PCWSTR);
-    static const auto set_description = reinterpret_cast<SetThreadDescriptionFn>(GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadDescription"));
+    static const auto set_description = win32::ImportProc<HRESULT(WINAPI*)(HANDLE, PCWSTR)>(L"kernel32.dll", "SetThreadDescription");
     if (set_description && thread.joinable())
     {
         set_description(thread.native_handle(), name);

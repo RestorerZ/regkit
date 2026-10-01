@@ -8,6 +8,7 @@
 #include "editors/hive_dialog.h"
 #include "editors/value_editor.h"
 #include "regfile/reg_file.h"
+#include "registry/key_algorithms.h"
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
 #include "win32/file_dialog.h"
@@ -21,7 +22,6 @@
 
 #include <algorithm>
 #include <cwchar>
-#include <unordered_set>
 #include <vector>
 
 #include <shlobj.h>
@@ -32,21 +32,8 @@ namespace
 {
 
 using util::FormatWin32Error;
-using util::ToLower;
 
 constexpr wchar_t kRegFileFilter[] = L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0";
-
-struct TemporaryFile
-{
-    std::wstring path;
-    ~TemporaryFile()
-    {
-        if (!path.empty())
-        {
-            DeleteFileW(path.c_str());
-        }
-    }
-};
 
 bool RunRegCommand(const std::wstring& args, std::wstring* error)
 {
@@ -123,33 +110,46 @@ bool RunRegCommand(const std::wstring& args, std::wstring* error)
     GetExitCodeProcess(process_handle.get(), &code);
     if (code != 0 && error)
     {
-        std::wstring detail;
-        const int chars = output.empty() ? 0
-                                         : MultiByteToWideChar(CP_OEMCP, 0, output.data(), static_cast<int>(output.size()), nullptr, 0);
-        if (chars > 0)
-        {
-            detail.resize(static_cast<size_t>(chars));
-            MultiByteToWideChar(CP_OEMCP, 0, output.data(), static_cast<int>(output.size()), detail.data(), chars);
-            detail = util::TrimWhitespace(detail);
-        }
+        const std::wstring detail = util::TrimWhitespace(util::NarrowToWide(output, CP_OEMCP));
         *error = detail.empty() ? L"reg.exe exited with code " + std::to_wstring(code) + L"." : detail;
     }
     return code == 0;
 }
 
-std::wstring NormalizeExportKeyPath(const std::wstring& key_path, std::wstring* error)
+bool ResolveExportKey(const std::wstring& key_path, RegistryNode* node, std::wstring* display, std::wstring* error)
 {
-    const std::wstring path = registry_path::Normalize(key_path, util::GetCurrentUserSidString());
-    RegistryNode node;
-    if (!registry_path::ParseRoot(path, &node) || !node.root)
+    *display = registry_path::Normalize(key_path, util::GetCurrentUserSidString());
+    if (!registry_path::ParseRoot(*display, node) || !node->root)
     {
         if (error)
         {
             *error = L"Export supports the standard root keys only.";
         }
-        return {};
+        return false;
     }
-    return path;
+    return true;
+}
+
+bool WriteRegFile(const std::wstring& path, regfile::Writer&& writer, std::wstring* error)
+{
+    if (util::WriteTextFile(path, std::move(writer).Finish(), true))
+    {
+        return true;
+    }
+    if (error)
+    {
+        *error = L"Failed to write the exported registry file.\n" + path;
+    }
+    return false;
+}
+
+bool ReportUnreadableKey(LONG status, const std::wstring& display, std::wstring* error)
+{
+    if (error)
+    {
+        *error = util::FormatWin32Error(static_cast<DWORD>(status)) + L"\n" + display;
+    }
+    return false;
 }
 
 std::wstring SanitizeFileName(const std::wstring& name)
@@ -181,192 +181,6 @@ std::wstring ExportDefaultNameFromKeyPath(const std::wstring& key_path)
     return path;
 }
 
-bool FilterExportedRegFile(const std::wstring& source, const std::wstring& target, std::wstring* error)
-{
-    std::wstring content;
-    bool utf16 = false;
-    if (!util::ReadTextFile(source, &content, &utf16))
-    {
-        if (error)
-        {
-            *error = L"Failed to read exported registry file.";
-        }
-        return false;
-    }
-    std::wstring output;
-    output.reserve(content.size());
-    bool wrote_section = false;
-    for (size_t start = 0; start < content.size();)
-    {
-        const size_t end = std::min(content.find(L'\n', start), content.size());
-        std::wstring_view line(content.data() + start, end - start);
-        start = end + 1;
-        if (!line.empty() && line.back() == L'\r')
-        {
-            line.remove_suffix(1);
-        }
-        if (!line.empty() && line.front() == L'[' && line.back() == L']')
-        {
-            if (wrote_section)
-            {
-                break;
-            }
-            wrote_section = true;
-        }
-        output.append(line).append(L"\r\n");
-    }
-    if (!util::WriteTextFile(target, output, utf16))
-    {
-        if (error)
-        {
-            *error = L"Failed to write exported registry file.";
-        }
-        return false;
-    }
-    return true;
-}
-
-bool AppendRegContent(const std::wstring& content, regfile::Document* output, std::wstring* error)
-{
-    regfile::Document parsed;
-    if (!regfile::Parse(content, &parsed))
-    {
-        if (error)
-        {
-            *error = L"Failed to parse exported registry data.";
-        }
-        return false;
-    }
-    for (const auto& path : parsed.key_order)
-    {
-        const std::wstring lower = ToLower(path);
-        auto source = parsed.keys.find(lower);
-        if (source == parsed.keys.end())
-        {
-            continue;
-        }
-        auto [target, inserted] = output->keys.try_emplace(lower, std::move(source->second));
-        if (inserted)
-        {
-            output->key_order.push_back(path);
-            continue;
-        }
-        for (auto& value : source->second.values)
-        {
-            target->second.values[value.first] = std::move(value.second);
-        }
-    }
-    return true;
-}
-
-bool FilterRegFileValues(const std::wstring& content, const std::vector<std::wstring>& values, regfile::Document* output, std::wstring* error)
-{
-    if (!regfile::Parse(content, output) || output->key_order.empty())
-    {
-        if (error)
-        {
-            *error = L"Failed to parse exported registry data.";
-        }
-        return false;
-    }
-    std::unordered_set<std::wstring> wanted;
-    for (const auto& value : values)
-    {
-        wanted.insert(ToLower(value));
-    }
-    const std::wstring first_path = output->key_order.front();
-    const std::wstring first_lower = ToLower(first_path);
-    auto first_key = output->keys.find(first_lower);
-    if (first_key == output->keys.end())
-    {
-        return false;
-    }
-    std::erase_if(first_key->second.values, [&](const auto& value) { return !wanted.contains(value.first); });
-    if (first_key->second.values.empty())
-    {
-        if (error)
-        {
-            *error = L"No selected values were found in the export.";
-        }
-        return false;
-    }
-    regfile::Key selected = std::move(first_key->second);
-    output->keys.clear();
-    output->key_order.assign(1, first_path);
-    output->keys.emplace(first_lower, std::move(selected));
-    return true;
-}
-
-std::wstring MakeTempRegPath(std::wstring* error)
-{
-    const std::wstring folder = util::GetCacheFolder();
-    if (folder.empty())
-    {
-        if (error)
-        {
-            *error = L"Failed to locate the RegKit data folder.";
-        }
-        return {};
-    }
-    for (int attempt = 0; attempt < 16; ++attempt)
-    {
-        std::wstring path = util::JoinPath(folder, L"export" + util::RandomFileSuffix(L".reg"));
-        const util::UniqueHandle reserved(
-            CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY, nullptr)
-        );
-        if (reserved)
-        {
-            return path;
-        }
-        if (GetLastError() != ERROR_FILE_EXISTS)
-        {
-            break;
-        }
-    }
-    if (error)
-    {
-        *error = FormatWin32Error(GetLastError());
-    }
-    return {};
-}
-
-bool ExportKey(const std::wstring& key_path, bool include_subkeys, const std::wstring& target_path, std::wstring* error)
-{
-    const std::wstring normalized = NormalizeExportKeyPath(key_path, error);
-    TemporaryFile unfiltered;
-    if (!include_subkeys)
-    {
-        unfiltered.path = MakeTempRegPath(error);
-    }
-    if (normalized.empty() || (!include_subkeys && unfiltered.path.empty()))
-    {
-        return false;
-    }
-    const std::wstring& export_path = include_subkeys ? target_path : unfiltered.path;
-    const std::wstring args = L"export \"" + normalized + L"\" \"" + export_path + L"\" /y " +
-                              win32::RegExeViewSwitch(win32::kDefaultRegistryView);
-    return RunRegCommand(args, error) &&
-           (include_subkeys || FilterExportedRegFile(unfiltered.path, target_path, error));
-}
-
-bool ExportKeyToContent(const std::wstring& key_path, bool include_subkeys, std::wstring* content, bool* utf16, std::wstring* error)
-{
-    TemporaryFile exported{MakeTempRegPath(error)};
-    if (exported.path.empty() || !ExportKey(key_path, include_subkeys, exported.path, error))
-    {
-        return false;
-    }
-    if (!util::ReadTextFile(exported.path, content, utf16))
-    {
-        if (error)
-        {
-            *error = L"Failed to read exported registry file.";
-        }
-        return false;
-    }
-    return true;
-}
-
 } // namespace
 
 bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error)
@@ -389,7 +203,19 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error
         return false;
     }
     options.path = util::EnsureFileExtension(options.path, L".reg");
-    if (!ExportKey(key_path, options.include_subkeys, options.path, error))
+    RegistryNode node;
+    std::wstring display;
+    if (!ResolveExportKey(key_path, &node, &display, error))
+    {
+        return false;
+    }
+    regfile::Writer writer;
+    const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, win32::kDefaultRegistryView, options.include_subkeys);
+    if (status != ERROR_SUCCESS)
+    {
+        return ReportUnreadableKey(status, display, error);
+    }
+    if (!WriteRegFile(options.path, std::move(writer), error))
     {
         return false;
     }
@@ -422,25 +248,38 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
     }
     path = util::EnsureFileExtension(path, L".reg");
 
-    regfile::Document output;
-    bool output_utf16 = false;
-    bool exported_any = false;
-    auto export_content = [&](const std::wstring& key_path, bool include_subkeys, std::wstring* content) {
-        bool utf16 = false;
-        if (!ExportKeyToContent(key_path, include_subkeys, content, &utf16, error))
+    regfile::Writer writer;
+    if (!value_names.empty())
+    {
+        RegistryNode base;
+        std::wstring display;
+        if (!ResolveExportKey(base_key_path, &base, &display, error))
         {
             return false;
         }
-        output_utf16 = exported_any ? output_utf16 : utf16;
-        exported_any = true;
-        return true;
-    };
-
-    std::wstring content;
-    if (!value_names.empty() &&
-        (!export_content(base_key_path, false, &content) || !FilterRegFileValues(content, value_names, &output, error)))
-    {
-        return false;
+        registry_backend::KeyContents contents;
+        const LONG status = registry_backend::ReadKeyContents(base.root, base.subkey, win32::kDefaultRegistryView, true, &contents);
+        if (status != ERROR_SUCCESS)
+        {
+            return ReportUnreadableKey(status, display, error);
+        }
+        std::vector<const regfile::Value*> selected;
+        for (const RegistryValue& value : contents.values)
+        {
+            if (std::any_of(value_names.begin(), value_names.end(), [&](const std::wstring& name) { return util::EqualsInsensitive(name, value.name); }))
+            {
+                selected.push_back(&value);
+            }
+        }
+        if (selected.empty())
+        {
+            if (error)
+            {
+                *error = L"No selected values were found in the export.";
+            }
+            return false;
+        }
+        writer.AppendKey(display, std::move(selected), false);
     }
     for (const auto& subkey : subkey_names)
     {
@@ -448,29 +287,19 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
         {
             continue;
         }
-        const std::wstring key_path = base_key_path.empty() ? subkey : base_key_path + L"\\" + subkey;
-        if (!export_content(key_path, true, &content) || !AppendRegContent(content, &output, error))
+        RegistryNode node;
+        std::wstring display;
+        if (!ResolveExportKey(base_key_path.empty() ? subkey : base_key_path + L"\\" + subkey, &node, &display, error))
         {
             return false;
         }
-    }
-    if (output.key_order.empty())
-    {
-        if (error)
+        const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, win32::kDefaultRegistryView, true);
+        if (status != ERROR_SUCCESS)
         {
-            *error = L"No data to export.";
+            return ReportUnreadableKey(status, display, error);
         }
-        return false;
     }
-    if (!util::WriteTextFile(path, regfile::Serialize(output), output_utf16))
-    {
-        if (error)
-        {
-            *error = L"Failed to write exported registry file.";
-        }
-        return false;
-    }
-    return true;
+    return WriteRegFile(path, std::move(writer), error);
 }
 
 bool IsMountedHive(HKEY root, const std::wstring& subkey)

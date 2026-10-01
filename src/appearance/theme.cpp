@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "appearance/theme.h"
+#include "win32/system_api.h"
 #include "win32/text_transform.h"
 
 #include "appearance/gdi_cache.h"
@@ -15,7 +16,6 @@
 #include <vsstyle.h>
 #include <vssym32.h>
 #include <winreg.h>
-#include <winternl.h>
 
 namespace regkit
 {
@@ -42,36 +42,12 @@ enum class PreferredAppMode
     kMax = 4,
 };
 
-bool DarkModeOrdinalsAvailable()
-{
-    static const bool available = []() -> bool {
-        HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
-        if (!ntdll)
-        {
-            return false;
-        }
-        using RtlGetVersionFn = NTSTATUS(WINAPI*)(PRTL_OSVERSIONINFOW);
-        const auto get_version = reinterpret_cast<RtlGetVersionFn>(GetProcAddress(ntdll, "RtlGetVersion"));
-        if (!get_version)
-        {
-            return false;
-        }
-        RTL_OSVERSIONINFOW version = {};
-        version.dwOSVersionInfoSize = sizeof(version);
-        if (get_version(&version) != 0)
-        {
-            return false;
-        }
-        return version.dwMajorVersion > 10 || (version.dwMajorVersion == 10 && version.dwBuildNumber >= 17763);
-    }();
-    return available;
-}
-
 template <typename Fn>
 Fn DarkModeExport(WORD ordinal)
 {
-    const HMODULE theme = DarkModeOrdinalsAvailable() ? GetModuleHandleW(L"uxtheme.dll") : nullptr;
-    return theme ? reinterpret_cast<Fn>(GetProcAddress(theme, MAKEINTRESOURCEA(ordinal))) : nullptr;
+    const RTL_OSVERSIONINFOW& version = win32::OsVersion();
+    const bool available = version.dwMajorVersion > 10 || (version.dwMajorVersion == 10 && version.dwBuildNumber >= 17763);
+    return available ? win32::ImportProc<Fn>(L"uxtheme.dll", MAKEINTRESOURCEA(ordinal)) : nullptr;
 }
 
 struct ComboBoxThemeState

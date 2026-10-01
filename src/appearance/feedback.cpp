@@ -345,20 +345,7 @@ LRESULT CALLBACK ChoiceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                 {
                     continue;
                 }
-                *handles[index] = CreateWindowExW(
-                    0,
-                    L"BUTTON",
-                    buttons[index].first->c_str(),
-                    WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
-                    0,
-                    0,
-                    0,
-                    0,
-                    hwnd,
-                    reinterpret_cast<HMENU>(static_cast<INT_PTR>(buttons[index].second)),
-                    nullptr,
-                    nullptr
-                );
+                *handles[index] = appearance::CreateControl(hwnd, L"BUTTON", buttons[index].first->c_str(), WS_TABSTOP | BS_PUSHBUTTON, buttons[index].second);
                 if (!default_btn || state->requested_default == buttons[index].second)
                 {
                     default_btn = *handles[index];
@@ -403,7 +390,7 @@ LRESULT CALLBACK ErrorDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
         {
             state->detail_box = CreateWindowExW(0, L"EDIT", state->detail.c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
         }
-        state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+        state->ok_btn = appearance::CreateControl(hwnd, L"BUTTON", L"OK", WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
         state->focus = state->ok_btn;
         appearance::SetDialogFont(hwnd, state->font);
         LayoutErrorDialog(hwnd, state);
@@ -475,7 +462,7 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
                                             nullptr,
                                             nullptr,
                                             nullptr);
-        state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+        state->ok_btn = appearance::CreateControl(hwnd, L"BUTTON", L"OK", WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
         state->focus = state->ok_btn;
         appearance::SetDialogFont(hwnd, state->font);
         LayoutAboutDialog(hwnd, state);

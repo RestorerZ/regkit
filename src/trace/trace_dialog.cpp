@@ -532,18 +532,18 @@ LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
         {
             if (!state->prompt.empty())
             {
-                state->label = CreateWindowExW(0, L"STATIC", state->prompt.c_str(), WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceLabel), nullptr, nullptr);
+                state->label = appearance::CreateControl(hwnd, L"STATIC", state->prompt.c_str(), 0, kTraceLabel);
             }
-            state->status = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceStatus), nullptr, nullptr);
-            state->tree = CreateWindowExW(0, WC_TREEVIEWW, L"", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_CHECKBOXES, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kTraceTree), nullptr, nullptr);
+            state->status = appearance::CreateControl(hwnd, L"STATIC", L"", 0, kTraceStatus);
+            state->tree = appearance::CreateControl(hwnd, WC_TREEVIEWW, L"", WS_BORDER | WS_TABSTOP | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_CHECKBOXES, kTraceTree);
             state->recursive =
-                CreateWindowExW(0, L"BUTTON", L"Recursive", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kRecursiveCheck), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Recursive", WS_TABSTOP | BS_AUTOCHECKBOX, kRecursiveCheck);
             state->select_all =
-                CreateWindowExW(0, L"BUTTON", L"Select All Keys", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kSelectAllButton), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Select All Keys", WS_TABSTOP | BS_PUSHBUTTON, kSelectAllButton);
             state->ok_button =
-                CreateWindowExW(0, L"BUTTON", L"Select", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kOkButton), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Select", WS_TABSTOP | BS_DEFPUSHBUTTON, kOkButton);
             state->cancel_button =
-                CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(kCancelButton), nullptr, nullptr);
+                appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
             appearance::SetDialogFont(hwnd, state->font);
             Button_SetCheck(state->recursive, BST_CHECKED);
             SendMessageW(state->tree, TVM_SETEXTENDEDSTYLE, TVS_EX_DOUBLEBUFFER, TVS_EX_DOUBLEBUFFER);

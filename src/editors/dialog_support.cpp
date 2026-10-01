@@ -211,11 +211,23 @@ void ReleaseFont(HFONT* font)
     }
 }
 
-bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam, INT_PTR* result)
+bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam, INT_PTR* result, const appearance::DialogResizer* resizer)
 {
     if (!result)
     {
         return false;
+    }
+    if (resizer && message == WM_SIZE)
+    {
+        resizer->Apply(dialog);
+        *result = TRUE;
+        return true;
+    }
+    if (resizer && message == WM_GETMINMAXINFO)
+    {
+        resizer->ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
+        *result = TRUE;
+        return true;
     }
     if (message == WM_SETTINGCHANGE)
     {

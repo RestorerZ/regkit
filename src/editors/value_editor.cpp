@@ -400,18 +400,6 @@ std::wstring FormatNumberValue(unsigned long long value, int base)
     return buffer;
 }
 
-unsigned long long ReadUnsignedFromBytes(const std::vector<BYTE>& data, size_t bytes)
-{
-    unsigned long long value = 0;
-    if (bytes == 0 || data.size() < bytes)
-    {
-        return 0;
-    }
-    // standard registry integers use windows little endian byte order
-    memcpy(&value, data.data(), bytes);
-    return value;
-}
-
 unsigned long long ReadNumberWithFallback(HWND dlg, int edit_id, int base, unsigned long long fallback)
 {
     std::wstring text = util::DialogText(dlg, edit_id);
@@ -444,35 +432,6 @@ void RunBitfieldEditor(HWND dlg, const std::wstring& value_name, int edit_id, in
     }
     SetDlgItemTextW(dlg, edit_id, FormatNumberValue(result.value, base).c_str());
     SendDlgItemMessageW(dlg, edit_id, EM_SETSEL, 0, -1);
-}
-
-unsigned long long ReadUnsignedFromBytesBigEndian(const std::vector<BYTE>& data, size_t bytes)
-{
-    if (bytes == 0 || data.size() < bytes)
-    {
-        return 0;
-    }
-    unsigned long long value = 0;
-    for (size_t i = 0; i < bytes; ++i)
-    {
-        value = (value << 8) | static_cast<unsigned long long>(data[i]);
-    }
-    return value;
-}
-
-void WriteUnsignedToBytesBigEndian(unsigned long long value, size_t bytes, std::vector<BYTE>* out)
-{
-    if (!out || bytes == 0)
-    {
-        return;
-    }
-    out->assign(bytes, 0);
-    for (size_t i = 0; i < bytes; ++i)
-    {
-        size_t index = bytes - 1 - i;
-        (*out)[index] = static_cast<BYTE>(value & 0xFF);
-        value >>= 8;
-    }
 }
 
 bool ConvertValueData(DWORD from, const std::vector<BYTE>& data, DWORD to, std::vector<BYTE>* out)
@@ -516,8 +475,8 @@ bool ConvertValueData(DWORD from, const std::vector<BYTE>& data, DWORD to, std::
     if (is_number(src) && is_number(dst))
     {
         const size_t src_size = src == REG_QWORD ? sizeof(unsigned long long) : sizeof(DWORD);
-        const unsigned long long value = src == REG_DWORD_BIG_ENDIAN ? ReadUnsignedFromBytesBigEndian(data, src_size)
-                                                                     : ReadUnsignedFromBytes(data, src_size);
+        const unsigned long long value = src == REG_DWORD_BIG_ENDIAN ? value_format::ReadUnsigned(data, src_size, true)
+                                                                     : value_format::ReadUnsigned(data, src_size);
         // reject narrowing conversions that would truncate the value
         if (dst != REG_QWORD && value > std::numeric_limits<DWORD>::max())
         {
@@ -525,7 +484,7 @@ bool ConvertValueData(DWORD from, const std::vector<BYTE>& data, DWORD to, std::
         }
         if (dst == REG_DWORD_BIG_ENDIAN)
         {
-            WriteUnsignedToBytesBigEndian(value, sizeof(DWORD), out);
+            *out = value_format::UnsignedBytes(value, sizeof(DWORD), true);
             return true;
         }
         const size_t dst_size = dst == REG_QWORD ? sizeof(unsigned long long) : sizeof(DWORD);
@@ -596,14 +555,14 @@ void PopulateTraceValueEditors(HWND dlg, TraceValueDialogState* state)
         SetDlgItemTextW(
             dlg,
             IDC_REG_DWORD_EDIT,
-            filled ? FormatNumberValue(ReadUnsignedFromBytes(data, sizeof(DWORD)), state->dword_base).c_str() : L""
+            filled ? FormatNumberValue(value_format::ReadUnsigned(data, sizeof(DWORD)), state->dword_base).c_str() : L""
         );
         break;
     case REG_DWORD_BIG_ENDIAN:
         SetDlgItemTextW(
             dlg,
             IDC_REG_DWORD_EDIT,
-            filled ? FormatNumberValue(ReadUnsignedFromBytesBigEndian(data, sizeof(DWORD)), state->dword_base).c_str()
+            filled ? FormatNumberValue(value_format::ReadUnsigned(data, sizeof(DWORD), true), state->dword_base).c_str()
                    : L""
         );
         break;
@@ -612,7 +571,7 @@ void PopulateTraceValueEditors(HWND dlg, TraceValueDialogState* state)
             dlg,
             IDC_REG_QWORD_EDIT,
             filled
-                ? FormatNumberValue(ReadUnsignedFromBytes(data, sizeof(unsigned long long)), state->qword_base).c_str()
+                ? FormatNumberValue(value_format::ReadUnsigned(data, sizeof(unsigned long long)), state->qword_base).c_str()
                 : L""
         );
         break;
@@ -712,7 +671,7 @@ bool SerializeTraceEditor(HWND dlg, TraceValueDialogState* state, DWORD type, st
             }
             else
             {
-                WriteUnsignedToBytesBigEndian(value, sizeof(DWORD), &data);
+                data = value_format::UnsignedBytes(value, sizeof(DWORD), true);
             }
             break;
         }
@@ -980,8 +939,8 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
                     if (state)
                     {
                         unsigned long long fallback = state->type == REG_DWORD_BIG_ENDIAN
-                                                          ? ReadUnsignedFromBytesBigEndian(state->data, sizeof(DWORD))
-                                                          : ReadUnsignedFromBytes(state->data, sizeof(DWORD));
+                                                          ? value_format::ReadUnsigned(state->data, sizeof(DWORD), true)
+                                                          : value_format::ReadUnsigned(state->data, sizeof(DWORD));
                         unsigned long long value =
                             ReadNumberWithFallback(dlg, IDC_REG_DWORD_EDIT, state->dword_base, fallback);
                         if (id == IDC_REG_DWORD_HEX)
@@ -1010,7 +969,7 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
                     if (state)
                     {
                         int old_base = state->qword_base;
-                        unsigned long long fallback = ReadUnsignedFromBytes(state->data, sizeof(unsigned long long));
+                        unsigned long long fallback = value_format::ReadUnsigned(state->data, sizeof(unsigned long long));
                         unsigned long long value = ReadNumberWithFallback(dlg, IDC_REG_QWORD_EDIT, old_base, fallback);
                         if (id == IDC_REG_QWORD_HEX)
                         {
@@ -1358,15 +1317,15 @@ INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPAR
                         unsigned long long fallback = 0;
                         if (state->base_type == REG_DWORD)
                         {
-                            fallback = ReadUnsignedFromBytes(state->initial_data, sizeof(DWORD));
+                            fallback = value_format::ReadUnsigned(state->initial_data, sizeof(DWORD));
                         }
                         else if (state->base_type == REG_DWORD_BIG_ENDIAN)
                         {
-                            fallback = ReadUnsignedFromBytesBigEndian(state->initial_data, sizeof(DWORD));
+                            fallback = value_format::ReadUnsigned(state->initial_data, sizeof(DWORD), true);
                         }
                         else if (state->base_type == REG_QWORD)
                         {
-                            fallback = ReadUnsignedFromBytes(state->initial_data, sizeof(unsigned long long));
+                            fallback = value_format::ReadUnsigned(state->initial_data, sizeof(unsigned long long));
                         }
                         unsigned long long value = ReadNumberWithFallback(dlg, IDC_EDIT, state->number_base, fallback);
                         if (id == IDC_HEX)
@@ -1442,7 +1401,7 @@ INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPAR
                             }
                             else if (state->base_type == REG_DWORD_BIG_ENDIAN)
                             {
-                                WriteUnsignedToBytesBigEndian(value, sizeof(DWORD), &base_data);
+                                base_data = value_format::UnsignedBytes(value, sizeof(DWORD), true);
                             }
                             else
                             {
@@ -1529,17 +1488,17 @@ bool EditValueBits(HWND owner, const BitsRequest& request, std::vector<BYTE>* da
     if (request.base_type == REG_DWORD && source.size() >= sizeof(DWORD))
     {
         bits.bit_count = 32;
-        bits.value = ReadUnsignedFromBytes(source, sizeof(DWORD));
+        bits.value = value_format::ReadUnsigned(source, sizeof(DWORD));
     }
     else if (request.base_type == REG_QWORD && source.size() >= sizeof(unsigned long long))
     {
         bits.bit_count = 64;
-        bits.value = ReadUnsignedFromBytes(source, sizeof(unsigned long long));
+        bits.value = value_format::ReadUnsigned(source, sizeof(unsigned long long));
     }
     else if (request.base_type == REG_DWORD_BIG_ENDIAN && source.size() >= sizeof(DWORD))
     {
         bits.bit_count = 32;
-        bits.value = ReadUnsignedFromBytesBigEndian(source, sizeof(DWORD));
+        bits.value = value_format::ReadUnsigned(source, sizeof(DWORD), true);
     }
     else
     {
@@ -1564,7 +1523,7 @@ bool EditValueBits(HWND owner, const BitsRequest& request, std::vector<BYTE>* da
     if (request.base_type == REG_DWORD_BIG_ENDIAN)
     {
         // restore registry types big endian byte order after editing
-        WriteUnsignedToBytesBigEndian(result.value, sizeof(DWORD), data);
+        *data = value_format::UnsignedBytes(result.value, sizeof(DWORD), true);
         return true;
     }
     const size_t width = bits.bit_count / 8;
@@ -1628,7 +1587,7 @@ bool EditFlaggedValue(HWND owner, const FlaggedValueRequest& request, FlaggedVal
             DWORD value = 0;
             if (request.data.size() >= sizeof(DWORD))
             {
-                value = static_cast<DWORD>(ReadUnsignedFromBytesBigEndian(state.initial_data, sizeof(DWORD)));
+                value = static_cast<DWORD>(value_format::ReadUnsigned(state.initial_data, sizeof(DWORD), true));
             }
             state.initial_text = FormatNumberValue(value, state.number_base);
             break;

@@ -11,7 +11,7 @@
 
 #include <utility>
 
-namespace util
+namespace regkit::util
 {
 
 class ComInit
@@ -128,4 +128,4 @@ using UniqueHandle = UniqueResource<HANDLE, CloseKernelHandle>;
 template <typename T>
 using UniqueGdiObject = UniqueResource<T, DeleteGdiObject>;
 
-} // namespace util
+} // namespace regkit::util

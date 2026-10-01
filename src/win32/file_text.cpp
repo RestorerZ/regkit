@@ -5,10 +5,12 @@
 
 #include "win32/file_text.h"
 
+#include "win32/handle_owner.h"
+
 #include <cstdlib>
 #include <limits>
 
-namespace util
+namespace regkit::util
 {
 
 std::wstring RandomFileSuffix(const wchar_t* extension)
@@ -42,21 +44,21 @@ std::string WideToUtf8(const std::wstring& text)
     return output;
 }
 
-std::wstring Utf8ToWide(std::string_view text)
+std::wstring NarrowToWide(std::string_view text, UINT code_page, DWORD flags)
 {
-    if (text.empty())
-    {
-        return {};
-    }
-    const int size =
-        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0);
+    const int size = text.empty() ? 0 : MultiByteToWideChar(code_page, flags, text.data(), static_cast<int>(text.size()), nullptr, 0);
     if (size <= 0)
     {
         return {};
     }
     std::wstring output(static_cast<size_t>(size), L'\0');
-    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), output.data(), size);
+    MultiByteToWideChar(code_page, flags, text.data(), static_cast<int>(text.size()), output.data(), size);
     return output;
+}
+
+std::wstring Utf8ToWide(std::string_view text)
+{
+    return NarrowToWide(text, CP_UTF8, MB_ERR_INVALID_CHARS);
 }
 
 bool ReadFileBytes(const std::wstring& path, std::vector<BYTE>* output, uint64_t max_bytes, DWORD share_mode)
@@ -66,26 +68,16 @@ bool ReadFileBytes(const std::wstring& path, std::vector<BYTE>* output, uint64_t
         return false;
     }
     output->clear();
-    HANDLE file =
-        CreateFileW(path.c_str(), GENERIC_READ, share_mode, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE)
-    {
-        return false;
-    }
+    const UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, share_mode, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
     LARGE_INTEGER size = {};
-    const bool valid = GetFileSizeEx(file, &size) && size.QuadPart > 0 &&
-                       static_cast<uint64_t>(size.QuadPart) <= max_bytes &&
-                       size.QuadPart <= static_cast<LONGLONG>(std::numeric_limits<DWORD>::max());
-    if (!valid)
+    if (!file || !GetFileSizeEx(file.get(), &size) || size.QuadPart <= 0 || static_cast<uint64_t>(size.QuadPart) > max_bytes ||
+        size.QuadPart > static_cast<LONGLONG>(std::numeric_limits<DWORD>::max()))
     {
-        CloseHandle(file);
         return false;
     }
     output->resize(static_cast<size_t>(size.QuadPart));
     DWORD read = 0;
-    const BOOL result = ReadFile(file, output->data(), static_cast<DWORD>(output->size()), &read, nullptr);
-    CloseHandle(file);
-    if (!result || read != output->size())
+    if (!ReadFile(file.get(), output->data(), static_cast<DWORD>(output->size()), &read, nullptr) || read != output->size())
     {
         output->clear();
         return false;
@@ -137,9 +129,8 @@ namespace
 
 bool WriteWholeFile(const std::wstring& path, const std::wstring& text, bool utf16, DWORD disposition = CREATE_ALWAYS)
 {
-    HANDLE file =
-        CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, disposition, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE)
+    const UniqueHandle file(CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, disposition, FILE_ATTRIBUTE_NORMAL, nullptr));
+    if (!file)
     {
         return false;
     }
@@ -148,11 +139,11 @@ bool WriteWholeFile(const std::wstring& path, const std::wstring& text, bool utf
     if (utf16)
     {
         constexpr BYTE bom[] = {0xFF, 0xFE};
-        ok = WriteFile(file, bom, sizeof(bom), &written, nullptr) != 0 && written == sizeof(bom);
+        ok = WriteFile(file.get(), bom, sizeof(bom), &written, nullptr) != 0 && written == sizeof(bom);
         if (ok && !text.empty())
         {
             const DWORD byte_count = static_cast<DWORD>(text.size() * sizeof(wchar_t));
-            ok = WriteFile(file, text.data(), byte_count, &written, nullptr) != 0 && written == byte_count;
+            ok = WriteFile(file.get(), text.data(), byte_count, &written, nullptr) != 0 && written == byte_count;
         }
     }
     else
@@ -161,15 +152,10 @@ bool WriteWholeFile(const std::wstring& path, const std::wstring& text, bool utf
         const DWORD byte_count = static_cast<DWORD>(utf8.size());
         if (byte_count != 0)
         {
-            ok = WriteFile(file, utf8.data(), byte_count, &written, nullptr) != 0 && written == byte_count;
+            ok = WriteFile(file.get(), utf8.data(), byte_count, &written, nullptr) != 0 && written == byte_count;
         }
     }
-    if (ok)
-    {
-        ok = FlushFileBuffers(file) != 0;
-    }
-    CloseHandle(file);
-    return ok;
+    return ok && FlushFileBuffers(file.get()) != 0;
 }
 
 } // namespace
@@ -198,4 +184,4 @@ bool WriteTextFile(const std::wstring& path, const std::wstring& text, bool utf1
     return false;
 }
 
-} // namespace util
+} // namespace regkit::util

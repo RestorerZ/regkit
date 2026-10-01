@@ -140,27 +140,6 @@ int FindPresetIndexByName(const std::vector<ThemePreset>& presets, const std::ws
     return -1;
 }
 
-int GetSelectedPresetIndex(HWND list)
-{
-    if (!list)
-    {
-        return -1;
-    }
-    int row = ListView_GetNextItem(list, -1, LVNI_SELECTED);
-    if (row < 0)
-    {
-        return -1;
-    }
-    LVITEMW item = {};
-    item.mask = LVIF_PARAM;
-    item.iItem = row;
-    if (!ListView_GetItem(list, &item))
-    {
-        return -1;
-    }
-    return static_cast<int>(item.lParam);
-}
-
 std::wstring MakeUniquePresetName(const std::vector<ThemePreset>& presets, const std::wstring& base_name, const ThemePreset* ignored = nullptr)
 {
     std::wstring base = base_name.empty() ? L"Preset" : base_name;
@@ -324,27 +303,6 @@ int CALLBACK CompareColorListItems(LPARAM left_param, LPARAM right_param, int co
     return result;
 }
 
-int GetSelectedColorField(HWND list)
-{
-    if (!list)
-    {
-        return -1;
-    }
-    int row = ListView_GetNextItem(list, -1, LVNI_SELECTED);
-    if (row < 0)
-    {
-        return -1;
-    }
-    LVITEMW item = {};
-    item.mask = LVIF_PARAM;
-    item.iItem = row;
-    if (!ListView_GetItem(list, &item))
-    {
-        return -1;
-    }
-    return static_cast<int>(item.lParam);
-}
-
 void ReselectColorField(HWND list, int field_index)
 {
     if (!list || field_index < 0)
@@ -370,7 +328,7 @@ void FillColorList(ThemePresetWindowState* state, const ThemePreset* preset)
         return;
     }
     HWND list = state->color_list;
-    int selected_field = GetSelectedColorField(list);
+    int selected_field = appearance::SelectedListViewData(list);
     ListView_DeleteAllItems(list);
     if (!preset)
     {
@@ -440,7 +398,7 @@ void SyncSelection(ThemePresetWindowState* state)
     {
         return;
     }
-    int preset_index = state->preset_list ? GetSelectedPresetIndex(state->preset_list) : -1;
+    int preset_index = state->preset_list ? appearance::SelectedListViewData(state->preset_list) : -1;
     if (preset_index >= 0 && preset_index < static_cast<int>(state->presets.size()))
     {
         state->selected_index = preset_index;
@@ -591,58 +549,45 @@ void CreateControls(ThemePresetWindowState* state)
     state->presets_group =
         CreateWindowExW(0, L"BUTTON", L"Presets", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
-    state->preset_list = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | LVS_NOSORTHEADER, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kPresetListId)), nullptr, nullptr);
+    state->preset_list = appearance::CreateControl(hwnd, WC_LISTVIEWW, L"", WS_TABSTOP | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | LVS_NOSORTHEADER, kPresetListId);
 
     state->new_btn =
-        CreateWindowExW(0, L"BUTTON", L"New...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kNewPresetId)), nullptr, nullptr);
+        appearance::CreateControl(hwnd, L"BUTTON", L"New...", WS_TABSTOP | BS_PUSHBUTTON, kNewPresetId);
     state->duplicate_btn =
-        CreateWindowExW(0, L"BUTTON", L"Duplicate", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDuplicatePresetId)), nullptr, nullptr);
+        appearance::CreateControl(hwnd, L"BUTTON", L"Duplicate", WS_TABSTOP | BS_PUSHBUTTON, kDuplicatePresetId);
     state->rename_btn =
-        CreateWindowExW(0, L"BUTTON", L"Rename...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kRenamePresetId)), nullptr, nullptr);
+        appearance::CreateControl(hwnd, L"BUTTON", L"Rename...", WS_TABSTOP | BS_PUSHBUTTON, kRenamePresetId);
     state->delete_btn =
-        CreateWindowExW(0, L"BUTTON", L"Delete", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDeletePresetId)), nullptr, nullptr);
+        appearance::CreateControl(hwnd, L"BUTTON", L"Delete", WS_TABSTOP | BS_PUSHBUTTON, kDeletePresetId);
     state->import_btn =
-        CreateWindowExW(0, L"BUTTON", L"Import...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kImportPresetId)), nullptr, nullptr);
+        appearance::CreateControl(hwnd, L"BUTTON", L"Import...", WS_TABSTOP | BS_PUSHBUTTON, kImportPresetId);
     state->export_btn =
-        CreateWindowExW(0, L"BUTTON", L"Export...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kExportPresetId)), nullptr, nullptr);
+        appearance::CreateControl(hwnd, L"BUTTON", L"Export...", WS_TABSTOP | BS_PUSHBUTTON, kExportPresetId);
 
     state->colors_group =
         CreateWindowExW(0, L"BUTTON", L"Colors", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
-    state->color_list = CreateWindowExW(
-        0,
-        WC_LISTVIEWW,
-        L"",
-        WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS,
-        0,
-        0,
-        0,
-        0,
-        hwnd,
-        reinterpret_cast<HMENU>(static_cast<INT_PTR>(kColorListId)),
-        nullptr,
-        nullptr
-    );
+    state->color_list = appearance::CreateControl(hwnd, WC_LISTVIEWW, L"", WS_TABSTOP | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS, kColorListId);
 
     state->edit_color_btn =
-        CreateWindowExW(0, L"BUTTON", L"Edit Color...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kEditColorId)), nullptr, nullptr);
+        appearance::CreateControl(hwnd, L"BUTTON", L"Edit Color...", WS_TABSTOP | BS_PUSHBUTTON, kEditColorId);
 
     state->dark_check =
-        CreateWindowExW(0, L"BUTTON", L"Treat as dark theme", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kDarkCheckId)), nullptr, nullptr);
+        appearance::CreateControl(hwnd, L"BUTTON", L"Treat as dark theme", WS_TABSTOP | BS_AUTOCHECKBOX, kDarkCheckId);
 
     state->templates_group =
         CreateWindowExW(0, L"BUTTON", L"Templates", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
     state->template_combo =
-        CreateWindowExW(0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTemplateComboId)), nullptr, nullptr);
+        appearance::CreateControl(hwnd, WC_COMBOBOXW, L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, kTemplateComboId);
 
     state->template_btn =
-        CreateWindowExW(0, L"BUTTON", L"Apply Template", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kApplyTemplateId)), nullptr, nullptr);
+        appearance::CreateControl(hwnd, L"BUTTON", L"Apply Template", WS_TABSTOP | BS_PUSHBUTTON, kApplyTemplateId);
 
     state->apply_btn =
-        CreateWindowExW(0, L"BUTTON", L"Apply", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kApplyId)), nullptr, nullptr);
-    state->ok_btn = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
-    state->cancel_btn = CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
+        appearance::CreateControl(hwnd, L"BUTTON", L"Apply", WS_TABSTOP | BS_PUSHBUTTON, kApplyId);
+    state->ok_btn = appearance::CreateControl(hwnd, L"BUTTON", L"OK", WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
+    state->cancel_btn = appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
 
     for (HWND group : {state->presets_group, state->colors_group, state->templates_group})
     {
@@ -853,19 +798,7 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
                     {
                         return 0;
                     }
-                    int row = ListView_GetNextItem(state->color_list, -1, LVNI_SELECTED);
-                    if (row < 0)
-                    {
-                        return 0;
-                    }
-                    LVITEMW item = {};
-                    item.mask = LVIF_PARAM;
-                    item.iItem = row;
-                    if (!ListView_GetItem(state->color_list, &item))
-                    {
-                        return 0;
-                    }
-                    int field_index = static_cast<int>(item.lParam);
+                    const int field_index = appearance::SelectedListViewData(state->color_list);
                     if (field_index < 0 || field_index >= static_cast<int>(std::size(kColorFields)))
                     {
                         return 0;

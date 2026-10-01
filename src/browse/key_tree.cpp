@@ -46,6 +46,30 @@ HTREEITEM InsertFolderItem(HWND tree, HTREEITEM parent, const wchar_t* label, in
     insert.item.iSelectedImage = icon;
     return TreeView_InsertItem(tree, &insert);
 }
+
+HTREEITEM InsertNodeItem(HWND tree, HTREEITEM parent, HTREEITEM after, const std::wstring& label, RegistryNode* node)
+{
+    TVINSERTSTRUCTW insert = {};
+    insert.hParent = parent;
+    insert.hInsertAfter = after;
+    insert.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
+    insert.item.pszText = const_cast<wchar_t*>(label.c_str());
+    insert.item.lParam = reinterpret_cast<LPARAM>(node);
+    insert.item.iImage = I_IMAGECALLBACK;
+    insert.item.iSelectedImage = I_IMAGECALLBACK;
+    insert.item.cChildren = I_CHILDRENCALLBACK;
+    return TreeView_InsertItem(tree, &insert);
+}
+
+void SetChildState(HWND tree, HTREEITEM item, RegistryNode* node, bool has_children)
+{
+    node->has_children = has_children ? 1 : 0;
+    TVITEMW state = {};
+    state.mask = TVIF_CHILDREN;
+    state.hItem = item;
+    state.cChildren = has_children ? 1 : 0;
+    TreeView_SetItem(tree, &state);
+}
 } // namespace
 
 void RegistryTree::Create(HWND parent, HINSTANCE instance, int control_id, bool show_border, bool allow_label_edit)
@@ -327,24 +351,10 @@ HTREEITEM RegistryTree::InsertChild(HTREEITEM parent, const std::wstring& name)
     child->simulated = false;
     RegistryNode* stored = StoreNode(std::move(child));
 
-    TVINSERTSTRUCTW insert = {};
-    insert.hParent = parent;
-    insert.hInsertAfter = after;
-    insert.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
-    insert.item.pszText = const_cast<wchar_t*>(label.c_str());
-    insert.item.lParam = reinterpret_cast<LPARAM>(stored);
-    insert.item.iImage = I_IMAGECALLBACK;
-    insert.item.iSelectedImage = I_IMAGECALLBACK;
-    insert.item.cChildren = I_CHILDRENCALLBACK;
-    HTREEITEM item = TreeView_InsertItem(hwnd_, &insert);
+    HTREEITEM item = InsertNodeItem(hwnd_, parent, after, label, stored);
     if (item)
     {
-        parent_node->has_children = 1;
-        TVITEMW parent_state = {};
-        parent_state.mask = TVIF_CHILDREN;
-        parent_state.hItem = parent;
-        parent_state.cChildren = 1;
-        TreeView_SetItem(hwnd_, &parent_state);
+        SetChildState(hwnd_, parent, parent_node, true);
         TreeView_Expand(hwnd_, parent, TVE_EXPAND);
     }
     return item;
@@ -414,25 +424,9 @@ bool RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node)
         const std::wstring& name = entry.name;
         auto child = std::make_unique<RegistryNode>(registry_path::ChildNode(*node, name));
         child->simulated = entry.simulated;
-        RegistryNode* stored = StoreNode(std::move(child));
-
-        TVINSERTSTRUCTW insert = {};
-        insert.hParent = parent;
-        insert.hInsertAfter = TVI_LAST;
-        insert.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_CHILDREN;
-        insert.item.pszText = const_cast<wchar_t*>(entry.label.c_str());
-        insert.item.lParam = reinterpret_cast<LPARAM>(stored);
-        insert.item.iImage = I_IMAGECALLBACK;
-        insert.item.iSelectedImage = I_IMAGECALLBACK;
-        insert.item.cChildren = I_CHILDRENCALLBACK;
-        TreeView_InsertItem(hwnd_, &insert);
+        InsertNodeItem(hwnd_, parent, TVI_LAST, entry.label, StoreNode(std::move(child)));
     }
-    node->has_children = entries.empty() ? 0 : 1;
-    TVITEMW parent_state = {};
-    parent_state.mask = TVIF_CHILDREN;
-    parent_state.hItem = parent;
-    parent_state.cChildren = entries.empty() ? 0 : 1;
-    TreeView_SetItem(hwnd_, &parent_state);
+    SetChildState(hwnd_, parent, node, !entries.empty());
     // only cache the load when the key read succeeded
     return enumerated;
 }

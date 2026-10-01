@@ -30,7 +30,7 @@ struct HistoryEntry
     std::wstring key_path;
     std::wstring value_name;
     RevertKind revert_kind = RevertKind::kNone;
-    ValueEntry revert_value;
+    RegistryValue revert_value;
 };
 
 namespace changes
@@ -43,7 +43,7 @@ struct HistoryDocument
     std::vector<HistoryEntry> entries;
 };
 
-using QueryValue = std::function<bool(const std::wstring&, const std::wstring&, ValueEntry*)>;
+using QueryValue = std::function<bool(const std::wstring&, const std::wstring&, RegistryValue*)>;
 using PathExists = std::function<bool(const std::wstring&)>;
 
 class ChangeHistory

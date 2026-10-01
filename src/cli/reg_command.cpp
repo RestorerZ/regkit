@@ -434,40 +434,11 @@ KeyRef ChildRef(const KeyRef& parent, const std::wstring& name)
     return child;
 }
 
-struct KeyContents
-{
-    std::vector<RegistryValue> values;
-    std::vector<std::wstring> subkeys;
-};
+using registry_backend::KeyContents;
 
 LONG ReadKey(const KeyRef& key, REGSAM view, bool include_data, KeyContents* contents)
 {
-    util::UniqueHKey handle;
-    const LONG status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_READ | view, handle.put());
-    if (status != ERROR_SUCCESS)
-    {
-        return status;
-    }
-    registry_backend::EnumerateKey(
-        registry_backend::RegistryKeyHandle(std::move(handle)),
-        true,
-        include_data,
-        true,
-        nullptr,
-        [&](const ValueInfo& info, const BYTE* data, DWORD size) {
-            contents->values.push_back(
-                {info.name, info.type, data ? std::vector<BYTE>(data, data + size) : std::vector<BYTE>()}
-            );
-            return true;
-        },
-        [&](const std::wstring& name) {
-            contents->subkeys.push_back(name);
-            return true;
-        },
-        MAXDWORD,
-        nullptr
-    );
-    return ERROR_SUCCESS;
+    return registry_backend::ReadKeyContents(key.root, key.subkey, view, include_data, contents);
 }
 
 void SelectValue(const Options& options, std::vector<RegistryValue>* values)
@@ -608,7 +579,7 @@ int CmdAdd(const std::vector<std::wstring>& args)
         if (!options.force &&
             RegQueryValueExW(handle.get(), name.c_str(), nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS)
         {
-            Print(L"Value " + (name.empty() ? std::wstring(L"(Default)") : name) + L" already exists. Use /f to overwrite.");
+            PrintError(L"Value " + (name.empty() ? std::wstring(L"(Default)") : name) + L" already exists. Use /f to overwrite.");
             return kFailed;
         }
         status = RegSetValueExW(handle.get(), name.c_str(), 0, value_type, value_data.data(), static_cast<DWORD>(value_data.size()));
@@ -754,33 +725,7 @@ int CmdCopy(const std::vector<std::wstring>& args)
 bool ExportKeyToFile(const KeyRef& key, const std::wstring& path, REGSAM view, std::wstring* error)
 {
     regfile::Writer writer;
-    std::vector<KeyRef> pending{key};
-    bool any = false;
-    while (!pending.empty())
-    {
-        const KeyRef current = std::move(pending.back());
-        pending.pop_back();
-        KeyContents contents;
-        if (ReadKey(current, view, true, &contents) != ERROR_SUCCESS)
-        {
-            // keep exporting readable keys, fail later if nothing was readable
-            continue;
-        }
-        any = true;
-        std::stable_partition(contents.values.begin(), contents.values.end(), [](const RegistryValue& value) { return value.name.empty(); });
-        std::vector<const regfile::Value*> pointers;
-        pointers.reserve(contents.values.size());
-        for (const RegistryValue& value : contents.values)
-        {
-            pointers.push_back(&value);
-        }
-        writer.AppendKey(current.display, std::move(pointers), false);
-        for (auto child = contents.subkeys.rbegin(); child != contents.subkeys.rend(); ++child)
-        {
-            pending.push_back(ChildRef(current, *child));
-        }
-    }
-    if (!any)
+    if (regfile::AppendRegistryTree(&writer, key.root, key.subkey, key.display, view, true) != ERROR_SUCCESS)
     {
         if (error)
         {
@@ -1117,8 +1062,8 @@ void PrintUsage()
           L"regedit compatible:\n"
           L"  regkit file.reg                 import a .reg file (asks first)\n"
           L"  regkit /s file.reg              import without prompting\n"
-          L"  regkit /e file.reg [key]        export a key (or everything)\n"
-          L"  regkit /a file.reg [key]        same as /e, kept for compatibility\n"
+          L"  regkit /e file.reg <key>        export a key\n"
+          L"  regkit /a file.reg <key>        same as /e, kept for compatibility\n"
           L"  regkit /c /m /l:file /r:file    accepted and ignored (legacy)\n"
           L"\n"
           L"reg.exe compatible (the leading \"reg\" is optional):\n"
@@ -1242,27 +1187,23 @@ bool Execute(const std::vector<std::wstring>& args, int* exit_code)
         }
         if ((IsSwitch(args[i], L"e") || IsSwitch(args[i], L"a")) && i + 1 < args.size())
         {
-            const std::wstring name = (i + 2 < args.size()) ? args[i + 2] : std::wstring();
+            KeyRef key;
             std::wstring error;
-            bool ok = true;
-            if (name.empty())
+            *exit_code = kFailed;
+            if (i + 2 >= args.size())
             {
                 PrintError(L"Exporting the whole registry isn't supported, name a key.");
-                ok = false;
             }
-            else
+            else if (ParseKey(args[i + 2], &key))
             {
-                KeyRef key;
-                ok = ParseKey(name, &key) && ExportKeyToFile(key, args[i + 1], 0, &error);
-            }
-            if (!ok)
-            {
-                PrintError(error.empty() ? L"Export failed." : error);
-                *exit_code = kFailed;
-            }
-            else
-            {
-                *exit_code = kOk;
+                if (ExportKeyToFile(key, args[i + 1], win32::kDefaultRegistryView, &error))
+                {
+                    *exit_code = kOk;
+                }
+                else
+                {
+                    PrintError(error.empty() ? L"Export failed." : error);
+                }
             }
             return true;
         }

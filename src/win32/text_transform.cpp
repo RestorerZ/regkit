@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cwctype>
 
-namespace util
+namespace regkit::util
 {
 
 std::wstring FormatLocalTime(const SYSTEMTIME& time, bool with_seconds)
@@ -270,4 +270,4 @@ std::wstring JoinLines(const std::vector<std::wstring>& lines)
     return text;
 }
 
-} // namespace util
+} // namespace regkit::util

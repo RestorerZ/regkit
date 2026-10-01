@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "registry/value_decoder.h"
+#include "registry/value_format.h"
+#include "win32/file_text.h"
 #include "win32/text_transform.h"
 
 #include <objbase.h>
@@ -369,14 +371,6 @@ bool AppendTimeFields(uint64_t ticks, std::vector<Field>* fields, std::wstring* 
     return true;
 }
 
-uint64_t ReadUnsigned(const BYTE* data, size_t size)
-{
-    // int decoders treat registry bytes as little endian
-    uint64_t value = 0;
-    std::memcpy(&value, data, size);
-    return value;
-}
-
 Decoded Failure(std::wstring error)
 {
     Decoded decoded;
@@ -424,13 +418,8 @@ Decoded DecodeUtf8(const BYTE* data, size_t size)
     {
         return Success({{L"Text", L""}, {L"Bytes", L"0"}});
     }
-    const int needed = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reinterpret_cast<const char*>(data), static_cast<int>(size), nullptr, 0);
-    if (needed <= 0)
-    {
-        return Failure(L"Invalid UTF-8.");
-    }
-    std::wstring text(static_cast<size_t>(needed), L'\0');
-    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reinterpret_cast<const char*>(data), static_cast<int>(size), text.data(), needed) != needed)
+    std::wstring text = util::Utf8ToWide(std::string_view(reinterpret_cast<const char*>(data), size));
+    if (text.empty())
     {
         return Failure(L"Invalid UTF-8.");
     }
@@ -490,7 +479,7 @@ Decoded DecodeFileTime(const BYTE* data, size_t size)
     {
         return Failure(L"A FILETIME needs exactly 8 bytes.");
     }
-    const uint64_t ticks = ReadUnsigned(data, size);
+    const uint64_t ticks = value_format::ReadUnsigned({data, size}, size);
     Decoded decoded;
     wchar_t raw[32] = {};
     swprintf_s(raw, L"%llu", static_cast<unsigned long long>(ticks));
@@ -540,7 +529,7 @@ Decoded DecodeUnix(const BYTE* data, size_t size, bool milliseconds)
     {
         return Failure(L"Unix time needs exactly 4 or 8 bytes.");
     }
-    const uint64_t value = ReadUnsigned(data, size);
+    const uint64_t value = value_format::ReadUnsigned({data, size}, size);
     const uint64_t scale = milliseconds ? 10000ull : 10000000ull;
     // check scaling & epoch addition before converting to FILETIME
     if (value > (0xFFFFFFFFFFFFFFFFull - kUnixEpochTicks) / scale)
@@ -880,9 +869,8 @@ Decoded Decode(DecoderId id, const BYTE* data, size_t size)
     return Failure(L"Unknown interpretation.");
 }
 
-DecoderId Suggest(DWORD type, const std::wstring& key_path, const std::wstring& value_name, size_t size)
+DecoderId Suggest(const std::wstring& key_path, const std::wstring& value_name, size_t size)
 {
-    (void)type;
     for (const PathRule& rule : kPathRules)
     {
         if (size == rule.size && util::EqualsInsensitive(value_name, rule.value_name) &&

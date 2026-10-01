@@ -4,6 +4,7 @@
 #include "search/compare.h"
 #include "records/escaped_fields.h"
 #include "win32/file_text.h"
+#include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 
 #include "regfile/reg_file.h"
@@ -11,7 +12,6 @@
 #include "registry/value_format.h"
 
 #include <algorithm>
-#include <filesystem>
 #include <unordered_set>
 #include <utility>
 
@@ -179,7 +179,7 @@ bool LoadRegFile(const std::wstring& file_path, const std::wstring& base_path, b
     }
 
     snapshot->base_path = base_path;
-    snapshot->label = std::filesystem::path(file_path).filename().wstring();
+    snapshot->label = util::FileName(file_path);
     if (!base_path.empty())
     {
         snapshot->label += L": " + base_path;
@@ -214,15 +214,7 @@ bool LoadRegFile(const std::wstring& file_path, const std::wstring& base_path, b
         key.relative_path = relative;
         if (source != document.keys.end())
         {
-            key.values.reserve(source->second.values.size());
-            for (const auto& pair : source->second.values)
-            {
-                Value value;
-                value.name = pair.second.name;
-                value.type = pair.second.type;
-                value.data = pair.second.data;
-                key.values[util::ToLower(value.name)] = std::move(value);
-            }
+            key.values = source->second.values;
         }
         snapshot->keys[util::ToLower(relative)] = std::move(key);
     }

@@ -3,6 +3,8 @@
 
 #include "editors/bitfield_editor.h"
 
+#include "registry/value_format.h"
+
 #include "appearance/dialog_layout.h"
 #include "appearance/feedback.h"
 #include "appearance/list_view_support.h"
@@ -149,17 +151,8 @@ void SortBitRows(HWND list, Editor* editor, int column, bool toggle)
 
 uint64_t ReadWindow(const Editor& editor)
 {
-    uint64_t value = 0;
     const size_t count = editor.width / 8;
-    if (editor.offset + count > editor.bytes.size())
-    {
-        return 0;
-    }
-    for (size_t i = 0; i < count; ++i)
-    {
-        value |= static_cast<uint64_t>(editor.bytes[editor.offset + i]) << (8 * i);
-    }
-    return value;
+    return editor.offset + count > editor.bytes.size() ? 0 : value_format::ReadUnsigned(std::span(editor.bytes).subspan(editor.offset), count);
 }
 
 void WriteWindow(Editor* editor)
@@ -169,10 +162,8 @@ void WriteWindow(Editor* editor)
     {
         return;
     }
-    for (size_t i = 0; i < count; ++i)
-    {
-        editor->bytes[editor->offset + i] = static_cast<BYTE>((editor->value >> (8 * i)) & 0xFF);
-    }
+    const std::vector<BYTE> bytes = value_format::UnsignedBytes(editor->value, count);
+    std::copy(bytes.begin(), bytes.end(), editor->bytes.begin() + static_cast<std::ptrdiff_t>(editor->offset));
 }
 
 std::wstring MaskText(unsigned width, uint64_t mask)

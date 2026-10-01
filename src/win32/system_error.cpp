@@ -5,7 +5,7 @@
 
 #include <iterator>
 
-namespace util
+namespace regkit::util
 {
 
 std::wstring FormatWin32Error(DWORD code)
@@ -27,4 +27,4 @@ std::wstring FormatWin32Error(DWORD code)
     return buffer;
 }
 
-} // namespace util
+} // namespace regkit::util

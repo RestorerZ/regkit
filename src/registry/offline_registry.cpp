@@ -6,10 +6,13 @@
 #include "registry/key_algorithms.h"
 #include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
+#include "win32/system_api.h"
 #include "win32/system_error.h"
 
 #include <algorithm>
 #include <iterator>
+#include <mutex>
+#include <shared_mutex>
 #include <vector>
 
 #include <winternl.h>
@@ -37,12 +40,6 @@ using ORRenameKeyFn = DWORD(WINAPI*)(ORHKEY, PCWSTR);
 using ORGetKeySecurityFn = DWORD(WINAPI*)(ORHKEY, SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, DWORD*);
 using ORSetKeySecurityFn = DWORD(WINAPI*)(ORHKEY, SECURITY_INFORMATION, PSECURITY_DESCRIPTOR);
 
-template <typename Function>
-Function LoadFunction(HMODULE module, const char* name)
-{
-    return reinterpret_cast<Function>(GetProcAddress(module, name));
-}
-
 class OffregApi
 {
   public:
@@ -69,22 +66,22 @@ class OffregApi
             load_error_ = GetLastError();
             return;
         }
-        open_hive = LoadFunction<OROpenHiveFn>(module_, "OROpenHive");
-        close_hive = LoadFunction<ORCloseHiveFn>(module_, "ORCloseHive");
-        save_hive = LoadFunction<ORSaveHiveFn>(module_, "ORSaveHive");
-        open_key = LoadFunction<OROpenKeyFn>(module_, "OROpenKey");
-        close_key = LoadFunction<ORCloseKeyFn>(module_, "ORCloseKey");
-        create_key = LoadFunction<ORCreateKeyFn>(module_, "ORCreateKey");
-        delete_key = LoadFunction<ORDeleteKeyFn>(module_, "ORDeleteKey");
-        query_info = LoadFunction<ORQueryInfoKeyFn>(module_, "ORQueryInfoKey");
-        enum_key = LoadFunction<OREnumKeyFn>(module_, "OREnumKey");
-        get_value = LoadFunction<ORGetValueFn>(module_, "ORGetValue");
-        set_value = LoadFunction<ORSetValueFn>(module_, "ORSetValue");
-        delete_value = LoadFunction<ORDeleteValueFn>(module_, "ORDeleteValue");
-        enum_value = LoadFunction<OREnumValueFn>(module_, "OREnumValue");
-        rename_key = LoadFunction<ORRenameKeyFn>(module_, "ORRenameKey");
-        get_key_security = LoadFunction<ORGetKeySecurityFn>(module_, "ORGetKeySecurity");
-        set_key_security = LoadFunction<ORSetKeySecurityFn>(module_, "ORSetKeySecurity");
+        open_hive = win32::ImportProc<OROpenHiveFn>(module_, "OROpenHive");
+        close_hive = win32::ImportProc<ORCloseHiveFn>(module_, "ORCloseHive");
+        save_hive = win32::ImportProc<ORSaveHiveFn>(module_, "ORSaveHive");
+        open_key = win32::ImportProc<OROpenKeyFn>(module_, "OROpenKey");
+        close_key = win32::ImportProc<ORCloseKeyFn>(module_, "ORCloseKey");
+        create_key = win32::ImportProc<ORCreateKeyFn>(module_, "ORCreateKey");
+        delete_key = win32::ImportProc<ORDeleteKeyFn>(module_, "ORDeleteKey");
+        query_info = win32::ImportProc<ORQueryInfoKeyFn>(module_, "ORQueryInfoKey");
+        enum_key = win32::ImportProc<OREnumKeyFn>(module_, "OREnumKey");
+        get_value = win32::ImportProc<ORGetValueFn>(module_, "ORGetValue");
+        set_value = win32::ImportProc<ORSetValueFn>(module_, "ORSetValue");
+        delete_value = win32::ImportProc<ORDeleteValueFn>(module_, "ORDeleteValue");
+        enum_value = win32::ImportProc<OREnumValueFn>(module_, "OREnumValue");
+        rename_key = win32::ImportProc<ORRenameKeyFn>(module_, "ORRenameKey");
+        get_key_security = win32::ImportProc<ORGetKeySecurityFn>(module_, "ORGetKeySecurity");
+        set_key_security = win32::ImportProc<ORSetKeySecurityFn>(module_, "ORSetKeySecurity");
         if (!valid())
         {
             load_error_ = ERROR_PROC_NOT_FOUND;
@@ -253,6 +250,7 @@ class OfflineKey
     util::UniqueResource<ORHKEY, CloseOfflineKey> owner_;
 };
 
+std::shared_mutex g_roots_mutex;
 std::vector<HKEY> g_roots;
 
 bool DeleteSubtree(const OfflineKey& parent, const std::wstring& name)
@@ -300,21 +298,6 @@ bool WithApi(std::wstring* error, Action&& action)
     return result == ERROR_SUCCESS;
 }
 
-void OsVersion(DWORD* major, DWORD* minor)
-{
-    using RtlGetVersionFn = NTSTATUS(WINAPI*)(PRTL_OSVERSIONINFOW);
-    const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
-    const auto get_version =
-        ntdll ? reinterpret_cast<RtlGetVersionFn>(GetProcAddress(ntdll, "RtlGetVersion")) : nullptr;
-    RTL_OSVERSIONINFOW version = {};
-    version.dwOSVersionInfoSize = sizeof(version);
-    if (get_version && get_version(&version) == 0)
-    {
-        *major = version.dwMajorVersion;
-        *minor = version.dwMinorVersion;
-    }
-}
-
 } // namespace
 
 bool OpenHive(const std::wstring& path, HKEY* root, std::wstring* error)
@@ -336,10 +319,8 @@ bool OpenHive(const std::wstring& path, HKEY* root, std::wstring* error)
 bool SaveHive(HKEY root, const std::wstring& path, std::wstring* error)
 {
     return root && WithApi(error, [&](OffregApi& api) {
-               DWORD major = 10;
-               DWORD minor = 0;
-               OsVersion(&major, &minor);
-               return api.save_hive(reinterpret_cast<ORHKEY>(root), path.c_str(), major, minor);
+               const RTL_OSVERSIONINFOW& version = win32::OsVersion();
+               return api.save_hive(reinterpret_cast<ORHKEY>(root), path.c_str(), version.dwMajorVersion ? version.dwMajorVersion : 10, version.dwMinorVersion);
            });
 }
 
@@ -350,13 +331,15 @@ bool CloseHive(HKEY root, std::wstring* error)
 
 void SetRoots(const std::vector<HKEY>& roots)
 {
+    std::unique_lock lock(g_roots_mutex);
     g_roots.clear();
     std::copy_if(roots.begin(), roots.end(), std::back_inserter(g_roots), [](HKEY root) { return root != nullptr; });
 }
 
 void AddRoot(HKEY root)
 {
-    if (root && !Owns(root))
+    std::unique_lock lock(g_roots_mutex);
+    if (root && std::find(g_roots.begin(), g_roots.end(), root) == g_roots.end())
     {
         g_roots.push_back(root);
     }
@@ -364,11 +347,13 @@ void AddRoot(HKEY root)
 
 void RemoveRoot(HKEY root)
 {
-    g_roots.erase(std::remove(g_roots.begin(), g_roots.end(), root), g_roots.end());
+    std::unique_lock lock(g_roots_mutex);
+    std::erase(g_roots, root);
 }
 
 bool Owns(HKEY root)
 {
+    std::shared_lock lock(g_roots_mutex);
     return root && std::find(g_roots.begin(), g_roots.end(), root) != g_roots.end();
 }
 
@@ -403,7 +388,7 @@ bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool includ
     return key && EnumerateKey(key, include_values, include_data, include_subkeys, out_info, value_callback, subkey_callback, max_data_size, scratch);
 }
 
-bool QueryValue(const RegistryNode& node, const std::wstring& value_name, ValueEntry* out)
+bool QueryValue(const RegistryNode& node, const std::wstring& value_name, RegistryValue* out)
 {
     const OfflineKey key(node);
     return key && registry_backend::QueryValue(key, value_name, out);

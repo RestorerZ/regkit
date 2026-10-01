@@ -7,7 +7,7 @@
 
 #include <string>
 
-namespace util
+namespace regkit::util
 {
 
 UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access, bool open_link = false, LONG* error = nullptr);
@@ -20,4 +20,4 @@ bool DeleteNativeRegistryKey(HKEY key);
 LONG ReadRegistryString(HKEY root, const wchar_t* subkey, const wchar_t* value_name, std::wstring* value);
 LONG WriteRegistryString(HKEY root, const wchar_t* subkey, const wchar_t* value_name, const std::wstring& value);
 
-} // namespace util
+} // namespace regkit::util

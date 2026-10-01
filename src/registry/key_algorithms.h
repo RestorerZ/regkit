@@ -16,6 +16,7 @@
 namespace regkit::registry_backend
 {
 
+inline constexpr REGSAM kKeyReadAccess = KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS;
 inline constexpr SECURITY_INFORMATION kKeySecurityInformation =
     OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
 
@@ -215,6 +216,40 @@ bool EnumerateKey(const Key& key, bool include_values, bool include_data, bool i
     return true;
 }
 
+struct KeyContents
+{
+    std::vector<RegistryValue> values;
+    std::vector<std::wstring> subkeys;
+};
+
+inline LONG ReadKeyContents(HKEY root, const std::wstring& subkey, REGSAM view, bool include_data, KeyContents* contents)
+{
+    util::UniqueHKey handle;
+    const LONG status = RegOpenKeyExW(root, subkey.c_str(), 0, kKeyReadAccess | view, handle.put());
+    if (status != ERROR_SUCCESS)
+    {
+        return status;
+    }
+    EnumerateKey(
+        RegistryKeyHandle(std::move(handle)),
+        true,
+        include_data,
+        true,
+        nullptr,
+        [&](const ValueInfo& info, const BYTE* data, DWORD size) {
+            contents->values.push_back({info.name, info.type, data ? std::vector<BYTE>(data, data + size) : std::vector<BYTE>()});
+            return true;
+        },
+        [&](const std::wstring& name) {
+            contents->subkeys.push_back(name);
+            return true;
+        },
+        MAXDWORD,
+        nullptr
+    );
+    return ERROR_SUCCESS;
+}
+
 template <typename Key>
 LONG ReadValue(const Key& key, const wchar_t* name, DWORD* type, std::vector<BYTE>* data)
 {
@@ -235,7 +270,7 @@ LONG ReadValue(const Key& key, const wchar_t* name, DWORD* type, std::vector<BYT
 }
 
 template <typename Key>
-bool QueryValue(const Key& key, const std::wstring& value_name, ValueEntry* out)
+bool QueryValue(const Key& key, const std::wstring& value_name, RegistryValue* out)
 {
     DWORD type = 0;
     std::vector<BYTE> data;

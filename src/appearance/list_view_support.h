@@ -37,6 +37,7 @@ void UpdateListViewSort(HWND list, int column, bool ascending);
 void UpdateListSortState(int column, bool toggle, int* sort_column, bool* ascending);
 void SortListViewItems(HWND list, int column, bool toggle, int* sort_column, bool* ascending, ListItemCompareCallback compare, void* context);
 int ListViewItemData(HWND list, int row, LPARAM* data);
+int SelectedListViewData(HWND list);
 int FindListViewItemByData(HWND list, LPARAM data);
 
 } // namespace regkit::appearance

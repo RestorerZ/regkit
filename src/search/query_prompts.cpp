@@ -129,12 +129,12 @@ LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
             state->checks.push_back(check);
         }
         state->select_all =
-            CreateWindowExW(0, L"BUTTON", L"Select All", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(100), nullptr, nullptr);
+            appearance::CreateControl(hwnd, L"BUTTON", L"Select All", WS_TABSTOP | BS_PUSHBUTTON, 100);
         state->clear_all =
-            CreateWindowExW(0, L"BUTTON", L"Clear All", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(101), nullptr, nullptr);
-        state->ok_button = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+            appearance::CreateControl(hwnd, L"BUTTON", L"Clear All", WS_TABSTOP | BS_PUSHBUTTON, 101);
+        state->ok_button = appearance::CreateControl(hwnd, L"BUTTON", L"OK", WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
         state->cancel_button =
-            CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
+            appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
         appearance::SetDialogFont(hwnd, state->font);
         LayoutDataTypesDialog(hwnd, state);
         return 0;
@@ -216,9 +216,9 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     switch (msg)
     {
     case WM_CREATE:
-        state->ok_button = CreateWindowExW(0, L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+        state->ok_button = appearance::CreateControl(hwnd, L"BUTTON", L"OK", WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
         state->cancel_button =
-            CreateWindowExW(0, L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
+            appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
         state->tree.Create(hwnd, GetModuleHandleW(nullptr), 1);
         state->tree.PopulateRoots(RegistryStore::DefaultRoots());
         state->focus = state->tree.hwnd();

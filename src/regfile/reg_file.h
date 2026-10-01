@@ -49,6 +49,7 @@ class Writer
     std::wstring output_;
 };
 
+LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse);
 bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr, std::wstring* error = nullptr);
 bool Load(const std::wstring& path, Document* output, std::wstring* error, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr);
 std::wstring Serialize(const Document& document);

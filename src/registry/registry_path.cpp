@@ -89,6 +89,15 @@ std::wstring Join(std::wstring_view root, std::wstring_view rest)
     return result;
 }
 
+std::wstring_view TrimLeadingSeparators(std::wstring_view text)
+{
+    while (!text.empty() && text.front() == L'\\')
+    {
+        text.remove_prefix(1);
+    }
+    return text;
+}
+
 bool HasComponentPrefix(std::wstring_view path, std::wstring_view prefix)
 {
     return util::StartsWithInsensitive(path, prefix) && (path.size() == prefix.size() || path[prefix.size()] == L'\\');
@@ -212,7 +221,7 @@ std::vector<std::wstring> Split(std::wstring_view path)
     size_t start = 0;
     while (start < path.size())
     {
-        while (start < path.size() && (path[start] == L'\\' || path[start] == L'/'))
+        while (start < path.size() && path[start] == L'\\')
         {
             ++start;
         }
@@ -220,7 +229,7 @@ std::vector<std::wstring> Split(std::wstring_view path)
         {
             break;
         }
-        size_t end = path.find_first_of(L"\\/", start);
+        size_t end = path.find(L'\\', start);
         if (end == std::wstring_view::npos)
         {
             end = path.size();
@@ -258,21 +267,21 @@ RegistryNode ChildNode(const RegistryNode& parent, std::wstring_view name)
 
 std::wstring Parent(std::wstring_view path)
 {
-    while (!path.empty() && (path.back() == L'\\' || path.back() == L'/'))
+    while (!path.empty() && path.back() == L'\\')
     {
         path.remove_suffix(1);
     }
-    const size_t split = path.find_last_of(L"\\/");
+    const size_t split = path.rfind(L'\\');
     return split == std::wstring_view::npos ? std::wstring{} : std::wstring(path.substr(0, split));
 }
 
 std::wstring Leaf(std::wstring_view path)
 {
-    while (!path.empty() && (path.back() == L'\\' || path.back() == L'/'))
+    while (!path.empty() && path.back() == L'\\')
     {
         path.remove_suffix(1);
     }
-    const size_t split = path.find_last_of(L"\\/");
+    const size_t split = path.rfind(L'\\');
     return std::wstring(path.substr(split == std::wstring_view::npos ? 0 : split + 1));
 }
 
@@ -289,12 +298,9 @@ std::wstring Clean(std::wstring_view input)
     {
         path = util::TrimWhitespace(std::wstring_view(path).substr(1));
     }
-    for (wchar_t& character : path)
+    if (path.find(L'\\') == std::wstring::npos)
     {
-        if (character == L'/')
-        {
-            character = L'\\';
-        }
+        std::replace(path.begin(), path.end(), L'/', L'\\');
     }
 
     std::wstring collapsed;
@@ -337,16 +343,8 @@ std::wstring Normalize(std::wstring_view input, std::wstring_view current_user_s
 
     if (util::StartsWithInsensitive(path, L"REGISTRY\\"))
     {
-        std::wstring native = path.substr(9);
-        auto native_rest = [&](std::wstring_view prefix) {
-            std::wstring_view rest(native);
-            rest.remove_prefix(prefix.size());
-            while (!rest.empty() && rest.front() == L'\\')
-            {
-                rest.remove_prefix(1);
-            }
-            return rest;
-        };
+        const std::wstring native = path.substr(9);
+        const auto native_rest = [&](std::wstring_view prefix) { return TrimLeadingSeparators(std::wstring_view(native).substr(prefix.size())); };
         constexpr std::wstring_view classes = L"MACHINE\\SOFTWARE\\Classes";
         if (HasComponentPrefix(native, classes))
         {
@@ -359,30 +357,14 @@ std::wstring Normalize(std::wstring_view input, std::wstring_view current_user_s
         }
         if (HasComponentPrefix(native, L"MACHINE"))
         {
-            std::wstring_view rest(native);
-            rest.remove_prefix(7);
-            while (!rest.empty() && rest.front() == L'\\')
-            {
-                rest.remove_prefix(1);
-            }
-            return Join(L"HKEY_LOCAL_MACHINE", rest);
+            return Join(L"HKEY_LOCAL_MACHINE", native_rest(L"MACHINE"));
         }
         if (HasComponentPrefix(native, L"USER"))
         {
-            std::wstring_view rest(native);
-            rest.remove_prefix(4);
-            while (!rest.empty() && rest.front() == L'\\')
-            {
-                rest.remove_prefix(1);
-            }
+            const std::wstring_view rest = native_rest(L"USER");
             if (!current_user_sid.empty() && HasComponentPrefix(rest, current_user_sid))
             {
-                rest.remove_prefix(current_user_sid.size());
-                while (!rest.empty() && rest.front() == L'\\')
-                {
-                    rest.remove_prefix(1);
-                }
-                return Join(L"HKEY_CURRENT_USER", rest);
+                return Join(L"HKEY_CURRENT_USER", TrimLeadingSeparators(rest.substr(current_user_sid.size())));
             }
             return Join(L"HKEY_USERS", rest);
         }
@@ -402,13 +384,7 @@ std::wstring Normalize(std::wstring_view input, std::wstring_view current_user_s
 
     const size_t split = path.find_first_of(L":\\");
     const std::wstring_view root(path.data(), split == std::wstring::npos ? path.size() : split);
-    std::wstring_view rest = split == std::wstring::npos
-                                 ? std::wstring_view{}
-                                 : std::wstring_view(path).substr(split + (path[split] == L':' ? 1 : 0));
-    while (!rest.empty() && rest.front() == L'\\')
-    {
-        rest.remove_prefix(1);
-    }
+    const std::wstring_view rest = split == std::wstring::npos ? std::wstring_view{} : TrimLeadingSeparators(std::wstring_view(path).substr(split + (path[split] == L':' ? 1 : 0)));
     const std::wstring canonical = CanonicalRoot(root);
     return canonical.empty() ? path : Join(canonical, rest);
 }

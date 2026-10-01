@@ -42,6 +42,7 @@ class Matcher
     bool valid() const noexcept;
     const regex::Error& error() const noexcept;
     Match Find(std::wstring_view text) const;
+    regex::Status Replace(std::wstring_view text, const std::wstring& replacement, std::wstring* out) const;
 
   private:
     std::wstring query_;

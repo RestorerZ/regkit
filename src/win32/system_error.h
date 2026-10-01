@@ -9,9 +9,9 @@
 
 #include <string>
 
-namespace util
+namespace regkit::util
 {
 
 std::wstring FormatWin32Error(DWORD code);
 
-} // namespace util
+} // namespace regkit::util

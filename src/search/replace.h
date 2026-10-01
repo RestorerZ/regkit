@@ -5,7 +5,7 @@
 
 #include <string>
 
-#include "search/regex.h"
+#include "search/search.h"
 
 namespace regkit::search
 {
@@ -29,24 +29,27 @@ struct ReplaceOptions
 class Replacer
 {
   public:
-    explicit Replacer(const ReplaceOptions& options);
-    Replacer(const Replacer& other);
-    Replacer(Replacer&&) noexcept = default;
+    explicit Replacer(const ReplaceOptions& options)
+        : matcher_({options.find_text, options.match_case, options.match_whole, options.use_regex}), replacement_(options.replace_text)
+    {
+    }
 
-    bool valid() const noexcept;
-    const regex::Error& error() const noexcept;
-    regex::Status Replace(const std::wstring& text, std::wstring* result) const;
+    bool valid() const noexcept
+    {
+        return matcher_.valid();
+    }
+    const regex::Error& error() const noexcept
+    {
+        return matcher_.error();
+    }
+    regex::Status Replace(const std::wstring& text, std::wstring* result) const
+    {
+        return matcher_.Replace(text, replacement_, result);
+    }
 
   private:
-    std::wstring query_;
+    Matcher matcher_;
     std::wstring replacement_;
-    regex::PatternRef pattern_;
-    regex::Session session_;
-    regex::Error error_;
-    bool use_regex_ = false;
-    bool match_case_ = false;
-    bool match_whole_ = false;
-    bool valid_ = true;
 };
 
 } // namespace regkit::search

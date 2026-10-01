@@ -13,7 +13,7 @@
 #include <string_view>
 #include <vector>
 
-namespace util
+namespace regkit::util
 {
 
 inline constexpr int HexDigitValue(wchar_t character)
@@ -45,4 +45,4 @@ bool ParseBool(std::wstring_view text);
 std::vector<std::wstring> SplitLines(std::wstring_view text);
 std::wstring JoinLines(const std::vector<std::wstring>& lines);
 
-} // namespace util
+} // namespace regkit::util

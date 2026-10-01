@@ -27,12 +27,7 @@ struct Row
     bool matches = false;
 };
 
-struct Value
-{
-    std::wstring name;
-    DWORD type = REG_NONE;
-    std::vector<BYTE> data;
-};
+using Value = RegistryValue;
 
 struct Key
 {

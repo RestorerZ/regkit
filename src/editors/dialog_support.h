@@ -13,6 +13,11 @@
 #include <string>
 #include <vector>
 
+namespace regkit::appearance
+{
+class DialogResizer;
+}
+
 namespace regkit::editors::dialog_support
 {
 
@@ -25,7 +30,7 @@ struct ListColumn
 void Initialize(HWND dialog, HFONT* owned_font, std::initializer_list<int> bordered_edits);
 void AllowNewlines(HWND dialog, int control_id);
 void ReleaseFont(HFONT* font);
-bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam, INT_PTR* result);
+bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam, INT_PTR* result, const appearance::DialogResizer* resizer = nullptr);
 inline std::wstring ReadText(HWND dialog, int control_id)
 {
     return util::DialogText(dialog, control_id);

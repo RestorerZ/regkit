@@ -3,6 +3,8 @@
 
 #include "win32/window_metrics.h"
 
+#include "win32/system_api.h"
+
 #include <algorithm>
 
 namespace regkit::win32
@@ -10,36 +12,24 @@ namespace regkit::win32
 
 UINT DpiForWindow(HWND window)
 {
-    HMODULE user32 = GetModuleHandleW(L"user32.dll");
-    if (user32)
+    static const auto get_window_dpi = ImportProc<UINT(WINAPI*)(HWND)>(L"user32.dll", "GetDpiForWindow");
+    static const auto get_system_dpi = ImportProc<UINT(WINAPI*)()>(L"user32.dll", "GetDpiForSystem");
+    UINT dpi = window && get_window_dpi ? get_window_dpi(window) : 0;
+    if (dpi == 0 && get_system_dpi)
     {
-        auto get_window_dpi = reinterpret_cast<UINT(WINAPI*)(HWND)>(GetProcAddress(user32, "GetDpiForWindow"));
-        if (get_window_dpi && window)
-        {
-            const UINT dpi = get_window_dpi(window);
-            if (dpi != 0)
-            {
-                return dpi;
-            }
-        }
-        auto get_system_dpi = reinterpret_cast<UINT(WINAPI*)()>(GetProcAddress(user32, "GetDpiForSystem"));
-        if (get_system_dpi)
-        {
-            const UINT dpi = get_system_dpi();
-            if (dpi != 0)
-            {
-                return dpi;
-            }
-        }
+        dpi = get_system_dpi();
     }
-
+    if (dpi != 0)
+    {
+        return dpi;
+    }
     HDC dc = GetDC(window);
-    const int dpi = dc ? GetDeviceCaps(dc, LOGPIXELSX) : 96;
+    const int caps = dc ? GetDeviceCaps(dc, LOGPIXELSX) : 96;
     if (dc)
     {
         ReleaseDC(window, dc);
     }
-    return dpi > 0 ? static_cast<UINT>(dpi) : 96;
+    return caps > 0 ? static_cast<UINT>(caps) : 96;
 }
 
 bool AdjustWindowRectForDpi(RECT* rect, DWORD style, DWORD ex_style, UINT dpi)
@@ -48,18 +38,8 @@ bool AdjustWindowRectForDpi(RECT* rect, DWORD style, DWORD ex_style, UINT dpi)
     {
         return false;
     }
-    HMODULE user32 = GetModuleHandleW(L"user32.dll");
-    if (user32)
-    {
-        auto adjust_for_dpi = reinterpret_cast<BOOL(WINAPI*)(RECT*, DWORD, BOOL, DWORD, UINT)>(
-            GetProcAddress(user32, "AdjustWindowRectExForDpi")
-        );
-        if (adjust_for_dpi && adjust_for_dpi(rect, style, FALSE, ex_style, dpi))
-        {
-            return true;
-        }
-    }
-    return AdjustWindowRectEx(rect, style, FALSE, ex_style) != FALSE;
+    static const auto adjust_for_dpi = ImportProc<BOOL(WINAPI*)(RECT*, DWORD, BOOL, DWORD, UINT)>(L"user32.dll", "AdjustWindowRectExForDpi");
+    return (adjust_for_dpi && adjust_for_dpi(rect, style, FALSE, ex_style, dpi)) || AdjustWindowRectEx(rect, style, FALSE, ex_style) != FALSE;
 }
 
 void ClampToWorkArea(RECT* rect)

@@ -1,7 +1,6 @@
 regkit_add_library(regkit_search
     compare.cpp
     regex.cpp
-    replace.cpp
     result_file.cpp
     search.cpp
 )

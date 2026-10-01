@@ -70,6 +70,6 @@ std::vector<DecoderEntry> AvailableDecoders(const BYTE* data, size_t size);
 
 bool Transform(TransformId id, DWORD type, const std::vector<BYTE>& source, std::vector<BYTE>* out, std::wstring* error);
 Decoded Decode(DecoderId id, const BYTE* data, size_t size);
-DecoderId Suggest(DWORD type, const std::wstring& key_path, const std::wstring& value_name, size_t size);
+DecoderId Suggest(const std::wstring& key_path, const std::wstring& value_name, size_t size);
 
 } // namespace regkit::value_decoder

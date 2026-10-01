@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-namespace util
+namespace regkit::util
 {
 
 bool EnableTokenPrivilege(HANDLE token, const wchar_t* name, TOKEN_PRIVILEGES* previous = nullptr);
@@ -50,4 +50,4 @@ bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring&
 bool LaunchProcessAsShellUser(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code = nullptr, bool* impersonation_lost = nullptr);
 bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code = nullptr, bool* impersonation_lost = nullptr);
 
-} // namespace util
+} // namespace regkit::util

@@ -37,7 +37,7 @@ KeySnapshot CaptureKey(const RegistryNode& node)
                                     }
                                     reserved = true;
                                 }
-                                ValueEntry value;
+                                RegistryValue value;
                                 value.name = info.name;
                                 value.type = info.type;
                                 if (data && size > 0)
@@ -97,7 +97,7 @@ bool RestoreKey(const RegistryNode& parent, const KeySnapshot& snapshot)
     {
         RegistryStore::WriteKeySecurity(node, snapshot.security);
     }
-    for (const ValueEntry& value : snapshot.values)
+    for (const RegistryValue& value : snapshot.values)
     {
         if (!RegistryStore::SetValue(node, value.name, value.type, value.data))
         {

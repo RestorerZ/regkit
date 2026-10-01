@@ -3,6 +3,8 @@
 
 #include "records/json.h"
 
+#include "win32/text_transform.h"
+
 #include <cwchar>
 
 namespace regkit::json
@@ -16,23 +18,6 @@ bool Digit(wchar_t character)
     return character >= L'0' && character <= L'9';
 }
 
-int HexValue(wchar_t character)
-{
-    if (Digit(character))
-    {
-        return character - L'0';
-    }
-    if (character >= L'a' && character <= L'f')
-    {
-        return character - L'a' + 10;
-    }
-    if (character >= L'A' && character <= L'F')
-    {
-        return character - L'A' + 10;
-    }
-    return -1;
-}
-
 bool Hex4(const wchar_t** ptr, const wchar_t* end, unsigned* value)
 {
     if (end - *ptr < 4)
@@ -42,7 +27,7 @@ bool Hex4(const wchar_t** ptr, const wchar_t* end, unsigned* value)
     unsigned result = 0;
     for (int index = 0; index < 4; ++index)
     {
-        const int digit = HexValue((*ptr)[index]);
+        const int digit = util::HexDigitValue((*ptr)[index]);
         if (digit < 0)
         {
             return false;

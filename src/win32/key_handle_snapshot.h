@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace win32
+namespace regkit::win32
 {
 
 struct KeyHandle
@@ -35,4 +35,4 @@ struct KeyHandleSnapshot
 KeyHandleSnapshot SnapshotKeyHandles(const std::atomic_bool& cancel);
 DWORD CloseKeyHandles(const std::vector<KeyHandle>& targets, size_t* closed);
 
-} // namespace win32
+} // namespace regkit::win32

@@ -5,6 +5,7 @@
 
 #include "win32/handle_owner.h"
 #include "win32/process_rights.h"
+#include "win32/system_api.h"
 
 #include <tlhelp32.h>
 #include <winternl.h>
@@ -13,7 +14,7 @@
 #include <cstddef>
 #include <unordered_map>
 
-namespace win32
+namespace regkit::win32
 {
 
 namespace
@@ -51,17 +52,10 @@ using QuerySystemInformationFn = NTSTATUS(NTAPI*)(ULONG, PVOID, ULONG, PULONG);
 using QueryObjectFn = NTSTATUS(NTAPI*)(HANDLE, ULONG, PVOID, ULONG, PULONG);
 using StatusToDosErrorFn = ULONG(NTAPI*)(NTSTATUS);
 
-template <typename Fn>
-Fn Ntdll(const char* name)
-{
-    HMODULE module = GetModuleHandleW(L"ntdll.dll");
-    return module ? reinterpret_cast<Fn>(GetProcAddress(module, name)) : nullptr;
-}
-
 DWORD QueryHandleTable(std::vector<ULONG_PTR>* buffer)
 {
-    static const auto query = Ntdll<QuerySystemInformationFn>("NtQuerySystemInformation");
-    static const auto to_dos = Ntdll<StatusToDosErrorFn>("RtlNtStatusToDosError");
+    static const auto query = win32::ImportProc<QuerySystemInformationFn>(L"ntdll.dll", "NtQuerySystemInformation");
+    static const auto to_dos = win32::ImportProc<StatusToDosErrorFn>(L"ntdll.dll", "RtlNtStatusToDosError");
     if (!query)
     {
         return ERROR_PROC_NOT_FOUND;
@@ -174,7 +168,7 @@ DWORD LoadKeyEntries(std::vector<HandleEntry>* keys)
 KeyHandleSnapshot SnapshotKeyHandles(const std::atomic_bool& cancel)
 {
     KeyHandleSnapshot snapshot;
-    static const auto query_object = Ntdll<QueryObjectFn>("NtQueryObject");
+    static const auto query_object = win32::ImportProc<QueryObjectFn>(L"ntdll.dll", "NtQueryObject");
     if (!query_object)
     {
         snapshot.error = ERROR_PROC_NOT_FOUND;
@@ -273,4 +267,4 @@ DWORD CloseKeyHandles(const std::vector<KeyHandle>& targets, size_t* closed)
     return *closed == targets.size() ? ERROR_SUCCESS : result;
 }
 
-} // namespace win32
+} // namespace regkit::win32

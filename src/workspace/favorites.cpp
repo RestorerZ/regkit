@@ -3,8 +3,8 @@
 
 #include "workspace/favorites.h"
 
+#include "registry/key_algorithms.h"
 #include "win32/file_text.h"
-#include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
@@ -143,16 +143,8 @@ bool FavoritesStore::LoadRegEdit(std::vector<NamedFavorite>* favorites, std::wst
     {
         error->clear();
     }
-    util::UniqueHKey key;
-    LONG result =
-        RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit\\Favorites", 0, KEY_READ, key.put());
-    DWORD value_count = 0;
-    DWORD max_name = 0;
-    DWORD max_data = 0;
-    if (result == ERROR_SUCCESS)
-    {
-        result = RegQueryInfoKeyW(key.get(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &value_count, &max_name, &max_data, nullptr, nullptr);
-    }
+    registry_backend::KeyContents contents;
+    const LONG result = registry_backend::ReadKeyContents(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit\\Favorites", 0, true, &contents);
     if (result == ERROR_FILE_NOT_FOUND || result == ERROR_PATH_NOT_FOUND)
     {
         return true;
@@ -165,22 +157,15 @@ bool FavoritesStore::LoadRegEdit(std::vector<NamedFavorite>* favorites, std::wst
         }
         return false;
     }
-    std::wstring name(max_name + 1, L'\0');
-    std::vector<BYTE> data(max_data + sizeof(wchar_t));
-    for (DWORD index = 0; index < value_count; ++index)
+    for (const RegistryValue& entry : contents.values)
     {
-        DWORD name_length = static_cast<DWORD>(name.size());
-        DWORD data_length = static_cast<DWORD>(data.size());
-        DWORD type = 0;
-        if (RegEnumValueW(key.get(), index, name.data(), &name_length, nullptr, &type, data.data(), &data_length) !=
-                ERROR_SUCCESS ||
-            (type != REG_SZ && type != REG_EXPAND_SZ))
+        if (entry.type != REG_SZ && entry.type != REG_EXPAND_SZ)
         {
             continue;
         }
-        std::wstring value(reinterpret_cast<const wchar_t*>(data.data()), data_length / sizeof(wchar_t));
+        std::wstring value(reinterpret_cast<const wchar_t*>(entry.data.data()), entry.data.size() / sizeof(wchar_t));
         value.resize(wcsnlen_s(value.c_str(), value.size()));
-        if (type == REG_EXPAND_SZ)
+        if (entry.type == REG_EXPAND_SZ)
         {
             std::wstring expanded = util::ExpandEnvironmentStringsDynamic(value);
             if (!expanded.empty())
@@ -190,7 +175,7 @@ bool FavoritesStore::LoadRegEdit(std::vector<NamedFavorite>* favorites, std::wst
         }
         if (!value.empty())
         {
-            favorites->push_back({std::wstring(name.data(), name_length), std::move(value)});
+            favorites->push_back({entry.name, std::move(value)});
         }
     }
     return true;

@@ -5,7 +5,7 @@
 
 #include "browse/key_tree.h"
 #include "browse/value_table.h"
-#include "frame/command_ids.h"
+#include "frame/commands/command_ids.h"
 
 #include <windows.h>
 

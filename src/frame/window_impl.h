@@ -4,7 +4,7 @@
 #pragma once
 
 #include "frame/main_window.h"
-#include "frame/update_checker.h"
+#include "frame/tools/update_checker.h"
 #include "win32/windows_config.h"
 
 #include <windows.h>
@@ -32,7 +32,7 @@
 #include "changes/undo_stack.h"
 #include "changes/value_comments.h"
 #include "defaults/default_data.h"
-#include "frame/toolbar.h"
+#include "frame/window/toolbar.h"
 #include "registry/registry_store.h"
 #include "registry/virtual_registry.h"
 #include "search/compare.h"
@@ -250,6 +250,7 @@ class MainWindow::Impl
     void RebuildHistoryList();
     void ScheduleValueListRename(LPARAM kind, const std::wstring& name);
     void StartPendingValueListRename();
+    bool CollectSearchStartNodes(const SearchDialogResult& options, const std::wstring& registry_scope_path, std::vector<search::StartNode>* out_nodes, std::vector<search::Source>* out_sources, bool* out_remote);
     void StartSearch(const SearchDialogResult& options);
     void StartReplace(const ReplaceDialogResult& options);
     void ApplyReplacePayload(ReplacePayload* payload);
@@ -378,12 +379,13 @@ class MainWindow::Impl
     void ToggleSearchColumn(int column, bool visible);
     void AppendHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data);
     void AppendHistoryEntry(HistoryEntry entry);
-    void AppendValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const ValueEntry* revert_value = nullptr);
+    void AppendValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value = nullptr);
     bool PrepareHistoryRevert(const HistoryEntry& entry, HistoryEntry* prepared) const;
     bool OpenHistoryTarget(const HistoryEntry& entry);
     bool RevertHistoryEntry(const HistoryEntry& entry);
     void ShowAddressContextMenu(HWND edit, POINT screen_pt);
     void ShowTreeContextMenu(POINT screen_pt);
+    bool CanOpenHiveFile(const RegistryNode& node);
     void ShowValueContextMenu(POINT screen_pt);
     void ShowHistoryContextMenu(POINT screen_pt);
     void ShowSearchResultContextMenu(POINT screen_pt);
@@ -520,7 +522,7 @@ class MainWindow::Impl
     void AddRecentDefaultPath(const std::wstring& path);
     void NormalizeRecentDefaultList();
     void AppendTraceChildren(const RegistryNode& node, const std::unordered_set<std::wstring>& existing_lower, std::vector<std::wstring>* out) const;
-    std::wstring TracePathLowerForNode(const RegistryNode& node) const;
+    static std::wstring TracePathLowerForNode(const RegistryNode& node);
     bool AllowTraceSimulation(const RegistryNode& node) const;
 
     struct ClipboardItem
@@ -535,7 +537,7 @@ class MainWindow::Impl
         Kind kind = Kind::kNone;
         RegistryNode source_parent;
         std::wstring name;
-        ValueEntry value;
+        RegistryValue value;
         changes::KeySnapshot key_snapshot;
     };
 
@@ -830,6 +832,8 @@ class MainWindow::Impl
         std::shared_ptr<const defaults::Data> data;
         std::shared_ptr<const trace::Selection> selection;
     };
+    static std::function<std::wstring(const std::wstring&, const std::wstring&)> DefaultDataLookup(std::vector<ActiveDefault> defaults);
+    static void CollectTraceChildren(const std::vector<ActiveTrace>& traces, const std::wstring& key_lower, const std::unordered_set<std::wstring>& existing_lower, std::vector<std::wstring>* out);
 
     struct TraceLoadPayload : work::MoveOnly
     {

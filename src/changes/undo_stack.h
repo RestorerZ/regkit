@@ -29,8 +29,8 @@ struct UndoOperation
     RegistryNode node;
     std::wstring name;
     std::wstring new_name;
-    ValueEntry old_value;
-    ValueEntry new_value;
+    RegistryValue old_value;
+    RegistryValue new_value;
     KeySnapshot key_snapshot;
 };
 

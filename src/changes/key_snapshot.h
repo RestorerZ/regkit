@@ -16,7 +16,7 @@ struct KeySnapshot
     std::wstring name;
     std::wstring link_target;
     std::vector<BYTE> security;
-    std::vector<ValueEntry> values;
+    std::vector<RegistryValue> values;
     std::vector<KeySnapshot> children;
     bool complete = true;
 };

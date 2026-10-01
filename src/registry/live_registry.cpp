@@ -54,7 +54,7 @@ bool HasSubKeys(const RegistryNode& node)
 
 bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info)
 {
-    LiveKey key(node, KEY_READ);
+    LiveKey key(node, kKeyReadAccess);
     return key && registry_backend::QueryKeyInfo(key, info);
 }
 
@@ -72,17 +72,17 @@ bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, boo
 
 std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node, bool sorted)
 {
-    LiveKey key(node, KEY_READ);
+    LiveKey key(node, kKeyReadAccess);
     return key ? SubKeyNames(key, sorted) : std::vector<std::wstring>();
 }
 
 bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, RegistryStore::KeyEnumResult* out_info, const RegistryStore::ValueStreamCallback& value_callback, const RegistryStore::SubkeyStreamCallback& subkey_callback, DWORD max_data_size, EnumerationScratch* scratch, bool, bool open_link)
 {
-    LiveKey key(node, KEY_READ, open_link);
+    LiveKey key(node, kKeyReadAccess, open_link);
     return key && EnumerateKey(key, include_values, include_data, include_subkeys, out_info, value_callback, subkey_callback, max_data_size, scratch);
 }
 
-bool QueryValue(const RegistryNode& node, const std::wstring& value_name, ValueEntry* out)
+bool QueryValue(const RegistryNode& node, const std::wstring& value_name, RegistryValue* out)
 {
     LiveKey key(node, KEY_QUERY_VALUE);
     return key && registry_backend::QueryValue(key, value_name, out);
@@ -126,7 +126,7 @@ bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, cons
 bool ReadKeyLink(const RegistryNode& node, std::wstring* target)
 {
     std::wstring value;
-    const LiveKey link = OpenChild(node, KEY_READ, KEY_QUERY_VALUE, true);
+    const LiveKey link = OpenChild(node, kKeyReadAccess, KEY_QUERY_VALUE, true);
     if (!link || !ReadLinkTarget(link, &value))
     {
         return false;

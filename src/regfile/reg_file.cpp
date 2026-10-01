@@ -4,6 +4,7 @@
 #include "regfile/reg_file.h"
 #include "win32/text_transform.h"
 
+#include "registry/key_algorithms.h"
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "win32/file_text.h"
@@ -111,120 +112,69 @@ std::wstring Escape(std::wstring_view text)
     output.reserve(text.size());
     for (wchar_t character : text)
     {
-        switch (character)
+        if (character == L'\\' || character == L'"')
         {
-        case L'\\':
-            output += L"\\\\";
-            break;
-        case L'"':
-            output += L"\\\"";
-            break;
-        case L'\n':
-            output += L"\\n";
-            break;
-        case L'\r':
-            output += L"\\r";
-            break;
-        case L'\t':
-            output += L"\\t";
-            break;
-        case L'\0':
-            output += L"\\0";
-            break;
-        default:
-            output.push_back(character);
-            break;
+            output.push_back(L'\\');
         }
+        output.push_back(character);
     }
     return output;
 }
 
-constexpr size_t kRegFileLineLimit = 80;
-
-void AppendWrapped(std::wstring* output, const std::wstring& line)
+void AppendHexLine(std::wstring* output, std::wstring_view prefix, const std::vector<BYTE>& data)
 {
-    size_t start = 0;
-    size_t indent = 0;
-    while (true)
+    constexpr size_t kHexLineLimit = 77;
+    constexpr wchar_t kDigits[] = L"0123456789abcdef";
+    output->append(prefix);
+    size_t line = prefix.size();
+    for (size_t index = 0; index < data.size(); ++index)
     {
-        const size_t remaining = line.size() - start;
-        if (indent + remaining <= kRegFileLineLimit)
+        output->push_back(kDigits[data[index] >> 4]);
+        output->push_back(kDigits[data[index] & 0x0F]);
+        if (index + 1 == data.size())
         {
-            output->append(indent, L' ');
-            output->append(line, start, std::wstring::npos);
-            output->append(L"\r\n");
-            return;
+            break;
         }
-        const size_t room = kRegFileLineLimit - indent - 1;
-        size_t split = line.rfind(L',', start + room - 1);
-        if (split == std::wstring::npos || split < start)
+        output->push_back(L',');
+        line += 3;
+        if (line >= kHexLineLimit)
         {
-            split = start + room - 1;
+            output->append(L"\\\r\n  ");
+            line = 2;
         }
-        output->append(indent, L' ');
-        output->append(line, start, split - start + 1);
-        output->append(L"\\\r\n");
-        start = split + 1;
-        indent = 2;
     }
+    output->append(L"\r\n");
 }
-
-bool IsCanonicalString(const std::vector<BYTE>& data)
-{
-    if (data.size() < sizeof(wchar_t) || data.size() % sizeof(wchar_t) != 0)
-    {
-        return false;
-    }
-    const wchar_t* text = reinterpret_cast<const wchar_t*>(data.data());
-    const size_t count = data.size() / sizeof(wchar_t);
-    if (text[count - 1] != L'\0')
-    {
-        return false;
-    }
-    for (size_t i = 0; i + 1 < count; ++i)
-    {
-        if (text[i] == L'\0')
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-std::wstring SerializeValue(const Value& value)
-{
-    const DWORD type = value_format::NormalizeType(value.type);
-    if (type == REG_SZ && value.type == REG_SZ && IsCanonicalString(value.data))
-    {
-        std::wstring text;
-        if (value_format::DecodeString(value.data, &text))
-        {
-            return L"\"" + Escape(text) + L"\"";
-        }
-    }
-    if (type == REG_DWORD && value.type == REG_DWORD && value.data.size() == sizeof(DWORD))
-    {
-        DWORD number = 0;
-        std::memcpy(&number, value.data.data(), sizeof(number));
-        wchar_t output[16] = {};
-        swprintf_s(output, L"dword:%08x", number);
-        return output;
-    }
-    if (type == REG_BINARY && value.type == REG_BINARY)
-    {
-        return L"hex:" + util::ToHex(value.data, L',');
-    }
-    wchar_t code[16] = {};
-    swprintf_s(code, L"%x", type);
-    return L"hex(" + std::wstring(code) + L"):" + util::ToHex(value.data, L',');
-}
-
-constexpr std::wstring_view kRegFileHeader = L"Windows Registry Editor Version 5.00\r\n\r\n";
 
 std::wstring ValueNamePrefix(const std::wstring& name)
 {
     return name.empty() ? L"@=" : L"\"" + Escape(name) + L"\"=";
 }
+
+void AppendValue(std::wstring* output, const Value& value)
+{
+    const std::wstring name = ValueNamePrefix(value.name);
+    std::wstring text;
+    if (value.type == REG_SZ && value_format::DecodeString(value.data, &text) && text.find_first_of(L"\r\n") == std::wstring::npos)
+    {
+        output->append(name).append(L"\"").append(Escape(text)).append(L"\"\r\n");
+        return;
+    }
+    if (value.type == REG_DWORD && value.data.size() == sizeof(DWORD))
+    {
+        DWORD number = 0;
+        std::memcpy(&number, value.data.data(), sizeof(number));
+        wchar_t text[24] = {};
+        swprintf_s(text, L"dword:%08x\r\n", number);
+        output->append(name).append(text);
+        return;
+    }
+    wchar_t code[16] = {};
+    swprintf_s(code, L"hex(%x):", value.type);
+    AppendHexLine(output, name + (value.type == REG_BINARY ? L"hex:" : code), value.data);
+}
+
+constexpr std::wstring_view kRegFileHeader = L"Windows Registry Editor Version 5.00\r\n\r\n";
 
 } // namespace
 
@@ -251,7 +201,7 @@ void Writer::AppendRemovedValues(const std::vector<std::wstring>& names)
 {
     for (const std::wstring& name : names)
     {
-        AppendWrapped(&output_, ValueNamePrefix(name) + L"-");
+        output_.append(ValueNamePrefix(name)).append(L"-\r\n");
     }
 }
 
@@ -267,12 +217,55 @@ void Writer::AppendKey(std::wstring_view path, std::vector<const Value*> values,
     }
     for (const Value* value : values)
     {
-        AppendWrapped(&output_, ValueNamePrefix(value->name) + SerializeValue(*value));
+        AppendValue(&output_, *value);
     }
 }
+
 std::wstring Writer::Finish() &&
 {
+    if (output_.size() > kRegFileHeader.size())
+    {
+        output_ += L"\r\n";
+    }
     return std::move(output_);
+}
+
+LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse)
+{
+    struct Pending
+    {
+        std::wstring subkey;
+        std::wstring display;
+    };
+    std::vector<Pending> pending{{subkey, display_path}};
+    LONG top_status = ERROR_SUCCESS;
+    for (bool top = true; !pending.empty(); top = false)
+    {
+        const Pending current = std::move(pending.back());
+        pending.pop_back();
+        registry_backend::KeyContents contents;
+        const LONG status = registry_backend::ReadKeyContents(root, current.subkey, view, true, &contents);
+        if (top)
+        {
+            top_status = status;
+        }
+        if (status != ERROR_SUCCESS)
+        {
+            continue;
+        }
+        std::vector<const Value*> values;
+        values.reserve(contents.values.size());
+        for (const Value& value : contents.values)
+        {
+            values.push_back(&value);
+        }
+        writer->AppendKey(current.display, std::move(values), false);
+        for (auto child = contents.subkeys.rbegin(); recurse && child != contents.subkeys.rend(); ++child)
+        {
+            pending.push_back({registry_path::JoinSubkey(current.subkey, *child), current.display + L"\\" + *child});
+        }
+    }
+    return top_status;
 }
 
 bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* cancel, bool* cancelled, std::wstring* error)

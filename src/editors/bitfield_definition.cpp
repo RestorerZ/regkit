@@ -584,20 +584,14 @@ bool Parse(const std::vector<BYTE>& utf8, DefinitionFile* file, std::wstring* er
         data += 3;
         size -= 3;
     }
-    std::wstring text;
-    if (size > 0)
+    const std::wstring text = util::Utf8ToWide(std::string_view(reinterpret_cast<const char*>(data), size));
+    if (size > 0 && text.empty())
     {
-        const int needed = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reinterpret_cast<const char*>(data), static_cast<int>(size), nullptr, 0);
-        if (needed <= 0)
+        if (error)
         {
-            if (error)
-            {
-                *error = L"The definition file isn't valid UTF-8.";
-            }
-            return false;
+            *error = L"The definition file isn't valid UTF-8.";
         }
-        text.resize(static_cast<size_t>(needed));
-        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reinterpret_cast<const char*>(data), static_cast<int>(size), text.data(), needed);
+        return false;
     }
     DefinitionFile parsed;
     std::wstring message;

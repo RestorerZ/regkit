@@ -129,7 +129,7 @@ void RebuildDecoders(HWND dialog, State* state)
     DecoderId wanted = DecoderId::kRawBytes;
     if (state->transform == TransformId::kNone)
     {
-        wanted = value_decoder::Suggest(state->request->type, state->request->key_path, state->request->value_name, bytes.size());
+        wanted = value_decoder::Suggest(state->request->key_path, state->request->value_name, bytes.size());
     }
     FillCombo(dialog, IDC_DECODE_FORMAT, state->decoders, IndexOfDecoder(state->decoders, wanted));
     RunDecoder(dialog, state);
@@ -216,18 +216,8 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         }
         return TRUE;
     }
-    if (message == WM_SIZE && state)
-    {
-        state->resizer.Apply(dialog);
-        return TRUE;
-    }
-    if (message == WM_GETMINMAXINFO && state)
-    {
-        state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
-        return TRUE;
-    }
     INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed))
+    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed, state ? &state->resizer : nullptr))
     {
         return themed;
     }

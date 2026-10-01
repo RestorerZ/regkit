@@ -13,8 +13,6 @@
 namespace regkit
 {
 
-using VirtualRegistryValue = RegistryValue;
-
 struct VirtualRegistryKey
 {
     std::wstring name;

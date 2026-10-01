@@ -109,14 +109,14 @@ void ApplyGridIcon(ListRegistration* entry)
         return;
     }
     const UINT dpi = win32::DpiForWindow(entry->toolbar);
-    const int size = util::ScaleForDpi(kGridGlyphSize, dpi);
+    const int size = appearance::ScaleForDpi(kGridGlyphSize, dpi);
     HICON icon =
-        util::LoadIconResource(Theme::UseDarkMode() ? IDI_ICON_LIGHT_GRID : IDI_ICON_DARK_GRID, kGridGlyphSize, dpi);
+        appearance::LoadIconResource(Theme::UseDarkMode() ? IDI_ICON_LIGHT_GRID : IDI_ICON_DARK_GRID, kGridGlyphSize, dpi);
     HIMAGELIST images = ImageList_Create(size, size, ILC_COLOR32, 1, 1);
     if (images)
     {
         ImageList_SetBkColor(images, CLR_NONE);
-        util::ImageListAddOrBlank(images, icon, size);
+        appearance::ImageListAddOrBlank(images, icon, size);
         SendMessageW(entry->toolbar, TB_SETIMAGELIST, 0, reinterpret_cast<LPARAM>(images));
         if (entry->images)
         {
@@ -160,7 +160,7 @@ void LayoutRegistration(ListRegistration* entry)
     }
     MapWindowPoints(nullptr, entry->owner, reinterpret_cast<POINT*>(&header_rect), 2);
     const int width =
-        std::min<int>(client.right - client.left, util::ScaleForDpi(kGridButtonWidth, win32::DpiForWindow(header)));
+        std::min<int>(client.right - client.left, appearance::ScaleForDpi(kGridButtonWidth, win32::DpiForWindow(header)));
     const int height = header_rect.bottom - header_rect.top;
     if (width <= 0 || height <= 0)
     {
@@ -654,6 +654,12 @@ int ListViewItemData(HWND list, int row, LPARAM* data)
     }
     *data = item.lParam;
     return row;
+}
+
+int SelectedListViewData(HWND list)
+{
+    LPARAM data = -1;
+    return list && ListViewItemData(list, ListView_GetNextItem(list, -1, LVNI_SELECTED), &data) >= 0 ? static_cast<int>(data) : -1;
 }
 
 int FindListViewItemByData(HWND list, LPARAM data)
