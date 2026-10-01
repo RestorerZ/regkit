@@ -397,26 +397,30 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
                                     return selected.kind == rowkind::kValue && !selected.simulated;
                                 });
         const bool single_value = all_values && selected_rows.size() == 1;
-        bool can_modify = !read_only_ && single_value;
-        bool can_delete = !read_only_ && all_values;
+        const bool has_data = std::any_of(selected_rows.begin(), selected_rows.end(), [](const ListRow& selected) {
+            return selected.type != L"TRACE";
+        });
+        bool can_rename = !read_only_ && single_value && has_data;
+        bool can_delete = !read_only_ && all_values && has_data;
         bool can_comment = all_values;
-        bool can_export = !row->simulated && browse_.current_node() && !browse_.current_node()->simulated;
-        UINT modify_flags = MF_STRING | (can_modify ? 0 : MF_GRAYED);
+        bool can_export = !row->simulated && browse_.current_node() && !browse_.current_node()->simulated && has_data;
+        UINT rename_flags = MF_STRING | (can_rename ? 0 : MF_GRAYED);
         UINT inspect_flags = MF_STRING | (single_value ? 0 : MF_GRAYED);
         UINT delete_flags = MF_STRING | (can_delete ? 0 : MF_GRAYED);
         UINT single_flags = MF_STRING | (single_value ? 0 : MF_GRAYED);
+        UINT data_flags = MF_STRING | (single_value && has_data ? 0 : MF_GRAYED);
         UINT export_flags = MF_STRING | (can_export ? 0 : MF_GRAYED);
         UINT comment_flags = MF_STRING | (can_comment ? 0 : MF_GRAYED);
         AppendMenuW(menu, inspect_flags, cmd::kEditModify, L"Modify...");
         AppendMenuW(menu, inspect_flags, cmd::kEditModifyBinary, L"Modify Binary Data...");
-        AppendMenuW(menu, inspect_flags, cmd::kEditChangeType, L"Change Data Type...");
+        AppendMenuW(menu, data_flags, cmd::kEditChangeType, L"Change Data Type...");
         AppendResetDefaultMenu(menu);
         AppendMenuW(menu, comment_flags, cmd::kEditModifyComment, L"Modify Comment...");
-        AppendMenuW(menu, single_flags, cmd::kEditDecodeValue, L"Decode Value...");
-        AppendMenuW(menu, single_flags, cmd::kEditBits, L"Edit Bits...");
+        AppendMenuW(menu, data_flags, cmd::kEditDecodeValue, L"Decode Value...");
+        AppendMenuW(menu, data_flags, cmd::kEditBits, L"Edit Bits...");
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(menu, single_flags, cmd::kEditCopyValueName, L"Copy Value Name");
-        AppendMenuW(menu, single_flags, cmd::kEditCopyValueData, L"Copy Value Data");
+        AppendMenuW(menu, data_flags, cmd::kEditCopyValueData, L"Copy Value Data");
         if (single_value && browse_.current_node())
         {
             std::wstring text = changes::ResolveComment(value_comments_, default_comments_, {CommentKeyPath(*browse_.current_node()), row->extra, row->value_type, row->value_data_size})
@@ -445,7 +449,7 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
         }
         AppendMenuW(menu, export_flags, cmd::kFileExport, L"Export...");
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        AppendMenuW(menu, modify_flags, cmd::kEditRename, L"Rename");
+        AppendMenuW(menu, rename_flags, cmd::kEditRename, L"Rename");
         AppendMenuW(menu, delete_flags, cmd::kEditDelete, L"Delete");
     }
     else
@@ -734,7 +738,8 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
         AppendMenuW(menu, MF_STRING, kSearchModify, L"Modify...");
         AppendMenuW(menu, MF_STRING, kSearchModifyBinary, L"Modify Binary Data...");
         AppendMenuW(menu, MF_STRING, kSearchModifyComment, L"Modify Comment...");
-        AppendMenuW(menu, MF_STRING, kSearchDecodeValue, L"Decode Value...");
+        const bool trace_row = result && result->kind == search::ResultKind::kTraceValue;
+        AppendMenuW(menu, MF_STRING | (trace_row ? MF_GRAYED : 0), kSearchDecodeValue, L"Decode Value...");
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     }
     AppendMenuW(menu, MF_STRING, kSearchCopyKeyName, L"Copy Key Name");

@@ -457,18 +457,16 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                 if (HasActiveTraces() && (row->type.empty() || EqualsInsensitive(row->type, L"TRACE")))
                 {
                     bool needs_create = browse_.current_node()->simulated;
-                    DWORD type = REG_SZ;
-                    std::vector<BYTE> data;
                     editors::CustomValueRequest request;
                     request.value_name = row->extra;
-                    request.type = type;
+                    request.type = command_id == cmd::kEditModifyBinary ? REG_BINARY : REG_SZ;
                     editors::CustomValueResult result;
                     if (!editors::EditCustomValue(hwnd_, request, &result))
                     {
                         return true;
                     }
-                    type = result.type;
-                    data = std::move(result.data);
+                    const DWORD type = result.type;
+                    const std::vector<BYTE> data = std::move(result.data);
                     if (needs_create)
                     {
                         std::wstring path = registry_path::Build(*browse_.current_node());
