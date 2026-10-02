@@ -533,7 +533,7 @@ std::wstring RenderBatch(const std::vector<Operation>& operations, bool admin_ch
     }
     const bool ascii = std::all_of(body.begin(), body.end(), [](wchar_t character) { return character < 0x80; });
     return L"@echo off\r\n" + std::wstring(ascii ? L"" : L"chcp 65001 >nul\r\n") +
-           (admin_check && NeedsAdmin(operations) ? L"net session >nul 2>&1 || (echo Run this script as administrator.& exit /b 1)\r\n" : L"") + body;
+           (admin_check && NeedsAdmin(operations) ? L"net session >nul 2>&1 || (echo Run this script as administrator & exit /b 1)\r\n" : L"") + body;
 }
 
 } // namespace regkit::regfile

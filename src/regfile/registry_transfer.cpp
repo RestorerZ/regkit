@@ -168,9 +168,11 @@ std::wstring SanitizeFileName(const std::wstring& name)
     return out.empty() ? L"RegistryExport" : out;
 }
 
-std::wstring ExportDefaultNameFromKeyPath(const std::wstring& key_path)
+} // namespace
+
+std::wstring DefaultExportPath(const std::wstring& key_path, const wchar_t* extension)
 {
-    const std::wstring file_name = util::EnsureFileExtension(SanitizeFileName(registry_path::Leaf(key_path)), L".reg");
+    const std::wstring file_name = util::EnsureFileExtension(SanitizeFileName(registry_path::Leaf(key_path)), extension);
     PWSTR desktop = nullptr;
     std::wstring path = file_name;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, 0, util::OpenShellToken(TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE).get(), &desktop)))
@@ -180,8 +182,6 @@ std::wstring ExportDefaultNameFromKeyPath(const std::wstring& key_path)
     CoTaskMemFree(desktop);
     return path;
 }
-
-} // namespace
 
 bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error)
 {
@@ -193,7 +193,7 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error
 {
     static win32::OpenAfter last_open_after = win32::OpenAfter::kNone;
     editors::ExportRequest request;
-    request.path = ExportDefaultNameFromKeyPath(key_path);
+    request.path = DefaultExportPath(key_path, L".reg");
     request.open_after = last_open_after;
     editors::ExportResult options;
     if (!editors::ChooseExport(owner, request, &options))

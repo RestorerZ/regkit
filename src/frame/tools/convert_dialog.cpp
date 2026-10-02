@@ -195,7 +195,7 @@ void Browse(HWND dialog, State* state, bool input)
     }
     SetDlgItemTextW(dialog, IDC_CONVERT_KEY, L"");
     PopulateKeys(dialog);
-    if (dialog_support::ReadText(dialog, IDC_CONVERT_OUTPUT).empty() && FormatAt(dialog) != SourceFormat(SourceAt(dialog)))
+    if (FormatAt(dialog) != SourceFormat(SourceAt(dialog)))
     {
         SetDlgItemTextW(dialog, IDC_CONVERT_OUTPUT, WithExtension(path, FormatAt(dialog)).c_str());
     }

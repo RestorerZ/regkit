@@ -8,6 +8,7 @@
 #include "editors/decoder_dialog.h"
 #include "frame/tools/convert_dialog.h"
 #include "frame/tools/key_handles_window.h"
+#include "regfile/registry_transfer.h"
 #include "registry/registry_path.h"
 
 namespace regkit
@@ -37,6 +38,7 @@ bool MainWindow::Impl::HandleToolsCommand(int command_id)
             if (settings.source == ConvertSource::kRegistry && browse_.current_node())
             {
                 settings.key_path = registry_path::Build(*browse_.current_node());
+                settings.output_path = DefaultExportPath(settings.key_path, regfile::FormatExtension(settings.format));
             }
             ShowConvertDialog(hwnd_, &settings);
         }
