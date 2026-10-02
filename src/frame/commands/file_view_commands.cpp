@@ -803,7 +803,7 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
             return true;
         }
     case cmd::kTraceGuide:
-        win32::ShellOpen(hwnd_, L"https://github.com/nohuto/regkit/blob/main/guides/wpr-wpa.md");
+        win32::ShellOpen(hwnd_, L"https://noverse.dev/docs/regkit/guides/wpr-wpa/");
         return true;
     case cmd::kDefaultEditRecent:
         {
