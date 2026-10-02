@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "win32/file_dialog.h"
+
 #include <windows.h>
 
 #include <string>
@@ -14,7 +16,7 @@ struct ExportRequest
 {
     std::wstring path;
     bool include_subkeys = true;
-    bool open_after = false;
+    win32::OpenAfter open_after = win32::OpenAfter::kNone;
 };
 
 using ExportResult = ExportRequest;

@@ -189,19 +189,18 @@ bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error)
            RunRegCommand(L"import \"" + path + L"\" " + win32::RegExeViewSwitch(win32::kDefaultRegistryView), error);
 }
 
-bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error, std::wstring* open_after_path)
+bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error, std::wstring* saved_path, win32::OpenAfter* open_after)
 {
-    if (open_after_path)
-    {
-        open_after_path->clear();
-    }
+    static win32::OpenAfter last_open_after = win32::OpenAfter::kNone;
     editors::ExportRequest request;
     request.path = ExportDefaultNameFromKeyPath(key_path);
+    request.open_after = last_open_after;
     editors::ExportResult options;
     if (!editors::ChooseExport(owner, request, &options))
     {
         return false;
     }
+    last_open_after = options.open_after;
     options.path = util::EnsureFileExtension(options.path, L".reg");
     RegistryNode node;
     std::wstring display;
@@ -219,14 +218,12 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error
     {
         return false;
     }
-    if (options.open_after && open_after_path)
-    {
-        *open_after_path = options.path;
-    }
+    *saved_path = options.path;
+    *open_after = options.open_after;
     return true;
 }
 
-bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const std::vector<std::wstring>& value_names, const std::vector<std::wstring>& subkey_names, std::wstring* error)
+bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const std::vector<std::wstring>& value_names, const std::vector<std::wstring>& subkey_names, std::wstring* error, std::wstring* saved_path, win32::OpenAfter* open_after)
 {
     if (value_names.empty() && subkey_names.empty())
     {
@@ -241,7 +238,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
     std::wstring path;
     if (!ui::ReportFileDialogResult(
             owner,
-            win32::ChooseFileToSave(owner, kRegFileFilter, util::EnsureFileExtension(SanitizeFileName(first_name), L".reg").c_str(), &path)
+            win32::ChooseFileToSave(owner, kRegFileFilter, util::EnsureFileExtension(SanitizeFileName(first_name), L".reg").c_str(), &path, open_after, true)
         ))
     {
         return false;
@@ -299,6 +296,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
             return ReportUnreadableKey(status, display, error);
         }
     }
+    *saved_path = path;
     return WriteRegFile(path, std::move(writer), error);
 }
 

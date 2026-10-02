@@ -3,7 +3,9 @@
 
 #include "cli/reg_command.h"
 
+#include "regfile/reg_exe_syntax.h"
 #include "regfile/reg_file.h"
+#include "regfile/script_convert.h"
 #include "regfile/registry_transfer.h"
 #include "registry/key_algorithms.h"
 #include "registry/registry_path.h"
@@ -17,9 +19,7 @@
 #include "win32/text_transform.h"
 
 #include <algorithm>
-#include <cerrno>
 #include <cstdio>
-#include <cwctype>
 
 namespace regkit::cli
 {
@@ -94,15 +94,6 @@ int Fail(LONG status)
     return kFailed;
 }
 
-bool IsSwitch(const std::wstring& text, const wchar_t* name)
-{
-    if (text.empty() || (text[0] != L'/' && text[0] != L'-'))
-    {
-        return false;
-    }
-    return util::EqualsInsensitive(std::wstring_view(text).substr(1), name);
-}
-
 struct KeyRef
 {
     HKEY root = nullptr;
@@ -136,138 +127,19 @@ bool ParseKey(const std::wstring& text, KeyRef* key)
     return true;
 }
 
-struct ValueType
-{
-    const wchar_t* name;
-    DWORD type;
-};
+using reg_exe::IsSwitch;
+using reg_exe::Options;
+using reg_exe::TypeName;
 
-const ValueType kTypes[] = {
-    {L"REG_SZ", REG_SZ},
-    {L"REG_MULTI_SZ", REG_MULTI_SZ},
-    {L"REG_EXPAND_SZ", REG_EXPAND_SZ},
-    {L"REG_DWORD", REG_DWORD},
-    {L"REG_DWORD_LITTLE_ENDIAN", REG_DWORD_LITTLE_ENDIAN},
-    {L"REG_DWORD_BIG_ENDIAN", REG_DWORD_BIG_ENDIAN},
-    {L"REG_QWORD", REG_QWORD},
-    {L"REG_QWORD_LITTLE_ENDIAN", REG_QWORD_LITTLE_ENDIAN},
-    {L"REG_BINARY", REG_BINARY},
-    {L"REG_NONE", REG_NONE},
-    {L"REG_LINK", REG_LINK},
-    {L"REG_FULL_RESOURCE_DESCRIPTOR", REG_FULL_RESOURCE_DESCRIPTOR},
-};
-
-// convert REG_* type name into Windows type number
-bool ParseType(const std::wstring& text, DWORD* type)
+bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, bool separator_switch = false)
 {
-    for (const ValueType& entry : kTypes)
+    std::wstring error;
+    if (!reg_exe::ParseOptions(args, first, options, positional, separator_switch, &error))
     {
-        if (util::EqualsInsensitive(text, entry.name))
-        {
-            *type = entry.type;
-            return true;
-        }
+        PrintError(error);
+        return false;
     }
-    PrintError(L"Invalid type: " + text);
-    return false;
-}
-
-bool BuildData(DWORD type, const std::wstring& text, const std::wstring& separator, std::vector<BYTE>* data)
-{
-    data->clear();
-    switch (type)
-    {
-    case REG_SZ:
-    case REG_EXPAND_SZ:
-    case REG_LINK:
-        {
-            const size_t bytes = (text.size() + 1) * sizeof(wchar_t);
-            data->resize(bytes);
-            memcpy(data->data(), text.c_str(), bytes);
-            return true;
-        }
-    case REG_MULTI_SZ:
-        {
-            std::vector<std::wstring> items;
-            const size_t step = separator.empty() ? 1 : separator.size();
-            size_t start = 0;
-            while (start <= text.size())
-            {
-                const size_t end = separator.empty() ? std::wstring::npos : text.find(separator, start);
-                const std::wstring item = text.substr(start, end == std::wstring::npos ? std::wstring::npos : end - start);
-                if (!item.empty())
-                {
-                    items.push_back(item);
-                }
-                if (end == std::wstring::npos)
-                {
-                    break;
-                }
-                start = end + step;
-            }
-            *data = value_format::MultiStringData(items);
-            return true;
-        }
-    case REG_DWORD:
-    case REG_DWORD_BIG_ENDIAN:
-    case REG_QWORD:
-        {
-            if (text.empty() || iswspace(text.front()) || text.front() == L'-' || text.front() == L'+')
-            {
-                PrintError(L"Invalid numeric data: " + text);
-                return false;
-            }
-            wchar_t* stop = nullptr;
-            const int base = (text.rfind(L"0x", 0) == 0 || text.rfind(L"0X", 0) == 0) ? 16 : 10;
-            errno = 0;
-            const unsigned long long value = wcstoull(text.c_str(), &stop, base);
-            if (stop == text.c_str() || !stop || *stop != L'\0' || errno == ERANGE)
-            {
-                PrintError(L"Invalid numeric data: " + text);
-                return false;
-            }
-            if (type == REG_QWORD)
-            {
-                data->resize(sizeof(unsigned long long));
-                memcpy(data->data(), &value, sizeof(value));
-                return true;
-            }
-            if (value > 0xFFFFFFFFull)
-            {
-                PrintError(L"Numeric data out of range for a DWORD: " + text);
-                return false;
-            }
-            DWORD narrow = static_cast<DWORD>(value);
-            if (type == REG_DWORD_BIG_ENDIAN)
-            {
-                narrow = _byteswap_ulong(narrow);
-            }
-            data->resize(sizeof(DWORD));
-            memcpy(data->data(), &narrow, sizeof(narrow));
-            return true;
-        }
-    case REG_BINARY:
-    case REG_NONE:
-    default:
-        if (!value_format::ParseHex(text, data))
-        {
-            PrintError(L"Invalid binary data: " + text);
-            return false;
-        }
-        return true;
-    }
-}
-
-std::wstring TypeName(DWORD type)
-{
-    for (const ValueType& entry : kTypes)
-    {
-        if (entry.type == type)
-        {
-            return entry.name;
-        }
-    }
-    return value_format::TypeName(type);
+    return true;
 }
 
 std::wstring FormatData(DWORD type, const BYTE* data, DWORD size)
@@ -306,10 +178,6 @@ std::wstring FormatData(DWORD type, const BYTE* data, DWORD size)
             {
                 memcpy(&value, data, sizeof(value));
             }
-            if (type == REG_DWORD_BIG_ENDIAN)
-            {
-                value = _byteswap_ulong(value);
-            }
             wchar_t buffer[24] = {};
             swprintf_s(buffer, L"0x%x", value);
             return buffer;
@@ -328,102 +196,6 @@ std::wstring FormatData(DWORD type, const BYTE* data, DWORD size)
     default:
         return util::ToHex({data, size}, L'\0', true);
     }
-}
-
-struct Options
-{
-    std::wstring value_name;
-    std::wstring data;
-    std::wstring type_text;
-    std::wstring file;
-    std::wstring separator = L"\\0";
-    bool has_value = false;
-    bool default_value = false;
-    bool all_values = false;
-    bool recurse = false;
-    bool force = false;
-    bool has_data = false;
-    REGSAM view = win32::kDefaultRegistryView;
-};
-
-bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, bool separator_switch = false)
-{
-    for (size_t i = first; i < args.size(); ++i)
-    {
-        const std::wstring& arg = args[i];
-        auto next = [&](std::wstring* out) -> bool {
-            if (i + 1 >= args.size())
-            {
-                PrintError(L"Missing argument for " + arg);
-                return false;
-            }
-            *out = args[++i];
-            return true;
-        };
-        if (IsSwitch(arg, L"v"))
-        {
-            if (!next(&options->value_name))
-                return false;
-            options->has_value = true;
-        }
-        else if (IsSwitch(arg, L"ve"))
-        {
-            options->default_value = true;
-            options->has_value = true;
-        }
-        else if (IsSwitch(arg, L"va"))
-        {
-            options->all_values = true;
-        }
-        else if (IsSwitch(arg, L"t"))
-        {
-            if (!next(&options->type_text))
-                return false;
-        }
-        else if (IsSwitch(arg, L"d"))
-        {
-            if (!next(&options->data))
-                return false;
-            options->has_data = true;
-        }
-        else if (IsSwitch(arg, L"s"))
-        {
-            // /s selects multi string separator for add and recursion elsewhere
-            if (separator_switch)
-            {
-                std::wstring separator;
-                if (!next(&separator))
-                    return false;
-                options->separator = separator;
-            }
-            else
-            {
-                options->recurse = true;
-            }
-        }
-        else if (IsSwitch(arg, L"f") || IsSwitch(arg, L"y"))
-        {
-            options->force = true;
-        }
-        else if (IsSwitch(arg, L"reg:32"))
-        {
-            options->view = KEY_WOW64_32KEY;
-        }
-        else if (IsSwitch(arg, L"reg:64"))
-        {
-            options->view = KEY_WOW64_64KEY;
-        }
-        else if (!arg.empty() && (arg[0] == L'/' || arg[0] == L'-'))
-        {
-            PrintError(L"Invalid option: " + arg);
-            return false;
-        }
-        else
-        {
-            positional->push_back(arg);
-        }
-    }
-    return true;
 }
 
 KeyRef ChildRef(const KeyRef& parent, const std::wstring& name)
@@ -557,12 +329,15 @@ int CmdAdd(const std::vector<std::wstring>& args)
     std::vector<BYTE> value_data;
     if (options.has_value)
     {
-        if (!options.type_text.empty() && !ParseType(options.type_text, &value_type))
+        if (!options.type_text.empty() && !reg_exe::ParseType(options.type_text, &value_type))
         {
+            PrintError(L"Invalid type: " + options.type_text);
             return kFailed;
         }
-        if (!BuildData(value_type, options.has_data ? options.data : std::wstring(), options.separator, &value_data))
+        std::wstring error;
+        if (!reg_exe::BuildData(value_type, options.has_data ? options.data : std::wstring(), options.separator, &value_data, &error))
         {
+            PrintError(error);
             return kFailed;
         }
     }
@@ -1055,6 +830,36 @@ int CmdCompare(const std::vector<std::wstring>& args)
     return differs ? 2 : kOk;
 }
 
+int CmdConvert(const std::vector<std::wstring>& args)
+{
+    regfile::Format format = regfile::Format::kReg;
+    if (args.size() != 3 || !regfile::FormatFromPath(args[2], &format))
+    {
+        PrintError(L"Usage: convert <input> <output>, both .reg, .bat, .cmd or .ps1.");
+        return kFailed;
+    }
+    std::vector<regfile::Operation> operations;
+    std::wstring error;
+    if (!regfile::ReadOperations(args[1], &operations, &error))
+    {
+        PrintError(error);
+        return kFailed;
+    }
+    std::vector<std::wstring> skipped;
+    const std::wstring text = regfile::RenderOperations(format, operations, true, &skipped);
+    for (const std::wstring& entry : skipped)
+    {
+        PrintError(L"Skipped " + entry);
+    }
+    if (!regfile::SaveRendered(args[2], format, text))
+    {
+        PrintError(L"Failed to write " + args[2]);
+        return kFailed;
+    }
+    Print(L"The operation completed successfully.");
+    return skipped.empty() ? kOk : kFailed;
+}
+
 void PrintUsage()
 {
     Print(L"RegKit command line\n"
@@ -1082,6 +887,7 @@ void PrintUsage()
           L"  regkit <key>                    open the window at that key\n"
           L"  regkit --goto <key>             same, explicit form\n"
           L"  regkit --edit-reg file.reg      open a .reg file in a tab\n"
+          L"  regkit convert <in> <out>       convert between .reg, .bat, .cmd and .ps1\n"
           L"  regkit --install-edit-context-menu\n"
           L"                                    add the Edit with RegKit context menu\n"
           L"  regkit --uninstall-edit-context-menu\n"
@@ -1119,6 +925,7 @@ int RunVerb(const std::wstring& verb, const std::vector<std::wstring>& args)
         {L"load", CmdLoad},
         {L"unload", CmdUnload},
         {L"compare", CmdCompare},
+        {L"convert", CmdConvert},
     };
     for (const Verb& entry : kVerbs)
     {

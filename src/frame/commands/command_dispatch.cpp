@@ -59,6 +59,7 @@ CommandArea ClassifyCommand(int command_id) noexcept
     case cmd::kEditDecodeValue:
     case cmd::kToolsBitfieldDefinitions:
     case cmd::kToolsKeyHandles:
+    case cmd::kToolsConvertFile:
         return CommandArea::kTools;
     case cmd::kEditInvertSelection:
     case cmd::kTreeToggleExpand:

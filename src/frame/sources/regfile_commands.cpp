@@ -194,6 +194,18 @@ void MainWindow::Impl::StartRegFileParse(const std::wstring& path, const std::ws
     reg_file_parse_sessions_.emplace(session_key, std::move(session));
 }
 
+void MainWindow::Impl::OpenSavedFile(const std::wstring& path, win32::OpenAfter open_after)
+{
+    if (open_after == win32::OpenAfter::kRegKit)
+    {
+        OpenRegFileTab(path, true);
+    }
+    else if (open_after == win32::OpenAfter::kEditor)
+    {
+        ui::ReportFileDialogResult(hwnd_, win32::OpenInTextEditor(hwnd_, path));
+    }
+}
+
 bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path, bool force_new_tab)
 {
     if (!tab_ || path.empty())

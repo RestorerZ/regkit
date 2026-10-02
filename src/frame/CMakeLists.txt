@@ -21,6 +21,7 @@ regkit_add_library(regkit_frame
     sources/source_lists.cpp
     sources/trace_commands.cpp
     sources/trace_loading.cpp
+    tools/convert_dialog.cpp
     tools/key_handles_window.cpp
     tools/launch_bridge.cpp
     tools/research_links.cpp

@@ -119,8 +119,12 @@ bool ReadTextFile(const std::wstring& path, std::wstring* output, bool* utf16, u
     {
         offset = 3;
     }
-    *output =
-        Utf8ToWide(std::string_view(reinterpret_cast<const char*>(bytes.data() + offset), bytes.size() - offset));
+    const std::string_view narrow(reinterpret_cast<const char*>(bytes.data() + offset), bytes.size() - offset);
+    *output = Utf8ToWide(narrow);
+    if (output->empty() && offset == 0)
+    {
+        *output = NarrowToWide(narrow, CP_ACP);
+    }
     return !output->empty();
 }
 

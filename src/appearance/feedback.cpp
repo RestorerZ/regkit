@@ -817,6 +817,30 @@ bool ConfirmDelete(HWND owner, const std::wstring& title, const std::vector<std:
     return false;
 }
 
+bool ConfirmConversionSkips(HWND owner, const std::vector<std::wstring>& skipped)
+{
+    std::wstring detail;
+    for (const std::wstring& entry : skipped)
+    {
+        detail.append(detail.empty() ? L"" : L"\r\n").append(entry);
+    }
+    const std::wstring message = std::to_wstring(skipped.size()) + (skipped.size() == 1 ? L" entry" : L" entries") +
+                                 L" can't be written in this format and will be left out.";
+    const int lines = std::min(static_cast<int>(skipped.size()), kMaxDetailLines);
+    int result = IDCANCEL;
+    return ShowChoiceDialog(owner, kAppTitle, message, L"Convert", L"", L"Cancel", &result, IDI_WARNING, 800, 150 + (lines - 1) * 16, {}, detail) &&
+           result == IDYES;
+}
+
+void ShowConversionSucceeded(HWND owner, const std::wstring& path)
+{
+    int result = IDCANCEL;
+    if (!ShowChoiceDialog(owner, kAppTitle, L"The file was converted.", L"OK", L"", L"", &result, IDI_INFORMATION, 520, 150, {}, path))
+    {
+        ShowInfo(owner, L"The file was converted.\n\n" + path);
+    }
+}
+
 bool ConfirmDelete(HWND owner, const std::wstring& title, const std::wstring& name, const std::wstring& override_message)
 {
     return ConfirmDelete(owner, title, std::vector<std::wstring>{name}, override_message);
@@ -847,9 +871,9 @@ bool PromptOpenFile(HWND owner, const wchar_t* filter, std::wstring* path)
     return ReportFileDialogResult(owner, win32::ChooseFileToOpen(owner, filter, path));
 }
 
-bool PromptSaveFile(HWND owner, const wchar_t* filter, std::wstring* path)
+bool PromptSaveFile(HWND owner, const wchar_t* filter, std::wstring* path, win32::OpenAfter* open_after, bool regkit)
 {
-    return ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, filter, nullptr, path));
+    return ReportFileDialogResult(owner, win32::ChooseFileToSave(owner, filter, nullptr, path, open_after, regkit));
 }
 
 bool ReportFileDialogResult(HWND owner, HRESULT hr)

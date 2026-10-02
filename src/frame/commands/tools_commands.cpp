@@ -6,7 +6,9 @@
 
 #include "editors/bitfield_definition_editor.h"
 #include "editors/decoder_dialog.h"
+#include "frame/tools/convert_dialog.h"
 #include "frame/tools/key_handles_window.h"
+#include "registry/registry_path.h"
 
 namespace regkit
 {
@@ -28,6 +30,16 @@ bool MainWindow::Impl::HandleToolsCommand(int command_id)
     {
     case cmd::kToolsBitfieldDefinitions:
         editors::ShowBitfieldDefinitionEditor(hwnd_, std::wstring());
+        return true;
+    case cmd::kToolsConvertFile:
+        {
+            static ConvertSettings settings;
+            if (settings.source == ConvertSource::kRegistry && browse_.current_node())
+            {
+                settings.key_path = registry_path::Build(*browse_.current_node());
+            }
+            ShowConvertDialog(hwnd_, &settings);
+        }
         return true;
     case cmd::kToolsKeyHandles:
         if (IsWindow(key_handles_window_))

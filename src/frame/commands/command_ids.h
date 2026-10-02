@@ -68,6 +68,7 @@ constexpr int kEditDecodeValue = 2139;
 constexpr int kToolsBitfieldDefinitions = 2140;
 constexpr int kEditBits = 2141;
 constexpr int kToolsKeyHandles = 2142;
+constexpr int kToolsConvertFile = 2143;
 
 constexpr int kRegistryLocal = 2120;
 constexpr int kRegistryNetwork = 2121;

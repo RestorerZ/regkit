@@ -103,7 +103,8 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
     case cmd::kFavoritesExport:
         {
             std::wstring path;
-            if (!ui::PromptSaveFile(hwnd_, L"Favorites Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0\0", &path))
+            win32::OpenAfter open_after = win32::OpenAfter::kNone;
+            if (!ui::PromptSaveFile(hwnd_, L"Favorites Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0\0", &path, &open_after))
             {
                 return true;
             }
@@ -114,6 +115,7 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
             else
             {
                 AppendHistoryEntry(L"Export favorites " + util::FileName(path), L"", path);
+                OpenSavedFile(path, open_after);
             }
             return true;
         }

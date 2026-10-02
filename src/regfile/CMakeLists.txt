@@ -1,5 +1,9 @@
 regkit_add_library(regkit_regfile
+    batch_script.cpp
+    powershell_script.cpp
+    reg_exe_syntax.cpp
     reg_file.cpp
+    script_convert.cpp
 )
 target_include_directories(regkit_regfile PUBLIC
     "${PROJECT_SOURCE_DIR}/src"

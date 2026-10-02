@@ -780,7 +780,8 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
             case kExportPresetId:
                 {
                     std::wstring path;
-                    if (!ui::ReportFileDialogResult(hwnd, win32::ChooseFileToSave(hwnd, kThemeFilter, nullptr, &path)))
+                    win32::OpenAfter open_after = win32::OpenAfter::kNone;
+                    if (!ui::ReportFileDialogResult(hwnd, win32::ChooseFileToSave(hwnd, kThemeFilter, nullptr, &path, &open_after)))
                     {
                         return 0;
                     }
@@ -788,6 +789,10 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
                     if (!ThemePresetStore::ExportToFile(path, state->presets, &error))
                     {
                         ui::ShowError(hwnd, error.empty() ? L"Failed to export theme presets." : error);
+                    }
+                    else if (open_after == win32::OpenAfter::kEditor)
+                    {
+                        ui::ReportFileDialogResult(hwnd, win32::OpenInTextEditor(hwnd, path));
                     }
                     return 0;
                 }

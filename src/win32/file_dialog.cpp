@@ -101,7 +101,9 @@ std::vector<COMDLG_FILTERSPEC> ParseFilter(const wchar_t* filter)
     return specs;
 }
 
-HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDIALOGOPTIONS extra_options, const wchar_t* suggested_name, std::wstring* path)
+OpenAfter g_open_after = OpenAfter::kNone;
+
+HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDIALOGOPTIONS extra_options, const wchar_t* suggested_name, std::wstring* path, OpenAfter* open_after = nullptr, bool regkit = false)
 {
     if (!path)
     {
@@ -163,10 +165,30 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
         }
     }
 
+    constexpr DWORD kOpenAfterCombo = 2;
+    ComPtr<IFileDialogCustomize> customize;
+    if (open_after && SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.Receive()))))
+    {
+        customize->StartVisualGroup(1, L"Open after saving:");
+        customize->AddComboBox(kOpenAfterCombo);
+        customize->AddControlItem(kOpenAfterCombo, static_cast<DWORD>(OpenAfter::kNone), L"Don't open");
+        customize->AddControlItem(kOpenAfterCombo, static_cast<DWORD>(OpenAfter::kEditor), L"In text editor");
+        if (regkit)
+        {
+            customize->AddControlItem(kOpenAfterCombo, static_cast<DWORD>(OpenAfter::kRegKit), L"In RegKit");
+        }
+        customize->EndVisualGroup();
+        customize->SetSelectedControlItem(kOpenAfterCombo, static_cast<DWORD>(!regkit && g_open_after == OpenAfter::kRegKit ? OpenAfter::kNone : g_open_after));
+    }
     hr = dialog->Show(owner);
     if (FAILED(hr))
     {
         return hr;
+    }
+    DWORD selected = static_cast<DWORD>(OpenAfter::kNone);
+    if (customize && SUCCEEDED(customize->GetSelectedControlItem(kOpenAfterCombo, &selected)))
+    {
+        g_open_after = *open_after = static_cast<OpenAfter>(selected);
     }
 
     ComPtr<IShellItem> item;
@@ -197,9 +219,22 @@ HRESULT ChooseFileToOpen(HWND owner, const wchar_t* filter, std::wstring* path)
     return ShowDialog(owner, CLSID_FileOpenDialog, filter, 0, nullptr, path);
 }
 
-HRESULT ChooseFileToSave(HWND owner, const wchar_t* filter, const wchar_t* suggested_name, std::wstring* path)
+HRESULT ChooseFileToSave(HWND owner, const wchar_t* filter, const wchar_t* suggested_name, std::wstring* path, OpenAfter* open_after, bool regkit)
 {
-    return ShowDialog(owner, CLSID_FileSaveDialog, filter, 0, suggested_name, path);
+    return ShowDialog(owner, CLSID_FileSaveDialog, filter, 0, suggested_name, path, open_after, regkit);
+}
+
+HRESULT OpenInTextEditor(HWND owner, const std::wstring& path)
+{
+    SHELLEXECUTEINFOW info = {};
+    info.cbSize = sizeof(info);
+    info.fMask = SEE_MASK_CLASSNAME | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
+    info.hwnd = owner;
+    info.lpVerb = L"open";
+    info.lpFile = path.c_str();
+    info.lpClass = L".txt";
+    info.nShow = SW_SHOWNORMAL;
+    return ShellExecuteExW(&info) ? S_OK : HRESULT_FROM_WIN32(GetLastError());
 }
 
 HRESULT ChooseFolder(HWND owner, std::wstring* path)

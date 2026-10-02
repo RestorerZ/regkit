@@ -27,6 +27,20 @@ struct Key
     bool removed = false;
 };
 
+struct Operation
+{
+    enum class Kind
+    {
+        kKey,
+        kRemoveKey,
+        kValue,
+        kRemoveValue,
+    };
+    Kind kind = Kind::kKey;
+    std::wstring path;
+    Value value;
+};
+
 struct Document
 {
     std::vector<std::wstring> key_order;
@@ -40,7 +54,8 @@ class Writer
 
     void AppendKey(std::wstring_view path, std::vector<const Value*> values, bool sorted = true);
     void AppendRemovedKey(std::wstring_view path);
-    void AppendRemovedValues(const std::vector<std::wstring>& names);
+    void AppendValue(const Value& value);
+    void AppendRemovedValue(std::wstring_view name);
     std::wstring Finish() &&;
 
   private:
@@ -50,8 +65,10 @@ class Writer
 };
 
 LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse);
+LONG ReadRegistryOperations(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<Operation>* output);
+bool ParseOperations(std::wstring_view content, std::vector<Operation>* output, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr, std::wstring* error = nullptr);
 bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr, std::wstring* error = nullptr);
 bool Load(const std::wstring& path, Document* output, std::wstring* error, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr);
-std::wstring Serialize(const Document& document);
+std::wstring RenderReg(const std::vector<Operation>& operations);
 
 } // namespace regkit::regfile

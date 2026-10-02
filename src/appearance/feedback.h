@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "win32/file_dialog.h"
 #include "win32/windows_config.h"
 
 #include <windows.h>
@@ -28,6 +29,8 @@ void ShowAbout(HWND owner);
 bool ConfirmRegFileMerge(HWND owner, const std::wstring& path);
 void ShowRegFileMergeSucceeded(HWND owner, const std::wstring& path);
 void ShowRegFileMergeFailed(HWND owner, const std::wstring& path, const std::wstring& detail);
+bool ConfirmConversionSkips(HWND owner, const std::vector<std::wstring>& skipped);
+void ShowConversionSucceeded(HWND owner, const std::wstring& path);
 bool ConfirmDelete(HWND owner, const std::wstring& title, const std::wstring& name, const std::wstring& message = std::wstring());
 bool ConfirmDelete(HWND owner, const std::wstring& title, const std::vector<std::wstring>& names, const std::wstring& message = std::wstring());
 struct ChoiceButtonWidths
@@ -41,7 +44,7 @@ int PromptKeyChoice(HWND owner, const std::wstring& message, const std::wstring&
 int PromptChoice(HWND owner, const std::wstring& message, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths = {}, int width = 420);
 bool ReportFileDialogResult(HWND owner, HRESULT hr);
 bool PromptOpenFile(HWND owner, const wchar_t* filter, std::wstring* path);
-bool PromptSaveFile(HWND owner, const wchar_t* filter, std::wstring* path);
+bool PromptSaveFile(HWND owner, const wchar_t* filter, std::wstring* path, win32::OpenAfter* open_after = nullptr, bool regkit = false);
 
 inline constexpr wchar_t kRegFileFilter[] = L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0\0";
 inline constexpr wchar_t kHiveFileFilter[] = L"Hive Files (*.*)\0*.*\0";

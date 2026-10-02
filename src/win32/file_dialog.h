@@ -14,9 +14,17 @@ namespace regkit::win32
 
 using FolderPrompt = bool (*)(HWND owner, const std::wstring& path);
 
+enum class OpenAfter
+{
+    kNone,
+    kEditor,
+    kRegKit,
+};
+
 void SetMissingDesktopPrompt(FolderPrompt prompt);
 HRESULT ChooseFileToOpen(HWND owner, const wchar_t* filter, std::wstring* path);
-HRESULT ChooseFileToSave(HWND owner, const wchar_t* filter, const wchar_t* suggested_name, std::wstring* path);
+HRESULT ChooseFileToSave(HWND owner, const wchar_t* filter, const wchar_t* suggested_name, std::wstring* path, OpenAfter* open_after = nullptr, bool regkit = false);
+HRESULT OpenInTextEditor(HWND owner, const std::wstring& path);
 HRESULT ChooseFolder(HWND owner, std::wstring* path);
 HRESULT ChooseComputer(HWND owner, std::wstring* name);
 

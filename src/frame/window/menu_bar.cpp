@@ -478,6 +478,7 @@ void MainWindow::Impl::BuildMenus()
 
     HMENU tools_menu = CreatePopupMenu();
     append_menu(tools_menu, MF_STRING, cmd::kOptionsCompareRegistries, L"Compare Registries...");
+    append_menu(tools_menu, MF_STRING, cmd::kToolsConvertFile, L"Convert File...");
     append_menu(tools_menu, MF_STRING, cmd::kToolsKeyHandles, L"Key Handles...");
     HMENU bitfield_menu = CreatePopupMenu();
     AppendMenuW(bitfield_menu, MF_STRING, cmd::kToolsBitfieldDefinitions, L"New Definition File...");

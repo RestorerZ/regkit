@@ -176,13 +176,15 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             {
                 int tab_index = TabCtrl_GetCurSel(tab_);
                 std::wstring path;
-                if (!ui::PromptSaveFile(hwnd_, ui::kRegFileFilter, &path))
+                win32::OpenAfter open_after = win32::OpenAfter::kNone;
+                if (!ui::PromptSaveFile(hwnd_, ui::kRegFileFilter, &path, &open_after, true))
                 {
                     return true;
                 }
                 if (ExportRegFileTab(tab_index, path))
                 {
                     AppendHistoryEntry(L"Export .reg tab " + util::FileName(path), L"", path);
+                    OpenSavedFile(path, open_after);
                 }
                 return true;
             }
@@ -235,7 +237,9 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
                     dedupe(&selected_keys);
                     std::wstring error;
                     std::wstring path = registry_path::Build(*browse_.current_node());
-                    if (ExportRegFileSelection(hwnd_, path, selected_values, selected_keys, &error))
+                    std::wstring saved_path;
+                    win32::OpenAfter open_after = win32::OpenAfter::kNone;
+                    if (ExportRegFileSelection(hwnd_, path, selected_values, selected_keys, &error, &saved_path, &open_after))
                     {
                         HistoryEntry entry;
                         entry.action = L"Export registry selection";
@@ -243,6 +247,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
                                          std::to_wstring(selected_values.size()) + L" values";
                         entry.key_path = path;
                         AppendHistoryEntry(std::move(entry));
+                        OpenSavedFile(saved_path, open_after);
                     }
                     else if (!error.empty())
                     {
@@ -253,18 +258,16 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             }
             std::wstring error;
             std::wstring path = registry_path::Build(*browse_.current_node());
-            std::wstring open_after_path;
-            if (ExportRegFile(hwnd_, path, &error, &open_after_path))
+            std::wstring saved_path;
+            win32::OpenAfter open_after = win32::OpenAfter::kNone;
+            if (ExportRegFile(hwnd_, path, &error, &saved_path, &open_after))
             {
                 HistoryEntry entry;
                 entry.action = L"Export registry key";
                 entry.key_path = path;
                 entry.new_data = path;
                 AppendHistoryEntry(std::move(entry));
-                if (!open_after_path.empty())
-                {
-                    OpenRegFileTab(open_after_path, true);
-                }
+                OpenSavedFile(saved_path, open_after);
             }
             else if (!error.empty())
             {
@@ -292,13 +295,15 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
     case cmd::kFileExportComments:
         {
             std::wstring path;
-            if (!ui::PromptSaveFile(hwnd_, L"RegKit Comment Files (*.jsonc)\0*.jsonc\0All Files (*.*)\0*.*\0\0", &path))
+            win32::OpenAfter open_after = win32::OpenAfter::kNone;
+            if (!ui::PromptSaveFile(hwnd_, L"RegKit Comment Files (*.jsonc)\0*.jsonc\0All Files (*.*)\0*.*\0\0", &path, &open_after))
             {
                 return true;
             }
             if (ExportCommentsToFile(path))
             {
                 AppendHistoryEntry(L"Export comments " + util::FileName(path), L"", path);
+                OpenSavedFile(path, open_after);
             }
             else
             {

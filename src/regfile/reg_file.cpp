@@ -10,16 +10,14 @@
 #include "win32/file_text.h"
 
 #include <algorithm>
-#include <cerrno>
 #include <cstring>
-#include <cwctype>
 
 namespace regkit::regfile
 {
 namespace
 {
 
-bool ParseQuoted(std::wstring_view text, std::wstring* output, size_t* closing = nullptr)
+bool ParseQuoted(std::wstring_view text, std::wstring* output)
 {
     if (!output || text.empty() || text.front() != L'"')
     {
@@ -58,11 +56,6 @@ bool ParseQuoted(std::wstring_view text, std::wstring* output, size_t* closing =
         }
         else if (character == L'"')
         {
-            if (closing)
-            {
-                *closing = index;
-                return true;
-            }
             for (size_t rest = index + 1; rest < text.size(); ++rest)
             {
                 if (text[rest] != L' ' && text[rest] != L'\t')
@@ -155,7 +148,8 @@ void AppendValue(std::wstring* output, const Value& value)
 {
     const std::wstring name = ValueNamePrefix(value.name);
     std::wstring text;
-    if (value.type == REG_SZ && value_format::DecodeString(value.data, &text) && text.find_first_of(L"\r\n") == std::wstring::npos)
+    if (value.type == REG_SZ && value_format::DecodeString(value.data, &text) && value_format::StringData(text) == value.data &&
+        text.find_first_of(L"\r\n") == std::wstring::npos)
     {
         output->append(name).append(L"\"").append(Escape(text)).append(L"\"\r\n");
         return;
@@ -197,12 +191,14 @@ void Writer::AppendRemovedKey(std::wstring_view path)
     AppendKeyHeader(L"[-", path);
 }
 
-void Writer::AppendRemovedValues(const std::vector<std::wstring>& names)
+void Writer::AppendValue(const Value& value)
 {
-    for (const std::wstring& name : names)
-    {
-        output_.append(ValueNamePrefix(name)).append(L"-\r\n");
-    }
+    regfile::AppendValue(&output_, value);
+}
+
+void Writer::AppendRemovedValue(std::wstring_view name)
+{
+    output_.append(ValueNamePrefix(std::wstring(name))).append(L"-\r\n");
 }
 
 void Writer::AppendKey(std::wstring_view path, std::vector<const Value*> values, bool sorted)
@@ -217,7 +213,7 @@ void Writer::AppendKey(std::wstring_view path, std::vector<const Value*> values,
     }
     for (const Value* value : values)
     {
-        AppendValue(&output_, *value);
+        regfile::AppendValue(&output_, *value);
     }
 }
 
@@ -230,7 +226,12 @@ std::wstring Writer::Finish() &&
     return std::move(output_);
 }
 
-LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse)
+namespace
+{
+
+// depth first in export order, visit gets each readable key's display path and contents
+template <typename Visit>
+LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, Visit visit)
 {
     struct Pending
     {
@@ -253,13 +254,7 @@ LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, c
         {
             continue;
         }
-        std::vector<const Value*> values;
-        values.reserve(contents.values.size());
-        for (const Value& value : contents.values)
-        {
-            values.push_back(&value);
-        }
-        writer->AppendKey(current.display, std::move(values), false);
+        visit(current.display, contents);
         for (auto child = contents.subkeys.rbegin(); recurse && child != contents.subkeys.rend(); ++child)
         {
             pending.push_back({registry_path::JoinSubkey(current.subkey, *child), current.display + L"\\" + *child});
@@ -268,14 +263,112 @@ LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, c
     return top_status;
 }
 
-bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* cancel, bool* cancelled, std::wstring* error)
+} // namespace
+
+LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse)
+{
+    return VisitRegistryTree(root, subkey, display_path, view, recurse, [&](const std::wstring& display, const registry_backend::KeyContents& contents) {
+        std::vector<const Value*> values;
+        values.reserve(contents.values.size());
+        for (const Value& value : contents.values)
+        {
+            values.push_back(&value);
+        }
+        writer->AppendKey(display, std::move(values), false);
+    });
+}
+
+LONG ReadRegistryOperations(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<Operation>* output)
+{
+    return VisitRegistryTree(root, subkey, display_path, view, recurse, [&](const std::wstring& display, registry_backend::KeyContents& contents) {
+        output->push_back({Operation::Kind::kKey, display});
+        for (Value& value : contents.values)
+        {
+            output->push_back({Operation::Kind::kValue, display, std::move(value)});
+        }
+    });
+}
+
+namespace
+{
+
+// regedit4 stores string hex data as ansi bytes
+std::vector<BYTE> AnsiToUtf16(const std::vector<BYTE>& data)
+{
+    const std::wstring text = util::NarrowToWide(std::string_view(reinterpret_cast<const char*>(data.data()), data.size()), CP_ACP);
+    std::vector<BYTE> output(text.size() * sizeof(wchar_t));
+    std::memcpy(output.data(), text.data(), output.size());
+    return output;
+}
+
+bool ParseValueData(const std::wstring& data_text, bool ansi, Value* value)
+{
+    if (data_text.front() == L'"')
+    {
+        std::wstring text;
+        if (!ParseQuoted(data_text, &text))
+        {
+            return false;
+        }
+        value->type = REG_SZ;
+        value->data = value_format::StringData(text);
+        return true;
+    }
+    unsigned long long number = 0;
+    if (util::StartsWithInsensitive(data_text, L"dword:"))
+    {
+        if (!util::ParseUnsignedNumber(std::wstring_view(data_text).substr(6), 16, &number) || number > 0xFFFFFFFFull)
+        {
+            return false;
+        }
+        value->type = REG_DWORD;
+        value->data = value_format::UnsignedBytes(number, sizeof(DWORD));
+        return true;
+    }
+    if (!util::StartsWithInsensitive(data_text, L"hex"))
+    {
+        return false;
+    }
+    const size_t colon = data_text.find(L':');
+    if (colon == std::wstring::npos)
+    {
+        return false;
+    }
+    value->type = REG_BINARY;
+    const size_t open = data_text.find(L'(');
+    const size_t close = data_text.find(L')');
+    if (open != std::wstring::npos && close != std::wstring::npos && close > open && close < colon)
+    {
+        if (!util::ParseUnsignedNumber(std::wstring_view(data_text).substr(open + 1, close - open - 1), 16, &number) || number > 0xFFFFFFFFull)
+        {
+            return false;
+        }
+        value->type = static_cast<DWORD>(number);
+    }
+    else if (colon != 3)
+    {
+        return false;
+    }
+    if (!value_format::ParseHex(std::wstring_view(data_text).substr(colon + 1), &value->data))
+    {
+        return false;
+    }
+    if (ansi && (value->type == REG_SZ || value->type == REG_EXPAND_SZ || value->type == REG_MULTI_SZ))
+    {
+        value->data = AnsiToUtf16(value->data);
+    }
+    return true;
+}
+
+} // namespace
+
+bool ParseOperations(std::wstring_view content, std::vector<Operation>* output, const std::atomic_bool* cancel, bool* cancelled, std::wstring* error)
 {
     if (!output)
     {
         return false;
     }
-    output->keys.clear();
-    output->key_order.clear();
+    output->clear();
     if (cancelled)
     {
         *cancelled = false;
@@ -288,53 +381,6 @@ bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* 
         }
         return value;
     };
-
-    std::vector<std::wstring> lines;
-    std::wstring continued;
-    bool continuing = false;
-    size_t start = 0;
-    while (start < content.size())
-    {
-        if (stopped())
-        {
-            return false;
-        }
-        size_t end = content.find(L'\n', start);
-        if (end == std::wstring_view::npos)
-        {
-            end = content.size();
-        }
-        std::wstring line(content.substr(start, end - start));
-        if (!line.empty() && line.back() == L'\r')
-        {
-            line.pop_back();
-        }
-        start = end + 1;
-        if (continuing)
-        {
-            const size_t first = line.find_first_not_of(L" \t");
-            line.erase(0, first == std::wstring::npos ? line.size() : first);
-        }
-        continued += line;
-        while (!continued.empty() && (continued.back() == L' ' || continued.back() == L'\t'))
-        {
-            continued.pop_back();
-        }
-        if (!continued.empty() && continued.back() == L'\\')
-        {
-            continued.pop_back();
-            continuing = true;
-            continue;
-        }
-        continuing = false;
-        lines.push_back(std::move(continued));
-        continued.clear();
-    }
-    if (!continued.empty())
-    {
-        lines.push_back(std::move(continued));
-    }
-
     auto fail = [&](const std::wstring& line) {
         if (error)
         {
@@ -344,43 +390,38 @@ bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* 
         return false;
     };
 
-    Key* current_key = nullptr;
-    for (const auto& raw : lines)
-    {
-        if (stopped())
-        {
-            return false;
-        }
+    bool ansi = false;
+    bool in_key = false;
+    std::wstring current_path;
+    auto handle = [&](const std::wstring& raw) {
         const std::wstring line = util::TrimWhitespace(raw);
-        if (line.empty() || line.front() == L';' || util::StartsWithInsensitive(line, L"Windows Registry Editor") ||
-            util::StartsWithInsensitive(line, L"REGEDIT4"))
+        if (line.empty() || line.front() == L';' || util::StartsWithInsensitive(line, L"Windows Registry Editor"))
         {
-            continue;
+            return true;
+        }
+        if (util::StartsWithInsensitive(line, L"REGEDIT4"))
+        {
+            ansi = true;
+            return true;
         }
         if (line.front() == L'[' && line.back() == L']')
         {
             std::wstring path = util::TrimWhitespace(std::wstring_view(line).substr(1, line.size() - 2));
-            bool removed = false;
-            if (!path.empty() && path.front() == L'-')
+            const bool removed = !path.empty() && path.front() == L'-';
+            if (removed)
             {
-                removed = true;
                 path = util::TrimWhitespace(std::wstring_view(path).substr(1));
             }
             if (path.empty())
             {
                 return fail(line);
             }
-            const std::wstring lower = util::ToLower(path);
-            auto [iterator, inserted] = output->keys.try_emplace(lower, Key{path, {}});
-            if (inserted)
-            {
-                output->key_order.push_back(path);
-            }
-            iterator->second.removed = removed;
-            current_key = removed ? nullptr : &iterator->second;
-            continue;
+            in_key = !removed;
+            current_path = path;
+            output->push_back({removed ? Operation::Kind::kRemoveKey : Operation::Kind::kKey, std::move(path)});
+            return true;
         }
-        if (!current_key)
+        if (!in_key)
         {
             return fail(line);
         }
@@ -395,89 +436,135 @@ bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* 
         {
             return fail(line);
         }
-
-        Value value;
-        if (name_text == L"@")
-        {
-            value.name.clear();
-        }
-        else if (!ParseQuoted(name_text, &value.name))
+        Operation operation{Operation::Kind::kValue, current_path};
+        if (name_text != L"@" && !ParseQuoted(name_text, &operation.value.name))
         {
             return fail(line);
         }
-
         if (data_text == L"-")
         {
-            current_key->values.erase(util::ToLower(value.name));
-            current_key->removed_values.push_back(value.name);
+            operation.kind = Operation::Kind::kRemoveValue;
+        }
+        else if (!ParseValueData(data_text, ansi, &operation.value))
+        {
+            return fail(line);
+        }
+        output->push_back(std::move(operation));
+        return true;
+    };
+
+    std::wstring logical;
+    bool continuing = false;
+    bool quoted = false;
+    bool escaped = false;
+    for (size_t start = 0; start < content.size();)
+    {
+        if (stopped())
+        {
+            return false;
+        }
+        size_t end = content.find(L'\n', start);
+        const bool has_newline = end != std::wstring_view::npos;
+        if (!has_newline)
+        {
+            end = content.size();
+        }
+        std::wstring_view physical = content.substr(start, end - start);
+        const bool crlf = !physical.empty() && physical.back() == L'\r';
+        if (crlf)
+        {
+            physical.remove_suffix(1);
+        }
+        start = end + 1;
+        if (continuing)
+        {
+            const size_t first = physical.find_first_not_of(L" \t");
+            physical.remove_prefix(first == std::wstring_view::npos ? physical.size() : first);
+        }
+        const size_t scanned = logical.size();
+        logical.append(physical);
+        const size_t first = logical.find_first_not_of(L" \t");
+        if (quoted || (first != std::wstring::npos && logical[first] != L'[' && logical[first] != L';'))
+        {
+            for (size_t index = scanned; index < logical.size(); ++index)
+            {
+                if (escaped)
+                {
+                    escaped = false;
+                }
+                else if (quoted && logical[index] == L'\\')
+                {
+                    escaped = true;
+                }
+                else if (logical[index] == L'"')
+                {
+                    quoted = !quoted;
+                }
+            }
+        }
+        // regedit & reg export write each LF inside a string as CRLF
+        if (quoted && has_newline)
+        {
+            logical.push_back(L'\n');
+            continuing = false;
             continue;
         }
+        while (!logical.empty() && (logical.back() == L' ' || logical.back() == L'\t'))
+        {
+            logical.pop_back();
+        }
+        continuing = !quoted && !logical.empty() && logical.back() == L'\\';
+        if (continuing)
+        {
+            logical.pop_back();
+            continue;
+        }
+        if (!handle(logical))
+        {
+            return false;
+        }
+        logical.clear();
+        quoted = false;
+        escaped = false;
+    }
+    return logical.empty() || handle(logical);
+}
 
-        if (data_text.front() == L'"')
+bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* cancel, bool* cancelled, std::wstring* error)
+{
+    if (!output)
+    {
+        return false;
+    }
+    output->keys.clear();
+    output->key_order.clear();
+    std::vector<Operation> operations;
+    if (!ParseOperations(content, &operations, cancel, cancelled, error))
+    {
+        return false;
+    }
+    Key* current = nullptr;
+    for (Operation& operation : operations)
+    {
+        if (operation.kind == Operation::Kind::kKey || operation.kind == Operation::Kind::kRemoveKey)
         {
-            std::wstring text;
-            if (!ParseQuoted(data_text, &text))
+            auto [iterator, inserted] = output->keys.try_emplace(util::ToLower(operation.path), Key{operation.path, {}});
+            if (inserted)
             {
-                return fail(line);
+                output->key_order.push_back(std::move(operation.path));
             }
-            value.type = REG_SZ;
-            value.data = value_format::StringData(text);
+            iterator->second.removed = operation.kind == Operation::Kind::kRemoveKey;
+            current = &iterator->second;
         }
-        else if (util::StartsWithInsensitive(data_text, L"dword:"))
+        else if (operation.kind == Operation::Kind::kRemoveValue)
         {
-            const std::wstring number_text = util::TrimWhitespace(std::wstring_view(data_text).substr(6));
-            if (number_text.empty())
-            {
-                return fail(line);
-            }
-            wchar_t* stop = nullptr;
-            errno = 0;
-            const unsigned long parsed = wcstoul(number_text.c_str(), &stop, 16);
-            if (!stop || *stop != L'\0' || errno == ERANGE || parsed > 0xFFFFFFFFul)
-            {
-                return fail(line);
-            }
-            const DWORD number = static_cast<DWORD>(parsed);
-            value.type = REG_DWORD;
-            value.data.resize(sizeof(number));
-            std::memcpy(value.data.data(), &number, sizeof(number));
-        }
-        else if (util::StartsWithInsensitive(data_text, L"hex"))
-        {
-            const size_t colon = data_text.find(L':');
-            if (colon == std::wstring::npos)
-            {
-                return fail(line);
-            }
-            value.type = REG_BINARY;
-            const size_t open = data_text.find(L'(');
-            const size_t close = data_text.find(L')');
-            if (open != std::wstring::npos && close != std::wstring::npos && close > open && close < colon)
-            {
-                const std::wstring code = data_text.substr(open + 1, close - open - 1);
-                wchar_t* stop = nullptr;
-                errno = 0;
-                const unsigned long parsed = wcstoul(code.c_str(), &stop, 16);
-                if (code.empty() || !stop || *stop != L'\0' || errno == ERANGE)
-                {
-                    return fail(line);
-                }
-                value.type = static_cast<DWORD>(parsed);
-            }
-            else if (colon != 3)
-            {
-                return fail(line);
-            }
-            if (!value_format::ParseHex(std::wstring_view(data_text).substr(colon + 1), &value.data))
-            {
-                return fail(line);
-            }
+            current->values.erase(util::ToLower(operation.value.name));
+            current->removed_values.push_back(std::move(operation.value.name));
         }
         else
         {
-            return fail(line);
+            current->values[util::ToLower(operation.value.name)] = std::move(operation.value);
         }
-        current_key->values[util::ToLower(value.name)] = std::move(value);
     }
     return true;
 }
@@ -496,29 +583,31 @@ bool Load(const std::wstring& path, Document* output, std::wstring* error, const
     return Parse(content, output, cancel, cancelled, error);
 }
 
-std::wstring Serialize(const Document& document)
+std::wstring RenderReg(const std::vector<Operation>& operations)
 {
     Writer writer;
-    for (const auto& ordered_path : document.key_order)
+    const std::wstring* current = nullptr;
+    for (const Operation& operation : operations)
     {
-        auto key = document.keys.find(util::ToLower(ordered_path));
-        if (key == document.keys.end())
+        if (operation.kind == Operation::Kind::kRemoveKey)
         {
+            writer.AppendRemovedKey(operation.path);
+            current = nullptr;
             continue;
         }
-        if (key->second.removed)
+        if (!current || *current != operation.path)
         {
-            writer.AppendRemovedKey(key->second.path);
-            continue;
+            writer.AppendKey(operation.path, {});
+            current = &operation.path;
         }
-        std::vector<const Value*> values;
-        values.reserve(key->second.values.size());
-        for (const auto& entry : key->second.values)
+        if (operation.kind == Operation::Kind::kValue)
         {
-            values.push_back(&entry.second);
+            writer.AppendValue(operation.value);
         }
-        writer.AppendKey(key->second.path, std::move(values));
-        writer.AppendRemovedValues(key->second.removed_values);
+        else if (operation.kind == Operation::Kind::kRemoveValue)
+        {
+            writer.AppendRemovedValue(operation.value.name);
+        }
     }
     return std::move(writer).Finish();
 }

@@ -42,6 +42,7 @@
 #include "trace/trace_data.h"
 #include "trace/trace_dialog.h"
 #include "win32/handle_owner.h"
+#include "win32/file_dialog.h"
 #include "work/session.h"
 #include "workspace/favorites.h"
 #include "workspace/recent_items.h"
@@ -61,6 +62,7 @@ class MainWindow::Impl
     bool Create(HINSTANCE instance);
     void Show(int cmd_show);
     bool OpenRegFileTab(const std::wstring& path, bool force_new_tab = false);
+    void OpenSavedFile(const std::wstring& path, win32::OpenAfter open_after);
     void StartRegFileParse(const std::wstring& path, const std::wstring& session_key);
     bool TranslateAccelerator(const MSG& msg);
     void QueueExternalJump(const std::wstring& target);

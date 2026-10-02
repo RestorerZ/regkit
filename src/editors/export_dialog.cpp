@@ -9,6 +9,7 @@
 
 #include "resource.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace regkit::editors
@@ -45,7 +46,11 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         SetDlgItemTextW(dialog, IDC_EXPORT_PATH, state->value.path.c_str());
         CheckDlgButton(dialog, IDC_EXPORT_RANGE_BRANCH, state->value.include_subkeys ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(dialog, IDC_EXPORT_RANGE_KEY, state->value.include_subkeys ? BST_UNCHECKED : BST_CHECKED);
-        CheckDlgButton(dialog, IDC_EXPORT_OPEN_AFTER, state->value.open_after ? BST_CHECKED : BST_UNCHECKED);
+        for (const wchar_t* item : {L"Don't open", L"In text editor", L"In RegKit"})
+        {
+            SendDlgItemMessageW(dialog, IDC_EXPORT_OPEN_AFTER, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item));
+        }
+        SendDlgItemMessageW(dialog, IDC_EXPORT_OPEN_AFTER, CB_SETCURSEL, static_cast<WPARAM>(state->value.open_after), 0);
         dialog_support::Initialize(dialog, &state->font, {IDC_EXPORT_PATH});
         return TRUE;
     }
@@ -85,7 +90,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             return TRUE;
         }
         state->value.include_subkeys = IsDlgButtonChecked(dialog, IDC_EXPORT_RANGE_BRANCH) == BST_CHECKED;
-        state->value.open_after = IsDlgButtonChecked(dialog, IDC_EXPORT_OPEN_AFTER) == BST_CHECKED;
+        state->value.open_after = static_cast<win32::OpenAfter>(std::max<LRESULT>(0, SendDlgItemMessageW(dialog, IDC_EXPORT_OPEN_AFTER, CB_GETCURSEL, 0, 0)));
         state->accepted = true;
         EndDialog(dialog, IDOK);
         return TRUE;
