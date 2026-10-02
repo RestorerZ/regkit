@@ -832,15 +832,26 @@ int CmdCompare(const std::vector<std::wstring>& args)
 
 int CmdConvert(const std::vector<std::wstring>& args)
 {
-    regfile::Format format = regfile::Format::kReg;
-    if (args.size() != 3 || !regfile::FormatFromPath(args[2], &format))
+    Options options;
+    std::vector<std::wstring> positional;
+    if (!ParseOptions(args, 1, &options, &positional))
     {
-        PrintError(L"Usage: convert <input> <output>, both .reg, .bat, .cmd or .ps1.");
+        return kFailed;
+    }
+    regfile::Format format = regfile::Format::kReg;
+    if (positional.size() != 2 || !regfile::FormatFromPath(positional[1], &format))
+    {
+        PrintError(L"Usage: convert <input> <output> [/y], both .reg, .bat, .cmd or .ps1.");
+        return kFailed;
+    }
+    if (!options.force && GetFileAttributesW(positional[1].c_str()) != INVALID_FILE_ATTRIBUTES)
+    {
+        PrintError(positional[1] + L" already exists. Use /y to overwrite.");
         return kFailed;
     }
     std::vector<regfile::Operation> operations;
     std::wstring error;
-    if (!regfile::ReadOperations(args[1], &operations, &error))
+    if (!regfile::ReadOperations(positional[0], &operations, &error))
     {
         PrintError(error);
         return kFailed;
@@ -851,9 +862,9 @@ int CmdConvert(const std::vector<std::wstring>& args)
     {
         PrintError(L"Skipped " + entry);
     }
-    if (!regfile::SaveRendered(args[2], format, text))
+    if (!regfile::SaveRendered(positional[1], format, text))
     {
-        PrintError(L"Failed to write " + args[2]);
+        PrintError(L"Failed to write " + positional[1]);
         return kFailed;
     }
     Print(L"The operation completed successfully.");
@@ -887,7 +898,7 @@ void PrintUsage()
           L"  regkit <key>                    open the window at that key\n"
           L"  regkit --goto <key>             same, explicit form\n"
           L"  regkit --edit-reg file.reg      open a .reg file in a tab\n"
-          L"  regkit convert <in> <out>       convert between .reg, .bat, .cmd and .ps1\n"
+          L"  regkit convert <in> <out> [/y]  convert between .reg, .bat, .cmd and .ps1\n"
           L"  regkit --install-edit-context-menu\n"
           L"                                    add the Edit with RegKit context menu\n"
           L"  regkit --uninstall-edit-context-menu\n"

@@ -347,7 +347,7 @@ Using `reg` here is optional, means both `regkit reg query` & `regkit query` wor
 | `regkit <key>` | Open the window at that key |
 | `regkit --goto <key>` | The same, in explicit form |
 | `regkit --edit-reg file.reg` | Open a `.reg` file in a tab |
-| `regkit convert <in> <out>` | Convert between `.reg`, `.bat`/`.cmd` & `.ps1` |
+| `regkit convert <in> <out> [/y]` | Convert between `.reg`, `.bat`/`.cmd` & `.ps1`, `/y` overwrites an existing file |
 | `regkit --install-edit-context-menu` | Add the `Edit with RegKit` context menu entry |
 | `regkit --uninstall-edit-context-menu` | Remove `Edit with RegKit` context menu entry |
 | `regkit --install-regedit-replacement [--override]` | Replace RegEdit with this RegKit executable, fails if another program owns RegEdits Debugger entry, `--override` replaces it anyway |

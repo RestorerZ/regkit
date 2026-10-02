@@ -6,6 +6,7 @@
 #include "appearance/feedback.h"
 #include "editors/dialog_support.h"
 #include "win32/file_dialog.h"
+#include "win32/shell_paths.h"
 
 #include "resource.h"
 
@@ -21,19 +22,10 @@ namespace
 struct State
 {
     ExportResult value;
+    std::wstring confirmed_path;
     HFONT font = nullptr;
     bool accepted = false;
 };
-
-bool ChoosePath(HWND owner, std::wstring* path)
-{
-    const HRESULT hr = win32::ChooseFileToSave(owner, L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0", path && !path->empty() ? path->c_str() : nullptr, path);
-    if (FAILED(hr) && !win32::DialogCancelled(hr))
-    {
-        ui::ShowError(owner, win32::FormatDialogError(hr));
-    }
-    return SUCCEEDED(hr);
-}
 
 INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam)
 {
@@ -75,18 +67,23 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     if (id == IDC_EXPORT_BROWSE && HIWORD(wparam) == BN_CLICKED)
     {
         std::wstring path = dialog_support::ReadText(dialog, IDC_EXPORT_PATH);
-        if (ChoosePath(dialog, &path))
+        if (ui::ReportFileDialogResult(dialog, win32::ChooseFileToSave(dialog, ui::kRegFileFilter, path.empty() ? nullptr : path.c_str(), &path)))
         {
+            state->confirmed_path = path;
             SetDlgItemTextW(dialog, IDC_EXPORT_PATH, path.c_str());
         }
         return TRUE;
     }
     if (id == IDOK)
     {
-        state->value.path = dialog_support::ReadText(dialog, IDC_EXPORT_PATH);
+        state->value.path = util::EnsureFileExtension(dialog_support::ReadText(dialog, IDC_EXPORT_PATH), L".reg");
         if (state->value.path.empty())
         {
             ui::ShowError(dialog, L"Select a destination file.");
+            return TRUE;
+        }
+        if (!ui::ConfirmOverwrite(dialog, state->value.path, state->confirmed_path))
+        {
             return TRUE;
         }
         state->value.include_subkeys = IsDlgButtonChecked(dialog, IDC_EXPORT_RANGE_BRANCH) == BST_CHECKED;

@@ -146,8 +146,7 @@ bool Convert(HWND dialog, State* state)
         ui::ShowError(dialog, error);
         return false;
     }
-    if (GetFileAttributesW(settings.output_path.c_str()) != INVALID_FILE_ATTRIBUTES && !util::EqualsInsensitive(settings.output_path, state->confirmed_output) &&
-        ui::PromptKeyChoice(dialog, L"The output file already exists. Replace it?", settings.output_path, L"Convert File", L"Replace", L"", L"Cancel") != IDYES)
+    if (!ui::ConfirmOverwrite(dialog, settings.output_path, state->confirmed_output))
     {
         return false;
     }
