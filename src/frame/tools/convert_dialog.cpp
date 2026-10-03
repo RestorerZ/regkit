@@ -3,6 +3,7 @@
 
 #include "frame/tools/convert_dialog.h"
 
+#include "appearance/autocomplete.h"
 #include "appearance/feedback.h"
 #include "editors/dialog_support.h"
 #include "win32/file_dialog.h"
@@ -227,6 +228,10 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         SetDlgItemTextW(dialog, IDC_CONVERT_KEY, settings.key_path.c_str());
         PopulateKeys(dialog);
         UpdateInputControls(dialog);
+        HWND key = GetDlgItem(dialog, IDC_CONVERT_KEY);
+        appearance::AttachAutoComplete(key, [dialog, key](const std::wstring& text) {
+            return SourceAt(dialog) == ConvertSource::kRegistry ? appearance::SuggestKeys(text) : appearance::SuggestComboPaths(key, text);
+        });
         dialog_support::Initialize(dialog, &state->font, {IDC_CONVERT_INPUT, IDC_CONVERT_OUTPUT});
         RECT edit = {};
         GetWindowRect(GetDlgItem(dialog, IDC_CONVERT_INPUT), &edit);
@@ -259,7 +264,11 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     }
     const int id = LOWORD(wparam);
     const int code = HIWORD(wparam);
-    if (code == CBN_SELCHANGE && id == IDC_CONVERT_SOURCE)
+    if (code == EN_KILLFOCUS && id == IDC_CONVERT_INPUT)
+    {
+        PopulateKeys(dialog);
+    }
+    else if (code == CBN_SELCHANGE && id == IDC_CONVERT_SOURCE)
     {
         SetDlgItemTextW(dialog, IDC_CONVERT_KEY, L"");
         UpdateInputControls(dialog);

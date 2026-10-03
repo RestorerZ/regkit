@@ -3,6 +3,7 @@
 
 #include "editors/comment_editor.h"
 
+#include "appearance/autocomplete.h"
 #include "appearance/dialog_layout.h"
 #include "editors/dialog_support.h"
 
@@ -98,6 +99,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         state = reinterpret_cast<State*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
         dialog_support::Initialize(dialog, &state->font, {IDC_EDIT, IDC_COMMENT_KEY_PATH});
+        appearance::AttachAutoComplete(GetDlgItem(dialog, IDC_COMMENT_KEY_PATH), appearance::SuggestKeys);
         dialog_support::AllowNewlines(dialog, IDC_EDIT);
         InitControls(dialog, state);
         using namespace appearance;

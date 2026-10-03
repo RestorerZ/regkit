@@ -291,7 +291,7 @@ bool MainWindow::Impl::ResolvePathToNode(const std::wstring& path, RegistryNode*
         {
             continue;
         }
-        std::wstring rest = path.substr(root_entry.path_name.size());
+        std::wstring rest = registry_path::RawName(std::wstring_view(path).substr(root_entry.path_name.size()));
         if (!rest.empty() && (rest.front() == L'\\' || rest.front() == L'/'))
         {
             rest.erase(rest.begin());

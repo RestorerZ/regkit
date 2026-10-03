@@ -178,14 +178,10 @@ bool MainWindow::Impl::RestartAfterSettingsReset()
         ui::ShowError(hwnd_, L"Failed to find the settings file.");
         return false;
     }
-    if (DeleteFileW(path.c_str()) == 0)
+    if (!workspace::SaveSettings(path, workspace::DefaultOptions(CurrentSettings())))
     {
-        const DWORD error = GetLastError();
-        if (error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND)
-        {
-            ui::ShowError(hwnd_, L"The settings file couldn't be removed.\n" + FormatWin32Error(error));
-            return false;
-        }
+        ui::ShowError(hwnd_, L"The settings file couldn't be reset.");
+        return false;
     }
     if (!LaunchRestart(true))
     {

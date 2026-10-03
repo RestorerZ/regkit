@@ -49,9 +49,6 @@
 #include "workspace/settings.h"
 #include "workspace/tree_state.h"
 
-struct IAutoComplete2;
-struct IEnumString;
-
 namespace regkit
 {
 
@@ -241,7 +238,6 @@ class MainWindow::Impl
     void UpdateGoButtonState();
     void EnableAddressAutoComplete();
     std::vector<std::wstring> BuildAddressSuggestions(const std::wstring& input) const;
-    void ApplyAutoCompleteTheme();
     void UpdateStatus();
     void SetStatusMessage(const std::wstring& text);
     void SortValueList(int column, bool toggle);
@@ -469,6 +465,7 @@ class MainWindow::Impl
     bool RestartAsSystem();
     bool RestartAsTrustedInstaller();
     void LoadSettings();
+    workspace::Settings CurrentSettings() const;
     void SaveSettings() const;
     std::wstring SettingsPath() const;
     std::wstring ActiveTracesPath() const;
@@ -666,6 +663,7 @@ class MainWindow::Impl
     bool replace_regedit_ = false;
     bool edit_context_menu_ = false;
     bool single_instance_ = true;
+    bool autocomplete_ = true;
     bool read_only_ = false;
     ThemeMode theme_mode_ = ThemeMode::kSystem;
     std::wstring icon_set_ = L"phosphor";
@@ -819,8 +817,7 @@ class MainWindow::Impl
     int tab_close_down_index_ = -1;
     bool tab_mouse_tracking_ = false;
     bool value_activate_from_key_ = false;
-    ::IAutoComplete2* address_autocomplete_ = nullptr;
-    ::IEnumString* address_autocomplete_source_ = nullptr;
+    bool address_autocomplete_ = false;
     struct ActiveTrace
     {
         std::wstring label;

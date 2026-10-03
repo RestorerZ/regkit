@@ -73,16 +73,6 @@ CacheAvailability InspectCacheFiles(const std::wstring& folder)
     return available;
 }
 
-bool FileIsAvailable(const std::wstring& path)
-{
-    if (path.empty())
-    {
-        return false;
-    }
-    const DWORD attributes = GetFileAttributesW(path.c_str());
-    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
-}
-
 bool MenuHasDirectCommand(HMENU menu, UINT command)
 {
     const int count = menu ? GetMenuItemCount(menu) : 0;
@@ -208,7 +198,9 @@ void MainWindow::Impl::RefreshStorageMenuState(HMENU menu)
     }
     if (has_reset)
     {
-        EnableMenuItem(menu, cmd::kOptionsResetSettings, MF_BYCOMMAND | (FileIsAvailable(SettingsPath()) ? MF_ENABLED : MF_GRAYED));
+        const workspace::Settings settings = CurrentSettings();
+        const bool changed = workspace::SerializeSettings(settings) != workspace::SerializeSettings(workspace::DefaultOptions(settings));
+        EnableMenuItem(menu, cmd::kOptionsResetSettings, MF_BYCOMMAND | (changed ? MF_ENABLED : MF_GRAYED));
     }
 }
 
@@ -422,6 +414,7 @@ void MainWindow::Impl::BuildMenus()
     UINT edit_context_flags = MF_STRING | (is_high ? MF_GRAYED : 0);
     AppendMenuW(options_menu, edit_context_flags | (edit_context_menu_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsEditContextMenu, L"Add \"Edit\" Context Menu");
     AppendMenuW(options_menu, MF_STRING | (single_instance_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsSingleInstance, L"Single Instance");
+    AppendMenuW(options_menu, MF_STRING | (autocomplete_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAutoComplete, L"Autocomplete Key Paths");
     HMENU save_tabs_menu = CreatePopupMenu();
     auto kind_flags = [&](int kind) -> UINT {
         return MF_STRING | ((save_tab_kinds_ & kind) != 0 ? MF_CHECKED : MF_UNCHECKED);

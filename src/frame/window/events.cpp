@@ -413,16 +413,6 @@ LRESULT CALLBACK MainWindow::Impl::AddressEditProc(HWND hwnd, UINT message, WPAR
         SendMessageW(hwnd, EM_SCROLLCARET, 0, 0);
         return result;
     }
-    if (message == WM_KEYUP)
-    {
-        LRESULT result = DefSubclassProc(hwnd, message, wparam, lparam);
-        auto* window = reinterpret_cast<MainWindow::Impl*>(ref_data);
-        if (window)
-        {
-            window->ApplyAutoCompleteTheme();
-        }
-        return result;
-    }
     if (message == WM_LBUTTONDOWN)
     {
         if (GetFocus() != hwnd)

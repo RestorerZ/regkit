@@ -8,6 +8,7 @@
 #include <commctrl.h>
 #include <shellapi.h>
 
+#include "appearance/autocomplete.h"
 #include "appearance/default_font.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/feedback.h"
@@ -416,6 +417,34 @@ void ToggleCompareControls(HWND dlg, bool left, CompareSourceType type)
     SetDialogText(dlg, label_id, network ? L"Computer:" : L"File:");
 }
 
+void PopulateFileKeys(HWND dlg, bool left)
+{
+    std::wstring file_path = util::DialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE);
+    if (file_path.empty())
+    {
+        return;
+    }
+    regfile::Document data;
+    std::wstring error;
+    if (!regfile::Load(file_path, &data, &error))
+    {
+        return;
+    }
+    std::vector<std::wstring> keys = ExtractRegFileKeys(data);
+    HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
+    std::wstring current = ReadComboText(combo);
+    PopulateCombo(combo, keys);
+    if (!current.empty())
+    {
+        SetComboSelection(combo, current);
+    }
+    else if (!keys.empty())
+    {
+        SendMessageW(combo, CB_SETCURSEL, 0, 0);
+        SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, keys.front());
+    }
+}
+
 INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     auto* state = reinterpret_cast<CompareDialogState*>(GetWindowLongPtrW(dlg, DWLP_USER));
@@ -458,34 +487,24 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
             }
             CheckRadioButton(dlg, IDC_COMPARE_SHOW_DIFFERENCES, IDC_COMPARE_SHOW_BOTH, filter_id);
 
-            auto populate_file_keys = [&](bool left) {
-                std::wstring file_path = util::DialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE);
-                if (file_path.empty())
-                {
-                    return;
-                }
-                regfile::Document data;
-                std::wstring error;
-                if (!regfile::Load(file_path, &data, &error))
-                {
-                    return;
-                }
-                std::vector<std::wstring> keys = ExtractRegFileKeys(data);
+            PopulateFileKeys(dlg, true);
+            PopulateFileKeys(dlg, false);
+            for (const bool left : {true, false})
+            {
                 HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
-                std::wstring current = ReadComboText(combo);
-                PopulateCombo(combo, keys);
-                if (!current.empty())
-                {
-                    SetComboSelection(combo, current);
-                }
-                else if (!keys.empty())
-                {
-                    SendMessageW(combo, CB_SETCURSEL, 0, 0);
-                    SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, keys.front());
-                }
-            };
-            populate_file_keys(true);
-            populate_file_keys(false);
+                HWND source = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_SOURCE : IDC_COMPARE_RIGHT_SOURCE);
+                appearance::AttachAutoComplete(combo, [combo, source](const std::wstring& text) -> std::vector<std::wstring> {
+                    switch (CompareSourceFromIndex(static_cast<int>(SendMessageW(source, CB_GETCURSEL, 0, 0))))
+                    {
+                    case CompareSourceType::kRegistry:
+                        return appearance::SuggestKeys(text);
+                    case CompareSourceType::kRegFile:
+                        return appearance::SuggestComboPaths(combo, text);
+                    default:
+                        return {};
+                    }
+                });
+            }
 
             int edit_height = ControlHeight(dlg, IDC_COMPARE_LEFT_FILE);
             if (edit_height > 0)
@@ -568,6 +587,16 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                 ToggleCompareControls(dlg, left, type);
                 SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, L"");
                 SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, L"");
+                return TRUE;
+            }
+            if (code == EN_KILLFOCUS && (id == IDC_COMPARE_LEFT_FILE || id == IDC_COMPARE_RIGHT_FILE))
+            {
+                const bool left = id == IDC_COMPARE_LEFT_FILE;
+                HWND source = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_SOURCE : IDC_COMPARE_RIGHT_SOURCE);
+                if (CompareSourceFromIndex(static_cast<int>(SendMessageW(source, CB_GETCURSEL, 0, 0))) == CompareSourceType::kRegFile)
+                {
+                    PopulateFileKeys(dlg, left);
+                }
                 return TRUE;
             }
             if (code == BN_CLICKED && (id == IDC_COMPARE_LEFT_BROWSE || id == IDC_COMPARE_RIGHT_BROWSE))

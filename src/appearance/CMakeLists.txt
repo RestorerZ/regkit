@@ -1,4 +1,5 @@
 regkit_add_library(regkit_appearance
+    autocomplete.cpp
     default_font.cpp
     dialog_layout.cpp
     feedback.cpp
@@ -25,6 +26,7 @@ target_link_libraries(regkit_appearance PRIVATE
     comctl32
     comdlg32
     dwmapi
+    ole32
     shell32
     uxtheme
 )

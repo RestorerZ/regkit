@@ -582,16 +582,6 @@ void MainWindow::Impl::OnDestroy()
         DestroyIcon(address_go_icon_);
         address_go_icon_ = nullptr;
     }
-    if (address_autocomplete_)
-    {
-        address_autocomplete_->Release();
-        address_autocomplete_ = nullptr;
-    }
-    if (address_autocomplete_source_)
-    {
-        address_autocomplete_source_->Release();
-        address_autocomplete_source_ = nullptr;
-    }
     if (accelerators_)
     {
         DestroyAcceleratorTable(accelerators_);

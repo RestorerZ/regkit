@@ -8,6 +8,7 @@
 #include <commctrl.h>
 #include <windowsx.h>
 
+#include "appearance/autocomplete.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
 #include "appearance/feedback.h"
@@ -206,6 +207,7 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
             appearance::CreateControl(hwnd, L"BUTTON", L"Where to search", BS_GROUPBOX, kWhereGroup);
             appearance::CreateControl(hwnd, L"STATIC", L"Key:", 0, kKeyLabel);
             state->key_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, kKeyEdit);
+            appearance::AttachAutoComplete(state->key_edit, appearance::SuggestKeys);
             state->key_browse =
                 appearance::CreateControl(hwnd, L"BUTTON", L"Browse...", WS_TABSTOP | BS_PUSHBUTTON, kKeyBrowse);
             appearance::CreateControl(hwnd, L"BUTTON", L"Options", BS_GROUPBOX, kOptionsGroup);

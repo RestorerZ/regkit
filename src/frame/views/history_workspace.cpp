@@ -4,6 +4,8 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
+#include "appearance/autocomplete.h"
+
 namespace regkit
 {
 
@@ -1078,6 +1080,7 @@ void MainWindow::Impl::LoadSettings()
     settings.always_run_as_trustedinstaller = always_run_as_trustedinstaller_;
     settings.always_on_top = always_on_top_;
     settings.single_instance = single_instance_;
+    settings.autocomplete = autocomplete_;
     settings.read_only = read_only_;
     settings.auto_check_updates = auto_check_updates_;
     settings.default_reset_enabled = default_reset_enabled_;
@@ -1123,6 +1126,8 @@ void MainWindow::Impl::LoadSettings()
     always_run_as_trustedinstaller_ = settings.always_run_as_trustedinstaller;
     always_on_top_ = settings.always_on_top;
     single_instance_ = settings.single_instance;
+    autocomplete_ = settings.autocomplete;
+    appearance::SetAutoCompleteEnabled(autocomplete_);
     read_only_ = settings.read_only;
     auto_check_updates_ = settings.auto_check_updates;
     default_reset_enabled_ = settings.default_reset_enabled;
@@ -1158,7 +1163,7 @@ void MainWindow::Impl::LoadSettings()
         saved_tree_state_.Clear();
     }
 }
-void MainWindow::Impl::SaveSettings() const
+workspace::Settings MainWindow::Impl::CurrentSettings() const
 {
     workspace::Settings settings;
     settings.clear_history_on_exit = clear_history_on_exit_;
@@ -1182,6 +1187,7 @@ void MainWindow::Impl::SaveSettings() const
     settings.always_run_as_trustedinstaller = always_run_as_trustedinstaller_;
     settings.always_on_top = always_on_top_;
     settings.single_instance = single_instance_;
+    settings.autocomplete = autocomplete_;
     settings.read_only = read_only_;
     settings.auto_check_updates = auto_check_updates_;
     settings.default_reset_enabled = default_reset_enabled_;
@@ -1225,7 +1231,11 @@ void MainWindow::Impl::SaveSettings() const
     settings.value_column_visible = browse_.columns().visible;
     settings.value_column_widths.resize(browse_.columns().items.size(), 0);
     settings.value_column_visible.resize(browse_.columns().items.size(), true);
-    workspace::SaveSettings(SettingsPath(), settings);
+    return settings;
+}
+void MainWindow::Impl::SaveSettings() const
+{
+    workspace::SaveSettings(SettingsPath(), CurrentSettings());
 }
 std::wstring MainWindow::Impl::SettingsPath() const
 {

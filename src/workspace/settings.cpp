@@ -57,6 +57,7 @@ constexpr BoolField kBoolFields[] = {
      &Settings::always_run_as_trustedinstaller},      // Options > Run As > Always Run as TrustedInstaller
     {L"always_on_top", &Settings::always_on_top},     // Window > Always on Top
     {L"single_instance", &Settings::single_instance}, // Options > Single Instance
+    {L"autocomplete", &Settings::autocomplete},       // Options > Autocomplete Key Paths
     {L"read_only", &Settings::read_only},             // Options > Read Only Mode
     {L"font_italic", &Settings::font_italic},         // Options > Font
 };
@@ -256,6 +257,31 @@ std::wstring SerializeSettings(const Settings& settings)
         Line(&content, L"value_column_visible_" + std::to_wstring(index), visible ? L"1" : L"0");
     }
     return content;
+}
+
+Settings DefaultOptions(const Settings& settings)
+{
+    Settings reset;
+    reset.window_placement_present = settings.window_placement_present;
+    reset.window_x = settings.window_x;
+    reset.window_y = settings.window_y;
+    reset.window_width = settings.window_width;
+    reset.window_height = settings.window_height;
+    reset.window_maximized = settings.window_maximized;
+    reset.tree_width = settings.tree_width;
+    reset.history_height = settings.history_height;
+    reset.recent_traces = settings.recent_traces;
+    reset.recent_defaults = settings.recent_defaults;
+    reset.value_column_widths = settings.value_column_widths;
+    reset.value_column_visible = settings.value_column_visible;
+    if (!settings.use_custom_font)
+    {
+        reset.font_face = settings.font_face;
+        reset.font_size = settings.font_size;
+        reset.font_weight = settings.font_weight;
+        reset.font_italic = settings.font_italic;
+    }
+    return reset;
 }
 
 bool LoadSettings(const std::wstring& path, Settings* settings)

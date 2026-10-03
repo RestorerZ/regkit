@@ -536,7 +536,7 @@ void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt)
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     const int selected = ListView_GetSelectedCount(history_list_);
     AppendMenuW(menu, MF_STRING | (selected > 0 ? 0 : MF_GRAYED), cmd::kHistoryRemove, L"Remove from History");
-    AppendMenuW(menu, MF_STRING, cmd::kEditDelete, L"Clear History");
+    AppendMenuW(menu, MF_STRING | (change_history_.entries().empty() ? MF_GRAYED : 0), cmd::kEditDelete, L"Clear History");
 
     int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
     DestroyMenu(menu);

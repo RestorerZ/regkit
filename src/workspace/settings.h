@@ -44,6 +44,7 @@ struct Settings
     bool always_run_as_trustedinstaller = false;
     bool always_on_top = false;
     bool single_instance = true;
+    bool autocomplete = true;
     bool read_only = false;
     bool auto_check_updates = false;
     bool default_reset_enabled = false;
@@ -75,6 +76,7 @@ struct Settings
 
 Settings ParseSettings(const std::wstring& content, Settings settings = {});
 std::wstring SerializeSettings(const Settings& settings);
+Settings DefaultOptions(const Settings& settings);
 bool LoadSettings(const std::wstring& path, Settings* settings);
 bool SaveSettings(const std::wstring& path, const Settings& settings);
 

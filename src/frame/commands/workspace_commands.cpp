@@ -4,6 +4,7 @@
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
 #include "frame/tools/research_links.h"
+#include "appearance/autocomplete.h"
 
 namespace regkit
 {
@@ -48,6 +49,7 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(int command_id)
     case cmd::kOptionsReplaceRegEdit:
     case cmd::kOptionsEditContextMenu:
     case cmd::kOptionsSingleInstance:
+    case cmd::kOptionsAutoComplete:
     case cmd::kOptionsHiveFileDir:
     case cmd::kOptionsResetSettings:
     case cmd::kHelpAbout:
@@ -199,6 +201,12 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         return true;
     case cmd::kOptionsSingleInstance:
         single_instance_ = !single_instance_;
+        SaveSettings();
+        BuildMenus();
+        return true;
+    case cmd::kOptionsAutoComplete:
+        autocomplete_ = !autocomplete_;
+        appearance::SetAutoCompleteEnabled(autocomplete_);
         SaveSettings();
         BuildMenus();
         return true;

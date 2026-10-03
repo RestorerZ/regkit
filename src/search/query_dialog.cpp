@@ -14,6 +14,7 @@
 #include <commctrl.h>
 #include <windowsx.h>
 
+#include "appearance/autocomplete.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
 #include "appearance/feedback.h"
@@ -575,6 +576,7 @@ void CreateSearchControls(HWND hwnd, SearchDialogState* state)
     state->scope_combo =
         appearance::CreateControl(hwnd, WC_COMBOBOXW, L"", WS_TABSTOP | CBS_DROPDOWNLIST | CBS_HASSTRINGS, kScopeCombo);
     state->scope_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, kScopeEdit);
+    appearance::AttachAutoComplete(state->scope_edit, appearance::SuggestKeys);
     state->scope_browse =
         appearance::CreateControl(hwnd, L"BUTTON", L"Browse...", WS_TABSTOP | BS_PUSHBUTTON, kScopeBrowse);
     state->scope_recursive =

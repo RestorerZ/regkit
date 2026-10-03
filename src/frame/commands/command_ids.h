@@ -144,6 +144,7 @@ constexpr int kOptionsThemePresets = 2468;
 constexpr int kOptionsIconSetClassic = 2469;
 constexpr int kOptionsIconSetPhosphor = 2470;
 constexpr int kOptionsIconSetCustom = 2473;
+constexpr int kOptionsAutoComplete = 2471;
 constexpr int kHistoryOpenTarget = 2481;
 constexpr int kHistoryRevert = 2482;
 constexpr int kHistoryRemove = 2483;

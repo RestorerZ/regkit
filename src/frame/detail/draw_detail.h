@@ -124,8 +124,6 @@ constexpr UINT_PTR kAddressSubclassId = 1;
 constexpr UINT_PTR kTabSubclassId = 2;
 constexpr UINT_PTR kListViewSubclassId = 4;
 constexpr UINT_PTR kTreeViewSubclassId = 5;
-constexpr UINT_PTR kAutoCompletePopupSubclassId = 6;
-constexpr UINT_PTR kAutoCompleteListBoxSubclassId = 7;
 constexpr UINT_PTR kFilterSubclassId = 8;
 constexpr wchar_t kMainWindowClassName[] = L"RegEdit_RegEdit";
 using frame::message_id::kRegKitWindowProperty;

@@ -4,6 +4,7 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
+#include "appearance/autocomplete.h"
 #include "appearance/dialog_layout.h"
 
 namespace regkit
@@ -117,7 +118,7 @@ void MainWindow::Impl::ApplyThemeToChildren()
     {
         SetWindowTheme(tree_header_, L"", L"");
     }
-    ApplyAutoCompleteTheme();
+    appearance::ApplyAutoCompleteTheme();
     DrawMenuBar(hwnd_);
 }
 
