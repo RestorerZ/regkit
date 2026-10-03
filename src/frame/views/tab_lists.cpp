@@ -352,6 +352,21 @@ void MainWindow::Impl::RebuildHistoryList()
     }
 }
 
+void MainWindow::Impl::RefreshHistory()
+{
+    // other instances append to the same cache
+    const std::wstring path = HistoryCachePath();
+    std::wstring content;
+    if (history_loaded_ && !history_cache_failed_ && !HistoryStaysInMemory() && !path.empty() &&
+        (util::ReadTextFile(path, &content) || GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES))
+    {
+        change_history_.Replace(std::move(changes::ParseHistory(content).entries), static_cast<size_t>(history_max_rows_));
+        change_history_.Sort(history_sort_column_, history_sort_ascending_);
+        ListView_SetItemState(history_list_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+    }
+    RebuildHistoryList();
+}
+
 void MainWindow::Impl::ResetNavigationState()
 {
     browse_.ResetNavigation();

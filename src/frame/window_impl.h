@@ -246,6 +246,7 @@ class MainWindow::Impl
     void ClearHistoryItems(bool delete_cache);
     void RemoveSelectedHistoryItems();
     void RebuildHistoryList();
+    void RefreshHistory();
     void ScheduleValueListRename(LPARAM kind, const std::wstring& name);
     void StartPendingValueListRename();
     bool CollectSearchStartNodes(const SearchDialogResult& options, const std::wstring& registry_scope_path, std::vector<search::StartNode>* out_nodes, std::vector<search::Source>* out_sources, bool* out_remote);

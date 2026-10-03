@@ -525,17 +525,21 @@ void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt)
     }
 
     HMENU menu = CreatePopupMenu();
-    HistoryEntry prepared_revert;
-    const bool can_revert = entry && PrepareHistoryRevert(*entry, &prepared_revert);
-    UINT open_flags = MF_STRING | ((entry && !entry->key_path.empty()) ? 0 : MF_GRAYED);
-    UINT revert_flags = MF_STRING | (can_revert ? 0 : MF_GRAYED);
-    AppendMenuW(menu, open_flags, cmd::kHistoryOpenTarget, L"Open Entry");
-    AppendMenuW(menu, revert_flags, cmd::kHistoryRevert, L"Revert");
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKey, L"Copy");
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    const int selected = ListView_GetSelectedCount(history_list_);
-    AppendMenuW(menu, MF_STRING | (selected > 0 ? 0 : MF_GRAYED), cmd::kHistoryRemove, L"Remove from History");
+    if (entry)
+    {
+        HistoryEntry prepared_revert;
+        AppendMenuW(menu, MF_STRING | (entry->key_path.empty() ? MF_GRAYED : 0), cmd::kHistoryOpenTarget, L"Open Entry");
+        AppendMenuW(menu, MF_STRING | (PrepareHistoryRevert(*entry, &prepared_revert) ? 0 : MF_GRAYED), cmd::kHistoryRevert, L"Revert");
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(menu, MF_STRING, cmd::kEditCopyKey, L"Copy");
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(menu, MF_STRING, cmd::kHistoryRemove, L"Remove from History");
+    }
+    else
+    {
+        AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, L"Refresh");
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    }
     AppendMenuW(menu, MF_STRING | (change_history_.entries().empty() ? MF_GRAYED : 0), cmd::kEditDelete, L"Clear History");
 
     int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
@@ -561,6 +565,10 @@ void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt)
     else if (command == cmd::kHistoryRemove)
     {
         RemoveSelectedHistoryItems();
+    }
+    else if (command == cmd::kViewRefresh)
+    {
+        RefreshHistory();
     }
     else if (command == cmd::kEditDelete)
     {
