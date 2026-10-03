@@ -18,5 +18,6 @@ exit /b 0
 for /f "delims=" %%v in ('powershell -NoProfile -Command "(Get-Item '%~1\Release\regkit.exe').VersionInfo.FileVersion"') do set "VERSION=%%v"
 powershell -NoProfile -ExecutionPolicy Bypass -File sign.ps1 "%~1\Release\regkit.exe" || exit /b 1
 if not exist installer\dist mkdir installer\dist
-tar -a -cf "installer\dist\RegKit-Portable-%VERSION%-%~2.zip" -C "%~1\Release" *
+tar -a -cf "installer\dist\RegKit-Portable-%VERSION%-%~2.zip" -C "%~1\Release" * || exit /b 1
+powershell -NoProfile -ExecutionPolicy Bypass -File sign.ps1 "installer\dist\RegKit-Portable-%VERSION%-%~2.zip"
 exit /b %errorlevel%

@@ -33,7 +33,6 @@ DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 SetupIconFile=..\assets\icons\regkit.ico
 UninstallDisplayIcon={app}\{#AppExeName}
-SignTool=regkit
 WizardSmallImageFile=images\small-55.png,images\small-69.png,images\small-83.png,images\small-97.png,images\small-110.png,images\small-138.png
 WizardImageFile=images\large-100.png,images\large-125.png,images\large-150.png,images\large-175.png,images\large-200.png,images\large-250.png
 WizardSmallImageFileDynamicDark=images\small-55.png,images\small-69.png,images\small-83.png,images\small-97.png,images\small-110.png,images\small-138.png
