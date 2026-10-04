@@ -76,6 +76,8 @@ Name: "lang\fr"; Description: "Français"; Types: full; Check: SystemLanguage(12
 Name: "lang\fr_other"; Description: "Français"; Check: not SystemLanguage(12)
 Name: "lang\ru"; Description: "Русский"; Types: full; Check: SystemLanguage(25)
 Name: "lang\ru_other"; Description: "Русский"; Check: not SystemLanguage(25)
+Name: "lang\es"; Description: "Español"; Types: full; Check: SystemLanguage(10)
+Name: "lang\es_other"; Description: "Español"; Check: not SystemLanguage(10)
 
 [Tasks]
 Name: "startmenu"; Description: "Start Menu shortcut"; GroupDescription: "Shortcuts:"; Flags: checkedonce
@@ -94,6 +96,7 @@ Source: "{#BuildDir}\assets\bitfields\*"; DestDir: "{app}\assets\bitfields"; Fla
 Source: "{#BuildDir}\assets\lang\de.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\de lang\de_other
 Source: "{#BuildDir}\assets\lang\fr.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\fr lang\fr_other
 Source: "{#BuildDir}\assets\lang\ru.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\ru lang\ru_other
+Source: "{#BuildDir}\assets\lang\es.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\es lang\es_other
 Source: "{#BuildDir}\assets\defaults\*"; DestDir: "{app}\assets\defaults"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: defaults
 
 [Icons]
