@@ -59,7 +59,7 @@ RegKit adds functionality that native RegEdit doesn't support:
 
 ## Translations
 
-Please note that the translations I have made are automatically generated using resources such as MS terminology, language style guides, etc., but may still have inaccuracies. **English is currently the only verified language.** If you are a native speaker of one of the supported languages, I would appreciate your feedback and corrections.
+Please note that the translations I've made are auto generated using resources such as MS terminology, language style guides, etc., but may still have inaccuracies. **English is currently the only verified language.** If you are a native speaker of one of the supported languages, I would appreciate your feedback and corrections.
 
 RegKit uses your display language if a matching language pack is installed by default, `Options > Language` can be used to change it manually. CLI output, files RegKit writes (exports, conversions, settings)/names (themes, traces, research links, `REG_*`/`HKEY_*`) won't be translated.
 

@@ -72,6 +72,10 @@ Name: "defaults"; Description: "Registry exports for the Default menu"; Types: f
 Name: "lang"; Description: "Languages"
 Name: "lang\de"; Description: "Deutsch"; Types: full; Check: SystemLanguage(7)
 Name: "lang\de_other"; Description: "Deutsch"; Check: not SystemLanguage(7)
+Name: "lang\fr"; Description: "Français"; Types: full; Check: SystemLanguage(12)
+Name: "lang\fr_other"; Description: "Français"; Check: not SystemLanguage(12)
+Name: "lang\ru"; Description: "Русский"; Types: full; Check: SystemLanguage(25)
+Name: "lang\ru_other"; Description: "Русский"; Check: not SystemLanguage(25)
 
 [Tasks]
 Name: "startmenu"; Description: "Start Menu shortcut"; GroupDescription: "Shortcuts:"; Flags: checkedonce
@@ -88,6 +92,8 @@ Source: "{#BuildDir}\assets\comments\*"; DestDir: "{app}\assets\comments"; Flags
 Source: "{#BuildDir}\assets\records\*"; DestDir: "{app}\assets\records"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: traces
 Source: "{#BuildDir}\assets\bitfields\*"; DestDir: "{app}\assets\bitfields"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: bitfields
 Source: "{#BuildDir}\assets\lang\de.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\de lang\de_other
+Source: "{#BuildDir}\assets\lang\fr.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\fr lang\fr_other
+Source: "{#BuildDir}\assets\lang\ru.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\ru lang\ru_other
 Source: "{#BuildDir}\assets\defaults\*"; DestDir: "{app}\assets\defaults"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: defaults
 
 [Icons]

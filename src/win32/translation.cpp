@@ -218,6 +218,7 @@ std::vector<LanguagePack> InstalledLanguages()
         code.resize(code.size() - 3);
         wchar_t name[LOCALE_NAME_MAX_LENGTH] = {};
         packs.push_back({code, GetLocaleInfoEx(code.c_str(), LOCALE_SNATIVEDISPLAYNAME, name, LOCALE_NAME_MAX_LENGTH) ? name : code});
+        CharUpperBuffW(packs.back().name.data(), 1);
     } while (FindNextFileW(find, &data));
     FindClose(find);
     return packs;
