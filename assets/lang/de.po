@@ -32,7 +32,7 @@ msgstr "Website"
 
 #: appearance/feedback.cpp:455
 msgid "Email"
-msgstr "E-Mail"
+msgstr "Email"
 
 #: appearance/feedback.cpp:543 frame/window/menu_bar.cpp:646
 msgid "About RegKit"
