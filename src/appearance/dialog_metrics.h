@@ -27,6 +27,7 @@ inline constexpr int kGroupTop = 18;
 inline constexpr int kGroupBottom = 8;
 inline constexpr int kGroupInset = 12;
 inline constexpr int kLabelGap = 8;
+inline constexpr int kOptionGap = 8;
 inline constexpr int kButtonMinWidth = 70;
 inline constexpr int kButtonHeight = 22;
 inline constexpr int kButtonGap = 10;

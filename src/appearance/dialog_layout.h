@@ -23,11 +23,6 @@ void ApplyDpiChange(HWND window, LPARAM suggested_rect);
 void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi);
 void RunModalLoop(HWND dialog);
 void CenterEditText(HWND edit, HFONT font, int left_pad, int right_pad);
-void FitDialogHeight(HWND dialog, int client_height);
-// width a button or single line label needs for its current text, 0 for other controls
-int TextFitWidth(HWND control);
-// translates the dialog and widens controls whose translated text no longer fits
-void LocalizeDialog(HWND dialog);
 
 enum AnchorFlags : unsigned
 {

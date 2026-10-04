@@ -1,6 +1,7 @@
 regkit_add_library(regkit_appearance
     autocomplete.cpp
     default_font.cpp
+    dialog_fit.cpp
     dialog_layout.cpp
     feedback.cpp
     font_metrics.cpp

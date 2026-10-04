@@ -4,6 +4,7 @@
 #include "appearance/feedback.h"
 
 #include "appearance/default_font.h"
+#include "appearance/dialog_fit.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
 #include "win32/translation.h"
@@ -212,7 +213,11 @@ void LayoutChoiceDialog(HWND hwnd, ChoiceDialogState* state)
         return;
     }
     total_w += button_gap * (button_count - 1);
-    int x = std::max(margin, width - Scaled(kDialogButtonRightMargin, dpi) - total_w);
+    if (appearance::GrowDialogWidth(hwnd, margin + total_w + Scaled(kDialogButtonRightMargin, dpi)))
+    {
+        return;
+    }
+    int x = width - Scaled(kDialogButtonRightMargin, dpi) - total_w;
     for (int i = 0; i < 3; ++i)
     {
         if (!buttons[i])
@@ -257,7 +262,7 @@ void LayoutErrorDialog(HWND hwnd, ErrorDialogState* state)
         btn_y = margin + message_h + block_gap;
         appearance::FitDialogHeight(hwnd, btn_y + button_h + bottom_margin);
     }
-    appearance::Place(state->ok_btn, width - Scaled(kDialogButtonRightMargin, dpi) - button_w, btn_y, button_w, button_h);
+    appearance::PlaceButtonRow({state->ok_btn}, width - Scaled(kDialogButtonRightMargin, dpi), btn_y, button_w, button_h, 0);
 }
 
 void LayoutAboutDialog(HWND hwnd, AboutDialogState* state)
@@ -287,7 +292,11 @@ void LayoutAboutDialog(HWND hwnd, AboutDialogState* state)
     }
 
     const int btn_y = y - gap + Scaled(kBlockGap, dpi);
-    appearance::Place(state->ok_btn, width - Scaled(kDialogButtonRightMargin, dpi) - button_w, btn_y, button_w, button_h);
+    appearance::PlaceButtonRow({state->ok_btn}, width - Scaled(kDialogButtonRightMargin, dpi), btn_y, button_w, button_h, 0);
+    if (appearance::GrowDialogWidth(hwnd, padding * 2 + appearance::TextFitWidth({state->credits, state->repo_link, state->discord_link, state->website_link, state->email_link})))
+    {
+        return;
+    }
     appearance::FitDialogHeight(hwnd, btn_y + button_h + bottom_margin);
 }
 

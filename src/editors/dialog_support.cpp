@@ -6,6 +6,7 @@
 #include "win32/window_metrics.h"
 
 #include "appearance/default_font.h"
+#include "appearance/dialog_fit.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/feedback.h"
 #include "appearance/list_view_support.h"

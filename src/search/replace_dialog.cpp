@@ -9,6 +9,7 @@
 #include <windowsx.h>
 
 #include "appearance/autocomplete.h"
+#include "appearance/dialog_fit.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
 #include "appearance/feedback.h"
@@ -119,7 +120,7 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font)
     const int x = margin;
     HWND find_label = GetDlgItem(hwnd, kFindLabel);
     HWND replace_label = GetDlgItem(hwnd, kReplaceLabel);
-    const int label_w = std::max({Scaled(kFindReplaceLabelWidth, dpi), appearance::TextFitWidth(find_label), appearance::TextFitWidth(replace_label)});
+    const int label_w = std::max(Scaled(kFindReplaceLabelWidth, dpi), appearance::TextFitWidth({find_label, replace_label}));
     const int key_label_w = std::max(Scaled(32, dpi), appearance::TextFitWidth(GetDlgItem(hwnd, kKeyLabel)));
     const int browse_w = std::max(Scaled(90, dpi), appearance::TextFitWidth(state->key_browse));
     int y = margin;
@@ -144,6 +145,16 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font)
     appearance::Place(state->key_browse, gx + key_label_w + label_gap * 2 + key_w, gy, browse_w, line_h);
     y += where_h + block_gap;
 
+    const int option_gap = Scaled(kOptionGap, dpi);
+    const int dec_fit = appearance::TextFitWidth(state->number_decimal);
+    const int hex_fit = appearance::TextFitWidth(state->number_hex);
+    const int dec_w = dec_fit > 0 ? dec_fit : Scaled(kNumberDecimalWidth, dpi);
+    const int hex_w = hex_fit > 0 ? hex_fit : Scaled(kNumberHexWidth, dpi);
+    const int column_fit = appearance::TextFitWidth({state->recursive, state->match_whole, state->match_case, state->use_regex, state->search_keys, state->search_values, state->search_data});
+    if (appearance::GrowDialogWidth(hwnd, x * 2 + group_inset * 2 + std::max(column_fit * 2 + label_gap, group_inset * 2 + dec_w + option_gap + hex_w)))
+    {
+        return;
+    }
     const int nested_w = group_w - group_inset * 2;
     const int nested_h = group_top + check_h + group_bottom;
     const int options_h = group_top + row_pitch * 4 + nested_h + group_bottom;
@@ -162,14 +173,9 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font)
     const int nested_y = oy + row_pitch * 4;
     appearance::Place(GetDlgItem(hwnd, kValueDataGroup), ox, nested_y, nested_w, nested_h);
     const int ny = nested_y + group_top;
-    const int half_w = (nested_w - group_inset * 2) / 2;
-    const int half_x = ox + group_inset;
-    const int dec_fit = appearance::TextFitWidth(state->number_decimal);
-    const int hex_fit = appearance::TextFitWidth(state->number_hex);
-    const int dec_w = dec_fit > 0 ? dec_fit : Scaled(kNumberDecimalWidth, dpi);
-    const int hex_w = hex_fit > 0 ? hex_fit : Scaled(kNumberHexWidth, dpi);
-    appearance::Place(state->number_decimal, half_x + (half_w - dec_w) / 2, ny, dec_w, check_h);
-    appearance::Place(state->number_hex, half_x + half_w + (half_w - hex_w) / 2, ny, hex_w, check_h);
+    const int number_x = ox + group_inset;
+    appearance::Place(state->number_decimal, number_x, ny, dec_w, check_h);
+    appearance::Place(state->number_hex, number_x + dec_w + option_gap, ny, hex_w, check_h);
     y += options_h + block_gap;
 
     const int cancel_x = width - right_margin - cancel_w;

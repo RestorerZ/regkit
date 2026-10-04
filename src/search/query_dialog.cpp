@@ -15,6 +15,7 @@
 #include <windowsx.h>
 
 #include "appearance/autocomplete.h"
+#include "appearance/dialog_fit.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
 #include "appearance/feedback.h"
@@ -471,7 +472,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     appearance::Place(GetDlgItem(hwnd, kWhereGroup), x, y, group_w, where_h);
     const int gx = x + group_inset;
     int gy = y + group_top;
-    const int scope_label_w = std::max({Scaled(150, dpi), appearance::TextFitWidth(state->scope_top), appearance::TextFitWidth(state->scope_key)});
+    const int scope_label_w = std::max(Scaled(150, dpi), appearance::TextFitWidth({state->scope_top, state->scope_key}));
     const int browse_w = std::max(Scaled(90, dpi), appearance::TextFitWidth(state->scope_browse));
     appearance::Place(state->scope_top, gx, gy + check_inset, scope_label_w, check_h);
     const int combo_x = gx + scope_label_w + label_gap;
@@ -498,7 +499,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
         appearance::Place(option, left_x, option_row(row++), left_w, check_h);
     }
 
-    const int size_label_w = std::max(appearance::TextFitWidth(state->min_size), appearance::TextFitWidth(state->max_size));
+    const int size_label_w = appearance::TextFitWidth({state->min_size, state->max_size});
     const int size_edit_x = right_x + size_label_w + label_gap;
     const int size_edit_w = right_x + right_w - size_edit_x;
     appearance::Place(state->min_size, right_x, option_row(0), size_label_w, check_h);
@@ -509,7 +510,8 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     appearance::Place(state->match_whole, right_x, option_row(3), right_w, check_h);
     appearance::Place(state->use_regex, right_x, option_row(4), right_w, check_h);
     appearance::Place(state->skip_links, right_x, option_row(5), right_w, check_h);
-    appearance::Place(state->options_data_types, right_x, option_row(6) - check_inset + Scaled(5, dpi), std::max(Scaled(120, dpi), appearance::TextFitWidth(state->options_data_types)), line_h);
+    const int data_types_w = std::max(Scaled(120, dpi), appearance::TextFitWidth(state->options_data_types));
+    appearance::Place(state->options_data_types, right_x, option_row(6) - check_inset + Scaled(5, dpi), data_types_w, line_h);
     y += options_h + block_gap;
 
     const int modified_label_w = std::max(Scaled(150, dpi), appearance::TextFitWidth(GetDlgItem(hwnd, kModifiedLabel)));
@@ -545,11 +547,20 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     appearance::Place(state->result_limit_edit, x + std::max(Scaled(160, dpi), group_inset + limit_w + label_gap), limit_row, button_w, line_h);
     y += result_h + block_gap;
 
-    const int find_w = std::max(button_w, appearance::TextFitWidth(state->find_button));
-    const int cancel_w = std::max(button_w, appearance::TextFitWidth(state->cancel_button));
-    const int cancel_x = width - right_margin - cancel_w;
-    appearance::Place(state->find_button, cancel_x - button_gap - find_w, y, find_w, button_h);
-    appearance::Place(state->cancel_button, cancel_x, y, cancel_w, button_h);
+    const int buttons_w = appearance::PlaceButtonRow({state->find_button, state->cancel_button}, width - right_margin, y, button_w, button_h, button_gap);
+    const int min_edit_w = Scaled(80, dpi);
+    const int group_min_w = std::max(
+        {2 * (appearance::TextFitWidth({state->options_keys, state->options_values, state->options_data, state->options_comments, state->options_standard, state->options_registry, state->options_trace, state->options_defaults, state->options_offline, state->options_reg_files, state->options_remote}) + group_inset),
+         2 * (std::max({size_label_w + label_gap + Scaled(40, dpi), appearance::TextFitWidth({state->match_case, state->match_whole, state->use_regex, state->skip_links}), data_types_w}) + group_inset + label_gap),
+         group_inset * 2 + scope_label_w + label_gap + std::max(appearance::TextFitWidth(state->scope_recursive), browse_w + label_gap + min_edit_w),
+         group_inset * 2 + std::max(appearance::TextFitWidth(state->exclude_enable), exclude_button_w + label_gap + min_edit_w),
+         group_inset * 2 + appearance::TextFitWidth({state->result_reuse, state->result_new, state->result_open_new_tab}),
+         std::max(Scaled(160, dpi), group_inset + limit_w + label_gap) + button_w + group_inset}
+    );
+    if (appearance::GrowDialogWidth(hwnd, std::max({x * 2 + group_min_w, x * 2 + label_w + label_gap + min_edit_w, x * 2 + modified_label_w + modified_gap * 2 + Scaled(18, dpi) + modified_w * 2, x + buttons_w + right_margin})))
+    {
+        return;
+    }
     appearance::FitDialogHeight(hwnd, y + button_h + bottom_margin);
 
     for (HWND edit :

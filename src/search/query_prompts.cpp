@@ -9,6 +9,7 @@
 #include <commctrl.h>
 #include <windowsx.h>
 
+#include "appearance/dialog_fit.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
 #include "appearance/feedback.h"
@@ -93,7 +94,11 @@ void LayoutDataTypesDialog(HWND hwnd, DataTypesDialogState* state)
     using namespace appearance::metrics;
     const UINT dpi = win32::DpiForWindow(hwnd);
     const int padding = Scaled(kDialogContentMargin, dpi);
-    const int col_w = Scaled(kDataTypesColWidth, dpi);
+    int col_w = Scaled(kDataTypesColWidth, dpi);
+    for (HWND check : state->checks)
+    {
+        col_w = std::max(col_w, appearance::TextFitWidth(check));
+    }
     const int col_gap = Scaled(kBlockGap, dpi);
     const int row_step = Scaled(kRowPitch, dpi);
     const int button_h = Scaled(kButtonHeight, dpi);
@@ -101,10 +106,13 @@ void LayoutDataTypesDialog(HWND hwnd, DataTypesDialogState* state)
     const int button_w = Scaled(kButtonMinWidth, dpi);
     const int select_all_w = std::max(Scaled(100, dpi), appearance::TextFitWidth(state->select_all));
     const int clear_all_w = std::max(Scaled(90, dpi), appearance::TextFitWidth(state->clear_all));
-    const int ok_w = std::max(button_w, appearance::TextFitWidth(state->ok_button));
-    const int cancel_w = std::max(button_w, appearance::TextFitWidth(state->cancel_button));
     const int btn_y = client.bottom - Scaled(kDialogButtonBottomMargin, dpi) - button_h;
-    const int cancel_x = client.right - Scaled(kDialogButtonRightMargin, dpi) - cancel_w;
+    const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
+    const int buttons_w = appearance::PlaceButtonRow({state->ok_button, state->cancel_button}, client.right - right_margin, btn_y, button_w, button_h, button_gap);
+    if (appearance::GrowDialogWidth(hwnd, std::max(padding + kDataTypesColCount * (col_w + col_gap) - col_gap, padding + select_all_w + clear_all_w + buttons_w + button_gap * 2) + right_margin))
+    {
+        return;
+    }
     for (size_t index = 0; index < state->checks.size(); ++index)
     {
         const int col = static_cast<int>(index) / state->rows_per_col;
@@ -113,8 +121,6 @@ void LayoutDataTypesDialog(HWND hwnd, DataTypesDialogState* state)
     }
     appearance::Place(state->select_all, padding, btn_y, select_all_w, button_h);
     appearance::Place(state->clear_all, padding + select_all_w + button_gap, btn_y, clear_all_w, button_h);
-    appearance::Place(state->ok_button, cancel_x - button_gap - ok_w, btn_y, ok_w, button_h);
-    appearance::Place(state->cancel_button, cancel_x, btn_y, cancel_w, button_h);
 }
 
 LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -234,13 +240,12 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
             const UINT dpi = win32::DpiForWindow(hwnd);
             const int margin = Scaled(kDialogContentMargin, dpi);
             const int button_h = Scaled(kButtonHeight, dpi);
-            const int button_w = Scaled(kButtonMinWidth, dpi);
+            const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
             const int width = LOWORD(lparam);
             const int bottom_y = HIWORD(lparam) - Scaled(kDialogButtonBottomMargin, dpi) - button_h;
-            const int cancel_x = width - Scaled(kDialogButtonRightMargin, dpi) - button_w;
             appearance::Place(state->tree.hwnd(), margin, margin, width - margin * 2, std::max(0, bottom_y - Scaled(kBlockGap, dpi) - margin));
-            appearance::Place(state->ok_button, cancel_x - Scaled(kButtonGap, dpi) - button_w, bottom_y, button_w, button_h);
-            appearance::Place(state->cancel_button, cancel_x, bottom_y, button_w, button_h);
+            const int buttons_w = appearance::PlaceButtonRow({state->ok_button, state->cancel_button}, width - right_margin, bottom_y, Scaled(kButtonMinWidth, dpi), button_h, Scaled(kButtonGap, dpi));
+            appearance::GrowDialogWidth(hwnd, margin + buttons_w + right_margin);
             return 0;
         }
     case WM_NOTIFY:

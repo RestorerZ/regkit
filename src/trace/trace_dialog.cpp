@@ -13,6 +13,7 @@
 #include <commctrl.h>
 #include <windowsx.h>
 
+#include "appearance/dialog_fit.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
 #include "appearance/feedback.h"
@@ -504,15 +505,15 @@ void LayoutDialog(HWND hwnd, TraceDialogState* state, HFONT font)
     const int tree_height = std::max(Scaled(80, dpi), check_y - y - block_gap);
     appearance::Place(state->tree, padding, y, content_w, tree_height);
 
-    const int select_all_w = Scaled(135, dpi);
-    const int recursive_w = Scaled(160, dpi);
+    const int select_all_w = std::max(Scaled(135, dpi), appearance::TextFitWidth(state->select_all));
+    const int recursive_w = std::max(Scaled(160, dpi), appearance::TextFitWidth(state->recursive));
     appearance::Place(state->select_all, padding, check_y, select_all_w, button_h);
     appearance::Place(state->recursive, padding + select_all_w + gap, check_y + (button_h - check_h) / 2, recursive_w, check_h);
-
-    const int cancel_x = width - right_margin - button_w;
-    const int ok_x = cancel_x - button_w - button_gap;
-    appearance::Place(state->ok_button, ok_x, buttons_y, button_w, button_h);
-    appearance::Place(state->cancel_button, cancel_x, buttons_y, button_w, button_h);
+    const int buttons_w = appearance::PlaceButtonRow({state->ok_button, state->cancel_button}, width - right_margin, buttons_y, button_w, button_h, button_gap);
+    if (appearance::GrowDialogWidth(hwnd, std::max(padding + select_all_w + gap + recursive_w + padding, padding + buttons_w + right_margin)))
+    {
+        return;
+    }
 
     if (font)
     {

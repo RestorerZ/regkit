@@ -11,6 +11,7 @@
 #include <windowsx.h>
 
 #include "appearance/default_font.h"
+#include "appearance/dialog_fit.h"
 #include "appearance/dialog_layout.h"
 #include "appearance/dialog_metrics.h"
 #include "appearance/feedback.h"
@@ -482,7 +483,10 @@ void LayoutControls(ThemePresetWindowState* state)
     const int left_x = padding;
     const int left_w = std::max(Scaled(kLeftPanelWidth, dpi), std::max({new_w + duplicate_w, rename_w + delete_w, import_w + export_w}) + button_gap + box_padding * 2);
     const int right_x = left_x + left_w + gap;
-    const int right_w = std::max(Scaled(180, dpi), width - right_x - padding);
+    const int edit_btn_w = fit(state->edit_color_btn, Scaled(kEditColorButtonWidth, dpi));
+    const int template_btn_w = fit(state->template_btn, Scaled(kTemplateButtonWidth, dpi));
+    const int right_min = std::max({Scaled(180, dpi), edit_btn_w + gap + appearance::TextFitWidth(state->dark_check), Scaled(120, dpi) + gap + template_btn_w}) + box_padding * 2;
+    const int right_w = width - right_x - padding;
 
     int template_group_h = std::max(Scaled(60, dpi), caption_h + box_padding * 2 + button_h);
     int colors_group_h = content_h - template_group_h - gap;
@@ -523,7 +527,6 @@ void LayoutControls(ThemePresetWindowState* state)
     appearance::Place(state->color_list, colors_inner_x, color_list_y, colors_inner_w, color_list_h);
 
     const int edit_row_y = color_list_y + color_list_h + gap;
-    const int edit_btn_w = fit(state->edit_color_btn, Scaled(kEditColorButtonWidth, dpi));
     appearance::Place(state->edit_color_btn, colors_inner_x, edit_row_y, edit_btn_w, button_h);
     appearance::Place(state->dark_check, colors_inner_x + edit_btn_w + gap, edit_row_y, colors_inner_w - edit_btn_w - gap, button_h);
 
@@ -532,20 +535,13 @@ void LayoutControls(ThemePresetWindowState* state)
     const int templates_inner_x = right_x + box_padding;
     const int templates_inner_w = right_w - box_padding * 2;
     const int template_row_y = templates_group_y + caption_h;
-    const int template_btn_w = fit(state->template_btn, Scaled(kTemplateButtonWidth, dpi));
     const int combo_w = std::max(Scaled(120, dpi), templates_inner_w - template_btn_w - gap);
     appearance::Place(state->template_combo, templates_inner_x, template_row_y, combo_w, button_h);
     appearance::Place(state->template_btn, templates_inner_x + combo_w + gap, template_row_y, template_btn_w, button_h);
 
     const int bottom_y = height - bottom_margin - button_h;
-    const int apply_w = fit(state->apply_btn, button_w);
-    const int ok_w = fit(state->ok_btn, button_w);
-    const int cancel_w = fit(state->cancel_btn, button_w);
-    const int cancel_x = width - right_margin - cancel_w;
-    const int ok_x = cancel_x - button_gap - ok_w;
-    appearance::Place(state->apply_btn, ok_x - button_gap - apply_w, bottom_y, apply_w, button_h);
-    appearance::Place(state->ok_btn, ok_x, bottom_y, ok_w, button_h);
-    appearance::Place(state->cancel_btn, cancel_x, bottom_y, cancel_w, button_h);
+    const int buttons_w = appearance::PlaceButtonRow({state->apply_btn, state->ok_btn, state->cancel_btn}, width - right_margin, bottom_y, button_w, button_h, button_gap);
+    appearance::GrowDialogWidth(state->hwnd, std::max(right_x + right_min + padding, padding + buttons_w + right_margin));
 }
 
 void CreateControls(ThemePresetWindowState* state)
