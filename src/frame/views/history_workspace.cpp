@@ -5,6 +5,7 @@
 #include "frame/window_impl.h"
 
 #include "appearance/autocomplete.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -191,7 +192,7 @@ bool MainWindow::Impl::RevertHistoryEntry(const HistoryEntry& entry)
         return false;
     }
     if (util::IsProcessPrivileged() &&
-        ui::PromptKeyChoice(hwnd_, L"Revert this change with elevated rights?", prepared.value_name.empty() ? prepared.key_path : prepared.key_path + L"\\" + prepared.value_name, L"Revert", L"Revert", L"", L"Cancel") != IDYES)
+        ui::PromptKeyChoice(hwnd_, util::Tr(L"Revert this change with elevated rights?"), prepared.value_name.empty() ? prepared.key_path : prepared.key_path + L"\\" + prepared.value_name, util::Tr(L"Revert"), util::Tr(L"Revert"), L"", util::Tr(L"Cancel")) != IDYES)
     {
         return false;
     }
@@ -224,7 +225,7 @@ bool MainWindow::Impl::RevertHistoryEntry(const HistoryEntry& entry)
             if (ResolvePathToNode(prepared.key_path, &node))
             {
                 std::wstring name = LeafName(node);
-                if (!name.empty() && ui::ConfirmDelete(hwnd_, L"Revert Key Creation", registry_path::DisplayName(name)))
+                if (!name.empty() && ui::ConfirmDelete(hwnd_, util::Tr(L"Revert Key Creation"), registry_path::DisplayName(name)))
                 {
                     ok = RegistryStore::DeleteKey(node);
                 }
@@ -238,7 +239,7 @@ bool MainWindow::Impl::RevertHistoryEntry(const HistoryEntry& entry)
 
     if (!ok)
     {
-        ui::ShowError(hwnd_, L"Failed to revert history entry.");
+        ui::ShowError(hwnd_, util::Tr(L"Failed to revert history entry."));
         return false;
     }
 
@@ -275,8 +276,8 @@ bool MainWindow::Impl::AppendHistoryCache(const HistoryEntry& entry)
     if (!history_cache_failed_)
     {
         history_cache_failed_ = true;
-        ui::ShowError(hwnd_, L"The history couldn't be written to disk. It is "
-                             L"kept for this session only.");
+        ui::ShowError(hwnd_, util::Tr(L"The history couldn't be written to disk. It is "
+                                      L"kept for this session only."));
     }
     return false;
 }
@@ -516,7 +517,7 @@ void MainWindow::Impl::LoadTabs()
             if (saved.kind == workspace::PersistedTab::Kind::kSearch)
             {
                 SearchTab search_tab;
-                search_tab.label = label.empty() ? L"Find" : std::move(label);
+                search_tab.label = label.empty() ? util::Tr(L"Find") : std::move(label);
                 search_tab.cache_file = std::move(saved.search_cache_file);
                 search_tab.compare_cache_file = std::move(saved.compare_cache_file);
                 search_tab.is_compare = saved.is_compare || StartsWithInsensitive(search_tab.label, L"Compare:");
@@ -577,7 +578,7 @@ void MainWindow::Impl::LoadTabs()
             }
             if (label.empty())
             {
-                label = L"Local Registry";
+                label = util::Tr(L"Local Registry");
             }
             TCITEMW item = {};
             item.mask = TCIF_TEXT;
@@ -602,7 +603,7 @@ void MainWindow::Impl::LoadTabs()
     {
         TCITEMW item = {};
         item.mask = TCIF_TEXT;
-        item.pszText = const_cast<wchar_t*>(L"Local Registry");
+        item.pszText = const_cast<wchar_t*>(util::Tr(L"Local Registry"));
         TabCtrl_InsertItem(tab_, 0, &item);
         TabEntry entry;
         entry.kind = TabEntry::Kind::kRegistry;
@@ -794,7 +795,7 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds)
                 }
                 else
                 {
-                    label = L"Local Registry";
+                    label = util::Tr(L"Local Registry");
                 }
             }
             workspace::PersistedTab saved;
@@ -895,7 +896,7 @@ bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path)
     value_comments_.Merge(rules);
     if (!SaveComments())
     {
-        ui::ShowError(hwnd_, L"Comments were imported but couldn't be saved.");
+        ui::ShowError(hwnd_, util::Tr(L"Comments were imported but couldn't be saved."));
     }
     RefreshValueListComments();
     return true;
@@ -999,10 +1000,10 @@ bool MainWindow::Impl::EditComments(const std::vector<changes::CommentTarget>& t
             request.scope.key_path = shown.rule.key_path;
         }
     }
-    request.name = L"\"" + (first.name.empty() ? std::wstring(L"(Default)") : first.name) + L"\"";
-    request.type = same_type ? value_format::TypeName(first.type) : L"Different types";
-    request.size = same_size ? std::to_wstring(first.data_size) + (first.data_size == 1 ? L" byte" : L" bytes")
-                             : L"Different lengths";
+    request.name = L"\"" + (first.name.empty() ? std::wstring(util::Tr(L"(Default)")) : first.name) + L"\"";
+    request.type = same_type ? value_format::TypeName(first.type) : util::Tr(L"Different types");
+    request.size = same_size ? value_format::ByteCount(first.data_size)
+                             : util::Tr(L"Different lengths");
     request.multiple = targets.size() > 1;
     request.can_restore = can_restore;
     editors::CommentResult result;
@@ -1050,7 +1051,7 @@ bool MainWindow::Impl::EditComments(const std::vector<changes::CommentTarget>& t
     }
     if (!SaveComments())
     {
-        ui::ShowError(hwnd_, L"The comment couldn't be saved.");
+        ui::ShowError(hwnd_, util::Tr(L"The comment couldn't be saved."));
     }
     RefreshValueListComments();
     return true;
@@ -1092,6 +1093,7 @@ void MainWindow::Impl::LoadSettings()
     settings.tree_width = tree_width_;
     settings.history_height = history_height_;
     settings.theme_preset = active_theme_preset_;
+    settings.language = language_;
     settings.icon_set = icon_set_;
     settings.use_custom_font = use_custom_font_;
     settings.font_face = custom_font_.lfFaceName;
@@ -1141,6 +1143,7 @@ void MainWindow::Impl::LoadSettings()
     history_height_ = settings.history_height;
     theme_mode_ = ParseThemeMode(settings.theme_mode);
     active_theme_preset_ = std::move(settings.theme_preset);
+    language_ = std::move(settings.language);
     icon_set_ = IsKnownIconSetName(settings.icon_set) ? std::move(settings.icon_set) : kIconSetPhosphor;
     use_custom_font_ = settings.use_custom_font;
     if (!settings.font_face.empty())
@@ -1219,6 +1222,7 @@ workspace::Settings MainWindow::Impl::CurrentSettings() const
     settings.history_height = history_height_;
     settings.theme_mode = ThemeModeName(theme_mode_);
     settings.theme_preset = active_theme_preset_;
+    settings.language = language_;
     settings.icon_set = IsKnownIconSetName(icon_set_) ? icon_set_ : kIconSetPhosphor;
     settings.use_custom_font = use_custom_font_;
     settings.font_face = custom_font_.lfFaceName;

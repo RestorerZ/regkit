@@ -5,6 +5,7 @@
 #include "frame/window_impl.h"
 #include "win32/shell_paths.h"
 #include "win32/system_error.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -99,7 +100,7 @@ void MainWindow::Impl::StartCompareRegistries()
         {
             if (error)
             {
-                *error = L"Invalid registry path.";
+                *error = util::Tr(L"Invalid registry path.");
             }
             return false;
         }
@@ -131,7 +132,7 @@ void MainWindow::Impl::StartCompareRegistries()
             RegistryStore::CloseOfflineHive(hive, nullptr);
             if (!ok && error && error->empty())
             {
-                *error = L"Failed to read the hive file.\n" + source.file_path;
+                *error = util::TrDetail(L"Failed to read the hive file.", source.file_path);
             }
             return ok;
         }
@@ -144,7 +145,7 @@ void MainWindow::Impl::StartCompareRegistries()
             {
                 if (error)
                 {
-                    *error = L"Select a computer to compare against.";
+                    *error = util::Tr(L"Select a computer to compare against.");
                 }
                 return false;
             }
@@ -163,7 +164,7 @@ void MainWindow::Impl::StartCompareRegistries()
             bool ok = ResolveRemoteNode(machine, hklm, hku, base, &node);
             if (!ok && error)
             {
-                *error = L"Network registry path not found.\n" + base;
+                *error = util::TrDetail(L"Network registry path not found.", base);
             }
             if (ok)
             {
@@ -181,7 +182,7 @@ void MainWindow::Impl::StartCompareRegistries()
         {
             if (error)
             {
-                *error = L"Registry path not found.\n" + base;
+                *error = util::TrDetail(L"Registry path not found.", base);
             }
             return false;
         }
@@ -211,7 +212,7 @@ void MainWindow::Impl::StartCompareRegistries()
 
     std::vector<search::compare::Row> rows =
         search::compare::BuildRows(left_snapshot, right_snapshot, selection.filter);
-    std::wstring tab_label = L"Registry Comparison";
+    std::wstring tab_label = util::Tr(L"Registry Comparison");
 
     auto source_ref = [this](const CompareDialogSelection& sel) {
         switch (sel.type)

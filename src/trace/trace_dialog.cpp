@@ -19,6 +19,7 @@
 #include "appearance/theme.h"
 #include "registry/registry_path.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 
 #ifndef NMTVITEMCHANGE
@@ -110,19 +111,15 @@ void UpdateStatus(TraceDialogState* state)
     {
         return;
     }
-    std::wstring text = L"Loaded ";
-    text.append(std::to_wstring(state->key_count));
-    text.append(L" keys");
+    std::wstring text = util::TrLabel(L"Keys", std::to_wstring(state->key_count));
     if (state->show_values)
     {
-        text.append(L", ");
-        text.append(std::to_wstring(state->value_count));
-        text.append(L" values");
+        text.append(L", ").append(util::TrLabel(L"Values", std::to_wstring(state->value_count)));
     }
     const bool ready = state->loading_done && !state->processing_entries;
     if (!ready)
     {
-        text.append(L" (loading...)");
+        text.append(L" (").append(util::Tr(L"loading...")).append(L")");
     }
     EnableWindow(state->ok_button, ready);
     SetWindowTextW(state->status, text.c_str());
@@ -220,7 +217,7 @@ HTREEITEM InsertValueNode(HWND tree, TraceDialogState* state, HTREEITEM key_item
     {
         return nullptr;
     }
-    std::wstring display = value_name.empty() ? L"(Default)" : value_name;
+    std::wstring display = value_name.empty() ? util::Tr(L"(Default)") : value_name;
     TraceNodeData* data = StoreNodeData(state, true, key_path, value_name);
     TVINSERTSTRUCTW insert = {};
     insert.hParent = key_item;
@@ -260,7 +257,7 @@ void EnsureValueNodes(HWND tree, TraceDialogState* state, HTREEITEM key_item, co
         {
             continue;
         }
-        std::wstring value_name = display == L"(Default)" ? L"" : display;
+        std::wstring value_name = display == util::Tr(L"(Default)") ? L"" : display;
         InsertValueNode(tree, state, key_item, key_path, value_name);
     }
 }
@@ -283,7 +280,7 @@ void AddEntry(HWND tree, TraceDialogState* state, const KeyValueDialogEntry& ent
         return;
     }
     std::wstring value_name = entry.value_name;
-    std::wstring display_name = value_name.empty() ? L"(Default)" : value_name;
+    std::wstring display_name = value_name.empty() ? util::Tr(L"(Default)") : value_name;
     std::wstring value_lower = ToLower(value_name);
     auto& values = state->values_by_key[key_lower];
     if (values.emplace(value_lower, display_name).second)
@@ -459,7 +456,7 @@ void AcceptSelection(HWND hwnd, TraceDialogState* state, bool select_all)
     }
     if (selection.key_paths.empty() && selection.values_by_key.empty())
     {
-        ui::ShowWarning(hwnd, L"Select at least one key or value.");
+        ui::ShowWarning(hwnd, util::Tr(L"Select at least one key or value."));
         return;
     }
     *state->out = std::move(selection);
@@ -537,13 +534,13 @@ LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
             state->status = appearance::CreateControl(hwnd, L"STATIC", L"", 0, kTraceStatus);
             state->tree = appearance::CreateControl(hwnd, WC_TREEVIEWW, L"", WS_BORDER | WS_TABSTOP | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_CHECKBOXES, kTraceTree);
             state->recursive =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Recursive", WS_TABSTOP | BS_AUTOCHECKBOX, kRecursiveCheck);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Recursive"), WS_TABSTOP | BS_AUTOCHECKBOX, kRecursiveCheck);
             state->select_all =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Select All Keys", WS_TABSTOP | BS_PUSHBUTTON, kSelectAllButton);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Select All Keys"), WS_TABSTOP | BS_PUSHBUTTON, kSelectAllButton);
             state->ok_button =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Select", WS_TABSTOP | BS_DEFPUSHBUTTON, kOkButton);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Select"), WS_TABSTOP | BS_DEFPUSHBUTTON, kOkButton);
             state->cancel_button =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
             appearance::SetDialogFont(hwnd, state->font);
             Button_SetCheck(state->recursive, BST_CHECKED);
             SendMessageW(state->tree, TVM_SETEXTENDEDSTYLE, TVS_EX_DOUBLEBUFFER, TVS_EX_DOUBLEBUFFER);
@@ -648,7 +645,7 @@ bool ShowTraceDialog(HWND owner, const TraceDialogOptions& options, trace::Selec
     state.prompt = options.prompt;
     const UINT dpi = win32::DpiForWindow(owner);
     return selection &&
-           appearance::RunDialogWindow(&state, kDialogClass, TraceDialogProc, options.title.empty() ? L"Trace" : options.title.c_str(), {appearance::metrics::Scaled(560, dpi), appearance::metrics::Scaled(552, dpi)});
+           appearance::RunDialogWindow(&state, kDialogClass, TraceDialogProc, options.title.empty() ? util::Tr(L"Trace") : options.title.c_str(), {appearance::metrics::Scaled(560, dpi), appearance::metrics::Scaled(552, dpi)});
 }
 void TraceDialogPostEntries(HWND dialog, std::vector<KeyValueDialogEntry>* entries)
 {

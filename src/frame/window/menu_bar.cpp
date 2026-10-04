@@ -10,6 +10,7 @@
 #include "frame/window/shortcut_bindings.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <filesystem>
 
@@ -105,37 +106,37 @@ std::wstring MainWindow::Impl::CommandTooltipText(int command_id) const
     switch (command_id)
     {
     case cmd::kRegistryLocal:
-        return L"Local Registry";
+        return util::Tr(L"Local Registry");
     case cmd::kRegistryNetwork:
-        return L"Remote Registry";
+        return util::Tr(L"Remote Registry");
     case cmd::kRegistryOffline:
-        return L"Offline Registry";
+        return util::Tr(L"Offline Registry");
     case cmd::kEditFind:
-        return L"Find";
+        return util::Tr(L"Find");
     case cmd::kEditReplace:
-        return L"Replace";
+        return util::Tr(L"Replace");
     case cmd::kFileSave:
-        return L"Save";
+        return util::Tr(L"Save");
     case cmd::kFileExport:
-        return L"Export";
+        return util::Tr(L"Export");
     case cmd::kEditUndo:
-        return L"Undo";
+        return util::Tr(L"Undo");
     case cmd::kEditRedo:
-        return L"Redo";
+        return util::Tr(L"Redo");
     case cmd::kEditCopy:
-        return L"Copy";
+        return util::Tr(L"Copy");
     case cmd::kEditPaste:
-        return L"Paste";
+        return util::Tr(L"Paste");
     case cmd::kEditDelete:
-        return L"Delete";
+        return util::Tr(L"Delete");
     case cmd::kViewRefresh:
-        return L"Refresh";
+        return util::Tr(L"Refresh");
     case cmd::kNavBack:
-        return L"Back";
+        return util::Tr(L"Back");
     case cmd::kNavForward:
-        return L"Forward";
+        return util::Tr(L"Forward");
     case cmd::kNavUp:
-        return L"Up";
+        return util::Tr(L"Up");
     default:
         return L"";
     }
@@ -147,7 +148,7 @@ bool MainWindow::Impl::EnsureWritable()
     {
         return true;
     }
-    ui::ShowWarning(hwnd_, L"Read only mode is enabled.");
+    ui::ShowWarning(hwnd_, util::Tr(L"Read only mode is enabled."));
     return false;
 }
 
@@ -270,189 +271,199 @@ void MainWindow::Impl::BuildMenus()
         }
     }
     UINT save_flags = MF_STRING | (can_save ? 0 : MF_GRAYED);
-    append_menu(file_menu, MF_STRING, cmd::kFileOpenRegFile, L"Open .reg File...");
-    append_menu(file_menu, save_flags, cmd::kFileSave, L"Save");
+    append_menu(file_menu, MF_STRING, cmd::kFileOpenRegFile, util::Tr(L"Open .reg File..."));
+    append_menu(file_menu, save_flags, cmd::kFileSave, util::Tr(L"Save"));
     AppendMenuW(file_menu, MF_SEPARATOR, 0, nullptr);
     UINT import_flags = MF_STRING | (can_modify ? 0 : MF_GRAYED);
-    append_menu(file_menu, import_flags, cmd::kFileImport, L"Import...");
-    append_menu(file_menu, MF_STRING, cmd::kFileExport, L"Export...");
+    append_menu(file_menu, import_flags, cmd::kFileImport, util::Tr(L"Import..."));
+    append_menu(file_menu, MF_STRING, cmd::kFileExport, util::Tr(L"Export..."));
     AppendMenuW(file_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(file_menu, MF_STRING, cmd::kFileImportComments, L"Import Comments...");
-    append_menu(file_menu, MF_STRING, cmd::kFileExportComments, L"Export Comments...");
+    append_menu(file_menu, MF_STRING, cmd::kFileImportComments, util::Tr(L"Import Comments..."));
+    append_menu(file_menu, MF_STRING, cmd::kFileExportComments, util::Tr(L"Export Comments..."));
     AppendMenuW(file_menu, MF_SEPARATOR, 0, nullptr);
     UINT local_flags = MF_STRING | (registry_mode_ == RegistryMode::kLocal ? MF_CHECKED : MF_UNCHECKED);
     UINT remote_flags = MF_STRING | (registry_mode_ == RegistryMode::kRemote ? MF_CHECKED : MF_UNCHECKED);
     UINT offline_flags = MF_STRING | (registry_mode_ == RegistryMode::kOffline ? MF_CHECKED : MF_UNCHECKED);
-    append_menu(file_menu, local_flags, cmd::kRegistryLocal, L"Local Registry");
-    append_menu(file_menu, remote_flags, cmd::kRegistryNetwork, L"Remote Registry...");
-    append_menu(file_menu, offline_flags, cmd::kRegistryOffline, L"Offline Registry...");
+    append_menu(file_menu, local_flags, cmd::kRegistryLocal, util::Tr(L"Local Registry"));
+    append_menu(file_menu, remote_flags, cmd::kRegistryNetwork, util::Tr(L"Remote Registry..."));
+    append_menu(file_menu, offline_flags, cmd::kRegistryOffline, util::Tr(L"Offline Registry..."));
     UINT save_offline_flags =
         MF_STRING | ((registry_mode_ == RegistryMode::kOffline && !offline_mount_.empty()) ? 0 : MF_GRAYED);
-    append_menu(file_menu, save_offline_flags, cmd::kFileSaveOfflineHive, L"Save Offline Hive...");
+    append_menu(file_menu, save_offline_flags, cmd::kFileSaveOfflineHive, util::Tr(L"Save Offline Hive..."));
     AppendMenuW(file_menu, MF_SEPARATOR, 0, nullptr);
     UINT hive_modify_flags = MF_STRING | (can_modify ? 0 : MF_GRAYED);
-    append_menu(file_menu, hive_modify_flags, cmd::kFileLoadHive, L"Load Hive...");
-    append_menu(file_menu, hive_modify_flags, cmd::kFileUnloadHive, L"Unload Hive...");
+    append_menu(file_menu, hive_modify_flags, cmd::kFileLoadHive, util::Tr(L"Load Hive..."));
+    append_menu(file_menu, hive_modify_flags, cmd::kFileUnloadHive, util::Tr(L"Unload Hive..."));
     AppendMenuW(file_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(file_menu, MF_STRING, cmd::kFileExit, L"Exit");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(file_menu), L"&File");
+    append_menu(file_menu, MF_STRING, cmd::kFileExit, util::Tr(L"Exit"));
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(file_menu), util::Tr(L"&File"));
 
     HMENU edit_menu = CreatePopupMenu();
     UINT modify_flags = MF_STRING | (can_modify ? 0 : MF_GRAYED);
-    append_menu(edit_menu, modify_flags, cmd::kEditUndo, L"Undo");
-    append_menu(edit_menu, modify_flags, cmd::kEditRedo, L"Redo");
+    append_menu(edit_menu, modify_flags, cmd::kEditUndo, util::Tr(L"Undo"));
+    append_menu(edit_menu, modify_flags, cmd::kEditRedo, util::Tr(L"Redo"));
     AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
     HMENU edit_new = CreatePopupMenu();
-    append_menu(edit_new, MF_STRING, cmd::kNewKey, L"Key");
+    append_menu(edit_new, MF_STRING, cmd::kNewKey, util::Tr(L"Key"));
     AppendNewValueItems(edit_new);
-    AppendMenuW(edit_menu, MF_POPUP | (can_modify ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(edit_new), L"New");
+    AppendMenuW(edit_menu, MF_POPUP | (can_modify ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(edit_new), util::Tr(L"New"));
     AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(edit_menu, MF_STRING, cmd::kEditModify, L"Modify...");
-    append_menu(edit_menu, MF_STRING, cmd::kEditModifyBinary, L"Modify Binary Data...");
-    append_menu(edit_menu, MF_STRING, cmd::kEditChangeType, L"Change Data Type...");
-    append_menu(edit_menu, MF_STRING, cmd::kEditBits, L"Edit Bits...");
-    append_menu(edit_menu, MF_STRING, cmd::kEditDecodeValue, L"Decode Value...");
-    append_menu(edit_menu, MF_STRING, cmd::kEditModifyComment, L"Modify Comment...");
+    append_menu(edit_menu, MF_STRING, cmd::kEditModify, util::Tr(L"Modify..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditModifyBinary, util::Tr(L"Modify Binary Data..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditChangeType, util::Tr(L"Change Data Type..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditBits, util::Tr(L"Edit Bits..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditDecodeValue, util::Tr(L"Decode Value..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
     AppendResetDefaultMenu(edit_menu);
     AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(edit_menu, MF_STRING, cmd::kEditCopy, L"Copy");
-    append_menu(edit_menu, modify_flags, cmd::kEditPaste, L"Paste");
-    append_menu(edit_menu, modify_flags, cmd::kEditRename, L"Rename");
-    append_menu(edit_menu, modify_flags, cmd::kEditDelete, L"Delete");
+    append_menu(edit_menu, MF_STRING, cmd::kEditCopy, util::Tr(L"Copy"));
+    append_menu(edit_menu, modify_flags, cmd::kEditPaste, util::Tr(L"Paste"));
+    append_menu(edit_menu, modify_flags, cmd::kEditRename, util::Tr(L"Rename"));
+    append_menu(edit_menu, modify_flags, cmd::kEditDelete, util::Tr(L"Delete"));
     AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
     HMENU copy_other_menu = CreatePopupMenu();
-    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyKey, L"Key Name");
-    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyKeyPath, L"Key Path");
-    AppendMenuW(copy_other_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), L"Key Path As");
+    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyKey, util::Tr(L"Key Name"));
+    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyKeyPath, util::Tr(L"Key Path"));
+    AppendMenuW(copy_other_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), util::Tr(L"Key Path As"));
     AppendMenuW(copy_other_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyValueName, L"Value Name");
-    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyValueData, L"Value Data");
-    AppendMenuW(edit_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(copy_other_menu), L"Copy Other");
+    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyValueName, util::Tr(L"Value Name"));
+    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyValueData, util::Tr(L"Value Data"));
+    AppendMenuW(edit_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(copy_other_menu), util::Tr(L"Copy Other"));
     AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(edit_menu, MF_STRING, cmd::kViewSelectAll, L"Select All");
-    append_menu(edit_menu, MF_STRING, cmd::kEditInvertSelection, L"Invert Selection");
+    append_menu(edit_menu, MF_STRING, cmd::kViewSelectAll, util::Tr(L"Select All"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditInvertSelection, util::Tr(L"Invert Selection"));
     UINT permissions_flags = MF_STRING | ((browse_.current_node() && can_modify) ? 0 : MF_GRAYED);
     AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(edit_menu, MF_STRING, cmd::kEditFind, L"Find...");
-    append_menu(edit_menu, modify_flags, cmd::kEditReplace, L"Replace...");
-    append_menu(edit_menu, MF_STRING, cmd::kEditGoTo, L"Go To...");
+    append_menu(edit_menu, MF_STRING, cmd::kEditFind, util::Tr(L"Find..."));
+    append_menu(edit_menu, modify_flags, cmd::kEditReplace, util::Tr(L"Replace..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditGoTo, util::Tr(L"Go To..."));
     AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(edit_menu, permissions_flags, cmd::kEditPermissions, L"Permissions...");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(edit_menu), L"&Edit");
+    append_menu(edit_menu, permissions_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(edit_menu), util::Tr(L"&Edit"));
 
     HMENU view_menu = CreatePopupMenu();
-    append_menu(view_menu, MF_STRING, cmd::kViewRefresh, L"Refresh");
+    append_menu(view_menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
     AppendMenuW(view_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(view_menu, MF_STRING | (show_toolbar_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewToolbar, L"Toolbar");
-    AppendMenuW(view_menu, MF_STRING | (show_address_bar_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewAddressBar, L"Address Bar");
-    AppendMenuW(view_menu, MF_STRING | (show_filter_bar_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewFilterBar, L"Filter Bar");
-    AppendMenuW(view_menu, MF_STRING | (show_tab_control_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewTabControl, L"Tabs");
-    AppendMenuW(view_menu, MF_STRING | (show_status_bar_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewStatusBar, L"Status Bar");
+    AppendMenuW(view_menu, MF_STRING | (show_toolbar_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewToolbar, util::Tr(L"Toolbar"));
+    AppendMenuW(view_menu, MF_STRING | (show_address_bar_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewAddressBar, util::Tr(L"Address Bar"));
+    AppendMenuW(view_menu, MF_STRING | (show_filter_bar_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewFilterBar, util::Tr(L"Filter Bar"));
+    AppendMenuW(view_menu, MF_STRING | (show_tab_control_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewTabControl, util::Tr(L"Tabs"));
+    AppendMenuW(view_menu, MF_STRING | (show_status_bar_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewStatusBar, util::Tr(L"Status Bar"));
     AppendMenuW(view_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(view_menu, MF_STRING | (show_tree_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewKeyTree, L"Key Tree");
-    append_menu(view_menu, MF_STRING | (show_history_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewHistory, L"History");
+    AppendMenuW(view_menu, MF_STRING | (show_tree_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewKeyTree, util::Tr(L"Key Tree"));
+    append_menu(view_menu, MF_STRING | (show_history_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewHistory, util::Tr(L"History"));
     AppendMenuW(view_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(view_menu, MF_STRING | (show_keys_in_list_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewKeysInList, L"Keys in List");
-    AppendMenuW(view_menu, MF_STRING | (show_value_grid_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewGridLines, L"Grid Lines");
+    AppendMenuW(view_menu, MF_STRING | (show_keys_in_list_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewKeysInList, util::Tr(L"Keys in List"));
+    AppendMenuW(view_menu, MF_STRING | (show_value_grid_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewGridLines, util::Tr(L"Grid Lines"));
     UINT simulated_flags = MF_STRING | (show_simulated_keys_ ? MF_CHECKED : MF_UNCHECKED);
     if (!HasActiveTraces())
     {
         simulated_flags |= MF_GRAYED;
     }
-    AppendMenuW(view_menu, simulated_flags, cmd::kViewSimulatedKeys, L"Simulated Keys");
+    AppendMenuW(view_menu, simulated_flags, cmd::kViewSimulatedKeys, util::Tr(L"Simulated Keys"));
     UINT extra_flags = MF_STRING | (show_extra_hives_ ? MF_CHECKED : MF_UNCHECKED);
     if (registry_mode_ != RegistryMode::kLocal)
     {
         extra_flags |= MF_GRAYED;
     }
-    AppendMenuW(view_menu, extra_flags, cmd::kViewExtraHives, L"Show Extra Root Keys");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(view_menu), L"&View");
+    AppendMenuW(view_menu, extra_flags, cmd::kViewExtraHives, util::Tr(L"Show Extra Root Keys"));
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(view_menu), util::Tr(L"&View"));
 
     HMENU options_menu = CreatePopupMenu();
     HMENU theme_menu = CreatePopupMenu();
-    AppendMenuW(theme_menu, MF_STRING | (theme_mode_ == ThemeMode::kSystem ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsThemeSystem, L"System");
-    AppendMenuW(theme_menu, MF_STRING | (theme_mode_ == ThemeMode::kLight ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsThemeLight, L"Light");
-    AppendMenuW(theme_menu, MF_STRING | (theme_mode_ == ThemeMode::kDark ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsThemeDark, L"Dark");
-    AppendMenuW(theme_menu, MF_STRING | (theme_mode_ == ThemeMode::kCustom ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsThemeCustom, L"Custom");
+    AppendMenuW(theme_menu, MF_STRING | (theme_mode_ == ThemeMode::kSystem ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsThemeSystem, util::Tr(L"System"));
+    AppendMenuW(theme_menu, MF_STRING | (theme_mode_ == ThemeMode::kLight ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsThemeLight, util::Tr(L"Light"));
+    AppendMenuW(theme_menu, MF_STRING | (theme_mode_ == ThemeMode::kDark ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsThemeDark, util::Tr(L"Dark"));
+    AppendMenuW(theme_menu, MF_STRING | (theme_mode_ == ThemeMode::kCustom ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsThemeCustom, util::Tr(L"Custom"));
     AppendMenuW(theme_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemePresets, L"Theme Presets...");
-    AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(theme_menu), L"Theme");
+    AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemePresets, util::Tr(L"Theme Presets..."));
+    AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(theme_menu), util::Tr(L"Theme"));
     HMENU icon_menu = CreatePopupMenu();
     auto icon_flags = [&](const wchar_t* name) -> UINT {
         return MF_STRING | (util::EqualsInsensitive(icon_set_, name) ? MF_CHECKED : MF_UNCHECKED);
     };
-    AppendMenuW(icon_menu, icon_flags(kIconSetClassic), cmd::kOptionsIconSetClassic, L"Classic");
-    AppendMenuW(icon_menu, icon_flags(kIconSetPhosphor), cmd::kOptionsIconSetPhosphor, L"Phosphor");
-    AppendMenuW(icon_menu, icon_flags(kIconSetCustom), cmd::kOptionsIconSetCustom, L"Custom");
-    AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(icon_menu), L"Icons");
-    AppendMenuW(options_menu, MF_STRING, cmd::kViewFont, L"Font...");
+    AppendMenuW(icon_menu, icon_flags(kIconSetClassic), cmd::kOptionsIconSetClassic, util::Tr(L"Classic"));
+    AppendMenuW(icon_menu, icon_flags(kIconSetPhosphor), cmd::kOptionsIconSetPhosphor, util::Tr(L"Phosphor"));
+    AppendMenuW(icon_menu, icon_flags(kIconSetCustom), cmd::kOptionsIconSetCustom, util::Tr(L"Custom"));
+    AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(icon_menu), util::Tr(L"Icons"));
+    HMENU language_menu = CreatePopupMenu();
+    language_packs_ = util::InstalledLanguages();
+    language_packs_.insert(language_packs_.begin(), {L"en", L"English"});
+    AppendMenuW(language_menu, MF_STRING | (language_.empty() ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsLanguageAuto, util::Tr(L"Automatic"));
+    AppendMenuW(language_menu, MF_SEPARATOR, 0, nullptr);
+    for (size_t i = 0; i < language_packs_.size() && cmd::kOptionsLanguageBase + static_cast<int>(i) <= cmd::kOptionsLanguageMax; ++i)
+    {
+        AppendMenuW(language_menu, MF_STRING | (language_ == language_packs_[i].code ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsLanguageBase + static_cast<int>(i), language_packs_[i].name.c_str());
+    }
+    AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(language_menu), util::Tr(L"Language"));
+    AppendMenuW(options_menu, MF_STRING, cmd::kViewFont, util::Tr(L"Font..."));
     AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(options_menu, MF_STRING | (read_only_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReadOnly, L"Read Only Mode");
+    AppendMenuW(options_menu, MF_STRING | (read_only_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReadOnly, util::Tr(L"Read Only Mode"));
     AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
     bool is_elevated = util::IsProcessElevated();
     bool is_system = util::IsProcessSystem();
     bool is_ti = util::IsProcessTrustedInstaller();
     const bool is_high = is_system || is_ti;
     HMENU run_as_menu = CreatePopupMenu();
-    append_menu(run_as_menu, MF_STRING, cmd::kFileRestart, L"Restart");
+    append_menu(run_as_menu, MF_STRING, cmd::kFileRestart, util::Tr(L"Restart"));
     UINT user_flags = MF_STRING | (((is_high || is_elevated) && util::IsUacEnabled()) ? 0 : MF_GRAYED);
-    AppendMenuW(run_as_menu, user_flags, cmd::kOptionsRestartUser, L"Restart as User");
+    AppendMenuW(run_as_menu, user_flags, cmd::kOptionsRestartUser, util::Tr(L"Restart as User"));
     UINT admin_flags = MF_STRING | ((is_elevated && !is_high) ? MF_GRAYED : 0);
-    AppendMenuW(run_as_menu, admin_flags, cmd::kOptionsRestartAdmin, L"Restart as Admin");
+    AppendMenuW(run_as_menu, admin_flags, cmd::kOptionsRestartAdmin, util::Tr(L"Restart as Admin"));
     UINT system_flags = MF_STRING | (is_system ? MF_GRAYED : 0);
-    AppendMenuW(run_as_menu, system_flags, cmd::kOptionsRestartSystem, L"Restart as SYSTEM");
+    AppendMenuW(run_as_menu, system_flags, cmd::kOptionsRestartSystem, util::Tr(L"Restart as SYSTEM"));
     UINT ti_flags = MF_STRING | (is_ti ? MF_GRAYED : 0);
-    AppendMenuW(run_as_menu, ti_flags, cmd::kOptionsRestartTrustedInstaller, L"Restart as TrustedInstaller");
+    AppendMenuW(run_as_menu, ti_flags, cmd::kOptionsRestartTrustedInstaller, util::Tr(L"Restart as TrustedInstaller"));
     AppendMenuW(run_as_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(run_as_menu, MF_STRING | (always_run_as_admin_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunAdmin, L"Always Run as Admin");
-    AppendMenuW(run_as_menu, MF_STRING | (always_run_as_system_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunSystem, L"Always Run as SYSTEM");
-    AppendMenuW(run_as_menu, MF_STRING | (always_run_as_trustedinstaller_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunTrustedInstaller, L"Always Run as TrustedInstaller");
-    AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(run_as_menu), L"Run As");
+    AppendMenuW(run_as_menu, MF_STRING | (always_run_as_admin_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunAdmin, util::Tr(L"Always Run as Admin"));
+    AppendMenuW(run_as_menu, MF_STRING | (always_run_as_system_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunSystem, util::Tr(L"Always Run as SYSTEM"));
+    AppendMenuW(run_as_menu, MF_STRING | (always_run_as_trustedinstaller_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunTrustedInstaller, util::Tr(L"Always Run as TrustedInstaller"));
+    AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(run_as_menu), util::Tr(L"Run As"));
     AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
     UINT replace_flags = MF_STRING | ((is_elevated || is_system || is_ti) ? 0 : MF_GRAYED);
-    AppendMenuW(options_menu, replace_flags | (replace_regedit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReplaceRegEdit, L"Replace RegEdit");
+    AppendMenuW(options_menu, replace_flags | (replace_regedit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReplaceRegEdit, util::Tr(L"Replace RegEdit"));
     UINT edit_context_flags = MF_STRING | (is_high ? MF_GRAYED : 0);
-    AppendMenuW(options_menu, edit_context_flags | (edit_context_menu_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsEditContextMenu, L"Add \"Edit\" Context Menu");
-    AppendMenuW(options_menu, MF_STRING | (single_instance_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsSingleInstance, L"Single Instance");
-    AppendMenuW(options_menu, MF_STRING | (autocomplete_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAutoComplete, L"Autocomplete Key Paths");
+    AppendMenuW(options_menu, edit_context_flags | (edit_context_menu_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsEditContextMenu, util::Tr(L"Add \"Edit\" Context Menu"));
+    AppendMenuW(options_menu, MF_STRING | (single_instance_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsSingleInstance, util::Tr(L"Single Instance"));
+    AppendMenuW(options_menu, MF_STRING | (autocomplete_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAutoComplete, util::Tr(L"Autocomplete Key Paths"));
     HMENU save_tabs_menu = CreatePopupMenu();
     auto kind_flags = [&](int kind) -> UINT {
         return MF_STRING | ((save_tab_kinds_ & kind) != 0 ? MF_CHECKED : MF_UNCHECKED);
     };
     const bool all_kinds = (save_tab_kinds_ & workspace::kSaveTabsAll) == workspace::kSaveTabsAll;
-    AppendMenuW(save_tabs_menu, MF_STRING | (all_kinds ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsSaveTabs, L"All Tabs");
+    AppendMenuW(save_tabs_menu, MF_STRING | (all_kinds ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsSaveTabs, util::Tr(L"All Tabs"));
     AppendMenuW(save_tabs_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsLocal), cmd::kOptionsSaveTabsLocal, L"Local Registry Tabs");
-    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsOffline), cmd::kOptionsSaveTabsOffline, L"Offline Hive Tabs");
-    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsRemote), cmd::kOptionsSaveTabsRemote, L"Remote Registry Tabs");
+    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsLocal), cmd::kOptionsSaveTabsLocal, util::Tr(L"Local Registry Tabs"));
+    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsOffline), cmd::kOptionsSaveTabsOffline, util::Tr(L"Offline Hive Tabs"));
+    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsRemote), cmd::kOptionsSaveTabsRemote, util::Tr(L"Remote Registry Tabs"));
     AppendMenuW(save_tabs_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsSearch), cmd::kOptionsSaveTabsSearch, L"Find Results");
-    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsCompare), cmd::kOptionsSaveTabsCompare, L"Comparison Results");
-    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsRegFile), cmd::kOptionsSaveTabsRegFile, L".reg File Tabs");
+    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsSearch), cmd::kOptionsSaveTabsSearch, util::Tr(L"Find Results"));
+    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsCompare), cmd::kOptionsSaveTabsCompare, util::Tr(L"Comparison Results"));
+    AppendMenuW(save_tabs_menu, kind_flags(workspace::kSaveTabsRegFile), cmd::kOptionsSaveTabsRegFile, util::Tr(L".reg File Tabs"));
     AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(options_menu, MF_POPUP | (save_tab_kinds_ != 0 ? MF_CHECKED : MF_UNCHECKED), reinterpret_cast<UINT_PTR>(save_tabs_menu), L"Save Tabs");
-    AppendMenuW(options_menu, MF_STRING | (save_tree_state_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewSaveTreeState, L"Save Previous Tree State");
-    append_menu(options_menu, MF_STRING | (clear_history_on_exit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kFileClearHistoryOnExit, L"Clear History on Exit");
-    append_menu(options_menu, MF_STRING | (clear_tabs_on_exit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kFileClearTabsOnExit, L"Clear Tabs on Exit");
+    AppendMenuW(options_menu, MF_POPUP | (save_tab_kinds_ != 0 ? MF_CHECKED : MF_UNCHECKED), reinterpret_cast<UINT_PTR>(save_tabs_menu), util::Tr(L"Save Tabs"));
+    AppendMenuW(options_menu, MF_STRING | (save_tree_state_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewSaveTreeState, util::Tr(L"Save Previous Tree State"));
+    append_menu(options_menu, MF_STRING | (clear_history_on_exit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kFileClearHistoryOnExit, util::Tr(L"Clear History on Exit"));
+    append_menu(options_menu, MF_STRING | (clear_tabs_on_exit_ ? MF_CHECKED : MF_UNCHECKED), cmd::kFileClearTabsOnExit, util::Tr(L"Clear Tabs on Exit"));
     AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
     HMENU clear_cache_menu = CreatePopupMenu();
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheAll, L"Clear All");
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheAll, util::Tr(L"Clear All"));
     AppendMenuW(clear_cache_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTabs, L"Tab Sessions");
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheHistory, L"Change History");
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheSearchHistory, L"Search History");
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTreeState, L"Tree State");
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTemporary, L"Temporary Files");
-    AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(clear_cache_menu), L"Clear Caches");
-    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsResetSettings, L"Reset Settings...");
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTabs, util::Tr(L"Tab Sessions"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheHistory, util::Tr(L"Change History"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheSearchHistory, util::Tr(L"Search History"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTreeState, util::Tr(L"Tree State"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTemporary, util::Tr(L"Temporary Files"));
+    AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(clear_cache_menu), util::Tr(L"Clear Caches"));
+    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsResetSettings, util::Tr(L"Reset Settings..."));
     HMENU favorites_menu = CreatePopupMenu();
-    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesAdd, L"Add to Favorites...");
-    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesRemove, L"Remove Favorite");
-    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesEdit, L"Edit Favorites...");
+    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesAdd, util::Tr(L"Add to Favorites..."));
+    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesRemove, util::Tr(L"Remove Favorite"));
+    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesEdit, util::Tr(L"Edit Favorites..."));
     AppendMenuW(favorites_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImport, L"Import Favorites...");
-    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImportRegEdit, L"Import RegEdit Favorites");
-    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesExport, L"Export Favorites...");
+    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImport, util::Tr(L"Import Favorites..."));
+    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImportRegEdit, util::Tr(L"Import RegEdit Favorites"));
+    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesExport, util::Tr(L"Export Favorites..."));
     if (!favorites_cache_.empty())
     {
         AppendMenuW(favorites_menu, MF_SEPARATOR, 0, nullptr);
@@ -466,26 +477,26 @@ void MainWindow::Impl::BuildMenus()
     regedit_favorites_menu_ = favorites_menu;
     regedit_favorites_static_count_ = GetMenuItemCount(favorites_menu);
     regedit_favorites_.clear();
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(favorites_menu), L"F&avorites");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(options_menu), L"&Options");
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(favorites_menu), util::Tr(L"F&avorites"));
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(options_menu), util::Tr(L"&Options"));
 
     HMENU tools_menu = CreatePopupMenu();
-    append_menu(tools_menu, MF_STRING, cmd::kOptionsCompareRegistries, L"Compare Registries...");
-    append_menu(tools_menu, MF_STRING, cmd::kToolsConvertFile, L"Convert File...");
-    append_menu(tools_menu, MF_STRING, cmd::kToolsKeyHandles, L"Key Handles...");
+    append_menu(tools_menu, MF_STRING, cmd::kOptionsCompareRegistries, util::Tr(L"Compare Registries..."));
+    append_menu(tools_menu, MF_STRING, cmd::kToolsConvertFile, util::Tr(L"Convert File..."));
+    append_menu(tools_menu, MF_STRING, cmd::kToolsKeyHandles, util::Tr(L"Key Handles..."));
     HMENU bitfield_menu = CreatePopupMenu();
-    AppendMenuW(bitfield_menu, MF_STRING, cmd::kToolsBitfieldDefinitions, L"New Definition File...");
-    AppendMenuW(tools_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(bitfield_menu), L"Bit Definitions");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(tools_menu), L"&Tools");
+    AppendMenuW(bitfield_menu, MF_STRING, cmd::kToolsBitfieldDefinitions, util::Tr(L"New Definition File..."));
+    AppendMenuW(tools_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(bitfield_menu), util::Tr(L"Bit Definitions"));
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(tools_menu), util::Tr(L"&Tools"));
 
     HMENU window_menu = CreatePopupMenu();
-    append_menu(window_menu, MF_STRING | (single_instance_ ? MF_GRAYED : 0), cmd::kWindowNew, L"New Window");
+    append_menu(window_menu, MF_STRING | (single_instance_ ? MF_GRAYED : 0), cmd::kWindowNew, util::Tr(L"New Window"));
     AppendMenuW(window_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(window_menu, MF_STRING, cmd::kTabClose, L"Close Tab");
-    AppendMenuW(window_menu, MF_STRING, cmd::kWindowClose, L"Close Window");
+    append_menu(window_menu, MF_STRING, cmd::kTabClose, util::Tr(L"Close Tab"));
+    AppendMenuW(window_menu, MF_STRING, cmd::kWindowClose, util::Tr(L"Close Window"));
     AppendMenuW(window_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(window_menu, MF_STRING | (always_on_top_ ? MF_CHECKED : MF_UNCHECKED), cmd::kWindowAlwaysOnTop, L"Always on Top");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(window_menu), L"&Window");
+    AppendMenuW(window_menu, MF_STRING | (always_on_top_ ? MF_CHECKED : MF_UNCHECKED), cmd::kWindowAlwaysOnTop, util::Tr(L"Always on Top"));
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(window_menu), util::Tr(L"&Window"));
 
     HMENU trace_menu = CreatePopupMenu();
     auto has_label = [&](const wchar_t* label) -> bool {
@@ -512,9 +523,9 @@ void MainWindow::Impl::BuildMenus()
     bool trace_24h2 = has_label(L"24H2");
     bool trace_25h2 = has_label(L"25H2");
     bool has_recent_trace = false;
-    append_menu(trace_menu, MF_STRING | (trace_23h2 ? MF_CHECKED : MF_UNCHECKED), cmd::kTraceLoad23H2, L"23H2");
-    append_menu(trace_menu, MF_STRING | (trace_24h2 ? MF_CHECKED : MF_UNCHECKED), cmd::kTraceLoad24H2, L"24H2");
-    append_menu(trace_menu, MF_STRING | (trace_25h2 ? MF_CHECKED : MF_UNCHECKED), cmd::kTraceLoad25H2, L"25H2");
+    append_menu(trace_menu, MF_STRING | (trace_23h2 ? MF_CHECKED : MF_UNCHECKED), cmd::kTraceLoad23H2, util::Tr(L"23H2"));
+    append_menu(trace_menu, MF_STRING | (trace_24h2 ? MF_CHECKED : MF_UNCHECKED), cmd::kTraceLoad24H2, util::Tr(L"24H2"));
+    append_menu(trace_menu, MF_STRING | (trace_25h2 ? MF_CHECKED : MF_UNCHECKED), cmd::kTraceLoad25H2, util::Tr(L"25H2"));
     int recent_limit = std::min(static_cast<int>(recent_trace_paths_.items().size()), cmd::kTraceRecentMax - cmd::kTraceRecentBase + 1);
     for (int i = 0; i < recent_limit; ++i)
     {
@@ -531,7 +542,7 @@ void MainWindow::Impl::BuildMenus()
         std::wstring name = util::FileName(path);
         if (name.empty())
         {
-            name = L"Trace";
+            name = util::Tr(L"Trace");
         }
         UINT flags = MF_STRING;
         if (has_path(path))
@@ -541,17 +552,17 @@ void MainWindow::Impl::BuildMenus()
         append_menu(trace_menu, flags, cmd::kTraceRecentBase + i, name.c_str());
     }
     AppendMenuW(trace_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(trace_menu, MF_STRING, cmd::kTraceLoadCustom, L"Open Trace File...");
+    append_menu(trace_menu, MF_STRING, cmd::kTraceLoadCustom, util::Tr(L"Open Trace File..."));
     AppendMenuW(trace_menu, MF_SEPARATOR, 0, nullptr);
     UINT edit_recent_flags = MF_STRING | (has_recent_trace ? 0 : MF_GRAYED);
     UINT clear_trace_flags = MF_STRING | (!active_traces_.empty() ? 0 : MF_GRAYED);
-    append_menu(trace_menu, MF_STRING, cmd::kTraceEditActive, L"Edit Active Traces...");
-    append_menu(trace_menu, clear_trace_flags, cmd::kTraceClear, L"Clear Active Traces");
+    append_menu(trace_menu, MF_STRING, cmd::kTraceEditActive, util::Tr(L"Edit Active Traces..."));
+    append_menu(trace_menu, clear_trace_flags, cmd::kTraceClear, util::Tr(L"Clear Active Traces"));
     AppendMenuW(trace_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(trace_menu, edit_recent_flags, cmd::kTraceEditRecent, L"Edit Recent Traces...");
-    append_menu(trace_menu, edit_recent_flags, cmd::kTraceClearRecent, L"Clear Recent Traces");
+    append_menu(trace_menu, edit_recent_flags, cmd::kTraceEditRecent, util::Tr(L"Edit Recent Traces..."));
+    append_menu(trace_menu, edit_recent_flags, cmd::kTraceClearRecent, util::Tr(L"Clear Recent Traces"));
     AppendMenuW(trace_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(trace_menu, MF_STRING, cmd::kTraceGuide, L"Guide");
+    append_menu(trace_menu, MF_STRING, cmd::kTraceGuide, util::Tr(L"Guide"));
 
     HMENU default_menu = CreatePopupMenu();
     auto has_default_path = [&](const std::wstring& path) -> bool {
@@ -604,7 +615,7 @@ void MainWindow::Impl::BuildMenus()
         }
         if (name.empty())
         {
-            name = L"Default";
+            name = util::Tr(L"Default");
         }
         UINT flags = MF_STRING;
         if (has_default_path(path))
@@ -614,25 +625,25 @@ void MainWindow::Impl::BuildMenus()
         append_menu(default_menu, flags, cmd::kDefaultRecentBase + i, name.c_str());
     }
     AppendMenuW(default_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(default_menu, MF_STRING, cmd::kDefaultLoadCustom, L"Open Default File...");
+    append_menu(default_menu, MF_STRING, cmd::kDefaultLoadCustom, util::Tr(L"Open Default File..."));
     AppendMenuW(default_menu, MF_SEPARATOR, 0, nullptr);
     UINT edit_default_recent_flags = MF_STRING | (has_recent_default ? 0 : MF_GRAYED);
     UINT clear_default_flags = MF_STRING | (!active_defaults_.empty() ? 0 : MF_GRAYED);
-    append_menu(default_menu, MF_STRING, cmd::kDefaultEditActive, L"Edit Active Defaults...");
-    append_menu(default_menu, clear_default_flags, cmd::kDefaultClear, L"Clear Active Defaults");
+    append_menu(default_menu, MF_STRING, cmd::kDefaultEditActive, util::Tr(L"Edit Active Defaults..."));
+    append_menu(default_menu, clear_default_flags, cmd::kDefaultClear, util::Tr(L"Clear Active Defaults"));
     AppendMenuW(default_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(default_menu, edit_default_recent_flags, cmd::kDefaultEditRecent, L"Edit Recent Defaults...");
-    append_menu(default_menu, edit_default_recent_flags, cmd::kDefaultClearRecent, L"Clear Recent Defaults");
+    append_menu(default_menu, edit_default_recent_flags, cmd::kDefaultEditRecent, util::Tr(L"Edit Recent Defaults..."));
+    append_menu(default_menu, edit_default_recent_flags, cmd::kDefaultClearRecent, util::Tr(L"Clear Recent Defaults"));
     AppendMenuW(default_menu, MF_SEPARATOR, 0, nullptr);
-    append_menu(default_menu, MF_STRING | (default_reset_enabled_ ? MF_CHECKED : MF_UNCHECKED), cmd::kDefaultResetEnable, L"Enable Context Menu (risky)");
+    append_menu(default_menu, MF_STRING | (default_reset_enabled_ ? MF_CHECKED : MF_UNCHECKED), cmd::kDefaultResetEnable, util::Tr(L"Enable Context Menu (risky)"));
 
     HMENU help_menu = CreatePopupMenu();
-    append_menu(help_menu, MF_STRING, cmd::kHelpContents, L"Help");
+    append_menu(help_menu, MF_STRING, cmd::kHelpContents, util::Tr(L"Help"));
     AppendMenuW(help_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(help_menu, MF_STRING, cmd::kHelpCheckUpdates, L"Check for Updates");
-    AppendMenuW(help_menu, MF_STRING | (auto_check_updates_ ? MF_CHECKED : MF_UNCHECKED), cmd::kHelpAutoCheckUpdates, L"Check for Updates Automatically");
+    AppendMenuW(help_menu, MF_STRING, cmd::kHelpCheckUpdates, util::Tr(L"Check for Updates"));
+    AppendMenuW(help_menu, MF_STRING | (auto_check_updates_ ? MF_CHECKED : MF_UNCHECKED), cmd::kHelpAutoCheckUpdates, util::Tr(L"Check for Updates Automatically"));
     AppendMenuW(help_menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(help_menu, MF_STRING, cmd::kHelpAbout, L"About RegKit");
+    AppendMenuW(help_menu, MF_STRING, cmd::kHelpAbout, util::Tr(L"About RegKit"));
 
     HMENU research_menu = CreatePopupMenu();
     int research_command = cmd::kResearchItemBase;
@@ -645,10 +656,10 @@ void MainWindow::Impl::BuildMenus()
         }
     }
 
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(trace_menu), L"T&race");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(default_menu), L"Defa&ult");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(research_menu), L"Re&search");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(help_menu), L"&Help");
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(trace_menu), util::Tr(L"T&race"));
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(default_menu), util::Tr(L"Defa&ult"));
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(research_menu), util::Tr(L"Re&search"));
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(help_menu), util::Tr(L"&Help"));
 
     PrepareMenusForOwnerDraw(menu);
 
@@ -792,10 +803,10 @@ HMENU MainWindow::Impl::BuildResetDefaultMenu(const std::vector<DefaultValueChoi
     const int limit = cmd::kResetDefaultMax - cmd::kResetDefaultBase + 1;
     for (size_t i = 0; i < choices.size() && static_cast<int>(i) < limit; ++i)
     {
-        std::wstring text = choices[i].label.empty() ? std::wstring(L"Default") : choices[i].label;
+        std::wstring text = choices[i].label.empty() ? std::wstring(util::Tr(L"Default")) : choices[i].label;
         if (!choices[i].present)
         {
-            text.append(L" (Missing)");
+            text.append(L" ").append(util::Tr(L"(Missing)"));
         }
         AppendMenuW(menu, MF_STRING, cmd::kResetDefaultBase + static_cast<int>(i), text.c_str());
     }
@@ -807,10 +818,10 @@ void MainWindow::Impl::AppendResetDefaultMenu(HMENU menu)
     const std::vector<DefaultValueChoice> choices = SelectedValueDefaultChoices();
     if (choices.size() < 2)
     {
-        AppendMenuW(menu, MF_STRING | (choices.empty() ? MF_GRAYED : 0), cmd::kEditResetDefault, L"Reset to Default");
+        AppendMenuW(menu, MF_STRING | (choices.empty() ? MF_GRAYED : 0), cmd::kEditResetDefault, util::Tr(L"Reset to Default"));
         return;
     }
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildResetDefaultMenu(choices)), L"Reset to Default");
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildResetDefaultMenu(choices)), util::Tr(L"Reset to Default"));
 }
 
 void MainWindow::Impl::RefreshResetDefaultMenu(HMENU menu)

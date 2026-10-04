@@ -3,6 +3,7 @@
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -28,8 +29,8 @@ void MainWindow::Impl::ShowHeaderMenu(HWND list, std::vector<ColumnInfo>& column
         return;
     }
     const UINT fit_flags = MF_STRING | ((column_hit >= 0) ? 0 : MF_GRAYED);
-    AppendMenuW(menu, fit_flags, cmd::kHeaderSizeToFit, L"Size column to fit");
-    AppendMenuW(menu, MF_STRING, cmd::kHeaderSizeAll, L"Size all columns to fit");
+    AppendMenuW(menu, fit_flags, cmd::kHeaderSizeToFit, util::Tr(L"Size column to fit"));
+    AppendMenuW(menu, MF_STRING, cmd::kHeaderSizeAll, util::Tr(L"Size all columns to fit"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
     for (size_t i = 0; i < columns.size(); ++i)

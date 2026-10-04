@@ -19,6 +19,7 @@
 #include "win32/shell_paths.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 #include <cwchar>
@@ -43,7 +44,7 @@ bool RunRegCommand(const std::wstring& args, std::wstring* error)
     {
         if (error)
         {
-            *error = L"The system directory couldn't be resolved.";
+            *error = util::Tr(L"The system directory couldn't be resolved.");
         }
         return false;
     }
@@ -111,7 +112,7 @@ bool RunRegCommand(const std::wstring& args, std::wstring* error)
     if (code != 0 && error)
     {
         const std::wstring detail = util::TrimWhitespace(util::NarrowToWide(output, CP_OEMCP));
-        *error = detail.empty() ? L"reg.exe exited with code " + std::to_wstring(code) + L"." : detail;
+        *error = detail.empty() ? util::TrDetail(L"reg.exe exited with an error.", std::to_wstring(code)) : detail;
     }
     return code == 0;
 }
@@ -123,7 +124,7 @@ bool ResolveExportKey(const std::wstring& key_path, RegistryNode* node, std::wst
     {
         if (error)
         {
-            *error = L"Export supports the standard root keys only.";
+            *error = util::Tr(L"Export supports the standard root keys only.");
         }
         return false;
     }
@@ -138,7 +139,7 @@ bool WriteRegFile(const std::wstring& path, regfile::Writer&& writer, std::wstri
     }
     if (error)
     {
-        *error = L"Failed to write the exported registry file.\n" + path;
+        *error = util::TrDetail(L"Failed to write the exported registry file.", path);
     }
     return false;
 }
@@ -229,7 +230,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
     {
         if (error)
         {
-            *error = L"No data to export.";
+            *error = util::Tr(L"No data to export.");
         }
         return false;
     }
@@ -272,7 +273,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
         {
             if (error)
             {
-                *error = L"No selected values were found in the export.";
+                *error = util::Tr(L"No selected values were found in the export.");
             }
             return false;
         }
@@ -329,7 +330,7 @@ bool LoadHive(HWND owner, HKEY* root, std::wstring* error)
     {
         if (error)
         {
-            *error = L"Loading a hive needs the backup and restore privileges. Run RegKit elevated.";
+            *error = util::Tr(L"Loading a hive needs the backup and restore privileges. Run RegKit elevated.");
         }
         return false;
     }
@@ -351,8 +352,8 @@ bool UnloadHive(HWND owner, HKEY root, const std::wstring& subkey, std::wstring*
     if (target.empty())
     {
         editors::TextRequest request;
-        request.title = L"Unload Hive";
-        request.label = L"Key name:";
+        request.title = util::Tr(L"Unload Hive");
+        request.label = util::Tr(L"Key name:");
         request.text = target;
         editors::TextResult result;
         if (!editors::EditText(owner, request, &result))
@@ -365,7 +366,7 @@ bool UnloadHive(HWND owner, HKEY root, const std::wstring& subkey, std::wstring*
     {
         if (error)
         {
-            *error = L"Key name is required.";
+            *error = util::Tr(L"Key name is required.");
         }
         return false;
     }
@@ -374,7 +375,7 @@ bool UnloadHive(HWND owner, HKEY root, const std::wstring& subkey, std::wstring*
     {
         if (error)
         {
-            *error = L"Unloading a hive needs the backup and restore privileges. Run RegKit elevated.";
+            *error = util::Tr(L"Unloading a hive needs the backup and restore privileges. Run RegKit elevated.");
         }
         return false;
     }

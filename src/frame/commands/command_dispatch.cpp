@@ -97,7 +97,7 @@ CommandArea ClassifyCommand(int command_id) noexcept
     }
     if ((command_id >= cmd::kFavoritesAdd && command_id <= cmd::kFavoritesImportRegEdit) ||
         (command_id >= cmd::kWindowNew && command_id <= cmd::kTabSelectMax) ||
-        (command_id >= cmd::kOptionsThemeSystem && command_id <= cmd::kOptionsResetSettings) ||
+        (command_id >= cmd::kOptionsThemeSystem && command_id <= cmd::kOptionsLanguageMax) ||
         (command_id >= cmd::kHelpAbout && command_id <= cmd::kHelpAutoCheckUpdates))
     {
         return CommandArea::kWorkspaceAppearance;

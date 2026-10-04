@@ -45,6 +45,7 @@ std::wstring FromDisplayText(const std::wstring& text);
 std::wstring SingleLine(const std::wstring& text);
 bool Matches(const std::wstring& text, const std::wstring& filter);
 void FitDroppedWidth(HWND combo);
+void MatchComboHeights(HWND dialog, int edit_id, std::initializer_list<int> combos);
 void LayoutGridToggles(HWND dialog);
 bool HandleGridToggle(HWND dialog, int command_id);
 void ReleaseDialogLists(HWND dialog);

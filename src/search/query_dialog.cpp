@@ -23,6 +23,7 @@
 #include "registry/registry_store.h"
 #include "win32/file_text.h"
 #include "win32/shell_paths.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 
 namespace regkit
@@ -226,11 +227,11 @@ void UpdateScopeComboText(SearchDialogState* state)
     std::wstring text;
     if (selected == 0)
     {
-        text = L"No top level keys";
+        text = util::Tr(L"No top level keys");
     }
     else if (selected == total)
     {
-        text = L"All top level keys";
+        text = util::Tr(L"All top level keys");
     }
     else if (selected == 1)
     {
@@ -238,7 +239,7 @@ void UpdateScopeComboText(SearchDialogState* state)
     }
     else
     {
-        text = L"Multiple keys";
+        text = util::Tr(L"Multiple keys");
     }
     SendMessageW(state->scope_combo, CB_RESETCONTENT, 0, 0);
     SendMessageW(state->scope_combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text.c_str()));
@@ -459,8 +460,8 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     const int x = margin;
     int y = margin;
 
-    const int label_w = Scaled(94, dpi);
     HWND find_label = GetDlgItem(hwnd, kFindLabel);
+    const int label_w = std::max(Scaled(94, dpi), appearance::TextFitWidth(find_label));
     appearance::Place(find_label, x, y + label_inset, label_w, label_h);
     appearance::Place(state->find_combo, x + label_w + label_gap, y, width - x * 2 - label_w - label_gap, line_h);
     y += line_h + block_gap;
@@ -470,8 +471,8 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     appearance::Place(GetDlgItem(hwnd, kWhereGroup), x, y, group_w, where_h);
     const int gx = x + group_inset;
     int gy = y + group_top;
-    const int scope_label_w = Scaled(150, dpi);
-    const int browse_w = Scaled(90, dpi);
+    const int scope_label_w = std::max({Scaled(150, dpi), appearance::TextFitWidth(state->scope_top), appearance::TextFitWidth(state->scope_key)});
+    const int browse_w = std::max(Scaled(90, dpi), appearance::TextFitWidth(state->scope_browse));
     appearance::Place(state->scope_top, gx, gy + check_inset, scope_label_w, check_h);
     const int combo_x = gx + scope_label_w + label_gap;
     const int combo_w = width - combo_x - x - group_inset;
@@ -480,7 +481,7 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     const int scope_edit_y = gy + control_pitch;
     appearance::Place(state->scope_edit, combo_x, scope_edit_y, combo_w - browse_w - label_gap, line_h);
     appearance::Place(state->scope_browse, combo_x + combo_w - browse_w, scope_edit_y, browse_w, line_h);
-    appearance::Place(state->scope_recursive, combo_x, gy + control_pitch * 2 + check_inset, Scaled(140, dpi), check_h);
+    appearance::Place(state->scope_recursive, combo_x, gy + control_pitch * 2 + check_inset, combo_w, check_h);
     y += where_h + block_gap;
 
     const int options_h = group_top + row_pitch * 10 + check_h + group_bottom;
@@ -489,35 +490,29 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     const int left_x = x + group_inset;
     const int right_x = x + group_w / 2 + label_gap;
     auto option_row = [&](int row) { return gy + row_pitch * row; };
-    const int scope_col_w = Scaled(170, dpi);
-    const int hive_col_w = Scaled(200, dpi);
-    appearance::Place(state->options_keys, left_x, option_row(0), scope_col_w, check_h);
-    appearance::Place(state->options_values, left_x, option_row(1), scope_col_w, check_h);
-    appearance::Place(state->options_data, left_x, option_row(2), scope_col_w, check_h);
-    appearance::Place(state->options_comments, left_x, option_row(3), scope_col_w, check_h);
-    appearance::Place(state->options_standard, left_x, option_row(4), hive_col_w, check_h);
-    appearance::Place(state->options_registry, left_x, option_row(5), hive_col_w, check_h);
-    appearance::Place(state->options_trace, left_x, option_row(6), hive_col_w, check_h);
-    appearance::Place(state->options_defaults, left_x, option_row(7), hive_col_w, check_h);
-    appearance::Place(state->options_offline, left_x, option_row(8), hive_col_w, check_h);
-    appearance::Place(state->options_reg_files, left_x, option_row(9), hive_col_w, check_h);
-    appearance::Place(state->options_remote, left_x, option_row(10), hive_col_w, check_h);
+    const int left_w = right_x - left_x - label_gap;
+    const int right_w = x + group_w - group_inset - right_x;
+    int row = 0;
+    for (HWND option : {state->options_keys, state->options_values, state->options_data, state->options_comments, state->options_standard, state->options_registry, state->options_trace, state->options_defaults, state->options_offline, state->options_reg_files, state->options_remote})
+    {
+        appearance::Place(option, left_x, option_row(row++), left_w, check_h);
+    }
 
-    const int size_label_w = Scaled(180, dpi);
-    const int size_edit_x = right_x + Scaled(188, dpi);
-    const int size_edit_w = Scaled(76, dpi);
+    const int size_label_w = std::max(appearance::TextFitWidth(state->min_size), appearance::TextFitWidth(state->max_size));
+    const int size_edit_x = right_x + size_label_w + label_gap;
+    const int size_edit_w = right_x + right_w - size_edit_x;
     appearance::Place(state->min_size, right_x, option_row(0), size_label_w, check_h);
     appearance::Place(state->min_size_edit, size_edit_x, option_row(0) - check_inset, size_edit_w, line_h);
     appearance::Place(state->max_size, right_x, option_row(1), size_label_w, check_h);
     appearance::Place(state->max_size_edit, size_edit_x, option_row(1) - check_inset, size_edit_w, line_h);
-    appearance::Place(state->match_case, right_x, option_row(2), Scaled(140, dpi), check_h);
-    appearance::Place(state->match_whole, right_x, option_row(3), Scaled(160, dpi), check_h);
-    appearance::Place(state->use_regex, right_x, option_row(4), Scaled(190, dpi), check_h);
-    appearance::Place(state->skip_links, right_x, option_row(5), Scaled(190, dpi), check_h);
-    appearance::Place(state->options_data_types, right_x, option_row(6) - check_inset + Scaled(5, dpi), Scaled(120, dpi), line_h);
+    appearance::Place(state->match_case, right_x, option_row(2), right_w, check_h);
+    appearance::Place(state->match_whole, right_x, option_row(3), right_w, check_h);
+    appearance::Place(state->use_regex, right_x, option_row(4), right_w, check_h);
+    appearance::Place(state->skip_links, right_x, option_row(5), right_w, check_h);
+    appearance::Place(state->options_data_types, right_x, option_row(6) - check_inset + Scaled(5, dpi), std::max(Scaled(120, dpi), appearance::TextFitWidth(state->options_data_types)), line_h);
     y += options_h + block_gap;
 
-    const int modified_label_w = Scaled(150, dpi);
+    const int modified_label_w = std::max(Scaled(150, dpi), appearance::TextFitWidth(GetDlgItem(hwnd, kModifiedLabel)));
     const int modified_w = Scaled(150, dpi);
     const int modified_gap = Scaled(6, dpi);
     const int modified_x = x + modified_label_w + modified_gap;
@@ -529,9 +524,9 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     y += line_h + block_gap;
 
     const int exclude_h = group_top + row_pitch + line_h + group_bottom;
-    const int exclude_button_w = Scaled(80, dpi);
+    const int exclude_button_w = std::max(Scaled(80, dpi), appearance::TextFitWidth(state->exclude_button));
     appearance::Place(GetDlgItem(hwnd, kExcludeGroup), x, y, group_w, exclude_h);
-    appearance::Place(state->exclude_enable, x + group_inset, y + group_top, Scaled(120, dpi), check_h);
+    appearance::Place(state->exclude_enable, x + group_inset, y + group_top, group_w - group_inset * 2, check_h);
     const int exclude_row = y + group_top + row_pitch;
     appearance::Place(state->exclude_edit, x + group_inset, exclude_row, group_w - group_inset * 2 - exclude_button_w - label_gap, line_h);
     appearance::Place(state->exclude_button, x + group_w - group_inset - exclude_button_w, exclude_row, exclude_button_w, line_h);
@@ -540,17 +535,21 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
     const int result_h = group_top + row_pitch * 2 + control_pitch + line_h + group_bottom;
     appearance::Place(GetDlgItem(hwnd, kResultGroup), x, y, group_w, result_h);
     const int result_gy = y + group_top;
-    appearance::Place(state->result_reuse, x + group_inset, result_gy, Scaled(260, dpi), check_h);
-    appearance::Place(state->result_new, x + group_inset, result_gy + row_pitch, Scaled(240, dpi), check_h);
-    appearance::Place(state->result_open_new_tab, x + group_inset, result_gy + row_pitch * 2, Scaled(200, dpi), check_h);
+    const int inner_w = group_w - group_inset * 2;
+    appearance::Place(state->result_reuse, x + group_inset, result_gy, inner_w, check_h);
+    appearance::Place(state->result_new, x + group_inset, result_gy + row_pitch, inner_w, check_h);
+    appearance::Place(state->result_open_new_tab, x + group_inset, result_gy + row_pitch * 2, inner_w, check_h);
     const int limit_row = result_gy + row_pitch * 2 + control_pitch;
-    appearance::Place(state->result_limit_enable, x + group_inset, limit_row + check_inset, Scaled(140, dpi), check_h);
-    appearance::Place(state->result_limit_edit, x + Scaled(160, dpi), limit_row, button_w, line_h);
+    const int limit_w = std::max(Scaled(140, dpi), appearance::TextFitWidth(state->result_limit_enable));
+    appearance::Place(state->result_limit_enable, x + group_inset, limit_row + check_inset, limit_w, check_h);
+    appearance::Place(state->result_limit_edit, x + std::max(Scaled(160, dpi), group_inset + limit_w + label_gap), limit_row, button_w, line_h);
     y += result_h + block_gap;
 
-    const int cancel_x = width - right_margin - button_w;
-    appearance::Place(state->find_button, cancel_x - button_gap - button_w, y, button_w, button_h);
-    appearance::Place(state->cancel_button, cancel_x, y, button_w, button_h);
+    const int find_w = std::max(button_w, appearance::TextFitWidth(state->find_button));
+    const int cancel_w = std::max(button_w, appearance::TextFitWidth(state->cancel_button));
+    const int cancel_x = width - right_margin - cancel_w;
+    appearance::Place(state->find_button, cancel_x - button_gap - find_w, y, find_w, button_h);
+    appearance::Place(state->cancel_button, cancel_x, y, cancel_w, button_h);
     appearance::FitDialogHeight(hwnd, y + button_h + bottom_margin);
 
     for (HWND edit :
@@ -566,67 +565,67 @@ void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
 
 void CreateSearchControls(HWND hwnd, SearchDialogState* state)
 {
-    appearance::CreateControl(hwnd, L"STATIC", L"Find what:", 0, kFindLabel);
+    appearance::CreateControl(hwnd, L"STATIC", util::Tr(L"Find what:"), 0, kFindLabel);
     state->find_combo =
         appearance::CreateControl(hwnd, WC_COMBOBOXW, L"", WS_TABSTOP | CBS_DROPDOWN | CBS_AUTOHSCROLL, kFindCombo);
 
-    appearance::CreateControl(hwnd, L"BUTTON", L"Where to search", BS_GROUPBOX, kWhereGroup);
-    state->scope_top = appearance::CreateControl(hwnd, L"BUTTON", L"Top level keys", WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, kScopeTop);
-    state->scope_key = appearance::CreateControl(hwnd, L"BUTTON", L"Specific key", BS_AUTORADIOBUTTON, kScopeKey);
+    appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Where to search"), BS_GROUPBOX, kWhereGroup);
+    state->scope_top = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Top level keys"), WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, kScopeTop);
+    state->scope_key = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Specific key"), BS_AUTORADIOBUTTON, kScopeKey);
     state->scope_combo =
         appearance::CreateControl(hwnd, WC_COMBOBOXW, L"", WS_TABSTOP | CBS_DROPDOWNLIST | CBS_HASSTRINGS, kScopeCombo);
     state->scope_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, kScopeEdit);
     appearance::AttachAutoComplete(state->scope_edit, appearance::SuggestKeys);
     state->scope_browse =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Browse...", WS_TABSTOP | BS_PUSHBUTTON, kScopeBrowse);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Browse..."), WS_TABSTOP | BS_PUSHBUTTON, kScopeBrowse);
     state->scope_recursive =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Recursive", WS_TABSTOP | BS_AUTOCHECKBOX, kScopeRecursive);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Recursive"), WS_TABSTOP | BS_AUTOCHECKBOX, kScopeRecursive);
 
-    appearance::CreateControl(hwnd, L"BUTTON", L"Search options", BS_GROUPBOX, kOptionsGroup);
+    appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search options"), BS_GROUPBOX, kOptionsGroup);
     state->options_keys =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Search keys", WS_TABSTOP | BS_AUTOCHECKBOX, kOptKeys);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search keys"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptKeys);
     state->options_values =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Search values", WS_TABSTOP | BS_AUTOCHECKBOX, kOptValues);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search values"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptValues);
     state->options_data =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Search data", WS_TABSTOP | BS_AUTOCHECKBOX, kOptData);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search data"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptData);
     state->options_comments =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Search comments", WS_TABSTOP | BS_AUTOCHECKBOX, kOptComments);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search comments"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptComments);
     state->options_data_types =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Data Types...", WS_TABSTOP | BS_PUSHBUTTON, kOptDataTypes);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Data Types..."), WS_TABSTOP | BS_PUSHBUTTON, kOptDataTypes);
     state->match_case =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Match case", WS_TABSTOP | BS_AUTOCHECKBOX, kOptMatchCase);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Match case"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptMatchCase);
     state->match_whole =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Match whole string", WS_TABSTOP | BS_AUTOCHECKBOX, kOptMatchWhole);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Match whole string"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptMatchWhole);
     state->use_regex =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Regular expressions", WS_TABSTOP | BS_AUTOCHECKBOX, kOptUseRegex);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Regular expressions"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptUseRegex);
     ui::AddTooltip(
         hwnd,
         state->use_regex,
-        L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
-        L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
-        L"\\X.\n"
-        L"Matching is unicode aware and ignores case unless 'Match case' is set."
+        util::Tr(L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
+                 L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
+                 L"\\X.\n"
+                 L"Matching is unicode aware and ignores case unless 'Match case' is set.")
     );
     state->skip_links =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Skip symbolic links", WS_TABSTOP | BS_AUTOCHECKBOX, kOptSkipLinks);
-    state->min_size = appearance::CreateControl(hwnd, L"BUTTON", L"Min data size (bytes):", WS_TABSTOP | BS_AUTOCHECKBOX, kOptMinSize);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Skip symbolic links"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptSkipLinks);
+    state->min_size = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Min data size (bytes):"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptMinSize);
     state->min_size_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, kOptMinSizeEdit);
-    state->max_size = appearance::CreateControl(hwnd, L"BUTTON", L"Max data size (bytes):", WS_TABSTOP | BS_AUTOCHECKBOX, kOptMaxSize);
+    state->max_size = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Max data size (bytes):"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptMaxSize);
     state->max_size_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, kOptMaxSizeEdit);
     state->options_standard =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Search Root Keys", WS_TABSTOP | BS_AUTOCHECKBOX, kOptStandardHives);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search Root Keys"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptStandardHives);
     state->options_registry =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Search REGISTRY", WS_TABSTOP | BS_AUTOCHECKBOX, kOptRegistryRoot);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search REGISTRY"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptRegistryRoot);
     state->options_trace =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Search Trace Values", WS_TABSTOP | BS_AUTOCHECKBOX, kOptTraceValues);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search Trace Values"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptTraceValues);
     state->options_defaults =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Search Default Data", WS_TABSTOP | BS_AUTOCHECKBOX, kOptDefaultData);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search Default Data"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptDefaultData);
     state->options_offline =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Search Offline Hives", WS_TABSTOP | BS_AUTOCHECKBOX, kOptOfflineHives);
-    state->options_reg_files = appearance::CreateControl(hwnd, L"BUTTON", L"Search .reg File Tabs", WS_TABSTOP | BS_AUTOCHECKBOX, kOptRegFiles);
-    state->options_remote = appearance::CreateControl(hwnd, L"BUTTON", L"Search Network Registry", WS_TABSTOP | BS_AUTOCHECKBOX, kOptRemoteRegistry);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search Offline Hives"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptOfflineHives);
+    state->options_reg_files = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search .reg File Tabs"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptRegFiles);
+    state->options_remote = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search Network Registry"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptRemoteRegistry);
 
-    appearance::CreateControl(hwnd, L"STATIC", L"Modified in period:", 0, kModifiedLabel);
+    appearance::CreateControl(hwnd, L"STATIC", util::Tr(L"Modified in period:"), 0, kModifiedLabel);
     appearance::CreateControl(hwnd, L"STATIC", L"-", 0, kModifiedDash);
     state->modified_from =
         appearance::CreateControl(hwnd, DATETIMEPICK_CLASSW, L"", DTS_SHORTDATEFORMAT | DTS_SHOWNONE, kModifiedFrom);
@@ -637,27 +636,27 @@ void CreateSearchControls(HWND hwnd, SearchDialogState* state)
     SendMessageW(state->modified_from, DTM_SETSYSTEMTIME, GDT_NONE, 0);
     SendMessageW(state->modified_to, DTM_SETSYSTEMTIME, GDT_NONE, 0);
 
-    appearance::CreateControl(hwnd, L"BUTTON", L"Exclude keys", BS_GROUPBOX, kExcludeGroup);
+    appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Exclude keys"), BS_GROUPBOX, kExcludeGroup);
     state->exclude_enable =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Exclude keys", WS_TABSTOP | BS_AUTOCHECKBOX, kExcludeEnable);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Exclude keys"), WS_TABSTOP | BS_AUTOCHECKBOX, kExcludeEnable);
     state->exclude_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, kExcludeEdit);
     state->exclude_button =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Edit...", WS_TABSTOP | BS_PUSHBUTTON, kExcludeButton);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Edit..."), WS_TABSTOP | BS_PUSHBUTTON, kExcludeButton);
 
-    appearance::CreateControl(hwnd, L"BUTTON", L"Result options", BS_GROUPBOX, kResultGroup);
-    state->result_reuse = appearance::CreateControl(hwnd, L"BUTTON", L"Reuse last Find Results window", WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, kResultReuse);
+    appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Result options"), BS_GROUPBOX, kResultGroup);
+    state->result_reuse = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Reuse last Find Results window"), WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, kResultReuse);
     state->result_new =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Open new Find Results window", BS_AUTORADIOBUTTON, kResultNew);
-    state->result_open_new_tab = appearance::CreateControl(hwnd, L"BUTTON", L"Open result in new tab", WS_TABSTOP | BS_AUTOCHECKBOX | WS_GROUP, kResultOpenNewTab);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Open new Find Results window"), BS_AUTORADIOBUTTON, kResultNew);
+    state->result_open_new_tab = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Open result in new tab"), WS_TABSTOP | BS_AUTOCHECKBOX | WS_GROUP, kResultOpenNewTab);
     state->result_limit_enable =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Limit results to", WS_TABSTOP | BS_AUTOCHECKBOX, kResultLimitEnable);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Limit results to"), WS_TABSTOP | BS_AUTOCHECKBOX, kResultLimitEnable);
     state->result_limit_edit =
         appearance::CreateControl(hwnd, L"EDIT", L"1000", WS_TABSTOP | ES_AUTOHSCROLL | ES_NUMBER | ES_MULTILINE | WS_BORDER, kResultLimitEdit);
 
     state->find_button =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Find", WS_TABSTOP | BS_DEFPUSHBUTTON, kFindButton);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Find"), WS_TABSTOP | BS_DEFPUSHBUTTON, kFindButton);
     state->cancel_button =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
 
     for (HWND bordered : {state->scope_edit, state->min_size_edit, state->max_size_edit, state->exclude_edit, state->result_limit_edit})
     {
@@ -795,12 +794,12 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     std::wstring query_text = util::WindowText(state->find_combo);
     if (query_text.empty())
     {
-        ui::ShowWarning(hwnd, L"Enter a search term.");
+        ui::ShowWarning(hwnd, util::Tr(L"Enter a search term."));
         return false;
     }
     if (IsChecked(state->use_regex) && query_text.size() > search::regex::kMaxPatternLength)
     {
-        ui::ShowWarning(hwnd, L"The regular expression is too long.");
+        ui::ShowWarning(hwnd, util::Tr(L"The regular expression is too long."));
         return false;
     }
     bool keys = IsChecked(state->options_keys);
@@ -810,7 +809,7 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     bool default_data = state->sources.defaults && IsChecked(state->options_defaults);
     if (!keys && !values && !data && !comments && !default_data)
     {
-        ui::ShowWarning(hwnd, L"Select at least one search option.");
+        ui::ShowWarning(hwnd, util::Tr(L"Select at least one search option."));
         return false;
     }
     bool standard_hives = IsChecked(state->options_standard);
@@ -829,7 +828,7 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     }
     if (!standard_hives && !registry_root && !trace_values && !offline_hives && !reg_files && !remote_registry)
     {
-        ui::ShowWarning(hwnd, L"Select at least one search source.");
+        ui::ShowWarning(hwnd, util::Tr(L"Select at least one search source."));
         return false;
     }
 
@@ -853,7 +852,7 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
             uint64_t value = 0;
             if (!ParseUint64(buffer, &value))
             {
-                ui::ShowWarning(hwnd, L"Enter a valid minimum data size.");
+                ui::ShowWarning(hwnd, util::Tr(L"Enter a valid minimum data size."));
                 return false;
             }
             result.criteria.use_min_size = true;
@@ -866,7 +865,7 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
             uint64_t value = 0;
             if (!ParseUint64(buffer, &value))
             {
-                ui::ShowWarning(hwnd, L"Enter a valid maximum data size.");
+                ui::ShowWarning(hwnd, util::Tr(L"Enter a valid maximum data size."));
                 return false;
             }
             result.criteria.use_max_size = true;
@@ -890,12 +889,12 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     if (result.criteria.use_min_size && result.criteria.use_max_size &&
         result.criteria.min_size > result.criteria.max_size)
     {
-        ui::ShowWarning(hwnd, L"Minimum data size can't exceed maximum data size.");
+        ui::ShowWarning(hwnd, util::Tr(L"Minimum data size can't exceed maximum data size."));
         return false;
     }
     if (has_modified_from && has_modified_to && CompareFileTime(&modified_from, &modified_to) > 0)
     {
-        ui::ShowWarning(hwnd, L"Modified date range is invalid.");
+        ui::ShowWarning(hwnd, util::Tr(L"Modified date range is invalid."));
         return false;
     }
     result.search_standard_hives = standard_hives;
@@ -919,7 +918,7 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
         uint64_t limit = 0;
         if (!ParseUint64(limit_text, &limit) || limit == 0)
         {
-            ui::ShowWarning(hwnd, L"Enter a valid result limit.");
+            ui::ShowWarning(hwnd, util::Tr(L"Enter a valid result limit."));
             return false;
         }
         result.criteria.max_results = limit;
@@ -949,7 +948,7 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
             }
             if (result.root_paths.empty())
             {
-                ui::ShowWarning(hwnd, L"Select at least one top level key.");
+                ui::ShowWarning(hwnd, util::Tr(L"Select at least one top level key."));
                 return false;
             }
         }
@@ -1036,8 +1035,8 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
             case kExcludeButton:
                 {
                     editors::TextRequest request;
-                    request.title = L"Exclude Keys";
-                    request.label = L"Each line should include one key.";
+                    request.title = util::Tr(L"Exclude Keys");
+                    request.label = util::Tr(L"Each line should include one key.");
                     request.text = util::JoinLines(SplitExcludePaths(util::WindowText(state->exclude_edit)));
                     request.multiline = true;
                     request.browse = ShowBrowseKeyDialog;
@@ -1088,7 +1087,7 @@ bool ShowSearchDialog(HWND owner, SearchDialogResult* result, const SearchSource
     state.sources = available;
     const UINT dpi = win32::DpiForWindow(owner);
     return result &&
-           appearance::RunDialogWindow(&state, kDialogClass, SearchDialogProc, L"Find", {appearance::metrics::Scaled(600, dpi), appearance::metrics::Scaled(744, dpi)});
+           appearance::RunDialogWindow(&state, kDialogClass, SearchDialogProc, util::Tr(L"Find"), {appearance::metrics::Scaled(600, dpi), appearance::metrics::Scaled(744, dpi)});
 }
 
 } // namespace regkit

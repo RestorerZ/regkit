@@ -14,6 +14,7 @@
 #include "win32/process_rights.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 #include "work/session.h"
 
@@ -219,18 +220,17 @@ void UpdateStatus(const State* state)
     std::wstring parts[3];
     if (state->scanning)
     {
-        parts[0] = L"Scanning handles...";
+        parts[0] = util::Tr(L"Scanning handles...");
     }
     else if (state->error != ERROR_SUCCESS)
     {
-        parts[0] = L"Handles couldn't be enumerated. " + util::FormatWin32Error(state->error);
+        parts[0] = util::Tr(L"Handles couldn't be enumerated.") + std::wstring(L" ") + util::FormatWin32Error(state->error);
     }
     else
     {
-        parts[0] = std::to_wstring(state->rows.size()) + L" handles loaded";
-        parts[1] = std::to_wstring(state->view.size()) + L" shown";
-        parts[2] = std::to_wstring(state->inaccessible) + (state->inaccessible == 1 ? L" process" : L" processes") +
-                   L" couldn't be opened";
+        parts[0] = util::TrLabel(L"Handles", std::to_wstring(state->rows.size()));
+        parts[1] = util::TrLabel(L"Shown", std::to_wstring(state->view.size()));
+        parts[2] = util::TrLabel(L"Inaccessible processes", std::to_wstring(state->inaccessible));
     }
     for (int part = 0; part < 3; ++part)
     {
@@ -352,10 +352,10 @@ void CloseHandles(HWND dialog, State* state)
         return;
     }
     const std::wstring message =
-        L"Closing a handle owned by another process can make that process malfunction or crash.\n\n"
-        L"Each handle is checked against a fresh snapshot first, but it can still be closed and reused between that "
-        L"check and the close.";
-    if (ui::PromptKeyChoice(dialog, message, handles, targets.size() == 1 ? L"Close Handle" : L"Close Handles", L"Close", L"", L"Cancel", {70, 70, 70}) != IDYES)
+        util::Tr(L"Closing a handle owned by another process can make that process malfunction or crash.\n\n"
+                 L"Each handle is checked against a fresh snapshot first, but it can still be closed and reused between that "
+                 L"check and the close.");
+    if (ui::PromptKeyChoice(dialog, message, handles, targets.size() == 1 ? util::Tr(L"Close Handle") : util::Tr(L"Close Handles"), util::Tr(L"Close"), L"", util::Tr(L"Cancel"), {70, 70, 70}) != IDYES)
     {
         return;
     }
@@ -363,7 +363,7 @@ void CloseHandles(HWND dialog, State* state)
     const DWORD error = win32::CloseKeyHandles(targets, &closed);
     if (error != ERROR_SUCCESS)
     {
-        ui::ShowError(dialog, std::to_wstring(closed) + L" of " + std::to_wstring(targets.size()) + L" handles were closed.\n" + util::FormatWin32Error(error));
+        ui::ShowError(dialog, util::TrDetail(L"Not all handles were closed.", util::FormatWin32Error(error)));
     }
     Refresh(dialog, state);
 }
@@ -385,20 +385,20 @@ void ShowRowMenu(HWND dialog, State* state, POINT screen)
     const UINT any = rows.empty() ? MF_GRAYED : 0;
     const UINT one = rows.size() == 1 && !rows.front()->text[kKey].empty() ? 0 : MF_GRAYED;
     HMENU menu = CreatePopupMenu();
-    AppendMenuW(menu, MF_STRING | one, kMenuOpen, L"Open Key\tEnter");
-    AppendMenuW(menu, MF_STRING | one, kMenuOpenNewTab, L"Open Key in New Tab");
+    AppendMenuW(menu, MF_STRING | one, kMenuOpen, (std::wstring(util::Tr(L"Open Key")) + L"\tEnter").c_str());
+    AppendMenuW(menu, MF_STRING | one, kMenuOpenNewTab, util::Tr(L"Open Key in New Tab"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyKey, L"Copy Key");
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyNative, L"Copy Native Name");
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyProcess, L"Copy Process");
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyPid, L"Copy PID");
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyHandle, L"Copy Handle");
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyAccess, L"Copy Access");
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyRows, L"Copy Rows\tCtrl+C");
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyKey, util::Tr(L"Copy Key"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyNative, util::Tr(L"Copy Native Name"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyProcess, util::Tr(L"Copy Process"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyPid, util::Tr(L"Copy PID"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyHandle, util::Tr(L"Copy Handle"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyAccess, util::Tr(L"Copy Access"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyRows, (std::wstring(util::Tr(L"Copy Rows")) + L"\tCtrl+C").c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, kMenuRefresh, L"Refresh\tF5");
+    AppendMenuW(menu, MF_STRING, kMenuRefresh, (std::wstring(util::Tr(L"Refresh")) + L"\tF5").c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING | any, kMenuClose, L"Close Handle...\tDel");
+    AppendMenuW(menu, MF_STRING | any, kMenuClose, (std::wstring(util::Tr(L"Close Handle...")) + L"\tDel").c_str());
     SetMenuDefaultItem(menu, kMenuOpen, FALSE);
     const int chosen =
         TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen.x, screen.y, 0, dialog, nullptr);
@@ -490,8 +490,8 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             support::Initialize(dialog, &state->font, {IDC_KH_FILTER});
             SendMessageW(dialog, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(LoadIconW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_APPICON))));
             SendMessageW(dialog, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_APPICON), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED)));
-            SendDlgItemMessageW(dialog, IDC_KH_FILTER, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(L"Filter"));
-            support::SetupListView(state->list, 0, {{L"Process", 150}, {L"PID", 60}, {L"Handle", 80}, {L"Object Address", 140}, {L"Key", 400}, {L"Access", 300}, {L"Attributes", 90}, {L"Native Name", 400}});
+            SendDlgItemMessageW(dialog, IDC_KH_FILTER, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(util::Tr(L"Filter")));
+            support::SetupListView(state->list, 0, {{util::Tr(L"Process"), 150}, {util::Tr(L"PID"), 60}, {util::Tr(L"Handle"), 80}, {util::Tr(L"Object Address"), 140}, {util::Tr(L"Key"), 400}, {util::Tr(L"Access"), 300}, {util::Tr(L"Attributes"), 90}, {util::Tr(L"Native Name"), 400}});
             SetWindowPos(state->status, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             using namespace appearance;
             state->resizer.Attach(dialog, {

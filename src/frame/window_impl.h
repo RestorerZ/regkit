@@ -43,6 +43,7 @@
 #include "trace/trace_dialog.h"
 #include "win32/handle_owner.h"
 #include "win32/file_dialog.h"
+#include "win32/translation.h"
 #include "work/session.h"
 #include "workspace/favorites.h"
 #include "workspace/recent_items.h"
@@ -668,6 +669,8 @@ class MainWindow::Impl
     bool read_only_ = false;
     ThemeMode theme_mode_ = ThemeMode::kSystem;
     std::wstring icon_set_ = L"phosphor";
+    std::wstring language_;
+    std::vector<util::LanguagePack> language_packs_;
     std::wstring icon_dir_;
     bool updating_value_list_ = false;
     bool value_list_loading_ = false;

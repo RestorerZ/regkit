@@ -6,6 +6,7 @@
 #include "win32/handle_owner.h"
 #include "win32/process_rights.h"
 #include "win32/system_error.h"
+#include "win32/translation.h"
 
 #include <objsel.h>
 #include <shellapi.h>
@@ -96,7 +97,7 @@ std::vector<COMDLG_FILTERSPEC> ParseFilter(const wchar_t* filter)
         }
         const wchar_t* spec = cursor;
         cursor += wcslen(cursor) + 1;
-        specs.push_back({name, spec});
+        specs.push_back({util::Tr(name), spec});
     }
     return specs;
 }
@@ -169,13 +170,13 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
     ComPtr<IFileDialogCustomize> customize;
     if (open_after && SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(customize.Receive()))))
     {
-        customize->StartVisualGroup(1, L"Open after saving:");
+        customize->StartVisualGroup(1, util::Tr(L"Open after saving:"));
         customize->AddComboBox(kOpenAfterCombo);
-        customize->AddControlItem(kOpenAfterCombo, static_cast<DWORD>(OpenAfter::kNone), L"Don't open");
-        customize->AddControlItem(kOpenAfterCombo, static_cast<DWORD>(OpenAfter::kEditor), L"In text editor");
+        customize->AddControlItem(kOpenAfterCombo, static_cast<DWORD>(OpenAfter::kNone), util::Tr(L"Don't open"));
+        customize->AddControlItem(kOpenAfterCombo, static_cast<DWORD>(OpenAfter::kEditor), util::Tr(L"In text editor"));
         if (regkit)
         {
-            customize->AddControlItem(kOpenAfterCombo, static_cast<DWORD>(OpenAfter::kRegKit), L"In RegKit");
+            customize->AddControlItem(kOpenAfterCombo, static_cast<DWORD>(OpenAfter::kRegKit), util::Tr(L"In RegKit"));
         }
         customize->EndVisualGroup();
         customize->SetSelectedControlItem(kOpenAfterCombo, static_cast<DWORD>(!regkit && g_open_after == OpenAfter::kRegKit ? OpenAfter::kNone : g_open_after));
@@ -364,7 +365,7 @@ std::wstring FormatDialogError(HRESULT hr)
     }
     wchar_t code[32] = {};
     swprintf_s(code, L"0x%08X", static_cast<unsigned>(hr));
-    return std::wstring(L"The file dialog failed (") + code + L").";
+    return util::TrDetail(L"The file dialog failed.", code);
 }
 
 } // namespace regkit::win32

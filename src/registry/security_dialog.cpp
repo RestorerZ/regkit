@@ -7,6 +7,7 @@
 #include "win32/process_rights.h"
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
+#include "win32/translation.h"
 
 #include <string>
 
@@ -115,12 +116,12 @@ class RegistrySecurityInformation : public ISecurityInformation
     HRESULT STDMETHODCALLTYPE GetAccessRights(const GUID*, DWORD, PSI_ACCESS* access, ULONG* count, ULONG* default_access) override
     {
         static SI_ACCESS rights[] = {
-            {&GUID_NULL, KEY_CREATE_SUB_KEY, const_cast<wchar_t*>(L"Create"), SI_ACCESS_SPECIFIC},
-            {&GUID_NULL, KEY_ENUMERATE_SUB_KEYS, const_cast<wchar_t*>(L"Enumerate"), SI_ACCESS_SPECIFIC},
-            {&GUID_NULL, KEY_SET_VALUE, const_cast<wchar_t*>(L"Set Value"), SI_ACCESS_SPECIFIC},
-            {&GUID_NULL, KEY_QUERY_VALUE, const_cast<wchar_t*>(L"Query Value"), SI_ACCESS_SPECIFIC},
-            {&GUID_NULL, KEY_WRITE, const_cast<wchar_t*>(L"Write"), SI_ACCESS_GENERAL},
-            {&GUID_NULL, KEY_READ, const_cast<wchar_t*>(L"Read"), SI_ACCESS_GENERAL},
+            {&GUID_NULL, KEY_CREATE_SUB_KEY, const_cast<wchar_t*>(util::Tr(L"Create")), SI_ACCESS_SPECIFIC},
+            {&GUID_NULL, KEY_ENUMERATE_SUB_KEYS, const_cast<wchar_t*>(util::Tr(L"Enumerate")), SI_ACCESS_SPECIFIC},
+            {&GUID_NULL, KEY_SET_VALUE, const_cast<wchar_t*>(util::Tr(L"Set Value")), SI_ACCESS_SPECIFIC},
+            {&GUID_NULL, KEY_QUERY_VALUE, const_cast<wchar_t*>(util::Tr(L"Query Value")), SI_ACCESS_SPECIFIC},
+            {&GUID_NULL, KEY_WRITE, const_cast<wchar_t*>(util::Tr(L"Write")), SI_ACCESS_GENERAL},
+            {&GUID_NULL, KEY_READ, const_cast<wchar_t*>(util::Tr(L"Read")), SI_ACCESS_GENERAL},
         };
         if (access)
         {
@@ -155,8 +156,8 @@ class RegistrySecurityInformation : public ISecurityInformation
     HRESULT STDMETHODCALLTYPE GetInheritTypes(PSI_INHERIT_TYPE* types, ULONG* count) override
     {
         static SI_INHERIT_TYPE inherit_types[] = {
-            {&GUID_NULL, 0, const_cast<wchar_t*>(L"This key only")},
-            {&GUID_NULL, CONTAINER_INHERIT_ACE, const_cast<wchar_t*>(L"This key and subkeys")},
+            {&GUID_NULL, 0, const_cast<wchar_t*>(util::Tr(L"This key only"))},
+            {&GUID_NULL, CONTAINER_INHERIT_ACE, const_cast<wchar_t*>(util::Tr(L"This key and subkeys"))},
         };
         if (types)
         {

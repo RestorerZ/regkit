@@ -4,6 +4,7 @@
 #include "records/json.h"
 
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <cwchar>
 
@@ -96,7 +97,7 @@ bool Reader::Expect(wchar_t character)
 {
     if (Next() != character)
     {
-        return Fail(L"The file isn't valid JSON.");
+        return Fail(util::Tr(L"The file isn't valid JSON."));
     }
     ++ptr_;
     return true;
@@ -106,7 +107,7 @@ bool Reader::Open(wchar_t bracket)
 {
     if (++depth_ > max_depth_)
     {
-        return Fail(L"The file is nested too deeply.");
+        return Fail(util::Tr(L"The file is nested too deeply."));
     }
     return Expect(bracket);
 }
@@ -136,7 +137,7 @@ bool Reader::Word(std::wstring_view word)
 {
     if (static_cast<size_t>(end_ - ptr_) < word.size() || std::wstring_view(ptr_, word.size()) != word)
     {
-        return Fail(L"The file isn't valid JSON.");
+        return Fail(util::Tr(L"The file isn't valid JSON."));
     }
     ptr_ += word.size();
     return true;
@@ -159,11 +160,11 @@ bool Reader::String(std::wstring* out, size_t limit)
         out->append(run, ptr_);
         if (out->size() > limit)
         {
-            return Fail(L"A text member is longer than the format allows.");
+            return Fail(util::Tr(L"A text member is longer than the format allows."));
         }
         if (ptr_ == end_)
         {
-            return Fail(L"The file ends inside a string.");
+            return Fail(util::Tr(L"The file ends inside a string."));
         }
         const wchar_t character = *ptr_++;
         if (character == L'"')
@@ -172,11 +173,11 @@ bool Reader::String(std::wstring* out, size_t limit)
         }
         if (character != L'\\')
         {
-            return Fail(L"A string contains an unescaped control character.");
+            return Fail(util::Tr(L"A string contains an unescaped control character."));
         }
         if (ptr_ == end_)
         {
-            return Fail(L"The file ends inside a string.");
+            return Fail(util::Tr(L"The file ends inside a string."));
         }
         const wchar_t escape = *ptr_++;
         switch (escape)
@@ -206,11 +207,11 @@ bool Reader::String(std::wstring* out, size_t limit)
                 unsigned first = 0;
                 if (!Hex4(&ptr_, end_, &first))
                 {
-                    return Fail(L"A string contains a malformed escape.");
+                    return Fail(util::Tr(L"A string contains a malformed escape."));
                 }
                 if (first >= 0xDC00 && first <= 0xDFFF)
                 {
-                    return Fail(L"A string contains a lone surrogate.");
+                    return Fail(util::Tr(L"A string contains a lone surrogate."));
                 }
                 out->push_back(static_cast<wchar_t>(first));
                 if (first < 0xD800 || first > 0xDBFF)
@@ -221,13 +222,13 @@ bool Reader::String(std::wstring* out, size_t limit)
                 if (end_ - ptr_ < 2 || ptr_[0] != L'\\' || ptr_[1] != L'u' || (ptr_ += 2, !Hex4(&ptr_, end_, &second)) ||
                     second < 0xDC00 || second > 0xDFFF)
                 {
-                    return Fail(L"A string contains a lone surrogate.");
+                    return Fail(util::Tr(L"A string contains a lone surrogate."));
                 }
                 out->push_back(static_cast<wchar_t>(second));
                 break;
             }
         default:
-            return Fail(L"A string contains an unsupported escape.");
+            return Fail(util::Tr(L"A string contains an unsupported escape."));
         }
     }
 }
@@ -236,11 +237,11 @@ bool Reader::Unsigned(uint64_t* out)
 {
     if (!Digit(Next()))
     {
-        return Fail(L"An unsigned number was expected.");
+        return Fail(util::Tr(L"An unsigned number was expected."));
     }
     if (*ptr_ == L'0' && ptr_ + 1 < end_ && Digit(ptr_[1]))
     {
-        return Fail(L"A number has a leading zero.");
+        return Fail(util::Tr(L"A number has a leading zero."));
     }
     uint64_t value = 0;
     for (; ptr_ < end_ && Digit(*ptr_); ++ptr_)
@@ -248,13 +249,13 @@ bool Reader::Unsigned(uint64_t* out)
         const uint64_t digit = static_cast<uint64_t>(*ptr_ - L'0');
         if (value > (UINT64_MAX - digit) / 10)
         {
-            return Fail(L"A number is out of range.");
+            return Fail(util::Tr(L"A number is out of range."));
         }
         value = value * 10 + digit;
     }
     if (ptr_ < end_ && std::wcschr(L".eE-+", *ptr_))
     {
-        return Fail(L"Only unsigned integers are supported.");
+        return Fail(util::Tr(L"Only unsigned integers are supported."));
     }
     *out = value;
     return true;
@@ -293,7 +294,7 @@ bool Reader::Skip()
     }
     if (ptr_ == digits || (*digits == L'0' && ptr_ - digits > 1))
     {
-        return Fail(L"The file isn't valid JSON.");
+        return Fail(util::Tr(L"The file isn't valid JSON."));
     }
     if (ptr_ < end_ && *ptr_ == L'.')
     {
@@ -304,7 +305,7 @@ bool Reader::Skip()
         }
         if (ptr_ == fraction)
         {
-            return Fail(L"The file isn't valid JSON.");
+            return Fail(util::Tr(L"The file isn't valid JSON."));
         }
     }
     if (ptr_ < end_ && (*ptr_ == L'e' || *ptr_ == L'E'))
@@ -321,7 +322,7 @@ bool Reader::Skip()
         }
         if (ptr_ == exponent)
         {
-            return Fail(L"The file isn't valid JSON.");
+            return Fail(util::Tr(L"The file isn't valid JSON."));
         }
     }
     return true;
@@ -330,7 +331,7 @@ bool Reader::Skip()
 bool Reader::End()
 {
     SkipSpace();
-    return ptr_ == end_ || Fail(L"The file contains trailing content.");
+    return ptr_ == end_ || Fail(util::Tr(L"The file contains trailing content."));
 }
 
 void AppendString(std::wstring* out, std::wstring_view text)

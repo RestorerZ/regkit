@@ -10,6 +10,7 @@
 #include "regfile/reg_file.h"
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 #include <unordered_set>
@@ -51,7 +52,7 @@ std::wstring EntryText(const Value* value)
 {
     if (!value)
     {
-        return L"(Missing)";
+        return util::Tr(L"(Missing)");
     }
     const std::wstring type = value_format::TypeName(value->type);
     const std::wstring data = DataText(*value);
@@ -142,8 +143,7 @@ bool CaptureRegistry(const std::wstring& base_path, const RegistryNode& base_nod
         {
             if (error)
             {
-                *error = L"Couldn't read the registry key.\n" +
-                         (relative.empty() ? base_path : base_path + L"\\" + relative);
+                *error = util::TrDetail(L"Couldn't read the registry key.", relative.empty() ? base_path : base_path + L"\\" + relative);
             }
             return false;
         }
@@ -173,7 +173,7 @@ bool LoadRegFile(const std::wstring& file_path, const std::wstring& base_path, b
     {
         if (error)
         {
-            *error = L"No registry keys were found in the .reg file.";
+            *error = util::Tr(L"No registry keys were found in the .reg file.");
         }
         return false;
     }
@@ -223,7 +223,7 @@ bool LoadRegFile(const std::wstring& file_path, const std::wstring& base_path, b
     {
         if (error)
         {
-            *error = L"No matching keys were found for the selected path.";
+            *error = util::Tr(L"No matching keys were found for the selected path.");
         }
         return false;
     }
@@ -312,8 +312,8 @@ std::vector<Row> BuildRows(const Snapshot& first, const Snapshot& second, RowFil
             result.key_path = first_key ? first_path : second_path;
             result.first_key_path = first_key ? first_path : std::wstring();
             result.second_key_path = second_key ? second_path : std::wstring();
-            result.first_text = first_key ? L"Present" : L"(Missing)";
-            result.second_text = second_key ? L"Present" : L"(Missing)";
+            result.first_text = first_key ? util::Tr(L"Present") : util::Tr(L"(Missing)");
+            result.second_text = second_key ? util::Tr(L"Present") : util::Tr(L"(Missing)");
             results.push_back(std::move(result));
             continue;
         }
@@ -326,8 +326,8 @@ std::vector<Row> BuildRows(const Snapshot& first, const Snapshot& second, RowFil
             result.key_path = first_path;
             result.first_key_path = first_path;
             result.second_key_path = second_path;
-            result.first_text = L"Present";
-            result.second_text = L"Present";
+            result.first_text = util::Tr(L"Present");
+            result.second_text = util::Tr(L"Present");
             results.push_back(std::move(result));
         }
 

@@ -6,6 +6,7 @@
 
 #include "appearance/dialog_layout.h"
 #include "appearance/list_header.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -19,12 +20,13 @@ bool MainWindow::Impl::OnCreate()
     }
     updates_.Attach(hwnd_, [this](const std::wstring& text) { SetStatusMessage(text); });
     win32::SetMissingDesktopPrompt([](HWND owner, const std::wstring& path) {
-        return ui::PromptKeyChoice(owner, L"SYSTEM has no Desktop folder, so Windows reports \"Location is not available\" in file dialogs. Create this folder to prevent the error?", path, L"Create Folder", L"Create", L"", L"Cancel") == IDYES;
+        return ui::PromptKeyChoice(owner, util::Tr(L"SYSTEM has no Desktop folder, so Windows reports \"Location is not available\" in file dialogs. Create this folder to prevent the error?"), path, util::Tr(L"Create Folder"), util::Tr(L"Create"), L"", util::Tr(L"Cancel")) == IDYES;
     });
     ui_font_ = CreateUIFont();
     icon_font_ = CreateIconFont(10);
     custom_font_ = DefaultLogFont();
     LoadSettings();
+    util::LoadLanguage(language_);
     if (theme_mode_ == ThemeMode::kCustom)
     {
         LoadThemePresets();
@@ -112,7 +114,7 @@ bool MainWindow::Impl::OnCreate()
         info.lpszText = LPSTR_TEXTCALLBACKW;
         SendMessageW(value_tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&info));
         info.uId = reinterpret_cast<UINT_PTR>(browse_.go_button());
-        info.lpszText = const_cast<wchar_t*>(L"Go");
+        info.lpszText = const_cast<wchar_t*>(util::Tr(L"Go"));
         SendMessageW(value_tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&info));
         SendMessageW(value_tooltip_, TTM_SETMAXTIPWIDTH, 0, kValueTooltipMaxWidth);
         SetDarkWindowTheme(value_tooltip_, Theme::UseDarkMode());
@@ -124,7 +126,7 @@ bool MainWindow::Impl::OnCreate()
     TabCtrl_SetPadding(tab_, kTabTextPaddingX, kTabInsetY);
     SetWindowSubclass(tab_, TabProc, kTabSubclassId, reinterpret_cast<DWORD_PTR>(this));
 
-    tree_header_ = CreateWindowExW(0, L"STATIC", L"Key Tree", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | SS_LEFT | SS_OWNERDRAW, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTreeHeaderId)), instance_, nullptr);
+    tree_header_ = CreateWindowExW(0, L"STATIC", util::Tr(L"Key Tree"), WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | SS_LEFT | SS_OWNERDRAW, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTreeHeaderId)), instance_, nullptr);
     tree_close_btn_ =
         CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_OWNERDRAW, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTreeHeaderCloseId)), instance_, nullptr);
     filter_clear_btn_ =
@@ -154,7 +156,7 @@ bool MainWindow::Impl::OnCreate()
     history_label_ = CreateWindowExW(
         0,
         L"STATIC",
-        L"History",
+        util::Tr(L"History"),
         WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | SS_LEFT | SS_OWNERDRAW,
         0,
         0,
@@ -440,10 +442,10 @@ void MainWindow::Impl::ApplyStartupCachePayload(StartupCachePayload* payload)
         {
             ui::PromptKeyChoice(
                 hwnd_,
-                L"The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed.",
+                util::Tr(L"The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."),
                 CommentsPath(),
-                L"Comments",
-                L"OK",
+                util::Tr(L"Comments"),
+                util::Tr(L"OK"),
                 L"",
                 L""
             );
@@ -542,7 +544,7 @@ void MainWindow::Impl::OnDestroy()
         }
         else if (save_tab_kinds_ != 0 && !SaveTabs())
         {
-            ui::ShowError(hwnd_, L"The open tabs couldn't be saved for the next session.");
+            ui::ShowError(hwnd_, util::Tr(L"The open tabs couldn't be saved for the next session."));
         }
     }
     ClearHistoryItems(false);

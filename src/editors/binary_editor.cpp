@@ -12,6 +12,7 @@
 
 #include "resource.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <initializer_list>
 #include <utility>
@@ -60,21 +61,19 @@ void UpdatePreview(HWND dialog, State* state)
     std::vector<BYTE> bytes;
     if (!value_format::ParseHex(state->text, &bytes))
     {
-        SetDlgItemTextW(dialog, IDC_BINARY_PREVIEW, L"Invalid hex input.");
-        SetDlgItemTextW(dialog, IDC_VALUE_BYTES, L"Invalid");
+        SetDlgItemTextW(dialog, IDC_BINARY_PREVIEW, util::Tr(L"Invalid hex input."));
+        SetDlgItemTextW(dialog, IDC_VALUE_BYTES, util::Tr(L"Invalid"));
         return;
     }
     // grouping & text mode change only the preview
     const std::wstring preview = binary_text::Preview(bytes, state->group_bytes, state->unicode);
     SetDlgItemTextW(dialog, IDC_BINARY_PREVIEW, preview.c_str());
-    wchar_t count[64] = {};
-    swprintf_s(count, L"%llu byte%s", static_cast<unsigned long long>(bytes.size()), bytes.size() == 1 ? L"" : L"s");
-    SetDlgItemTextW(dialog, IDC_VALUE_BYTES, count);
+    SetDlgItemTextW(dialog, IDC_VALUE_BYTES, value_format::ByteCount(bytes.size()).c_str());
 }
 
 void ConfigureIdentity(HWND dialog, const BinaryRequest& request)
 {
-    const std::wstring name = request.value_name.empty() ? L"(Default)" : request.value_name;
+    const std::wstring name = request.value_name.empty() ? util::Tr(L"(Default)") : request.value_name;
     SetDlgItemTextW(dialog, IDC_VALUE_NAME, name.c_str());
     SendDlgItemMessageW(dialog, IDC_VALUE_NAME, EM_SETREADONLY, TRUE, 0);
     const HWND name_control = GetDlgItem(dialog, IDC_VALUE_NAME);
@@ -89,9 +88,9 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         state = reinterpret_cast<State*>(lparam);
         state->text = util::ToHex(state->request->data, L' ', true);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-        SetWindowTextW(dialog, L"Edit Value");
-        SetDlgItemTextW(dialog, IDC_LABEL, L"Hex bytes:");
-        SetDlgItemTextW(dialog, IDC_NOTE, L"Preview:");
+        SetWindowTextW(dialog, util::Tr(L"Edit Value"));
+        SetDlgItemTextW(dialog, IDC_LABEL, util::Tr(L"Hex bytes:"));
+        SetDlgItemTextW(dialog, IDC_NOTE, util::Tr(L"Preview:"));
         SetDlgItemTextW(dialog, IDC_EDIT, state->text.c_str());
         ConfigureIdentity(dialog, *state->request);
         SelectGroup(dialog, IDC_FORMAT_BYTE);
@@ -168,7 +167,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             std::vector<BYTE> bytes;
             if (!value_format::ParseHex(dialog_support::ReadText(dialog, IDC_EDIT), &bytes) || bytes.empty())
             {
-                ui::ShowError(dialog, L"Invalid hex input.");
+                ui::ShowError(dialog, util::Tr(L"Invalid hex input."));
                 return TRUE;
             }
             BitfieldRequest request;
@@ -206,7 +205,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             std::vector<BYTE> parsed;
             if (!value_format::ParseHex(text, &parsed))
             {
-                ui::ShowError(dialog, L"Invalid hex input.");
+                ui::ShowError(dialog, util::Tr(L"Invalid hex input."));
                 SetFocus(GetDlgItem(dialog, IDC_EDIT));
                 return TRUE;
             }

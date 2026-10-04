@@ -5,6 +5,7 @@
 
 #include "win32/process_rights.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <shlobj.h>
 #include <shlwapi.h>
@@ -70,6 +71,11 @@ std::wstring TypeName(DWORD type)
     wchar_t buffer[64] = {};
     swprintf_s(buffer, L"%s (0x%X)", label ? label->name : L"REG_UNKNOWN", type);
     return buffer;
+}
+
+std::wstring ByteCount(size_t size)
+{
+    return std::to_wstring(size) + L" " + (size == 1 ? util::Tr(L"byte") : util::Tr(L"bytes"));
 }
 
 std::wstring Data(DWORD type, const BYTE* data, DWORD size)

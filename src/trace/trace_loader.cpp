@@ -4,6 +4,7 @@
 #include "trace/trace_loader.h"
 
 #include "win32/file_text.h"
+#include "win32/translation.h"
 
 #include <string_view>
 
@@ -25,7 +26,7 @@ bool Read(const std::wstring& path, std::vector<BYTE>* bytes, std::wstring* erro
     {
         if (error)
         {
-            *error = L"Failed to read trace file.";
+            *error = util::Tr(L"Failed to read trace file.");
         }
         return false;
     }

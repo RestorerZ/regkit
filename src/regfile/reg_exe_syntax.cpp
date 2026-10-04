@@ -5,6 +5,7 @@
 
 #include "registry/value_format.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 namespace regkit::reg_exe
 {
@@ -56,7 +57,7 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* 
         auto next = [&](std::wstring* out) -> bool {
             if (i + 1 >= args.size())
             {
-                return Fail(error, L"Missing argument for " + arg);
+                return Fail(error, util::TrLabel(L"Missing argument", arg));
             }
             *out = args[++i];
             return true;
@@ -114,7 +115,7 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* 
         }
         else if (!arg.empty() && (arg[0] == L'/' || arg[0] == L'-'))
         {
-            return Fail(error, L"Invalid option: " + arg);
+            return Fail(error, util::TrLabel(L"Invalid option", arg));
         }
         else
         {
@@ -181,7 +182,7 @@ bool BuildData(DWORD type, std::wstring_view text, std::wstring_view separator, 
             {
                 if (item.empty() && items.size() > 1)
                 {
-                    return Fail(error, L"Invalid multi-string data: " + std::wstring(text));
+                    return Fail(error, util::TrLabel(L"Invalid multi-string data", text));
                 }
             }
             *data = value_format::MultiStringData(items);
@@ -199,11 +200,11 @@ bool BuildData(DWORD type, std::wstring_view text, std::wstring_view separator, 
             unsigned long long value = 0;
             if (!util::ParseUnsignedNumber(number, 10, &value))
             {
-                return Fail(error, L"Invalid numeric data: " + std::wstring(text));
+                return Fail(error, util::TrLabel(L"Invalid numeric data", text));
             }
             if (type != REG_QWORD && value > 0xFFFFFFFFull)
             {
-                return Fail(error, L"Numeric data out of range for a DWORD: " + std::wstring(text));
+                return Fail(error, util::TrLabel(L"Numeric data out of range for a DWORD", text));
             }
             *data = value_format::UnsignedBytes(value, type == REG_QWORD ? sizeof(ULONGLONG) : sizeof(DWORD));
             return true;
@@ -215,14 +216,14 @@ bool BuildData(DWORD type, std::wstring_view text, std::wstring_view separator, 
             {
                 if (util::HexDigitValue(character) < 0)
                 {
-                    return Fail(error, L"Invalid binary data: " + std::wstring(text));
+                    return Fail(error, util::TrLabel(L"Invalid binary data", text));
                 }
             }
             if (digits.size() % 2 != 0)
             {
                 digits.insert(digits.begin(), L'0');
             }
-            return value_format::ParseHex(digits, data) || Fail(error, L"Invalid binary data: " + std::wstring(text));
+            return value_format::ParseHex(digits, data) || Fail(error, util::TrLabel(L"Invalid binary data", text));
         }
     }
 }

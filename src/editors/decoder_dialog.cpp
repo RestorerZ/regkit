@@ -12,6 +12,7 @@
 
 #include "resource.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 #include <span>
@@ -116,7 +117,7 @@ void RunDecoder(HWND dialog, State* state)
         text.append(L"\r\n\r\n").append(binary_text::Preview(span, 1, false));
         if (shown != bytes.size())
         {
-            text.append(L"\r\n\r\nShowing the first ").append(std::to_wstring(shown)).append(L" bytes.");
+            text.append(L"\r\n\r\n").append(util::TrLabel(L"Bytes shown", std::to_wstring(shown)));
         }
     }
     ShowOutput(dialog, state, std::move(text));
@@ -160,15 +161,13 @@ void ApplyTransform(HWND dialog, State* state)
 
 void ConfigureIdentity(HWND dialog, const DecodeRequest& request)
 {
-    const std::wstring name = request.value_name.empty() ? L"(Default)" : request.value_name;
+    const std::wstring name = request.value_name.empty() ? util::Tr(L"(Default)") : request.value_name;
     SetDlgItemTextW(dialog, IDC_VALUE_NAME, name.c_str());
     SendDlgItemMessageW(dialog, IDC_VALUE_NAME, EM_SETREADONLY, TRUE, 0);
     const HWND name_control = GetDlgItem(dialog, IDC_VALUE_NAME);
     SetWindowLongPtrW(name_control, GWL_STYLE, GetWindowLongPtrW(name_control, GWL_STYLE) & ~WS_TABSTOP);
     std::wstring summary = value_format::TypeName(request.type);
-    summary.append(L", ")
-        .append(std::to_wstring(request.data.size()))
-        .append(request.data.size() == 1 ? L" byte" : L" bytes");
+    summary.append(L", ").append(value_format::ByteCount(request.data.size()));
     SetDlgItemTextW(dialog, IDC_VALUE_BYTES, summary.c_str());
 }
 
@@ -179,10 +178,10 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     {
         state = reinterpret_cast<State*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-        SetWindowTextW(dialog, L"Decode Value");
-        SetDlgItemTextW(dialog, IDC_VALUE_NAME_LABEL, L"Name:");
-        SetDlgItemTextW(dialog, IDC_LABEL, L"Encoding:");
-        SetDlgItemTextW(dialog, IDC_NOTE, L"Interpret as:");
+        SetWindowTextW(dialog, util::Tr(L"Decode Value"));
+        SetDlgItemTextW(dialog, IDC_VALUE_NAME_LABEL, util::Tr(L"Name:"));
+        SetDlgItemTextW(dialog, IDC_LABEL, util::Tr(L"Encoding:"));
+        SetDlgItemTextW(dialog, IDC_NOTE, util::Tr(L"Interpret as:"));
         ConfigureIdentity(dialog, *state->request);
         SendDlgItemMessageW(dialog, IDC_EDIT, EM_SETREADONLY, TRUE, 0);
         state->transforms = value_decoder::AvailableTransforms(state->request->type, state->request->data);

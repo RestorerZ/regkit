@@ -5,6 +5,7 @@
 #include "frame/window_impl.h"
 
 #include "win32/shell_integration.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -25,7 +26,7 @@ bool RestartExePath(HWND owner, std::wstring* exe_path)
     {
         return true;
     }
-    ui::ShowError(owner, L"Failed to locate the executable path.");
+    ui::ShowError(owner, util::Tr(L"Failed to locate the executable path."));
     return false;
 }
 
@@ -71,7 +72,7 @@ bool BrokerRestart(HWND owner, const wchar_t* target_arg, const wchar_t* failure
     const bool launched = launch(command_line, L"", &error, &impersonation_lost);
     if (impersonation_lost)
     {
-        ui::ShowError(owner, WithErrorDetail(L"RegKit couldn't restore its own security context and must close now.", error));
+        ui::ShowError(owner, WithErrorDetail(util::Tr(L"RegKit couldn't restore its own security context and must close now."), error));
         ExitProcess(launched ? 0u : 1u);
     }
     if (!launched)
@@ -99,7 +100,7 @@ bool MainWindow::Impl::SaveSessionForRestart()
     {
         return true;
     }
-    ui::ShowError(hwnd_, L"The current session couldn't be saved for the restart.");
+    ui::ShowError(hwnd_, util::Tr(L"The current session couldn't be saved for the restart."));
     return false;
 }
 
@@ -109,7 +110,7 @@ bool MainWindow::Impl::LaunchRestart(bool restore_session)
     {
         return true;
     }
-    ui::ShowError(hwnd_, L"RegKit couldn't be restarted.");
+    ui::ShowError(hwnd_, util::Tr(L"RegKit couldn't be restarted."));
     return false;
 }
 
@@ -150,7 +151,7 @@ bool MainWindow::Impl::RestartAfterCacheClear(CacheKind kind)
             StartTreeStateWorker();
         }
         BuildMenus();
-        ui::ShowError(hwnd_, L"One or more cache files couldn't be removed.");
+        ui::ShowError(hwnd_, util::Tr(L"One or more cache files couldn't be removed."));
         return false;
     }
     if (!LaunchRestart(restore_session))
@@ -175,12 +176,12 @@ bool MainWindow::Impl::RestartAfterSettingsReset()
     const std::wstring path = SettingsPath();
     if (path.empty())
     {
-        ui::ShowError(hwnd_, L"Failed to find the settings file.");
+        ui::ShowError(hwnd_, util::Tr(L"Failed to find the settings file."));
         return false;
     }
     if (!workspace::SaveSettings(path, workspace::DefaultOptions(CurrentSettings())))
     {
-        ui::ShowError(hwnd_, L"The settings file couldn't be reset.");
+        ui::ShowError(hwnd_, util::Tr(L"The settings file couldn't be reset."));
         return false;
     }
     if (!LaunchRestart(true))
@@ -198,15 +199,15 @@ bool MainWindow::Impl::RestartAsAdmin()
     if (util::IsProcessSystem() || util::IsProcessTrustedInstaller())
     {
         // return through the signed in shell before requesting admin access
-        return BrokerRestart(hwnd_, kRestartAdminArg, L"Failed to restart with administrator rights.", util::LaunchProcessAsShellUser);
+        return BrokerRestart(hwnd_, kRestartAdminArg, util::Tr(L"Failed to restart with administrator rights."), util::LaunchProcessAsShellUser);
     }
-    return BeginRestart(hwnd_, nullptr, L"Failed to restart with administrator rights.");
+    return BeginRestart(hwnd_, nullptr, util::Tr(L"Failed to restart with administrator rights."));
 }
 
 bool MainWindow::Impl::RestartAsUser()
 {
     PrepareSessionHandover();
-    return BrokerRestart(hwnd_, kRestartUserArg, L"Failed to restart as the signed-in user.", util::LaunchProcessAsShellUser);
+    return BrokerRestart(hwnd_, kRestartUserArg, util::Tr(L"Failed to restart as the signed-in user."), util::LaunchProcessAsShellUser);
 }
 
 bool MainWindow::Impl::RestartAsSystem()
@@ -214,9 +215,9 @@ bool MainWindow::Impl::RestartAsSystem()
     PrepareSessionHandover();
     if (!util::IsProcessElevated())
     {
-        return BeginRestart(hwnd_, kRestartSystemArg, L"Failed to request SYSTEM restart.");
+        return BeginRestart(hwnd_, kRestartSystemArg, util::Tr(L"Failed to request SYSTEM restart."));
     }
-    return BrokerRestart(hwnd_, kRestartSystemArg, L"Failed to restart with SYSTEM rights.", util::LaunchProcessAsSystem);
+    return BrokerRestart(hwnd_, kRestartSystemArg, util::Tr(L"Failed to restart with SYSTEM rights."), util::LaunchProcessAsSystem);
 }
 
 bool MainWindow::Impl::RestartAsTrustedInstaller()
@@ -224,9 +225,9 @@ bool MainWindow::Impl::RestartAsTrustedInstaller()
     PrepareSessionHandover();
     if (!util::IsProcessElevated())
     {
-        return BeginRestart(hwnd_, kRestartTiArg, L"Failed to request TrustedInstaller restart.");
+        return BeginRestart(hwnd_, kRestartTiArg, util::Tr(L"Failed to request TrustedInstaller restart."));
     }
-    return BrokerRestart(hwnd_, kRestartTiArg, L"Failed to restart with TrustedInstaller rights.", util::LaunchProcessAsTrustedInstaller);
+    return BrokerRestart(hwnd_, kRestartTiArg, util::Tr(L"Failed to restart with TrustedInstaller rights."), util::LaunchProcessAsTrustedInstaller);
 }
 
 void MainWindow::Impl::SyncReplaceRegEditState()
@@ -239,7 +240,7 @@ void MainWindow::Impl::ReplaceRegEdit(bool enable)
     std::wstring exe_path = util::GetModulePath();
     if (exe_path.empty())
     {
-        ui::ShowError(hwnd_, L"Failed to locate the executable path.");
+        ui::ShowError(hwnd_, util::Tr(L"Failed to locate the executable path."));
         return;
     }
     // reject machine wide redirection to an executable another user can replace
@@ -247,16 +248,16 @@ void MainWindow::Impl::ReplaceRegEdit(bool enable)
     if (writable_location &&
         ui::PromptKeyChoice(
             hwnd_,
-            L"Replacing RegEdit registers this executable for every account on the machine.\n\n"
-            L"RegKit is running from a location that non administrators can write to, so a program "
-            L"without administrator rights could replace it and run whenever anyone starts RegEdit. "
-            L"Install RegKit for all users first, or move it somewhere only administrators can write.\n\n"
-            L"Replace anyway to apply it from this location.",
+            util::Tr(L"Replacing RegEdit registers this executable for every account on the machine.\n\n"
+                     L"RegKit is running from a location that non administrators can write to, so a program "
+                     L"without administrator rights could replace it and run whenever anyone starts RegEdit. "
+                     L"Install RegKit for all users first, or move it somewhere only administrators can write.\n\n"
+                     L"Replace anyway to apply it from this location."),
             exe_path,
-            L"Replace RegEdit",
-            L"Replace Anyway",
+            util::Tr(L"Replace RegEdit"),
+            util::Tr(L"Replace Anyway"),
             L"",
-            L"Cancel",
+            util::Tr(L"Cancel"),
             {110, 70, 70}
         ) != IDYES)
     {
@@ -270,12 +271,12 @@ void MainWindow::Impl::ReplaceRegEdit(bool enable)
     // dont overwrite another debugger registration without approval
     if (result != ERROR_SUCCESS && conflict && enable)
     {
-        const int choice = ui::PromptChoice(hwnd_, L"RegEdit already has a Debugger entry owned by another program.\n\n"
-                                                   L"Override the existing entry?",
-                                            L"Replace RegEdit",
-                                            L"Override",
+        const int choice = ui::PromptChoice(hwnd_, util::Tr(L"RegEdit already has a Debugger entry owned by another program.\n\n"
+                                                            L"Override the existing entry?"),
+                                            util::Tr(L"Replace RegEdit"),
+                                            util::Tr(L"Override"),
                                             L"",
-                                            L"Cancel",
+                                            util::Tr(L"Cancel"),
                                             {80, 70, 70});
         if (choice == IDYES)
         {
@@ -357,13 +358,13 @@ void MainWindow::Impl::OpenHiveFileDir()
 {
     if (registry_mode_ == RegistryMode::kRemote)
     {
-        ui::ShowError(hwnd_, L"Hive files aren't available for remote registries.");
+        ui::ShowError(hwnd_, util::Tr(L"Hive files aren't available for remote registries."));
         return;
     }
     std::wstring hive_path = ResolveSelectedHiveFilePath();
     if (hive_path.empty())
     {
-        ui::ShowError(hwnd_, L"No hive file was found for this key.");
+        ui::ShowError(hwnd_, util::Tr(L"No hive file was found for this key."));
         return;
     }
     const HRESULT hr = win32::RevealInExplorer(hive_path);

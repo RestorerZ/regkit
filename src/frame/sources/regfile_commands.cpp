@@ -5,6 +5,7 @@
 #include "frame/window_impl.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -28,7 +29,7 @@ bool MainWindow::Impl::SaveRegFileTab(int tab_index)
     }
     if (!util::WriteTextFile(entry.reg_file_path, content, true))
     {
-        ui::ShowError(hwnd_, L"Failed to save registry file.");
+        ui::ShowError(hwnd_, util::Tr(L"Failed to save registry file."));
         return false;
     }
     if (entry.reg_file_dirty)
@@ -58,7 +59,7 @@ bool MainWindow::Impl::ExportRegFileTab(int tab_index, const std::wstring& path)
     std::wstring target = util::EnsureFileExtension(path, L".reg");
     if (!util::WriteTextFile(target, content, true))
     {
-        ui::ShowError(hwnd_, L"Failed to export registry file.");
+        ui::ShowError(hwnd_, util::Tr(L"Failed to export registry file."));
         return false;
     }
     return true;
@@ -178,7 +179,7 @@ void MainWindow::Impl::StartRegFileParse(const std::wstring& path, const std::ws
         {
             if (!cancelled && parse_error.empty())
             {
-                parse_error = L"Failed to read registry file.";
+                parse_error = util::Tr(L"Failed to read registry file.");
             }
         }
         payload->roots = std::move(parsed_roots);
@@ -214,13 +215,13 @@ bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path, bool force_new_t
     }
     if (!FileExists(path))
     {
-        ui::ShowError(hwnd_, L"Registry file not found.");
+        ui::ShowError(hwnd_, util::Tr(L"Registry file not found."));
         return false;
     }
     std::wstring label = util::FileName(path);
     if (label.empty())
     {
-        label = L"Registry File";
+        label = util::Tr(L"Registry File");
     }
     for (size_t i = 0; !force_new_tab && i < tabs_.size(); ++i)
     {

@@ -18,6 +18,7 @@ namespace regkit::value_format
 
 DWORD NormalizeType(DWORD type);
 std::wstring TypeName(DWORD type);
+std::wstring ByteCount(size_t size);
 std::wstring Data(DWORD type, const BYTE* data, DWORD size);
 std::wstring DisplayData(DWORD type, const BYTE* data, DWORD size, bool resolve_indirect = true);
 

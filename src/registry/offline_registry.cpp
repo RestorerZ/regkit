@@ -8,6 +8,7 @@
 #include "win32/shell_paths.h"
 #include "win32/system_api.h"
 #include "win32/system_error.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 #include <iterator>
@@ -148,7 +149,7 @@ OffregApi* Api()
 
 std::wstring OffregLoadFailure()
 {
-    std::wstring message = L"offreg.dll couldn't be loaded.";
+    std::wstring message = util::Tr(L"offreg.dll couldn't be loaded.");
     const std::wstring detail = util::FormatWin32Error(OffregInstance().load_error());
     if (!detail.empty())
     {

@@ -6,6 +6,7 @@
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 #include <cwctype>
@@ -165,7 +166,7 @@ bool ApplyReg(const std::vector<std::wstring>& args, std::vector<Operation>* out
     const bool add = !args.empty() && util::EqualsInsensitive(args[0], L"add");
     if (!add && (args.empty() || !util::EqualsInsensitive(args[0], L"delete")))
     {
-        *message = L"reg " + (args.empty() ? std::wstring() : args[0]) + L" isn't supported.";
+        *message = util::TrLabel(L"Unsupported reg command", L"reg " + (args.empty() ? std::wstring() : args[0]));
         return false;
     }
     reg_exe::Options options;
@@ -177,17 +178,17 @@ bool ApplyReg(const std::vector<std::wstring>& args, std::vector<Operation>* out
     Operation operation{Operation::Kind::kValue};
     if (positional.size() != 1 || !NormalizeKeyPath(positional[0], &operation.path))
     {
-        *message = L"Invalid key name.";
+        *message = util::Tr(L"Invalid key name.");
         return false;
     }
     if (options.view == KEY_WOW64_32KEY)
     {
-        *message = L"/reg:32 targets the 32-bit view, which can't be converted.";
+        *message = util::Tr(L"/reg:32 targets the 32-bit view, which can't be converted.");
         return false;
     }
     if (options.all_values)
     {
-        *message = L"/va isn't supported.";
+        *message = util::Tr(L"/va isn't supported.");
         return false;
     }
     operation.value.name = options.default_value ? std::wstring() : options.value_name;
@@ -200,7 +201,7 @@ bool ApplyReg(const std::vector<std::wstring>& args, std::vector<Operation>* out
     operation.value.type = REG_SZ;
     if (!options.type_text.empty() && !reg_exe::ParseType(options.type_text, &operation.value.type))
     {
-        *message = L"Invalid type: " + options.type_text;
+        *message = util::TrLabel(L"Invalid type", options.type_text);
         return false;
     }
     if (!reg_exe::BuildData(operation.value.type, options.data, options.separator, &operation.value.data, message))
@@ -274,7 +275,7 @@ bool SplitCommands(std::wstring_view line, std::vector<Command>* commands, std::
             }
             if (separator == L"|")
             {
-                *message = L"Pipes aren't supported.";
+                *message = util::Tr(L"Pipes aren't supported.");
                 return false;
             }
             commands->push_back({{}, separator});
@@ -335,7 +336,7 @@ bool ExpandPercents(std::wstring_view line, const std::unordered_map<std::wstrin
         }
         if (index + 1 < line.size() && (iswdigit(line[index + 1]) || line[index + 1] == L'~' || line[index + 1] == L'*'))
         {
-            *message = L"Batch arguments can't be resolved.";
+            *message = util::Tr(L"Batch arguments can't be resolved.");
             return false;
         }
         const size_t close = line.find(L'%', index + 1);
@@ -347,7 +348,7 @@ bool ExpandPercents(std::wstring_view line, const std::unordered_map<std::wstrin
         const auto variable = variables.find(util::ToLower(name));
         if (variable == variables.end())
         {
-            *message = L"%" + name + L"% can't be resolved.";
+            *message = util::TrLabel(L"Variable can't be resolved", L"%" + name + L"%");
             return false;
         }
         output->append(variable->second);
@@ -385,7 +386,7 @@ bool ParseBatch(std::wstring_view content, std::vector<Operation>* output, std::
     {
         const size_t number = index + 1;
         auto fail = [&](const std::wstring& message) {
-            *error = L"Line " + std::to_wstring(number) + L": " + message;
+            *error = util::Tr(L"Line") + std::wstring(L" ") + std::to_wstring(number) + L": " + message;
             return false;
         };
         std::wstring line = lines[index];
@@ -426,7 +427,7 @@ bool ParseBatch(std::wstring_view content, std::vector<Operation>* output, std::
                     std::wstring path;
                     if (!IsEnsureKey(commands, at) || !NormalizeKeyPath(args.size() > 1 ? args[1] : std::wstring(), &path))
                     {
-                        return fail(L"reg query is only supported in the form RegKit writes for empty keys.");
+                        return fail(util::Tr(L"reg query is only supported in the form RegKit writes for empty keys."));
                     }
                     output->push_back({Operation::Kind::kKey, std::move(path)});
                     break;
@@ -441,7 +442,7 @@ bool ParseBatch(std::wstring_view content, std::vector<Operation>* output, std::
                 std::wstring assignment = util::TrimWhitespace(rest);
                 if (!assignment.empty() && assignment.front() == L'/')
                 {
-                    return fail(L"set /a and set /p aren't supported.");
+                    return fail(util::Tr(L"set /a and set /p aren't supported."));
                 }
                 if (!assignment.empty() && assignment.front() == L'"')
                 {
@@ -461,7 +462,7 @@ bool ParseBatch(std::wstring_view content, std::vector<Operation>* output, std::
                      verb != L"pause" && verb != L"chcp" && verb != L"setlocal" && verb != L"endlocal" && verb != L"timeout" &&
                      !(verb == L"net" && util::EqualsInsensitive(util::TrimWhitespace(rest), L"session")) && !verb.empty())
             {
-                return fail(L"Unsupported command: " + verb);
+                return fail(util::TrLabel(L"Unsupported command", verb));
             }
         }
     }
@@ -481,11 +482,11 @@ std::wstring RenderBatch(const std::vector<Operation>& operations, bool admin_ch
         std::wstring reason;
         if (HasLineBreak(operation.path) || (value && HasLineBreak(operation.value.name)))
         {
-            reason = L"contains a line break";
+            reason = util::Tr(L"contains a line break");
         }
         else if (IsPadded(operation.path) || (value && IsPadded(operation.value.name)))
         {
-            reason = L"reg.exe trims leading and trailing spaces";
+            reason = util::Tr(L"reg.exe trims leading and trailing spaces");
         }
         else if (operation.kind == Operation::Kind::kKey)
         {
@@ -499,7 +500,7 @@ std::wstring RenderBatch(const std::vector<Operation>& operations, bool admin_ch
         else if (operation.kind == Operation::Kind::kRemoveKey)
         {
             line = L"reg delete " + key + L" /f >nul 2>&1";
-            reason = operation.path.find(L'\\') == std::wstring::npos ? L"a root key can't be deleted" : L"";
+            reason = operation.path.find(L'\\') == std::wstring::npos ? util::Tr(L"a root key can't be deleted") : L"";
         }
         else if (operation.kind == Operation::Kind::kRemoveValue)
         {
@@ -517,12 +518,12 @@ std::wstring RenderBatch(const std::vector<Operation>& operations, bool admin_ch
             }
             else
             {
-                reason = L"reg.exe can't write " + reg_exe::TypeName(operation.value.type) + L" data like this";
+                reason = util::TrLabel(L"reg.exe can't write this data type", reg_exe::TypeName(operation.value.type));
             }
         }
         if (reason.empty() && line.size() > kMaxCommandLine)
         {
-            reason = L"too long for a batch line";
+            reason = util::Tr(L"too long for a batch line");
         }
         if (!reason.empty())
         {

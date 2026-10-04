@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "search/regex.h"
+#include "win32/translation.h"
 
 #include <pcre2.h>
 
@@ -255,13 +256,13 @@ std::wstring StatusText(Status status)
     switch (status)
     {
     case Status::kCancelled:
-        return L"The search was cancelled.";
+        return util::Tr(L"The search was cancelled.");
     case Status::kLimit:
-        return L"The pattern needed too many steps or too much memory.";
+        return util::Tr(L"The pattern needed too many steps or too much memory.");
     case Status::kInvalidSubject:
-        return L"The text isn't valid UTF-16.";
+        return util::Tr(L"The text isn't valid UTF-16.");
     case Status::kFailed:
-        return L"The pattern couldn't be applied.";
+        return util::Tr(L"The pattern couldn't be applied.");
     default:
         break;
     }
@@ -272,9 +273,9 @@ std::wstring ErrorText(const Error& error)
 {
     if (error.message.empty())
     {
-        return L"The find text isn't a valid regular expression.";
+        return util::Tr(L"The find text isn't a valid regular expression.");
     }
-    return L"Regex error at character " + std::to_wstring(error.offset + 1) + L": " + error.message;
+    return util::TrDetail(L"The find text isn't a valid regular expression.", util::TrLabel(L"Position", std::to_wstring(error.offset + 1)) + L"\n" + error.message);
 }
 
 } // namespace regkit::search::regex

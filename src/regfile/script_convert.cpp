@@ -9,6 +9,7 @@
 #include "win32/registry_view.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 
@@ -47,7 +48,7 @@ bool ReadOperations(const std::wstring& path, std::vector<Operation>* operations
     Format format = Format::kReg;
     if (!FormatFromPath(path, &format))
     {
-        *error = L"Unsupported file type, use .reg, .bat, .cmd or .ps1:\n" + path;
+        *error = util::TrDetail(L"Unsupported file type, use .reg, .bat, .cmd or .ps1.", path);
         return false;
     }
     return ReadOperations(path, format, operations, error);
@@ -58,7 +59,7 @@ bool ReadOperations(const std::wstring& path, Format format, std::vector<Operati
     std::wstring content;
     if (!util::ReadTextFile(path, &content, nullptr, 32ull * 1024ull * 1024ull))
     {
-        *error = L"The file couldn't be read or is empty:\n" + path;
+        *error = util::TrDetail(L"The file couldn't be read or is empty.", path);
         return false;
     }
     const bool parsed = format == Format::kReg     ? ParseOperations(content, operations, nullptr, nullptr, error)
@@ -69,14 +70,14 @@ bool ReadOperations(const std::wstring& path, Format format, std::vector<Operati
         std::wstring normalized;
         if (!NormalizeKeyPath((*operations)[index].path, &normalized))
         {
-            *error = L"Unsupported root key:\n" + (*operations)[index].path;
+            *error = util::TrDetail(L"Unsupported root key.", (*operations)[index].path);
             return false;
         }
         (*operations)[index].path = std::move(normalized);
     }
     if (parsed && operations->empty())
     {
-        *error = L"The file has no registry changes:\n" + path;
+        *error = util::TrDetail(L"The file has no registry changes.", path);
         return false;
     }
     return parsed;
@@ -87,7 +88,7 @@ bool ReadRegistry(const std::wstring& key_path, bool recursive, std::vector<Oper
     std::wstring path;
     if (!NormalizeKeyPath(registry_path::Normalize(key_path), &path))
     {
-        *error = L"Enter a key under HKLM, HKCU, HKCR, HKU or HKCC.";
+        *error = util::Tr(L"Enter a key under HKLM, HKCU, HKCR, HKU or HKCC.");
         return false;
     }
     const size_t split = path.find(L'\\');
@@ -106,7 +107,7 @@ bool SelectKey(const std::wstring& key_path, bool recursive, std::vector<Operati
     std::wstring key;
     if (!NormalizeKeyPath(key_path, &key))
     {
-        *error = L"Invalid key name:\n" + key_path;
+        *error = util::TrDetail(L"Invalid key name.", key_path);
         return false;
     }
     std::erase_if(*operations, [&](const Operation& operation) {
@@ -114,7 +115,7 @@ bool SelectKey(const std::wstring& key_path, bool recursive, std::vector<Operati
     });
     if (operations->empty())
     {
-        *error = L"The file has no changes for this key:\n" + key;
+        *error = util::TrDetail(L"The file has no changes for this key.", key);
         return false;
     }
     return true;
@@ -185,7 +186,7 @@ std::wstring Describe(const Operation& operation, std::wstring_view reason)
     std::wstring text = registry_path::Format(operation.path, registry_path::Style::kAbbreviated);
     if (operation.kind == Operation::Kind::kValue || operation.kind == Operation::Kind::kRemoveValue)
     {
-        text += L" : " + (operation.value.name.empty() ? std::wstring(L"(Default)") : operation.value.name);
+        text += L" : " + (operation.value.name.empty() ? std::wstring(util::Tr(L"(Default)")) : operation.value.name);
     }
     return text + L" (" + std::wstring(reason) + L")";
 }

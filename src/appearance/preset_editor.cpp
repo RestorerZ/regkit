@@ -17,6 +17,7 @@
 #include "appearance/list_view_support.h"
 #include "win32/file_dialog.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 
 namespace regkit
@@ -26,7 +27,6 @@ namespace
 {
 
 constexpr wchar_t kThemePresetClass[] = L"RegKitThemePresetsWindow";
-constexpr wchar_t kThemePresetTitle[] = L"Theme Presets";
 
 constexpr int kWindowWidth = 580;
 constexpr int kWindowHeight = 360;
@@ -68,19 +68,19 @@ struct ColorField
 };
 
 constexpr ColorField kColorFields[] = {
-    {L"Background", &ThemeColors::background},
-    {L"Panel", &ThemeColors::panel},
-    {L"Surface", &ThemeColors::surface},
-    {L"Field", &ThemeColors::field},
-    {L"Header", &ThemeColors::header},
-    {L"Border", &ThemeColors::border},
-    {L"Text", &ThemeColors::text},
-    {L"Muted Text", &ThemeColors::muted_text},
-    {L"Accent", &ThemeColors::accent},
-    {L"Selection", &ThemeColors::selection},
-    {L"Selection Text", &ThemeColors::selection_text},
-    {L"Hover", &ThemeColors::hover},
-    {L"Focus", &ThemeColors::focus},
+    {util::TrNoop(L"Background"), &ThemeColors::background},
+    {util::TrNoop(L"Panel"), &ThemeColors::panel},
+    {util::TrNoop(L"Surface"), &ThemeColors::surface},
+    {util::TrNoop(L"Field"), &ThemeColors::field},
+    {util::TrNoop(L"Header"), &ThemeColors::header},
+    {util::TrNoop(L"Border"), &ThemeColors::border},
+    {util::TrNoop(L"Text"), &ThemeColors::text},
+    {util::TrNoop(L"Muted Text"), &ThemeColors::muted_text},
+    {util::TrNoop(L"Accent"), &ThemeColors::accent},
+    {util::TrNoop(L"Selection"), &ThemeColors::selection},
+    {util::TrNoop(L"Selection Text"), &ThemeColors::selection_text},
+    {util::TrNoop(L"Hover"), &ThemeColors::hover},
+    {util::TrNoop(L"Focus"), &ThemeColors::focus},
 };
 
 struct ThemePresetWindowState : appearance::DialogWindow
@@ -176,7 +176,7 @@ bool PromptPresetName(ThemePresetWindowState* state, HWND owner, const wchar_t* 
     }
     if (name.empty())
     {
-        ui::ShowError(owner, L"Preset name can't be empty.");
+        ui::ShowError(owner, util::Tr(L"Preset name can't be empty."));
         return false;
     }
     *out_name = name;
@@ -263,11 +263,11 @@ void SetupColorListView(HWND list)
     LVCOLUMNW col = {};
     col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
     col.cx = 150;
-    col.pszText = const_cast<wchar_t*>(L"Color");
+    col.pszText = const_cast<wchar_t*>(util::Tr(L"Color"));
     col.iSubItem = 0;
     ListView_InsertColumn(list, 0, &col);
     col.cx = 90;
-    col.pszText = const_cast<wchar_t*>(L"Hex");
+    col.pszText = const_cast<wchar_t*>(util::Tr(L"Hex"));
     col.iSubItem = 1;
     ListView_InsertColumn(list, 1, &col);
     EnsureSubclass(list, ThemePresetListViewProc, kThemePresetListViewSubclassId);
@@ -292,7 +292,7 @@ int CALLBACK CompareColorListItems(LPARAM left_param, LPARAM right_param, int co
     int result = 0;
     if (column == 0)
     {
-        result = util::CompareListText(kColorFields[left_index].label, kColorFields[right_index].label);
+        result = util::CompareListText(util::Tr(kColorFields[left_index].label), util::Tr(kColorFields[right_index].label));
     }
     else if (column == 1)
     {
@@ -343,7 +343,7 @@ void FillColorList(ThemePresetWindowState* state, const ThemePreset* preset)
         LVITEMW item = {};
         item.mask = LVIF_TEXT | LVIF_PARAM;
         item.iItem = static_cast<int>(i);
-        item.pszText = const_cast<wchar_t*>(field.label);
+        item.pszText = const_cast<wchar_t*>(util::Tr(field.label));
         item.lParam = static_cast<LPARAM>(i);
         int index = ListView_InsertItem(list, &item);
         if (index >= 0)
@@ -472,8 +472,15 @@ void LayoutControls(ThemePresetWindowState* state)
     const int content_h = std::max(Scaled(100, dpi), height - content_top - padding - button_h - gap);
     const int button_rows_h = button_h * 3 + gap * 2;
 
+    auto fit = [](HWND button, int minimum) { return std::max(minimum, appearance::TextFitWidth(button)); };
+    const int new_w = fit(state->new_btn, button_w);
+    const int duplicate_w = fit(state->duplicate_btn, wide_button_w);
+    const int rename_w = fit(state->rename_btn, wide_button_w);
+    const int delete_w = fit(state->delete_btn, button_w);
+    const int import_w = fit(state->import_btn, wide_button_w);
+    const int export_w = fit(state->export_btn, wide_button_w);
     const int left_x = padding;
-    const int left_w = Scaled(kLeftPanelWidth, dpi);
+    const int left_w = std::max(Scaled(kLeftPanelWidth, dpi), std::max({new_w + duplicate_w, rename_w + delete_w, import_w + export_w}) + button_gap + box_padding * 2);
     const int right_x = left_x + left_w + gap;
     const int right_w = std::max(Scaled(180, dpi), width - right_x - padding);
 
@@ -500,12 +507,12 @@ void LayoutControls(ThemePresetWindowState* state)
     {
         ListView_SetColumnWidth(state->preset_list, 0, LVSCW_AUTOSIZE_USEHEADER);
     }
-    appearance::Place(state->new_btn, left_inner_x, row1_y, button_w, button_h);
-    appearance::Place(state->duplicate_btn, left_inner_x + button_w + button_gap, row1_y, wide_button_w, button_h);
-    appearance::Place(state->rename_btn, left_inner_x, row2_y, wide_button_w, button_h);
-    appearance::Place(state->delete_btn, left_inner_x + wide_button_w + button_gap, row2_y, button_w, button_h);
-    appearance::Place(state->import_btn, left_inner_x, row3_y, wide_button_w, button_h);
-    appearance::Place(state->export_btn, left_inner_x + wide_button_w + button_gap, row3_y, wide_button_w, button_h);
+    appearance::Place(state->new_btn, left_inner_x, row1_y, new_w, button_h);
+    appearance::Place(state->duplicate_btn, left_inner_x + new_w + button_gap, row1_y, duplicate_w, button_h);
+    appearance::Place(state->rename_btn, left_inner_x, row2_y, rename_w, button_h);
+    appearance::Place(state->delete_btn, left_inner_x + rename_w + button_gap, row2_y, delete_w, button_h);
+    appearance::Place(state->import_btn, left_inner_x, row3_y, import_w, button_h);
+    appearance::Place(state->export_btn, left_inner_x + import_w + button_gap, row3_y, export_w, button_h);
 
     appearance::Place(state->colors_group, right_x, content_top, right_w, colors_group_h);
     const int colors_inner_x = right_x + box_padding;
@@ -516,7 +523,7 @@ void LayoutControls(ThemePresetWindowState* state)
     appearance::Place(state->color_list, colors_inner_x, color_list_y, colors_inner_w, color_list_h);
 
     const int edit_row_y = color_list_y + color_list_h + gap;
-    const int edit_btn_w = Scaled(kEditColorButtonWidth, dpi);
+    const int edit_btn_w = fit(state->edit_color_btn, Scaled(kEditColorButtonWidth, dpi));
     appearance::Place(state->edit_color_btn, colors_inner_x, edit_row_y, edit_btn_w, button_h);
     appearance::Place(state->dark_check, colors_inner_x + edit_btn_w + gap, edit_row_y, colors_inner_w - edit_btn_w - gap, button_h);
 
@@ -525,17 +532,20 @@ void LayoutControls(ThemePresetWindowState* state)
     const int templates_inner_x = right_x + box_padding;
     const int templates_inner_w = right_w - box_padding * 2;
     const int template_row_y = templates_group_y + caption_h;
-    const int template_btn_w = Scaled(kTemplateButtonWidth, dpi);
+    const int template_btn_w = fit(state->template_btn, Scaled(kTemplateButtonWidth, dpi));
     const int combo_w = std::max(Scaled(120, dpi), templates_inner_w - template_btn_w - gap);
     appearance::Place(state->template_combo, templates_inner_x, template_row_y, combo_w, button_h);
     appearance::Place(state->template_btn, templates_inner_x + combo_w + gap, template_row_y, template_btn_w, button_h);
 
     const int bottom_y = height - bottom_margin - button_h;
-    const int cancel_x = width - right_margin - button_w;
-    const int ok_x = cancel_x - button_gap - button_w;
-    appearance::Place(state->apply_btn, ok_x - button_gap - button_w, bottom_y, button_w, button_h);
-    appearance::Place(state->ok_btn, ok_x, bottom_y, button_w, button_h);
-    appearance::Place(state->cancel_btn, cancel_x, bottom_y, button_w, button_h);
+    const int apply_w = fit(state->apply_btn, button_w);
+    const int ok_w = fit(state->ok_btn, button_w);
+    const int cancel_w = fit(state->cancel_btn, button_w);
+    const int cancel_x = width - right_margin - cancel_w;
+    const int ok_x = cancel_x - button_gap - ok_w;
+    appearance::Place(state->apply_btn, ok_x - button_gap - apply_w, bottom_y, apply_w, button_h);
+    appearance::Place(state->ok_btn, ok_x, bottom_y, ok_w, button_h);
+    appearance::Place(state->cancel_btn, cancel_x, bottom_y, cancel_w, button_h);
 }
 
 void CreateControls(ThemePresetWindowState* state)
@@ -547,47 +557,47 @@ void CreateControls(ThemePresetWindowState* state)
     HWND hwnd = state->hwnd;
 
     state->presets_group =
-        CreateWindowExW(0, L"BUTTON", L"Presets", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+        CreateWindowExW(0, L"BUTTON", util::Tr(L"Presets"), WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
     state->preset_list = appearance::CreateControl(hwnd, WC_LISTVIEWW, L"", WS_TABSTOP | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | LVS_NOSORTHEADER, kPresetListId);
 
     state->new_btn =
-        appearance::CreateControl(hwnd, L"BUTTON", L"New...", WS_TABSTOP | BS_PUSHBUTTON, kNewPresetId);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"New..."), WS_TABSTOP | BS_PUSHBUTTON, kNewPresetId);
     state->duplicate_btn =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Duplicate", WS_TABSTOP | BS_PUSHBUTTON, kDuplicatePresetId);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Duplicate"), WS_TABSTOP | BS_PUSHBUTTON, kDuplicatePresetId);
     state->rename_btn =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Rename...", WS_TABSTOP | BS_PUSHBUTTON, kRenamePresetId);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Rename..."), WS_TABSTOP | BS_PUSHBUTTON, kRenamePresetId);
     state->delete_btn =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Delete", WS_TABSTOP | BS_PUSHBUTTON, kDeletePresetId);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Delete"), WS_TABSTOP | BS_PUSHBUTTON, kDeletePresetId);
     state->import_btn =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Import...", WS_TABSTOP | BS_PUSHBUTTON, kImportPresetId);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Import..."), WS_TABSTOP | BS_PUSHBUTTON, kImportPresetId);
     state->export_btn =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Export...", WS_TABSTOP | BS_PUSHBUTTON, kExportPresetId);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Export..."), WS_TABSTOP | BS_PUSHBUTTON, kExportPresetId);
 
     state->colors_group =
-        CreateWindowExW(0, L"BUTTON", L"Colors", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+        CreateWindowExW(0, L"BUTTON", util::Tr(L"Colors"), WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
     state->color_list = appearance::CreateControl(hwnd, WC_LISTVIEWW, L"", WS_TABSTOP | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS, kColorListId);
 
     state->edit_color_btn =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Edit Color...", WS_TABSTOP | BS_PUSHBUTTON, kEditColorId);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Edit Color..."), WS_TABSTOP | BS_PUSHBUTTON, kEditColorId);
 
     state->dark_check =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Treat as dark theme", WS_TABSTOP | BS_AUTOCHECKBOX, kDarkCheckId);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Treat as dark theme"), WS_TABSTOP | BS_AUTOCHECKBOX, kDarkCheckId);
 
     state->templates_group =
-        CreateWindowExW(0, L"BUTTON", L"Templates", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+        CreateWindowExW(0, L"BUTTON", util::Tr(L"Templates"), WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_GROUPBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
 
     state->template_combo =
         appearance::CreateControl(hwnd, WC_COMBOBOXW, L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, kTemplateComboId);
 
     state->template_btn =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Apply Template", WS_TABSTOP | BS_PUSHBUTTON, kApplyTemplateId);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Apply Template"), WS_TABSTOP | BS_PUSHBUTTON, kApplyTemplateId);
 
     state->apply_btn =
-        appearance::CreateControl(hwnd, L"BUTTON", L"Apply", WS_TABSTOP | BS_PUSHBUTTON, kApplyId);
-    state->ok_btn = appearance::CreateControl(hwnd, L"BUTTON", L"OK", WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
-    state->cancel_btn = appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
+        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Apply"), WS_TABSTOP | BS_PUSHBUTTON, kApplyId);
+    state->ok_btn = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"OK"), WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
+    state->cancel_btn = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
 
     for (HWND group : {state->presets_group, state->colors_group, state->templates_group})
     {
@@ -679,7 +689,7 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
             case kNewPresetId:
                 {
                     std::wstring name;
-                    if (!PromptPresetName(state, hwnd, L"New Preset", L"", &name))
+                    if (!PromptPresetName(state, hwnd, util::Tr(L"New Preset"), L"", &name))
                     {
                         return 0;
                     }
@@ -716,7 +726,7 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
                         return 0;
                     }
                     std::wstring name;
-                    if (!PromptPresetName(state, hwnd, L"Rename Preset", preset->name, &name))
+                    if (!PromptPresetName(state, hwnd, util::Tr(L"Rename Preset"), preset->name, &name))
                     {
                         return 0;
                     }
@@ -729,7 +739,7 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
                 {
                     if (state->presets.size() <= 1)
                     {
-                        ui::ShowWarning(hwnd, L"At least one preset must remain.");
+                        ui::ShowWarning(hwnd, util::Tr(L"At least one preset must remain."));
                         return 0;
                     }
                     ThemePreset* preset = CurrentPreset(state);
@@ -737,7 +747,7 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
                     {
                         return 0;
                     }
-                    if (!ui::ConfirmDelete(hwnd, L"Delete Preset", preset->name))
+                    if (!ui::ConfirmDelete(hwnd, util::Tr(L"Delete Preset"), preset->name))
                     {
                         return 0;
                     }
@@ -761,7 +771,7 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
                     std::wstring error;
                     if (!ThemePresetStore::ImportFromFile(path, &imported, &error))
                     {
-                        ui::ShowError(hwnd, error.empty() ? L"Failed to import theme presets." : error);
+                        ui::ShowError(hwnd, error.empty() ? util::Tr(L"Failed to import theme presets.") : error);
                         return 0;
                     }
                     if (!imported.empty())
@@ -788,7 +798,7 @@ LRESULT CALLBACK ThemePresetWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
                     std::wstring error;
                     if (!ThemePresetStore::ExportToFile(path, state->presets, &error))
                     {
-                        ui::ShowError(hwnd, error.empty() ? L"Failed to export theme presets." : error);
+                        ui::ShowError(hwnd, error.empty() ? util::Tr(L"Failed to export theme presets.") : error);
                     }
                     else if (open_after == win32::OpenAfter::kEditor)
                     {
@@ -917,7 +927,7 @@ void appearance::ShowThemePresetEditor(HWND owner, const std::vector<ThemePreset
     state.active_name = active_name;
     const UINT dpi = win32::DpiForWindow(owner);
     const SIZE size = appearance::DialogWindowSize(owner, appearance::metrics::Scaled(kWindowWidth, dpi), appearance::metrics::Scaled(kWindowHeight, dpi), WS_CLIPCHILDREN);
-    appearance::RunDialogWindow(&state, kThemePresetClass, ThemePresetWindowProc, kThemePresetTitle, size, WS_CLIPCHILDREN);
+    appearance::RunDialogWindow(&state, kThemePresetClass, ThemePresetWindowProc, util::Tr(L"Theme Presets"), size, WS_CLIPCHILDREN);
 }
 
 } // namespace regkit

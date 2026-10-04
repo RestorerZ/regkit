@@ -69,6 +69,9 @@ Name: "comments"; Description: "Default comments"; Types: full
 Name: "traces"; Description: "Trace files for the Trace menu"; Types: full
 Name: "bitfields"; Description: "Bitfield definitions"; Types: full
 Name: "defaults"; Description: "Registry exports for the Default menu"; Types: full
+Name: "lang"; Description: "Languages"
+Name: "lang\de"; Description: "Deutsch"; Types: full; Check: SystemLanguage(7)
+Name: "lang\de_other"; Description: "Deutsch"; Check: not SystemLanguage(7)
 
 [Tasks]
 Name: "startmenu"; Description: "Start Menu shortcut"; GroupDescription: "Shortcuts:"; Flags: checkedonce
@@ -84,6 +87,7 @@ Source: "{#BuildDir}\assets\icons\classic\*"; DestDir: "{app}\assets\icons\class
 Source: "{#BuildDir}\assets\comments\*"; DestDir: "{app}\assets\comments"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: comments
 Source: "{#BuildDir}\assets\records\*"; DestDir: "{app}\assets\records"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: traces
 Source: "{#BuildDir}\assets\bitfields\*"; DestDir: "{app}\assets\bitfields"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: bitfields
+Source: "{#BuildDir}\assets\lang\de.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\de lang\de_other
 Source: "{#BuildDir}\assets\defaults\*"; DestDir: "{app}\assets\defaults"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: defaults
 
 [Icons]
@@ -96,6 +100,12 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\DefaultIcon"; Va
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\SupportedTypes"; ValueType: string; ValueName: ".reg"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\shell\open\command"; ValueType: string; ValueData: """{app}\{#AppExeName}"" ""%1"""
 [Code]
+// full installs only the pack of the Windows display language
+function SystemLanguage(PrimaryLanguage: Integer): Boolean;
+begin
+  Result := (GetUILanguage and $3FF) = PrimaryLanguage;
+end;
+
 function ConfirmOverride: Boolean;
 var
   Form: TSetupForm;

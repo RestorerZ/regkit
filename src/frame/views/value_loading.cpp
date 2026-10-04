@@ -4,6 +4,7 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -119,7 +120,7 @@ void MainWindow::Impl::StartValueListWorker()
                     continue;
                 }
                 TraceMatch match;
-                match.label = trace.label.empty() ? L"Trace" : trace.label;
+                match.label = trace.label.empty() ? util::Tr(L"Trace") : trace.label;
                 match.values = it->second;
                 match.selection = trace.selection.get();
                 trace_matches.push_back(std::move(match));
@@ -176,7 +177,7 @@ void MainWindow::Impl::StartValueListWorker()
                     continue;
                 }
                 auto it = match.values.values.find(value_lower);
-                std::wstring text = it != match.values.values.end() ? it->second.data : std::wstring(L"(Missing)");
+                std::wstring text = it != match.values.values.end() ? it->second.data : std::wstring(util::Tr(L"(Missing)"));
                 auto group = std::find_if(groups.begin(), groups.end(), [&](const DefaultGroup& entry) { return entry.text == text; });
                 if (group == groups.end())
                 {
@@ -225,7 +226,7 @@ void MainWindow::Impl::StartValueListWorker()
                 const RegistryNode child = registry_path::ChildNode(task->snapshot, name);
                 const KeyInspection inspection = RegistryStore::InspectKey(child, task->include_dates || task->include_details);
                 row.image_index = key_icon(child, inspection);
-                row.type = inspection.link ? L"Link" : L"Key";
+                row.type = inspection.link ? util::Tr(L"Link") : util::Tr(L"Key");
                 row.extra = name;
                 row.kind = rowkind::kKey;
                 const KeyInfo& info = inspection.info;
@@ -240,7 +241,7 @@ void MainWindow::Impl::StartValueListWorker()
                     row.detail_key_count = info.subkey_count;
                     row.detail_value_count = info.value_count;
                     row.has_details = true;
-                    row.details = L"Keys: " + std::to_wstring(info.subkey_count) + L", Values: " + std::to_wstring(info.value_count);
+                    row.details = util::TrLabel(L"Keys", std::to_wstring(info.subkey_count)) + L", " + util::TrLabel(L"Values", std::to_wstring(info.value_count));
                 }
                 payload->rows.emplace_back(std::move(row));
             }
@@ -254,7 +255,7 @@ void MainWindow::Impl::StartValueListWorker()
                 row.name = registry_path::DisplayName(name);
                 row.image_index = kFolderSimIconIndex;
                 row.simulated = true;
-                row.type = L"Key";
+                row.type = util::Tr(L"Key");
                 row.extra = name;
                 row.kind = rowkind::kKey;
                 payload->rows.emplace_back(std::move(row));
@@ -303,9 +304,9 @@ void MainWindow::Impl::StartValueListWorker()
         auto format_read_on_boot = [&](const std::vector<std::wstring>& labels) -> std::wstring {
             if (labels.empty())
             {
-                return L"No";
+                return util::Tr(L"No");
             }
-            std::wstring out = L"Yes (";
+            std::wstring out = util::Tr(L"Yes") + std::wstring(L" (");
             for (size_t i = 0; i < labels.size(); ++i)
             {
                 if (i > 0)
@@ -370,7 +371,7 @@ void MainWindow::Impl::StartValueListWorker()
             row.value_data_size = link_bytes;
             row.has_size = true;
             row.value_type = REG_LINK;
-            row.read_on_boot = have_traces ? L"No" : L"";
+            row.read_on_boot = have_traces ? util::Tr(L"No") : L"";
             row.simulated = true;
             payload->rows.emplace_back(std::move(row));
         }
@@ -378,9 +379,9 @@ void MainWindow::Impl::StartValueListWorker()
         if (!has_default)
         {
             ListRow row;
-            row.name = L"(Default)";
+            row.name = util::Tr(L"(Default)");
             row.type = L"REG_SZ";
-            row.data = L"(value not set)";
+            row.data = util::Tr(L"(value not set)");
             row.data_ready = true;
             row.image_index = kValueIconIndex;
             row.kind = rowkind::kValue;
@@ -424,9 +425,9 @@ void MainWindow::Impl::StartValueListWorker()
                         continue;
                     }
                     ListRow row;
-                    row.name = value_name.empty() ? L"(Default)" : value_name;
+                    row.name = value_name.empty() ? util::Tr(L"(Default)") : value_name;
                     row.type = L"TRACE";
-                    row.data = L"(value not set)";
+                    row.data = util::Tr(L"(value not set)");
                     row.read_on_boot = format_read_on_boot(gather_labels(value_lower));
                     row.image_index = kTraceIconIndex;
                     row.kind = rowkind::kValue;

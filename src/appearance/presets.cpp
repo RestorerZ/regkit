@@ -8,6 +8,7 @@
 #include "win32/file_text.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -181,7 +182,7 @@ bool ParsePresets(const std::wstring& content, std::vector<ThemePreset>* presets
     auto fail = [&](const std::wstring& text) {
         if (error)
         {
-            *error = L"The theme preset file contains an entry RegKit can't parse:\n" + text;
+            *error = util::TrDetail(L"The theme preset file contains an entry RegKit can't parse.", text);
         }
         presets->clear();
         return false;
@@ -234,7 +235,7 @@ bool WritePresetFile(const std::wstring& path, const std::vector<ThemePreset>& p
     }
     if (error)
     {
-        *error = L"Failed to write the theme preset file.";
+        *error = util::Tr(L"Failed to write the theme preset file.");
     }
     return false;
 }
@@ -286,7 +287,7 @@ bool ThemePresetStore::ImportFromFile(const std::wstring& path, std::vector<Them
     }
     if (error && (!read || presets->empty()))
     {
-        *error = read ? L"No theme presets were found in the file." : L"Failed to open the theme preset file.";
+        *error = read ? util::Tr(L"No theme presets were found in the file.") : util::Tr(L"Failed to open the theme preset file.");
     }
     return false;
 }

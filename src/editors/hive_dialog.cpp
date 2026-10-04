@@ -6,6 +6,7 @@
 #include "appearance/feedback.h"
 #include "editors/dialog_support.h"
 #include "win32/file_dialog.h"
+#include "win32/translation.h"
 
 #include "resource.h"
 
@@ -97,18 +98,18 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         state->value.file = dialog_support::ReadText(dialog, IDC_LOAD_HIVE_PATH);
         if (state->value.file.empty())
         {
-            ui::ShowError(dialog, L"Select a hive file.");
+            ui::ShowError(dialog, util::Tr(L"Select a hive file."));
             return TRUE;
         }
         state->value.key_name = dialog_support::ReadText(dialog, IDC_LOAD_HIVE_NAME);
         if (state->value.key_name.empty())
         {
-            ui::ShowError(dialog, L"Enter a key name for the loaded hive.");
+            ui::ShowError(dialog, util::Tr(L"Enter a key name for the loaded hive."));
             return TRUE;
         }
         if (state->value.key_name.find(L'\\') != std::wstring::npos)
         {
-            ui::ShowError(dialog, L"The key name can't contain a backslash.");
+            ui::ShowError(dialog, util::Tr(L"The key name can't contain a backslash."));
             return TRUE;
         }
         state->value.root =
@@ -198,12 +199,12 @@ INT_PTR CALLBACK SymbolicLinkDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARA
                     state->target = dialog_support::ReadText(dlg, IDC_SYMLINK_TARGET);
                     if (state->name.empty() || state->target.empty())
                     {
-                        ui::ShowWarning(dlg, L"Enter a link name and a target key.");
+                        ui::ShowWarning(dlg, util::Tr(L"Enter a link name and a target key."));
                         return TRUE;
                     }
                     if (state->name.find(L'\\') != std::wstring::npos)
                     {
-                        ui::ShowWarning(dlg, L"The link name can't contain a backslash.");
+                        ui::ShowWarning(dlg, util::Tr(L"The link name can't contain a backslash."));
                         return TRUE;
                     }
                 }

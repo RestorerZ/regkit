@@ -41,7 +41,7 @@ bool MainWindow::Impl::Create(HINSTANCE instance)
     }
     else if (util::IsProcessElevated())
     {
-        title.append(L" - [Administrator]");
+        title.append(L" - [").append(util::Tr(L"Administrator")).append(L"]");
     }
     hwnd_ = CreateWindowExW(0, wc.lpszClassName, title.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, 1200, 800, nullptr, nullptr, instance, this);
     if (hwnd_)

@@ -1,6 +1,7 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+#include "win32/translation.h"
 #include "workspace/favorites.h"
 
 #include "registry/key_algorithms.h"
@@ -125,7 +126,7 @@ bool FavoritesStore::ImportFromRegEdit(size_t* imported_count, std::wstring* err
     {
         if (error)
         {
-            *error = L"Failed to save favorites.";
+            *error = util::Tr(L"Failed to save favorites.");
         }
         return false;
     }

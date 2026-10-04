@@ -7,6 +7,7 @@
 #include "editors/dialog_support.h"
 #include "win32/file_dialog.h"
 #include "win32/shell_paths.h"
+#include "win32/translation.h"
 
 #include "resource.h"
 
@@ -38,7 +39,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         SetDlgItemTextW(dialog, IDC_EXPORT_PATH, state->value.path.c_str());
         CheckDlgButton(dialog, IDC_EXPORT_RANGE_BRANCH, state->value.include_subkeys ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(dialog, IDC_EXPORT_RANGE_KEY, state->value.include_subkeys ? BST_UNCHECKED : BST_CHECKED);
-        for (const wchar_t* item : {L"Don't open", L"In text editor", L"In RegKit"})
+        for (const wchar_t* item : {util::Tr(L"Don't open"), util::Tr(L"In text editor"), util::Tr(L"In RegKit")})
         {
             SendDlgItemMessageW(dialog, IDC_EXPORT_OPEN_AFTER, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item));
         }
@@ -79,7 +80,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         state->value.path = util::EnsureFileExtension(dialog_support::ReadText(dialog, IDC_EXPORT_PATH), L".reg");
         if (state->value.path.empty())
         {
-            ui::ShowError(dialog, L"Select a destination file.");
+            ui::ShowError(dialog, util::Tr(L"Select a destination file."));
             return TRUE;
         }
         if (!ui::ConfirmOverwrite(dialog, state->value.path, state->confirmed_path))

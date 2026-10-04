@@ -6,6 +6,7 @@
 
 #include "regfile/registry_transfer.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -45,11 +46,11 @@ bool AcceptHandoffFile(HWND owner, const std::wstring& path)
     {
         ui::ShowWarning(
             owner,
-            L"RegKit is running with elevated rights and only opens local files handed to it by another instance."
+            util::Tr(L"RegKit is running with elevated rights and only opens local files handed to it by another instance.")
         );
         return false;
     }
-    return ui::PromptKeyChoice(owner, L"Another RegKit instance asked this elevated window to open a .reg file.\n\nOpen it?", path, L"Open .reg file", L"Open", L"", L"Cancel") == IDYES;
+    return ui::PromptKeyChoice(owner, util::Tr(L"Another RegKit instance asked this elevated window to open a .reg file.\n\nOpen it?"), path, util::Tr(L"Open .reg File"), util::Tr(L"Open"), L"", util::Tr(L"Cancel")) == IDYES;
 }
 
 bool IsSiblingRegKitWindow(HWND sender)
@@ -603,7 +604,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
             search_duration_valid_ = false;
             const auto regex_status = static_cast<search::regex::Status>(lparam);
             const std::wstring detail = search::regex::StatusText(regex_status);
-            ui::ShowError(hwnd_, detail.empty() ? std::wstring(L"The find text isn't a valid regular expression.") : detail);
+            ui::ShowError(hwnd_, detail.empty() ? std::wstring(util::Tr(L"The find text isn't a valid regular expression.")) : detail);
             ApplyViewVisibility();
             UpdateStatus();
             return 0;
@@ -1249,7 +1250,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
             {
                 if (!NavigateToExternalJump(*target))
                 {
-                    ui::ShowWarning(hwnd_, L"Registry path not found:\n" + *target);
+                    ui::ShowWarning(hwnd_, util::TrDetail(L"Registry path not found.", *target));
                 }
             }
             else

@@ -12,6 +12,7 @@
 #include "editors/bitfield_definition_editor.h"
 #include "editors/dialog_support.h"
 #include "win32/file_dialog.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 
 #include "resource.h"
@@ -297,7 +298,7 @@ void RefreshCombo(HWND dialog, Editor* editor)
     SendMessageW(combo, CB_RESETCONTENT, 0, 0);
     for (size_t i = 0; i < editor->choices.size(); ++i)
     {
-        const std::wstring label = i == 0 ? std::wstring(L"(none)") : bitfield::DisplayName(editor->choices[i]);
+        const std::wstring label = i == 0 ? std::wstring(util::Tr(L"(none)")) : bitfield::DisplayName(editor->choices[i]);
         if (static_cast<int>(i) != editor->choice && !dialog_support::Matches(label, filter))
         {
             continue;
@@ -372,17 +373,17 @@ bool AcceptDefinition(HWND dialog, const Editor& editor, const Definition& defin
 {
     if (!FitsWindow(editor, definition))
     {
-        ui::ShowError(dialog, editor.binary_mode ? L"The definition describes bytes outside this value." : L"The definition was made for a different value width.");
+        ui::ShowError(dialog, editor.binary_mode ? util::Tr(L"The definition describes bytes outside this value.") : util::Tr(L"The definition was made for a different value width."));
         return false;
     }
     if (!definition.value_name.empty() && !util::EqualsInsensitive(definition.value_name, editor.value_name))
     {
-        std::wstring message = L"This definition was made for a different value.\r\n\r\nDefinition: ";
-        message.append(definition.value_name)
-            .append(L"\r\nThis value: ")
-            .append(editor.value_name.empty() ? L"(Default)" : editor.value_name);
-        message.append(L"\r\n\r\nUse it anyway?");
-        if (ui::PromptChoice(dialog, message, L"Bit Definition", L"Use", L"Cancel", L"") != IDYES)
+        std::wstring message = util::Tr(L"This definition was made for a different value. Use it anyway?");
+        message.append(L"\r\n\r\n")
+            .append(util::TrLabel(L"Definition", definition.value_name))
+            .append(L"\r\n")
+            .append(util::TrLabel(L"This value", editor.value_name.empty() ? util::Tr(L"(Default)") : editor.value_name));
+        if (ui::PromptChoice(dialog, message, util::Tr(L"Bit Definition"), util::Tr(L"Use"), util::Tr(L"Cancel"), L"") != IDYES)
         {
             return false;
         }
@@ -425,7 +426,7 @@ void LoadFromFile(HWND dialog, Editor* editor)
     std::vector<Definition>& chosen = named.empty() ? fitting : named;
     if (chosen.empty())
     {
-        ui::ShowError(dialog, editor->binary_mode ? L"No definition in that file fits this value." : L"No definition in that file was made for this value width.");
+        ui::ShowError(dialog, editor->binary_mode ? util::Tr(L"No definition in that file fits this value.") : util::Tr(L"No definition in that file was made for this value width."));
         return;
     }
     if (named.empty() && !AcceptDefinition(dialog, *editor, chosen.front()))
@@ -635,8 +636,8 @@ void ShowRowMenu(HWND dialog, Editor* editor, int row, POINT screen)
         return;
     }
     const UINT edit_flags = editor->read_only ? MF_GRAYED : 0;
-    AppendMenuW(menu, MF_STRING | edit_flags | (set ? MF_GRAYED : 0), kMenuEnable, L"Enable Bit");
-    AppendMenuW(menu, MF_STRING | edit_flags | (set ? 0 : MF_GRAYED), kMenuDisable, L"Disable Bit");
+    AppendMenuW(menu, MF_STRING | edit_flags | (set ? MF_GRAYED : 0), kMenuEnable, util::Tr(L"Enable Bit"));
+    AppendMenuW(menu, MF_STRING | edit_flags | (set ? 0 : MF_GRAYED), kMenuDisable, util::Tr(L"Disable Bit"));
     if (field && !field->states.empty())
     {
         HMENU states = CreatePopupMenu();
@@ -647,14 +648,14 @@ void ShowRowMenu(HWND dialog, Editor* editor, int row, POINT screen)
             std::wstring label = state.name + L"   (" + std::to_wstring(state.value) + L")";
             AppendMenuW(states, MF_STRING | edit_flags | (state.value == current ? MF_CHECKED : 0), kMenuStateBase + i, label.c_str());
         }
-        AppendMenuW(menu, MF_POPUP | edit_flags, reinterpret_cast<UINT_PTR>(states), L"Set Field To");
+        AppendMenuW(menu, MF_POPUP | edit_flags, reinterpret_cast<UINT_PTR>(states), util::Tr(L"Set Field To"));
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, kMenuEditField, field ? L"Edit Field..." : L"Describe Bit...");
-    AppendMenuW(menu, MF_STRING | (field ? 0 : MF_GRAYED), kMenuRemoveField, L"Remove Field");
+    AppendMenuW(menu, MF_STRING, kMenuEditField, field ? util::Tr(L"Edit Field...") : util::Tr(L"Describe Bit..."));
+    AppendMenuW(menu, MF_STRING | (field ? 0 : MF_GRAYED), kMenuRemoveField, util::Tr(L"Remove Field"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, kMenuCopyMask, L"Copy Mask");
-    AppendMenuW(menu, MF_STRING, kMenuCopyRow, L"Copy Row");
+    AppendMenuW(menu, MF_STRING, kMenuCopyMask, util::Tr(L"Copy Mask"));
+    AppendMenuW(menu, MF_STRING, kMenuCopyRow, util::Tr(L"Copy Row"));
 
     const int chosen =
         TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen.x, screen.y, 0, dialog, nullptr);
@@ -782,8 +783,8 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     {
         editor = reinterpret_cast<Editor*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(editor));
-        SetWindowTextW(dialog, L"Edit Bits");
-        SetDlgItemTextW(dialog, IDC_VALUE_NAME, editor->value_name.empty() ? L"(Default)" : editor->value_name.c_str());
+        SetWindowTextW(dialog, util::Tr(L"Edit Bits"));
+        SetDlgItemTextW(dialog, IDC_VALUE_NAME, editor->value_name.empty() ? util::Tr(L"(Default)") : editor->value_name.c_str());
         SendDlgItemMessageW(dialog, IDC_VALUE_NAME, EM_SETREADONLY, TRUE, 0);
         SendDlgItemMessageW(dialog, IDC_BITFIELD_COMMENT, EM_SETREADONLY, TRUE, 0);
         const HWND name = GetDlgItem(dialog, IDC_VALUE_NAME);
@@ -797,7 +798,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         dialog_support::SetupListView(
             GetDlgItem(dialog, IDC_BITFIELD_LIST),
             editor->read_only ? 0u : static_cast<DWORD>(LVS_EX_CHECKBOXES),
-            {{L"Bit", 44}, {L"Mask", 150}, {L"State", 62}, {L"Field", 160}, {L"Value", 110}, {L"Meaning", 420}}
+            {{util::Tr(L"Bit"), 44}, {util::Tr(L"Mask"), 150}, {util::Tr(L"State"), 62}, {util::Tr(L"Field"), 160}, {util::Tr(L"Value"), 110}, {util::Tr(L"Meaning"), 420}}
         );
         PopulateChoices(dialog, editor);
         dialog_support::Initialize(dialog, &editor->ui_font, {IDC_VALUE_NAME, IDC_BITFIELD_COMMENT});

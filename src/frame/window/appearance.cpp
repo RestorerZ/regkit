@@ -5,6 +5,7 @@
 
 #include "appearance/preset_editor.h"
 #include "editors/value_editor.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -26,7 +27,7 @@ void MainWindow::Impl::ShowThemePresetsDialog()
         [](void*, HWND owner, const wchar_t* title, const std::wstring& initial, std::wstring* name) {
             editors::TextRequest request;
             request.title = title;
-            request.label = L"Preset name:";
+            request.label = util::Tr(L"Preset name:");
             request.text = initial;
             editors::TextResult result;
             if (!editors::EditText(owner, request, &result))

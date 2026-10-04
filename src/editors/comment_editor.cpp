@@ -6,6 +6,7 @@
 #include "appearance/autocomplete.h"
 #include "appearance/dialog_layout.h"
 #include "editors/dialog_support.h"
+#include "win32/translation.h"
 
 #include "resource.h"
 
@@ -70,12 +71,12 @@ void InitControls(HWND dialog, const State* state)
     CheckRadioButton(dialog, IDC_COMMENT_VALUE, IDC_COMMENT_RULE, request.scope.rule ? IDC_COMMENT_RULE : IDC_COMMENT_VALUE);
     if (request.multiple)
     {
-        SetDlgItemTextW(dialog, IDC_COMMENT_VALUE, L"Selected values only");
+        SetDlgItemTextW(dialog, IDC_COMMENT_VALUE, util::Tr(L"Selected values only"));
     }
     SetDlgItemTextW(
         dialog,
         IDC_COMMENT_RULE,
-        (request.multiple ? std::wstring(L"Values with the selected names") : L"Values named " + request.name).c_str()
+        (request.multiple ? std::wstring(util::Tr(L"Values with the selected names")) : util::Tr(L"Values named") + std::wstring(L" ") + request.name).c_str()
     );
     CheckDlgButton(dialog, IDC_COMMENT_TYPE, request.scope.same_type ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(dialog, IDC_COMMENT_SIZE, request.scope.same_size ? BST_CHECKED : BST_UNCHECKED);

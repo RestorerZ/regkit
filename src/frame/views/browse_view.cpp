@@ -5,6 +5,7 @@
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -54,15 +55,15 @@ void MainWindow::Impl::BuildImageLists()
 void MainWindow::Impl::CreateValueColumns()
 {
     browse_.columns().items = {
-        {L"Name", 260, LVCFMT_LEFT},
-        {L"Type", 120, LVCFMT_LEFT},
-        {L"Data", 160, LVCFMT_LEFT},
-        {L"Default", 200, LVCFMT_LEFT},
-        {L"Read on boot", 110, LVCFMT_LEFT},
-        {L"Size", 70, LVCFMT_RIGHT},
-        {L"Date Modified", 140, LVCFMT_LEFT},
-        {L"Details", 160, LVCFMT_LEFT},
-        {L"Comment", 220, LVCFMT_LEFT},
+        {util::Tr(L"Name"), 260, LVCFMT_LEFT},
+        {util::Tr(L"Type"), 120, LVCFMT_LEFT},
+        {util::Tr(L"Data"), 160, LVCFMT_LEFT},
+        {util::Tr(L"Default"), 200, LVCFMT_LEFT},
+        {util::Tr(L"Read on boot"), 110, LVCFMT_LEFT},
+        {util::Tr(L"Size"), 70, LVCFMT_RIGHT},
+        {util::Tr(L"Date Modified"), 140, LVCFMT_LEFT},
+        {util::Tr(L"Details"), 160, LVCFMT_LEFT},
+        {util::Tr(L"Comment"), 220, LVCFMT_LEFT},
     };
     browse_.columns().widths.clear();
     browse_.columns().visible.clear();
@@ -144,10 +145,10 @@ void MainWindow::Impl::CreateValueColumns()
 void MainWindow::Impl::CreateHistoryColumns()
 {
     history_columns_ = {
-        {L"Time", 140, LVCFMT_LEFT},
-        {L"Action", 280, LVCFMT_LEFT},
-        {L"Old Data", 220, LVCFMT_LEFT},
-        {L"New Data", 220, LVCFMT_LEFT},
+        {util::Tr(L"Time"), 140, LVCFMT_LEFT},
+        {util::Tr(L"Action"), 280, LVCFMT_LEFT},
+        {util::Tr(L"Old Data"), 220, LVCFMT_LEFT},
+        {util::Tr(L"New Data"), 220, LVCFMT_LEFT},
     };
     history_column_widths_.clear();
     history_column_visible_.clear();
@@ -261,13 +262,13 @@ void MainWindow::Impl::CreateSearchColumns()
         return;
     }
     search_columns_ = {
-        {L"Path", 320, LVCFMT_LEFT},
-        {L"Value", 180, LVCFMT_LEFT},
-        {L"Type", 110, LVCFMT_LEFT},
-        {L"Data", 360, LVCFMT_LEFT},
-        {L"Size", 80, LVCFMT_RIGHT},
-        {L"Date Modified", 150, LVCFMT_LEFT},
-        {L"Source", 190, LVCFMT_LEFT},
+        {util::Tr(L"Path"), 320, LVCFMT_LEFT},
+        {util::Tr(L"Value"), 180, LVCFMT_LEFT},
+        {util::Tr(L"Type"), 110, LVCFMT_LEFT},
+        {util::Tr(L"Data"), 360, LVCFMT_LEFT},
+        {util::Tr(L"Size"), 80, LVCFMT_RIGHT},
+        {util::Tr(L"Date Modified"), 150, LVCFMT_LEFT},
+        {util::Tr(L"Source"), 190, LVCFMT_LEFT},
     };
     search_column_widths_.clear();
     search_column_visible_.clear();
@@ -279,11 +280,11 @@ void MainWindow::Impl::CreateSearchColumns()
         search_column_visible_.push_back(true);
     }
     compare_columns_ = {
-        {L"Path", 320, LVCFMT_LEFT},
-        {L"Value", 180, LVCFMT_LEFT},
-        {L"First Entry", 320, LVCFMT_LEFT},
-        {L"Second Entry", 320, LVCFMT_LEFT},
-        {L"Result", 90, LVCFMT_LEFT},
+        {util::Tr(L"Path"), 320, LVCFMT_LEFT},
+        {util::Tr(L"Value"), 180, LVCFMT_LEFT},
+        {util::Tr(L"First Entry"), 320, LVCFMT_LEFT},
+        {util::Tr(L"Second Entry"), 320, LVCFMT_LEFT},
+        {util::Tr(L"Result"), 90, LVCFMT_LEFT},
     };
     compare_column_titles_ = {compare_columns_[2].title, compare_columns_[3].title};
     compare_column_widths_.clear();

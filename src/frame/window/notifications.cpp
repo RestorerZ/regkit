@@ -6,6 +6,7 @@
 
 #include "appearance/dialog_layout.h"
 #include "appearance/list_header.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -28,7 +29,7 @@ bool KeyNameExists(const RegistryNode& parent, const std::wstring& name)
 
 void ReportNameTaken(HWND owner, const wchar_t* message, const wchar_t* title, const std::wstring& name)
 {
-    ui::PromptKeyChoice(owner, message, registry_path::DisplayName(name), title, L"", L"", L"OK");
+    ui::PromptKeyChoice(owner, message, registry_path::DisplayName(name), title, L"", L"", util::Tr(L"OK"));
 }
 
 void FormatCellFileTime(const FILETIME& filetime, wchar_t* buffer, int capacity)
@@ -134,14 +135,14 @@ std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item, int displa
             case 0:
                 return row.key_path;
             case 1:
-                return row.is_key ? std::wstring(L"(Key)")
-                                  : (row.value_name.empty() ? std::wstring(L"(Default)") : row.value_name);
+                return row.is_key ? std::wstring(util::Tr(L"(Key)"))
+                                  : (row.value_name.empty() ? std::wstring(util::Tr(L"(Default)")) : row.value_name);
             case 2:
                 return row.first_text;
             case 3:
                 return row.second_text;
             case 4:
-                return row.matches ? std::wstring(L"Same") : std::wstring(L"Different");
+                return row.matches ? std::wstring(util::Tr(L"Same")) : std::wstring(util::Tr(L"Different"));
             default:
                 return std::wstring();
             }
@@ -538,12 +539,12 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
             rename_parent.subkey = registry_path::Parent(node->subkey);
             if (KeyNameExists(rename_parent, new_name))
             {
-                ReportNameTaken(hwnd_, L"A key with this name already exists:", L"Rename key", new_name);
+                ReportNameTaken(hwnd_, util::Tr(L"A key with this name already exists:"), util::Tr(L"Rename Key"), new_name);
                 return FALSE;
             }
             if (!RegistryStore::RenameKey(*node, new_name))
             {
-                ui::ShowError(hwnd_, L"Failed to rename key.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to rename key."));
                 return FALSE;
             }
             UpdateLeafName(node, new_name);
@@ -801,12 +802,12 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
             RegistryNode child = ChildNode(*browse_.current_node(), old_name);
             if (KeyNameExists(*browse_.current_node(), new_name))
             {
-                ReportNameTaken(hwnd_, L"A key with this name already exists:", L"Rename key", new_name);
+                ReportNameTaken(hwnd_, util::Tr(L"A key with this name already exists:"), util::Tr(L"Rename Key"), new_name);
                 return FALSE;
             }
             if (!RegistryStore::RenameKey(child, new_name))
             {
-                ui::ShowError(hwnd_, L"Failed to rename key.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to rename key."));
                 return FALSE;
             }
             AppendHistoryEntry(L"Rename key " + registry_path::DisplayName(old_name), registry_path::DisplayName(old_name), registry_path::DisplayName(new_name));
@@ -823,7 +824,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
         }
         if (ValueNameExists(*browse_.current_node(), new_name))
         {
-            ReportNameTaken(hwnd_, L"A value with this name already exists:", L"Rename value", new_name);
+            ReportNameTaken(hwnd_, util::Tr(L"A value with this name already exists:"), util::Tr(L"Rename Value"), new_name);
             return FALSE;
         }
         bool both_names_left = false;
@@ -834,12 +835,12 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
                 // value rename is a copy followed by delete and can fail in between
                 MarkOfflineDirty();
                 UpdateValueListForNode(browse_.current_node());
-                ui::ShowError(hwnd_, L"The value was copied to the new name but the old name "
-                                     L"couldn't be removed. Both names now exist.");
+                ui::ShowError(hwnd_, util::Tr(L"The value was copied to the new name but the old name "
+                                              L"couldn't be removed. Both names now exist."));
             }
             else
             {
-                ui::ShowError(hwnd_, L"Failed to rename value.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to rename value."));
             }
             return FALSE;
         }
@@ -1244,11 +1245,11 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
                 case 1:
                     if (row.is_key)
                     {
-                        disp->item.pszText = const_cast<wchar_t*>(L"(Key)");
+                        disp->item.pszText = const_cast<wchar_t*>(util::Tr(L"(Key)"));
                     }
                     else if (row.value_name.empty())
                     {
-                        disp->item.pszText = const_cast<wchar_t*>(L"(Default)");
+                        disp->item.pszText = const_cast<wchar_t*>(util::Tr(L"(Default)"));
                     }
                     else
                     {
@@ -1262,7 +1263,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
                     set_text(row.second_text);
                     break;
                 case 4:
-                    disp->item.pszText = const_cast<wchar_t*>(row.matches ? L"Same" : L"Different");
+                    disp->item.pszText = const_cast<wchar_t*>(row.matches ? util::Tr(L"Same") : util::Tr(L"Different"));
                     break;
                 default:
                     break;
@@ -1320,7 +1321,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
                 }
                 else if (result.value_name.empty())
                 {
-                    disp->item.pszText = const_cast<wchar_t*>(L"(Default)");
+                    disp->item.pszText = const_cast<wchar_t*>(util::Tr(L"(Default)"));
                 }
                 else
                 {
@@ -1330,7 +1331,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
             case 2:
                 if (search::IsKeyRow(result))
                 {
-                    disp->item.pszText = const_cast<wchar_t*>(L"Key");
+                    disp->item.pszText = const_cast<wchar_t*>(util::Tr(L"Key"));
                 }
                 else if (result.kind == search::ResultKind::kTraceValue)
                 {

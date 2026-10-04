@@ -189,6 +189,7 @@ void Initialize(HWND dialog, HFONT* owned_font, std::initializer_list<int> borde
             reinterpret_cast<LPARAM>(font)
         );
     }
+    appearance::LocalizeDialog(dialog);
     Theme::Current().ApplyToWindow(dialog);
     Theme::Current().ApplyToChildren(dialog);
     regkit::appearance::CenterWindow(dialog, GetWindow(dialog, GW_OWNER));
@@ -306,7 +307,7 @@ void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColu
         LVCOLUMNW item = {};
         item.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
         item.pszText = const_cast<wchar_t*>(column.title);
-        item.cx = MulDiv(column.width, static_cast<int>(dpi), 96);
+        item.cx = std::max(MulDiv(column.width, static_cast<int>(dpi), 96), ListView_GetStringWidth(list, column.title) + MulDiv(16, static_cast<int>(dpi), 96));
         item.iSubItem = index;
         ListView_InsertColumn(list, index, &item);
         ++index;
@@ -477,6 +478,20 @@ void FitDroppedWidth(HWND combo)
     const int minimum = rect.right - rect.left;
     const int padding = GetSystemMetrics(SM_CXVSCROLL) + 8;
     SendMessageW(combo, CB_SETDROPPEDWIDTH, static_cast<WPARAM>(std::max(minimum, widest + padding)), 0);
+}
+
+void MatchComboHeights(HWND dialog, int edit_id, std::initializer_list<int> combos)
+{
+    RECT edit = {};
+    GetWindowRect(GetDlgItem(dialog, edit_id), &edit);
+    for (const int id : combos)
+    {
+        RECT combo = {};
+        GetWindowRect(GetDlgItem(dialog, id), &combo);
+        const LRESULT item = SendDlgItemMessageW(dialog, id, CB_GETITEMHEIGHT, static_cast<WPARAM>(-1), 0);
+        const LONG frame = (combo.bottom - combo.top) - static_cast<LONG>(item);
+        SendDlgItemMessageW(dialog, id, CB_SETITEMHEIGHT, static_cast<WPARAM>(-1), (edit.bottom - edit.top) - frame);
+    }
 }
 
 } // namespace regkit::editors::dialog_support

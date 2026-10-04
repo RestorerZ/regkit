@@ -9,6 +9,7 @@
 #include "appearance/theme.h"
 #include "editors/dialog_support.h"
 #include "win32/file_dialog.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 
 #include "resource.h"
@@ -173,11 +174,11 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
     {
         state = reinterpret_cast<FieldEditor*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-        SetWindowTextW(dialog, state->editing < 0 ? L"Add Field" : L"Edit Field");
+        SetWindowTextW(dialog, state->editing < 0 ? util::Tr(L"Add Field") : util::Tr(L"Edit Field"));
         SetDlgItemTextW(dialog, IDC_FIELD_NAME, state->field.name.c_str());
         SetDlgItemTextW(dialog, IDC_FIELD_MEANING, dialog_support::ToDisplayText(state->field.meaning).c_str());
         const HWND list = GetDlgItem(dialog, IDC_FIELD_BITS);
-        dialog_support::SetupListView(list, LVS_EX_CHECKBOXES, {{L"Bit", 60}, {L"Mask", 150}, {L"Field", 160}});
+        dialog_support::SetupListView(list, LVS_EX_CHECKBOXES, {{util::Tr(L"Bit"), 60}, {util::Tr(L"Mask"), 150}, {util::Tr(L"Field"), 160}});
         // hide bits owned by other fields to prevent overlap
         for (unsigned bit = 0; bit < state->parent->bit_width; ++bit)
         {
@@ -284,7 +285,7 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
             result.meaning = dialog_support::FromDisplayText(dialog_support::ReadText(dialog, IDC_FIELD_MEANING));
             if (result.name.empty())
             {
-                ui::ShowError(dialog, L"Enter a field name.");
+                ui::ShowError(dialog, util::Tr(L"Enter a field name."));
                 return TRUE;
             }
             for (size_t i = 0; i < state->parent->fields.size(); ++i)
@@ -292,7 +293,7 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
                 if (static_cast<int>(i) != state->editing &&
                     util::EqualsInsensitive(state->parent->fields[i].name, result.name))
                 {
-                    ui::ShowError(dialog, L"Another field already uses that name.");
+                    ui::ShowError(dialog, util::Tr(L"Another field already uses that name."));
                     return TRUE;
                 }
             }
@@ -309,7 +310,7 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
             std::sort(result.bits.begin(), result.bits.end());
             if (result.bits.empty())
             {
-                ui::ShowError(dialog, L"Select at least one bit.");
+                ui::ShowError(dialog, util::Tr(L"Select at least one bit."));
                 return TRUE;
             }
             // drop states that no longer fit after the field gets smaller
@@ -525,7 +526,7 @@ bool DiscardChanges(HWND dialog, Editor* state)
     {
         return true;
     }
-    const int choice = ui::PromptChoice(dialog, L"This definition file has unsaved changes.", L"Bit Definitions", L"Save", L"Discard", L"Cancel", {70, 80, 70});
+    const int choice = ui::PromptChoice(dialog, util::Tr(L"This definition file has unsaved changes."), util::Tr(L"Bit Definitions"), util::Tr(L"Save"), util::Tr(L"Discard"), util::Tr(L"Cancel"), {70, 80, 70});
     if (choice == IDCANCEL)
     {
         return false;
@@ -561,7 +562,7 @@ void LoadIntoEditor(HWND dialog, Editor* state, const std::wstring& preset)
     }
     if (state->lock_width && loaded.definitions.front().bit_width != state->definition().bit_width)
     {
-        ui::ShowError(dialog, L"The definition was made for a different value width.");
+        ui::ShowError(dialog, util::Tr(L"The definition was made for a different value width."));
         return;
     }
     if (state->single)
@@ -591,7 +592,7 @@ void ChangeWidth(HWND dialog, Editor* state)
     }
     if (affected)
     {
-        const int choice = ui::PromptChoice(dialog, L"Some fields use bits outside the new width. Remove those bits?", L"Bit Definitions", L"Remove", L"Cancel", L"", {80, 70, 70});
+        const int choice = ui::PromptChoice(dialog, util::Tr(L"Some fields use bits outside the new width. Remove those bits?"), util::Tr(L"Bit Definitions"), util::Tr(L"Remove"), util::Tr(L"Cancel"), L"", {80, 70, 70});
         if (choice != IDYES)
         {
             SelectWidth(dialog, definition.bit_width);
@@ -734,11 +735,11 @@ void ShowFieldMenu(HWND dialog, Editor* state, POINT screen)
         return;
     }
     const UINT row_flags = MF_STRING | (selected >= 0 ? 0 : MF_GRAYED);
-    AppendMenuW(menu, MF_STRING, kFieldMenuAdd, L"Add Field...");
-    AppendMenuW(menu, row_flags, kFieldMenuEdit, L"Edit Field...");
-    AppendMenuW(menu, row_flags, kFieldMenuRemove, L"Remove Field");
+    AppendMenuW(menu, MF_STRING, kFieldMenuAdd, util::Tr(L"Add Field..."));
+    AppendMenuW(menu, row_flags, kFieldMenuEdit, util::Tr(L"Edit Field..."));
+    AppendMenuW(menu, row_flags, kFieldMenuRemove, util::Tr(L"Remove Field"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, row_flags, kFieldMenuCopy, L"Copy Row");
+    AppendMenuW(menu, row_flags, kFieldMenuCopy, util::Tr(L"Copy Row"));
     const int chosen =
         TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen.x, screen.y, 0, dialog, nullptr);
     DestroyMenu(menu);
@@ -802,14 +803,14 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
     {
         state = reinterpret_cast<Editor*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-        SetWindowTextW(dialog, L"Bit Definitions");
+        SetWindowTextW(dialog, util::Tr(L"Bit Definitions"));
         for (const unsigned width : kWidths)
         {
             SendDlgItemMessageW(dialog, IDC_DEF_WIDTH, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(std::to_wstring(width).c_str()));
         }
         EnableWindow(GetDlgItem(dialog, IDC_DEF_WIDTH), !state->lock_width);
         EnableWindow(GetDlgItem(dialog, IDC_DEF_ADD_DEF), !state->single);
-        dialog_support::SetupListView(GetDlgItem(dialog, IDC_DEF_LIST), 0, {{L"Field", 150}, {L"Bits", 100}, {L"States", 180}, {L"Meaning", 320}});
+        dialog_support::SetupListView(GetDlgItem(dialog, IDC_DEF_LIST), 0, {{util::Tr(L"Field"), 150}, {util::Tr(L"Bits"), 100}, {util::Tr(L"States"), 180}, {util::Tr(L"Meaning"), 320}});
         RefreshDefinitionCombo(dialog, state);
         ShowDefinition(dialog, state);
         dialog_support::Initialize(dialog, &state->ui_font, {IDC_DEF_VALUE_NAME, IDC_DEF_KEY_PATHS, IDC_DEF_OFFSET, IDC_DEF_COMMENT});

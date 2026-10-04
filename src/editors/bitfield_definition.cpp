@@ -7,6 +7,7 @@
 #include "win32/file_text.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 #include <unordered_set>
@@ -41,7 +42,7 @@ enum Member : unsigned
 };
 
 template <typename Read>
-bool ReadMembers(json::Reader& reader, const wchar_t* owner, unsigned* seen, Read&& read)
+bool ReadMembers(json::Reader& reader, unsigned* seen, Read&& read)
 {
     *seen = 0;
     return reader.Object([&](const std::wstring& name) {
@@ -52,11 +53,11 @@ bool ReadMembers(json::Reader& reader, const wchar_t* owner, unsigned* seen, Rea
         }
         if (flag == 0)
         {
-            return reader.Fail((std::wstring(owner) + L" contains an unknown member.").c_str());
+            return reader.Fail(util::Tr(L"An object contains an unknown member."));
         }
         if (*seen & flag)
         {
-            return reader.Fail((std::wstring(owner) + L" contains a duplicate member.").c_str());
+            return reader.Fail(util::Tr(L"An object contains a duplicate member."));
         }
         *seen |= flag;
         return true;
@@ -71,7 +72,7 @@ bool Require(json::Reader& reader, unsigned seen, unsigned required, const wchar
 bool ReadState(json::Reader& reader, State* state)
 {
     unsigned seen = 0;
-    return ReadMembers(reader, L"A state", &seen, [&](const std::wstring& name, unsigned* flag) {
+    return ReadMembers(reader, &seen, [&](const std::wstring& name, unsigned* flag) {
                if (name == L"value")
                {
                    *flag = kValueMember;
@@ -89,13 +90,13 @@ bool ReadState(json::Reader& reader, State* state)
                }
                return true;
            }) &&
-           Require(reader, seen, kValueMember | kNameMember, L"A state is missing its value or name.");
+           Require(reader, seen, kValueMember | kNameMember, util::Tr(L"A state is missing its value or name."));
 }
 
 bool ReadField(json::Reader& reader, Field* field)
 {
     unsigned seen = 0;
-    return ReadMembers(reader, L"A field", &seen, [&](const std::wstring& name, unsigned* flag) {
+    return ReadMembers(reader, &seen, [&](const std::wstring& name, unsigned* flag) {
                if (name == L"name")
                {
                    *flag = kNameMember;
@@ -112,15 +113,15 @@ bool ReadField(json::Reader& reader, Field* field)
                        }
                        if (bit >= 64)
                        {
-                           return reader.Fail(L"A field uses a bit outside the declared width.");
+                           return reader.Fail(util::Tr(L"A field uses a bit outside the declared width."));
                        }
                        if (!field->bits.empty() && bit <= field->bits.back())
                        {
-                           return reader.Fail(L"Field bits must be unique and in ascending order.");
+                           return reader.Fail(util::Tr(L"Field bits must be unique and in ascending order."));
                        }
                        field->bits.push_back(static_cast<unsigned>(bit));
                        return true;
-                   }) && (!field->bits.empty() || reader.Fail(L"A field lists no bits."));
+                   }) && (!field->bits.empty() || reader.Fail(util::Tr(L"A field lists no bits.")));
                }
                if (name == L"meaning")
                {
@@ -132,19 +133,19 @@ bool ReadField(json::Reader& reader, Field* field)
                    *flag = kStatesMember;
                    return reader.Array([&] {
                        return (field->states.size() < 256 ||
-                               reader.Fail(L"A field lists more than 256 states.")) &&
+                               reader.Fail(util::Tr(L"A field lists more than 256 states."))) &&
                               ReadState(reader, &field->states.emplace_back());
                    });
                }
                return true;
            }) &&
-           Require(reader, seen, kNameMember | kBitsMember, L"A field is missing its name or bits.");
+           Require(reader, seen, kNameMember | kBitsMember, util::Tr(L"A field is missing its name or bits."));
 }
 
 bool ReadDefinition(json::Reader& reader, Definition* definition)
 {
     unsigned seen = 0;
-    return ReadMembers(reader, L"A definition", &seen, [&](const std::wstring& name, unsigned* flag) {
+    return ReadMembers(reader, &seen, [&](const std::wstring& name, unsigned* flag) {
                uint64_t number = 0;
                if (name == L"name")
                {
@@ -161,7 +162,7 @@ bool ReadDefinition(json::Reader& reader, Definition* definition)
                    *flag = kKeyPathsMember;
                    return reader.Array([&] {
                        return (definition->key_paths.size() < kMaxPaths ||
-                               reader.Fail(L"A definition lists too many key paths.")) &&
+                               reader.Fail(util::Tr(L"A definition lists too many key paths."))) &&
                               reader.String(&definition->key_paths.emplace_back(), kMaxPathLength);
                    });
                }
@@ -171,14 +172,14 @@ bool ReadDefinition(json::Reader& reader, Definition* definition)
                    definition->bit_width = 0;
                    return reader.Unsigned(&number) &&
                           ((ValidWidth(static_cast<unsigned>(number)) && number <= 64) ||
-                           reader.Fail(L"The bit width must be 8, 16, 32, or 64.")) &&
+                           reader.Fail(util::Tr(L"The bit width must be 8, 16, 32, or 64."))) &&
                           (definition->bit_width = static_cast<unsigned>(number), true);
                }
                if (name == L"byte_offset")
                {
                    *flag = kByteOffsetMember;
                    return reader.Unsigned(&number) &&
-                          (number <= kMaxByteOffset || reader.Fail(L"The byte offset is out of range.")) &&
+                          (number <= kMaxByteOffset || reader.Fail(util::Tr(L"The byte offset is out of range."))) &&
                           (definition->byte_offset = static_cast<unsigned>(number), true);
                }
                if (name == L"comment")
@@ -191,13 +192,13 @@ bool ReadDefinition(json::Reader& reader, Definition* definition)
                    *flag = kFieldsMember;
                    return reader.Array([&] {
                        return (definition->fields.size() < 64 ||
-                               reader.Fail(L"A definition contains more than 64 fields.")) &&
+                               reader.Fail(util::Tr(L"A definition contains more than 64 fields."))) &&
                               ReadField(reader, &definition->fields.emplace_back());
                    });
                }
                return true;
            }) &&
-           Require(reader, seen, kValueNameMember | kBitWidthMember, L"A definition is missing its value name or bit width.");
+           Require(reader, seen, kValueNameMember | kBitWidthMember, util::Tr(L"A definition is missing its value name or bit width."));
 }
 
 bool ReadFile(json::Reader& reader, DefinitionFile* file)
@@ -205,7 +206,6 @@ bool ReadFile(json::Reader& reader, DefinitionFile* file)
     unsigned seen = 0;
     return ReadMembers(
                reader,
-               L"The file",
                &seen,
                [&](const std::wstring& name, unsigned* flag) {
                    if (name == L"format")
@@ -213,7 +213,7 @@ bool ReadFile(json::Reader& reader, DefinitionFile* file)
                        *flag = kFormatMember;
                        std::wstring format;
                        return reader.String(&format, kMaxNameLength) &&
-                              (format == kFormat || reader.Fail(L"The file isn't a RegKit bitfield definition."));
+                              (format == kFormat || reader.Fail(util::Tr(L"The file isn't a RegKit bitfield definition.")));
                    }
                    if (name == L"name")
                    {
@@ -229,13 +229,13 @@ bool ReadFile(json::Reader& reader, DefinitionFile* file)
                    {
                        *flag = kDefinitionsMember;
                        return reader.Array([&] { return ReadDefinition(reader, &file->definitions.emplace_back()); }) &&
-                              (!file->definitions.empty() || reader.Fail(L"The file contains no definitions."));
+                              (!file->definitions.empty() || reader.Fail(util::Tr(L"The file contains no definitions.")));
                    }
                    return true;
                }
            ) &&
            reader.End() &&
-           Require(reader, seen, kFormatMember | kDefinitionsMember, L"The file is missing a required member.");
+           Require(reader, seen, kFormatMember | kDefinitionsMember, util::Tr(L"The file is missing a required member."));
 }
 
 void AppendMember(std::wstring* out, const wchar_t* indent, const wchar_t* name, const std::wstring& text)
@@ -385,7 +385,7 @@ std::wstring DisplayName(const Definition& definition)
     {
         return definition.value_name;
     }
-    return L"Unnamed definition";
+    return util::Tr(L"Unnamed definition");
 }
 
 bool ValidWidth(unsigned bit_width)
@@ -435,33 +435,33 @@ bool Validate(Definition* definition, std::wstring* error)
     }
     if (!ValidWidth(definition->bit_width))
     {
-        return fail(L"The bit width must be 8, 16, 32, or 64.");
+        return fail(util::Tr(L"The bit width must be 8, 16, 32, or 64."));
     }
     if (definition->byte_offset > kMaxByteOffset)
     {
-        return fail(L"The byte offset is out of range.");
+        return fail(util::Tr(L"The byte offset is out of range."));
     }
     if (definition->fields.size() > 64)
     {
-        return fail(L"A definition contains more than 64 fields.");
+        return fail(util::Tr(L"A definition contains more than 64 fields."));
     }
     if (definition->name.size() > kMaxNameLength || definition->value_name.size() > kMaxNameLength)
     {
-        return fail(L"A name is longer than the format allows.");
+        return fail(util::Tr(L"A name is longer than the format allows."));
     }
     if (definition->comment.size() > kMaxCommentLength)
     {
-        return fail(L"A comment is longer than the format allows.");
+        return fail(util::Tr(L"A comment is longer than the format allows."));
     }
     if (definition->key_paths.size() > kMaxPaths)
     {
-        return fail(L"A definition lists too many key paths.");
+        return fail(util::Tr(L"A definition lists too many key paths."));
     }
     for (const std::wstring& path : definition->key_paths)
     {
         if (path.empty() || path.size() > kMaxPathLength)
         {
-            return fail(L"A key path is empty or longer than the format allows.");
+            return fail(util::Tr(L"A key path is empty or longer than the format allows."));
         }
     }
     std::array<signed char, 64> claimed = {};
@@ -471,29 +471,29 @@ bool Validate(Definition* definition, std::wstring* error)
         Field& field = definition->fields[i];
         if (field.name.empty() || field.name.size() > kMaxNameLength)
         {
-            return fail(L"Every field needs a name of at most 256 characters.");
+            return fail(util::Tr(L"Every field needs a name of at most 256 characters."));
         }
         if (field.meaning.size() > kMaxMeaningLength)
         {
-            return fail(L"A field meaning is longer than the format allows.");
+            return fail(util::Tr(L"A field meaning is longer than the format allows."));
         }
         if (field.bits.empty())
         {
-            return fail(L"Every field needs at least one bit.");
+            return fail(util::Tr(L"Every field needs at least one bit."));
         }
         for (size_t j = 0; j < field.bits.size(); ++j)
         {
             if (field.bits[j] >= definition->bit_width)
             {
-                return fail(L"A field uses a bit outside the declared width.");
+                return fail(util::Tr(L"A field uses a bit outside the declared width."));
             }
             if (j > 0 && field.bits[j] <= field.bits[j - 1])
             {
-                return fail(L"Field bits must be unique and in ascending order.");
+                return fail(util::Tr(L"Field bits must be unique and in ascending order."));
             }
             if (claimed[field.bits[j]] >= 0)
             {
-                return fail(L"Two fields claim the same bit.");
+                return fail(util::Tr(L"Two fields claim the same bit."));
             }
             claimed[field.bits[j]] = static_cast<signed char>(i);
         }
@@ -503,21 +503,21 @@ bool Validate(Definition* definition, std::wstring* error)
             const State& state = field.states[j];
             if (state.name.empty() || state.name.size() > kMaxNameLength)
             {
-                return fail(L"Every state needs a name of at most 256 characters.");
+                return fail(util::Tr(L"Every state needs a name of at most 256 characters."));
             }
             if (state.meaning.size() > kMaxMeaningLength)
             {
-                return fail(L"A state meaning is longer than the format allows.");
+                return fail(util::Tr(L"A state meaning is longer than the format allows."));
             }
             if (state.value > limit)
             {
-                return fail(L"A state value doesn't fit the bits of its field.");
+                return fail(util::Tr(L"A state value doesn't fit the bits of its field."));
             }
             for (size_t k = 0; k < j; ++k)
             {
                 if (field.states[k].value == state.value)
                 {
-                    return fail(L"Two states of one field share the same value.");
+                    return fail(util::Tr(L"Two states of one field share the same value."));
                 }
             }
         }
@@ -525,7 +525,7 @@ bool Validate(Definition* definition, std::wstring* error)
         {
             if (util::EqualsInsensitive(definition->fields[j].name, field.name))
             {
-                return fail(L"Two fields share the same name.");
+                return fail(util::Tr(L"Two fields share the same name."));
             }
         }
     }
@@ -548,7 +548,7 @@ bool Validate(DefinitionFile* file, std::wstring* error)
     {
         if (error)
         {
-            *error = L"The file contains no definitions.";
+            *error = util::Tr(L"The file contains no definitions.");
         }
         return false;
     }
@@ -556,7 +556,7 @@ bool Validate(DefinitionFile* file, std::wstring* error)
     {
         if (error)
         {
-            *error = L"A file name or comment is longer than the format allows.";
+            *error = util::Tr(L"A file name or comment is longer than the format allows.");
         }
         return false;
     }
@@ -589,7 +589,7 @@ bool Parse(const std::vector<BYTE>& utf8, DefinitionFile* file, std::wstring* er
     {
         if (error)
         {
-            *error = L"The definition file isn't valid UTF-8.";
+            *error = util::Tr(L"The definition file isn't valid UTF-8.");
         }
         return false;
     }
@@ -600,7 +600,7 @@ bool Parse(const std::vector<BYTE>& utf8, DefinitionFile* file, std::wstring* er
     {
         if (error)
         {
-            *error = message.empty() ? L"The definition file isn't valid JSON." : message;
+            *error = message.empty() ? util::Tr(L"The definition file isn't valid JSON.") : message;
         }
         return false;
     }
@@ -619,7 +619,7 @@ bool Load(const std::wstring& path, DefinitionFile* file, std::wstring* error)
     {
         if (error)
         {
-            *error = L"The definition file couldn't be read.";
+            *error = util::Tr(L"The definition file couldn't be read.");
         }
         return false;
     }
@@ -741,7 +741,7 @@ bool Save(const std::wstring& path, const DefinitionFile& file, std::wstring* er
     {
         if (error)
         {
-            *error = L"The definition file couldn't be written.";
+            *error = util::Tr(L"The definition file couldn't be written.");
         }
         return false;
     }

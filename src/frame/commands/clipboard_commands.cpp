@@ -3,6 +3,7 @@
 
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -44,8 +45,8 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
             }
             std::wstring content = JoinLines(favorites_cache_);
             editors::TextRequest request;
-            request.title = L"Edit Favorites";
-            request.label = kOneKeyPerLineText;
+            request.title = util::Tr(L"Edit Favorites");
+            request.label = util::Tr(L"Each line should include one key.");
             request.text = content;
             request.multiline = true;
             editors::TextResult result;
@@ -55,7 +56,7 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
                 std::vector<std::wstring> updated = SplitLines(content);
                 if (!FavoritesStore::Save(updated))
                 {
-                    ui::ShowError(hwnd_, L"Failed to save favorites.");
+                    ui::ShowError(hwnd_, util::Tr(L"Failed to save favorites."));
                     return true;
                 }
                 favorites_cache_ = std::move(updated);
@@ -73,7 +74,7 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
             }
             if (!FavoritesStore::ImportFromFile(path))
             {
-                ui::ShowError(hwnd_, L"Failed to import favorites.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to import favorites."));
             }
             else
             {
@@ -89,7 +90,7 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
             std::wstring error;
             if (!FavoritesStore::ImportFromRegEdit(&imported, &error))
             {
-                ui::ShowError(hwnd_, error.empty() ? L"Failed to import RegEdit favorites." : error);
+                ui::ShowError(hwnd_, error.empty() ? util::Tr(L"Failed to import RegEdit favorites.") : error);
                 return true;
             }
             if (imported > 0)
@@ -110,7 +111,7 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
             }
             if (!FavoritesStore::ExportToFile(path))
             {
-                ui::ShowError(hwnd_, L"Failed to export favorites.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to export favorites."));
             }
             else
             {
@@ -214,7 +215,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
             RegistryValue entry;
             if (!GetValueEntry(*browse_.current_node(), row->extra, &entry))
             {
-                ui::ShowError(hwnd_, L"Failed to read value.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to read value."));
                 return true;
             }
             std::wstring data =
@@ -357,7 +358,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                 }
                 else
                 {
-                    ui::ShowError(hwnd_, L"Failed to read value.");
+                    ui::ShowError(hwnd_, util::Tr(L"Failed to read value."));
                 }
                 return true;
             }
@@ -470,7 +471,7 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                 new_value.name = unique;
                 if (!RegistryStore::SetValue(*browse_.current_node(), unique, new_value.type, new_value.data))
                 {
-                    ui::ShowError(hwnd_, L"Failed to paste value.");
+                    ui::ShowError(hwnd_, util::Tr(L"Failed to paste value."));
                 }
                 else
                 {
@@ -502,7 +503,7 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                 {
                     RefreshTreeSelection();
                     UpdateValueListForNode(browse_.current_node());
-                    ui::ShowError(hwnd_, L"Failed to paste key.");
+                    ui::ShowError(hwnd_, util::Tr(L"Failed to paste key."));
                 }
                 else
                 {

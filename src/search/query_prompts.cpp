@@ -17,6 +17,7 @@
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
 #include "registry/value_format.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 
 namespace regkit::query_prompts
@@ -98,9 +99,12 @@ void LayoutDataTypesDialog(HWND hwnd, DataTypesDialogState* state)
     const int button_h = Scaled(kButtonHeight, dpi);
     const int button_gap = Scaled(kButtonGap, dpi);
     const int button_w = Scaled(kButtonMinWidth, dpi);
-    const int select_all_w = Scaled(100, dpi);
+    const int select_all_w = std::max(Scaled(100, dpi), appearance::TextFitWidth(state->select_all));
+    const int clear_all_w = std::max(Scaled(90, dpi), appearance::TextFitWidth(state->clear_all));
+    const int ok_w = std::max(button_w, appearance::TextFitWidth(state->ok_button));
+    const int cancel_w = std::max(button_w, appearance::TextFitWidth(state->cancel_button));
     const int btn_y = client.bottom - Scaled(kDialogButtonBottomMargin, dpi) - button_h;
-    const int cancel_x = client.right - Scaled(kDialogButtonRightMargin, dpi) - button_w;
+    const int cancel_x = client.right - Scaled(kDialogButtonRightMargin, dpi) - cancel_w;
     for (size_t index = 0; index < state->checks.size(); ++index)
     {
         const int col = static_cast<int>(index) / state->rows_per_col;
@@ -108,9 +112,9 @@ void LayoutDataTypesDialog(HWND hwnd, DataTypesDialogState* state)
         appearance::Place(state->checks[index], padding + col * (col_w + col_gap), padding + row * row_step, col_w, Scaled(kCheckHeight, dpi));
     }
     appearance::Place(state->select_all, padding, btn_y, select_all_w, button_h);
-    appearance::Place(state->clear_all, padding + select_all_w + button_gap, btn_y, Scaled(90, dpi), button_h);
-    appearance::Place(state->ok_button, cancel_x - button_gap - button_w, btn_y, button_w, button_h);
-    appearance::Place(state->cancel_button, cancel_x, btn_y, button_w, button_h);
+    appearance::Place(state->clear_all, padding + select_all_w + button_gap, btn_y, clear_all_w, button_h);
+    appearance::Place(state->ok_button, cancel_x - button_gap - ok_w, btn_y, ok_w, button_h);
+    appearance::Place(state->cancel_button, cancel_x, btn_y, cancel_w, button_h);
 }
 
 LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -129,12 +133,12 @@ LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
             state->checks.push_back(check);
         }
         state->select_all =
-            appearance::CreateControl(hwnd, L"BUTTON", L"Select All", WS_TABSTOP | BS_PUSHBUTTON, 100);
+            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Select All"), WS_TABSTOP | BS_PUSHBUTTON, 100);
         state->clear_all =
-            appearance::CreateControl(hwnd, L"BUTTON", L"Clear All", WS_TABSTOP | BS_PUSHBUTTON, 101);
-        state->ok_button = appearance::CreateControl(hwnd, L"BUTTON", L"OK", WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
+            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Clear All"), WS_TABSTOP | BS_PUSHBUTTON, 101);
+        state->ok_button = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"OK"), WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
         state->cancel_button =
-            appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
+            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
         appearance::SetDialogFont(hwnd, state->font);
         LayoutDataTypesDialog(hwnd, state);
         return 0;
@@ -162,7 +166,7 @@ LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
             }
             if (state->types.empty())
             {
-                ui::ShowWarning(hwnd, L"Select at least one data type.");
+                ui::ShowWarning(hwnd, util::Tr(L"Select at least one data type."));
                 return 0;
             }
             appearance::CloseDialogWindow(state, true);
@@ -194,7 +198,7 @@ bool ShowDataTypes(HWND owner, std::vector<DWORD>* types)
     const int content_w = kDataTypesColCount * kDataTypesColWidth + (kDataTypesColCount - 1) * kBlockGap;
     const int client_w = Scaled(kDialogContentMargin + content_w + kDialogButtonRightMargin, dpi);
     const int client_h = Scaled(kDialogContentMargin + state.rows_per_col * kRowPitch + kButtonGap + kButtonHeight + kDialogButtonBottomMargin, dpi);
-    if (!appearance::RunDialogWindow(&state, L"RegKitDataTypesDialog", DataTypesDialogProc, L"Data Types", appearance::DialogWindowSize(owner, client_w, client_h)))
+    if (!appearance::RunDialogWindow(&state, L"RegKitDataTypesDialog", DataTypesDialogProc, util::Tr(L"Data Types"), appearance::DialogWindowSize(owner, client_w, client_h)))
     {
         return false;
     }
@@ -216,9 +220,9 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     switch (msg)
     {
     case WM_CREATE:
-        state->ok_button = appearance::CreateControl(hwnd, L"BUTTON", L"OK", WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
+        state->ok_button = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"OK"), WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
         state->cancel_button =
-            appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
+            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
         state->tree.Create(hwnd, GetModuleHandleW(nullptr), 1);
         state->tree.PopulateRoots(RegistryStore::DefaultRoots());
         state->focus = state->tree.hwnd();
@@ -285,7 +289,7 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
         {
             if (state->selected_path.empty())
             {
-                ui::ShowWarning(hwnd, L"Select a key.");
+                ui::ShowWarning(hwnd, util::Tr(L"Select a key."));
                 return 0;
             }
             appearance::CloseDialogWindow(state, true);
@@ -304,7 +308,7 @@ bool ShowRegistryKey(HWND owner, std::wstring* selected_path)
     state.owner = owner;
     const UINT dpi = win32::DpiForWindow(owner);
     if (!selected_path ||
-        !appearance::RunDialogWindow(&state, L"RegKitBrowseKeyDialog", BrowseDialogProc, L"Browse Key", {appearance::metrics::Scaled(420, dpi), appearance::metrics::Scaled(420, dpi)}, WS_SIZEBOX))
+        !appearance::RunDialogWindow(&state, L"RegKitBrowseKeyDialog", BrowseDialogProc, util::Tr(L"Browse Key"), {appearance::metrics::Scaled(420, dpi), appearance::metrics::Scaled(420, dpi)}, WS_SIZEBOX))
     {
         return false;
     }

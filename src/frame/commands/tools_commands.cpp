@@ -10,6 +10,7 @@
 #include "frame/tools/key_handles_window.h"
 #include "regfile/registry_transfer.h"
 #include "registry/registry_path.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -67,7 +68,7 @@ bool MainWindow::Impl::HandleToolsCommand(int command_id)
             UpdateStatus();
             if (!SelectTreePath(path))
             {
-                ui::ShowError(key_handles_window_, L"The key couldn't be found.");
+                ui::ShowError(key_handles_window_, util::Tr(L"The key couldn't be found."));
                 return;
             }
             SetForegroundWindow(hwnd_);
@@ -88,7 +89,7 @@ bool MainWindow::Impl::HandleToolsCommand(int command_id)
             RegistryValue entry;
             if (!RegistryStore::QueryValue(*node, selected_rows.front().extra, &entry))
             {
-                ui::ShowError(hwnd_, L"Failed to read value.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to read value."));
                 return true;
             }
             editors::DecodeRequest request;

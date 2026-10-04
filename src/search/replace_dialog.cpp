@@ -14,6 +14,7 @@
 #include "appearance/feedback.h"
 #include "search/query_dialog.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 
 namespace regkit
@@ -27,7 +28,6 @@ constexpr int kReplaceButtonWidth = 80;
 constexpr int kFindReplaceLabelWidth = 100;
 constexpr int kNumberDecimalWidth = 144;
 constexpr int kNumberHexWidth = 116;
-constexpr int kCheckBoxIdealPadding = 12;
 
 enum ControlId
 {
@@ -86,16 +86,6 @@ void UpdateValueDataOptions(HWND hwnd, const ReplaceDialogState* state)
     EnableWindow(state->number_hex, enabled);
 }
 
-int CheckBoxIdealWidth(HWND control, int fallback)
-{
-    SIZE ideal = {};
-    if (control && SendMessageW(control, BCM_GETIDEALSIZE, 0, reinterpret_cast<LPARAM>(&ideal)) && ideal.cx > 0)
-    {
-        return ideal.cx + appearance::metrics::Scaled(kCheckBoxIdealPadding, win32::DpiForWindow(control));
-    }
-    return fallback;
-}
-
 void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font)
 {
     if (!hwnd || !state)
@@ -121,23 +111,24 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font)
     const int button_h = Scaled(kButtonHeight, dpi);
     const int button_gap = Scaled(kButtonGap, dpi);
     const int button_w = Scaled(kButtonMinWidth, dpi);
-    const int replace_w = Scaled(kReplaceButtonWidth, dpi);
+    const int replace_w = std::max(Scaled(kReplaceButtonWidth, dpi), appearance::TextFitWidth(state->replace_button));
+    const int cancel_w = std::max(button_w, appearance::TextFitWidth(state->cancel_button));
     const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
     const int bottom_margin = Scaled(kDialogButtonBottomMargin, dpi);
     const int width = client.right - client.left;
     const int x = margin;
-    const int label_w = Scaled(kFindReplaceLabelWidth, dpi);
-    const int key_label_w = Scaled(32, dpi);
-    const int browse_w = Scaled(90, dpi);
+    HWND find_label = GetDlgItem(hwnd, kFindLabel);
+    HWND replace_label = GetDlgItem(hwnd, kReplaceLabel);
+    const int label_w = std::max({Scaled(kFindReplaceLabelWidth, dpi), appearance::TextFitWidth(find_label), appearance::TextFitWidth(replace_label)});
+    const int key_label_w = std::max(Scaled(32, dpi), appearance::TextFitWidth(GetDlgItem(hwnd, kKeyLabel)));
+    const int browse_w = std::max(Scaled(90, dpi), appearance::TextFitWidth(state->key_browse));
     int y = margin;
 
-    HWND find_label = GetDlgItem(hwnd, kFindLabel);
     appearance::Place(find_label, x, y + label_inset, label_w, label_h);
     const int edit_w = width - x * 2 - label_w - label_gap;
     appearance::Place(state->find_edit, x + label_w + label_gap, y, edit_w, line_h);
     y += control_pitch;
 
-    HWND replace_label = GetDlgItem(hwnd, kReplaceLabel);
     appearance::Place(replace_label, x, y + label_inset, label_w, label_h);
     appearance::Place(state->replace_edit, x + label_w + label_gap, y, edit_w, line_h);
     y += line_h + block_gap;
@@ -173,15 +164,17 @@ void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font)
     const int ny = nested_y + group_top;
     const int half_w = (nested_w - group_inset * 2) / 2;
     const int half_x = ox + group_inset;
-    const int dec_w = CheckBoxIdealWidth(state->number_decimal, Scaled(kNumberDecimalWidth, dpi));
-    const int hex_w = CheckBoxIdealWidth(state->number_hex, Scaled(kNumberHexWidth, dpi));
+    const int dec_fit = appearance::TextFitWidth(state->number_decimal);
+    const int hex_fit = appearance::TextFitWidth(state->number_hex);
+    const int dec_w = dec_fit > 0 ? dec_fit : Scaled(kNumberDecimalWidth, dpi);
+    const int hex_w = hex_fit > 0 ? hex_fit : Scaled(kNumberHexWidth, dpi);
     appearance::Place(state->number_decimal, half_x + (half_w - dec_w) / 2, ny, dec_w, check_h);
     appearance::Place(state->number_hex, half_x + half_w + (half_w - hex_w) / 2, ny, hex_w, check_h);
     y += options_h + block_gap;
 
-    const int cancel_x = width - right_margin - button_w;
+    const int cancel_x = width - right_margin - cancel_w;
     appearance::Place(state->replace_button, cancel_x - button_gap - replace_w, y, replace_w, button_h);
-    appearance::Place(state->cancel_button, cancel_x, y, button_w, button_h);
+    appearance::Place(state->cancel_button, cancel_x, y, cancel_w, button_h);
     appearance::FitDialogHeight(hwnd, y + button_h + bottom_margin);
 
     appearance::SetControlFont(hwnd, font);
@@ -200,47 +193,47 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
     {
     case WM_CREATE:
         {
-            appearance::CreateControl(hwnd, L"STATIC", L"Find what:", 0, kFindLabel);
+            appearance::CreateControl(hwnd, L"STATIC", util::Tr(L"Find what:"), 0, kFindLabel);
             state->find_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, kFindEdit);
-            appearance::CreateControl(hwnd, L"STATIC", L"Replace with:", 0, kReplaceLabel);
+            appearance::CreateControl(hwnd, L"STATIC", util::Tr(L"Replace with:"), 0, kReplaceLabel);
             state->replace_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, kReplaceEdit);
-            appearance::CreateControl(hwnd, L"BUTTON", L"Where to search", BS_GROUPBOX, kWhereGroup);
-            appearance::CreateControl(hwnd, L"STATIC", L"Key:", 0, kKeyLabel);
+            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Where to search"), BS_GROUPBOX, kWhereGroup);
+            appearance::CreateControl(hwnd, L"STATIC", util::Tr(L"Key:"), 0, kKeyLabel);
             state->key_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, kKeyEdit);
             appearance::AttachAutoComplete(state->key_edit, appearance::SuggestKeys);
             state->key_browse =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Browse...", WS_TABSTOP | BS_PUSHBUTTON, kKeyBrowse);
-            appearance::CreateControl(hwnd, L"BUTTON", L"Options", BS_GROUPBOX, kOptionsGroup);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Browse..."), WS_TABSTOP | BS_PUSHBUTTON, kKeyBrowse);
+            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Options"), BS_GROUPBOX, kOptionsGroup);
             state->recursive =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Recursive", WS_TABSTOP | BS_AUTOCHECKBOX, kRecursive);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Recursive"), WS_TABSTOP | BS_AUTOCHECKBOX, kRecursive);
             state->match_case =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Match case", WS_TABSTOP | BS_AUTOCHECKBOX, kMatchCase);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Match case"), WS_TABSTOP | BS_AUTOCHECKBOX, kMatchCase);
             state->match_whole =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Match whole string", WS_TABSTOP | BS_AUTOCHECKBOX, kMatchWhole);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Match whole string"), WS_TABSTOP | BS_AUTOCHECKBOX, kMatchWhole);
             state->use_regex =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Regular expressions", WS_TABSTOP | BS_AUTOCHECKBOX, kUseRegex);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Regular expressions"), WS_TABSTOP | BS_AUTOCHECKBOX, kUseRegex);
             ui::AddTooltip(
                 hwnd,
                 state->use_regex,
-                L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
-                L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
-                L"\\X.\n"
-                L"Replace with: $1 or ${1} for a group, $<name> or ${name} for a named group, $& for the whole match, $$ "
-                L"for a dollar."
+                util::Tr(L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
+                         L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
+                         L"\\X.\n"
+                         L"Replace with: $1 or ${1} for a group, $<name> or ${name} for a named group, $& for the whole match, $$ "
+                         L"for a dollar.")
             );
             state->search_keys =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Replace in key names", WS_TABSTOP | BS_AUTOCHECKBOX, kSearchKeys);
-            state->search_values = appearance::CreateControl(hwnd, L"BUTTON", L"Replace in value names", WS_TABSTOP | BS_AUTOCHECKBOX, kSearchValues);
-            state->search_data = appearance::CreateControl(hwnd, L"BUTTON", L"Replace in value data", WS_TABSTOP | BS_AUTOCHECKBOX, kSearchData);
-            appearance::CreateControl(hwnd, L"BUTTON", L"Value Data", BS_GROUPBOX, kValueDataGroup);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Replace in key names"), WS_TABSTOP | BS_AUTOCHECKBOX, kSearchKeys);
+            state->search_values = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Replace in value names"), WS_TABSTOP | BS_AUTOCHECKBOX, kSearchValues);
+            state->search_data = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Replace in value data"), WS_TABSTOP | BS_AUTOCHECKBOX, kSearchData);
+            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Value Data"), BS_GROUPBOX, kValueDataGroup);
             state->number_decimal =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Numbers as decimal", WS_TABSTOP | BS_AUTOCHECKBOX, kNumberDecimal);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Numbers as decimal"), WS_TABSTOP | BS_AUTOCHECKBOX, kNumberDecimal);
             state->number_hex =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Numbers as hex", WS_TABSTOP | BS_AUTOCHECKBOX, kNumberHex);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Numbers as hex"), WS_TABSTOP | BS_AUTOCHECKBOX, kNumberHex);
             state->replace_button =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Replace", WS_TABSTOP | BS_DEFPUSHBUTTON, kReplaceButton);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Replace"), WS_TABSTOP | BS_DEFPUSHBUTTON, kReplaceButton);
             state->cancel_button =
-                appearance::CreateControl(hwnd, L"BUTTON", L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
+                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
 
             const ReplaceDialogResult& initial = *state->out;
             SetWindowTextW(state->find_edit, initial.find_text.c_str());
@@ -285,7 +278,7 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
                 result.find_text = util::WindowText(state->find_edit);
                 if (result.find_text.empty())
                 {
-                    ui::ShowWarning(hwnd, L"Enter text to find.");
+                    ui::ShowWarning(hwnd, util::Tr(L"Enter text to find."));
                     return 0;
                 }
                 result.replace_text = util::WindowText(state->replace_edit);
@@ -301,7 +294,7 @@ LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
                 result.number_hex = Button_GetCheck(state->number_hex) == BST_CHECKED;
                 if (!result.replace_keys && !result.replace_values && !result.replace_data)
                 {
-                    ui::ShowWarning(hwnd, L"Select what should be replaced.");
+                    ui::ShowWarning(hwnd, util::Tr(L"Select what should be replaced."));
                     return 0;
                 }
                 *state->out = std::move(result);
@@ -327,7 +320,7 @@ bool ShowReplaceDialog(HWND owner, ReplaceDialogResult* result)
     state.owner = owner;
     const UINT dpi = win32::DpiForWindow(owner);
     return result &&
-           appearance::RunDialogWindow(&state, kDialogClass, ReplaceDialogProc, L"Replace", {appearance::metrics::Scaled(520, dpi), appearance::metrics::Scaled(360, dpi)});
+           appearance::RunDialogWindow(&state, kDialogClass, ReplaceDialogProc, util::Tr(L"Replace"), {appearance::metrics::Scaled(520, dpi), appearance::metrics::Scaled(360, dpi)});
 }
 
 } // namespace regkit

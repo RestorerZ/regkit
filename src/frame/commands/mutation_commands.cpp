@@ -4,6 +4,7 @@
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -74,7 +75,7 @@ bool MainWindow::Impl::HandleMutationCommand(int command_id)
             }
             if (registry_mode_ != RegistryMode::kLocal)
             {
-                ui::ShowWarning(hwnd_, L"Symbolic links can only be created in the local registry.");
+                ui::ShowWarning(hwnd_, util::Tr(L"Symbolic links can only be created in the local registry."));
                 return true;
             }
             editors::SymbolicLinkResult link;
@@ -90,13 +91,13 @@ bool MainWindow::Impl::HandleMutationCommand(int command_id)
             const std::wstring native = NativeTargetPath(link.target);
             if (native.empty())
             {
-                ui::ShowError(hwnd_, L"The target must be a full registry path under a standard root.");
+                ui::ShowError(hwnd_, util::Tr(L"The target must be a full registry path under a standard root."));
                 return true;
             }
             DWORD error = ERROR_SUCCESS;
             if (!registry_backend::live::CreateRegistryLink(*browse_.current_node(), link.name, native, &error))
             {
-                std::wstring message = L"Failed to create the symbolic link.";
+                std::wstring message = util::Tr(L"Failed to create the symbolic link.");
                 const std::wstring detail = util::FormatWin32Error(error);
                 if (!detail.empty())
                 {
@@ -172,7 +173,7 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
             std::wstring path = registry_path::Build(target);
             if (!CreateRegistryPath(path))
             {
-                ui::ShowError(hwnd_, L"Failed to create the key.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to create the key."));
                 return true;
             }
             UpdateSimulatedChain(TreeView_GetSelection(browse_.tree().hwnd()));
@@ -198,7 +199,7 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
             }
             if (!RegistryStore::CreateKey(*browse_.current_node(), name))
             {
-                ui::ShowError(hwnd_, L"Failed to create key.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to create the key."));
             }
             else
             {
@@ -336,7 +337,7 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
             }
             if (!RegistryStore::SetValue(*browse_.current_node(), value_name, type, data))
             {
-                ui::ShowError(hwnd_, L"Failed to set value.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to set value."));
             }
             else
             {
@@ -390,7 +391,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
             RegistryValue entry;
             if (!GetValueEntry(*browse_.current_node(), rows.front().extra, &entry))
             {
-                ui::ShowError(hwnd_, L"Failed to read value.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to read value."));
                 return true;
             }
             editors::CustomValueRequest request;
@@ -413,7 +414,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
             }
             if (!RegistryStore::SetValue(*browse_.current_node(), entry.name, result.type, result.data))
             {
-                ui::ShowError(hwnd_, L"Failed to update value.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to update value."));
                 return true;
             }
             const std::wstring old_text =
@@ -472,14 +473,14 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                         std::wstring path = registry_path::Build(*browse_.current_node());
                         if (!CreateRegistryPath(path))
                         {
-                            ui::ShowError(hwnd_, L"Failed to create the key.");
+                            ui::ShowError(hwnd_, util::Tr(L"Failed to create the key."));
                             return true;
                         }
                         UpdateSimulatedChain(TreeView_GetSelection(browse_.tree().hwnd()));
                     }
                     if (!RegistryStore::SetValue(*browse_.current_node(), row->extra, type, data))
                     {
-                        ui::ShowError(hwnd_, L"Failed to set value.");
+                        ui::ShowError(hwnd_, util::Tr(L"Failed to set value."));
                         return true;
                     }
                     std::wstring display_name = row->extra.empty() ? L"(Default)" : row->extra;
@@ -499,7 +500,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                     UpdateValueListForNode(browse_.current_node());
                     return true;
                 }
-                ui::ShowError(hwnd_, L"Failed to read value.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to read value."));
                 return true;
             }
             std::wstring old_text =
@@ -574,7 +575,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
             }
             if (!RegistryStore::SetValue(*browse_.current_node(), entry.name, entry.type, new_data))
             {
-                ui::ShowError(hwnd_, L"Failed to update value.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to update value."));
             }
             else
             {
@@ -756,13 +757,13 @@ bool MainWindow::Impl::HandleResetDefaultCommand(int command_id)
         {
             return true;
         }
-        if (!ui::ConfirmDelete(hwnd_, L"Delete Value", display_name))
+        if (!ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Value"), name))
         {
             return true;
         }
         if (!RegistryStore::DeleteValue(*browse_.current_node(), name))
         {
-            ui::ShowError(hwnd_, L"Failed to delete value.");
+            ui::ShowError(hwnd_, util::Tr(L"Failed to delete value."));
             return true;
         }
         AppendValueHistoryEntry(L"Reset value " + display_name, display_name, L"", *browse_.current_node(), name, HistoryEntry::RevertKind::kSetValue, &entry);
@@ -782,7 +783,7 @@ bool MainWindow::Impl::HandleResetDefaultCommand(int command_id)
     }
     if (!RegistryStore::SetValue(*browse_.current_node(), name, choice.type, choice.data))
     {
-        ui::ShowError(hwnd_, L"Failed to update value.");
+        ui::ShowError(hwnd_, util::Tr(L"Failed to update value."));
         return true;
     }
     const std::wstring old_text =
@@ -834,7 +835,7 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
             if (tree_focus && browse_.current_node() && !browse_.current_node()->subkey.empty())
             {
                 std::wstring name = LeafName(*browse_.current_node());
-                if (!ui::ConfirmDelete(hwnd_, L"Delete Key", registry_path::DisplayName(name)))
+                if (!ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Key"), registry_path::DisplayName(name)))
                 {
                     return true;
                 }
@@ -845,14 +846,14 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                 const std::wstring neighbour_path = TreeNeighbourPath(deleted_item);
                 changes::KeySnapshot snapshot = changes::CaptureKey(target);
                 const bool restorable = snapshot.complete;
-                if (!restorable && !ui::ConfirmDelete(hwnd_, L"Delete Key", registry_path::DisplayName(name), L"Part of this key couldn't be read, so this delete can't be "
-                                                                                                              L"undone. Delete anyway?"))
+                if (!restorable && !ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Key"), registry_path::DisplayName(name), util::Tr(L"Part of this key couldn't be read, so this delete can't be "
+                                                                                                                                 L"undone. Delete anyway?")))
                 {
                     return true;
                 }
                 if (!RegistryStore::DeleteKey(target))
                 {
-                    ui::ShowError(hwnd_, L"Failed to delete key.");
+                    ui::ShowError(hwnd_, util::Tr(L"Failed to delete key."));
                 }
                 else
                 {
@@ -891,7 +892,7 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                     });
                 if (!all_values)
                 {
-                    ui::ShowWarning(hwnd_, L"Bulk deletion only supports registry values.");
+                    ui::ShowWarning(hwnd_, util::Tr(L"Bulk deletion only supports registry values."));
                     return true;
                 }
 
@@ -902,7 +903,7 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                     RegistryValue entry;
                     if (!GetValueEntry(*browse_.current_node(), selected.extra, &entry))
                     {
-                        ui::ShowError(hwnd_, L"Failed to read all selected values.");
+                        ui::ShowError(hwnd_, util::Tr(L"Failed to read all selected values."));
                         return true;
                     }
                     entries.push_back(std::move(entry));
@@ -914,7 +915,7 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                 {
                     names.push_back(entry.name);
                 }
-                if (!ui::ConfirmDelete(hwnd_, L"Delete Values", names))
+                if (!ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Values"), names))
                 {
                     return true;
                 }
@@ -943,9 +944,7 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                 }
                 if (deleted != selected_rows.size())
                 {
-                    std::wstring message = L"Deleted " + std::to_wstring(deleted) + L" of " +
-                                           std::to_wstring(selected_rows.size()) + L" selected values.";
-                    ui::ShowError(hwnd_, message);
+                    ui::ShowError(hwnd_, util::Tr(L"Some of the selected values couldn't be deleted."));
                 }
                 return true;
             }
@@ -953,22 +952,21 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
             const ListRow* row = selected_rows.empty() ? nullptr : &selected_rows.front();
             if (row && row->kind == rowkind::kKey)
             {
-                if (!ui::ConfirmDelete(hwnd_, L"Delete Key", row->name))
+                if (!ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Key"), row->name))
                 {
                     return true;
                 }
                 RegistryNode child = ChildNode(*browse_.current_node(), row->extra);
                 changes::KeySnapshot snapshot = changes::CaptureKey(child);
                 const bool restorable = snapshot.complete;
-                if (!restorable && !ui::ConfirmDelete(hwnd_, L"Part of this key couldn't be read, so this delete can't be "
-                                                             L"undone. Delete anyway?",
-                                                      row->name))
+                if (!restorable && !ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Key"), row->name, util::Tr(L"Part of this key couldn't be read, so this delete can't be "
+                                                                                                          L"undone. Delete anyway?")))
                 {
                     return true;
                 }
                 if (!RegistryStore::DeleteKey(child))
                 {
-                    ui::ShowError(hwnd_, L"Failed to delete key.");
+                    ui::ShowError(hwnd_, util::Tr(L"Failed to delete key."));
                 }
                 else
                 {
@@ -996,19 +994,19 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                     return true;
                 }
                 std::wstring display_name = row->extra.empty() ? L"(Default)" : row->extra;
-                if (!ui::ConfirmDelete(hwnd_, L"Delete Value", display_name))
+                if (!ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Value"), row->extra))
                 {
                     return true;
                 }
                 RegistryValue entry;
                 if (!GetValueEntry(*browse_.current_node(), row->extra, &entry))
                 {
-                    ui::ShowError(hwnd_, L"Failed to read value.");
+                    ui::ShowError(hwnd_, util::Tr(L"Failed to read value."));
                     return true;
                 }
                 if (!RegistryStore::DeleteValue(*browse_.current_node(), row->extra))
                 {
-                    ui::ShowError(hwnd_, L"Failed to delete value.");
+                    ui::ShowError(hwnd_, util::Tr(L"Failed to delete value."));
                 }
                 else
                 {

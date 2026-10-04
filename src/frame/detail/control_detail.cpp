@@ -51,6 +51,7 @@
 #include "win32/registry_native.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 #include "workspace/settings.h"
 #include "workspace/tab_state.h"
 
@@ -159,7 +160,7 @@ bool UseBinaryValueIcon(DWORD type)
 ListRow MakeValueListRow(const std::wstring& name, DWORD type, const BYTE* data, DWORD data_size)
 {
     ListRow row;
-    row.name = name.empty() ? L"(Default)" : name;
+    row.name = name.empty() ? util::Tr(L"(Default)") : name;
     row.type = value_format::TypeName(type);
     row.data_ready = data_size == 0 || data != nullptr;
     if (row.data_ready && data_size > 0)

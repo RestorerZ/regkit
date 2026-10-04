@@ -149,6 +149,9 @@ constexpr int kHistoryOpenTarget = 2481;
 constexpr int kHistoryRevert = 2482;
 constexpr int kHistoryRemove = 2483;
 constexpr int kOptionsResetSettings = 2484;
+constexpr int kOptionsLanguageAuto = 2485;
+constexpr int kOptionsLanguageBase = 2486;
+constexpr int kOptionsLanguageMax = 2499;
 
 constexpr int kHelpAbout = 2500;
 constexpr int kHelpContents = 2501;

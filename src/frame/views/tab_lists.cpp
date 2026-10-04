@@ -7,6 +7,7 @@
 #include <unordered_set>
 
 #include "frame/window/shortcut_bindings.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -465,10 +466,10 @@ bool MainWindow::Impl::ConfirmCloseTab(int tab_index)
     TabEntry& entry = tabs_[static_cast<size_t>(tab_index)];
     if (entry.kind == TabEntry::Kind::kRegFile && entry.reg_file_dirty)
     {
-        std::wstring message = L"The registry file has unsaved changes.\nSave "
-                               L"before closing the tab?";
+        std::wstring message = util::Tr(L"The registry file has unsaved changes.\nSave "
+                                        L"before closing the tab?");
         int result =
-            ui::PromptChoice(hwnd_, message, L"Unsaved changes", L"Save", L"Don't Save", L"Cancel", {70, 100, 70});
+            ui::PromptChoice(hwnd_, message, util::Tr(L"Unsaved Changes"), util::Tr(L"Save"), util::Tr(L"Don't Save"), util::Tr(L"Cancel"), {70, 100, 70});
         if (result == IDCANCEL)
         {
             return false;
@@ -493,8 +494,8 @@ bool MainWindow::Impl::ConfirmCloseTab(int tab_index)
     {
         return true;
     }
-    return ConfirmOfflineChanges(L"The offline registry has unsaved changes.\n"
-                                 L"Save before closing the tab?");
+    return ConfirmOfflineChanges(util::Tr(L"The offline registry has unsaved changes.\n"
+                                          L"Save before closing the tab?"));
 }
 
 bool MainWindow::Impl::ConfirmOfflineChanges(const wchar_t* message)
@@ -510,7 +511,7 @@ bool MainWindow::Impl::ConfirmOfflineChanges(const wchar_t* message)
     {
         return true;
     }
-    int result = ui::PromptChoice(hwnd_, message, L"Unsaved changes", L"Save", L"Don't Save", L"Cancel", {70, 100, 70});
+    int result = ui::PromptChoice(hwnd_, message, util::Tr(L"Unsaved Changes"), util::Tr(L"Save"), util::Tr(L"Don't Save"), util::Tr(L"Cancel"), {70, 100, 70});
     if (result == IDCANCEL)
     {
         return false;
@@ -652,7 +653,7 @@ void MainWindow::Impl::OpenLocalRegistryTab()
     {
         return;
     }
-    const int index = AddRegistryTab(RegistryMode::kLocal, L"Local Registry");
+    const int index = AddRegistryTab(RegistryMode::kLocal, util::Tr(L"Local Registry"));
     RefreshRegistryTabLabels();
     SwitchToLocalRegistry();
     RestoreRegistryTabState(index);

@@ -8,6 +8,7 @@
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "win32/file_text.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 #include <cstring>
@@ -385,7 +386,7 @@ bool ParseOperations(std::wstring_view content, std::vector<Operation>* output, 
         if (error)
         {
             std::wstring shown = line.size() > 80 ? line.substr(0, 80) + L"..." : line;
-            *error = L"The file contains an entry RegKit can't parse:\n" + shown;
+            *error = util::TrDetail(L"The file contains an entry RegKit can't parse.", shown);
         }
         return false;
     };
@@ -576,7 +577,7 @@ bool Load(const std::wstring& path, Document* output, std::wstring* error, const
     {
         if (error)
         {
-            *error = L"Failed to read registry file.";
+            *error = util::Tr(L"Failed to read registry file.");
         }
         return false;
     }

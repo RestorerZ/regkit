@@ -7,6 +7,7 @@
 #include "appearance/icon_loader.h"
 #include "appearance/list_header.h"
 #include "appearance/theme.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 
 #include "resource.h"
@@ -172,7 +173,7 @@ void LayoutRegistration(ListRegistration* entry)
 
 HWND CreateGridToolbar(HWND owner, int command)
 {
-    HWND toolbar = CreateWindowExW(0, TOOLBARCLASSNAMEW, L"Grid lines", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TBSTYLE_FLAT | TBSTYLE_TOOLTIPS | CCS_NODIVIDER | CCS_NOPARENTALIGN | CCS_NORESIZE, 0, 0, 0, 0, owner, reinterpret_cast<HMENU>(static_cast<INT_PTR>(command)), GetModuleHandleW(nullptr), nullptr);
+    HWND toolbar = CreateWindowExW(0, TOOLBARCLASSNAMEW, util::Tr(L"Grid Lines"), WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TBSTYLE_FLAT | TBSTYLE_TOOLTIPS | CCS_NODIVIDER | CCS_NOPARENTALIGN | CCS_NORESIZE, 0, 0, 0, 0, owner, reinterpret_cast<HMENU>(static_cast<INT_PTR>(command)), GetModuleHandleW(nullptr), nullptr);
     if (!toolbar)
     {
         return nullptr;
@@ -180,7 +181,7 @@ HWND CreateGridToolbar(HWND owner, int command)
     SendMessageW(toolbar, TB_BUTTONSTRUCTSIZE, sizeof(TBBUTTON), 0);
     SendMessageW(toolbar, TB_SETMAXTEXTROWS, 0, 0);
     SendMessageW(toolbar, TB_SETEXTENDEDSTYLE, 0, TBSTYLE_EX_DOUBLEBUFFER);
-    const LRESULT label = SendMessageW(toolbar, TB_ADDSTRINGW, 0, reinterpret_cast<LPARAM>(L"Grid lines"));
+    const LRESULT label = SendMessageW(toolbar, TB_ADDSTRINGW, 0, reinterpret_cast<LPARAM>(util::Tr(L"Grid Lines")));
     TBBUTTON button = {};
     button.iBitmap = 0;
     button.idCommand = command;
@@ -491,8 +492,8 @@ bool ShowListColumnMenu(HWND list, POINT screen)
     {
         return false;
     }
-    AppendMenuW(menu, MF_STRING | (column >= 0 ? 0 : MF_GRAYED), kMenuSizeToFit, L"Size column to fit");
-    AppendMenuW(menu, MF_STRING, kMenuSizeAll, L"Size all columns to fit");
+    AppendMenuW(menu, MF_STRING | (column >= 0 ? 0 : MF_GRAYED), kMenuSizeToFit, util::Tr(L"Size column to fit"));
+    AppendMenuW(menu, MF_STRING, kMenuSizeAll, util::Tr(L"Size all columns to fit"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     std::vector<int> widths(static_cast<size_t>(count));
     for (int display = 0; display < count; ++display)

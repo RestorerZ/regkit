@@ -6,6 +6,7 @@
 
 #include "win32/file_dialog.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -421,7 +422,7 @@ std::wstring MainWindow::Impl::LocalRegistryTabLabel(int index) const
 {
     if (index < 0 || static_cast<size_t>(index) >= tabs_.size())
     {
-        return L"Local Registry";
+        return util::Tr(L"Local Registry");
     }
     int local_count = 0;
     int local_index = 0;
@@ -440,9 +441,9 @@ std::wstring MainWindow::Impl::LocalRegistryTabLabel(int index) const
     }
     if (local_count <= 1 || local_index <= 1)
     {
-        return L"Local Registry";
+        return util::Tr(L"Local Registry");
     }
-    return L"Local Registry (" + std::to_wstring(local_index) + L")";
+    return util::Tr(L"Local Registry") + std::wstring(L" (") + std::to_wstring(local_index) + L")";
 }
 
 void MainWindow::Impl::RefreshRegistryTabLabels()
@@ -535,8 +536,8 @@ bool MainWindow::Impl::SwitchToLocalRegistry()
     {
         return true;
     }
-    if (!ConfirmOfflineChanges(L"The offline registry has unsaved changes.\n"
-                               L"Save before switching?"))
+    if (!ConfirmOfflineChanges(util::Tr(L"The offline registry has unsaved changes.\n"
+                                        L"Save before switching?")))
     {
         return false;
     }
@@ -573,8 +574,8 @@ bool MainWindow::Impl::SwitchToRemoteRegistry()
     if (FAILED(picked))
     {
         editors::TextRequest request;
-        request.title = L"Connect to Remote Registry";
-        request.label = L"Computer name (e.g. \\\\MACHINE):";
+        request.title = util::Tr(L"Connect to Remote Registry");
+        request.label = util::Tr(L"Computer name (e.g. \\\\MACHINE):");
         request.text = remote_machine_;
         editors::TextResult text_result;
         if (!editors::EditText(hwnd_, request, &text_result))
@@ -592,7 +593,7 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
     machine = NormalizeMachineName(machine);
     if (machine.empty())
     {
-        ui::ShowError(hwnd_, L"Computer name is required.");
+        ui::ShowError(hwnd_, util::Tr(L"Computer name is required."));
         return false;
     }
 
@@ -609,8 +610,8 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
 
     if (registry_mode_ == RegistryMode::kOffline)
     {
-        if (!ConfirmOfflineChanges(L"The offline registry has unsaved changes.\n"
-                                   L"Save before switching?"))
+        if (!ConfirmOfflineChanges(util::Tr(L"The offline registry has unsaved changes.\n"
+                                            L"Save before switching?")))
         {
             if (hku)
             {
@@ -637,7 +638,7 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
 
     if (tab_ && open_new_tab)
     {
-        AddRegistryTab(RegistryMode::kRemote, L"Remote Registry");
+        AddRegistryTab(RegistryMode::kRemote, util::Tr(L"Remote Registry"));
     }
     ReleaseRemoteRegistry();
     registry_mode_ = RegistryMode::kRemote;
@@ -654,15 +655,13 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
         roots.push_back({remote_hku_, L"HKEY_USERS", prefix + L"HKEY_USERS", L""});
     }
 
-    UpdateTabText(L"Remote Registry (" + StripMachinePrefix(machine) + L")");
+    UpdateTabText(util::Tr(L"Remote Registry") + std::wstring(L" (") + StripMachinePrefix(machine) + L")");
     ApplyRegistryRoots(roots);
     RefreshRegistryTabLabels();
 
     if (hku_result != ERROR_SUCCESS)
     {
-        std::wstring message = L"Connected to HKEY_LOCAL_MACHINE, but HKEY_USERS was unavailable.\n";
-        message += FormatWin32Error(hku_result);
-        ui::ShowError(hwnd_, message);
+        ui::ShowError(hwnd_, util::TrDetail(L"Connected to HKEY_LOCAL_MACHINE, but HKEY_USERS was unavailable.", FormatWin32Error(hku_result)));
     }
     return true;
 }
@@ -670,7 +669,7 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
 bool MainWindow::Impl::SwitchToOfflineRegistry()
 {
     const int choice =
-        ui::PromptChoice(hwnd_, L"Load the offline registry from a single hive file, or from a folder of hives?", L"Offline Registry", L"Hive File", L"Folder", L"Cancel", {90, 70, 70}, 470);
+        ui::PromptChoice(hwnd_, util::Tr(L"Load the offline registry from a single hive file, or from a folder of hives?"), util::Tr(L"Offline Registry"), util::Tr(L"Hive File"), util::Tr(L"Folder"), util::Tr(L"Cancel"), {90, 70, 70}, 470);
     std::wstring hive_path;
     HRESULT hr = S_OK;
     if (choice == IDYES)
@@ -696,8 +695,8 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
 {
     if (registry_mode_ == RegistryMode::kOffline && !offline_roots_.empty())
     {
-        if (!ConfirmOfflineChanges(L"The offline registry has unsaved changes.\n"
-                                   L"Save before switching?"))
+        if (!ConfirmOfflineChanges(util::Tr(L"The offline registry has unsaved changes.\n"
+                                            L"Save before switching?")))
         {
             return false;
         }
@@ -725,7 +724,7 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
         CollectOfflineHivesInFolder(selection_path, &candidates);
         if (candidates.empty())
         {
-            ui::ShowError(hwnd_, L"The selected folder doesn't contain a registry hive file.");
+            ui::ShowError(hwnd_, util::Tr(L"The selected folder doesn't contain a registry hive file."));
             return false;
         }
     }
@@ -794,7 +793,7 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
 
     if (tab_ && open_new_tab)
     {
-        AddRegistryTab(RegistryMode::kOffline, L"Offline Registry");
+        AddRegistryTab(RegistryMode::kOffline, util::Tr(L"Offline Registry"));
     }
 
     ReleaseRemoteRegistry();
@@ -814,14 +813,14 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
     }
     RegistryStore::SetOfflineRoots(offline_roots_);
 
-    std::wstring tab_text = L"Offline Registry";
+    std::wstring tab_text = util::Tr(L"Offline Registry");
     if (offline_roots_.size() == 1 && !offline_root_name_.empty() && !offline_mount_.empty())
     {
-        tab_text = L"Offline Registry (" + offline_root_name_ + L"\\" + offline_mount_ + L")";
+        tab_text = util::Tr(L"Offline Registry") + std::wstring(L" (") + offline_root_name_ + L"\\" + offline_mount_ + L")";
     }
     else if (!offline_root_name_.empty())
     {
-        tab_text = L"Offline Registry (" + offline_root_name_ + L")";
+        tab_text = util::Tr(L"Offline Registry") + std::wstring(L" (") + offline_root_name_ + L")";
     }
     UpdateTabText(tab_text);
     UpdateRegistryTabEntry(RegistryMode::kOffline, selection_path, L"");
@@ -838,14 +837,14 @@ bool MainWindow::Impl::SaveOfflineRegistry()
 {
     if (registry_mode_ != RegistryMode::kOffline || offline_roots_.empty())
     {
-        ui::ShowError(hwnd_, L"No offline registry is loaded.");
+        ui::ShowError(hwnd_, util::Tr(L"No offline registry is loaded."));
         return false;
     }
     if (offline_roots_.size() > 1)
     {
         if (offline_root_paths_.size() != offline_roots_.size())
         {
-            ui::ShowError(hwnd_, L"Failed to resolve offline hive paths for saving.");
+            ui::ShowError(hwnd_, util::Tr(L"Failed to resolve offline hive paths for saving."));
             return false;
         }
         for (size_t i = 0; i < offline_roots_.size(); ++i)
@@ -853,13 +852,13 @@ bool MainWindow::Impl::SaveOfflineRegistry()
             const std::wstring& path = offline_root_paths_[i];
             if (path.empty())
             {
-                ui::ShowError(hwnd_, L"Failed to resolve offline hive path for saving.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to resolve offline hive path for saving."));
                 return false;
             }
             std::wstring error;
             if (!SaveHiveAtomically(offline_roots_[i], path, &error))
             {
-                ui::ShowError(hwnd_, error.empty() ? L"Failed to save offline hive." : error);
+                ui::ShowError(hwnd_, error.empty() ? util::Tr(L"Failed to save offline hive.") : error);
                 return false;
             }
         }
@@ -872,7 +871,7 @@ bool MainWindow::Impl::SaveOfflineRegistry()
     }
     if (!offline_root_)
     {
-        ui::ShowError(hwnd_, L"No offline registry is loaded.");
+        ui::ShowError(hwnd_, util::Tr(L"No offline registry is loaded."));
         return false;
     }
 
@@ -885,7 +884,7 @@ bool MainWindow::Impl::SaveOfflineRegistry()
     std::wstring error;
     if (!SaveHiveAtomically(offline_root_, path, &error))
     {
-        ui::ShowError(hwnd_, error.empty() ? L"Failed to save offline hive." : error);
+        ui::ShowError(hwnd_, error.empty() ? util::Tr(L"Failed to save offline hive.") : error);
         return false;
     }
     ClearOfflineDirty();
@@ -914,7 +913,7 @@ void MainWindow::Impl::NavigateToAddress()
         }
         if (value_missing)
         {
-            ui::PromptKeyChoice(hwnd_, L"The key was opened, but it doesn't contain this value:", registry_path::DisplayName(value_name), L"Value not found", L"OK", L"", L"");
+            ui::PromptKeyChoice(hwnd_, util::Tr(L"The key was opened, but it doesn't contain this value:"), registry_path::DisplayName(value_name), util::Tr(L"Value Not Found"), util::Tr(L"OK"), L"", L"");
         }
         else
         {
@@ -929,21 +928,21 @@ void MainWindow::Impl::NavigateToAddress()
     std::wstring nearest;
     if (!FindNearestExistingPath(path, &nearest) || nearest.empty())
     {
-        ui::ShowWarning(hwnd_, L"Registry path not found.");
+        ui::ShowWarning(hwnd_, util::Tr(L"Registry path not found."));
         return;
     }
-    std::wstring message = L"The registry key doesn't exist:";
+    std::wstring message = util::Tr(L"The registry key doesn't exist:");
     if (read_only_)
     {
         message += L"\nRead only mode is enabled.";
-        int result = ui::PromptKeyChoice(hwnd_, message, path, L"Registry path not found", L"Go to nearest key", L"", L"Cancel", {150, 70, 70});
+        int result = ui::PromptKeyChoice(hwnd_, message, path, util::Tr(L"Registry Path Not Found"), util::Tr(L"Go to Nearest Key"), L"", util::Tr(L"Cancel"), {150, 70, 70});
         if (result == IDYES)
         {
             SelectTreePath(nearest);
         }
         return;
     }
-    int result = ui::PromptKeyChoice(hwnd_, message, path, L"Registry path not found", L"Go to nearest key", L"Create key", L"Cancel", {150, 100, 70});
+    int result = ui::PromptKeyChoice(hwnd_, message, path, util::Tr(L"Registry Path Not Found"), util::Tr(L"Go to Nearest Key"), util::Tr(L"Create Key"), util::Tr(L"Cancel"), {150, 100, 70});
     if (result == IDYES)
     {
         SelectTreePath(nearest);
@@ -953,7 +952,7 @@ void MainWindow::Impl::NavigateToAddress()
     {
         if (!CreateRegistryPath(path))
         {
-            ui::ShowError(hwnd_, L"Failed to create registry key.");
+            ui::ShowError(hwnd_, util::Tr(L"Failed to create registry key."));
             return;
         }
         RefreshTreePath(nearest);
@@ -971,7 +970,7 @@ void MainWindow::Impl::ApplyQueuedExternalJump()
     queued_external_jump_target_.clear();
     if (!NavigateToExternalJump(target))
     {
-        ui::ShowWarning(hwnd_, L"Registry path not found:\n" + target);
+        ui::ShowWarning(hwnd_, util::TrDetail(L"Registry path not found.", target));
     }
 }
 

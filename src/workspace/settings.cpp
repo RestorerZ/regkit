@@ -81,6 +81,7 @@ constexpr TextField kTextFields[] = {
     {L"theme_preset", &Settings::theme_preset}, // Options > Theme > Theme Presets
     {L"icon_set", &Settings::icon_set},         // Options > Icons
     {L"font_face", &Settings::font_face},       // Options > Font
+    {L"language", &Settings::language},         // Options > Language
 };
 
 template <typename Field>

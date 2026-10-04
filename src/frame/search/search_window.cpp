@@ -4,6 +4,7 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -172,28 +173,28 @@ void MainWindow::Impl::UpdateStatus()
         wchar_t buffer[256] = {};
         if (compare_selected)
         {
-            swprintf_s(buffer, L"Results: %llu", count_value);
+            swprintf_s(buffer, util::Tr(L"Results: %llu"), count_value);
         }
         else if (search_running_)
         {
             uint64_t searched = search_progress_searched_.load();
             if (searched > 0)
             {
-                swprintf_s(buffer, L"Searching... Results: ~%llu | Scanned: %llu", count_value, searched);
+                swprintf_s(buffer, util::Tr(L"Searching... Results: ~%llu | Scanned: %llu"), count_value, searched);
             }
             else
             {
-                swprintf_s(buffer, L"Searching... Results: ~%llu", count_value);
+                swprintf_s(buffer, util::Tr(L"Searching... Results: ~%llu"), count_value);
             }
         }
         else if (search_duration_valid_ && search_duration_ms_ > 0)
         {
             double seconds = static_cast<double>(search_duration_ms_) / 1000.0;
-            swprintf_s(buffer, L"Results: %llu (%.2fs)", count_value, seconds);
+            swprintf_s(buffer, util::Tr(L"Results: %llu (%.2fs)"), count_value, seconds);
         }
         else
         {
-            swprintf_s(buffer, L"Results: %llu", count_value);
+            swprintf_s(buffer, util::Tr(L"Results: %llu"), count_value);
         }
         int part = total_width;
         SendMessageW(status_bar_, SB_SETPARTS, 1, reinterpret_cast<LPARAM>(&part));
@@ -208,8 +209,7 @@ void MainWindow::Impl::UpdateStatus()
             const TabEntry& entry = tabs_[static_cast<size_t>(sel)];
             if (entry.reg_file_loading)
             {
-                std::wstring label = entry.reg_file_label.empty() ? L"registry file" : entry.reg_file_label;
-                std::wstring text = L"Loading " + label + L"...";
+                std::wstring text = util::TrLabel(L"Loading", entry.reg_file_label);
                 int part = total_width;
                 SendMessageW(status_bar_, SB_SETPARTS, 1, reinterpret_cast<LPARAM>(&part));
                 SendMessageW(status_bar_, SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(text.c_str()));
@@ -232,11 +232,11 @@ void MainWindow::Impl::UpdateStatus()
     {
         path_text = registry_path::Build(*browse_.current_node());
     }
-    swprintf_s(buffer, L"Keys: %d", current_key_count_);
+    swprintf_s(buffer, util::Tr(L"Keys: %d"), current_key_count_);
     keys_text = buffer;
-    swprintf_s(buffer, L"Values: %d", current_value_count_);
+    swprintf_s(buffer, util::Tr(L"Values: %d"), current_value_count_);
     values_text = buffer;
-    swprintf_s(buffer, L"Selected: %d", selected);
+    swprintf_s(buffer, util::Tr(L"Selected: %d"), selected);
     selected_text = buffer;
 
     HDC hdc = GetDC(status_bar_);
@@ -541,7 +541,7 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
                 }
                 else
                 {
-                    ui::ShowError(hwnd_, L"Starting key path wasn't found.");
+                    ui::ShowError(hwnd_, util::Tr(L"Starting key path wasn't found."));
                     return false;
                 }
             }
@@ -552,7 +552,7 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
         }
         else
         {
-            ui::ShowError(hwnd_, L"Select a starting key first.");
+            ui::ShowError(hwnd_, util::Tr(L"Select a starting key first."));
             return false;
         }
     }
@@ -713,7 +713,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
 {
     if (options.criteria.query.empty())
     {
-        ui::ShowWarning(hwnd_, L"Enter text to find.");
+        ui::ShowWarning(hwnd_, util::Tr(L"Enter text to find."));
         return;
     }
 
@@ -748,7 +748,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
         }
         else
         {
-            ui::ShowError(hwnd_, L"Select a starting key first.");
+            ui::ShowError(hwnd_, util::Tr(L"Select a starting key first."));
             return;
         }
     }
@@ -763,7 +763,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
 
     if (want_registry && start_nodes.empty())
     {
-        ui::ShowError(hwnd_, L"No keys to search in the selected sources.");
+        ui::ShowError(hwnd_, util::Tr(L"No keys to search in the selected sources."));
         return;
     }
     if (!want_registry && !want_trace)
@@ -792,10 +792,10 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
         criteria.default_text = DefaultDataLookup(active_defaults_);
     }
 
-    std::wstring label = L"Find";
+    std::wstring label = util::Tr(L"Find");
     if (!criteria.query.empty())
     {
-        label = L"Find: " + criteria.query;
+        label = util::TrLabel(L"Find", criteria.query);
         constexpr size_t kMaxLabel = 48;
         if (label.size() > kMaxLabel)
         {
@@ -1056,7 +1056,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
                                     continue;
                                 }
                                 const std::wstring display =
-                                    value_name.empty() ? std::wstring(L"(Default)") : value_name;
+                                    value_name.empty() ? std::wstring(util::Tr(L"(Default)")) : value_name;
                                 const search::Match match = matcher->Find(display);
                                 if (!match.matched)
                                 {
@@ -1332,7 +1332,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
 {
     if (read_only_)
     {
-        ui::ShowWarning(hwnd_, L"Read only mode is enabled.");
+        ui::ShowWarning(hwnd_, util::Tr(L"Read only mode is enabled."));
         return;
     }
     if (options.find_text.empty())
@@ -1345,7 +1345,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
     {
         if (!ResolvePathToNode(options.start_key, &start))
         {
-            ui::ShowError(hwnd_, L"Starting key path wasn't found.");
+            ui::ShowError(hwnd_, util::Tr(L"Starting key path wasn't found."));
             return;
         }
     }
@@ -1355,7 +1355,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
     }
     else
     {
-        ui::ShowError(hwnd_, L"Select a starting key first.");
+        ui::ShowError(hwnd_, util::Tr(L"Select a starting key first."));
         return;
     }
 
@@ -1368,7 +1368,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
 
     if (replace_result_pending_)
     {
-        ui::ShowWarning(hwnd_, L"Replace is already running.");
+        ui::ShowWarning(hwnd_, util::Tr(L"Replace is already running."));
         return;
     }
 
@@ -1598,38 +1598,32 @@ void MainWindow::Impl::CommitReplacePayload(std::unique_ptr<ReplacePayload> payl
     }
     if (show_failures)
     {
-        std::wstring summary = L"Replaced " + std::to_wstring(payload->changes.size()) +
-                               (payload->changes.size() == 1 ? L" entry" : L" entries");
+        std::wstring summary = util::TrLabel(L"Replaced", std::to_wstring(payload->changes.size()));
         if (payload->failures > 0)
         {
-            summary += L", " + std::to_wstring(payload->failures) + L" failed";
+            summary += L", " + util::TrLabel(L"Failed", std::to_wstring(payload->failures));
         }
         if (payload->rejected > 0)
         {
-            summary += L", " + std::to_wstring(payload->rejected) + L" skipped";
+            summary += L", " + util::TrLabel(L"Skipped", std::to_wstring(payload->rejected));
         }
         if (payload->cancelled)
         {
-            summary += L" (cancelled)";
+            summary += L" (" + std::wstring(util::Tr(L"cancelled")) + L")";
         }
         SetStatusMessage(summary);
     }
     if (show_failures && (payload->failures > 0 || payload->rejected > 0))
     {
-        std::wstring message = L"Replace finished with some failures.\nReplaced: " +
-                               std::to_wstring(payload->changes.size()) + L"\nFailed: " +
-                               std::to_wstring(payload->failures);
+        std::wstring message = util::TrDetail(L"Replace finished with some failures.", util::TrLabel(L"Replaced", std::to_wstring(payload->changes.size()))) + L"\n" +
+                               util::TrLabel(L"Failed", std::to_wstring(payload->failures));
         if (payload->rejected > 0)
         {
-            message += L"\nSkipped: " + std::to_wstring(payload->rejected) +
-                       L" value(s) because the replacement wasn't valid for the "
-                       L"value type.";
+            message += L"\n" + util::TrLabel(L"Skipped, the replacement isn't valid for the value type", std::to_wstring(payload->rejected));
         }
         if (payload->partial_renames > 0)
         {
-            message += L"\n" + std::to_wstring(payload->partial_renames) +
-                       L" value(s) were copied to the new name but the old name "
-                       L"couldn't be removed. Both names now exist.";
+            message += L"\n" + util::TrLabel(L"Copied to the new name, the old name couldn't be removed", std::to_wstring(payload->partial_renames));
         }
         ui::ShowError(hwnd_, message);
     }

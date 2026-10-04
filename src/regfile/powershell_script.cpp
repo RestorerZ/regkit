@@ -4,6 +4,7 @@
 #include "regfile/script_convert.h"
 #include "registry/value_format.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 #include <climits>
@@ -98,7 +99,7 @@ std::vector<std::pair<bool, std::wstring>> ExpandableParts(std::wstring_view bod
         }
         else if (character == L'$' && index + 1 < body.size() && body[index + 1] == L'(')
         {
-            throw ParseError{line, L"Subexpressions aren't supported."};
+            throw ParseError{line, util::Tr(L"Subexpressions aren't supported.")};
         }
         else if (character == L'$' && index + 1 < body.size() && (IsIdentifier(body[index + 1]) || body[index + 1] == L'{'))
         {
@@ -109,7 +110,7 @@ std::vector<std::pair<bool, std::wstring>> ExpandableParts(std::wstring_view bod
                 const size_t close = body.find(L'}', end);
                 if (close == std::wstring_view::npos)
                 {
-                    throw ParseError{line, L"Unterminated variable name."};
+                    throw ParseError{line, util::Tr(L"Unterminated variable name.")};
                 }
                 name = body.substr(end + 1, close - end - 1);
                 end = close + 1;
@@ -199,7 +200,7 @@ std::vector<Token> Tokenize(std::wstring_view text)
             const size_t close = text.find(L"#>", index + 2);
             if (close == std::wstring_view::npos)
             {
-                fail(L"Unterminated block comment.");
+                fail(util::Tr(L"Unterminated block comment."));
             }
             count_lines(index, close);
             index = close + 2;
@@ -215,7 +216,7 @@ std::vector<Token> Tokenize(std::wstring_view text)
                 close = text.find(L'\n', close);
                 if (close == std::wstring_view::npos)
                 {
-                    fail(L"Unterminated here-string.");
+                    fail(util::Tr(L"Unterminated here-string."));
                 }
                 ++close;
                 if ((literal ? IsSingleQuote(at(close)) : IsDoubleQuote(at(close))) && at(close + 1) == L'@')
@@ -241,7 +242,7 @@ std::vector<Token> Tokenize(std::wstring_view text)
             {
                 if (index >= text.size())
                 {
-                    fail(L"Unterminated string.");
+                    fail(util::Tr(L"Unterminated string."));
                 }
                 if (IsSingleQuote(text[index]) && !IsSingleQuote(at(index + 1)))
                 {
@@ -274,7 +275,7 @@ std::vector<Token> Tokenize(std::wstring_view text)
             }
             if (end >= text.size())
             {
-                fail(L"Unterminated string.");
+                fail(util::Tr(L"Unterminated string."));
             }
             std::wstring body;
             for (size_t position = index + 1; position < end; ++position)
@@ -300,7 +301,7 @@ std::vector<Token> Tokenize(std::wstring_view text)
                 const size_t close = text.find(L'}', index);
                 if (close == std::wstring_view::npos)
                 {
-                    fail(L"Unterminated variable name.");
+                    fail(util::Tr(L"Unterminated variable name."));
                 }
                 name = text.substr(index + 1, close - index - 1);
                 index = close + 1;
@@ -329,7 +330,7 @@ std::vector<Token> Tokenize(std::wstring_view text)
             }
             if (end >= text.size())
             {
-                fail(L"Unterminated type name.");
+                fail(util::Tr(L"Unterminated type name."));
             }
             push(Kind::kType, util::TrimWhitespace(text.substr(index + 1, end - index - 1)));
             index = end + 1;
@@ -388,7 +389,7 @@ std::vector<Token> Tokenize(std::wstring_view text)
             unsigned long long value = 0;
             if (index == digits || IsIdentifier(at(index)) || !util::ParseUnsignedNumber(std::wstring(hex ? L"0x" : L"") + std::wstring(text.substr(digits, index - digits - suffix)), 10, &value))
             {
-                fail(L"Unsupported number: " + std::wstring(text.substr(start, index - start + 1)));
+                fail(util::TrLabel(L"Unsupported number", text.substr(start, index - start + 1)));
             }
             Token& token = push(Kind::kNumber, std::wstring(text.substr(start, index - start)));
             token.wide = suffix || (hex ? value > 0xFFFFFFFFull : value > 0x7FFFFFFFull);
@@ -410,7 +411,7 @@ std::vector<Token> Tokenize(std::wstring_view text)
             }
             if (word.empty())
             {
-                fail(L"Unexpected character: " + std::wstring(1, character));
+                fail(util::TrLabel(L"Unexpected character", std::wstring(1, character)));
             }
             push(Kind::kWord, word);
         }
@@ -503,7 +504,7 @@ class Interpreter
             }
             if (!At(Kind::kNewline) && !At(Kind::kEnd))
             {
-                Fail(L"Unexpected '" + Peek().text + L"'.");
+                Fail(util::TrLabel(L"Unexpected token", Peek().text));
             }
         }
     }
@@ -543,7 +544,7 @@ class Interpreter
     {
         if (!At(Kind::kPunct, punct))
         {
-            Fail(L"Expected '" + std::wstring(punct) + L"'.");
+            Fail(util::TrLabel(L"Expected", punct));
         }
         Take();
     }
@@ -597,7 +598,7 @@ class Interpreter
         }
         if (!At(Kind::kWord, L"Test-Path"))
         {
-            Fail(L"Only if conditions on Test-Path are supported.");
+            Fail(util::Tr(L"Only if conditions on Test-Path are supported."));
         }
         Take();
         Arguments();
@@ -616,7 +617,7 @@ class Interpreter
         {
             if (At(Kind::kEnd))
             {
-                Fail(L"Expected '}'.");
+                Fail(util::Tr(L"Expected '}'."));
             }
             if (At(Kind::kNewline))
             {
@@ -629,7 +630,7 @@ class Interpreter
         Take();
         if (At(Kind::kWord, L"else") || At(Kind::kWord, L"elseif"))
         {
-            Fail(L"else blocks aren't supported.");
+            Fail(util::Tr(L"else blocks aren't supported."));
         }
     }
 
@@ -640,7 +641,7 @@ class Interpreter
             Take();
             if (!At(Kind::kWord, L"Out-Null"))
             {
-                Fail(L"Only | Out-Null pipelines are supported.");
+                Fail(util::Tr(L"Only | Out-Null pipelines are supported."));
             }
             Take();
         }
@@ -664,7 +665,7 @@ class Interpreter
                 const bool is_switch = std::find(std::begin(kSwitches), std::end(kSwitches), argument.name) != std::end(kSwitches);
                 if (argument.name == L"whatif")
                 {
-                    Fail(L"-WhatIf makes no changes and can't be converted.");
+                    Fail(util::Tr(L"-WhatIf makes no changes and can't be converted."));
                 }
                 if (colon)
                 {
@@ -748,7 +749,7 @@ class Interpreter
                 const auto variable = variables_.find(name);
                 if (variable == variables_.end())
                 {
-                    Fail(L"$" + token.text + L" can't be resolved.");
+                    Fail(util::TrLabel(L"Variable can't be resolved", L"$" + token.text));
                 }
                 return variable->second;
             }
@@ -789,7 +790,7 @@ class Interpreter
         default:
             break;
         }
-        Fail(L"Unexpected '" + token.text + L"'.");
+        Fail(util::TrLabel(L"Unexpected token", token.text));
     }
 
     Item Interpolate(const std::vector<std::pair<bool, std::wstring>>& parts)
@@ -805,7 +806,7 @@ class Interpreter
             const auto found = variables_.find(util::ToLower(value));
             if (found == variables_.end() || (found->second.type != Item::Type::kString && found->second.type != Item::Type::kNumber))
             {
-                Fail(L"$" + value + L" can't be resolved.");
+                Fail(util::TrLabel(L"Variable can't be resolved", L"$" + value));
             }
             text += found->second.type == Item::Type::kString ? found->second.text : std::to_wstring(found->second.number);
         }
@@ -833,7 +834,7 @@ class Interpreter
         Take();
         if (!At(Kind::kWord))
         {
-            Fail(L"Expected a member name.");
+            Fail(util::Tr(L"Expected a member name."));
         }
         return util::ToLower(Take().text);
     }
@@ -843,7 +844,7 @@ class Interpreter
         type = util::ToLower(type);
         if (!At(Kind::kPunct, L"::"))
         {
-            Fail(L"Unexpected type [" + type + L"].");
+            Fail(util::TrLabel(L"Unexpected type", L"[" + type + L"]"));
         }
         const std::wstring member = TakeMember();
         if (type == L"microsoft.win32.registry")
@@ -876,7 +877,7 @@ class Interpreter
             const std::vector<Item> arguments = CallArguments();
             if (arguments.size() != 4 || arguments[0].type != Item::Type::kKey || arguments[2].type != Item::Type::kNumber)
             {
-                Fail(L"Invalid RegKit.Native call.");
+                Fail(util::Tr(L"Invalid RegKit.Native call."));
             }
             Operation operation{Operation::Kind::kValue, arguments[0].text};
             operation.value.name = Text(arguments[1]);
@@ -885,7 +886,7 @@ class Interpreter
             output_->push_back(std::move(operation));
             return {};
         }
-        Fail(L"[" + type + L"]::" + member + L" isn't supported.");
+        Fail(util::TrLabel(L"Unsupported member", L"[" + type + L"]::" + member));
     }
 
     Item Postfix(Item item)
@@ -895,7 +896,7 @@ class Interpreter
             const std::wstring member = TakeMember();
             if (item.type != Item::Type::kKey || !At(Kind::kPunct, L"("))
             {
-                Fail(L"." + member + L" isn't supported.");
+                Fail(util::TrLabel(L"Unsupported member", L"." + member));
             }
             const std::vector<Item> arguments = CallArguments();
             const std::wstring sub = arguments.empty() ? std::wstring() : Text(arguments[0]);
@@ -931,7 +932,7 @@ class Interpreter
             }
             else
             {
-                Fail(L"." + member + L"() isn't supported.");
+                Fail(util::TrLabel(L"Unsupported member", L"." + member + L"()"));
             }
         }
         return item;
@@ -945,7 +946,7 @@ class Interpreter
         }
         if (item.type != Item::Type::kString)
         {
-            Fail(L"Expected text.");
+            Fail(util::Tr(L"Expected text."));
         }
         return item.text;
     }
@@ -957,7 +958,7 @@ class Interpreter
         {
             if (element.type != Item::Type::kNumber || element.number < 0 || element.number > 0xFF)
             {
-                Fail(L"Byte values must be numbers from 0 to 255.");
+                Fail(util::Tr(L"Byte values must be numbers from 0 to 255."));
             }
             bytes.push_back(static_cast<BYTE>(element.number));
         }
@@ -994,7 +995,7 @@ class Interpreter
         {
             if (value.number < INT_MIN || value.number > INT_MAX)
             {
-                Fail(L"The number doesn't fit an [int].");
+                Fail(util::Tr(L"The number doesn't fit an [int]."));
             }
             return NumberItem(value.number, false);
         }
@@ -1006,7 +1007,7 @@ class Interpreter
         {
             return value;
         }
-        Fail(L"[" + type + L"] casts aren't supported.");
+        Fail(util::TrLabel(L"Unsupported cast", L"[" + type + L"]"));
     }
 
     void Set(const std::wstring& path, const std::wstring& name, const Item& data, std::wstring kind)
@@ -1034,15 +1035,15 @@ class Interpreter
             unsigned long long number = static_cast<unsigned long long>(data.number);
             if (data.type == Item::Type::kString && !util::ParseUnsignedNumber(data.text, 10, &number))
             {
-                Fail(L"Invalid number: " + data.text);
+                Fail(util::TrLabel(L"Invalid number", data.text));
             }
             if (data.type != Item::Type::kString && data.type != Item::Type::kNumber)
             {
-                Fail(L"Expected a number.");
+                Fail(util::Tr(L"Expected a number."));
             }
             if (!qword && data.type == Item::Type::kNumber && (data.number < INT_MIN || data.number > 0xFFFFFFFFll))
             {
-                Fail(L"The number doesn't fit a DWORD.");
+                Fail(util::Tr(L"The number doesn't fit a DWORD."));
             }
             value.type = qword ? REG_QWORD : REG_DWORD;
             value.data = value_format::UnsignedBytes(number, qword ? sizeof(ULONGLONG) : sizeof(DWORD));
@@ -1064,7 +1065,7 @@ class Interpreter
         }
         else
         {
-            Fail(kind.empty() ? L"The value type can't be inferred, add -Type." : L"Unsupported value type: " + kind);
+            Fail(kind.empty() ? std::wstring(util::Tr(L"The value type can't be inferred, add -Type.")) : util::TrLabel(L"Unsupported value type", kind));
         }
         output_->push_back(std::move(operation));
     }
@@ -1093,7 +1094,7 @@ class Interpreter
                                                                                         : L"";
                 if (root.empty())
                 {
-                    Fail(L"Not a registry path: " + text);
+                    Fail(util::TrLabel(L"Not a registry path", text));
                 }
                 text.erase(0, colon + 1);
                 text = root + (text.empty() || text.front() == L'\\' ? L"" : L"\\") + text;
@@ -1103,13 +1104,13 @@ class Interpreter
                 std::replace(text.begin(), text.end(), L'/', L'\\');
                 if (!wildcards_literal && text.find_first_of(L"*?[") != std::wstring::npos)
                 {
-                    Fail(L"Wildcard paths can't be converted, use -LiteralPath.");
+                    Fail(util::Tr(L"Wildcard paths can't be converted, use -LiteralPath."));
                 }
             }
             std::wstring path;
             if (!NormalizeKeyPath(text, &path))
             {
-                Fail(L"Not a registry path: " + text);
+                Fail(util::TrLabel(L"Not a registry path", text));
             }
             paths.push_back(std::move(path));
         }
@@ -1136,25 +1137,25 @@ class Interpreter
             if (!drive || !provider || !root || !util::EqualsInsensitive(Text(*provider), L"Registry") ||
                 !NormalizeKeyPath(util::StartsWithInsensitive(Text(*root), L"Registry::") ? Text(*root).substr(10) : Text(*root), &path))
             {
-                Fail(L"Only registry drives are supported.");
+                Fail(util::Tr(L"Only registry drives are supported."));
             }
             drives_[util::ToLower(Text(*drive))] = path;
             return;
         }
         if (!new_item && !set_property && !remove_property && !remove_item)
         {
-            Fail(L"Unsupported command: " + name);
+            Fail(util::TrLabel(L"Unsupported command", name));
         }
         if ((condition_ == Condition::kMissing && !new_item) || (condition_ == Condition::kExists && !remove_property && !remove_item))
         {
-            Fail(L"Only New-Item can follow if (-not (Test-Path)), and only removals can follow if (Test-Path).");
+            Fail(util::Tr(L"Only New-Item can follow if (-not (Test-Path)), and only removals can follow if (Test-Path)."));
         }
         const Item* literal = Find(arguments, {L"literalpath", L"lp", L"pspath"}, SIZE_MAX);
         const Item* named = literal ? literal : Find(arguments, {L"path"}, SIZE_MAX);
         const Item* path = named ? named : Find(arguments, {}, 0);
         if (!path)
         {
-            Fail(L"A -Path is required.");
+            Fail(util::Tr(L"A -Path is required."));
         }
         const size_t shift = named ? 1 : 0;
         const std::vector<std::wstring> keys = Paths(*path, literal != nullptr, new_item);
@@ -1164,7 +1165,7 @@ class Interpreter
             static constexpr std::wstring_view kKnown[] = {L"", L"path", L"literalpath", L"lp", L"pspath", L"name", L"value", L"type", L"propertytype", L"force", L"recurse", L"erroraction", L"ea", L"itemtype"};
             if (std::find(std::begin(kKnown), std::end(kKnown), argument.name) == std::end(kKnown))
             {
-                Fail(L"Unsupported parameter -" + argument.name);
+                Fail(util::TrLabel(L"Unsupported parameter", L"-" + argument.name));
             }
         }
         for (const std::wstring& key : keys)
@@ -1190,7 +1191,7 @@ class Interpreter
                 const Item* type = Find(arguments, {L"type", L"propertytype"}, SIZE_MAX);
                 if (!property || !value)
                 {
-                    Fail(L"-Name and -Value are required.");
+                    Fail(util::Tr(L"-Name and -Value are required."));
                 }
                 Set(key, PropertyName(Text(*property)), *value, type ? Text(*type) : std::wstring());
             }
@@ -1199,7 +1200,7 @@ class Interpreter
                 const Item* property = Find(arguments, {L"name"}, 1 - shift);
                 if (!property)
                 {
-                    Fail(L"-Name is required.");
+                    Fail(util::Tr(L"-Name is required."));
                 }
                 for (const Item& element : Elements(*property))
                 {
@@ -1207,7 +1208,7 @@ class Interpreter
                     operation.value.name = PropertyName(Text(element));
                     if (operation.value.name.find_first_of(L"*?[") != std::wstring::npos)
                     {
-                        Fail(L"Wildcard value names can't be converted.");
+                        Fail(util::Tr(L"Wildcard value names can't be converted."));
                     }
                     output_->push_back(std::move(operation));
                 }
@@ -1359,7 +1360,7 @@ bool ParsePowerShell(std::wstring_view content, std::vector<Operation>* output, 
     }
     catch (const ParseError& failure)
     {
-        *error = L"Line " + std::to_wstring(failure.line) + L": " + failure.message;
+        *error = util::Tr(L"Line") + std::wstring(L" ") + std::to_wstring(failure.line) + L": " + failure.message;
         return false;
     }
 }
@@ -1383,14 +1384,14 @@ std::wstring RenderPowerShell(const std::vector<Operation>& operations, bool adm
         std::wstring name;
         if (!Literal(sub, &sub_literal) || !Literal(operation.value.name, &name))
         {
-            skipped->push_back(Describe(operation, L"contains control characters"));
+            skipped->push_back(Describe(operation, util::Tr(L"contains control characters")));
             continue;
         }
         if (operation.kind == Operation::Kind::kRemoveKey)
         {
             if (sub.empty())
             {
-                skipped->push_back(Describe(operation, L"a root key can't be deleted"));
+                skipped->push_back(Describe(operation, util::Tr(L"a root key can't be deleted")));
                 continue;
             }
             body += root + L".DeleteSubKeyTree(" + sub_literal + L", $false)\r\n";

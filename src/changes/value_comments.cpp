@@ -7,6 +7,7 @@
 #include "registry/value_format.h"
 #include "win32/file_text.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 #include <tuple>
@@ -85,7 +86,7 @@ bool ReadType(json::Reader& reader, std::optional<DWORD>* type)
                 return true;
             }
         }
-        return reader.Fail(L"A comment has an unknown registry type.");
+        return reader.Fail(util::Tr(L"A comment has an unknown registry type."));
     }
     uint64_t value = 0;
     if (!reader.Unsigned(&value))
@@ -94,7 +95,7 @@ bool ReadType(json::Reader& reader, std::optional<DWORD>* type)
     }
     if (value > MAXDWORD)
     {
-        return reader.Fail(L"A comment type is out of range.");
+        return reader.Fail(util::Tr(L"A comment type is out of range."));
     }
     *type = static_cast<DWORD>(value);
     return true;
@@ -106,7 +107,7 @@ bool ReadRule(json::Reader& reader, CommentRule* rule)
     const auto claim = [&](unsigned bit) {
         const bool first = (seen & bit) == 0;
         seen |= bit;
-        return first || reader.Fail(L"A comment contains a duplicate member.");
+        return first || reader.Fail(util::Tr(L"A comment contains a duplicate member."));
     };
     const bool read = reader.Object([&](const std::wstring& member) {
         if (member == L"name")
@@ -131,17 +132,17 @@ bool ReadRule(json::Reader& reader, CommentRule* rule)
             rule->key_scope = member == L"key" ? CommentKeyScope::kExact : CommentKeyScope::kRecursive;
             return claim(16) && reader.String(&rule->key_path, kMaxPathLength) &&
                    (!(rule->key_path = NormalizeKeyPath(std::move(rule->key_path))).empty() ||
-                    reader.Fail(L"A comment has an empty key."));
+                    reader.Fail(util::Tr(L"A comment has an empty key.")));
         }
-        return reader.Fail(L"A comment contains an unknown member.");
+        return reader.Fail(util::Tr(L"A comment contains an unknown member."));
     });
-    if (!read || ((seen & 2) == 0 && !reader.Fail(L"A comment is missing its text.")))
+    if (!read || ((seen & 2) == 0 && !reader.Fail(util::Tr(L"A comment is missing its text."))))
     {
         return false;
     }
     rule->key = (seen & 1) == 0;
     return !rule->key || ((seen & 12) == 0 && rule->key_scope == CommentKeyScope::kExact) ||
-           reader.Fail(L"A key comment needs a key and can't have a name, type, size or tree.");
+           reader.Fail(util::Tr(L"A key comment needs a key and can't have a name, type, size or tree."));
 }
 
 void AppendMember(std::wstring* out, const wchar_t* name, std::wstring_view value, bool quote)
@@ -268,15 +269,15 @@ bool ParseComments(const std::wstring& content, std::vector<CommentRule>* out, s
         {
             std::wstring value;
             format = reader.String(&value, 64) && value == kFormat;
-            return format || reader.Fail(L"The file isn't a RegKit comments file.");
+            return format || reader.Fail(util::Tr(L"The file isn't a RegKit comments file."));
         }
         if (member == L"comments")
         {
             return reader.Array([&] { return ReadRule(reader, &rules.emplace_back()); });
         }
-        return reader.Fail(L"The file contains an unknown member.");
+        return reader.Fail(util::Tr(L"The file contains an unknown member."));
     });
-    if (!read || !reader.End() || (!format && !reader.Fail(L"The file isn't a RegKit comments file.")))
+    if (!read || !reader.End() || (!format && !reader.Fail(util::Tr(L"The file isn't a RegKit comments file."))))
     {
         return false;
     }

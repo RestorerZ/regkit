@@ -6,6 +6,7 @@
 
 #include "regfile/reg_file.h"
 #include "registry/value_format.h"
+#include "win32/translation.h"
 
 #include <utility>
 
@@ -109,7 +110,7 @@ bool Load(const std::wstring& path, const NormalizePath& normalize, Data* data, 
     {
         if (error)
         {
-            *error = L"Default file contains no usable entries.";
+            *error = util::Tr(L"Default file contains no usable entries.");
         }
         return false;
     }

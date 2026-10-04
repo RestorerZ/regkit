@@ -4,10 +4,12 @@
 #include "appearance/dialog_layout.h"
 
 #include "appearance/default_font.h"
+#include "appearance/dialog_metrics.h"
 #include "appearance/gdi_cache.h"
 #include "appearance/list_view_support.h"
 #include "appearance/theme.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 
 #include <algorithm>
@@ -206,6 +208,233 @@ void CenterEditText(HWND edit, HFONT font, int left_pad, int right_pad)
     rect.top += pad;
     rect.bottom = rect.top + line;
     SendMessageW(edit, EM_SETRECT, 0, reinterpret_cast<LPARAM>(&rect));
+}
+
+int TextFitWidth(HWND control)
+{
+    wchar_t class_name[16] = {};
+    GetClassNameW(control, class_name, static_cast<int>(_countof(class_name)));
+    const LONG_PTR style = GetWindowLongPtrW(control, GWL_STYLE);
+    if (util::EqualsInsensitive(class_name, WC_BUTTONW))
+    {
+        const LONG_PTR type = style & BS_TYPEMASK;
+        SIZE ideal = {};
+        if (type == BS_GROUPBOX || type == BS_OWNERDRAW || !SendMessageW(control, BCM_GETIDEALSIZE, 0, reinterpret_cast<LPARAM>(&ideal)))
+        {
+            return 0;
+        }
+        // themed check and radio buttons pad glyph and text wider than the native ideal size
+        const bool push = type == BS_PUSHBUTTON || type == BS_DEFPUSHBUTTON;
+        return ideal.cx + (push ? 0 : metrics::Scaled(12, win32::DpiForWindow(control)));
+    }
+    const LONG_PTR type = style & SS_TYPEMASK;
+    if (!util::EqualsInsensitive(class_name, WC_STATICW) || (type != SS_LEFT && type != SS_CENTER && type != SS_RIGHT && type != SS_LEFTNOWORDWRAP && type != SS_SIMPLE))
+    {
+        return 0;
+    }
+    const std::wstring text = util::WindowText(control);
+    HDC hdc = GetDC(control);
+    HGDIOBJ old_font = SelectObject(hdc, reinterpret_cast<HFONT>(SendMessageW(control, WM_GETFONT, 0, 0)));
+    RECT needed = {};
+    DrawTextW(hdc, text.c_str(), -1, &needed, DT_CALCRECT | DT_SINGLELINE | ((style & SS_NOPREFIX) ? DT_NOPREFIX : 0));
+    SelectObject(hdc, old_font);
+    ReleaseDC(control, hdc);
+    RECT rect = {};
+    GetClientRect(control, &rect);
+    // wrapping labels lay out across lines
+    return rect.bottom >= 2 * needed.bottom ? 0 : needed.right;
+}
+
+void LocalizeDialog(HWND dialog)
+{
+    if (!util::TranslateDialog(dialog))
+    {
+        return;
+    }
+    struct Control
+    {
+        HWND hwnd = nullptr;
+        RECT rect = {};
+        RECT initial = {};
+        int fit = 0;
+        bool field = false;
+        bool push = false;
+        bool group = false;
+        const Control* container = nullptr;
+        LONG left_limit = 0;
+        LONG right_limit = 0;
+    };
+    std::vector<Control> controls;
+    for (HWND child = GetWindow(dialog, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
+    {
+        const LONG_PTR style = GetWindowLongPtrW(child, GWL_STYLE);
+        if (!(style & WS_VISIBLE))
+        {
+            continue;
+        }
+        wchar_t class_name[16] = {};
+        GetClassNameW(child, class_name, static_cast<int>(_countof(class_name)));
+        const bool button = util::EqualsInsensitive(class_name, WC_BUTTONW);
+        Control control;
+        control.hwnd = child;
+        GetWindowRect(child, &control.rect);
+        MapWindowPoints(nullptr, dialog, reinterpret_cast<POINT*>(&control.rect), 2);
+        control.initial = control.rect;
+        control.fit = TextFitWidth(child);
+        // empty labels hold data filled in later and lay out like input fields
+        control.field = !button && (!util::EqualsInsensitive(class_name, WC_STATICW) || GetWindowTextLengthW(child) == 0);
+        control.push = button && ((style & BS_TYPEMASK) == BS_PUSHBUTTON || (style & BS_TYPEMASK) == BS_DEFPUSHBUTTON);
+        control.group = button && (style & BS_TYPEMASK) == BS_GROUPBOX;
+        controls.push_back(control);
+    }
+    RECT client = {};
+    GetClientRect(dialog, &client);
+    const int gap = metrics::Scaled(4, win32::DpiForWindow(dialog));
+    auto width = [](const RECT& rect) { return static_cast<int>(rect.right - rect.left); };
+    // fields keep at least half of their designed width
+    auto shrinkable = [&](const Control& field) { return std::max(0, width(field.rect) - width(field.initial) / 2); };
+    // rows are bounded by the innermost group box around them
+    for (Control& control : controls)
+    {
+        control.left_limit = client.left + gap;
+        control.right_limit = client.right - gap;
+        for (const Control& group : controls)
+        {
+            const RECT& box = group.rect;
+            if (group.group && &group != &control && box.left <= control.rect.left && box.right >= control.rect.right && box.top <= control.rect.top &&
+                box.bottom >= control.rect.bottom && (!control.container || width(box) < width(control.container->rect)))
+            {
+                control.container = &group;
+                control.left_limit = box.left + gap;
+                control.right_limit = box.right - gap;
+            }
+        }
+    }
+    for (Control& control : controls)
+    {
+        int missing = control.fit - width(control.rect);
+        if (missing <= 0)
+        {
+            continue;
+        }
+        std::vector<Control*> row;
+        for (Control& other : controls)
+        {
+            if (&other != &control && !other.group && other.container == control.container && other.rect.top < control.rect.bottom &&
+                other.rect.bottom > control.rect.top)
+            {
+                row.push_back(&other);
+            }
+        }
+        // the control pushes its right neighbours into wider gaps and the free space before the row end
+        std::vector<Control*> right_side;
+        for (Control* other : row)
+        {
+            if (other->rect.left >= control.rect.right)
+            {
+                right_side.push_back(other);
+            }
+        }
+        std::sort(right_side.begin(), right_side.end(), [](const Control* a, const Control* b) { return a->rect.left < b->rect.left; });
+        // fields sharing a column with other fields stay put so the column remains aligned, the step below shrinks them instead
+        const auto first_field = std::find_if(right_side.begin(), right_side.end(), [&](const Control* other) {
+            return other->field && std::count_if(controls.begin(), controls.end(), [&](const Control& field) { return field.field && field.rect.left == other->rect.left; }) > 1;
+        });
+        Control* next = first_field != right_side.end() ? *first_field : right_side.empty() ? nullptr
+                                                                                            : right_side.front();
+        const LONG end = first_field != right_side.end() ? (*first_field)->rect.left - gap : control.right_limit;
+        right_side.erase(first_field, right_side.end());
+        std::vector<LONG> spacing;
+        std::vector<LONG> slack;
+        LONG previous = control.rect.right;
+        int available = 0;
+        for (const Control* other : right_side)
+        {
+            // labels, check and radio buttons wider than their text give up the excess
+            const int fit = other->push ? 0 : other->fit;
+            spacing.push_back(std::min(static_cast<LONG>(gap), other->rect.left - previous));
+            slack.push_back(fit > 0 ? std::max(0, width(other->rect) - fit) : 0);
+            available += other->rect.left - previous - spacing.back() + slack.back();
+            previous = other->rect.right;
+        }
+        available += std::max(0L, end - previous);
+        const int grow = std::clamp(available, 0, missing);
+        control.rect.right += grow;
+        missing -= grow;
+        previous = control.rect.right;
+        for (size_t i = 0; i < right_side.size(); ++i)
+        {
+            RECT& rect = right_side[i]->rect;
+            const LONG move = std::max(0L, previous + spacing[i] - rect.left);
+            rect.left += move;
+            rect.right += move - std::min(move, slack[i]);
+            previous = rect.right;
+        }
+        // an input field on the right gives up width, fields starting in the same column follow it
+        if (missing > 0 && next && next->field)
+        {
+            const LONG column = next->rect.left;
+            int take = missing;
+            for (const Control& field : controls)
+            {
+                take = field.field && field.rect.left == column ? std::min(take, shrinkable(field)) : take;
+            }
+            for (Control& field : controls)
+            {
+                field.rect.left += field.field && field.rect.left == column ? take : 0;
+            }
+            control.rect.right += take;
+            missing -= take;
+        }
+        // a push button moves its neighbouring buttons into free space on the left
+        if (missing > 0 && control.push)
+        {
+            std::vector<Control*> cluster = {&control};
+            for (bool added = true; added;)
+            {
+                added = false;
+                for (Control* other : row)
+                {
+                    if (other->push && std::find(cluster.begin(), cluster.end(), other) == cluster.end() && other->rect.right <= cluster.back()->rect.left &&
+                        other->rect.right >= cluster.back()->rect.left - 3 * gap)
+                    {
+                        cluster.push_back(other);
+                        added = true;
+                    }
+                }
+            }
+            LONG limit = control.left_limit;
+            Control* before = nullptr;
+            for (Control* other : row)
+            {
+                if (std::find(cluster.begin(), cluster.end(), other) == cluster.end() && other->rect.right <= cluster.back()->rect.left && other->rect.right + gap > limit)
+                {
+                    limit = other->rect.right + gap;
+                    before = other;
+                }
+            }
+            int take = std::clamp(static_cast<int>(cluster.back()->rect.left - limit), 0, missing);
+            // an input field on the left gives up width from its right edge
+            if (before && before->field)
+            {
+                const int shrink = std::min(missing - take, shrinkable(*before));
+                before->rect.right -= shrink;
+                take += shrink;
+            }
+            for (Control* member : cluster)
+            {
+                member->rect.left -= take;
+                member->rect.right -= member == &control ? 0 : take;
+            }
+        }
+    }
+    for (const Control& control : controls)
+    {
+        if (!EqualRect(&control.rect, &control.initial))
+        {
+            SetWindowPos(control.hwnd, nullptr, control.rect.left, control.rect.top, width(control.rect), control.rect.bottom - control.rect.top, SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    }
 }
 
 void FitDialogHeight(HWND dialog, int client_height)

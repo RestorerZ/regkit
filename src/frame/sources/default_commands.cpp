@@ -3,6 +3,7 @@
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -31,7 +32,7 @@ bool MainWindow::Impl::AddDefaultFromFile(const std::wstring& label, const std::
         {
             if (show_error)
             {
-                ui::ShowError(hwnd_, L"Default file not found.");
+                ui::ShowError(hwnd_, util::Tr(L"Default file not found."));
             }
             return false;
         }
@@ -76,7 +77,7 @@ bool MainWindow::Impl::AddDefaultFromFile(const std::wstring& label, const std::
     {
         trace::Selection dialog_selection = selection;
         TraceDialogOptions options;
-        options.title = use_label.empty() ? L"Default entries" : L"Default entries - " + use_label;
+        options.title = util::Tr(L"Default entries") + (use_label.empty() ? std::wstring() : L" - " + use_label);
         options.prompt = L"";
         options.show_values = true;
         DefaultDialogStartContext context;

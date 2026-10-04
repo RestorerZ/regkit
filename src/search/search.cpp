@@ -9,6 +9,7 @@
 #include "win32/registry_view.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 #include "work/session.h"
 
 #include <algorithm>
@@ -40,14 +41,14 @@ std::wstring SourceLabel(const Source& source)
     switch (source.kind)
     {
     case Source::Kind::kRemote:
-        return source.name.empty() ? L"Network Registry" : source.name;
+        return source.name.empty() ? util::Tr(L"Network Registry") : source.name;
     case Source::Kind::kOffline:
     case Source::Kind::kRegFile:
         return util::FileName(source.name);
     default:
         break;
     }
-    return L"Local Registry";
+    return util::Tr(L"Local Registry");
 }
 
 const wchar_t* MatchFieldLabel(MatchField field) noexcept
@@ -55,15 +56,15 @@ const wchar_t* MatchFieldLabel(MatchField field) noexcept
     switch (field)
     {
     case MatchField::kPath:
-        return L"Key";
+        return util::Tr(L"Key");
     case MatchField::kName:
-        return L"Value";
+        return util::Tr(L"Value");
     case MatchField::kData:
-        return L"Data";
+        return util::Tr(L"Data");
     case MatchField::kComment:
-        return L"Comment";
+        return util::Tr(L"Comment");
     case MatchField::kDefault:
-        return L"Default";
+        return util::Tr(L"Default");
     default:
         break;
     }
@@ -223,14 +224,14 @@ std::wstring_view DisplayName(const Result& result) noexcept
     {
         return std::wstring_view();
     }
-    return result.value_name.empty() ? std::wstring_view(L"(Default)") : std::wstring_view(result.value_name);
+    return result.value_name.empty() ? std::wstring_view(util::Tr(L"(Default)")) : std::wstring_view(result.value_name);
 }
 
 std::wstring TypeText(const Result& result)
 {
     if (IsKeyRow(result))
     {
-        return L"Key";
+        return util::Tr(L"Key");
     }
     if (result.kind == ResultKind::kTraceValue)
     {
@@ -1137,7 +1138,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                     {
                         return true;
                     }
-                    const std::wstring display_name = value.name.empty() ? std::wstring(L"(Default)") : value.name;
+                    const std::wstring display_name = value.name.empty() ? std::wstring(util::Tr(L"(Default)")) : value.name;
                     Match name_match;
                     if (criteria.search_values)
                     {

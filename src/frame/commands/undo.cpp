@@ -3,6 +3,7 @@
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -173,8 +174,8 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(const change
     }
     if (rename_left_both_names)
     {
-        ui::ShowError(hwnd_, L"The value was copied to the new name but the old name "
-                             L"couldn't be removed. Both names now exist.");
+        ui::ShowError(hwnd_, util::Tr(L"The value was copied to the new name but the old name "
+                                      L"couldn't be removed. Both names now exist."));
     }
     if (toolbar_.hwnd())
     {

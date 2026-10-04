@@ -5,6 +5,7 @@
 #include "frame/window_impl.h"
 #include "frame/tools/research_links.h"
 #include "appearance/autocomplete.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -24,6 +25,24 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(int command_id)
     if (command_id >= cmd::kTabClose && command_id <= cmd::kTabSelectMax)
     {
         return HandleTabCommand(command_id);
+    }
+    if (command_id >= cmd::kOptionsLanguageAuto && command_id <= cmd::kOptionsLanguageMax)
+    {
+        const size_t index = static_cast<size_t>(command_id - cmd::kOptionsLanguageBase);
+        const std::wstring code = command_id == cmd::kOptionsLanguageAuto ? L"" : index < language_packs_.size() ? language_packs_[index].code
+                                                                                                                 : language_;
+        if (code != language_)
+        {
+            language_ = code;
+            SaveSettings();
+            BuildMenus();
+            if (ui::PromptChoice(hwnd_, util::Tr(L"Restart RegKit now to apply the language?"), util::Tr(L"Language"), util::Tr(L"Restart"), L"", util::Tr(L"Later")) == IDYES)
+            {
+                restart_on_close_ = true;
+                PostMessageW(hwnd_, WM_CLOSE, 0, 0);
+            }
+        }
+        return true;
     }
     switch (command_id)
     {
@@ -214,7 +233,7 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         OpenHiveFileDir();
         return true;
     case cmd::kOptionsResetSettings:
-        if (ui::PromptChoice(hwnd_, L"Reset all settings and restart RegKit?", L"Reset settings", L"Reset", L"", L"Cancel") == IDYES)
+        if (ui::PromptChoice(hwnd_, util::Tr(L"Reset all settings and restart RegKit?"), util::Tr(L"Reset Settings"), util::Tr(L"Reset"), L"", util::Tr(L"Cancel")) == IDYES)
         {
             reset_settings_on_close_ = true;
             PostMessageW(hwnd_, WM_CLOSE, 0, 0);

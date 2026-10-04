@@ -4,6 +4,7 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -232,7 +233,7 @@ bool MainWindow::Impl::AddTraceFromFile(const std::wstring& label, const std::ws
         {
             if (update_ui)
             {
-                ui::ShowError(hwnd_, L"Trace file not found.");
+                ui::ShowError(hwnd_, util::Tr(L"Trace file not found."));
             }
             return false;
         }
@@ -290,7 +291,7 @@ bool MainWindow::Impl::AddTraceFromFile(const std::wstring& label, const std::ws
     {
         trace::Selection dialog_selection = selection;
         TraceDialogOptions options;
-        options.title = use_label.empty() ? L"Trace entries" : L"Trace entries - " + use_label;
+        options.title = util::Tr(L"Trace entries") + (use_label.empty() ? std::wstring() : L" - " + use_label);
         options.prompt = L"";
         options.show_values = true;
         TraceDialogStartContext context;

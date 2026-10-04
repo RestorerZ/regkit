@@ -6,6 +6,7 @@
 #include "registry/registry_path.h"
 #include "win32/file_text.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <algorithm>
 #include <cwctype>
@@ -33,7 +34,7 @@ bool Decode(std::string_view buffer, std::wstring* content, std::wstring* error)
     {
         if (error)
         {
-            *error = L"Trace file is empty or too large to load.";
+            *error = util::Tr(L"Trace file is empty or too large to load.");
         }
         return false;
     }
@@ -47,7 +48,7 @@ bool Decode(std::string_view buffer, std::wstring* content, std::wstring* error)
     {
         if (error)
         {
-            *error = L"Trace file has no readable entries.";
+            *error = util::Tr(L"Trace file has no readable entries.");
         }
         return false;
     }
@@ -138,7 +139,7 @@ bool ParseEntries(std::string_view buffer, const Normalizers& normalizers, const
     {
         if (error)
         {
-            *error = L"Trace file contains no usable entries.";
+            *error = util::Tr(L"Trace file contains no usable entries.");
         }
         return false;
     }

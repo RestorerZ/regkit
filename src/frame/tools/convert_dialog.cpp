@@ -8,6 +8,7 @@
 #include "editors/dialog_support.h"
 #include "win32/file_dialog.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include "resource.h"
 
@@ -119,17 +120,17 @@ bool Convert(HWND dialog, State* state)
     const bool registry = settings.source == ConvertSource::kRegistry;
     if (registry ? settings.key_path.empty() : settings.input_path.empty())
     {
-        ui::ShowError(dialog, registry ? L"Registry key is required." : L"Input file path is required.");
+        ui::ShowError(dialog, registry ? util::Tr(L"Registry key is required.") : util::Tr(L"Input file path is required."));
         return false;
     }
     if (settings.output_path.empty())
     {
-        ui::ShowError(dialog, L"Output file path is required.");
+        ui::ShowError(dialog, util::Tr(L"Output file path is required."));
         return false;
     }
     if (!registry && util::EqualsInsensitive(settings.input_path, settings.output_path))
     {
-        ui::ShowError(dialog, L"The output file can't be the input file.");
+        ui::ShowError(dialog, util::Tr(L"The output file can't be the input file."));
         return false;
     }
 
@@ -157,7 +158,7 @@ bool Convert(HWND dialog, State* state)
     }
     if (!regfile::SaveRendered(settings.output_path, settings.format, text))
     {
-        ui::ShowError(dialog, L"Failed to write " + settings.output_path);
+        ui::ShowError(dialog, util::TrDetail(L"The output file couldn't be written.", settings.output_path));
         return false;
     }
     if (settings.open_in_editor)
@@ -218,8 +219,8 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         state = reinterpret_cast<State*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
         const ConvertSettings& settings = *state->settings;
-        Fill(dialog, IDC_CONVERT_SOURCE, {L"Registry", L"Reg File", L"Batch File", L"PowerShell Script"}, static_cast<int>(settings.source));
-        Fill(dialog, IDC_CONVERT_FORMAT, {L"Reg File", L"Batch File", L"PowerShell Script"}, static_cast<int>(settings.format));
+        Fill(dialog, IDC_CONVERT_SOURCE, {util::Tr(L"Registry"), util::Tr(L"Reg File"), util::Tr(L"Batch File"), util::Tr(L"PowerShell Script")}, static_cast<int>(settings.source));
+        Fill(dialog, IDC_CONVERT_FORMAT, {util::Tr(L"Reg File"), util::Tr(L"Batch File"), util::Tr(L"PowerShell Script")}, static_cast<int>(settings.format));
         SetDlgItemTextW(dialog, IDC_CONVERT_INPUT, settings.input_path.c_str());
         SetDlgItemTextW(dialog, IDC_CONVERT_OUTPUT, settings.output_path.c_str());
         CheckDlgButton(dialog, IDC_CONVERT_RECURSIVE, settings.recursive ? BST_CHECKED : BST_UNCHECKED);
@@ -233,16 +234,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             return SourceAt(dialog) == ConvertSource::kRegistry ? appearance::SuggestKeys(text) : appearance::SuggestComboPaths(key, text);
         });
         dialog_support::Initialize(dialog, &state->font, {IDC_CONVERT_INPUT, IDC_CONVERT_OUTPUT});
-        RECT edit = {};
-        GetWindowRect(GetDlgItem(dialog, IDC_CONVERT_INPUT), &edit);
-        for (const int id : {IDC_CONVERT_SOURCE, IDC_CONVERT_KEY, IDC_CONVERT_FORMAT})
-        {
-            RECT combo = {};
-            GetWindowRect(GetDlgItem(dialog, id), &combo);
-            const LRESULT item = SendDlgItemMessageW(dialog, id, CB_GETITEMHEIGHT, static_cast<WPARAM>(-1), 0);
-            const LONG frame = (combo.bottom - combo.top) - static_cast<LONG>(item);
-            SendDlgItemMessageW(dialog, id, CB_SETITEMHEIGHT, static_cast<WPARAM>(-1), (edit.bottom - edit.top) - frame);
-        }
+        dialog_support::MatchComboHeights(dialog, IDC_CONVERT_INPUT, {IDC_CONVERT_SOURCE, IDC_CONVERT_KEY, IDC_CONVERT_FORMAT});
         return TRUE;
     }
     if (message == WM_DESTROY)

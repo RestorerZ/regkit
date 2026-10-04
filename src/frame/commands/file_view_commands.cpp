@@ -3,6 +3,7 @@
 
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
+#include "win32/translation.h"
 
 namespace regkit
 {
@@ -288,7 +289,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             }
             else
             {
-                ui::ShowError(hwnd_, L"Failed to import comments.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to import comments."));
             }
             return true;
         }
@@ -307,7 +308,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             }
             else
             {
-                ui::ShowError(hwnd_, L"Failed to export comments.");
+                ui::ShowError(hwnd_, util::Tr(L"Failed to export comments."));
             }
             return true;
         }
@@ -319,7 +320,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             }
             if (registry_mode_ == RegistryMode::kRemote)
             {
-                ui::ShowError(hwnd_, L"Loading hives isn't supported for remote registries.");
+                ui::ShowError(hwnd_, util::Tr(L"Loading hives isn't supported for remote registries."));
                 return true;
             }
             std::wstring error;
@@ -346,7 +347,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             }
             if (registry_mode_ == RegistryMode::kRemote)
             {
-                ui::ShowError(hwnd_, L"Unloading hives isn't supported for remote registries.");
+                ui::ShowError(hwnd_, util::Tr(L"Unloading hives isn't supported for remote registries."));
                 return true;
             }
             HKEY root = HKEY_LOCAL_MACHINE;
@@ -359,10 +360,10 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             }
             if (subkey.empty() || subkey.find(L'\\') != std::wstring::npos)
             {
-                ui::ShowError(hwnd_, L"Select a hive you loaded under HKEY_LOCAL_MACHINE or HKEY_USERS first.");
+                ui::ShowError(hwnd_, util::Tr(L"Select a hive you loaded under HKEY_LOCAL_MACHINE or HKEY_USERS first."));
                 return true;
             }
-            if (ui::PromptKeyChoice(hwnd_, L"Unload this key and all of its subkeys?", subkey, L"Unload Hive", L"Unload", L"", L"Cancel") != IDYES)
+            if (ui::PromptKeyChoice(hwnd_, util::Tr(L"Unload this key and all of its subkeys?"), subkey, util::Tr(L"Unload Hive"), util::Tr(L"Unload"), L"", util::Tr(L"Cancel")) != IDYES)
             {
                 return true;
             }
@@ -536,7 +537,7 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
             MarkTreeStateDirty();
             if (truncated)
             {
-                ui::ShowWarning(hwnd_, L"This key has too many subkeys to expand at once. " + std::to_wstring(expanded_keys) + L" keys were expanded.");
+                ui::ShowWarning(hwnd_, util::TrDetail(L"This key has too many subkeys to expand at once.", util::TrLabel(L"Expanded keys", std::to_wstring(expanded_keys))));
             }
             return true;
         }
@@ -747,8 +748,8 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
             }
             std::wstring content = JoinLines(active);
             editors::TextRequest request;
-            request.title = L"Edit Active Defaults";
-            request.label = L"One default path per line.";
+            request.title = util::Tr(L"Edit Active Defaults");
+            request.label = util::Tr(L"One default path per line.");
             request.text = content;
             request.multiline = true;
             editors::TextResult result;
@@ -778,8 +779,8 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
             }
             std::wstring content = JoinLines(active);
             editors::TextRequest request;
-            request.title = L"Edit Active Traces";
-            request.label = L"One trace path per line.";
+            request.title = util::Tr(L"Edit Active Traces");
+            request.label = util::Tr(L"One trace path per line.");
             request.text = content;
             request.multiline = true;
             editors::TextResult result;
@@ -809,8 +810,8 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
         {
             std::wstring content = JoinLines(recent_default_paths_.items());
             editors::TextRequest request;
-            request.title = L"Edit Recent Defaults";
-            request.label = L"One default path per line.";
+            request.title = util::Tr(L"Edit Recent Defaults");
+            request.label = util::Tr(L"One default path per line.");
             request.text = content;
             request.multiline = true;
             editors::TextResult result;
@@ -829,8 +830,8 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
         {
             std::wstring content = JoinLines(recent_trace_paths_.items());
             editors::TextRequest request;
-            request.title = L"Edit Recent Traces";
-            request.label = L"One trace path per line.";
+            request.title = util::Tr(L"Edit Recent Traces");
+            request.label = util::Tr(L"One trace path per line.");
             request.text = content;
             request.multiline = true;
             editors::TextResult result;

@@ -11,6 +11,7 @@
 #include "win32/system_api.h"
 #include "win32/system_error.h"
 #include "appearance/feedback.h"
+#include "win32/translation.h"
 #include "resource.h"
 
 #include <bcrypt.h>
@@ -51,7 +52,7 @@ std::wstring ErrorText(DWORD code)
     {
         --length;
     }
-    return length > 0 ? std::wstring(text, length) : L"WinHTTP error " + std::to_wstring(code) + L".";
+    return length > 0 ? std::wstring(text, length) : L"WinHTTP " + std::to_wstring(code);
 }
 
 std::wstring HttpGet(const std::wstring& url, const std::atomic_bool& cancel, std::string* body, size_t max_bytes)
@@ -67,7 +68,7 @@ std::wstring HttpGet(const std::wstring& url, const std::atomic_bool& cancel, st
     if (parts.nScheme != INTERNET_SCHEME_HTTPS ||
         !IsAllowedReleaseHost(std::wstring(parts.lpszHostName, parts.dwHostNameLength)))
     {
-        return L"The release location isn't a trusted RegKit download address.";
+        return util::Tr(L"The release location isn't a trusted RegKit download address.");
     }
     Handle session(
         WinHttpOpen(L"RegKit", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0),
@@ -90,7 +91,7 @@ std::wstring HttpGet(const std::wstring& url, const std::atomic_bool& cancel, st
     }
     if (status != HTTP_STATUS_OK)
     {
-        return L"The server returned HTTP " + std::to_wstring(status) + L".";
+        return L"HTTP " + std::to_wstring(status);
     }
     char buffer[64 * 1024];
     DWORD read = 0;
@@ -106,7 +107,7 @@ std::wstring HttpGet(const std::wstring& url, const std::atomic_bool& cancel, st
         }
         if (body->size() + read > max_bytes)
         {
-            return L"The download is larger than RegKit accepts.";
+            return util::Tr(L"The download is larger than RegKit accepts.");
         }
         body->append(buffer, read);
     }
@@ -223,7 +224,7 @@ std::wstring SaveSetup(const std::wstring& url, const std::string& sha256, const
 {
     if (sha256.size() != 64 || sha256.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
     {
-        return L"The release didn't publish a checksum for this download.";
+        return util::Tr(L"The release didn't publish a checksum for this download.");
     }
     std::string data;
     const std::wstring error = HttpGet(url, cancel, &data, kMaxSetupBytes);
@@ -233,7 +234,7 @@ std::wstring SaveSetup(const std::wstring& url, const std::string& sha256, const
     }
     if (data.empty() || _stricmp(Sha256(data).c_str(), sha256.c_str()) != 0)
     {
-        return L"The downloaded file doesn't match the release checksum.";
+        return util::Tr(L"The downloaded file doesn't match the release checksum.");
     }
     std::wstring directory;
     const std::wstring directory_error = PrivateTempDirectory(&directory);
@@ -317,7 +318,7 @@ void UpdateChecker::Check(bool silent)
         if (error.empty() &&
             (!ReadRelease(json, &payload->version, &payload->download_url, &digest) || payload->version.empty()))
         {
-            error = L"The response didn't contain a release.";
+            error = util::Tr(L"The response didn't contain a release.");
         }
         payload->sha256 = digest.starts_with(L"sha256:") ? util::WideToUtf8(digest.substr(7)) : std::string();
         if (cancel.load())
@@ -327,7 +328,7 @@ void UpdateChecker::Check(bool silent)
         if (!error.empty())
         {
             payload->failed = true;
-            payload->error = L"Failed to reach the update server.\n" + error;
+            payload->error = util::TrDetail(L"Failed to reach the update server.", error);
         }
         if (PostMessageW(owner, frame::message_id::kUpdateCheckReady, 0, reinterpret_cast<LPARAM>(payload.get())))
         {
@@ -343,7 +344,7 @@ void UpdateChecker::Download(const UpdateCheckPayload& release)
         return;
     }
     running_ = true;
-    SetStatus(L"Downloading RegKit " + release.version + L"...");
+    SetStatus(util::TrLabel(L"Downloading", L"RegKit " + release.version));
     HWND owner = owner_;
     session_.Start(
         L"UpdateDownloadThread",
@@ -359,7 +360,7 @@ void UpdateChecker::Download(const UpdateCheckPayload& release)
             {
                 payload->failed = true;
                 payload->setup_path.clear();
-                payload->error = L"The update couldn't be downloaded.\n" + error;
+                payload->error = util::TrDetail(L"The update couldn't be downloaded.", error);
             }
             if (PostMessageW(owner, frame::message_id::kUpdateCheckReady, 0, reinterpret_cast<LPARAM>(payload.get())))
             {
@@ -390,7 +391,7 @@ void UpdateChecker::Apply(UpdateCheckPayload* payload)
         const util::UniqueHandle verified = OpenVerifiedSetup(payload->setup_path, payload->sha256);
         if (!verified)
         {
-            ui::ShowError(owner_, L"The downloaded setup changed after RegKit verified it and wasn't started.");
+            ui::ShowError(owner_, util::Tr(L"The downloaded setup changed after RegKit verified it and wasn't started."));
             return;
         }
         const HRESULT hr = win32::ShellOpen(owner_, payload->setup_path.c_str());
@@ -400,7 +401,7 @@ void UpdateChecker::Apply(UpdateCheckPayload* payload)
         }
         else if (!win32::DialogCancelled(hr))
         {
-            ui::ShowError(owner_, L"The setup couldn't be started.\n" + win32::FormatDialogError(hr));
+            ui::ShowError(owner_, util::TrDetail(L"The setup couldn't be started.", win32::FormatDialogError(hr)));
         }
         return;
     }
@@ -408,15 +409,15 @@ void UpdateChecker::Apply(UpdateCheckPayload* payload)
     {
         if (!payload->silent)
         {
-            ui::ShowInfo(owner_, L"RegKit is up to date.");
+            ui::ShowInfo(owner_, util::Tr(L"RegKit is up to date."));
         }
         return;
     }
     const std::wstring message =
-        L"RegKit " + payload->version + L" is available. You are running " REGKIT_VERSION_STR_W L".\n\n" +
-        (payload->download_url.empty() ? L"No setup was found for this build. Open the releases page?"
-                                       : L"Download and install it now? RegKit closes when the setup starts.");
-    if (ui::PromptChoice(owner_, message, L"Update available", payload->download_url.empty() ? L"Open" : L"Install", L"", L"Close", {70, 70, 70}) != IDYES)
+        L"RegKit " + payload->version + L" (" + util::TrLabel(L"installed", REGKIT_VERSION_STR_W) + L")\n\n" +
+        (payload->download_url.empty() ? util::Tr(L"No setup was found for this build. Open the releases page?")
+                                       : util::Tr(L"Download and install it now? RegKit closes when the setup starts."));
+    if (ui::PromptChoice(owner_, message, util::Tr(L"Update Available"), payload->download_url.empty() ? util::Tr(L"Open") : util::Tr(L"Install"), L"", util::Tr(L"Close"), {70, 70, 70}) != IDYES)
     {
         return;
     }

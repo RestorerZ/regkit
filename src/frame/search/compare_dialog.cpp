@@ -9,16 +9,13 @@
 #include <shellapi.h>
 
 #include "appearance/autocomplete.h"
-#include "appearance/default_font.h"
-#include "appearance/dialog_layout.h"
 #include "appearance/feedback.h"
-#include "appearance/theme.h"
+#include "editors/dialog_support.h"
 #include "regfile/reg_file.h"
 #include "registry/registry_path.h"
 #include "resource.h"
 #include "win32/file_dialog.h"
-#include "win32/system_api.h"
-#include "win32/window_metrics.h"
+#include "win32/translation.h"
 
 namespace regkit::command_detail
 {
@@ -33,13 +30,13 @@ const wchar_t* CompareSourceLabel(CompareSourceType type)
     switch (type)
     {
     case CompareSourceType::kRegFile:
-        return L"Reg File";
+        return util::Tr(L"Reg File");
     case CompareSourceType::kNetwork:
-        return L"Network Registry";
+        return util::Tr(L"Network Registry");
     case CompareSourceType::kOfflineHive:
-        return L"Offline Hive";
+        return util::Tr(L"Offline Hive");
     default:
-        return L"Registry";
+        return util::Tr(L"Registry");
     }
 }
 
@@ -63,197 +60,6 @@ struct CompareDialogState
     HFONT ui_font = nullptr;
 };
 
-struct EditBorderState
-{
-    bool hot = false;
-    UINT dpi = 0;
-    int x_edge = 1;
-    int y_edge = 1;
-    int x_scroll = 0;
-    int y_scroll = 0;
-};
-
-int GetMetricForDpi(int index, UINT dpi)
-{
-    static const auto get_for_dpi = win32::ImportProc<int(WINAPI*)(int, UINT)>(L"user32.dll", "GetSystemMetricsForDpi");
-    if (get_for_dpi)
-    {
-        return get_for_dpi(index, dpi);
-    }
-    return MulDiv(GetSystemMetrics(index), static_cast<int>(dpi), static_cast<int>(win32::DpiForWindow(nullptr)));
-}
-
-void UpdateEditBorderMetrics(HWND hwnd, EditBorderState* state, UINT dpi_override = 0)
-{
-    if (!state)
-    {
-        return;
-    }
-    UINT dpi = dpi_override ? dpi_override : (hwnd ? win32::DpiForWindow(hwnd) : 96);
-    state->dpi = dpi;
-    state->x_edge = GetMetricForDpi(SM_CXEDGE, dpi);
-    state->y_edge = GetMetricForDpi(SM_CYEDGE, dpi);
-    state->x_scroll = GetMetricForDpi(SM_CXVSCROLL, dpi);
-    state->y_scroll = GetMetricForDpi(SM_CYVSCROLL, dpi);
-    if (state->x_edge < 1)
-    {
-        state->x_edge = 1;
-    }
-    if (state->y_edge < 1)
-    {
-        state->y_edge = 1;
-    }
-}
-
-LRESULT CALLBACK EditBorderSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR data)
-{
-    auto* state = reinterpret_cast<EditBorderState*>(data);
-    switch (msg)
-    {
-    case WM_NCDESTROY:
-        RemoveWindowSubclass(hwnd, EditBorderSubclassProc, id);
-        delete state;
-        break;
-    case WM_NCCALCSIZE:
-        {
-            UpdateEditBorderMetrics(hwnd, state);
-            int x_edge = state ? state->x_edge : 1;
-            int y_edge = state ? state->y_edge : 1;
-            if (wparam)
-            {
-                auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
-                InflateRect(&params->rgrc[0], -x_edge, -y_edge);
-                return 0;
-            }
-            auto* rect = reinterpret_cast<RECT*>(lparam);
-            InflateRect(rect, -x_edge, -y_edge);
-            return 0;
-        }
-    case WM_NCPAINT:
-        {
-            LRESULT result = DefSubclassProc(hwnd, msg, wparam, lparam);
-            HDC hdc = GetWindowDC(hwnd);
-            if (!hdc)
-            {
-                return result;
-            }
-            UpdateEditBorderMetrics(hwnd, state);
-            RECT rect = {};
-            GetClientRect(hwnd, &rect);
-            if (state)
-            {
-                rect.right += 2 * state->x_edge;
-                rect.bottom += 2 * state->y_edge;
-                LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-                if ((style & WS_VSCROLL) == WS_VSCROLL)
-                {
-                    rect.right += state->x_scroll;
-                }
-                if ((style & WS_HSCROLL) == WS_HSCROLL)
-                {
-                    rect.bottom += state->y_scroll;
-                }
-            }
-
-            const Theme& theme = Theme::Current();
-            RECT inner = rect;
-            InflateRect(&inner, -1, -1);
-            HPEN inner_pen = appearance::CachedPen(theme.BackgroundColor(), 1);
-            HGDIOBJ old_pen = SelectObject(hdc, inner_pen);
-            HGDIOBJ old_brush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
-            Rectangle(hdc, inner.left, inner.top, inner.right, inner.bottom);
-            SelectObject(hdc, old_brush);
-            SelectObject(hdc, old_pen);
-
-            bool enabled = IsWindowEnabled(hwnd) != FALSE;
-            COLORREF border = theme.BorderColor();
-            if (enabled)
-            {
-                if (GetFocus() == hwnd)
-                {
-                    border = theme.FocusColor();
-                }
-                else if (state && state->hot)
-                {
-                    border = theme.HoverColor();
-                }
-            }
-            HPEN pen = appearance::CachedPen(border, 1);
-            old_pen = SelectObject(hdc, pen);
-            old_brush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
-            Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
-            SelectObject(hdc, old_brush);
-            SelectObject(hdc, old_pen);
-            ReleaseDC(hwnd, hdc);
-            return 0;
-        }
-    case WM_MOUSEMOVE:
-        {
-            if (state && !state->hot)
-            {
-                state->hot = true;
-                TRACKMOUSEEVENT tme = {};
-                tme.cbSize = sizeof(tme);
-                tme.dwFlags = TME_LEAVE;
-                tme.hwndTrack = hwnd;
-                TrackMouseEvent(&tme);
-                SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-            }
-            break;
-        }
-    case WM_MOUSELEAVE:
-        if (state && state->hot)
-        {
-            state->hot = false;
-            SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-        }
-        break;
-    case WM_SETFOCUS:
-    case WM_KILLFOCUS:
-    case WM_ENABLE:
-        RedrawWindow(hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_FRAME);
-        break;
-    case WM_DPICHANGED:
-    case WM_DPICHANGED_AFTERPARENT:
-        UpdateEditBorderMetrics(hwnd, state, (msg == WM_DPICHANGED) ? LOWORD(wparam) : 0);
-        SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-        break;
-    default:
-        break;
-    }
-    return DefSubclassProc(hwnd, msg, wparam, lparam);
-}
-
-void ApplyEditCustomBorder(HWND parent, int id)
-{
-    HWND ctrl = GetDlgItem(parent, id);
-    if (!ctrl)
-    {
-        return;
-    }
-    LONG_PTR ex = GetWindowLongPtrW(ctrl, GWL_EXSTYLE);
-    if (ex & WS_EX_CLIENTEDGE)
-    {
-        ex &= ~static_cast<LONG_PTR>(WS_EX_CLIENTEDGE);
-        SetWindowLongPtrW(ctrl, GWL_EXSTYLE, ex);
-    }
-    LONG_PTR style = GetWindowLongPtrW(ctrl, GWL_STYLE);
-    if (style & WS_BORDER)
-    {
-        style &= ~static_cast<LONG_PTR>(WS_BORDER);
-        SetWindowLongPtrW(ctrl, GWL_STYLE, style);
-    }
-    if (!GetWindowSubclass(ctrl, EditBorderSubclassProc, 1, nullptr))
-    {
-        auto* state = new EditBorderState();
-        if (!SetWindowSubclass(ctrl, EditBorderSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state)))
-        {
-            delete state;
-        }
-    }
-    SetWindowPos(ctrl, nullptr, 0, 0, 0, 0, SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-}
-
 std::vector<std::wstring> ExtractRegFileKeys(const regfile::Document& data)
 {
     std::vector<std::wstring> keys = data.key_order;
@@ -267,89 +73,6 @@ std::vector<std::wstring> ExtractRegFileKeys(const regfile::Document& data)
     }
     std::sort(keys.begin(), keys.end(), [](const std::wstring& a, const std::wstring& b) { return util::CompareInsensitive(a, b) < 0; });
     return keys;
-}
-
-void ApplyDialogFonts(HWND hwnd, HFONT font)
-{
-    if (!font)
-    {
-        return;
-    }
-    SendMessageW(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-    EnumChildWindows(
-        hwnd,
-        [](HWND child, LPARAM param) -> BOOL {
-            HFONT font_handle = reinterpret_cast<HFONT>(param);
-            SendMessageW(child, WM_SETFONT, reinterpret_cast<WPARAM>(font_handle), TRUE);
-            return TRUE;
-        },
-        reinterpret_cast<LPARAM>(font)
-    );
-}
-
-HFONT CreateDefaultGuiFont()
-{
-    HFONT stock = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
-    if (!stock)
-    {
-        return ui::DefaultUIFont();
-    }
-    LOGFONTW lf = {};
-    if (GetObjectW(stock, sizeof(lf), &lf) == 0)
-    {
-        return ui::DefaultUIFont();
-    }
-    HFONT font = CreateFontIndirectW(&lf);
-    return font ? font : ui::DefaultUIFont();
-}
-
-int ControlHeight(HWND dlg, int id)
-{
-    HWND ctrl = GetDlgItem(dlg, id);
-    if (!ctrl)
-    {
-        return 0;
-    }
-    RECT rect = {};
-    if (!GetWindowRect(ctrl, &rect))
-    {
-        return 0;
-    }
-    int height = static_cast<int>(rect.bottom - rect.top);
-    if (height < 0)
-    {
-        height = 0;
-    }
-    return height;
-}
-
-void SetComboHeights(HWND dlg, int id, int height)
-{
-    HWND ctrl = GetDlgItem(dlg, id);
-    if (!ctrl || height <= 0)
-    {
-        return;
-    }
-    RECT rect = {};
-    if (!GetWindowRect(ctrl, &rect))
-    {
-        return;
-    }
-    int window_height = rect.bottom - rect.top;
-    if (window_height <= 0)
-    {
-        return;
-    }
-    int target = height;
-    if (target > window_height)
-    {
-        target = window_height;
-    }
-    SendMessageW(ctrl, CB_SETITEMHEIGHT, static_cast<WPARAM>(-1), static_cast<LPARAM>(target));
-    int new_total = window_height;
-    POINT pt = {rect.left, rect.top};
-    ScreenToClient(dlg, &pt);
-    SetWindowPos(ctrl, nullptr, pt.x, pt.y, rect.right - rect.left, new_total, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 void PopulateCombo(HWND combo, const std::vector<std::wstring>& items)
@@ -391,20 +114,6 @@ void SetComboSelection(HWND combo, const std::wstring& value)
     }
 }
 
-std::wstring ReadComboText(HWND combo)
-{
-    return util::WindowText(combo);
-}
-
-void SetDialogText(HWND dlg, int id, const std::wstring& text)
-{
-    HWND ctrl = GetDlgItem(dlg, id);
-    if (ctrl)
-    {
-        SetWindowTextW(ctrl, text.c_str());
-    }
-}
-
 void ToggleCompareControls(HWND dlg, bool left, CompareSourceType type)
 {
     int file_id = left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE;
@@ -414,7 +123,7 @@ void ToggleCompareControls(HWND dlg, bool left, CompareSourceType type)
     const bool local = type == CompareSourceType::kRegistry;
     EnableWindow(GetDlgItem(dlg, file_id), !local);
     EnableWindow(GetDlgItem(dlg, browse_id), !local);
-    SetDialogText(dlg, label_id, network ? L"Computer:" : L"File:");
+    SetDlgItemTextW(dlg, label_id, network ? util::Tr(L"Computer:") : util::Tr(L"File:"));
 }
 
 void PopulateFileKeys(HWND dlg, bool left)
@@ -432,7 +141,7 @@ void PopulateFileKeys(HWND dlg, bool left)
     }
     std::vector<std::wstring> keys = ExtractRegFileKeys(data);
     HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
-    std::wstring current = ReadComboText(combo);
+    std::wstring current = util::WindowText(combo);
     PopulateCombo(combo, keys);
     if (!current.empty())
     {
@@ -441,7 +150,7 @@ void PopulateFileKeys(HWND dlg, bool left)
     else if (!keys.empty())
     {
         SendMessageW(combo, CB_SETCURSEL, 0, 0);
-        SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, keys.front());
+        SetDlgItemTextW(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, keys.front().c_str());
     }
 }
 
@@ -458,22 +167,17 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
             {
                 return TRUE;
             }
-            state->ui_font = CreateDefaultGuiFont();
-            ApplyDialogFonts(dlg, state->ui_font);
-            Theme::Current().ApplyToWindow(dlg);
-            Theme::Current().ApplyToChildren(dlg);
-            ApplyEditCustomBorder(dlg, IDC_COMPARE_LEFT_FILE);
-            ApplyEditCustomBorder(dlg, IDC_COMPARE_RIGHT_FILE);
-
-            PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive", L"Network Registry"});
-            PopulateCombo(GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), {L"Registry", L"Reg File", L"Offline Hive", L"Network Registry"});
+            for (const int id : {IDC_COMPARE_LEFT_SOURCE, IDC_COMPARE_RIGHT_SOURCE})
+            {
+                PopulateCombo(GetDlgItem(dlg, id), {CompareSourceLabel(CompareSourceType::kRegistry), CompareSourceLabel(CompareSourceType::kRegFile), CompareSourceLabel(CompareSourceType::kOfflineHive), CompareSourceLabel(CompareSourceType::kNetwork)});
+            }
 
             SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), CompareSourceLabel(state->data.left.type));
             SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), CompareSourceLabel(state->data.right.type));
-            SetDialogText(dlg, IDC_COMPARE_LEFT_FILE, state->data.left.file_path);
-            SetDialogText(dlg, IDC_COMPARE_RIGHT_FILE, state->data.right.file_path);
-            SetDialogText(dlg, IDC_COMPARE_LEFT_KEY, state->data.left.key_path);
-            SetDialogText(dlg, IDC_COMPARE_RIGHT_KEY, state->data.right.key_path);
+            SetDlgItemTextW(dlg, IDC_COMPARE_LEFT_FILE, state->data.left.file_path.c_str());
+            SetDlgItemTextW(dlg, IDC_COMPARE_RIGHT_FILE, state->data.right.file_path.c_str());
+            SetDlgItemTextW(dlg, IDC_COMPARE_LEFT_KEY, state->data.left.key_path.c_str());
+            SetDlgItemTextW(dlg, IDC_COMPARE_RIGHT_KEY, state->data.right.key_path.c_str());
             CheckDlgButton(dlg, IDC_COMPARE_LEFT_RECURSIVE, state->data.left.recursive ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(dlg, IDC_COMPARE_RIGHT_RECURSIVE, state->data.right.recursive ? BST_CHECKED : BST_UNCHECKED);
             int filter_id = IDC_COMPARE_SHOW_DIFFERENCES;
@@ -506,70 +210,18 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                 });
             }
 
-            int edit_height = ControlHeight(dlg, IDC_COMPARE_LEFT_FILE);
-            if (edit_height > 0)
-            {
-                SetComboHeights(dlg, IDC_COMPARE_LEFT_SOURCE, edit_height);
-                SetComboHeights(dlg, IDC_COMPARE_LEFT_KEY, edit_height);
-                SetComboHeights(dlg, IDC_COMPARE_RIGHT_SOURCE, edit_height);
-                SetComboHeights(dlg, IDC_COMPARE_RIGHT_KEY, edit_height);
-            }
-
             ToggleCompareControls(dlg, true, state->data.left.type);
             ToggleCompareControls(dlg, false, state->data.right.type);
-            appearance::CenterWindow(dlg, GetWindow(dlg, GW_OWNER));
+            editors::dialog_support::Initialize(dlg, &state->ui_font, {IDC_COMPARE_LEFT_FILE, IDC_COMPARE_RIGHT_FILE});
+            editors::dialog_support::MatchComboHeights(dlg, IDC_COMPARE_LEFT_FILE, {IDC_COMPARE_LEFT_SOURCE, IDC_COMPARE_LEFT_KEY, IDC_COMPARE_RIGHT_SOURCE, IDC_COMPARE_RIGHT_KEY});
             return TRUE;
         }
     case WM_DESTROY:
-        if (state && state->ui_font)
+        if (state)
         {
-            DeleteObject(state->ui_font);
-            state->ui_font = nullptr;
+            editors::dialog_support::ReleaseFont(&state->ui_font);
         }
         return TRUE;
-    case WM_SETTINGCHANGE:
-        if (Theme::UpdateFromSystem())
-        {
-            Theme::Current().ApplyToWindow(dlg);
-            Theme::Current().ApplyToChildren(dlg);
-            InvalidateRect(dlg, nullptr, TRUE);
-        }
-        return TRUE;
-    case WM_ERASEBKGND:
-        {
-            HDC hdc = reinterpret_cast<HDC>(wparam);
-            RECT rect = {};
-            GetClientRect(dlg, &rect);
-            FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
-            return TRUE;
-        }
-    case WM_CTLCOLORDLG:
-    case WM_CTLCOLORSTATIC:
-    case WM_CTLCOLOREDIT:
-    case WM_CTLCOLORLISTBOX:
-    case WM_CTLCOLORBTN:
-        {
-            HDC hdc = reinterpret_cast<HDC>(wparam);
-            HWND target = reinterpret_cast<HWND>(lparam);
-            int type = CTLCOLOR_STATIC;
-            if (msg == WM_CTLCOLOREDIT)
-            {
-                type = CTLCOLOR_EDIT;
-            }
-            else if (msg == WM_CTLCOLORLISTBOX)
-            {
-                type = CTLCOLOR_LISTBOX;
-            }
-            else if (msg == WM_CTLCOLORBTN)
-            {
-                type = CTLCOLOR_BTN;
-            }
-            else if (msg == WM_CTLCOLORDLG)
-            {
-                type = CTLCOLOR_DLG;
-            }
-            return reinterpret_cast<INT_PTR>(Theme::Current().ControlColor(hdc, target, type));
-        }
     case WM_COMMAND:
         {
             if (!state)
@@ -585,8 +237,8 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                 int sel = combo ? static_cast<int>(SendMessageW(combo, CB_GETCURSEL, 0, 0)) : 0;
                 CompareSourceType type = CompareSourceFromIndex(sel);
                 ToggleCompareControls(dlg, left, type);
-                SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, L"");
-                SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, L"");
+                SetDlgItemTextW(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, L"");
+                SetDlgItemTextW(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, L"");
                 return TRUE;
             }
             if (code == EN_KILLFOCUS && (id == IDC_COMPARE_LEFT_FILE || id == IDC_COMPARE_RIGHT_FILE))
@@ -613,14 +265,14 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                     {
                         return TRUE;
                     }
-                    SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, path);
+                    SetDlgItemTextW(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, path.c_str());
                     return TRUE;
                 }
                 if (!ui::PromptOpenFile(dlg, browse_type == CompareSourceType::kOfflineHive ? L"Registry Hive Files\0*.*\0\0" : ui::kRegFileFilter, &path))
                 {
                     return TRUE;
                 }
-                SetDialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, path);
+                SetDlgItemTextW(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE, path.c_str());
                 if (browse_type == CompareSourceType::kOfflineHive)
                 {
                     return TRUE;
@@ -632,7 +284,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                     std::vector<std::wstring> keys = ExtractRegFileKeys(data);
                     if (keys.empty())
                     {
-                        ui::ShowError(dlg, L"No registry keys were found in the .reg file.");
+                        ui::ShowError(dlg, util::Tr(L"No registry keys were found in the .reg file."));
                         return TRUE;
                     }
                     HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
@@ -640,7 +292,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                     if (!keys.empty())
                     {
                         SendMessageW(combo, CB_SETCURSEL, 0, 0);
-                        SetDialogText(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, keys.front());
+                        SetDlgItemTextW(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY, keys.front().c_str());
                     }
                 }
                 else if (!error.empty())
@@ -658,12 +310,12 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                     int source_index = source_combo ? static_cast<int>(SendMessageW(source_combo, CB_GETCURSEL, 0, 0)) : 0;
                     out->type = CompareSourceFromIndex(source_index);
                     out->key_path =
-                        TrimWhitespace(ReadComboText(GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY)));
+                        TrimWhitespace(util::WindowText(GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY)));
                     if (out->type == CompareSourceType::kRegistry || out->type == CompareSourceType::kNetwork)
                     {
                         if (out->key_path.empty())
                         {
-                            ui::ShowError(dlg, L"Registry key is required.");
+                            ui::ShowError(dlg, util::Tr(L"Registry key is required."));
                             return false;
                         }
                         if (out->type == CompareSourceType::kNetwork)
@@ -673,7 +325,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                             );
                             if (out->file_path.empty())
                             {
-                                ui::ShowError(dlg, L"Computer name is required.");
+                                ui::ShowError(dlg, util::Tr(L"Computer name is required."));
                                 return false;
                             }
                         }
@@ -683,7 +335,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                         TrimWhitespace(util::DialogText(dlg, left ? IDC_COMPARE_LEFT_FILE : IDC_COMPARE_RIGHT_FILE));
                     if (out->file_path.empty())
                     {
-                        ui::ShowError(dlg, out->type == CompareSourceType::kOfflineHive ? L"Hive file path is required." : L"Registry file path is required.");
+                        ui::ShowError(dlg, out->type == CompareSourceType::kOfflineHive ? util::Tr(L"Hive file path is required.") : util::Tr(L"Registry file path is required."));
                         return false;
                     }
                     if (out->type == CompareSourceType::kOfflineHive)
@@ -694,13 +346,13 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                     std::wstring error;
                     if (!regfile::Load(out->file_path, &data, &error))
                     {
-                        ui::ShowError(dlg, error.empty() ? L"Failed to read registry file." : error);
+                        ui::ShowError(dlg, error.empty() ? util::Tr(L"Failed to read registry file.") : error);
                         return false;
                     }
                     std::vector<std::wstring> keys = ExtractRegFileKeys(data);
                     if (keys.empty())
                     {
-                        ui::ShowError(dlg, L"No registry keys were found in the .reg file.");
+                        ui::ShowError(dlg, util::Tr(L"No registry keys were found in the .reg file."));
                         return false;
                     }
                     if (out->key_path.empty())
@@ -724,7 +376,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                     }
                     if (!found)
                     {
-                        ui::ShowError(dlg, L"The selected key path wasn't found in the .reg file.");
+                        ui::ShowError(dlg, util::Tr(L"The selected key path wasn't found in the .reg file."));
                         return false;
                     }
                     return true;
@@ -761,7 +413,8 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
     default:
         break;
     }
-    return FALSE;
+    INT_PTR themed = 0;
+    return editors::dialog_support::HandleThemeMessage(dlg, msg, wparam, lparam, &themed) ? themed : FALSE;
 }
 } // namespace
 

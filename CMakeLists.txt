@@ -84,6 +84,8 @@ if (NOT EXISTS "${REGKIT_OFFREG_DLL}")
     message(FATAL_ERROR "Missing ${REGKIT_OFFREG_DLL}. Offline Registry requires the Microsoft offreg.dll redistributable for this architecture.")
 endif()
 
+file(GLOB REGKIT_LANGUAGE_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/assets/lang/*.po")
+
 add_custom_command(TARGET RegKit POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${REGKIT_OFFREG_DLL}"
@@ -112,11 +114,19 @@ add_custom_command(TARGET RegKit POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/assets/bitfields"
         "$<TARGET_FILE_DIR:RegKit>/assets/bitfields"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:RegKit>/assets/lang"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:RegKit>/assets/lang"
     COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:RegKit>/assets/comments"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/assets/comments"
         "$<TARGET_FILE_DIR:RegKit>/assets/comments"
 )
+
+if (REGKIT_LANGUAGE_FILES)
+    add_custom_command(TARGET RegKit POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${REGKIT_LANGUAGE_FILES} "$<TARGET_FILE_DIR:RegKit>/assets/lang"
+    )
+endif()
 
 if (MSVC)
     target_link_options(RegKit PRIVATE "/MANIFEST:NO")

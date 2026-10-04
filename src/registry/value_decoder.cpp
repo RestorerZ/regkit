@@ -5,6 +5,7 @@
 #include "registry/value_format.h"
 #include "win32/file_text.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 
 #include <objbase.h>
 #include <sddl.h>
@@ -26,6 +27,11 @@ namespace
 // file times use 100ns ticks & start before unix epoch
 constexpr uint64_t kUnixEpochTicks = 116444736000000000ull;
 constexpr uint64_t kMaxFileTime = 0x8000000000000000ull;
+
+std::wstring AtOffset(const wchar_t* message, size_t offset)
+{
+    return std::wstring(message) + L"\r\n" + util::TrLabel(L"Offset", std::to_wstring(offset));
+}
 
 bool HasTextForm(DWORD type, const std::vector<BYTE>& data)
 {
@@ -55,7 +61,7 @@ bool SourceText(DWORD type, const std::vector<BYTE>& data, std::wstring* text, s
     {
         if ((data.size() % sizeof(wchar_t)) != 0)
         {
-            *error = L"Text value has an odd byte count.";
+            *error = util::Tr(L"Text value has an odd byte count.");
             return false;
         }
         size_t count = data.size() / sizeof(wchar_t);
@@ -70,7 +76,7 @@ bool SourceText(DWORD type, const std::vector<BYTE>& data, std::wstring* text, s
         }
         if (value.find(L'\0') != std::wstring::npos)
         {
-            *error = L"Text value contains an embedded NUL.";
+            *error = util::Tr(L"Text value contains an embedded NUL.");
             return false;
         }
         *text = std::move(value);
@@ -83,14 +89,14 @@ bool SourceText(DWORD type, const std::vector<BYTE>& data, std::wstring* text, s
         {
             if (byte > 0x7F)
             {
-                *error = L"Binary value isn't ASCII text.";
+                *error = util::Tr(L"Binary value isn't ASCII text.");
                 return false;
             }
             text->push_back(static_cast<wchar_t>(byte));
         }
         return true;
     }
-    *error = L"This value type has no text form.";
+    *error = util::Tr(L"This value type has no text form.");
     return false;
 }
 
@@ -126,7 +132,7 @@ bool ValidateBase64(const std::wstring& text, size_t padding, std::wstring* erro
     {
         if (Base64Index(text[i]) < 0)
         {
-            *error = L"Invalid Base64 character at offset " + std::to_wstring(i) + L".";
+            *error = AtOffset(util::Tr(L"Invalid Base64 character."), i);
             return false;
         }
     }
@@ -135,7 +141,7 @@ bool ValidateBase64(const std::wstring& text, size_t padding, std::wstring* erro
     {
         if ((Base64Index(text[body - 1]) & 0x0F) != 0)
         {
-            *error = L"Invalid Base64 padding bits.";
+            *error = util::Tr(L"Invalid Base64 padding bits.");
             return false;
         }
     }
@@ -143,7 +149,7 @@ bool ValidateBase64(const std::wstring& text, size_t padding, std::wstring* erro
     {
         if ((Base64Index(text[body - 1]) & 0x03) != 0)
         {
-            *error = L"Invalid Base64 padding bits.";
+            *error = util::Tr(L"Invalid Base64 padding bits.");
             return false;
         }
     }
@@ -159,13 +165,13 @@ bool DecodeWithCrypto(const std::wstring& text, DWORD flags, std::vector<BYTE>* 
     }
     if (text.size() > static_cast<size_t>(MAXDWORD))
     {
-        *error = L"Input is too large to decode.";
+        *error = util::Tr(L"Input is too large to decode.");
         return false;
     }
     DWORD size = 0;
     if (!CryptStringToBinaryW(text.c_str(), static_cast<DWORD>(text.size()), flags, nullptr, &size, nullptr, nullptr))
     {
-        *error = L"The text couldn't be decoded.";
+        *error = util::Tr(L"The text couldn't be decoded.");
         return false;
     }
     out->resize(size);
@@ -176,7 +182,7 @@ bool DecodeWithCrypto(const std::wstring& text, DWORD flags, std::vector<BYTE>* 
     if (!CryptStringToBinaryW(text.c_str(), static_cast<DWORD>(text.size()), flags, out->data(), &size, nullptr, nullptr))
     {
         out->clear();
-        *error = L"The text couldn't be decoded.";
+        *error = util::Tr(L"The text couldn't be decoded.");
         return false;
     }
     out->resize(size);
@@ -187,7 +193,7 @@ bool TransformBase64(const std::wstring& text, std::vector<BYTE>* out, std::wstr
 {
     if ((text.size() % 4) != 0)
     {
-        *error = L"Base64 length isn't a multiple of four.";
+        *error = util::Tr(L"Base64 length isn't a multiple of four.");
         return false;
     }
     size_t padding = 0;
@@ -227,7 +233,7 @@ bool TransformBase64Url(const std::wstring& text, std::vector<BYTE>* out, std::w
         }
         else
         {
-            *error = L"Invalid Base64URL character at offset " + std::to_wstring(i) + L".";
+            *error = AtOffset(util::Tr(L"Invalid Base64URL character."), i);
             return false;
         }
     }
@@ -238,20 +244,20 @@ bool TransformBase64Url(const std::wstring& text, std::vector<BYTE>* out, std::w
     }
     if (normalized.find(L'=') != std::wstring::npos && normalized.find(L'=') != normalized.size() - padding)
     {
-        *error = L"Base64URL padding isn't at the end.";
+        *error = util::Tr(L"Base64URL padding isn't at the end.");
         return false;
     }
     const size_t remainder = normalized.size() % 4;
     if (remainder == 1)
     {
-        *error = L"Base64URL length isn't valid.";
+        *error = util::Tr(L"Base64URL length isn't valid.");
         return false;
     }
     if (remainder != 0)
     {
         if (padding != 0)
         {
-            *error = L"Base64URL padding is incomplete.";
+            *error = util::Tr(L"Base64URL padding is incomplete.");
             return false;
         }
         padding = 4 - remainder;
@@ -289,12 +295,12 @@ bool TransformHex(const std::wstring& text, std::vector<BYTE>* out, std::wstring
         }
         if (util::HexDigitValue(text[index]) < 0)
         {
-            *error = L"Invalid hex character at offset " + std::to_wstring(index) + L".";
+            *error = AtOffset(util::Tr(L"Invalid hex character."), index);
             return false;
         }
         if (index + 1 >= text.size() || util::HexDigitValue(text[index + 1]) < 0)
         {
-            *error = L"Incomplete hex byte at offset " + std::to_wstring(index) + L".";
+            *error = AtOffset(util::Tr(L"Incomplete hex byte."), index);
             return false;
         }
         normalized.push_back(text[index]);
@@ -315,14 +321,14 @@ bool TransformPercent(const std::wstring& text, std::vector<BYTE>* out, std::wst
         {
             if (i + 2 >= text.size())
             {
-                *error = L"Incomplete percent escape at offset " + std::to_wstring(i) + L".";
+                *error = AtOffset(util::Tr(L"Incomplete percent escape."), i);
                 return false;
             }
             const int high = util::HexDigitValue(text[i + 1]);
             const int low = util::HexDigitValue(text[i + 2]);
             if (high < 0 || low < 0)
             {
-                *error = L"Invalid percent escape at offset " + std::to_wstring(i) + L".";
+                *error = AtOffset(util::Tr(L"Invalid percent escape."), i);
                 return false;
             }
             out->push_back(static_cast<BYTE>((high << 4) | low));
@@ -331,7 +337,7 @@ bool TransformPercent(const std::wstring& text, std::vector<BYTE>* out, std::wst
         }
         if (character > 0x7F)
         {
-            *error = L"Percent encoded text must be ASCII.";
+            *error = util::Tr(L"Percent encoded text must be ASCII.");
             return false;
         }
         out->push_back(static_cast<BYTE>(character));
@@ -350,7 +356,7 @@ bool AppendTimeFields(uint64_t ticks, std::vector<Field>* fields, std::wstring* 
 {
     if (ticks >= kMaxFileTime)
     {
-        *error = L"Invalid FILETIME.";
+        *error = util::Tr(L"Invalid FILETIME.");
         return false;
     }
     FILETIME file_time = {};
@@ -359,14 +365,14 @@ bool AppendTimeFields(uint64_t ticks, std::vector<Field>* fields, std::wstring* 
     SYSTEMTIME utc = {};
     if (!FileTimeToSystemTime(&file_time, &utc))
     {
-        *error = L"Invalid FILETIME.";
+        *error = util::Tr(L"Invalid FILETIME.");
         return false;
     }
     fields->push_back({L"UTC", FormatSystemTime(utc)});
     SYSTEMTIME local = {};
     if (SystemTimeToTzSpecificLocalTime(nullptr, &utc, &local))
     {
-        fields->push_back({L"Local", FormatSystemTime(local)});
+        fields->push_back({util::Tr(L"Local"), FormatSystemTime(local)});
     }
     return true;
 }
@@ -412,25 +418,25 @@ Decoded DecodeUtf8(const BYTE* data, size_t size)
 {
     if (size > static_cast<size_t>(INT_MAX))
     {
-        return Failure(L"Input is too large to decode.");
+        return Failure(util::Tr(L"Input is too large to decode."));
     }
     if (size == 0)
     {
-        return Success({{L"Text", L""}, {L"Bytes", L"0"}});
+        return Success({{util::Tr(L"Text"), L""}, {util::Tr(L"Bytes"), L"0"}});
     }
     std::wstring text = util::Utf8ToWide(std::string_view(reinterpret_cast<const char*>(data), size));
     if (text.empty())
     {
-        return Failure(L"Invalid UTF-8.");
+        return Failure(util::Tr(L"Invalid UTF-8."));
     }
-    return Success({{L"Text", std::move(text)}, {L"Bytes", std::to_wstring(size)}});
+    return Success({{util::Tr(L"Text"), std::move(text)}, {util::Tr(L"Bytes"), std::to_wstring(size)}});
 }
 
 Decoded DecodeUtf16(const BYTE* data, size_t size, bool big_endian)
 {
     if ((size % sizeof(wchar_t)) != 0)
     {
-        return Failure(L"UTF-16 needs an even byte count.");
+        return Failure(util::Tr(L"UTF-16 needs an even byte count."));
     }
     size_t units = size / sizeof(wchar_t);
     std::wstring text(units, L'\0');
@@ -453,9 +459,9 @@ Decoded DecodeUtf16(const BYTE* data, size_t size, bool big_endian)
     }
     if (!ValidSurrogates(text))
     {
-        return Failure(L"Invalid UTF-16 surrogate pair.");
+        return Failure(util::Tr(L"Invalid UTF-16 surrogate pair."));
     }
-    return Success({{L"Text", std::move(text)}, {L"Code units", std::to_wstring(units)}});
+    return Success({{util::Tr(L"Text"), std::move(text)}, {util::Tr(L"Code units"), std::to_wstring(units)}});
 }
 
 Decoded DecodeAscii(const BYTE* data, size_t size)
@@ -466,24 +472,24 @@ Decoded DecodeAscii(const BYTE* data, size_t size)
     {
         if (data[i] > 0x7F)
         {
-            return Failure(L"Byte at offset " + std::to_wstring(i) + L" isn't ASCII.");
+            return Failure(AtOffset(util::Tr(L"A byte isn't ASCII."), i));
         }
         text.push_back(static_cast<wchar_t>(data[i]));
     }
-    return Success({{L"Text", std::move(text)}, {L"Bytes", std::to_wstring(size)}});
+    return Success({{util::Tr(L"Text"), std::move(text)}, {util::Tr(L"Bytes"), std::to_wstring(size)}});
 }
 
 Decoded DecodeFileTime(const BYTE* data, size_t size)
 {
     if (size != 8)
     {
-        return Failure(L"A FILETIME needs exactly 8 bytes.");
+        return Failure(util::Tr(L"A FILETIME needs exactly 8 bytes."));
     }
     const uint64_t ticks = value_format::ReadUnsigned({data, size}, size);
     Decoded decoded;
     wchar_t raw[32] = {};
     swprintf_s(raw, L"%llu", static_cast<unsigned long long>(ticks));
-    decoded.fields.push_back({L"Raw ticks", raw});
+    decoded.fields.push_back({util::Tr(L"Raw ticks"), raw});
     std::wstring error;
     if (!AppendTimeFields(ticks, &decoded.fields, &error))
     {
@@ -497,7 +503,7 @@ Decoded DecodeSystemTime(const BYTE* data, size_t size)
 {
     if (size != sizeof(SYSTEMTIME))
     {
-        return Failure(L"A SYSTEMTIME needs exactly 16 bytes.");
+        return Failure(util::Tr(L"A SYSTEMTIME needs exactly 16 bytes."));
     }
     SYSTEMTIME time = {};
     std::memcpy(&time, data, sizeof(time));
@@ -507,19 +513,19 @@ Decoded DecodeSystemTime(const BYTE* data, size_t size)
         time.wMinute > 59 || time.wSecond > 59 || time.wMilliseconds > 999 || time.wDayOfWeek > 6 ||
         !SystemTimeToFileTime(&time, &probe))
     {
-        return Failure(L"Invalid SYSTEMTIME.");
+        return Failure(util::Tr(L"Invalid SYSTEMTIME."));
     }
     Decoded decoded;
     decoded.ok = true;
-    decoded.fields.push_back({L"Date and time", FormatSystemTime(time)});
-    decoded.fields.push_back({L"Year", std::to_wstring(time.wYear)});
-    decoded.fields.push_back({L"Month", std::to_wstring(time.wMonth)});
-    decoded.fields.push_back({L"Day", std::to_wstring(time.wDay)});
-    decoded.fields.push_back({L"Day of week", std::to_wstring(time.wDayOfWeek)});
-    decoded.fields.push_back({L"Hour", std::to_wstring(time.wHour)});
-    decoded.fields.push_back({L"Minute", std::to_wstring(time.wMinute)});
-    decoded.fields.push_back({L"Second", std::to_wstring(time.wSecond)});
-    decoded.fields.push_back({L"Milliseconds", std::to_wstring(time.wMilliseconds)});
+    decoded.fields.push_back({util::Tr(L"Date and time"), FormatSystemTime(time)});
+    decoded.fields.push_back({util::Tr(L"Year"), std::to_wstring(time.wYear)});
+    decoded.fields.push_back({util::Tr(L"Month"), std::to_wstring(time.wMonth)});
+    decoded.fields.push_back({util::Tr(L"Day"), std::to_wstring(time.wDay)});
+    decoded.fields.push_back({util::Tr(L"Day of week"), std::to_wstring(time.wDayOfWeek)});
+    decoded.fields.push_back({util::Tr(L"Hour"), std::to_wstring(time.wHour)});
+    decoded.fields.push_back({util::Tr(L"Minute"), std::to_wstring(time.wMinute)});
+    decoded.fields.push_back({util::Tr(L"Second"), std::to_wstring(time.wSecond)});
+    decoded.fields.push_back({util::Tr(L"Milliseconds"), std::to_wstring(time.wMilliseconds)});
     return decoded;
 }
 
@@ -527,23 +533,23 @@ Decoded DecodeUnix(const BYTE* data, size_t size, bool milliseconds)
 {
     if (size != 4 && size != 8)
     {
-        return Failure(L"Unix time needs exactly 4 or 8 bytes.");
+        return Failure(util::Tr(L"Unix time needs exactly 4 or 8 bytes."));
     }
     const uint64_t value = value_format::ReadUnsigned({data, size}, size);
     const uint64_t scale = milliseconds ? 10000ull : 10000000ull;
     // check scaling & epoch addition before converting to FILETIME
     if (value > (0xFFFFFFFFFFFFFFFFull - kUnixEpochTicks) / scale)
     {
-        return Failure(L"Unix time is out of range.");
+        return Failure(util::Tr(L"Unix time is out of range."));
     }
     Decoded decoded;
     wchar_t raw[32] = {};
     swprintf_s(raw, L"%llu", static_cast<unsigned long long>(value));
-    decoded.fields.push_back({milliseconds ? L"Milliseconds" : L"Seconds", raw});
+    decoded.fields.push_back({milliseconds ? util::Tr(L"Milliseconds") : util::Tr(L"Seconds"), raw});
     std::wstring error;
     if (!AppendTimeFields(kUnixEpochTicks + value * scale, &decoded.fields, &error))
     {
-        return Failure(L"Unix time is out of range.");
+        return Failure(util::Tr(L"Unix time is out of range."));
     }
     decoded.ok = true;
     return decoded;
@@ -553,14 +559,14 @@ Decoded DecodeGuid(const BYTE* data, size_t size)
 {
     if (size != sizeof(GUID))
     {
-        return Failure(L"A GUID needs exactly 16 bytes.");
+        return Failure(util::Tr(L"A GUID needs exactly 16 bytes."));
     }
     GUID guid = {};
     std::memcpy(&guid, data, sizeof(guid));
     wchar_t text[64] = {};
     if (StringFromGUID2(guid, text, static_cast<int>(std::size(text))) == 0)
     {
-        return Failure(L"The GUID couldn't be formatted.");
+        return Failure(util::Tr(L"The GUID couldn't be formatted."));
     }
     return Success({{L"GUID", text}});
 }
@@ -579,24 +585,24 @@ Decoded DecodeSid(const BYTE* data, size_t size)
 {
     if (!SidFits(data, size))
     {
-        return Failure(L"Truncated structure.");
+        return Failure(util::Tr(L"Truncated structure."));
     }
     std::vector<BYTE> copy(data, data + size);
     PSID sid = reinterpret_cast<PSID>(copy.data());
     if (!IsValidSid(sid))
     {
-        return Failure(L"Invalid SID.");
+        return Failure(util::Tr(L"Invalid SID."));
     }
     LPWSTR text = nullptr;
     if (!ConvertSidToStringSidW(sid, &text) || !text)
     {
-        return Failure(L"Invalid SID.");
+        return Failure(util::Tr(L"Invalid SID."));
     }
     Decoded decoded;
     decoded.ok = true;
     decoded.fields.push_back({L"SID", text});
     LocalFree(text);
-    decoded.fields.push_back({L"Length", std::to_wstring(GetLengthSid(sid))});
+    decoded.fields.push_back({util::Tr(L"Length"), std::to_wstring(GetLengthSid(sid))});
 
     DWORD name_size = 0;
     DWORD domain_size = 0;
@@ -610,7 +616,7 @@ Decoded DecodeSid(const BYTE* data, size_t size)
         {
             name.resize(name_size);
             domain.resize(domain_size);
-            decoded.fields.push_back({L"Account", domain.empty() ? name : domain + L"\\" + name});
+            decoded.fields.push_back({util::Tr(L"Account"), domain.empty() ? name : domain + L"\\" + name});
         }
     }
     return decoded;
@@ -644,25 +650,25 @@ Decoded DecodeSecurityDescriptor(const BYTE* data, size_t size)
 {
     if (size < sizeof(SECURITY_DESCRIPTOR_RELATIVE))
     {
-        return Failure(L"Truncated structure.");
+        return Failure(util::Tr(L"Truncated structure."));
     }
     SECURITY_DESCRIPTOR_RELATIVE header = {};
     std::memcpy(&header, data, sizeof(header));
     // registry security descriptors must use offsets within the same buffer
     if ((header.Control & SE_SELF_RELATIVE) == 0)
     {
-        return Failure(L"Not a self relative security descriptor.");
+        return Failure(util::Tr(L"Not a self relative security descriptor."));
     }
     if (!SidAtFits(data, size, header.Owner) || !SidAtFits(data, size, header.Group) ||
         !AclFits(data, size, header.Dacl) || !AclFits(data, size, header.Sacl))
     {
-        return Failure(L"Truncated structure.");
+        return Failure(util::Tr(L"Truncated structure."));
     }
     std::vector<BYTE> copy(data, data + size);
     PSECURITY_DESCRIPTOR descriptor = reinterpret_cast<PSECURITY_DESCRIPTOR>(copy.data());
     if (!IsValidSecurityDescriptor(descriptor))
     {
-        return Failure(L"Invalid security descriptor.");
+        return Failure(util::Tr(L"Invalid security descriptor."));
     }
     SECURITY_INFORMATION information = 0;
     if (header.Owner != 0)
@@ -685,16 +691,16 @@ Decoded DecodeSecurityDescriptor(const BYTE* data, size_t size)
     if (!ConvertSecurityDescriptorToStringSecurityDescriptorW(descriptor, SDDL_REVISION_1, information, &sddl, nullptr) ||
         !sddl)
     {
-        return Failure(L"The security descriptor couldn't be converted.");
+        return Failure(util::Tr(L"The security descriptor couldn't be converted."));
     }
     Decoded decoded;
     decoded.ok = true;
     decoded.fields.push_back({L"SDDL", sddl});
     LocalFree(sddl);
-    decoded.fields.push_back({L"Owner", header.Owner != 0 ? L"present" : L"absent"});
-    decoded.fields.push_back({L"Group", header.Group != 0 ? L"present" : L"absent"});
-    decoded.fields.push_back({L"DACL", header.Dacl != 0 ? L"present" : L"absent"});
-    decoded.fields.push_back({L"SACL", header.Sacl != 0 ? L"present" : L"absent"});
+    decoded.fields.push_back({util::Tr(L"Owner"), header.Owner != 0 ? util::Tr(L"present") : util::Tr(L"absent")});
+    decoded.fields.push_back({util::Tr(L"Group"), header.Group != 0 ? util::Tr(L"present") : util::Tr(L"absent")});
+    decoded.fields.push_back({L"DACL", header.Dacl != 0 ? util::Tr(L"present") : util::Tr(L"absent")});
+    decoded.fields.push_back({L"SACL", header.Sacl != 0 ? util::Tr(L"present") : util::Tr(L"absent")});
     return decoded;
 }
 
@@ -703,16 +709,16 @@ Decoded DecodeAddress(const BYTE* data, size_t size, bool ipv6)
     const size_t expected = ipv6 ? sizeof(IN6_ADDR) : sizeof(IN_ADDR);
     if (size != expected)
     {
-        return Failure(ipv6 ? L"An IPv6 address needs exactly 16 bytes." : L"An IPv4 address needs exactly 4 bytes.");
+        return Failure(ipv6 ? util::Tr(L"An IPv6 address needs exactly 16 bytes.") : util::Tr(L"An IPv4 address needs exactly 4 bytes."));
     }
     IN6_ADDR address = {};
     std::memcpy(&address, data, size);
     wchar_t text[INET6_ADDRSTRLEN] = {};
     if (!InetNtopW(ipv6 ? AF_INET6 : AF_INET, &address, text, std::size(text)))
     {
-        return Failure(L"The address couldn't be formatted.");
+        return Failure(util::Tr(L"The address couldn't be formatted."));
     }
-    return Success({{L"Address", text}});
+    return Success({{util::Tr(L"Address"), text}});
 }
 
 struct PathRule
@@ -737,13 +743,13 @@ constexpr PathRule kPathRules[] = {
 std::vector<TransformEntry> AvailableTransforms(DWORD type, const std::vector<BYTE>& data)
 {
     std::vector<TransformEntry> entries;
-    entries.push_back({TransformId::kNone, L"None"});
+    entries.push_back({TransformId::kNone, util::Tr(L"None")});
     if (HasTextForm(type, data))
     {
         entries.push_back({TransformId::kBase64, L"Base64"});
         entries.push_back({TransformId::kBase64Url, L"Base64URL"});
-        entries.push_back({TransformId::kHex, L"Hex bytes"});
-        entries.push_back({TransformId::kPercent, L"URI percent encoding"});
+        entries.push_back({TransformId::kHex, util::Tr(L"Hex bytes")});
+        entries.push_back({TransformId::kPercent, util::Tr(L"URI percent encoding")});
     }
     return entries;
 }
@@ -751,27 +757,27 @@ std::vector<TransformEntry> AvailableTransforms(DWORD type, const std::vector<BY
 std::vector<DecoderEntry> AvailableDecoders(const BYTE* data, size_t size)
 {
     std::vector<DecoderEntry> entries;
-    entries.push_back({DecoderId::kRawBytes, L"Raw bytes"});
-    entries.push_back({DecoderId::kUtf8, L"UTF-8 text"});
+    entries.push_back({DecoderId::kRawBytes, util::Tr(L"Raw bytes")});
+    entries.push_back({DecoderId::kUtf8, util::Tr(L"UTF-8 text")});
     if ((size % sizeof(wchar_t)) == 0)
     {
-        entries.push_back({DecoderId::kUtf16Le, L"UTF-16 LE text"});
-        entries.push_back({DecoderId::kUtf16Be, L"UTF-16 BE text"});
+        entries.push_back({DecoderId::kUtf16Le, util::Tr(L"UTF-16 LE text")});
+        entries.push_back({DecoderId::kUtf16Be, util::Tr(L"UTF-16 BE text")});
     }
-    entries.push_back({DecoderId::kAscii, L"ASCII text"});
+    entries.push_back({DecoderId::kAscii, util::Tr(L"ASCII text")});
     // show fixed size structures only for their exact byte counts
     if (size == 8)
     {
-        entries.push_back({DecoderId::kFileTime, L"Windows FILETIME"});
+        entries.push_back({DecoderId::kFileTime, util::Tr(L"Windows FILETIME")});
     }
     if (size == sizeof(SYSTEMTIME))
     {
-        entries.push_back({DecoderId::kSystemTime, L"Windows SYSTEMTIME"});
+        entries.push_back({DecoderId::kSystemTime, util::Tr(L"Windows SYSTEMTIME")});
     }
     if (size == 4 || size == 8)
     {
-        entries.push_back({DecoderId::kUnixSeconds, L"Unix time (seconds)"});
-        entries.push_back({DecoderId::kUnixMilliseconds, L"Unix time (milliseconds)"});
+        entries.push_back({DecoderId::kUnixSeconds, util::Tr(L"Unix time (seconds)")});
+        entries.push_back({DecoderId::kUnixMilliseconds, util::Tr(L"Unix time (milliseconds)")});
     }
     if (size == sizeof(GUID))
     {
@@ -783,15 +789,15 @@ std::vector<DecoderEntry> AvailableDecoders(const BYTE* data, size_t size)
     }
     if (size >= sizeof(SECURITY_DESCRIPTOR_RELATIVE))
     {
-        entries.push_back({DecoderId::kSecurityDescriptor, L"Security descriptor"});
+        entries.push_back({DecoderId::kSecurityDescriptor, util::Tr(L"Security descriptor")});
     }
     if (size == sizeof(IN_ADDR))
     {
-        entries.push_back({DecoderId::kIpv4, L"IPv4 address"});
+        entries.push_back({DecoderId::kIpv4, util::Tr(L"IPv4 address")});
     }
     if (size == sizeof(IN6_ADDR))
     {
-        entries.push_back({DecoderId::kIpv6, L"IPv6 address"});
+        entries.push_back({DecoderId::kIpv6, util::Tr(L"IPv6 address")});
     }
     return entries;
 }
@@ -825,7 +831,7 @@ bool Transform(TransformId id, DWORD type, const std::vector<BYTE>& source, std:
     default:
         break;
     }
-    *error = L"Unknown encoding.";
+    *error = util::Tr(L"Unknown encoding.");
     return false;
 }
 
@@ -833,12 +839,12 @@ Decoded Decode(DecoderId id, const BYTE* data, size_t size)
 {
     if (!data && size != 0)
     {
-        return Failure(L"No data.");
+        return Failure(util::Tr(L"No data."));
     }
     switch (id)
     {
     case DecoderId::kRawBytes:
-        return Success({{L"Bytes", std::to_wstring(size)}});
+        return Success({{util::Tr(L"Bytes"), std::to_wstring(size)}});
     case DecoderId::kUtf8:
         return DecodeUtf8(data, size);
     case DecoderId::kUtf16Le:
@@ -866,7 +872,7 @@ Decoded Decode(DecoderId id, const BYTE* data, size_t size)
     case DecoderId::kIpv6:
         return DecodeAddress(data, size, true);
     }
-    return Failure(L"Unknown interpretation.");
+    return Failure(util::Tr(L"Unknown interpretation."));
 }
 
 DecoderId Suggest(const std::wstring& key_path, const std::wstring& value_name, size_t size)

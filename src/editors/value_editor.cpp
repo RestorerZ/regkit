@@ -20,6 +20,7 @@
 
 #include "appearance/feedback.h"
 #include "registry/value_format.h"
+#include "win32/translation.h"
 #include "resource.h"
 
 namespace regkit::editors
@@ -361,7 +362,7 @@ void UpdateBinaryPreviewEx(HWND dlg, BinaryGroupState* state, const BinaryGroupI
     std::vector<BYTE> parsed;
     if (!value_format::ParseHex(text, &parsed))
     {
-        SetDlgItemTextW(dlg, ids.preview_id, L"Invalid hex input.");
+        SetDlgItemTextW(dlg, ids.preview_id, util::Tr(L"Invalid hex input."));
         return;
     }
     std::wstring preview = binary_text::Preview(parsed, state->group_bytes, state->unicode);
@@ -417,7 +418,7 @@ void RunBitfieldEditor(HWND dlg, const std::wstring& value_name, int edit_id, in
     unsigned long long value = 0;
     if (!util::ParseUnsignedNumber(util::DialogText(dlg, edit_id), base, &value))
     {
-        ui::ShowError(dlg, L"Enter a valid number before editing its bits.");
+        ui::ShowError(dlg, util::Tr(L"Enter a valid number before editing its bits."));
         return;
     }
     BitfieldRequest request;
@@ -751,11 +752,11 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
         {
             state = reinterpret_cast<TraceValueDialogState*>(lparam);
             SetWindowLongPtrW(dlg, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-            SetWindowTextW(dlg, L"Edit Value");
+            SetWindowTextW(dlg, util::Tr(L"Edit Value"));
             PopulateTraceTypeCombo(dlg);
             if (state)
             {
-                std::wstring name = state->value_name.empty() ? L"(Default)" : state->value_name;
+                std::wstring name = state->value_name.empty() ? util::Tr(L"(Default)") : state->value_name;
                 ConfigureReadOnlyNameField(dlg, name);
                 SelectTraceType(dlg, state, state->type);
                 PopulateTraceValueEditors(dlg, state);
@@ -880,7 +881,7 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
                 std::vector<BYTE> current;
                 if (!empty_editor && !SerializeTraceEditor(dlg, state, previous, &current))
                 {
-                    ui::ShowError(dlg, L"The current data isn't valid, so the type can't be changed.");
+                    ui::ShowError(dlg, util::Tr(L"The current data isn't valid, so the type can't be changed."));
                     SelectTraceType(dlg, state, previous);
                     return TRUE;
                 }
@@ -904,7 +905,7 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
                 }
                 // require confirmation before clearing data that cant be converted
                 const int choice =
-                    ui::PromptChoice(dlg, L"The current data can't be represented as " + value_format::TypeName(type) + L". Continue and start with an empty value?", L"Change Data Type", L"Continue", L"Cancel", L"", {85, 70, 70});
+                    ui::PromptKeyChoice(dlg, util::Tr(L"The current data can't be represented in this type. Continue and start with an empty value?"), value_format::TypeName(type), util::Tr(L"Change Data Type"), util::Tr(L"Continue"), util::Tr(L"Cancel"), L"", {85, 70, 70});
                 if (choice != IDYES)
                 {
                     SelectTraceType(dlg, state, previous);
@@ -1077,7 +1078,7 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
                 const bool ok = SerializeTraceEditor(dlg, state, type, &data);
                 if (!ok)
                 {
-                    ui::ShowError(dlg, L"Invalid value data.");
+                    ui::ShowError(dlg, util::Tr(L"Invalid value data."));
                     return TRUE;
                 }
                 state->type = type;
@@ -1136,7 +1137,7 @@ INT_PTR CALLBACK TextDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam
             }
             else
             {
-                SetWindowTextW(dlg, L"Edit Value");
+                SetWindowTextW(dlg, util::Tr(L"Edit Value"));
             }
             if (state->label)
             {
@@ -1244,7 +1245,7 @@ INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPAR
         {
             state = reinterpret_cast<ExtendedValueDialogState*>(lparam);
             SetWindowLongPtrW(dlg, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-            SetWindowTextW(dlg, L"Edit Value");
+            SetWindowTextW(dlg, util::Tr(L"Edit Value"));
             if (state)
             {
                 SetDlgItemTextW(dlg, IDC_EDIT, state->initial_text.c_str());
@@ -1384,13 +1385,13 @@ INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPAR
                             unsigned long long value = 0;
                             if (!util::ParseUnsignedNumber(base_text, state->number_base, &value))
                             {
-                                ui::ShowError(dlg, L"Invalid number.");
+                                ui::ShowError(dlg, util::Tr(L"Invalid number."));
                                 return TRUE;
                             }
                             if ((state->base_type == REG_DWORD || state->base_type == REG_DWORD_BIG_ENDIAN) &&
                                 value > std::numeric_limits<DWORD>::max())
                             {
-                                ui::ShowError(dlg, L"Number is out of range.");
+                                ui::ShowError(dlg, util::Tr(L"Number is out of range."));
                                 return TRUE;
                             }
                             if (state->base_type == REG_DWORD)
@@ -1411,7 +1412,7 @@ INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPAR
                             break;
                         }
                     default:
-                        ui::ShowError(dlg, L"Invalid value data.");
+                        ui::ShowError(dlg, util::Tr(L"Invalid value data."));
                         return TRUE;
                     }
                     state->data = std::move(base_data);
@@ -1504,7 +1505,7 @@ bool EditValueBits(HWND owner, const BitsRequest& request, std::vector<BYTE>* da
     {
         if (source.empty())
         {
-            ui::ShowError(owner, L"This value has no data to edit as bits.");
+            ui::ShowError(owner, util::Tr(L"This value has no data to edit as bits."));
             return false;
         }
         bits.data = source;
