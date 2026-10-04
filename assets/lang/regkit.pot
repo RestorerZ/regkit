@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-04 11:54+0200\n"
+"POT-Creation-Date: 2026-10-04 12:40+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,9 +16,9 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: appearance/feedback.cpp:396 appearance/feedback.cpp:465
-#: appearance/feedback.cpp:746 appearance/feedback.cpp:766
-#: appearance/feedback.cpp:843 appearance/preset_editor.cpp:599
+#: appearance/feedback.cpp:396 appearance/feedback.cpp:438
+#: appearance/feedback.cpp:719 appearance/feedback.cpp:739
+#: appearance/feedback.cpp:816 appearance/preset_editor.cpp:599
 #: frame/views/registry_sessions.cpp:916 frame/window/lifetime.cpp:448
 #: frame/window/notifications.cpp:32 search/query_prompts.cpp:139
 #: search/query_prompts.cpp:223
@@ -29,31 +29,31 @@ msgstr ""
 msgid "Repository"
 msgstr ""
 
-#: appearance/feedback.cpp:445
+#: appearance/feedback.cpp:436
 msgid "Website"
 msgstr ""
 
-#: appearance/feedback.cpp:455
+#: appearance/feedback.cpp:437
 msgid "Email"
 msgstr ""
 
-#: appearance/feedback.cpp:543 frame/window/menu_bar.cpp:646
+#: appearance/feedback.cpp:516 frame/window/menu_bar.cpp:646
 msgid "About RegKit"
 msgstr ""
 
-#: appearance/feedback.cpp:687 appearance/feedback.cpp:689
+#: appearance/feedback.cpp:660 appearance/feedback.cpp:662
 msgid "Error"
 msgstr ""
 
-#: appearance/feedback.cpp:695 appearance/feedback.cpp:697
+#: appearance/feedback.cpp:668 appearance/feedback.cpp:670
 msgid "Warning"
 msgstr ""
 
-#: appearance/feedback.cpp:703 appearance/feedback.cpp:705
+#: appearance/feedback.cpp:676 appearance/feedback.cpp:678
 msgid "Information"
 msgstr ""
 
-#: appearance/feedback.cpp:724
+#: appearance/feedback.cpp:697
 msgid ""
 "Adding information can unintentionally change or delete values and\n"
 "cause components to stop working correctly. If you don't trust the\n"
@@ -62,64 +62,64 @@ msgid ""
 "Are you sure you want to continue?"
 msgstr ""
 
-#: appearance/feedback.cpp:729 frame/views/value_loading.cpp:309
+#: appearance/feedback.cpp:702 frame/views/value_loading.cpp:309
 msgid "Yes"
 msgstr ""
 
-#: appearance/feedback.cpp:729 frame/views/value_loading.cpp:307
+#: appearance/feedback.cpp:702 frame/views/value_loading.cpp:307
 #: frame/views/value_loading.cpp:374
 msgid "No"
 msgstr ""
 
-#: appearance/feedback.cpp:744
+#: appearance/feedback.cpp:717
 msgid "The keys and values it contains have been added to the registry."
 msgstr ""
 
-#: appearance/feedback.cpp:759
+#: appearance/feedback.cpp:732
 msgid "The registry file couldn't be imported."
 msgstr ""
 
-#: appearance/feedback.cpp:788 frame/commands/mutation_commands.cpp:838
+#: appearance/feedback.cpp:761 frame/commands/mutation_commands.cpp:838
 #: frame/commands/mutation_commands.cpp:849
 #: frame/commands/mutation_commands.cpp:955
 #: frame/commands/mutation_commands.cpp:962
 msgid "Delete Key"
 msgstr ""
 
-#: appearance/feedback.cpp:790
+#: appearance/feedback.cpp:763
 msgid "Delete these keys and all of their subkeys?"
 msgstr ""
 
-#: appearance/feedback.cpp:790
+#: appearance/feedback.cpp:763
 msgid "Delete this key and all of its subkeys?"
 msgstr ""
 
-#: appearance/feedback.cpp:792 frame/commands/mutation_commands.cpp:760
+#: appearance/feedback.cpp:765 frame/commands/mutation_commands.cpp:760
 #: frame/commands/mutation_commands.cpp:997
 msgid "Delete Value"
 msgstr ""
 
-#: appearance/feedback.cpp:792 frame/commands/mutation_commands.cpp:918
+#: appearance/feedback.cpp:765 frame/commands/mutation_commands.cpp:918
 msgid "Delete Values"
 msgstr ""
 
-#: appearance/feedback.cpp:794
+#: appearance/feedback.cpp:767
 msgid "Delete these values?"
 msgstr ""
 
-#: appearance/feedback.cpp:794
+#: appearance/feedback.cpp:767
 msgid "Delete this value?"
 msgstr ""
 
-#: appearance/feedback.cpp:798
+#: appearance/feedback.cpp:771
 msgid "Delete these items?"
 msgstr ""
 
-#: appearance/feedback.cpp:798
+#: appearance/feedback.cpp:771
 msgid "Delete this item?"
 msgstr ""
 
-#: appearance/feedback.cpp:808 editors/binary_editor.cpp:76
+#: appearance/feedback.cpp:781 editors/binary_editor.cpp:76
 #: editors/bitfield_editor.cpp:385 editors/bitfield_editor.cpp:787
 #: editors/decoder_dialog.cpp:164 editors/value_editor.cpp:759
 #: frame/detail/control_detail.cpp:163 frame/search/search_window.cpp:1059
@@ -132,7 +132,7 @@ msgstr ""
 msgid "(Default)"
 msgstr ""
 
-#: appearance/feedback.cpp:813 appearance/preset_editor.cpp:571
+#: appearance/feedback.cpp:786 appearance/preset_editor.cpp:571
 #: frame/commands/context_menus.cpp:161 frame/commands/context_menus.cpp:286
 #: frame/commands/context_menus.cpp:390 frame/commands/context_menus.cpp:454
 #: frame/commands/context_menus.cpp:768 frame/window/menu_bar.cpp:131
@@ -140,12 +140,12 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-#: appearance/feedback.cpp:813 appearance/feedback.cpp:823
-#: appearance/feedback.cpp:836 appearance/preset_editor.cpp:600
+#: appearance/feedback.cpp:786 appearance/feedback.cpp:796
+#: appearance/feedback.cpp:809 appearance/preset_editor.cpp:600
 #: editors/bitfield_definition_editor.cpp:529
 #: editors/bitfield_definition_editor.cpp:595 editors/bitfield_editor.cpp:386
 #: editors/value_editor.cpp:908 frame/commands/file_view_commands.cpp:366
-#: frame/commands/workspace_commands.cpp:235
+#: frame/commands/workspace_commands.cpp:236
 #: frame/tools/key_handles_window.cpp:358 frame/tools/launch_bridge.cpp:260
 #: frame/tools/launch_bridge.cpp:279 frame/views/history_workspace.cpp:195
 #: frame/views/registry_sessions.cpp:672 frame/views/registry_sessions.cpp:938
@@ -157,24 +157,24 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: appearance/feedback.cpp:823
+#: appearance/feedback.cpp:796
 msgid "The file already exists. Replace it?"
 msgstr ""
 
-#: appearance/feedback.cpp:823 frame/window/menu_bar.cpp:117
+#: appearance/feedback.cpp:796 frame/window/menu_bar.cpp:117
 #: search/replace_dialog.cpp:234 search/replace_dialog.cpp:323
 msgid "Replace"
 msgstr ""
 
-#: appearance/feedback.cpp:833
+#: appearance/feedback.cpp:806
 msgid "These entries can't be written in this format and will be left out."
 msgstr ""
 
-#: appearance/feedback.cpp:836
+#: appearance/feedback.cpp:809
 msgid "Convert"
 msgstr ""
 
-#: appearance/feedback.cpp:843 appearance/feedback.cpp:845
+#: appearance/feedback.cpp:816 appearance/feedback.cpp:818
 msgid "The file was converted."
 msgstr ""
 
@@ -1214,31 +1214,31 @@ msgstr ""
 msgid "The value was copied to the new name but the old name couldn't be removed. Both names now exist."
 msgstr ""
 
-#: frame/commands/workspace_commands.cpp:38
+#: frame/commands/workspace_commands.cpp:39
 msgid "Restart RegKit now to apply the language?"
 msgstr ""
 
-#: frame/commands/workspace_commands.cpp:38 frame/window/menu_bar.cpp:398
+#: frame/commands/workspace_commands.cpp:39 frame/window/menu_bar.cpp:398
 msgid "Language"
 msgstr ""
 
-#: frame/commands/workspace_commands.cpp:38 frame/window/menu_bar.cpp:408
+#: frame/commands/workspace_commands.cpp:39 frame/window/menu_bar.cpp:408
 msgid "Restart"
 msgstr ""
 
-#: frame/commands/workspace_commands.cpp:38
+#: frame/commands/workspace_commands.cpp:39
 msgid "Later"
 msgstr ""
 
-#: frame/commands/workspace_commands.cpp:235
+#: frame/commands/workspace_commands.cpp:236
 msgid "Reset all settings and restart RegKit?"
 msgstr ""
 
-#: frame/commands/workspace_commands.cpp:235
+#: frame/commands/workspace_commands.cpp:236
 msgid "Reset Settings"
 msgstr ""
 
-#: frame/commands/workspace_commands.cpp:235
+#: frame/commands/workspace_commands.cpp:236
 msgid "Reset"
 msgstr ""
 
