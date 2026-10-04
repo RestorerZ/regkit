@@ -1,20 +1,19 @@
-# RegKit translation template.
+# RegKit Italian translation.
 # Copyright (C) 2026 nohuto
 # This file is distributed under the same license as RegKit.
-#
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-04 18:07+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"POT-Creation-Date: 2026-10-04 17:29+0200\n"
+"PO-Revision-Date: 2026-10-04 17:49+0200\n"
+"Last-Translator: nohuto contact@noverse.dev\n"
+"Language-Team: none\n"
+"Language: it\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: appearance/feedback.cpp:396 appearance/feedback.cpp:438
 #: appearance/feedback.cpp:719 appearance/feedback.cpp:739
@@ -23,35 +22,35 @@ msgstr ""
 #: frame/window/notifications.cpp:32 search/query_prompts.cpp:139
 #: search/query_prompts.cpp:223
 msgid "OK"
-msgstr ""
+msgstr "OK"
 
 #: appearance/feedback.cpp:424
 msgid "Repository"
-msgstr ""
+msgstr "Repository"
 
 #: appearance/feedback.cpp:436
 msgid "Website"
-msgstr ""
+msgstr "Sito web"
 
 #: appearance/feedback.cpp:437
 msgid "Email"
-msgstr ""
+msgstr "Email"
 
 #: appearance/feedback.cpp:516 frame/window/menu_bar.cpp:646
 msgid "About RegKit"
-msgstr ""
+msgstr "Informazioni su RegKit"
 
 #: appearance/feedback.cpp:660 appearance/feedback.cpp:662
 msgid "Error"
-msgstr ""
+msgstr "Errore"
 
 #: appearance/feedback.cpp:668 appearance/feedback.cpp:670
 msgid "Warning"
-msgstr ""
+msgstr "Avviso"
 
 #: appearance/feedback.cpp:676 appearance/feedback.cpp:678
 msgid "Information"
-msgstr ""
+msgstr "Informazioni"
 
 #: appearance/feedback.cpp:697
 msgid ""
@@ -61,63 +60,68 @@ msgid ""
 "\n"
 "Are you sure you want to continue?"
 msgstr ""
+"L'aggiunta di informazioni può modificare o eliminare valori involontariamente e\n"
+"compromettere il funzionamento dei componenti. Se non ritieni attendibile\n"
+"l'origine di queste informazioni, non aggiungerle al Registro di sistema.\n"
+"\n"
+"Confermi di voler continuare?"
 
 #: appearance/feedback.cpp:702 frame/views/value_loading.cpp:309
 msgid "Yes"
-msgstr ""
+msgstr "Sì"
 
 #: appearance/feedback.cpp:702 frame/views/value_loading.cpp:307
 #: frame/views/value_loading.cpp:374
 msgid "No"
-msgstr ""
+msgstr "No"
 
 #: appearance/feedback.cpp:717
 msgid "The keys and values it contains have been added to the registry."
-msgstr ""
+msgstr "Le chiavi e i valori contenuti sono stati aggiunti al Registro di sistema."
 
 #: appearance/feedback.cpp:732
 msgid "The registry file couldn't be imported."
-msgstr ""
+msgstr "Non è possibile importare il file del Registro di sistema."
 
 #: appearance/feedback.cpp:761 frame/commands/mutation_commands.cpp:838
 #: frame/commands/mutation_commands.cpp:849
 #: frame/commands/mutation_commands.cpp:955
 #: frame/commands/mutation_commands.cpp:962
 msgid "Delete Key"
-msgstr ""
+msgstr "Elimina chiave"
 
 #: appearance/feedback.cpp:763
 msgid "Delete these keys and all of their subkeys?"
-msgstr ""
+msgstr "Vuoi eliminare queste chiavi e tutte le relative sottochiavi?"
 
 #: appearance/feedback.cpp:763
 msgid "Delete this key and all of its subkeys?"
-msgstr ""
+msgstr "Vuoi eliminare questa chiave e tutte le relative sottochiavi?"
 
 #: appearance/feedback.cpp:765 frame/commands/mutation_commands.cpp:760
 #: frame/commands/mutation_commands.cpp:997
 msgid "Delete Value"
-msgstr ""
+msgstr "Elimina valore"
 
 #: appearance/feedback.cpp:765 frame/commands/mutation_commands.cpp:918
 msgid "Delete Values"
-msgstr ""
+msgstr "Elimina valori"
 
 #: appearance/feedback.cpp:767
 msgid "Delete these values?"
-msgstr ""
+msgstr "Vuoi eliminare questi valori?"
 
 #: appearance/feedback.cpp:767
 msgid "Delete this value?"
-msgstr ""
+msgstr "Vuoi eliminare questo valore?"
 
 #: appearance/feedback.cpp:771
 msgid "Delete these items?"
-msgstr ""
+msgstr "Vuoi eliminare questi elementi?"
 
 #: appearance/feedback.cpp:771
 msgid "Delete this item?"
-msgstr ""
+msgstr "Vuoi eliminare questo elemento?"
 
 #: appearance/feedback.cpp:781 editors/binary_editor.cpp:76
 #: editors/bitfield_editor.cpp:385 editors/bitfield_editor.cpp:787
@@ -130,7 +134,7 @@ msgstr ""
 #: trace/trace_dialog.cpp:220 trace/trace_dialog.cpp:260
 #: trace/trace_dialog.cpp:283
 msgid "(Default)"
-msgstr ""
+msgstr "(Predefinito)"
 
 #: appearance/feedback.cpp:786 appearance/preset_editor.cpp:571
 #: frame/commands/context_menus.cpp:161 frame/commands/context_menus.cpp:286
@@ -138,7 +142,7 @@ msgstr ""
 #: frame/commands/context_menus.cpp:768 frame/window/menu_bar.cpp:131
 #: frame/window/menu_bar.cpp:322
 msgid "Delete"
-msgstr ""
+msgstr "Elimina"
 
 #: appearance/feedback.cpp:786 appearance/feedback.cpp:796
 #: appearance/feedback.cpp:809 appearance/preset_editor.cpp:600
@@ -155,120 +159,120 @@ msgstr ""
 #: search/query_prompts.cpp:141 search/query_prompts.cpp:225
 #: search/replace_dialog.cpp:236 trace/trace_dialog.cpp:543
 msgid "Cancel"
-msgstr ""
+msgstr "Annulla"
 
 #: appearance/feedback.cpp:796
 msgid "The file already exists. Replace it?"
-msgstr ""
+msgstr "Il file esiste già. Vuoi sostituirlo?"
 
 #: appearance/feedback.cpp:796 frame/window/menu_bar.cpp:117
 #: search/replace_dialog.cpp:234 search/replace_dialog.cpp:323
 msgid "Replace"
-msgstr ""
+msgstr "Sostituisci"
 
 #: appearance/feedback.cpp:806
 msgid "These entries can't be written in this format and will be left out."
-msgstr ""
+msgstr "Queste voci non possono essere scritte in questo formato e verranno omesse."
 
 #: appearance/feedback.cpp:809
 msgid "Convert"
-msgstr ""
+msgstr "Converti"
 
 #: appearance/feedback.cpp:816 appearance/feedback.cpp:818
 msgid "The file was converted."
-msgstr ""
+msgstr "Il file è stato convertito."
 
 #: appearance/list_view_support.cpp:176 appearance/list_view_support.cpp:184
 #: frame/window/menu_bar.cpp:357
 msgid "Grid Lines"
-msgstr ""
+msgstr "Griglia"
 
 #: appearance/list_view_support.cpp:495 frame/views/column_menus.cpp:32
 msgid "Size column to fit"
-msgstr ""
+msgstr "Adatta colonna al contenuto"
 
 #: appearance/list_view_support.cpp:496 frame/views/column_menus.cpp:33
 msgid "Size all columns to fit"
-msgstr ""
+msgstr "Adatta tutte le colonne al contenuto"
 
 #: appearance/presets.cpp:185
 msgid "The theme preset file contains an entry RegKit can't parse."
-msgstr ""
+msgstr "Il file dei set di tema contiene una voce che RegKit non può analizzare."
 
 #: appearance/presets.cpp:238
 msgid "Failed to write the theme preset file."
-msgstr ""
+msgstr "Non è possibile scrivere il file dei set di tema."
 
 #: appearance/presets.cpp:290
 msgid "No theme presets were found in the file."
-msgstr ""
+msgstr "Nel file non sono stati trovati set di tema."
 
 #: appearance/presets.cpp:290
 msgid "Failed to open the theme preset file."
-msgstr ""
+msgstr "Non è possibile aprire il file dei set di tema."
 
 #: appearance/preset_editor.cpp:71
 msgid "Background"
-msgstr ""
+msgstr "Sfondo"
 
 #: appearance/preset_editor.cpp:72
 msgid "Panel"
-msgstr ""
+msgstr "Riquadro"
 
 #: appearance/preset_editor.cpp:73
 msgid "Surface"
-msgstr ""
+msgstr "Superficie"
 
 #: appearance/preset_editor.cpp:74 editors/bitfield_definition_editor.cpp:181
 #: editors/bitfield_definition_editor.cpp:813 editors/bitfield_editor.cpp:801
 msgid "Field"
-msgstr ""
+msgstr "Campo"
 
 #: appearance/preset_editor.cpp:75
 msgid "Header"
-msgstr ""
+msgstr "Intestazione"
 
 #: appearance/preset_editor.cpp:76
 msgid "Border"
-msgstr ""
+msgstr "Bordo"
 
 #: appearance/preset_editor.cpp:77 registry/value_decoder.cpp:425
 #: registry/value_decoder.cpp:432 registry/value_decoder.cpp:464
 #: registry/value_decoder.cpp:479
 msgid "Text"
-msgstr ""
+msgstr "Testo"
 
 #: appearance/preset_editor.cpp:78
 msgid "Muted Text"
-msgstr ""
+msgstr "Testo attenuato"
 
 #: appearance/preset_editor.cpp:79
 msgid "Accent"
-msgstr ""
+msgstr "Colore principale"
 
 #: appearance/preset_editor.cpp:80
 msgid "Selection"
-msgstr ""
+msgstr "Selezione"
 
 #: appearance/preset_editor.cpp:81
 msgid "Selection Text"
-msgstr ""
+msgstr "Testo selezionato"
 
 #: appearance/preset_editor.cpp:82
 msgid "Hover"
-msgstr ""
+msgstr "Passaggio del mouse"
 
 #: appearance/preset_editor.cpp:83
 msgid "Focus"
-msgstr ""
+msgstr "Stato attivo"
 
 #: appearance/preset_editor.cpp:179
 msgid "Preset name can't be empty."
-msgstr ""
+msgstr "Il nome del set non può essere vuoto."
 
 #: appearance/preset_editor.cpp:266
 msgid "Color"
-msgstr ""
+msgstr "Colore"
 
 #: appearance/preset_editor.cpp:270
 msgid "Hex"
@@ -276,565 +280,565 @@ msgstr ""
 
 #: appearance/preset_editor.cpp:560
 msgid "Presets"
-msgstr ""
+msgstr "Set"
 
 #: appearance/preset_editor.cpp:565
 msgid "New..."
-msgstr ""
+msgstr "Nuovo..."
 
 #: appearance/preset_editor.cpp:567
 msgid "Duplicate"
-msgstr ""
+msgstr "Duplica"
 
 #: appearance/preset_editor.cpp:569
 msgid "Rename..."
-msgstr ""
+msgstr "Rinomina..."
 
 #: appearance/preset_editor.cpp:573 frame/window/menu_bar.cpp:278
 msgid "Import..."
-msgstr ""
+msgstr "Importa..."
 
 #: appearance/preset_editor.cpp:575 frame/commands/context_menus.cpp:278
 #: frame/commands/context_menus.cpp:382 frame/commands/context_menus.cpp:451
 #: frame/commands/context_menus.cpp:479 frame/commands/context_menus.cpp:763
 #: frame/window/menu_bar.cpp:279
 msgid "Export..."
-msgstr ""
+msgstr "Esporta..."
 
 #: appearance/preset_editor.cpp:578
 msgid "Colors"
-msgstr ""
+msgstr "Colori"
 
 #: appearance/preset_editor.cpp:583
 msgid "Edit Color..."
-msgstr ""
+msgstr "Modifica colore..."
 
 #: appearance/preset_editor.cpp:586
 msgid "Treat as dark theme"
-msgstr ""
+msgstr "Tema scuro"
 
 #: appearance/preset_editor.cpp:589
 msgid "Templates"
-msgstr ""
+msgstr "Modelli"
 
 #: appearance/preset_editor.cpp:595
 msgid "Apply Template"
-msgstr ""
+msgstr "Applica modello"
 
 #: appearance/preset_editor.cpp:598
 msgid "Apply"
-msgstr ""
+msgstr "Applica"
 
 #: appearance/preset_editor.cpp:692
 msgid "New Preset"
-msgstr ""
+msgstr "Nuovo set"
 
 #: appearance/preset_editor.cpp:729
 msgid "Rename Preset"
-msgstr ""
+msgstr "Rinomina set"
 
 #: appearance/preset_editor.cpp:742
 msgid "At least one preset must remain."
-msgstr ""
+msgstr "Deve rimanere almeno un set."
 
 #: appearance/preset_editor.cpp:750
 msgid "Delete Preset"
-msgstr ""
+msgstr "Elimina set"
 
 #: appearance/preset_editor.cpp:774
 msgid "Failed to import theme presets."
-msgstr ""
+msgstr "Non è possibile importare i set di tema."
 
 #: appearance/preset_editor.cpp:801
 msgid "Failed to export theme presets."
-msgstr ""
+msgstr "Non è possibile esportare i set di tema."
 
 #: appearance/preset_editor.cpp:930
 msgid "Theme Presets"
-msgstr ""
+msgstr "Set di tema"
 
 #: changes/value_comments.cpp:89
 msgid "A comment has an unknown registry type."
-msgstr ""
+msgstr "Un commento ha un tipo del Registro di sistema sconosciuto."
 
 #: changes/value_comments.cpp:98
 msgid "A comment type is out of range."
-msgstr ""
+msgstr "Il tipo di un commento è fuori intervallo."
 
 #: changes/value_comments.cpp:110
 msgid "A comment contains a duplicate member."
-msgstr ""
+msgstr "Un commento contiene una proprietà duplicata."
 
 #: changes/value_comments.cpp:135
 msgid "A comment has an empty key."
-msgstr ""
+msgstr "Un commento ha una chiave vuota."
 
 #: changes/value_comments.cpp:137
 msgid "A comment contains an unknown member."
-msgstr ""
+msgstr "Un commento contiene una proprietà sconosciuta."
 
 #: changes/value_comments.cpp:139
 msgid "A comment is missing its text."
-msgstr ""
+msgstr "In un commento manca il testo."
 
 #: changes/value_comments.cpp:145
 msgid "A key comment needs a key and can't have a name, type, size or tree."
-msgstr ""
+msgstr "Un commento di chiave richiede una chiave e non può avere nome, tipo, dimensioni o albero."
 
 #: changes/value_comments.cpp:272 changes/value_comments.cpp:280
 msgid "The file isn't a RegKit comments file."
-msgstr ""
+msgstr "Il file non è un file di commenti di RegKit."
 
 #: changes/value_comments.cpp:278
 msgid "The file contains an unknown member."
-msgstr ""
+msgstr "Il file contiene una proprietà sconosciuta."
 
 #: defaults/default_loader.cpp:113
 msgid "Default file contains no usable entries."
-msgstr ""
+msgstr "Il file dei valori predefiniti non contiene voci utilizzabili."
 
 #: editors/binary_editor.cpp:64 editors/binary_editor.cpp:170
 #: editors/binary_editor.cpp:208 editors/value_editor.cpp:365
 msgid "Invalid hex input."
-msgstr ""
+msgstr "Dati esadecimali non validi."
 
 #: editors/binary_editor.cpp:65
 msgid "Invalid"
-msgstr ""
+msgstr "Non valido"
 
 #: editors/binary_editor.cpp:91 editors/value_editor.cpp:755
 #: editors/value_editor.cpp:1140 editors/value_editor.cpp:1248
 msgid "Edit Value"
-msgstr ""
+msgstr "Modifica valore"
 
 #: editors/binary_editor.cpp:92
 msgid "Hex bytes:"
-msgstr ""
+msgstr "Byte esadecimali:"
 
 #: editors/binary_editor.cpp:93
 msgid "Preview:"
-msgstr ""
+msgstr "Anteprima:"
 
 #: editors/bitfield_definition.cpp:56
 msgid "An object contains an unknown member."
-msgstr ""
+msgstr "Un oggetto contiene una proprietà sconosciuta."
 
 #: editors/bitfield_definition.cpp:60
 msgid "An object contains a duplicate member."
-msgstr ""
+msgstr "Un oggetto contiene una proprietà duplicata."
 
 #: editors/bitfield_definition.cpp:93
 msgid "A state is missing its value or name."
-msgstr ""
+msgstr "In uno stato manca il valore o il nome."
 
 #: editors/bitfield_definition.cpp:116 editors/bitfield_definition.cpp:488
 msgid "A field uses a bit outside the declared width."
-msgstr ""
+msgstr "Un campo usa un bit oltre la larghezza dichiarata."
 
 #: editors/bitfield_definition.cpp:120 editors/bitfield_definition.cpp:492
 msgid "Field bits must be unique and in ascending order."
-msgstr ""
+msgstr "I bit del campo devono essere univoci e in ordine crescente."
 
 #: editors/bitfield_definition.cpp:124
 msgid "A field lists no bits."
-msgstr ""
+msgstr "Un campo non elenca alcun bit."
 
 #: editors/bitfield_definition.cpp:136
 msgid "A field lists more than 256 states."
-msgstr ""
+msgstr "Un campo elenca più di 256 stati."
 
 #: editors/bitfield_definition.cpp:142
 msgid "A field is missing its name or bits."
-msgstr ""
+msgstr "In un campo manca il nome o i bit."
 
 #: editors/bitfield_definition.cpp:165 editors/bitfield_definition.cpp:458
 msgid "A definition lists too many key paths."
-msgstr ""
+msgstr "Una definizione elenca troppi percorsi di chiavi."
 
 #: editors/bitfield_definition.cpp:175 editors/bitfield_definition.cpp:438
 msgid "The bit width must be 8, 16, 32, or 64."
-msgstr ""
+msgstr "La larghezza in bit deve essere 8, 16, 32 o 64."
 
 #: editors/bitfield_definition.cpp:182 editors/bitfield_definition.cpp:442
 msgid "The byte offset is out of range."
-msgstr ""
+msgstr "L'offset in byte è fuori intervallo."
 
 #: editors/bitfield_definition.cpp:195 editors/bitfield_definition.cpp:446
 msgid "A definition contains more than 64 fields."
-msgstr ""
+msgstr "Una definizione contiene più di 64 campi."
 
 #: editors/bitfield_definition.cpp:201
 msgid "A definition is missing its value name or bit width."
-msgstr ""
+msgstr "In una definizione manca il nome del valore o la larghezza in bit."
 
 #: editors/bitfield_definition.cpp:216
 msgid "The file isn't a RegKit bitfield definition."
-msgstr ""
+msgstr "Il file non è una definizione di campi di bit di RegKit."
 
 #: editors/bitfield_definition.cpp:232 editors/bitfield_definition.cpp:551
 msgid "The file contains no definitions."
-msgstr ""
+msgstr "Il file non contiene definizioni."
 
 #: editors/bitfield_definition.cpp:238
 msgid "The file is missing a required member."
-msgstr ""
+msgstr "Nel file manca una proprietà obbligatoria."
 
 #: editors/bitfield_definition.cpp:388
 msgid "Unnamed definition"
-msgstr ""
+msgstr "Definizione senza nome"
 
 #: editors/bitfield_definition.cpp:450
 msgid "A name is longer than the format allows."
-msgstr ""
+msgstr "Un nome supera la lunghezza consentita dal formato."
 
 #: editors/bitfield_definition.cpp:454
 msgid "A comment is longer than the format allows."
-msgstr ""
+msgstr "Un commento supera la lunghezza consentita dal formato."
 
 #: editors/bitfield_definition.cpp:464
 msgid "A key path is empty or longer than the format allows."
-msgstr ""
+msgstr "Un percorso di chiave è vuoto o supera la lunghezza consentita dal formato."
 
 #: editors/bitfield_definition.cpp:474
 msgid "Every field needs a name of at most 256 characters."
-msgstr ""
+msgstr "Ogni campo richiede un nome di massimo 256 caratteri."
 
 #: editors/bitfield_definition.cpp:478
 msgid "A field meaning is longer than the format allows."
-msgstr ""
+msgstr "Il significato di un campo supera la lunghezza consentita dal formato."
 
 #: editors/bitfield_definition.cpp:482
 msgid "Every field needs at least one bit."
-msgstr ""
+msgstr "Ogni campo richiede almeno un bit."
 
 #: editors/bitfield_definition.cpp:496
 msgid "Two fields claim the same bit."
-msgstr ""
+msgstr "Due campi usano lo stesso bit."
 
 #: editors/bitfield_definition.cpp:506
 msgid "Every state needs a name of at most 256 characters."
-msgstr ""
+msgstr "Ogni stato richiede un nome di massimo 256 caratteri."
 
 #: editors/bitfield_definition.cpp:510
 msgid "A state meaning is longer than the format allows."
-msgstr ""
+msgstr "Il significato di uno stato supera la lunghezza consentita dal formato."
 
 #: editors/bitfield_definition.cpp:514
 msgid "A state value doesn't fit the bits of its field."
-msgstr ""
+msgstr "Il valore di uno stato non rientra nei bit del relativo campo."
 
 #: editors/bitfield_definition.cpp:520
 msgid "Two states of one field share the same value."
-msgstr ""
+msgstr "Due stati di un campo hanno lo stesso valore."
 
 #: editors/bitfield_definition.cpp:528
 msgid "Two fields share the same name."
-msgstr ""
+msgstr "Due campi hanno lo stesso nome."
 
 #: editors/bitfield_definition.cpp:559
 msgid "A file name or comment is longer than the format allows."
-msgstr ""
+msgstr "Un nome di file o un commento supera la lunghezza consentita dal formato."
 
 #: editors/bitfield_definition.cpp:592
 msgid "The definition file isn't valid UTF-8."
-msgstr ""
+msgstr "Il file di definizione non è in formato UTF-8 valido."
 
 #: editors/bitfield_definition.cpp:603
 msgid "The definition file isn't valid JSON."
-msgstr ""
+msgstr "Il file di definizione non è in formato JSON valido."
 
 #: editors/bitfield_definition.cpp:622
 msgid "The definition file couldn't be read."
-msgstr ""
+msgstr "Non è possibile leggere il file di definizione."
 
 #: editors/bitfield_definition.cpp:744
 msgid "The definition file couldn't be written."
-msgstr ""
+msgstr "Non è possibile scrivere il file di definizione."
 
 #: editors/bitfield_definition_editor.cpp:177
 msgid "Add Field"
-msgstr ""
+msgstr "Aggiungi campo"
 
 #: editors/bitfield_definition_editor.cpp:177
 msgid "Edit Field"
-msgstr ""
+msgstr "Modifica campo"
 
 #: editors/bitfield_definition_editor.cpp:181 editors/bitfield_editor.cpp:801
 msgid "Bit"
-msgstr ""
+msgstr "Bit"
 
 #: editors/bitfield_definition_editor.cpp:181 editors/bitfield_editor.cpp:801
 msgid "Mask"
-msgstr ""
+msgstr "Maschera"
 
 #: editors/bitfield_definition_editor.cpp:288
 msgid "Enter a field name."
-msgstr ""
+msgstr "Inserisci un nome per il campo."
 
 #: editors/bitfield_definition_editor.cpp:296
 msgid "Another field already uses that name."
-msgstr ""
+msgstr "Un altro campo usa già questo nome."
 
 #: editors/bitfield_definition_editor.cpp:313
 msgid "Select at least one bit."
-msgstr ""
+msgstr "Seleziona almeno un bit."
 
 #: editors/bitfield_definition_editor.cpp:529
 msgid "This definition file has unsaved changes."
-msgstr ""
+msgstr "Questo file di definizione contiene modifiche non salvate."
 
 #: editors/bitfield_definition_editor.cpp:529
 #: editors/bitfield_definition_editor.cpp:595
 #: editors/bitfield_definition_editor.cpp:806 frame/window/menu_bar.cpp:489
 msgid "Bit Definitions"
-msgstr ""
+msgstr "Definizioni di bit"
 
 #: editors/bitfield_definition_editor.cpp:529 frame/views/tab_lists.cpp:472
 #: frame/views/tab_lists.cpp:514 frame/window/menu_bar.cpp:119
 #: frame/window/menu_bar.cpp:275
 msgid "Save"
-msgstr ""
+msgstr "Salva"
 
 #: editors/bitfield_definition_editor.cpp:529
 msgid "Discard"
-msgstr ""
+msgstr "Ignora modifiche"
 
 #: editors/bitfield_definition_editor.cpp:565 editors/bitfield_editor.cpp:376
 msgid "The definition was made for a different value width."
-msgstr ""
+msgstr "La definizione è stata creata per una larghezza del valore diversa."
 
 #: editors/bitfield_definition_editor.cpp:595
 msgid "Some fields use bits outside the new width. Remove those bits?"
-msgstr ""
+msgstr "Alcuni campi usano bit oltre la nuova larghezza. Vuoi rimuovere questi bit?"
 
 #: editors/bitfield_definition_editor.cpp:595
 msgid "Remove"
-msgstr ""
+msgstr "Rimuovi"
 
 #: editors/bitfield_definition_editor.cpp:738
 msgid "Add Field..."
-msgstr ""
+msgstr "Aggiungi campo..."
 
 #: editors/bitfield_definition_editor.cpp:739 editors/bitfield_editor.cpp:654
 msgid "Edit Field..."
-msgstr ""
+msgstr "Modifica campo..."
 
 #: editors/bitfield_definition_editor.cpp:740 editors/bitfield_editor.cpp:655
 msgid "Remove Field"
-msgstr ""
+msgstr "Rimuovi campo"
 
 #: editors/bitfield_definition_editor.cpp:742 editors/bitfield_editor.cpp:658
 msgid "Copy Row"
-msgstr ""
+msgstr "Copia riga"
 
 #: editors/bitfield_definition_editor.cpp:813
 msgid "Bits"
-msgstr ""
+msgstr "Bit"
 
 #: editors/bitfield_definition_editor.cpp:813
 msgid "States"
-msgstr ""
+msgstr "Stati"
 
 #: editors/bitfield_definition_editor.cpp:813 editors/bitfield_editor.cpp:801
 msgid "Meaning"
-msgstr ""
+msgstr "Significato"
 
 #: editors/bitfield_editor.cpp:301
 msgid "(none)"
-msgstr ""
+msgstr "(nessuno)"
 
 #: editors/bitfield_editor.cpp:376
 msgid "The definition describes bytes outside this value."
-msgstr ""
+msgstr "La definizione descrive byte oltre i limiti di questo valore."
 
 #: editors/bitfield_editor.cpp:381
 msgid "This definition was made for a different value. Use it anyway?"
-msgstr ""
+msgstr "Questa definizione è stata creata per un valore diverso. Vuoi usarla comunque?"
 
 #: editors/bitfield_editor.cpp:383
 msgid "Definition"
-msgstr ""
+msgstr "Definizione"
 
 #: editors/bitfield_editor.cpp:385
 msgid "This value"
-msgstr ""
+msgstr "Questo valore"
 
 #: editors/bitfield_editor.cpp:386
 msgid "Bit Definition"
-msgstr ""
+msgstr "Definizione di bit"
 
 #: editors/bitfield_editor.cpp:386
 msgid "Use"
-msgstr ""
+msgstr "Usa"
 
 #: editors/bitfield_editor.cpp:429
 msgid "No definition in that file fits this value."
-msgstr ""
+msgstr "Nessuna definizione nel file è adatta a questo valore."
 
 #: editors/bitfield_editor.cpp:429
 msgid "No definition in that file was made for this value width."
-msgstr ""
+msgstr "Nessuna definizione nel file è stata creata per questa larghezza del valore."
 
 #: editors/bitfield_editor.cpp:639
 msgid "Enable Bit"
-msgstr ""
+msgstr "Attiva bit"
 
 #: editors/bitfield_editor.cpp:640
 msgid "Disable Bit"
-msgstr ""
+msgstr "Disattiva bit"
 
 #: editors/bitfield_editor.cpp:651
 msgid "Set Field To"
-msgstr ""
+msgstr "Imposta campo su"
 
 #: editors/bitfield_editor.cpp:654
 msgid "Describe Bit..."
-msgstr ""
+msgstr "Descrivi bit..."
 
 #: editors/bitfield_editor.cpp:657
 msgid "Copy Mask"
-msgstr ""
+msgstr "Copia maschera"
 
 #: editors/bitfield_editor.cpp:786
 msgid "Edit Bits"
-msgstr ""
+msgstr "Modifica bit"
 
 #: editors/bitfield_editor.cpp:801
 msgid "State"
-msgstr ""
+msgstr "Stato"
 
 #: editors/bitfield_editor.cpp:801 frame/views/browse_view.cpp:266
 #: frame/views/browse_view.cpp:284 search/search.cpp:61
 msgid "Value"
-msgstr ""
+msgstr "Valore"
 
 #: editors/comment_editor.cpp:74
 msgid "Selected values only"
-msgstr ""
+msgstr "Solo selezionati"
 
 #: editors/comment_editor.cpp:79
 msgid "Values with the selected names"
-msgstr ""
+msgstr "Valori con i nomi selezionati"
 
 #: editors/comment_editor.cpp:79
 msgid "Values named"
-msgstr ""
+msgstr "Valori denominati"
 
 #: editors/decoder_dialog.cpp:120
 msgid "Bytes shown"
-msgstr ""
+msgstr "Byte visualizzati"
 
 #: editors/decoder_dialog.cpp:181
 msgid "Decode Value"
-msgstr ""
+msgstr "Decodifica valore"
 
 #: editors/decoder_dialog.cpp:182
 msgid "Name:"
-msgstr ""
+msgstr "Nome:"
 
 #: editors/decoder_dialog.cpp:183
 msgid "Encoding:"
-msgstr ""
+msgstr "Codifica:"
 
 #: editors/decoder_dialog.cpp:184
 msgid "Interpret as:"
-msgstr ""
+msgstr "Interpreta come:"
 
 #: editors/export_dialog.cpp:42 win32/file_dialog.cpp:175
 msgid "Don't open"
-msgstr ""
+msgstr "Non aprire"
 
 #: editors/export_dialog.cpp:42 win32/file_dialog.cpp:176
 msgid "In text editor"
-msgstr ""
+msgstr "Editor di testo"
 
 #: editors/export_dialog.cpp:42 win32/file_dialog.cpp:179
 msgid "In RegKit"
-msgstr ""
+msgstr "In RegKit"
 
 #: editors/export_dialog.cpp:83
 msgid "Select a destination file."
-msgstr ""
+msgstr "Seleziona un file di destinazione."
 
 #: editors/hive_dialog.cpp:101
 msgid "Select a hive file."
-msgstr ""
+msgstr "Seleziona un file hive."
 
 #: editors/hive_dialog.cpp:107
 msgid "Enter a key name for the loaded hive."
-msgstr ""
+msgstr "Inserisci un nome di chiave per l'hive caricato."
 
 #: editors/hive_dialog.cpp:112
 msgid "The key name can't contain a backslash."
-msgstr ""
+msgstr "Il nome della chiave non può contenere una barra rovesciata."
 
 #: editors/hive_dialog.cpp:202
 msgid "Enter a link name and a target key."
-msgstr ""
+msgstr "Inserisci un nome per il collegamento e una chiave di destinazione."
 
 #: editors/hive_dialog.cpp:207
 msgid "The link name can't contain a backslash."
-msgstr ""
+msgstr "Il nome del collegamento non può contenere una barra rovesciata."
 
 #: editors/value_editor.cpp:421
 msgid "Enter a valid number before editing its bits."
-msgstr ""
+msgstr "Inserisci un numero valido prima di modificarne i bit."
 
 #: editors/value_editor.cpp:884
 msgid "The current data isn't valid, so the type can't be changed."
-msgstr ""
+msgstr "I dati attuali non sono validi, quindi non è possibile cambiare il tipo."
 
 #: editors/value_editor.cpp:908
 msgid "The current data can't be represented in this type. Continue and start with an empty value?"
-msgstr ""
+msgstr "I dati attuali non possono essere rappresentati in questo tipo. Vuoi continuare con un valore vuoto?"
 
 #: editors/value_editor.cpp:908
 msgid "Change Data Type"
-msgstr ""
+msgstr "Cambia tipo di dati"
 
 #: editors/value_editor.cpp:908
 msgid "Continue"
-msgstr ""
+msgstr "Continua"
 
 #: editors/value_editor.cpp:1081 editors/value_editor.cpp:1415
 msgid "Invalid value data."
-msgstr ""
+msgstr "Dati del valore non validi."
 
 #: editors/value_editor.cpp:1388
 msgid "Invalid number."
-msgstr ""
+msgstr "Numero non valido."
 
 #: editors/value_editor.cpp:1394
 msgid "Number is out of range."
-msgstr ""
+msgstr "Numero fuori intervallo."
 
 #: editors/value_editor.cpp:1508
 msgid "This value has no data to edit as bits."
-msgstr ""
+msgstr "Questo valore non contiene dati da modificare come bit."
 
 #: frame/commands/clipboard_commands.cpp:48
 msgid "Edit Favorites"
-msgstr ""
+msgstr "Modifica preferiti"
 
 #: frame/commands/clipboard_commands.cpp:49 search/query_dialog.cpp:1039
 msgid "Each line should include one key."
-msgstr ""
+msgstr "Ogni riga deve contenere una chiave."
 
 #: frame/commands/clipboard_commands.cpp:59 workspace/favorites.cpp:129
 msgid "Failed to save favorites."
-msgstr ""
+msgstr "Non è possibile salvare i preferiti."
 
 #: frame/commands/clipboard_commands.cpp:77
 msgid "Failed to import favorites."
-msgstr ""
+msgstr "Non è possibile importare i preferiti."
 
 #: frame/commands/clipboard_commands.cpp:93
 msgid "Failed to import RegEdit favorites."
-msgstr ""
+msgstr "Non è possibile importare i preferiti di RegEdit."
 
 #: frame/commands/clipboard_commands.cpp:114
 msgid "Failed to export favorites."
-msgstr ""
+msgstr "Non è possibile esportare i preferiti."
 
 #: frame/commands/clipboard_commands.cpp:218
 #: frame/commands/clipboard_commands.cpp:361
@@ -843,658 +847,658 @@ msgstr ""
 #: frame/commands/mutation_commands.cpp:1004
 #: frame/commands/tools_commands.cpp:92
 msgid "Failed to read value."
-msgstr ""
+msgstr "Non è possibile leggere il valore."
 
 #: frame/commands/clipboard_commands.cpp:474
 msgid "Failed to paste value."
-msgstr ""
+msgstr "Non è possibile incollare il valore."
 
 #: frame/commands/clipboard_commands.cpp:506
 msgid "Failed to paste key."
-msgstr ""
+msgstr "Non è possibile incollare la chiave."
 
 #: frame/commands/command_detail.h:72 frame/commands/context_menus.cpp:717
 msgid "Abbreviated (HKLM)"
-msgstr ""
+msgstr "Abbreviato (HKLM)"
 
 #: frame/commands/command_detail.h:73 frame/commands/context_menus.cpp:718
 msgid "RegEdit Address Bar"
-msgstr ""
+msgstr "Barra degli indirizzi di RegEdit"
 
 #: frame/commands/command_detail.h:74 frame/commands/context_menus.cpp:719
 msgid ".reg File Header"
-msgstr ""
+msgstr "Intestazione file .reg"
 
 #: frame/commands/command_detail.h:75 frame/commands/context_menus.cpp:720
 msgid "PowerShell Drive"
-msgstr ""
+msgstr "Unità PowerShell"
 
 #: frame/commands/command_detail.h:76 frame/commands/context_menus.cpp:721
 msgid "PowerShell Provider"
-msgstr ""
+msgstr "Provider PowerShell"
 
 #: frame/commands/command_detail.h:77 frame/commands/context_menus.cpp:722
 msgid "Escaped Backslashes"
-msgstr ""
+msgstr "Barre rovesciate con escape"
 
 #: frame/commands/command_detail.h:82
 msgid "String Value"
-msgstr ""
+msgstr "Valore stringa"
 
 #: frame/commands/command_detail.h:83
 msgid "Binary Value"
-msgstr ""
+msgstr "Valore binario"
 
 #: frame/commands/command_detail.h:84
 msgid "DWORD (32-bit) Value"
-msgstr ""
+msgstr "Valore DWORD (32 bit)"
 
 #: frame/commands/command_detail.h:85
 msgid "QWORD (64-bit) Value"
-msgstr ""
+msgstr "Valore QWORD (64 bit)"
 
 #: frame/commands/command_detail.h:86
 msgid "Multi-String Value"
-msgstr ""
+msgstr "Valore stringa multipla"
 
 #: frame/commands/command_detail.h:87
 msgid "Expandable String Value"
-msgstr ""
+msgstr "Valore stringa espandibile"
 
 #: frame/commands/command_detail.h:89
 msgid "Symbolic Link"
-msgstr ""
+msgstr "Collegamento simbolico"
 
 #: frame/commands/context_menus.cpp:155 frame/window/menu_bar.cpp:123
 #: frame/window/menu_bar.cpp:303
 msgid "Undo"
-msgstr ""
+msgstr "Annulla operazione"
 
 #: frame/commands/context_menus.cpp:157
 msgid "Cut"
-msgstr ""
+msgstr "Taglia"
 
 #: frame/commands/context_menus.cpp:158 frame/commands/context_menus.cpp:535
 #: frame/window/menu_bar.cpp:127 frame/window/menu_bar.cpp:319
 msgid "Copy"
-msgstr ""
+msgstr "Copia"
 
 #: frame/commands/context_menus.cpp:159 frame/window/menu_bar.cpp:129
 #: frame/window/menu_bar.cpp:320
 msgid "Paste"
-msgstr ""
+msgstr "Incolla"
 
 #: frame/commands/context_menus.cpp:160
 msgid "Paste and Go"
-msgstr ""
+msgstr "Incolla e vai"
 
 #: frame/commands/context_menus.cpp:163 frame/window/menu_bar.cpp:333
 #: search/query_prompts.cpp:136
 msgid "Select All"
-msgstr ""
+msgstr "Seleziona tutto"
 
 #: frame/commands/context_menus.cpp:244
 msgid "Collapse Key"
-msgstr ""
+msgstr "Comprimi chiave"
 
 #: frame/commands/context_menus.cpp:244 frame/commands/context_menus.cpp:341
 msgid "Expand Key"
-msgstr ""
+msgstr "Espandi chiave"
 
 #: frame/commands/context_menus.cpp:249 frame/commands/context_menus.cpp:353
 #: frame/commands/context_menus.cpp:462 frame/commands/context_menus.cpp:754
 msgid "Copy Key Name"
-msgstr ""
+msgstr "Copia nome chiave"
 
 #: frame/commands/context_menus.cpp:250 frame/commands/context_menus.cpp:354
 #: frame/commands/context_menus.cpp:463 frame/commands/context_menus.cpp:755
 msgid "Copy Key Path"
-msgstr ""
+msgstr "Copia percorso chiave"
 
 #: frame/commands/context_menus.cpp:251 frame/commands/context_menus.cpp:355
 #: frame/commands/context_menus.cpp:464 frame/commands/context_menus.cpp:756
 msgid "Copy Key Path As"
-msgstr ""
+msgstr "Copia percorso chiave come"
 
 #: frame/commands/context_menus.cpp:252 frame/commands/context_menus.cpp:356
 #: frame/commands/context_menus.cpp:419 frame/commands/context_menus.cpp:749
 #: frame/window/menu_bar.cpp:316
 msgid "Modify Comment..."
-msgstr ""
+msgstr "Modifica commento..."
 
 #: frame/commands/context_menus.cpp:255 frame/commands/context_menus.cpp:359
 #: frame/commands/context_menus.cpp:486 frame/commands/context_menus.cpp:758
 #: frame/window/menu_bar.cpp:341
 msgid "Permissions..."
-msgstr ""
+msgstr "Autorizzazioni..."
 
 #: frame/commands/context_menus.cpp:258 frame/commands/context_menus.cpp:362
 #: frame/commands/context_menus.cpp:760
 msgid "On-Disk Hive File"
-msgstr ""
+msgstr "File hive su disco"
 
 #: frame/commands/context_menus.cpp:263 frame/commands/context_menus.cpp:367
 msgid "Expand All Subkeys"
-msgstr ""
+msgstr "Espandi tutte le sottochiavi"
 
 #: frame/commands/context_menus.cpp:267 frame/commands/context_menus.cpp:371
 #: frame/commands/context_menus.cpp:468 frame/views/registry_sessions.cpp:945
 msgid "Create Key"
-msgstr ""
+msgstr "Crea chiave"
 
 #: frame/commands/context_menus.cpp:272 frame/commands/context_menus.cpp:376
 #: frame/commands/context_menus.cpp:473
 msgid "New Key"
-msgstr ""
+msgstr "Nuova chiave"
 
 #: frame/commands/context_menus.cpp:273 frame/commands/context_menus.cpp:377
 #: frame/commands/context_menus.cpp:474
 msgid "New Value"
-msgstr ""
+msgstr "Nuovo valore"
 
 #: frame/commands/context_menus.cpp:281 frame/commands/context_menus.cpp:385
 #: frame/commands/context_menus.cpp:482 frame/commands/context_menus.cpp:541
 #: frame/tools/key_handles_window.cpp:399 frame/window/menu_bar.cpp:133
 #: frame/window/menu_bar.cpp:345
 msgid "Refresh"
-msgstr ""
+msgstr "Aggiorna"
 
 #: frame/commands/context_menus.cpp:285 frame/commands/context_menus.cpp:389
 #: frame/commands/context_menus.cpp:453 frame/commands/context_menus.cpp:767
 #: frame/window/menu_bar.cpp:321
 msgid "Rename"
-msgstr ""
+msgstr "Rinomina"
 
 #: frame/commands/context_menus.cpp:415 frame/commands/context_menus.cpp:747
 #: frame/window/menu_bar.cpp:311
 msgid "Modify..."
-msgstr ""
+msgstr "Modifica..."
 
 #: frame/commands/context_menus.cpp:416 frame/commands/context_menus.cpp:748
 #: frame/window/menu_bar.cpp:312
 msgid "Modify Binary Data..."
-msgstr ""
+msgstr "Modifica dati binari..."
 
 #: frame/commands/context_menus.cpp:417 frame/window/menu_bar.cpp:313
 msgid "Change Data Type..."
-msgstr ""
+msgstr "Cambia tipo di dati..."
 
 #: frame/commands/context_menus.cpp:420 frame/commands/context_menus.cpp:751
 #: frame/window/menu_bar.cpp:315
 msgid "Decode Value..."
-msgstr ""
+msgstr "Decodifica valore..."
 
 #: frame/commands/context_menus.cpp:421 frame/window/menu_bar.cpp:314
 msgid "Edit Bits..."
-msgstr ""
+msgstr "Modifica bit..."
 
 #: frame/commands/context_menus.cpp:423
 msgid "Copy Value Name"
-msgstr ""
+msgstr "Copia nome valore"
 
 #: frame/commands/context_menus.cpp:424
 msgid "Copy Value Data"
-msgstr ""
+msgstr "Copia dati valore"
 
 #: frame/commands/context_menus.cpp:440 frame/commands/context_menus.cpp:449
 msgid "Open Link"
-msgstr ""
+msgstr "Apri collegamento"
 
 #: frame/commands/context_menus.cpp:532
 msgid "Open Entry"
-msgstr ""
+msgstr "Apri voce"
 
 #: frame/commands/context_menus.cpp:533 frame/views/history_workspace.cpp:195
 msgid "Revert"
-msgstr ""
+msgstr "Ripristina"
 
 #: frame/commands/context_menus.cpp:537
 msgid "Remove from History"
-msgstr ""
+msgstr "Rimuovi dalla cronologia"
 
 #: frame/commands/context_menus.cpp:544
 msgid "Clear History"
-msgstr ""
+msgstr "Cancella cronologia"
 
 #: frame/commands/context_menus.cpp:553
 msgid "Failed to open history target."
-msgstr ""
+msgstr "Non è possibile aprire la destinazione della voce di cronologia."
 
 #: frame/commands/context_menus.cpp:733
 msgid "Open First Entry"
-msgstr ""
+msgstr "Apri prima voce"
 
 #: frame/commands/context_menus.cpp:734
 msgid "Open First Entry in New Tab"
-msgstr ""
+msgstr "Apri prima voce in nuova scheda"
 
 #: frame/commands/context_menus.cpp:735
 msgid "Open Second Entry"
-msgstr ""
+msgstr "Apri seconda voce"
 
 #: frame/commands/context_menus.cpp:736
 msgid "Open Second Entry in New Tab"
-msgstr ""
+msgstr "Apri seconda voce in nuova scheda"
 
 #: frame/commands/context_menus.cpp:741 frame/tools/key_handles_window.cpp:388
 msgid "Open Key"
-msgstr ""
+msgstr "Apri chiave"
 
 #: frame/commands/context_menus.cpp:742 frame/tools/key_handles_window.cpp:389
 msgid "Open Key in New Tab"
-msgstr ""
+msgstr "Apri chiave in nuova scheda"
 
 #: frame/commands/file_view_commands.cpp:292
 msgid "Failed to import comments."
-msgstr ""
+msgstr "Non è possibile importare i commenti."
 
 #: frame/commands/file_view_commands.cpp:311
 msgid "Failed to export comments."
-msgstr ""
+msgstr "Non è possibile esportare i commenti."
 
 #: frame/commands/file_view_commands.cpp:323
 msgid "Loading hives isn't supported for remote registries."
-msgstr ""
+msgstr "Il caricamento degli hive non è supportato per i registri remoti."
 
 #: frame/commands/file_view_commands.cpp:350
 msgid "Unloading hives isn't supported for remote registries."
-msgstr ""
+msgstr "Lo scaricamento degli hive non è supportato per i registri remoti."
 
 #: frame/commands/file_view_commands.cpp:363
 msgid "Select a hive you loaded under HKEY_LOCAL_MACHINE or HKEY_USERS first."
-msgstr ""
+msgstr "Seleziona prima un hive caricato in HKEY_LOCAL_MACHINE o HKEY_USERS."
 
 #: frame/commands/file_view_commands.cpp:366
 msgid "Unload this key and all of its subkeys?"
-msgstr ""
+msgstr "Vuoi scaricare questa chiave e tutte le relative sottochiavi?"
 
 #: frame/commands/file_view_commands.cpp:366 regfile/registry_transfer.cpp:355
 msgid "Unload Hive"
-msgstr ""
+msgstr "Scarica hive"
 
 #: frame/commands/file_view_commands.cpp:366
 msgid "Unload"
-msgstr ""
+msgstr "Scarica"
 
 #: frame/commands/file_view_commands.cpp:540
 msgid "Expanded keys"
-msgstr ""
+msgstr "Chiavi espanse"
 
 #: frame/commands/file_view_commands.cpp:540
 msgid "This key has too many subkeys to expand at once."
-msgstr ""
+msgstr "Questa chiave ha troppe sottochiavi per espanderle tutte insieme."
 
 #: frame/commands/file_view_commands.cpp:751
 msgid "Edit Active Defaults"
-msgstr ""
+msgstr "Modifica valori predefiniti attivi"
 
 #: frame/commands/file_view_commands.cpp:752
 #: frame/commands/file_view_commands.cpp:814
 msgid "One default path per line."
-msgstr ""
+msgstr "Un percorso di file di valori predefiniti per riga."
 
 #: frame/commands/file_view_commands.cpp:782
 msgid "Edit Active Traces"
-msgstr ""
+msgstr "Modifica Trace attivi"
 
 #: frame/commands/file_view_commands.cpp:783
 #: frame/commands/file_view_commands.cpp:834
 msgid "One trace path per line."
-msgstr ""
+msgstr "Un percorso di file Trace per riga."
 
 #: frame/commands/file_view_commands.cpp:813
 msgid "Edit Recent Defaults"
-msgstr ""
+msgstr "Modifica valori predefiniti recenti"
 
 #: frame/commands/file_view_commands.cpp:833
 msgid "Edit Recent Traces"
-msgstr ""
+msgstr "Modifica Trace recenti"
 
 #: frame/commands/mutation_commands.cpp:78
 msgid "Symbolic links can only be created in the local registry."
-msgstr ""
+msgstr "I collegamenti simbolici possono essere creati solo nel Registro di sistema locale."
 
 #: frame/commands/mutation_commands.cpp:94
 msgid "The target must be a full registry path under a standard root."
-msgstr ""
+msgstr "La destinazione deve essere un percorso completo del Registro di sistema sotto una radice standard."
 
 #: frame/commands/mutation_commands.cpp:100
 msgid "Failed to create the symbolic link."
-msgstr ""
+msgstr "Non è possibile creare il collegamento simbolico."
 
 #: frame/commands/mutation_commands.cpp:176
 #: frame/commands/mutation_commands.cpp:202
 #: frame/commands/mutation_commands.cpp:476
 msgid "Failed to create the key."
-msgstr ""
+msgstr "Non è possibile creare la chiave."
 
 #: frame/commands/mutation_commands.cpp:340
 #: frame/commands/mutation_commands.cpp:483
 msgid "Failed to set value."
-msgstr ""
+msgstr "Non è possibile impostare il valore."
 
 #: frame/commands/mutation_commands.cpp:417
 #: frame/commands/mutation_commands.cpp:578
 #: frame/commands/mutation_commands.cpp:786
 msgid "Failed to update value."
-msgstr ""
+msgstr "Non è possibile aggiornare il valore."
 
 #: frame/commands/mutation_commands.cpp:766
 #: frame/commands/mutation_commands.cpp:1009
 msgid "Failed to delete value."
-msgstr ""
+msgstr "Non è possibile eliminare il valore."
 
 #: frame/commands/mutation_commands.cpp:849
 #: frame/commands/mutation_commands.cpp:962
 msgid "Part of this key couldn't be read, so this delete can't be undone. Delete anyway?"
-msgstr ""
+msgstr "Non è possibile leggere parte di questa chiave, quindi l'eliminazione non potrà essere annullata. Vuoi eliminarla comunque?"
 
 #: frame/commands/mutation_commands.cpp:856
 #: frame/commands/mutation_commands.cpp:969
 msgid "Failed to delete key."
-msgstr ""
+msgstr "Non è possibile eliminare la chiave."
 
 #: frame/commands/mutation_commands.cpp:895
 msgid "Bulk deletion only supports registry values."
-msgstr ""
+msgstr "L'eliminazione in blocco supporta solo valori del Registro di sistema."
 
 #: frame/commands/mutation_commands.cpp:906
 msgid "Failed to read all selected values."
-msgstr ""
+msgstr "Non è possibile leggere tutti i valori selezionati."
 
 #: frame/commands/mutation_commands.cpp:947
 msgid "Some of the selected values couldn't be deleted."
-msgstr ""
+msgstr "Non è possibile eliminare alcuni dei valori selezionati."
 
 #: frame/commands/tools_commands.cpp:71
 msgid "The key couldn't be found."
-msgstr ""
+msgstr "Non è possibile trovare la chiave."
 
 #: frame/commands/undo.cpp:177 frame/window/notifications.cpp:838
 msgid "The value was copied to the new name but the old name couldn't be removed. Both names now exist."
-msgstr ""
+msgstr "Il valore è stato copiato con il nuovo nome ma non è possibile rimuovere il vecchio nome. Ora esistono entrambi i nomi."
 
 #: frame/commands/workspace_commands.cpp:39
 msgid "Restart RegKit now to apply the language?"
-msgstr ""
+msgstr "Vuoi riavviare RegKit ora per applicare la lingua?"
 
 #: frame/commands/workspace_commands.cpp:39 frame/window/menu_bar.cpp:398
 msgid "Language"
-msgstr ""
+msgstr "Lingua"
 
 #: frame/commands/workspace_commands.cpp:39 frame/window/menu_bar.cpp:408
 msgid "Restart"
-msgstr ""
+msgstr "Riavvia"
 
 #: frame/commands/workspace_commands.cpp:39
 msgid "Later"
-msgstr ""
+msgstr "Più tardi"
 
 #: frame/commands/workspace_commands.cpp:236
 msgid "Reset all settings and restart RegKit?"
-msgstr ""
+msgstr "Vuoi reimpostare tutte le impostazioni e riavviare RegKit?"
 
 #: frame/commands/workspace_commands.cpp:236
 msgid "Reset Settings"
-msgstr ""
+msgstr "Reimposta impostazioni"
 
 #: frame/commands/workspace_commands.cpp:236
 msgid "Reset"
-msgstr ""
+msgstr "Reimposta"
 
 #: frame/search/compare_command.cpp:103
 msgid "Invalid registry path."
-msgstr ""
+msgstr "Percorso del Registro di sistema non valido."
 
 #: frame/search/compare_command.cpp:135
 msgid "Failed to read the hive file."
-msgstr ""
+msgstr "Non è possibile leggere il file hive."
 
 #: frame/search/compare_command.cpp:148
 msgid "Select a computer to compare against."
-msgstr ""
+msgstr "Seleziona un computer con cui eseguire il confronto."
 
 #: frame/search/compare_command.cpp:167
 msgid "Network registry path not found."
-msgstr ""
+msgstr "Percorso del Registro di sistema di rete non trovato."
 
 #: frame/search/compare_command.cpp:185 frame/views/registry_sessions.cpp:931
 #: frame/views/registry_sessions.cpp:973 frame/window/message_routes.cpp:1253
 msgid "Registry path not found."
-msgstr ""
+msgstr "Percorso del Registro di sistema non trovato."
 
 #: frame/search/compare_command.cpp:215
 msgid "Registry Comparison"
-msgstr ""
+msgstr "Confronto del Registro di sistema"
 
 #: frame/search/compare_dialog.cpp:33 frame/tools/convert_dialog.cpp:222
 #: frame/tools/convert_dialog.cpp:223
 msgid "Reg File"
-msgstr ""
+msgstr "File .reg"
 
 #: frame/search/compare_dialog.cpp:35 search/search.cpp:44
 msgid "Network Registry"
-msgstr ""
+msgstr "Registro di rete"
 
 #: frame/search/compare_dialog.cpp:37
 msgid "Offline Hive"
-msgstr ""
+msgstr "Hive offline"
 
 #: frame/search/compare_dialog.cpp:39 frame/tools/convert_dialog.cpp:222
 msgid "Registry"
-msgstr ""
+msgstr "Registro"
 
 #: frame/search/compare_dialog.cpp:126
 msgid "Computer:"
-msgstr ""
+msgstr "Computer:"
 
 #: frame/search/compare_dialog.cpp:126
 msgid "File:"
-msgstr ""
+msgstr "File:"
 
 #: frame/search/compare_dialog.cpp:287 frame/search/compare_dialog.cpp:355
 #: search/compare.cpp:176
 msgid "No registry keys were found in the .reg file."
-msgstr ""
+msgstr "Nel file .reg non sono state trovate chiavi del Registro di sistema."
 
 #: frame/search/compare_dialog.cpp:318 frame/tools/convert_dialog.cpp:123
 msgid "Registry key is required."
-msgstr ""
+msgstr "La chiave del Registro di sistema è obbligatoria."
 
 #: frame/search/compare_dialog.cpp:328 frame/views/registry_sessions.cpp:596
 msgid "Computer name is required."
-msgstr ""
+msgstr "Il nome del computer è obbligatorio."
 
 #: frame/search/compare_dialog.cpp:338
 msgid "Hive file path is required."
-msgstr ""
+msgstr "Il percorso del file hive è obbligatorio."
 
 #: frame/search/compare_dialog.cpp:338
 msgid "Registry file path is required."
-msgstr ""
+msgstr "Il percorso del file del Registro di sistema è obbligatorio."
 
 #: frame/search/compare_dialog.cpp:349 frame/sources/regfile_commands.cpp:182
 #: regfile/reg_file.cpp:580
 msgid "Failed to read registry file."
-msgstr ""
+msgstr "Non è possibile leggere il file del Registro di sistema."
 
 #: frame/search/compare_dialog.cpp:379
 msgid "The selected key path wasn't found in the .reg file."
-msgstr ""
+msgstr "Il percorso di chiave selezionato non è stato trovato nel file .reg."
 
 #: frame/search/search_window.cpp:176 frame/search/search_window.cpp:197
 #, c-format
 msgid "Results: %llu"
-msgstr ""
+msgstr "Risultati: %llu"
 
 #: frame/search/search_window.cpp:183
 #, c-format
 msgid "Searching... Results: ~%llu | Scanned: %llu"
-msgstr ""
+msgstr "Ricerca... Risultati: ~%llu | Analizzati: %llu"
 
 #: frame/search/search_window.cpp:187
 #, c-format
 msgid "Searching... Results: ~%llu"
-msgstr ""
+msgstr "Ricerca... Risultati: ~%llu"
 
 #: frame/search/search_window.cpp:193
 #, c-format
 msgid "Results: %llu (%.2fs)"
-msgstr ""
+msgstr "Risultati: %llu (%.2fs)"
 
 #: frame/search/search_window.cpp:212
 msgid "Loading"
-msgstr ""
+msgstr "Caricamento"
 
 #: frame/search/search_window.cpp:235
 #, c-format
 msgid "Keys: %d"
-msgstr ""
+msgstr "Chiavi: %d"
 
 #: frame/search/search_window.cpp:237
 #, c-format
 msgid "Values: %d"
-msgstr ""
+msgstr "Valori: %d"
 
 #: frame/search/search_window.cpp:239
 #, c-format
 msgid "Selected: %d"
-msgstr ""
+msgstr "Selezionati: %d"
 
 #: frame/search/search_window.cpp:544 frame/search/search_window.cpp:1348
 msgid "Starting key path wasn't found."
-msgstr ""
+msgstr "Percorso della chiave iniziale non trovato."
 
 #: frame/search/search_window.cpp:555 frame/search/search_window.cpp:751
 #: frame/search/search_window.cpp:1358
 msgid "Select a starting key first."
-msgstr ""
+msgstr "Seleziona prima una chiave iniziale."
 
 #: frame/search/search_window.cpp:716 search/replace_dialog.cpp:281
 msgid "Enter text to find."
-msgstr ""
+msgstr "Inserisci il testo da cercare."
 
 #: frame/search/search_window.cpp:766
 msgid "No keys to search in the selected sources."
-msgstr ""
+msgstr "Nelle origini selezionate non ci sono chiavi in cui cercare."
 
 #: frame/search/search_window.cpp:795 frame/search/search_window.cpp:798
 #: frame/views/history_workspace.cpp:520 frame/window/menu_bar.cpp:115
 #: search/query_dialog.cpp:657 search/query_dialog.cpp:1090
 msgid "Find"
-msgstr ""
+msgstr "Trova"
 
 #: frame/search/search_window.cpp:1335 frame/window/menu_bar.cpp:151
 msgid "Read only mode is enabled."
-msgstr ""
+msgstr "La modalità di sola lettura è attiva."
 
 #: frame/search/search_window.cpp:1371
 msgid "Replace is already running."
-msgstr ""
+msgstr "Una sostituzione è già in corso."
 
 #: frame/search/search_window.cpp:1601 frame/search/search_window.cpp:1618
 msgid "Replaced"
-msgstr ""
+msgstr "Sostituiti"
 
 #: frame/search/search_window.cpp:1604 frame/search/search_window.cpp:1619
 msgid "Failed"
-msgstr ""
+msgstr "Errori"
 
 #: frame/search/search_window.cpp:1608
 msgid "Skipped"
-msgstr ""
+msgstr "Ignorati"
 
 #: frame/search/search_window.cpp:1612
 msgid "cancelled"
-msgstr ""
+msgstr "annullata"
 
 #: frame/search/search_window.cpp:1618
 msgid "Replace finished with some failures."
-msgstr ""
+msgstr "La sostituzione è terminata con alcuni errori."
 
 #: frame/search/search_window.cpp:1622
 msgid "Skipped, the replacement isn't valid for the value type"
-msgstr ""
+msgstr "Ignorato, la sostituzione non è valida per il tipo del valore"
 
 #: frame/search/search_window.cpp:1626
 msgid "Copied to the new name, the old name couldn't be removed"
-msgstr ""
+msgstr "Copiato con il nuovo nome, non è possibile rimuovere il vecchio nome"
 
 #: frame/sources/default_commands.cpp:35
 msgid "Default file not found."
-msgstr ""
+msgstr "File dei valori predefiniti non trovato."
 
 #: frame/sources/default_commands.cpp:80
 msgid "Default entries"
-msgstr ""
+msgstr "Voci predefinite"
 
 #: frame/sources/regfile_commands.cpp:32
 msgid "Failed to save registry file."
-msgstr ""
+msgstr "Non è possibile salvare il file del Registro di sistema."
 
 #: frame/sources/regfile_commands.cpp:62
 msgid "Failed to export registry file."
-msgstr ""
+msgstr "Non è possibile esportare il file del Registro di sistema."
 
 #: frame/sources/regfile_commands.cpp:218
 msgid "Registry file not found."
-msgstr ""
+msgstr "File del Registro di sistema non trovato."
 
 #: frame/sources/regfile_commands.cpp:224
 msgid "Registry File"
-msgstr ""
+msgstr "File del Registro di sistema"
 
 #: frame/sources/trace_commands.cpp:236
 msgid "Trace file not found."
-msgstr ""
+msgstr "File Trace non trovato."
 
 #: frame/sources/trace_commands.cpp:294
 msgid "Trace entries"
-msgstr ""
+msgstr "Voci Trace"
 
 #: frame/tools/convert_dialog.cpp:123
 msgid "Input file path is required."
-msgstr ""
+msgstr "Il percorso del file di input è obbligatorio."
 
 #: frame/tools/convert_dialog.cpp:128
 msgid "Output file path is required."
-msgstr ""
+msgstr "Il percorso del file di output è obbligatorio."
 
 #: frame/tools/convert_dialog.cpp:133
 msgid "The output file can't be the input file."
-msgstr ""
+msgstr "Il file di output non può essere il file di input."
 
 #: frame/tools/convert_dialog.cpp:161
 msgid "The output file couldn't be written."
-msgstr ""
+msgstr "Non è possibile scrivere il file di output."
 
 #: frame/tools/convert_dialog.cpp:222 frame/tools/convert_dialog.cpp:223
 msgid "Batch File"
-msgstr ""
+msgstr "File batch"
 
 #: frame/tools/convert_dialog.cpp:222 frame/tools/convert_dialog.cpp:223
 msgid "PowerShell Script"
-msgstr ""
+msgstr "Script PowerShell"
 
 #: frame/tools/key_handles_window.cpp:223
 msgid "Scanning handles..."
-msgstr ""
+msgstr "Analisi degli handle..."
 
 #: frame/tools/key_handles_window.cpp:227
 msgid "Handles couldn't be enumerated."
-msgstr ""
+msgstr "Non è possibile enumerare gli handle."
 
 #: frame/tools/key_handles_window.cpp:231
 msgid "Handles"
-msgstr ""
+msgstr "Handle"
 
 #: frame/tools/key_handles_window.cpp:232
 msgid "Shown"
-msgstr ""
+msgstr "Visualizzati"
 
 #: frame/tools/key_handles_window.cpp:233
 msgid "Inaccessible processes"
-msgstr ""
+msgstr "Processi inaccessibili"
 
 #: frame/tools/key_handles_window.cpp:355
 msgid ""
@@ -1502,145 +1506,148 @@ msgid ""
 "\n"
 "Each handle is checked against a fresh snapshot first, but it can still be closed and reused between that check and the close."
 msgstr ""
+"La chiusura di un handle appartenente a un altro processo può causare malfunzionamenti o l'arresto anomalo del processo.\n"
+"\n"
+"Ogni handle viene prima verificato rispetto a una nuova istantanea, ma può comunque essere chiuso e riutilizzato tra la verifica e la chiusura."
 
 #: frame/tools/key_handles_window.cpp:358
 msgid "Close Handle"
-msgstr ""
+msgstr "Chiudi handle"
 
 #: frame/tools/key_handles_window.cpp:358
 msgid "Close Handles"
-msgstr ""
+msgstr "Chiudi handle"
 
 #: frame/tools/key_handles_window.cpp:358 frame/tools/update_checker.cpp:420
 msgid "Close"
-msgstr ""
+msgstr "Chiudi"
 
 #: frame/tools/key_handles_window.cpp:366
 msgid "Not all handles were closed."
-msgstr ""
+msgstr "Non tutti gli handle sono stati chiusi."
 
 #: frame/tools/key_handles_window.cpp:391
 msgid "Copy Key"
-msgstr ""
+msgstr "Copia chiave"
 
 #: frame/tools/key_handles_window.cpp:392
 msgid "Copy Native Name"
-msgstr ""
+msgstr "Copia nome nativo"
 
 #: frame/tools/key_handles_window.cpp:393
 msgid "Copy Process"
-msgstr ""
+msgstr "Copia processo"
 
 #: frame/tools/key_handles_window.cpp:394
 msgid "Copy PID"
-msgstr ""
+msgstr "Copia PID"
 
 #: frame/tools/key_handles_window.cpp:395
 msgid "Copy Handle"
-msgstr ""
+msgstr "Copia handle"
 
 #: frame/tools/key_handles_window.cpp:396
 msgid "Copy Access"
-msgstr ""
+msgstr "Copia accesso"
 
 #: frame/tools/key_handles_window.cpp:397
 msgid "Copy Rows"
-msgstr ""
+msgstr "Copia righe"
 
 #: frame/tools/key_handles_window.cpp:401
 msgid "Close Handle..."
-msgstr ""
+msgstr "Chiudi handle..."
 
 #: frame/tools/key_handles_window.cpp:493
 msgid "Filter"
-msgstr ""
+msgstr "Filtro"
 
 #: frame/tools/key_handles_window.cpp:494
 msgid "Process"
-msgstr ""
+msgstr "Processo"
 
 #: frame/tools/key_handles_window.cpp:494
 msgid "PID"
-msgstr ""
+msgstr "PID"
 
 #: frame/tools/key_handles_window.cpp:494
 msgid "Handle"
-msgstr ""
+msgstr "Handle"
 
 #: frame/tools/key_handles_window.cpp:494
 msgid "Object Address"
-msgstr ""
+msgstr "Indirizzo oggetto"
 
 #: frame/tools/key_handles_window.cpp:494 frame/views/value_loading.cpp:229
 #: frame/views/value_loading.cpp:258 frame/window/menu_bar.cpp:307
 #: frame/window/notifications.cpp:1334 search/search.cpp:59
 #: search/search.cpp:234
 msgid "Key"
-msgstr ""
+msgstr "Chiave"
 
 #: frame/tools/key_handles_window.cpp:494
 msgid "Access"
-msgstr ""
+msgstr "Accesso"
 
 #: frame/tools/key_handles_window.cpp:494
 msgid "Attributes"
-msgstr ""
+msgstr "Attributi"
 
 #: frame/tools/key_handles_window.cpp:494
 msgid "Native Name"
-msgstr ""
+msgstr "Nome nativo"
 
 #: frame/tools/launch_bridge.cpp:29 frame/tools/launch_bridge.cpp:243
 msgid "Failed to locate the executable path."
-msgstr ""
+msgstr "Non è possibile individuare il percorso dell'eseguibile."
 
 #: frame/tools/launch_bridge.cpp:75
 msgid "RegKit couldn't restore its own security context and must close now."
-msgstr ""
+msgstr "RegKit non può ripristinare il proprio contesto di sicurezza e deve chiudersi ora."
 
 #: frame/tools/launch_bridge.cpp:103
 msgid "The current session couldn't be saved for the restart."
-msgstr ""
+msgstr "Non è possibile salvare la sessione attuale per il riavvio."
 
 #: frame/tools/launch_bridge.cpp:113
 msgid "RegKit couldn't be restarted."
-msgstr ""
+msgstr "Non è possibile riavviare RegKit."
 
 #: frame/tools/launch_bridge.cpp:154
 msgid "One or more cache files couldn't be removed."
-msgstr ""
+msgstr "Non è possibile rimuovere uno o più file della cache."
 
 #: frame/tools/launch_bridge.cpp:179
 msgid "Failed to find the settings file."
-msgstr ""
+msgstr "Non è possibile trovare il file delle impostazioni."
 
 #: frame/tools/launch_bridge.cpp:184
 msgid "The settings file couldn't be reset."
-msgstr ""
+msgstr "Non è possibile reimpostare il file delle impostazioni."
 
 #: frame/tools/launch_bridge.cpp:202 frame/tools/launch_bridge.cpp:204
 msgid "Failed to restart with administrator rights."
-msgstr ""
+msgstr "Non è possibile riavviare con privilegi di amministratore."
 
 #: frame/tools/launch_bridge.cpp:210
 msgid "Failed to restart as the signed-in user."
-msgstr ""
+msgstr "Non è possibile riavviare come utente connesso."
 
 #: frame/tools/launch_bridge.cpp:218
 msgid "Failed to request SYSTEM restart."
-msgstr ""
+msgstr "Non è possibile richiedere il riavvio come SYSTEM."
 
 #: frame/tools/launch_bridge.cpp:220
 msgid "Failed to restart with SYSTEM rights."
-msgstr ""
+msgstr "Non è possibile riavviare con privilegi SYSTEM."
 
 #: frame/tools/launch_bridge.cpp:228
 msgid "Failed to request TrustedInstaller restart."
-msgstr ""
+msgstr "Non è possibile richiedere il riavvio come TrustedInstaller."
 
 #: frame/tools/launch_bridge.cpp:230
 msgid "Failed to restart with TrustedInstaller rights."
-msgstr ""
+msgstr "Non è possibile riavviare con privilegi TrustedInstaller."
 
 #: frame/tools/launch_bridge.cpp:251
 msgid ""
@@ -1650,15 +1657,20 @@ msgid ""
 "\n"
 "Replace anyway to apply it from this location."
 msgstr ""
+"La sostituzione di RegEdit registra questo eseguibile per ogni account sul computer.\n"
+"\n"
+"RegKit è in esecuzione da una posizione in cui anche chi non è amministratore può scrivere, quindi un programma senza privilegi di amministratore potrebbe sostituirlo ed essere eseguito ogni volta che qualcuno avvia RegEdit. Installa prima RegKit per tutti gli utenti o spostalo in una posizione in cui solo gli amministratori possono scrivere.\n"
+"\n"
+"Sostituisci comunque per applicare la modifica da questa posizione."
 
 #: frame/tools/launch_bridge.cpp:257 frame/tools/launch_bridge.cpp:276
 #: frame/window/menu_bar.cpp:424
 msgid "Replace RegEdit"
-msgstr ""
+msgstr "Sostituisci RegEdit"
 
 #: frame/tools/launch_bridge.cpp:258
 msgid "Replace Anyway"
-msgstr ""
+msgstr "Sostituisci comunque"
 
 #: frame/tools/launch_bridge.cpp:274
 msgid ""
@@ -1666,176 +1678,179 @@ msgid ""
 "\n"
 "Override the existing entry?"
 msgstr ""
+"RegEdit ha già una voce Debugger appartenente a un altro programma.\n"
+"\n"
+"Vuoi sovrascrivere la voce esistente?"
 
 #: frame/tools/launch_bridge.cpp:277
 msgid "Override"
-msgstr ""
+msgstr "Sovrascrivi"
 
 #: frame/tools/launch_bridge.cpp:361
 msgid "Hive files aren't available for remote registries."
-msgstr ""
+msgstr "I file hive non sono disponibili per i registri remoti."
 
 #: frame/tools/launch_bridge.cpp:367
 msgid "No hive file was found for this key."
-msgstr ""
+msgstr "Non è stato trovato alcun file hive per questa chiave."
 
 #: frame/tools/update_checker.cpp:71
 msgid "The release location isn't a trusted RegKit download address."
-msgstr ""
+msgstr "La posizione della versione non è un indirizzo attendibile per il download di RegKit."
 
 #: frame/tools/update_checker.cpp:110
 msgid "The download is larger than RegKit accepts."
-msgstr ""
+msgstr "Il download supera le dimensioni accettate da RegKit."
 
 #: frame/tools/update_checker.cpp:227
 msgid "The release didn't publish a checksum for this download."
-msgstr ""
+msgstr "La versione non include un checksum per questo download."
 
 #: frame/tools/update_checker.cpp:237
 msgid "The downloaded file doesn't match the release checksum."
-msgstr ""
+msgstr "Il file scaricato non corrisponde al checksum della versione."
 
 #: frame/tools/update_checker.cpp:321
 msgid "The response didn't contain a release."
-msgstr ""
+msgstr "La risposta non contiene una versione."
 
 #: frame/tools/update_checker.cpp:331
 msgid "Failed to reach the update server."
-msgstr ""
+msgstr "Non è possibile contattare il server degli aggiornamenti."
 
 #: frame/tools/update_checker.cpp:347
 msgid "Downloading"
-msgstr ""
+msgstr "Download in corso"
 
 #: frame/tools/update_checker.cpp:363
 msgid "The update couldn't be downloaded."
-msgstr ""
+msgstr "Non è possibile scaricare l'aggiornamento."
 
 #: frame/tools/update_checker.cpp:394
 msgid "The downloaded setup changed after RegKit verified it and wasn't started."
-msgstr ""
+msgstr "Il programma di installazione scaricato è cambiato dopo la verifica di RegKit e non è stato avviato."
 
 #: frame/tools/update_checker.cpp:404
 msgid "The setup couldn't be started."
-msgstr ""
+msgstr "Non è possibile avviare il programma di installazione."
 
 #: frame/tools/update_checker.cpp:412
 msgid "RegKit is up to date."
-msgstr ""
+msgstr "RegKit è aggiornato."
 
 #: frame/tools/update_checker.cpp:417
 msgid "installed"
-msgstr ""
+msgstr "installata"
 
 #: frame/tools/update_checker.cpp:418
 msgid "No setup was found for this build. Open the releases page?"
-msgstr ""
+msgstr "Non è stato trovato un programma di installazione per questa build. Vuoi aprire la pagina delle versioni?"
 
 #: frame/tools/update_checker.cpp:419
 msgid "Download and install it now? RegKit closes when the setup starts."
-msgstr ""
+msgstr "Vuoi scaricarlo e installarlo ora? RegKit si chiude all'avvio del programma di installazione."
 
 #: frame/tools/update_checker.cpp:420
 msgid "Update Available"
-msgstr ""
+msgstr "Aggiornamento disponibile"
 
 #: frame/tools/update_checker.cpp:420 frame/window/message_routes.cpp:53
 msgid "Open"
-msgstr ""
+msgstr "Apri"
 
 #: frame/tools/update_checker.cpp:420
 msgid "Install"
-msgstr ""
+msgstr "Installa"
 
 #: frame/views/browse_view.cpp:58
 msgid "Name"
-msgstr ""
+msgstr "Nome"
 
 #: frame/views/browse_view.cpp:59 frame/views/browse_view.cpp:267
 msgid "Type"
-msgstr ""
+msgstr "Tipo"
 
 #: frame/views/browse_view.cpp:60 frame/views/browse_view.cpp:268
 #: search/search.cpp:63
 msgid "Data"
-msgstr ""
+msgstr "Dati"
 
 #: frame/views/browse_view.cpp:61 frame/window/menu_bar.cpp:618
 #: frame/window/menu_bar.cpp:806 search/search.cpp:67
 msgid "Default"
-msgstr ""
+msgstr "Predefinito"
 
 #: frame/views/browse_view.cpp:62
 msgid "Read on boot"
-msgstr ""
+msgstr "Letto: avvio"
 
 #: frame/views/browse_view.cpp:63 frame/views/browse_view.cpp:269
 msgid "Size"
-msgstr ""
+msgstr "Dim."
 
 #: frame/views/browse_view.cpp:64 frame/views/browse_view.cpp:270
 msgid "Date Modified"
-msgstr ""
+msgstr "Ultima modifica"
 
 #: frame/views/browse_view.cpp:65
 msgid "Details"
-msgstr ""
+msgstr "Dettagli"
 
 #: frame/views/browse_view.cpp:66 search/search.cpp:65
 msgid "Comment"
-msgstr ""
+msgstr "Commento"
 
 #: frame/views/browse_view.cpp:148
 msgid "Time"
-msgstr ""
+msgstr "Ora"
 
 #: frame/views/browse_view.cpp:149
 msgid "Action"
-msgstr ""
+msgstr "Azione"
 
 #: frame/views/browse_view.cpp:150
 msgid "Old Data"
-msgstr ""
+msgstr "Dati precedenti"
 
 #: frame/views/browse_view.cpp:151
 msgid "New Data"
-msgstr ""
+msgstr "Nuovi dati"
 
 #: frame/views/browse_view.cpp:265 frame/views/browse_view.cpp:283
 msgid "Path"
-msgstr ""
+msgstr "Percorso"
 
 #: frame/views/browse_view.cpp:271
 msgid "Source"
-msgstr ""
+msgstr "Origine"
 
 #: frame/views/browse_view.cpp:285
 msgid "First Entry"
-msgstr ""
+msgstr "Prima voce"
 
 #: frame/views/browse_view.cpp:286
 msgid "Second Entry"
-msgstr ""
+msgstr "Seconda voce"
 
 #: frame/views/browse_view.cpp:287
 msgid "Result"
-msgstr ""
+msgstr "Risultato"
 
 #: frame/views/history_workspace.cpp:195
 msgid "Revert this change with elevated rights?"
-msgstr ""
+msgstr "Vuoi ripristinare questa modifica con privilegi elevati?"
 
 #: frame/views/history_workspace.cpp:228
 msgid "Revert Key Creation"
-msgstr ""
+msgstr "Annulla creazione chiave"
 
 #: frame/views/history_workspace.cpp:242
 msgid "Failed to revert history entry."
-msgstr ""
+msgstr "Non è possibile ripristinare la voce di cronologia."
 
 #: frame/views/history_workspace.cpp:279
 msgid "The history couldn't be written to disk. It is kept for this session only."
-msgstr ""
+msgstr "Non è possibile scrivere la cronologia su disco. Verrà conservata solo per questa sessione."
 
 #: frame/views/history_workspace.cpp:581 frame/views/history_workspace.cpp:606
 #: frame/views/history_workspace.cpp:798 frame/views/registry_sessions.cpp:425
@@ -1843,23 +1858,23 @@ msgstr ""
 #: frame/views/tab_lists.cpp:656 frame/window/menu_bar.cpp:109
 #: frame/window/menu_bar.cpp:287 search/search.cpp:51
 msgid "Local Registry"
-msgstr ""
+msgstr "Registro di sistema locale"
 
 #: frame/views/history_workspace.cpp:899
 msgid "Comments were imported but couldn't be saved."
-msgstr ""
+msgstr "I commenti sono stati importati ma non è possibile salvarli."
 
 #: frame/views/history_workspace.cpp:1004
 msgid "Different types"
-msgstr ""
+msgstr "Tipi diversi"
 
 #: frame/views/history_workspace.cpp:1006
 msgid "Different lengths"
-msgstr ""
+msgstr "Lunghezze diverse"
 
 #: frame/views/history_workspace.cpp:1054
 msgid "The comment couldn't be saved."
-msgstr ""
+msgstr "Non è possibile salvare il commento."
 
 #: frame/views/registry_sessions.cpp:539 frame/views/registry_sessions.cpp:613
 #: frame/views/registry_sessions.cpp:698
@@ -1867,347 +1882,353 @@ msgid ""
 "The offline registry has unsaved changes.\n"
 "Save before switching?"
 msgstr ""
+"Il registro offline contiene modifiche non salvate.\n"
+"Vuoi salvarle prima di passare a un altro registro?"
 
 #: frame/views/registry_sessions.cpp:577
 msgid "Connect to Remote Registry"
-msgstr ""
+msgstr "Connetti al Registro di sistema remoto"
 
 #: frame/views/registry_sessions.cpp:578
 msgid "Computer name (e.g. \\\\MACHINE):"
-msgstr ""
+msgstr "Nome computer (ad es. \\\\MACHINE):"
 
 #: frame/views/registry_sessions.cpp:641 frame/views/registry_sessions.cpp:658
 #: frame/window/menu_bar.cpp:111
 msgid "Remote Registry"
-msgstr ""
+msgstr "Registro di sistema remoto"
 
 #: frame/views/registry_sessions.cpp:664
 msgid "Connected to HKEY_LOCAL_MACHINE, but HKEY_USERS was unavailable."
-msgstr ""
+msgstr "Connessione a HKEY_LOCAL_MACHINE riuscita, ma HKEY_USERS non è disponibile."
 
 #: frame/views/registry_sessions.cpp:672
 msgid "Load the offline registry from a single hive file, or from a folder of hives?"
-msgstr ""
+msgstr "Vuoi caricare il registro offline da un singolo file hive o da una cartella di hive?"
 
 #: frame/views/registry_sessions.cpp:672 frame/views/registry_sessions.cpp:796
 #: frame/views/registry_sessions.cpp:816 frame/views/registry_sessions.cpp:819
 #: frame/views/registry_sessions.cpp:823 frame/window/menu_bar.cpp:113
 msgid "Offline Registry"
-msgstr ""
+msgstr "Registro offline"
 
 #: frame/views/registry_sessions.cpp:672
 msgid "Hive File"
-msgstr ""
+msgstr "File hive"
 
 #: frame/views/registry_sessions.cpp:672
 msgid "Folder"
-msgstr ""
+msgstr "Cartella"
 
 #: frame/views/registry_sessions.cpp:727
 msgid "The selected folder doesn't contain a registry hive file."
-msgstr ""
+msgstr "La cartella selezionata non contiene un file hive del Registro di sistema."
 
 #: frame/views/registry_sessions.cpp:840 frame/views/registry_sessions.cpp:874
 msgid "No offline registry is loaded."
-msgstr ""
+msgstr "Nessun registro offline caricato."
 
 #: frame/views/registry_sessions.cpp:847
 msgid "Failed to resolve offline hive paths for saving."
-msgstr ""
+msgstr "Non è possibile risolvere i percorsi degli hive offline per il salvataggio."
 
 #: frame/views/registry_sessions.cpp:855
 msgid "Failed to resolve offline hive path for saving."
-msgstr ""
+msgstr "Non è possibile risolvere il percorso dell'hive offline per il salvataggio."
 
 #: frame/views/registry_sessions.cpp:861 frame/views/registry_sessions.cpp:887
 msgid "Failed to save offline hive."
-msgstr ""
+msgstr "Non è possibile salvare l'hive offline."
 
 #: frame/views/registry_sessions.cpp:916
 msgid "The key was opened, but it doesn't contain this value:"
-msgstr ""
+msgstr "La chiave è stata aperta, ma non contiene questo valore:"
 
 #: frame/views/registry_sessions.cpp:916
 msgid "Value Not Found"
-msgstr ""
+msgstr "Valore non trovato"
 
 #: frame/views/registry_sessions.cpp:934
 msgid "The registry key doesn't exist:"
-msgstr ""
+msgstr "La chiave del Registro di sistema non esiste:"
 
 #: frame/views/registry_sessions.cpp:938 frame/views/registry_sessions.cpp:945
 msgid "Registry Path Not Found"
-msgstr ""
+msgstr "Percorso del Registro di sistema non trovato"
 
 #: frame/views/registry_sessions.cpp:938 frame/views/registry_sessions.cpp:945
 msgid "Go to Nearest Key"
-msgstr ""
+msgstr "Vai alla chiave più vicina"
 
 #: frame/views/registry_sessions.cpp:955
 msgid "Failed to create registry key."
-msgstr ""
+msgstr "Non è possibile creare la chiave del Registro di sistema."
 
 #: frame/views/tab_lists.cpp:469
 msgid ""
 "The registry file has unsaved changes.\n"
 "Save before closing the tab?"
 msgstr ""
+"Il file del Registro di sistema contiene modifiche non salvate.\n"
+"Vuoi salvarle prima di chiudere la scheda?"
 
 #: frame/views/tab_lists.cpp:472 frame/views/tab_lists.cpp:514
 msgid "Unsaved Changes"
-msgstr ""
+msgstr "Modifiche non salvate"
 
 #: frame/views/tab_lists.cpp:472 frame/views/tab_lists.cpp:514
 msgid "Don't Save"
-msgstr ""
+msgstr "Non salvare"
 
 #: frame/views/tab_lists.cpp:497
 msgid ""
 "The offline registry has unsaved changes.\n"
 "Save before closing the tab?"
 msgstr ""
+"Il registro offline contiene modifiche non salvate.\n"
+"Vuoi salvarle prima di chiudere la scheda?"
 
 #: frame/views/value_loading.cpp:123 frame/window/menu_bar.cpp:545
 #: trace/trace_dialog.cpp:648
 msgid "Trace"
-msgstr ""
+msgstr "Trace"
 
 #: frame/views/value_loading.cpp:180 frame/window/menu_bar.cpp:809
 #: search/compare.cpp:55 search/compare.cpp:315 search/compare.cpp:316
 msgid "(Missing)"
-msgstr ""
+msgstr "(Mancante)"
 
 #: frame/views/value_loading.cpp:229
 msgid "Link"
-msgstr ""
+msgstr "Collegamento"
 
 #: frame/views/value_loading.cpp:244 trace/trace_dialog.cpp:114
 msgid "Keys"
-msgstr ""
+msgstr "Chiavi"
 
 #: frame/views/value_loading.cpp:244 trace/trace_dialog.cpp:117
 msgid "Values"
-msgstr ""
+msgstr "Valori"
 
 #: frame/views/value_loading.cpp:384 frame/views/value_loading.cpp:430
 msgid "(value not set)"
-msgstr ""
+msgstr "(valore non impostato)"
 
 #: frame/window/appearance.cpp:30
 msgid "Preset name:"
-msgstr ""
+msgstr "Nome del set:"
 
 #: frame/window/events.cpp:44
 msgid "Administrator"
-msgstr ""
+msgstr "Amministratore"
 
 #: frame/window/lifetime.cpp:23
 msgid "SYSTEM has no Desktop folder, so Windows reports \"Location is not available\" in file dialogs. Create this folder to prevent the error?"
-msgstr ""
+msgstr "SYSTEM non ha una cartella Desktop, quindi Windows segnala \"Posizione non disponibile\" nelle finestre di dialogo dei file. Vuoi creare questa cartella per evitare l'errore?"
 
 #: frame/window/lifetime.cpp:23
 msgid "Create Folder"
-msgstr ""
+msgstr "Crea cartella"
 
 #: frame/window/lifetime.cpp:23 registry/security_dialog.cpp:119
 msgid "Create"
-msgstr ""
+msgstr "Crea"
 
 #: frame/window/lifetime.cpp:117
 msgid "Go"
-msgstr ""
+msgstr "Vai"
 
 #: frame/window/lifetime.cpp:129 frame/window/menu_bar.cpp:353
 msgid "Key Tree"
-msgstr ""
+msgstr "Albero delle chiavi"
 
 #: frame/window/lifetime.cpp:159 frame/window/menu_bar.cpp:354
 msgid "History"
-msgstr ""
+msgstr "Cronologia"
 
 #: frame/window/lifetime.cpp:445
 msgid "The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."
-msgstr ""
+msgstr "Non è possibile leggere il file dei commenti, quindi le modifiche ai commenti non verranno salvate finché il file non verrà corretto o rimosso."
 
 #: frame/window/lifetime.cpp:447
 msgid "Comments"
-msgstr ""
+msgstr "Commenti"
 
 #: frame/window/lifetime.cpp:547
 msgid "The open tabs couldn't be saved for the next session."
-msgstr ""
+msgstr "Non è possibile salvare le schede aperte per la prossima sessione."
 
 #: frame/window/menu_bar.cpp:121
 msgid "Export"
-msgstr ""
+msgstr "Esporta"
 
 #: frame/window/menu_bar.cpp:125 frame/window/menu_bar.cpp:304
 msgid "Redo"
-msgstr ""
+msgstr "Ripeti"
 
 #: frame/window/menu_bar.cpp:135
 msgid "Back"
-msgstr ""
+msgstr "Indietro"
 
 #: frame/window/menu_bar.cpp:137
 msgid "Forward"
-msgstr ""
+msgstr "Avanti"
 
 #: frame/window/menu_bar.cpp:139
 msgid "Up"
-msgstr ""
+msgstr "Su"
 
 #: frame/window/menu_bar.cpp:274
 msgid "Open .reg File..."
-msgstr ""
+msgstr "Apri file .reg..."
 
 #: frame/window/menu_bar.cpp:281
 msgid "Import Comments..."
-msgstr ""
+msgstr "Importa commenti..."
 
 #: frame/window/menu_bar.cpp:282
 msgid "Export Comments..."
-msgstr ""
+msgstr "Esporta commenti..."
 
 #: frame/window/menu_bar.cpp:288
 msgid "Remote Registry..."
-msgstr ""
+msgstr "Registro di sistema remoto..."
 
 #: frame/window/menu_bar.cpp:289
 msgid "Offline Registry..."
-msgstr ""
+msgstr "Registro offline..."
 
 #: frame/window/menu_bar.cpp:292
 msgid "Save Offline Hive..."
-msgstr ""
+msgstr "Salva hive offline..."
 
 #: frame/window/menu_bar.cpp:295
 msgid "Load Hive..."
-msgstr ""
+msgstr "Carica hive..."
 
 #: frame/window/menu_bar.cpp:296
 msgid "Unload Hive..."
-msgstr ""
+msgstr "Scarica hive..."
 
 #: frame/window/menu_bar.cpp:298
 msgid "Exit"
-msgstr ""
+msgstr "Esci"
 
 #: frame/window/menu_bar.cpp:299
 msgid "&File"
-msgstr ""
+msgstr "&File"
 
 #: frame/window/menu_bar.cpp:309
 msgid "New"
-msgstr ""
+msgstr "Nuovo"
 
 #: frame/window/menu_bar.cpp:325
 msgid "Key Name"
-msgstr ""
+msgstr "Nome chiave"
 
 #: frame/window/menu_bar.cpp:326
 msgid "Key Path"
-msgstr ""
+msgstr "Percorso chiave"
 
 #: frame/window/menu_bar.cpp:327
 msgid "Key Path As"
-msgstr ""
+msgstr "Percorso chiave come"
 
 #: frame/window/menu_bar.cpp:329
 msgid "Value Name"
-msgstr ""
+msgstr "Nome valore"
 
 #: frame/window/menu_bar.cpp:330 search/replace_dialog.cpp:228
 msgid "Value Data"
-msgstr ""
+msgstr "Dati valore"
 
 #: frame/window/menu_bar.cpp:331
 msgid "Copy Other"
-msgstr ""
+msgstr "Copia altro"
 
 #: frame/window/menu_bar.cpp:334
 msgid "Invert Selection"
-msgstr ""
+msgstr "Inverti selezione"
 
 #: frame/window/menu_bar.cpp:337
 msgid "Find..."
-msgstr ""
+msgstr "Trova..."
 
 #: frame/window/menu_bar.cpp:338
 msgid "Replace..."
-msgstr ""
+msgstr "Sostituisci..."
 
 #: frame/window/menu_bar.cpp:339
 msgid "Go To..."
-msgstr ""
+msgstr "Vai a..."
 
 #: frame/window/menu_bar.cpp:342
 msgid "&Edit"
-msgstr ""
+msgstr "&Modifica"
 
 #: frame/window/menu_bar.cpp:347
 msgid "Toolbar"
-msgstr ""
+msgstr "Barra degli strumenti"
 
 #: frame/window/menu_bar.cpp:348
 msgid "Address Bar"
-msgstr ""
+msgstr "Barra degli indirizzi"
 
 #: frame/window/menu_bar.cpp:349
 msgid "Filter Bar"
-msgstr ""
+msgstr "Barra dei filtri"
 
 #: frame/window/menu_bar.cpp:350
 msgid "Tabs"
-msgstr ""
+msgstr "Schede"
 
 #: frame/window/menu_bar.cpp:351
 msgid "Status Bar"
-msgstr ""
+msgstr "Barra di stato"
 
 #: frame/window/menu_bar.cpp:356
 msgid "Keys in List"
-msgstr ""
+msgstr "Chiavi nell'elenco"
 
 #: frame/window/menu_bar.cpp:363
 msgid "Simulated Keys"
-msgstr ""
+msgstr "Chiavi simulate"
 
 #: frame/window/menu_bar.cpp:369
 msgid "Show Extra Root Keys"
-msgstr ""
+msgstr "Mostra chiavi radice aggiuntive"
 
 #: frame/window/menu_bar.cpp:370
 msgid "&View"
-msgstr ""
+msgstr "&Visualizza"
 
 #: frame/window/menu_bar.cpp:374
 msgid "System"
-msgstr ""
+msgstr "Sistema"
 
 #: frame/window/menu_bar.cpp:375
 msgid "Light"
-msgstr ""
+msgstr "Chiaro"
 
 #: frame/window/menu_bar.cpp:376
 msgid "Dark"
-msgstr ""
+msgstr "Scuro"
 
 #: frame/window/menu_bar.cpp:377 frame/window/menu_bar.cpp:387
 msgid "Custom"
-msgstr ""
+msgstr "Personalizzato"
 
 #: frame/window/menu_bar.cpp:379
 msgid "Theme Presets..."
-msgstr ""
+msgstr "Set di tema..."
 
 #: frame/window/menu_bar.cpp:380
 msgid "Theme"
-msgstr ""
+msgstr "Tema"
 
 #: frame/window/menu_bar.cpp:385
 msgid "Classic"
-msgstr ""
+msgstr "Classiche"
 
 #: frame/window/menu_bar.cpp:386
 msgid "Phosphor"
@@ -2215,211 +2236,211 @@ msgstr ""
 
 #: frame/window/menu_bar.cpp:388
 msgid "Icons"
-msgstr ""
+msgstr "Icone"
 
 #: frame/window/menu_bar.cpp:392
 msgid "Automatic"
-msgstr ""
+msgstr "Automatico"
 
 #: frame/window/menu_bar.cpp:399
 msgid "Font..."
-msgstr ""
+msgstr "Tipo di carattere..."
 
 #: frame/window/menu_bar.cpp:401
 msgid "Read Only Mode"
-msgstr ""
+msgstr "Modalità di sola lettura"
 
 #: frame/window/menu_bar.cpp:410
 msgid "Restart as User"
-msgstr ""
+msgstr "Riavvia come utente"
 
 #: frame/window/menu_bar.cpp:412
 msgid "Restart as Admin"
-msgstr ""
+msgstr "Riavvia come amministratore"
 
 #: frame/window/menu_bar.cpp:414
 msgid "Restart as SYSTEM"
-msgstr ""
+msgstr "Riavvia come SYSTEM"
 
 #: frame/window/menu_bar.cpp:416
 msgid "Restart as TrustedInstaller"
-msgstr ""
+msgstr "Riavvia come TrustedInstaller"
 
 #: frame/window/menu_bar.cpp:418
 msgid "Always Run as Admin"
-msgstr ""
+msgstr "Esegui sempre come amministratore"
 
 #: frame/window/menu_bar.cpp:419
 msgid "Always Run as SYSTEM"
-msgstr ""
+msgstr "Esegui sempre come SYSTEM"
 
 #: frame/window/menu_bar.cpp:420
 msgid "Always Run as TrustedInstaller"
-msgstr ""
+msgstr "Esegui sempre come TrustedInstaller"
 
 #: frame/window/menu_bar.cpp:421
 msgid "Run As"
-msgstr ""
+msgstr "Esegui come"
 
 #: frame/window/menu_bar.cpp:426
 msgid "Add \"Edit\" Context Menu"
-msgstr ""
+msgstr "Aggiungi menu contestuale \"Modifica\""
 
 #: frame/window/menu_bar.cpp:427
 msgid "Single Instance"
-msgstr ""
+msgstr "Istanza singola"
 
 #: frame/window/menu_bar.cpp:428
 msgid "Autocomplete Key Paths"
-msgstr ""
+msgstr "Completa automaticamente i percorsi di chiavi"
 
 #: frame/window/menu_bar.cpp:434
 msgid "All Tabs"
-msgstr ""
+msgstr "Tutte le schede"
 
 #: frame/window/menu_bar.cpp:436
 msgid "Local Registry Tabs"
-msgstr ""
+msgstr "Schede del Registro di sistema locale"
 
 #: frame/window/menu_bar.cpp:437
 msgid "Offline Hive Tabs"
-msgstr ""
+msgstr "Schede degli hive offline"
 
 #: frame/window/menu_bar.cpp:438
 msgid "Remote Registry Tabs"
-msgstr ""
+msgstr "Schede del Registro di sistema remoto"
 
 #: frame/window/menu_bar.cpp:440
 msgid "Find Results"
-msgstr ""
+msgstr "Risultati della ricerca"
 
 #: frame/window/menu_bar.cpp:441
 msgid "Comparison Results"
-msgstr ""
+msgstr "Risultati del confronto"
 
 #: frame/window/menu_bar.cpp:442
 msgid ".reg File Tabs"
-msgstr ""
+msgstr "Schede dei file .reg"
 
 #: frame/window/menu_bar.cpp:444
 msgid "Save Tabs"
-msgstr ""
+msgstr "Salva schede"
 
 #: frame/window/menu_bar.cpp:445
 msgid "Save Previous Tree State"
-msgstr ""
+msgstr "Salva lo stato precedente dell'albero"
 
 #: frame/window/menu_bar.cpp:446
 msgid "Clear History on Exit"
-msgstr ""
+msgstr "Cancella cronologia all'uscita"
 
 #: frame/window/menu_bar.cpp:447
 msgid "Clear Tabs on Exit"
-msgstr ""
+msgstr "Cancella schede all'uscita"
 
 #: frame/window/menu_bar.cpp:450 search/query_prompts.cpp:138
 msgid "Clear All"
-msgstr ""
+msgstr "Cancella tutto"
 
 #: frame/window/menu_bar.cpp:452
 msgid "Tab Sessions"
-msgstr ""
+msgstr "Sessioni di schede"
 
 #: frame/window/menu_bar.cpp:453
 msgid "Change History"
-msgstr ""
+msgstr "Cronologia delle modifiche"
 
 #: frame/window/menu_bar.cpp:454
 msgid "Search History"
-msgstr ""
+msgstr "Cronologia delle ricerche"
 
 #: frame/window/menu_bar.cpp:455
 msgid "Tree State"
-msgstr ""
+msgstr "Stato dell'albero"
 
 #: frame/window/menu_bar.cpp:456
 msgid "Temporary Files"
-msgstr ""
+msgstr "File temporanei"
 
 #: frame/window/menu_bar.cpp:457
 msgid "Clear Caches"
-msgstr ""
+msgstr "Svuota cache"
 
 #: frame/window/menu_bar.cpp:458
 msgid "Reset Settings..."
-msgstr ""
+msgstr "Reimposta impostazioni..."
 
 #: frame/window/menu_bar.cpp:460
 msgid "Add to Favorites..."
-msgstr ""
+msgstr "Aggiungi ai preferiti..."
 
 #: frame/window/menu_bar.cpp:461
 msgid "Remove Favorite"
-msgstr ""
+msgstr "Rimuovi preferito"
 
 #: frame/window/menu_bar.cpp:462
 msgid "Edit Favorites..."
-msgstr ""
+msgstr "Modifica preferiti..."
 
 #: frame/window/menu_bar.cpp:464
 msgid "Import Favorites..."
-msgstr ""
+msgstr "Importa preferiti..."
 
 #: frame/window/menu_bar.cpp:465
 msgid "Import RegEdit Favorites"
-msgstr ""
+msgstr "Importa preferiti di RegEdit"
 
 #: frame/window/menu_bar.cpp:466
 msgid "Export Favorites..."
-msgstr ""
+msgstr "Esporta preferiti..."
 
 #: frame/window/menu_bar.cpp:480
 msgid "F&avorites"
-msgstr ""
+msgstr "&Preferiti"
 
 #: frame/window/menu_bar.cpp:481
 msgid "&Options"
-msgstr ""
+msgstr "&Opzioni"
 
 #: frame/window/menu_bar.cpp:484
 msgid "Compare Registries..."
-msgstr ""
+msgstr "Confronta registri..."
 
 #: frame/window/menu_bar.cpp:485
 msgid "Convert File..."
-msgstr ""
+msgstr "Converti file..."
 
 #: frame/window/menu_bar.cpp:486
 msgid "Key Handles..."
-msgstr ""
+msgstr "Handle di chiavi..."
 
 #: frame/window/menu_bar.cpp:488
 msgid "New Definition File..."
-msgstr ""
+msgstr "Nuovo file di definizione..."
 
 #: frame/window/menu_bar.cpp:490
 msgid "&Tools"
-msgstr ""
+msgstr "&Strumenti"
 
 #: frame/window/menu_bar.cpp:493
 msgid "New Window"
-msgstr ""
+msgstr "Nuova finestra"
 
 #: frame/window/menu_bar.cpp:495
 msgid "Close Tab"
-msgstr ""
+msgstr "Chiudi scheda"
 
 #: frame/window/menu_bar.cpp:496
 msgid "Close Window"
-msgstr ""
+msgstr "Chiudi finestra"
 
 #: frame/window/menu_bar.cpp:498
 msgid "Always on Top"
-msgstr ""
+msgstr "Sempre in primo piano"
 
 #: frame/window/menu_bar.cpp:499
 msgid "&Window"
-msgstr ""
+msgstr "Fi&nestra"
 
 #: frame/window/menu_bar.cpp:526
 msgid "23H2"
@@ -2435,87 +2456,87 @@ msgstr ""
 
 #: frame/window/menu_bar.cpp:555
 msgid "Open Trace File..."
-msgstr ""
+msgstr "Apri file Trace..."
 
 #: frame/window/menu_bar.cpp:559
 msgid "Edit Active Traces..."
-msgstr ""
+msgstr "Modifica Trace attivi..."
 
 #: frame/window/menu_bar.cpp:560
 msgid "Clear Active Traces"
-msgstr ""
+msgstr "Cancella Trace attivi"
 
 #: frame/window/menu_bar.cpp:562
 msgid "Edit Recent Traces..."
-msgstr ""
+msgstr "Modifica Trace recenti..."
 
 #: frame/window/menu_bar.cpp:563
 msgid "Clear Recent Traces"
-msgstr ""
+msgstr "Cancella Trace recenti"
 
 #: frame/window/menu_bar.cpp:565
 msgid "Guide"
-msgstr ""
+msgstr "Guida"
 
 #: frame/window/menu_bar.cpp:628
 msgid "Open Default File..."
-msgstr ""
+msgstr "Apri file dei valori predefiniti..."
 
 #: frame/window/menu_bar.cpp:632
 msgid "Edit Active Defaults..."
-msgstr ""
+msgstr "Modifica valori predefiniti attivi..."
 
 #: frame/window/menu_bar.cpp:633
 msgid "Clear Active Defaults"
-msgstr ""
+msgstr "Cancella valori predefiniti attivi"
 
 #: frame/window/menu_bar.cpp:635
 msgid "Edit Recent Defaults..."
-msgstr ""
+msgstr "Modifica valori predefiniti recenti..."
 
 #: frame/window/menu_bar.cpp:636
 msgid "Clear Recent Defaults"
-msgstr ""
+msgstr "Cancella valori predefiniti recenti"
 
 #: frame/window/menu_bar.cpp:638
 msgid "Enable Context Menu (risky)"
-msgstr ""
+msgstr "Attiva menu contestuale (rischioso)"
 
 #: frame/window/menu_bar.cpp:641
 msgid "Help"
-msgstr ""
+msgstr "Guida"
 
 #: frame/window/menu_bar.cpp:643
 msgid "Check for Updates"
-msgstr ""
+msgstr "Controlla aggiornamenti"
 
 #: frame/window/menu_bar.cpp:644
 msgid "Check for Updates Automatically"
-msgstr ""
+msgstr "Controlla automaticamente gli aggiornamenti"
 
 #: frame/window/menu_bar.cpp:659
 msgid "T&race"
-msgstr ""
+msgstr "&Trace"
 
 #: frame/window/menu_bar.cpp:660
 msgid "Defa&ult"
-msgstr ""
+msgstr "Valori pre&definiti"
 
 #: frame/window/menu_bar.cpp:661
 msgid "Re&search"
-msgstr ""
+msgstr "&Riferimenti"
 
 #: frame/window/menu_bar.cpp:662
 msgid "&Help"
-msgstr ""
+msgstr "G&uida"
 
 #: frame/window/menu_bar.cpp:821 frame/window/menu_bar.cpp:824
 msgid "Reset to Default"
-msgstr ""
+msgstr "Ripristina impostazione predefinita"
 
 #: frame/window/message_routes.cpp:49
 msgid "RegKit is running with elevated rights and only opens local files handed to it by another instance."
-msgstr ""
+msgstr "RegKit è in esecuzione con privilegi elevati e apre solo file locali ricevuti da un'altra istanza."
 
 #: frame/window/message_routes.cpp:53
 msgid ""
@@ -2523,860 +2544,863 @@ msgid ""
 "\n"
 "Open it?"
 msgstr ""
+"Un'altra istanza di RegKit ha chiesto a questa finestra con privilegi elevati di aprire un file .reg.\n"
+"\n"
+"Vuoi aprirlo?"
 
 #: frame/window/message_routes.cpp:53
 msgid "Open .reg File"
-msgstr ""
+msgstr "Apri file .reg"
 
 #: frame/window/message_routes.cpp:607 search/regex.cpp:276
 #: search/regex.cpp:278
 msgid "The find text isn't a valid regular expression."
-msgstr ""
+msgstr "Il testo da cercare non è un'espressione regolare valida."
 
 #: frame/window/notifications.cpp:138 frame/window/notifications.cpp:1248
 msgid "(Key)"
-msgstr ""
+msgstr "(Chiave)"
 
 #: frame/window/notifications.cpp:145 frame/window/notifications.cpp:1266
 msgid "Same"
-msgstr ""
+msgstr "Uguale"
 
 #: frame/window/notifications.cpp:145 frame/window/notifications.cpp:1266
 msgid "Different"
-msgstr ""
+msgstr "Diverso"
 
 #: frame/window/notifications.cpp:542 frame/window/notifications.cpp:805
 msgid "A key with this name already exists:"
-msgstr ""
+msgstr "Esiste già una chiave con questo nome:"
 
 #: frame/window/notifications.cpp:542 frame/window/notifications.cpp:805
 msgid "Rename Key"
-msgstr ""
+msgstr "Rinomina chiave"
 
 #: frame/window/notifications.cpp:547 frame/window/notifications.cpp:810
 msgid "Failed to rename key."
-msgstr ""
+msgstr "Non è possibile rinominare la chiave."
 
 #: frame/window/notifications.cpp:827
 msgid "A value with this name already exists:"
-msgstr ""
+msgstr "Esiste già un valore con questo nome:"
 
 #: frame/window/notifications.cpp:827
 msgid "Rename Value"
-msgstr ""
+msgstr "Rinomina valore"
 
 #: frame/window/notifications.cpp:843
 msgid "Failed to rename value."
-msgstr ""
+msgstr "Non è possibile rinominare il valore."
 
 #: records/json.cpp:100 records/json.cpp:140 records/json.cpp:297
 #: records/json.cpp:308 records/json.cpp:325
 msgid "The file isn't valid JSON."
-msgstr ""
+msgstr "Il file non è in formato JSON valido."
 
 #: records/json.cpp:110
 msgid "The file is nested too deeply."
-msgstr ""
+msgstr "Il file contiene troppi livelli di annidamento."
 
 #: records/json.cpp:163
 msgid "A text member is longer than the format allows."
-msgstr ""
+msgstr "Una proprietà di testo supera la lunghezza consentita dal formato."
 
 #: records/json.cpp:167 records/json.cpp:180
 msgid "The file ends inside a string."
-msgstr ""
+msgstr "Il file termina all'interno di una stringa."
 
 #: records/json.cpp:176
 msgid "A string contains an unescaped control character."
-msgstr ""
+msgstr "Una stringa contiene un carattere di controllo senza escape."
 
 #: records/json.cpp:210
 msgid "A string contains a malformed escape."
-msgstr ""
+msgstr "Una stringa contiene una sequenza di escape non valida."
 
 #: records/json.cpp:214 records/json.cpp:225
 msgid "A string contains a lone surrogate."
-msgstr ""
+msgstr "Una stringa contiene un surrogato isolato."
 
 #: records/json.cpp:231
 msgid "A string contains an unsupported escape."
-msgstr ""
+msgstr "Una stringa contiene una sequenza di escape non supportata."
 
 #: records/json.cpp:240
 msgid "An unsigned number was expected."
-msgstr ""
+msgstr "Era previsto un numero senza segno."
 
 #: records/json.cpp:244
 msgid "A number has a leading zero."
-msgstr ""
+msgstr "Un numero ha uno zero iniziale."
 
 #: records/json.cpp:252
 msgid "A number is out of range."
-msgstr ""
+msgstr "Un numero è fuori intervallo."
 
 #: records/json.cpp:258
 msgid "Only unsigned integers are supported."
-msgstr ""
+msgstr "Sono supportati solo numeri interi senza segno."
 
 #: records/json.cpp:334
 msgid "The file contains trailing content."
-msgstr ""
+msgstr "Il file contiene contenuto aggiuntivo alla fine."
 
 #: regfile/batch_script.cpp:169
 msgid "Unsupported reg command"
-msgstr ""
+msgstr "Comando reg non supportato"
 
 #: regfile/batch_script.cpp:181 regfile/script_convert.cpp:110
 msgid "Invalid key name."
-msgstr ""
+msgstr "Nome di chiave non valido."
 
 #: regfile/batch_script.cpp:186
 msgid "/reg:32 targets the 32-bit view, which can't be converted."
-msgstr ""
+msgstr "/reg:32 si riferisce alla vista a 32 bit, che non può essere convertita."
 
 #: regfile/batch_script.cpp:191
 msgid "/va isn't supported."
-msgstr ""
+msgstr "/va non è supportato."
 
 #: regfile/batch_script.cpp:204
 msgid "Invalid type"
-msgstr ""
+msgstr "Tipo non valido"
 
 #: regfile/batch_script.cpp:278
 msgid "Pipes aren't supported."
-msgstr ""
+msgstr "Le pipe non sono supportate."
 
 #: regfile/batch_script.cpp:339
 msgid "Batch arguments can't be resolved."
-msgstr ""
+msgstr "Non è possibile risolvere gli argomenti batch."
 
 #: regfile/batch_script.cpp:351 regfile/powershell_script.cpp:752
 #: regfile/powershell_script.cpp:809
 msgid "Variable can't be resolved"
-msgstr ""
+msgstr "Non è possibile risolvere la variabile"
 
 #: regfile/batch_script.cpp:389 regfile/powershell_script.cpp:1363
 msgid "Line"
-msgstr ""
+msgstr "Riga"
 
 #: regfile/batch_script.cpp:430
 msgid "reg query is only supported in the form RegKit writes for empty keys."
-msgstr ""
+msgstr "reg query è supportato solo nella forma scritta da RegKit per le chiavi vuote."
 
 #: regfile/batch_script.cpp:445
 msgid "set /a and set /p aren't supported."
-msgstr ""
+msgstr "set /a e set /p non sono supportati."
 
 #: regfile/batch_script.cpp:465 regfile/powershell_script.cpp:1147
 msgid "Unsupported command"
-msgstr ""
+msgstr "Comando non supportato"
 
 #: regfile/batch_script.cpp:485
 msgid "contains a line break"
-msgstr ""
+msgstr "contiene un'interruzione di riga"
 
 #: regfile/batch_script.cpp:489
 msgid "reg.exe trims leading and trailing spaces"
-msgstr ""
+msgstr "reg.exe rimuove gli spazi iniziali e finali"
 
 #: regfile/batch_script.cpp:503 regfile/powershell_script.cpp:1394
 msgid "a root key can't be deleted"
-msgstr ""
+msgstr "non è possibile eliminare una chiave radice"
 
 #: regfile/batch_script.cpp:521
 msgid "reg.exe can't write this data type"
-msgstr ""
+msgstr "reg.exe non può scrivere questo tipo di dati"
 
 #: regfile/batch_script.cpp:526
 msgid "too long for a batch line"
-msgstr ""
+msgstr "troppo lungo per una riga batch"
 
 #: regfile/powershell_script.cpp:102
 msgid "Subexpressions aren't supported."
-msgstr ""
+msgstr "Le sottoespressioni non sono supportate."
 
 #: regfile/powershell_script.cpp:113 regfile/powershell_script.cpp:304
 msgid "Unterminated variable name."
-msgstr ""
+msgstr "Nome di variabile non terminato."
 
 #: regfile/powershell_script.cpp:203
 msgid "Unterminated block comment."
-msgstr ""
+msgstr "Commento di blocco non terminato."
 
 #: regfile/powershell_script.cpp:219
 msgid "Unterminated here-string."
-msgstr ""
+msgstr "Stringa here-string non terminata."
 
 #: regfile/powershell_script.cpp:245 regfile/powershell_script.cpp:278
 msgid "Unterminated string."
-msgstr ""
+msgstr "Stringa non terminata."
 
 #: regfile/powershell_script.cpp:333
 msgid "Unterminated type name."
-msgstr ""
+msgstr "Nome di tipo non terminato."
 
 #: regfile/powershell_script.cpp:392
 msgid "Unsupported number"
-msgstr ""
+msgstr "Numero non supportato"
 
 #: regfile/powershell_script.cpp:414
 msgid "Unexpected character"
-msgstr ""
+msgstr "Carattere imprevisto"
 
 #: regfile/powershell_script.cpp:507 regfile/powershell_script.cpp:793
 msgid "Unexpected token"
-msgstr ""
+msgstr "Token imprevisto"
 
 #: regfile/powershell_script.cpp:547
 msgid "Expected"
-msgstr ""
+msgstr "Previsto"
 
 #: regfile/powershell_script.cpp:601
 msgid "Only if conditions on Test-Path are supported."
-msgstr ""
+msgstr "Sono supportate solo condizioni if su Test-Path."
 
 #: regfile/powershell_script.cpp:620
 msgid "Expected '}'."
-msgstr ""
+msgstr "Era previsto '}'."
 
 #: regfile/powershell_script.cpp:633
 msgid "else blocks aren't supported."
-msgstr ""
+msgstr "I blocchi else non sono supportati."
 
 #: regfile/powershell_script.cpp:644
 msgid "Only | Out-Null pipelines are supported."
-msgstr ""
+msgstr "Sono supportate solo pipeline | Out-Null."
 
 #: regfile/powershell_script.cpp:668
 msgid "-WhatIf makes no changes and can't be converted."
-msgstr ""
+msgstr "-WhatIf non apporta modifiche e non può essere convertito."
 
 #: regfile/powershell_script.cpp:837
 msgid "Expected a member name."
-msgstr ""
+msgstr "Era previsto un nome di membro."
 
 #: regfile/powershell_script.cpp:847
 msgid "Unexpected type"
-msgstr ""
+msgstr "Tipo imprevisto"
 
 #: regfile/powershell_script.cpp:880
 msgid "Invalid RegKit.Native call."
-msgstr ""
+msgstr "Chiamata RegKit.Native non valida."
 
 #: regfile/powershell_script.cpp:889 regfile/powershell_script.cpp:899
 #: regfile/powershell_script.cpp:935
 msgid "Unsupported member"
-msgstr ""
+msgstr "Membro non supportato"
 
 #: regfile/powershell_script.cpp:949
 msgid "Expected text."
-msgstr ""
+msgstr "Era previsto del testo."
 
 #: regfile/powershell_script.cpp:961
 msgid "Byte values must be numbers from 0 to 255."
-msgstr ""
+msgstr "I valori byte devono essere numeri da 0 a 255."
 
 #: regfile/powershell_script.cpp:998
 msgid "The number doesn't fit an [int]."
-msgstr ""
+msgstr "Il numero non rientra in un [int]."
 
 #: regfile/powershell_script.cpp:1010
 msgid "Unsupported cast"
-msgstr ""
+msgstr "Cast non supportato"
 
 #: regfile/powershell_script.cpp:1038
 msgid "Invalid number"
-msgstr ""
+msgstr "Numero non valido"
 
 #: regfile/powershell_script.cpp:1042
 msgid "Expected a number."
-msgstr ""
+msgstr "Era previsto un numero."
 
 #: regfile/powershell_script.cpp:1046
 msgid "The number doesn't fit a DWORD."
-msgstr ""
+msgstr "Il numero non rientra in un DWORD."
 
 #: regfile/powershell_script.cpp:1068
 msgid "The value type can't be inferred, add -Type."
-msgstr ""
+msgstr "Non è possibile dedurre il tipo del valore, aggiungi -Type."
 
 #: regfile/powershell_script.cpp:1068
 msgid "Unsupported value type"
-msgstr ""
+msgstr "Tipo di valore non supportato"
 
 #: regfile/powershell_script.cpp:1097 regfile/powershell_script.cpp:1113
 msgid "Not a registry path"
-msgstr ""
+msgstr "Non è un percorso del Registro di sistema"
 
 #: regfile/powershell_script.cpp:1107
 msgid "Wildcard paths can't be converted, use -LiteralPath."
-msgstr ""
+msgstr "I percorsi con caratteri jolly non possono essere convertiti, usa -LiteralPath."
 
 #: regfile/powershell_script.cpp:1140
 msgid "Only registry drives are supported."
-msgstr ""
+msgstr "Sono supportate solo unità del Registro di sistema."
 
 #: regfile/powershell_script.cpp:1151
 msgid "Only New-Item can follow if (-not (Test-Path)), and only removals can follow if (Test-Path)."
-msgstr ""
+msgstr "Solo New-Item può seguire if (-not (Test-Path)) e solo le rimozioni possono seguire if (Test-Path)."
 
 #: regfile/powershell_script.cpp:1158
 msgid "A -Path is required."
-msgstr ""
+msgstr "È necessario -Path."
 
 #: regfile/powershell_script.cpp:1168
 msgid "Unsupported parameter"
-msgstr ""
+msgstr "Parametro non supportato"
 
 #: regfile/powershell_script.cpp:1194
 msgid "-Name and -Value are required."
-msgstr ""
+msgstr "-Name e -Value sono necessari."
 
 #: regfile/powershell_script.cpp:1203
 msgid "-Name is required."
-msgstr ""
+msgstr "È necessario -Name."
 
 #: regfile/powershell_script.cpp:1211
 msgid "Wildcard value names can't be converted."
-msgstr ""
+msgstr "I nomi di valori con caratteri jolly non possono essere convertiti."
 
 #: regfile/powershell_script.cpp:1387
 msgid "contains control characters"
-msgstr ""
+msgstr "contiene caratteri di controllo"
 
 #: regfile/registry_transfer.cpp:47
 msgid "The system directory couldn't be resolved."
-msgstr ""
+msgstr "Non è possibile risolvere la directory di sistema."
 
 #: regfile/registry_transfer.cpp:115
 msgid "reg.exe exited with an error."
-msgstr ""
+msgstr "reg.exe è terminato con un errore."
 
 #: regfile/registry_transfer.cpp:127
 msgid "Export supports the standard root keys only."
-msgstr ""
+msgstr "L'esportazione supporta solo le chiavi radice standard."
 
 #: regfile/registry_transfer.cpp:142
 msgid "Failed to write the exported registry file."
-msgstr ""
+msgstr "Non è possibile scrivere il file del Registro di sistema esportato."
 
 #: regfile/registry_transfer.cpp:233
 msgid "No data to export."
-msgstr ""
+msgstr "Nessun dato da esportare."
 
 #: regfile/registry_transfer.cpp:276
 msgid "No selected values were found in the export."
-msgstr ""
+msgstr "Nell'esportazione non sono stati trovati valori selezionati."
 
 #: regfile/registry_transfer.cpp:333
 msgid "Loading a hive needs the backup and restore privileges. Run RegKit elevated."
-msgstr ""
+msgstr "Il caricamento di un hive richiede i privilegi di backup e ripristino. Esegui RegKit con privilegi elevati."
 
 #: regfile/registry_transfer.cpp:356
 msgid "Key name:"
-msgstr ""
+msgstr "Nome chiave:"
 
 #: regfile/registry_transfer.cpp:369
 msgid "Key name is required."
-msgstr ""
+msgstr "Il nome della chiave è obbligatorio."
 
 #: regfile/registry_transfer.cpp:378
 msgid "Unloading a hive needs the backup and restore privileges. Run RegKit elevated."
-msgstr ""
+msgstr "Lo scaricamento di un hive richiede i privilegi di backup e ripristino. Esegui RegKit con privilegi elevati."
 
 #: regfile/reg_exe_syntax.cpp:60
 msgid "Missing argument"
-msgstr ""
+msgstr "Argomento mancante"
 
 #: regfile/reg_exe_syntax.cpp:118
 msgid "Invalid option"
-msgstr ""
+msgstr "Opzione non valida"
 
 #: regfile/reg_exe_syntax.cpp:185
 msgid "Invalid multi-string data"
-msgstr ""
+msgstr "Dati di stringa multipla non validi"
 
 #: regfile/reg_exe_syntax.cpp:203
 msgid "Invalid numeric data"
-msgstr ""
+msgstr "Dati numerici non validi"
 
 #: regfile/reg_exe_syntax.cpp:207
 msgid "Numeric data out of range for a DWORD"
-msgstr ""
+msgstr "Dati numerici fuori intervallo per un DWORD"
 
 #: regfile/reg_exe_syntax.cpp:219 regfile/reg_exe_syntax.cpp:226
 msgid "Invalid binary data"
-msgstr ""
+msgstr "Dati binari non validi"
 
 #: regfile/reg_file.cpp:389
 msgid "The file contains an entry RegKit can't parse."
-msgstr ""
+msgstr "Il file contiene una voce che RegKit non può analizzare."
 
 #: regfile/script_convert.cpp:51
 msgid "Unsupported file type, use .reg, .bat, .cmd or .ps1."
-msgstr ""
+msgstr "Tipo di file non supportato, usa .reg, .bat, .cmd o .ps1."
 
 #: regfile/script_convert.cpp:62
 msgid "The file couldn't be read or is empty."
-msgstr ""
+msgstr "Non è possibile leggere il file o il file è vuoto."
 
 #: regfile/script_convert.cpp:73
 msgid "Unsupported root key."
-msgstr ""
+msgstr "Chiave radice non supportata."
 
 #: regfile/script_convert.cpp:80
 msgid "The file has no registry changes."
-msgstr ""
+msgstr "Il file non contiene modifiche al Registro di sistema."
 
 #: regfile/script_convert.cpp:91
 msgid "Enter a key under HKLM, HKCU, HKCR, HKU or HKCC."
-msgstr ""
+msgstr "Inserisci una chiave sotto HKLM, HKCU, HKCR, HKU o HKCC."
 
 #: regfile/script_convert.cpp:118
 msgid "The file has no changes for this key."
-msgstr ""
+msgstr "Il file non contiene modifiche per questa chiave."
 
 #: registry/offline_registry.cpp:152
 msgid "offreg.dll couldn't be loaded."
-msgstr ""
+msgstr "Non è possibile caricare offreg.dll."
 
 #: registry/security_dialog.cpp:120
 msgid "Enumerate"
-msgstr ""
+msgstr "Enumerazione"
 
 #: registry/security_dialog.cpp:121
 msgid "Set Value"
-msgstr ""
+msgstr "Impostazione valore"
 
 #: registry/security_dialog.cpp:122
 msgid "Query Value"
-msgstr ""
+msgstr "Query valore"
 
 #: registry/security_dialog.cpp:123
 msgid "Write"
-msgstr ""
+msgstr "Scrittura"
 
 #: registry/security_dialog.cpp:124
 msgid "Read"
-msgstr ""
+msgstr "Lettura"
 
 #: registry/security_dialog.cpp:159
 msgid "This key only"
-msgstr ""
+msgstr "Solo questa chiave"
 
 #: registry/security_dialog.cpp:160
 msgid "This key and subkeys"
-msgstr ""
+msgstr "Questa chiave e sottochiavi"
 
 #: registry/value_decoder.cpp:33
 msgid "Offset"
-msgstr ""
+msgstr "Offset"
 
 #: registry/value_decoder.cpp:64
 msgid "Text value has an odd byte count."
-msgstr ""
+msgstr "Il valore di testo ha un numero dispari di byte."
 
 #: registry/value_decoder.cpp:79
 msgid "Text value contains an embedded NUL."
-msgstr ""
+msgstr "Il valore di testo contiene un NUL incorporato."
 
 #: registry/value_decoder.cpp:92
 msgid "Binary value isn't ASCII text."
-msgstr ""
+msgstr "Il valore binario non è testo ASCII."
 
 #: registry/value_decoder.cpp:99
 msgid "This value type has no text form."
-msgstr ""
+msgstr "Questo tipo di valore non ha una forma testuale."
 
 #: registry/value_decoder.cpp:135
 msgid "Invalid Base64 character."
-msgstr ""
+msgstr "Carattere Base64 non valido."
 
 #: registry/value_decoder.cpp:144 registry/value_decoder.cpp:152
 msgid "Invalid Base64 padding bits."
-msgstr ""
+msgstr "Bit di riempimento Base64 non validi."
 
 #: registry/value_decoder.cpp:168 registry/value_decoder.cpp:421
 msgid "Input is too large to decode."
-msgstr ""
+msgstr "L'input è troppo grande per essere decodificato."
 
 #: registry/value_decoder.cpp:174 registry/value_decoder.cpp:185
 msgid "The text couldn't be decoded."
-msgstr ""
+msgstr "Non è possibile decodificare il testo."
 
 #: registry/value_decoder.cpp:196
 msgid "Base64 length isn't a multiple of four."
-msgstr ""
+msgstr "La lunghezza Base64 non è un multiplo di quattro."
 
 #: registry/value_decoder.cpp:236
 msgid "Invalid Base64URL character."
-msgstr ""
+msgstr "Carattere Base64URL non valido."
 
 #: registry/value_decoder.cpp:247
 msgid "Base64URL padding isn't at the end."
-msgstr ""
+msgstr "Il riempimento Base64URL non è alla fine."
 
 #: registry/value_decoder.cpp:253
 msgid "Base64URL length isn't valid."
-msgstr ""
+msgstr "La lunghezza Base64URL non è valida."
 
 #: registry/value_decoder.cpp:260
 msgid "Base64URL padding is incomplete."
-msgstr ""
+msgstr "Il riempimento Base64URL è incompleto."
 
 #: registry/value_decoder.cpp:298
 msgid "Invalid hex character."
-msgstr ""
+msgstr "Carattere esadecimale non valido."
 
 #: registry/value_decoder.cpp:303
 msgid "Incomplete hex byte."
-msgstr ""
+msgstr "Byte esadecimale incompleto."
 
 #: registry/value_decoder.cpp:324
 msgid "Incomplete percent escape."
-msgstr ""
+msgstr "Sequenza di escape percentuale incompleta."
 
 #: registry/value_decoder.cpp:331
 msgid "Invalid percent escape."
-msgstr ""
+msgstr "Sequenza di escape percentuale non valida."
 
 #: registry/value_decoder.cpp:340
 msgid "Percent encoded text must be ASCII."
-msgstr ""
+msgstr "Il testo con codifica percentuale deve essere ASCII."
 
 #: registry/value_decoder.cpp:359 registry/value_decoder.cpp:368
 msgid "Invalid FILETIME."
-msgstr ""
+msgstr "FILETIME non valido."
 
 #: registry/value_decoder.cpp:375
 msgid "Local"
-msgstr ""
+msgstr "Locale"
 
 #: registry/value_decoder.cpp:425 registry/value_decoder.cpp:432
 #: registry/value_decoder.cpp:479 registry/value_decoder.cpp:847
 msgid "Bytes"
-msgstr ""
+msgstr "Byte"
 
 #: registry/value_decoder.cpp:430
 msgid "Invalid UTF-8."
-msgstr ""
+msgstr "UTF-8 non valido."
 
 #: registry/value_decoder.cpp:439
 msgid "UTF-16 needs an even byte count."
-msgstr ""
+msgstr "UTF-16 richiede un numero pari di byte."
 
 #: registry/value_decoder.cpp:462
 msgid "Invalid UTF-16 surrogate pair."
-msgstr ""
+msgstr "Coppia di surrogati UTF-16 non valida."
 
 #: registry/value_decoder.cpp:464
 msgid "Code units"
-msgstr ""
+msgstr "Unità di codice"
 
 #: registry/value_decoder.cpp:475
 msgid "A byte isn't ASCII."
-msgstr ""
+msgstr "Un byte non è ASCII."
 
 #: registry/value_decoder.cpp:486
 msgid "A FILETIME needs exactly 8 bytes."
-msgstr ""
+msgstr "Un FILETIME richiede esattamente 8 byte."
 
 #: registry/value_decoder.cpp:492
 msgid "Raw ticks"
-msgstr ""
+msgstr "Tick grezzi"
 
 #: registry/value_decoder.cpp:506
 msgid "A SYSTEMTIME needs exactly 16 bytes."
-msgstr ""
+msgstr "Un SYSTEMTIME richiede esattamente 16 byte."
 
 #: registry/value_decoder.cpp:516
 msgid "Invalid SYSTEMTIME."
-msgstr ""
+msgstr "SYSTEMTIME non valido."
 
 #: registry/value_decoder.cpp:520
 msgid "Date and time"
-msgstr ""
+msgstr "Data e ora"
 
 #: registry/value_decoder.cpp:521
 msgid "Year"
-msgstr ""
+msgstr "Anno"
 
 #: registry/value_decoder.cpp:522
 msgid "Month"
-msgstr ""
+msgstr "Mese"
 
 #: registry/value_decoder.cpp:523
 msgid "Day"
-msgstr ""
+msgstr "Giorno"
 
 #: registry/value_decoder.cpp:524
 msgid "Day of week"
-msgstr ""
+msgstr "Giorno della settimana"
 
 #: registry/value_decoder.cpp:525
 msgid "Hour"
-msgstr ""
+msgstr "Ora"
 
 #: registry/value_decoder.cpp:526
 msgid "Minute"
-msgstr ""
+msgstr "Minuto"
 
 #: registry/value_decoder.cpp:527
 msgid "Second"
-msgstr ""
+msgstr "Secondo"
 
 #: registry/value_decoder.cpp:528 registry/value_decoder.cpp:548
 msgid "Milliseconds"
-msgstr ""
+msgstr "Millisecondi"
 
 #: registry/value_decoder.cpp:536
 msgid "Unix time needs exactly 4 or 8 bytes."
-msgstr ""
+msgstr "L'ora Unix richiede esattamente 4 o 8 byte."
 
 #: registry/value_decoder.cpp:543 registry/value_decoder.cpp:552
 msgid "Unix time is out of range."
-msgstr ""
+msgstr "L'ora Unix è fuori intervallo."
 
 #: registry/value_decoder.cpp:548
 msgid "Seconds"
-msgstr ""
+msgstr "Secondi"
 
 #: registry/value_decoder.cpp:562
 msgid "A GUID needs exactly 16 bytes."
-msgstr ""
+msgstr "Un GUID richiede esattamente 16 byte."
 
 #: registry/value_decoder.cpp:569
 msgid "The GUID couldn't be formatted."
-msgstr ""
+msgstr "Non è possibile formattare il GUID."
 
 #: registry/value_decoder.cpp:588 registry/value_decoder.cpp:653
 #: registry/value_decoder.cpp:665
 msgid "Truncated structure."
-msgstr ""
+msgstr "Struttura troncata."
 
 #: registry/value_decoder.cpp:594 registry/value_decoder.cpp:599
 msgid "Invalid SID."
-msgstr ""
+msgstr "SID non valido."
 
 #: registry/value_decoder.cpp:605
 msgid "Length"
-msgstr ""
+msgstr "Lunghezza"
 
 #: registry/value_decoder.cpp:619
 msgid "Account"
-msgstr ""
+msgstr "Account"
 
 #: registry/value_decoder.cpp:660
 msgid "Not a self relative security descriptor."
-msgstr ""
+msgstr "Non è un descrittore di sicurezza autorelativo."
 
 #: registry/value_decoder.cpp:671
 msgid "Invalid security descriptor."
-msgstr ""
+msgstr "Descrittore di sicurezza non valido."
 
 #: registry/value_decoder.cpp:694
 msgid "The security descriptor couldn't be converted."
-msgstr ""
+msgstr "Non è possibile convertire il descrittore di sicurezza."
 
 #: registry/value_decoder.cpp:700
 msgid "Owner"
-msgstr ""
+msgstr "Proprietario"
 
 #: registry/value_decoder.cpp:700 registry/value_decoder.cpp:701
 #: registry/value_decoder.cpp:702 registry/value_decoder.cpp:703
 msgid "present"
-msgstr ""
+msgstr "presente"
 
 #: registry/value_decoder.cpp:700 registry/value_decoder.cpp:701
 #: registry/value_decoder.cpp:702 registry/value_decoder.cpp:703
 msgid "absent"
-msgstr ""
+msgstr "assente"
 
 #: registry/value_decoder.cpp:701
 msgid "Group"
-msgstr ""
+msgstr "Gruppo"
 
 #: registry/value_decoder.cpp:712
 msgid "An IPv6 address needs exactly 16 bytes."
-msgstr ""
+msgstr "Un indirizzo IPv6 richiede esattamente 16 byte."
 
 #: registry/value_decoder.cpp:712
 msgid "An IPv4 address needs exactly 4 bytes."
-msgstr ""
+msgstr "Un indirizzo IPv4 richiede esattamente 4 byte."
 
 #: registry/value_decoder.cpp:719
 msgid "The address couldn't be formatted."
-msgstr ""
+msgstr "Non è possibile formattare l'indirizzo."
 
 #: registry/value_decoder.cpp:721
 msgid "Address"
-msgstr ""
+msgstr "Indirizzo"
 
 #: registry/value_decoder.cpp:746
 msgid "None"
-msgstr ""
+msgstr "Nessuna"
 
 #: registry/value_decoder.cpp:751
 msgid "Hex bytes"
-msgstr ""
+msgstr "Byte esadecimali"
 
 #: registry/value_decoder.cpp:752
 msgid "URI percent encoding"
-msgstr ""
+msgstr "Percentuale (URI)"
 
 #: registry/value_decoder.cpp:760
 msgid "Raw bytes"
-msgstr ""
+msgstr "Byte grezzi"
 
 #: registry/value_decoder.cpp:761
 msgid "UTF-8 text"
-msgstr ""
+msgstr "Testo UTF-8"
 
 #: registry/value_decoder.cpp:764
 msgid "UTF-16 LE text"
-msgstr ""
+msgstr "Testo UTF-16 LE"
 
 #: registry/value_decoder.cpp:765
 msgid "UTF-16 BE text"
-msgstr ""
+msgstr "Testo UTF-16 BE"
 
 #: registry/value_decoder.cpp:767
 msgid "ASCII text"
-msgstr ""
+msgstr "Testo ASCII"
 
 #: registry/value_decoder.cpp:771
 msgid "Windows FILETIME"
-msgstr ""
+msgstr "Windows FILETIME"
 
 #: registry/value_decoder.cpp:775
 msgid "Windows SYSTEMTIME"
-msgstr ""
+msgstr "Windows SYSTEMTIME"
 
 #: registry/value_decoder.cpp:779
 msgid "Unix time (seconds)"
-msgstr ""
+msgstr "Ora Unix (secondi)"
 
 #: registry/value_decoder.cpp:780
 msgid "Unix time (milliseconds)"
-msgstr ""
+msgstr "Ora Unix (millisecondi)"
 
 #: registry/value_decoder.cpp:792
 msgid "Security descriptor"
-msgstr ""
+msgstr "Descrittore di sicurezza"
 
 #: registry/value_decoder.cpp:796
 msgid "IPv4 address"
-msgstr ""
+msgstr "Indirizzo IPv4"
 
 #: registry/value_decoder.cpp:800
 msgid "IPv6 address"
-msgstr ""
+msgstr "Indirizzo IPv6"
 
 #: registry/value_decoder.cpp:834
 msgid "Unknown encoding."
-msgstr ""
+msgstr "Codifica sconosciuta."
 
 #: registry/value_decoder.cpp:842
 msgid "No data."
-msgstr ""
+msgstr "Nessun dato."
 
 #: registry/value_decoder.cpp:875
 msgid "Unknown interpretation."
-msgstr ""
+msgstr "Interpretazione sconosciuta."
 
 #: registry/value_format.cpp:78
 msgid "byte"
-msgstr ""
+msgstr "byte"
 
 #: registry/value_format.cpp:78
 msgid "bytes"
-msgstr ""
+msgstr "byte"
 
 #: search/compare.cpp:146
 msgid "Couldn't read the registry key."
-msgstr ""
+msgstr "Non è possibile leggere la chiave del Registro di sistema."
 
 #: search/compare.cpp:226
 msgid "No matching keys were found for the selected path."
-msgstr ""
+msgstr "Non sono state trovate chiavi corrispondenti al percorso selezionato."
 
 #: search/compare.cpp:315 search/compare.cpp:316 search/compare.cpp:329
 #: search/compare.cpp:330
 msgid "Present"
-msgstr ""
+msgstr "Presente"
 
 #: search/query_dialog.cpp:230
 msgid "No top level keys"
-msgstr ""
+msgstr "Nessuna chiave radice"
 
 #: search/query_dialog.cpp:234
 msgid "All top level keys"
-msgstr ""
+msgstr "Tutte le chiavi radice"
 
 #: search/query_dialog.cpp:242
 msgid "Multiple keys"
-msgstr ""
+msgstr "Più chiavi"
 
 #: search/query_dialog.cpp:568 search/replace_dialog.cpp:196
 msgid "Find what:"
-msgstr ""
+msgstr "Trova:"
 
 #: search/query_dialog.cpp:572 search/replace_dialog.cpp:200
 msgid "Where to search"
-msgstr ""
+msgstr "Dove cercare"
 
 #: search/query_dialog.cpp:573
 msgid "Top level keys"
-msgstr ""
+msgstr "Chiavi radice"
 
 #: search/query_dialog.cpp:574
 msgid "Specific key"
-msgstr ""
+msgstr "Chiave specifica"
 
 #: search/query_dialog.cpp:580 search/replace_dialog.cpp:205
 msgid "Browse..."
-msgstr ""
+msgstr "Sfoglia..."
 
 #: search/query_dialog.cpp:582 search/replace_dialog.cpp:208
 #: trace/trace_dialog.cpp:537
 msgid "Recursive"
-msgstr ""
+msgstr "Ricorsivo"
 
 #: search/query_dialog.cpp:584
 msgid "Search options"
-msgstr ""
+msgstr "Opzioni di ricerca"
 
 #: search/query_dialog.cpp:586
 msgid "Search keys"
-msgstr ""
+msgstr "Cerca chiavi"
 
 #: search/query_dialog.cpp:588
 msgid "Search values"
-msgstr ""
+msgstr "Cerca valori"
 
 #: search/query_dialog.cpp:590
 msgid "Search data"
-msgstr ""
+msgstr "Cerca dati"
 
 #: search/query_dialog.cpp:592
 msgid "Search comments"
-msgstr ""
+msgstr "Cerca commenti"
 
 #: search/query_dialog.cpp:594
 msgid "Data Types..."
-msgstr ""
+msgstr "Tipi di dati..."
 
 #: search/query_dialog.cpp:596 search/replace_dialog.cpp:210
 msgid "Match case"
-msgstr ""
+msgstr "Maiuscole/minuscole"
 
 #: search/query_dialog.cpp:598 search/replace_dialog.cpp:212
 msgid "Match whole string"
-msgstr ""
+msgstr "Stringa intera"
 
 #: search/query_dialog.cpp:600 search/replace_dialog.cpp:214
 msgid "Regular expressions"
-msgstr ""
+msgstr "Espressioni regolari"
 
 #: search/query_dialog.cpp:604
 msgid ""
@@ -3384,170 +3408,173 @@ msgid ""
 "(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, \\X.\n"
 "Matching is unicode aware and ignores case unless 'Match case' is set."
 msgstr ""
+"Sintassi PCRE: ancoraggi ^ $, classi di caratteri, quantificatori greedy, lazy (*?) e possessivi (*+),\n"
+"gruppi (?<name>...), lookaround (?=...) (?<=...), backreference \\1 e classi Unicode \\p{L}, \\w, \\X.\n"
+"La ricerca riconosce Unicode e ignora maiuscole e minuscole se 'Maiuscole/minuscole' non è attivo."
 
 #: search/query_dialog.cpp:610
 msgid "Skip symbolic links"
-msgstr ""
+msgstr "Ignora collegamenti simbolici"
 
 #: search/query_dialog.cpp:611
 msgid "Min data size (bytes):"
-msgstr ""
+msgstr "Dimensioni min. dati (byte):"
 
 #: search/query_dialog.cpp:613
 msgid "Max data size (bytes):"
-msgstr ""
+msgstr "Dimensioni max. dati (byte):"
 
 #: search/query_dialog.cpp:616
 msgid "Search Root Keys"
-msgstr ""
+msgstr "Chiavi radice"
 
 #: search/query_dialog.cpp:618
 msgid "Search REGISTRY"
-msgstr ""
+msgstr "REGISTRY"
 
 #: search/query_dialog.cpp:620
 msgid "Search Trace Values"
-msgstr ""
+msgstr "Valori Trace"
 
 #: search/query_dialog.cpp:622
 msgid "Search Default Data"
-msgstr ""
+msgstr "Dati predefiniti"
 
 #: search/query_dialog.cpp:624
 msgid "Search Offline Hives"
-msgstr ""
+msgstr "Hive offline"
 
 #: search/query_dialog.cpp:625
 msgid "Search .reg File Tabs"
-msgstr ""
+msgstr "Schede di file .reg"
 
 #: search/query_dialog.cpp:626
 msgid "Search Network Registry"
-msgstr ""
+msgstr "Registro di rete"
 
 #: search/query_dialog.cpp:628
 msgid "Modified in period:"
-msgstr ""
+msgstr "Modificato nel periodo:"
 
 #: search/query_dialog.cpp:639 search/query_dialog.cpp:641
 msgid "Exclude keys"
-msgstr ""
+msgstr "Escludi chiavi"
 
 #: search/query_dialog.cpp:644
 msgid "Edit..."
-msgstr ""
+msgstr "Modifica..."
 
 #: search/query_dialog.cpp:646
 msgid "Result options"
-msgstr ""
+msgstr "Opzioni dei risultati"
 
 #: search/query_dialog.cpp:647
 msgid "Reuse last Find Results window"
-msgstr ""
+msgstr "Riusa ultima finestra di risultati"
 
 #: search/query_dialog.cpp:649
 msgid "Open new Find Results window"
-msgstr ""
+msgstr "Nuova finestra di risultati"
 
 #: search/query_dialog.cpp:650
 msgid "Open result in new tab"
-msgstr ""
+msgstr "Apri risultato in nuova scheda"
 
 #: search/query_dialog.cpp:652
 msgid "Limit results to"
-msgstr ""
+msgstr "Limita risultati a"
 
 #: search/query_dialog.cpp:797
 msgid "Enter a search term."
-msgstr ""
+msgstr "Inserisci un termine di ricerca."
 
 #: search/query_dialog.cpp:802
 msgid "The regular expression is too long."
-msgstr ""
+msgstr "L'espressione regolare è troppo lunga."
 
 #: search/query_dialog.cpp:812
 msgid "Select at least one search option."
-msgstr ""
+msgstr "Seleziona almeno un'opzione di ricerca."
 
 #: search/query_dialog.cpp:831
 msgid "Select at least one search source."
-msgstr ""
+msgstr "Seleziona almeno un'origine di ricerca."
 
 #: search/query_dialog.cpp:855
 msgid "Enter a valid minimum data size."
-msgstr ""
+msgstr "Inserisci una dimensione minima valida per i dati."
 
 #: search/query_dialog.cpp:868
 msgid "Enter a valid maximum data size."
-msgstr ""
+msgstr "Inserisci una dimensione massima valida per i dati."
 
 #: search/query_dialog.cpp:892
 msgid "Minimum data size can't exceed maximum data size."
-msgstr ""
+msgstr "Le dimensioni minime dei dati non possono superare quelle massime."
 
 #: search/query_dialog.cpp:897
 msgid "Modified date range is invalid."
-msgstr ""
+msgstr "L'intervallo delle date di modifica non è valido."
 
 #: search/query_dialog.cpp:921
 msgid "Enter a valid result limit."
-msgstr ""
+msgstr "Inserisci un limite di risultati valido."
 
 #: search/query_dialog.cpp:951
 msgid "Select at least one top level key."
-msgstr ""
+msgstr "Seleziona almeno una chiave radice."
 
 #: search/query_dialog.cpp:1038
 msgid "Exclude Keys"
-msgstr ""
+msgstr "Escludi chiavi"
 
 #: search/query_prompts.cpp:169
 msgid "Select at least one data type."
-msgstr ""
+msgstr "Seleziona almeno un tipo di dati."
 
 #: search/query_prompts.cpp:201
 msgid "Data Types"
-msgstr ""
+msgstr "Tipi di dati"
 
 #: search/query_prompts.cpp:292
 msgid "Select a key."
-msgstr ""
+msgstr "Seleziona una chiave."
 
 #: search/query_prompts.cpp:311
 msgid "Browse Key"
-msgstr ""
+msgstr "Sfoglia chiavi"
 
 #: search/regex.cpp:259
 msgid "The search was cancelled."
-msgstr ""
+msgstr "La ricerca è stata annullata."
 
 #: search/regex.cpp:261
 msgid "The pattern needed too many steps or too much memory."
-msgstr ""
+msgstr "Il criterio ha richiesto troppi passaggi o troppa memoria."
 
 #: search/regex.cpp:263
 msgid "The text isn't valid UTF-16."
-msgstr ""
+msgstr "Il testo non è in formato UTF-16 valido."
 
 #: search/regex.cpp:265
 msgid "The pattern couldn't be applied."
-msgstr ""
+msgstr "Non è possibile applicare il criterio."
 
 #: search/regex.cpp:278
 msgid "Position"
-msgstr ""
+msgstr "Posizione"
 
 #: search/replace_dialog.cpp:198
 msgid "Replace with:"
-msgstr ""
+msgstr "Sostituisci con:"
 
 #: search/replace_dialog.cpp:201
 msgid "Key:"
-msgstr ""
+msgstr "Chiave:"
 
 #: search/replace_dialog.cpp:206
 msgid "Options"
-msgstr ""
+msgstr "Opzioni"
 
 #: search/replace_dialog.cpp:218
 msgid ""
@@ -3555,141 +3582,144 @@ msgid ""
 "(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, \\X.\n"
 "Replace with: $1 or ${1} for a group, $<name> or ${name} for a named group, $& for the whole match, $$ for a dollar."
 msgstr ""
+"Sintassi PCRE: ancoraggi ^ $, classi di caratteri, quantificatori greedy, lazy (*?) e possessivi (*+),\n"
+"gruppi (?<name>...), lookaround (?=...) (?<=...), backreference \\1 e classi Unicode \\p{L}, \\w, \\X.\n"
+"Sostituisci con: $1 o ${1} per un gruppo, $<name> o ${name} per un gruppo denominato, $& per l'intera corrispondenza, $$ per un dollaro."
 
 #: search/replace_dialog.cpp:225
 msgid "Replace in key names"
-msgstr ""
+msgstr "Nomi di chiavi"
 
 #: search/replace_dialog.cpp:226
 msgid "Replace in value names"
-msgstr ""
+msgstr "Nomi di valori"
 
 #: search/replace_dialog.cpp:227
 msgid "Replace in value data"
-msgstr ""
+msgstr "Dati di valori"
 
 #: search/replace_dialog.cpp:230
 msgid "Numbers as decimal"
-msgstr ""
+msgstr "Numeri decimali"
 
 #: search/replace_dialog.cpp:232
 msgid "Numbers as hex"
-msgstr ""
+msgstr "Numeri esadecimali"
 
 #: search/replace_dialog.cpp:297
 msgid "Select what should be replaced."
-msgstr ""
+msgstr "Seleziona cosa sostituire."
 
 #: trace/trace_dialog.cpp:122
 msgid "loading..."
-msgstr ""
+msgstr "caricamento..."
 
 #: trace/trace_dialog.cpp:459
 msgid "Select at least one key or value."
-msgstr ""
+msgstr "Seleziona almeno una chiave o un valore."
 
 #: trace/trace_dialog.cpp:539
 msgid "Select All Keys"
-msgstr ""
+msgstr "Tutte le chiavi"
 
 #: trace/trace_dialog.cpp:541
 msgid "Select"
-msgstr ""
+msgstr "Scegli"
 
 #: trace/trace_loader.cpp:29
 msgid "Failed to read trace file."
-msgstr ""
+msgstr "Non è possibile leggere il file Trace."
 
 #: trace/trace_parser.cpp:37
 msgid "Trace file is empty or too large to load."
-msgstr ""
+msgstr "Il file Trace è vuoto o troppo grande per essere caricato."
 
 #: trace/trace_parser.cpp:51
 msgid "Trace file has no readable entries."
-msgstr ""
+msgstr "Il file Trace non contiene voci leggibili."
 
 #: trace/trace_parser.cpp:142
 msgid "Trace file contains no usable entries."
-msgstr ""
+msgstr "Il file Trace non contiene voci utilizzabili."
 
 #: win32/file_dialog.cpp:173
 msgid "Open after saving:"
-msgstr ""
+msgstr "Apri dopo il salvataggio:"
 
 #: win32/file_dialog.cpp:368
 msgid "The file dialog failed."
-msgstr ""
+msgstr "Errore nella finestra di dialogo dei file."
 
 #: win32/system_error.cpp:22
 msgid "Unknown error."
-msgstr ""
+msgstr "Errore sconosciuto."
 
 #: ../resources/app.rc:44
 msgid "Key Handles"
-msgstr ""
+msgstr "Handle di chiavi"
 
 #: ../resources/editor_dialogs.rc:6 ../resources/editor_dialogs.rc:17
 #: ../resources/editor_dialogs.rc:93
 msgid "Value data:"
-msgstr ""
+msgstr "Dati valore:"
 
 #: ../resources/editor_dialogs.rc:26 ../resources/editor_dialogs.rc:49
 msgid "Edit Comment"
-msgstr ""
+msgstr "Modifica commento"
 
 #: ../resources/editor_dialogs.rc:29 ../resources/editor_dialogs.rc:53
 #: ../resources/editor_dialogs.rc:293
 msgid "Comment:"
-msgstr ""
+msgstr "Commento:"
 
 #: ../resources/editor_dialogs.rc:31
 msgid "Apply to"
-msgstr ""
+msgstr "Applica a"
 
 #: ../resources/editor_dialogs.rc:32
 msgid "This value only"
-msgstr ""
+msgstr "Solo questo valore"
 
 #: ../resources/editor_dialogs.rc:34
 msgid "Match only values with"
-msgstr ""
+msgstr "Solo valori con"
 
 #: ../resources/editor_dialogs.rc:35
 msgid "Same registry type"
-msgstr ""
+msgstr "Stesso tipo di dati"
 
 #: ../resources/editor_dialogs.rc:37
 msgid "Same data length"
-msgstr ""
+msgstr "Stessa lunghezza dei dati"
 
 #: ../resources/editor_dialogs.rc:39
 msgid "In key"
-msgstr ""
+msgstr "Nella chiave"
 
 #: ../resources/editor_dialogs.rc:41
 msgid "Include subkeys"
-msgstr ""
+msgstr "Includi sottochiavi"
 
 #: ../resources/editor_dialogs.rc:42 ../resources/editor_dialogs.rc:55
 msgid "Restore Default"
-msgstr ""
+msgstr "Ripristina originale"
 
 #: ../resources/editor_dialogs.rc:62
 msgid "Edit Binary Value"
-msgstr ""
+msgstr "Modifica valore binario"
 
 #: ../resources/editor_dialogs.rc:67
 msgid "Bytes:"
-msgstr ""
+msgstr "Byte:"
 
 #: ../resources/editor_dialogs.rc:68
 msgid "0 bytes"
-msgstr ""
+msgstr "0 byte"
 
 #: ../resources/editor_dialogs.rc:73 ../resources/editor_dialogs.rc:164
 #: ../resources/editor_dialogs.rc:177
 msgid "Format"
-msgstr ""
+msgstr "Formato"
 
 #: ../resources/editor_dialogs.rc:74 ../resources/editor_dialogs.rc:165
 #: ../resources/editor_dialogs.rc:178
@@ -3724,34 +3754,34 @@ msgstr ""
 #: ../resources/editor_dialogs.rc:81 ../resources/editor_dialogs.rc:121
 #: ../resources/editor_dialogs.rc:147 ../resources/editor_dialogs.rc:154
 msgid "Bits..."
-msgstr ""
+msgstr "Bit..."
 
 #: ../resources/editor_dialogs.rc:106
 msgid "Strings (one per line):"
-msgstr ""
+msgstr "Stringhe (una per riga):"
 
 #: ../resources/editor_dialogs.rc:119 ../resources/editor_dialogs.rc:260
 msgid "Value:"
-msgstr ""
+msgstr "Valore:"
 
 #: ../resources/editor_dialogs.rc:122 ../resources/editor_dialogs.rc:148
 #: ../resources/editor_dialogs.rc:155
 msgid "Base"
-msgstr ""
+msgstr "Base"
 
 #: ../resources/editor_dialogs.rc:124 ../resources/editor_dialogs.rc:150
 #: ../resources/editor_dialogs.rc:157
 msgid "Decimal"
-msgstr ""
+msgstr "Decimale"
 
 #: ../resources/editor_dialogs.rc:125 ../resources/editor_dialogs.rc:151
 #: ../resources/editor_dialogs.rc:158
 msgid "Binary"
-msgstr ""
+msgstr "Binaria"
 
 #: ../resources/editor_dialogs.rc:137
 msgid "Type:"
-msgstr ""
+msgstr "Tipo:"
 
 #: ../resources/editor_dialogs.rc:139
 msgid "REG_SZ"
@@ -3783,47 +3813,47 @@ msgstr ""
 
 #: ../resources/editor_dialogs.rc:194
 msgid "Export to:"
-msgstr ""
+msgstr "Esporta in:"
 
 #: ../resources/editor_dialogs.rc:197
 msgid "Export range"
-msgstr ""
+msgstr "Intervallo di esportazione"
 
 #: ../resources/editor_dialogs.rc:198
 msgid "Selected key and subkeys"
-msgstr ""
+msgstr "Chiave selezionata e sottochiavi"
 
 #: ../resources/editor_dialogs.rc:199
 msgid "Selected key only"
-msgstr ""
+msgstr "Solo chiave selezionata"
 
 #: ../resources/editor_dialogs.rc:200
 msgid "Open after export:"
-msgstr ""
+msgstr "Apri dopo l'esportazione:"
 
 #: ../resources/editor_dialogs.rc:207
 msgid "New Symbolic Link"
-msgstr ""
+msgstr "Nuovo collegamento simbolico"
 
 #: ../resources/editor_dialogs.rc:210
 msgid "Link name:"
-msgstr ""
+msgstr "Nome collegamento:"
 
 #: ../resources/editor_dialogs.rc:212
 msgid "Target key:"
-msgstr ""
+msgstr "Chiave destinazione:"
 
 #: ../resources/editor_dialogs.rc:221
 msgid "Load Hive"
-msgstr ""
+msgstr "Carica hive"
 
 #: ../resources/editor_dialogs.rc:224
 msgid "Hive file:"
-msgstr ""
+msgstr "File hive:"
 
 #: ../resources/editor_dialogs.rc:229
 msgid "Load into"
-msgstr ""
+msgstr "Carica in"
 
 #: ../resources/editor_dialogs.rc:230
 msgid "HKEY_LOCAL_MACHINE"
@@ -3835,113 +3865,113 @@ msgstr ""
 
 #: ../resources/editor_dialogs.rc:262 ../resources/editor_dialogs.rc:281
 msgid "Definition:"
-msgstr ""
+msgstr "Definizione:"
 
 #: ../resources/editor_dialogs.rc:264
 msgid "Load..."
-msgstr ""
+msgstr "Carica..."
 
 #: ../resources/editor_dialogs.rc:267 ../resources/editor_dialogs.rc:300
 msgid "Save As..."
-msgstr ""
+msgstr "Salva con nome..."
 
 #: ../resources/editor_dialogs.rc:283
 msgid "Add"
-msgstr ""
+msgstr "Aggiungi"
 
 #: ../resources/editor_dialogs.rc:285
 msgid "Registry value:"
-msgstr ""
+msgstr "Valore del registro:"
 
 #: ../resources/editor_dialogs.rc:287
 msgid "Key paths:"
-msgstr ""
+msgstr "Percorsi di chiavi:"
 
 #: ../resources/editor_dialogs.rc:289
 msgid "Bit width:"
-msgstr ""
+msgstr "Larghezza in bit:"
 
 #: ../resources/editor_dialogs.rc:291
 msgid "Byte offset:"
-msgstr ""
+msgstr "Offset in byte:"
 
 #: ../resources/editor_dialogs.rc:299
 msgid "Open..."
-msgstr ""
+msgstr "Apri..."
 
 #: ../resources/editor_dialogs.rc:310
 msgid "Field name:"
-msgstr ""
+msgstr "Nome campo:"
 
 #: ../resources/editor_dialogs.rc:312
 msgid "Meaning:"
-msgstr ""
+msgstr "Significato:"
 
 #: ../resources/editor_dialogs.rc:314
 msgid "States:"
-msgstr ""
+msgstr "Stati:"
 
 #: ../resources/editor_dialogs.rc:316
 msgid "Bits:"
-msgstr ""
+msgstr "Bit:"
 
 #: ../resources/search_dialogs.rc:3
 msgid "Compare Registries"
-msgstr ""
+msgstr "Confronta registri"
 
 #: ../resources/search_dialogs.rc:7 ../resources/search_dialogs.rc:17
 #: ../resources/search_dialogs.rc:41
 msgid "Source:"
-msgstr ""
+msgstr "Origine:"
 
 #: ../resources/search_dialogs.rc:26
 msgid "Results"
-msgstr ""
+msgstr "Risultati"
 
 #: ../resources/search_dialogs.rc:27
 msgid "Both"
-msgstr ""
+msgstr "Entrambi"
 
 #: ../resources/search_dialogs.rc:28
 msgid "Only differences"
-msgstr ""
+msgstr "Solo differenze"
 
 #: ../resources/search_dialogs.rc:29
 msgid "Only matching"
-msgstr ""
+msgstr "Solo corrispondenze"
 
 #: ../resources/search_dialogs.rc:31
 msgid "Compare"
-msgstr ""
+msgstr "Confronta"
 
 #: ../resources/search_dialogs.rc:37
 msgid "Convert File"
-msgstr ""
+msgstr "Converti file"
 
 #: ../resources/search_dialogs.rc:40
 msgid "Input"
-msgstr ""
+msgstr "Input"
 
 #: ../resources/search_dialogs.rc:50
 msgid "Output"
-msgstr ""
+msgstr "Output"
 
 #: ../resources/search_dialogs.rc:51
 msgid "Format:"
-msgstr ""
+msgstr "Formato:"
 
 #: ../resources/search_dialogs.rc:58
 msgid "Check for administrator rights outside HKCU"
-msgstr ""
+msgstr "Verifica privilegi di amministratore fuori da HKCU"
 
 #: ../resources/search_dialogs.rc:59
 msgid "Open the converted file in an editor"
-msgstr ""
+msgstr "Apri il file convertito in un editor"
 
 #: appearance/feedback.h:50 frame/tools/convert_dialog.cpp:27
 #: regfile/registry_transfer.cpp:37 regfile/script_convert.h:23
 msgid "Registry Files (*.reg)"
-msgstr ""
+msgstr "File del Registro di sistema (*.reg)"
 
 #: appearance/feedback.h:50 appearance/preset_editor.cpp:186
 #: frame/commands/clipboard_commands.cpp:71
@@ -3951,50 +3981,50 @@ msgstr ""
 #: frame/sources/trace_commands.cpp:354 regfile/registry_transfer.cpp:37
 #: regfile/script_convert.h:23
 msgid "All Files (*.*)"
-msgstr ""
+msgstr "Tutti i file (*.*)"
 
 #: appearance/feedback.h:51
 msgid "Hive Files (*.*)"
-msgstr ""
+msgstr "File hive (*.*)"
 
 #: appearance/preset_editor.cpp:186
 msgid "RegKit Theme Presets (*.rktheme)"
-msgstr ""
+msgstr "Set di tema di RegKit (*.rktheme)"
 
 #: editors/bitfield_definition.cpp:793
 msgid "RegKit bitfield definitions (*.regkit-bitfield.jsonc)"
-msgstr ""
+msgstr "Definizioni di campi di bit di RegKit (*.regkit-bitfield.jsonc)"
 
 #: editors/bitfield_definition.cpp:793
 msgid "JSON files (*.jsonc;*.json)"
-msgstr ""
+msgstr "File JSON (*.jsonc;*.json)"
 
 #: frame/commands/clipboard_commands.cpp:71
 #: frame/commands/clipboard_commands.cpp:108
 msgid "Favorites Files (*.txt)"
-msgstr ""
+msgstr "File di preferiti (*.txt)"
 
 #: frame/commands/file_view_commands.cpp:282
 #: frame/commands/file_view_commands.cpp:300
 msgid "RegKit Comment Files (*.jsonc)"
-msgstr ""
+msgstr "File di commenti di RegKit (*.jsonc)"
 
 #: frame/detail/file_detail.h:81 frame/search/compare_dialog.cpp:271
 msgid "Registry Hive Files"
-msgstr ""
+msgstr "File hive del Registro di sistema"
 
 #: frame/sources/trace_commands.cpp:354
 msgid "Trace Files (*.txt)"
-msgstr ""
+msgstr "File Trace (*.txt)"
 
 #: frame/tools/convert_dialog.cpp:28 regfile/script_convert.h:23
 msgid "Batch Files (*.bat;*.cmd)"
-msgstr ""
+msgstr "File batch (*.bat;*.cmd)"
 
 #: frame/tools/convert_dialog.cpp:29 regfile/script_convert.h:23
 msgid "PowerShell Scripts (*.ps1)"
-msgstr ""
+msgstr "Script PowerShell (*.ps1)"
 
 #: regfile/script_convert.h:23
 msgid "Registry Scripts (*.reg;*.bat;*.cmd;*.ps1)"
-msgstr ""
+msgstr "Script del Registro di sistema (*.reg;*.bat;*.cmd;*.ps1)"
