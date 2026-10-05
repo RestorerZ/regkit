@@ -4,8 +4,8 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
-#include "appearance/dialog_layout.h"
-#include "appearance/list_header.h"
+#include "ui/dialog_layout.h"
+#include "ui/list_header.h"
 #include "win32/translation.h"
 
 namespace regkit
@@ -26,13 +26,13 @@ bool MainWindow::Impl::OnCreate()
     icon_font_ = CreateIconFont(10);
     custom_font_ = DefaultLogFont();
     LoadSettings();
-    util::LoadLanguage(language_);
+    util::LoadLanguage(settings_.language);
     if (theme_mode_ == ThemeMode::kCustom)
     {
         LoadThemePresets();
     }
     ApplySavedWindowPlacement();
-    if (theme_mode_ != ThemeMode::kCustom || !ApplyThemePresetByName(active_theme_preset_, false))
+    if (theme_mode_ != ThemeMode::kCustom || !ApplyThemePresetByName(settings_.theme_preset, false))
     {
         Theme::SetMode(theme_mode_);
         ApplySystemTheme();
@@ -123,8 +123,7 @@ bool MainWindow::Impl::OnCreate()
     tab_ =
         CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_TABS | TCS_FOCUSNEVER, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTabId)), instance_, nullptr);
     ApplyFont(tab_, ui_font_);
-    TabCtrl_SetPadding(tab_, kTabTextPaddingX, kTabInsetY);
-    SetWindowSubclass(tab_, TabProc, kTabSubclassId, reinterpret_cast<DWORD_PTR>(this));
+    tab_strip_.Attach(tab_, [](void* context, int index) { static_cast<MainWindow::Impl*>(context)->CloseTab(index); }, this);
 
     tree_header_ = CreateWindowExW(0, L"STATIC", util::Tr(L"Key Tree"), WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | SS_LEFT | SS_OWNERDRAW, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTreeHeaderId)), instance_, nullptr);
     tree_close_btn_ =
@@ -232,19 +231,18 @@ bool MainWindow::Impl::OnCreate()
     CreateHistoryColumns();
     CreateSearchColumns();
     ApplyThemeToChildren();
-    SetValueGridEnabled(show_value_grid_, false);
+    SetValueGridEnabled(settings_.show_value_grid, false);
     if (toolbar_.hwnd())
     {
-        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, 0);
-        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, 0);
-        if (read_only_)
+        UpdateUndoButtons();
+        if (settings_.read_only)
         {
             SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditPaste, 0);
             SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditDelete, 0);
         }
     }
 
-    browse_.roots() = RegistryStore::DefaultRoots(show_extra_hives_);
+    browse_.roots() = RegistryStore::DefaultRoots(settings_.show_extra_hives);
     AppendRealRegistryRoot(&browse_.roots());
     browse_.tree().SetRegEditLayout(false);
     browse_.tree().SetRootLabel(TreeRootLabel(), TreeRootIcon());
@@ -291,7 +289,7 @@ void MainWindow::Impl::RunDeferredStartup()
     deferred_startup_complete_ = true;
     const bool has_external_jump = !queued_external_jump_target_.empty();
     // external jumps & saved tab state take priority over the global tree state
-    bool use_global_tree_state = (!has_external_jump && save_tree_state_);
+    bool use_global_tree_state = (!has_external_jump && settings_.save_tree_state);
     if (use_global_tree_state && tab_)
     {
         int active_tab = TabCtrl_GetCurSel(tab_);
@@ -326,7 +324,7 @@ void MainWindow::Impl::RunDeferredStartup()
 
     BuildMenus();
     UpdateStatus();
-    if (auto_check_updates_)
+    if (settings_.auto_check_updates)
     {
         updates_.Check(true);
     }
@@ -335,7 +333,7 @@ void MainWindow::Impl::RunDeferredStartup()
 void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
 {
     StopStartupCacheLoad();
-    const bool load_tree_state = include_tree_state && save_tree_state_;
+    const bool load_tree_state = include_tree_state && settings_.save_tree_state;
     int history_max_rows = history_max_rows_;
     int history_sort_column = history_sort_column_;
     bool history_sort_ascending = history_sort_ascending_;
@@ -401,10 +399,9 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
         {
             return;
         }
-        if (hwnd && IsWindow(hwnd) &&
-            PostMessageW(hwnd, frame::message_id::kStartupCacheReady, static_cast<WPARAM>(generation), reinterpret_cast<LPARAM>(payload.get())))
+        if (hwnd && IsWindow(hwnd))
         {
-            ReleasePostedPayload(payload);
+            work::PostPayload(hwnd, frame::message_id::kStartupCacheReady, static_cast<WPARAM>(generation), payload);
         }
     });
 }
@@ -538,17 +535,17 @@ void MainWindow::Impl::OnDestroy()
     }
     if (!restart_on_close_ && !reset_settings_on_close_)
     {
-        if (clear_tabs_on_exit_)
+        if (settings_.clear_tabs_on_exit)
         {
             ClearTabsCache();
         }
-        else if (save_tab_kinds_ != 0 && !SaveTabs())
+        else if (settings_.save_tab_kinds != 0 && !SaveTabs())
         {
             ui::ShowError(hwnd_, util::Tr(L"The open tabs couldn't be saved for the next session."));
         }
     }
     ClearHistoryItems(false);
-    if (clear_history_on_exit_)
+    if (settings_.clear_history_on_exit)
     {
         std::wstring history_path = HistoryCachePath();
         if (!history_path.empty())
@@ -556,8 +553,11 @@ void MainWindow::Impl::OnDestroy()
             DeleteFileW(history_path.c_str());
         }
     }
-    UnloadOfflineRegistry(nullptr);
-    ReleaseRemoteRegistry();
+    for (TabEntry& tab : tabs_)
+    {
+        tab.session.reset();
+    }
+    session_ = local_session_;
     if (ui_font_ && ui_font_owned_)
     {
         DeleteObject(ui_font_);
@@ -599,59 +599,17 @@ void MainWindow::Impl::DiscardWorkerMessages()
         return;
     }
     MSG message = {};
-    const UINT payload_messages[] = {frame::message_id::kTraceLoadReady, frame::message_id::kDefaultLoadReady, frame::message_id::kStartupCacheReady, frame::message_id::kRegFileLoadReady, frame::message_id::kTraceParseBatch, frame::message_id::kDefaultParseBatch, frame::message_id::kValueListReady, frame::message_id::kReplaceReady, frame::message_id::kValuePreviewReady, frame::message_id::kSearchPreviewReady, frame::message_id::kSearchSortReady, frame::message_id::kSearchTabLoadReady, frame::message_id::kUpdateCheckReady, frame::message_id::kExternalHandoff};
+    const UINT payload_messages[] = {frame::message_id::kTraceLoadReady, frame::message_id::kDefaultLoadReady, frame::message_id::kStartupCacheReady, frame::message_id::kRegFileLoadReady, frame::message_id::kTraceParseBatch, frame::message_id::kDefaultParseBatch, frame::message_id::kValueListReady, frame::message_id::kReplaceReady, frame::message_id::kValuePreviewReady, frame::message_id::kSearchPreviewReady, frame::message_id::kSearchSortReady, frame::message_id::kSearchTabLoadReady, frame::message_id::kUpdateCheckReady};
     for (const UINT id : payload_messages)
     {
         while (PeekMessageW(&message, hwnd_, id, id, PM_REMOVE))
         {
-            switch (id)
-            {
-            case frame::message_id::kTraceLoadReady:
-                delete reinterpret_cast<TraceLoadPayload*>(message.lParam);
-                break;
-            case frame::message_id::kDefaultLoadReady:
-                delete reinterpret_cast<DefaultLoadPayload*>(message.lParam);
-                break;
-            case frame::message_id::kStartupCacheReady:
-                delete reinterpret_cast<StartupCachePayload*>(message.lParam);
-                break;
-            case frame::message_id::kRegFileLoadReady:
-                delete reinterpret_cast<RegFileParsePayload*>(message.lParam);
-                break;
-            case frame::message_id::kTraceParseBatch:
-                delete reinterpret_cast<TraceParseBatch*>(message.lParam);
-                break;
-            case frame::message_id::kDefaultParseBatch:
-                delete reinterpret_cast<DefaultParseBatch*>(message.lParam);
-                break;
-            case frame::message_id::kValueListReady:
-                delete reinterpret_cast<ValueListPayload*>(message.lParam);
-                break;
-            case frame::message_id::kValuePreviewReady:
-                delete reinterpret_cast<ValuePreviewPayload*>(message.lParam);
-                break;
-            case frame::message_id::kReplaceReady:
-                delete reinterpret_cast<ReplacePayload*>(message.lParam);
-                break;
-            case frame::message_id::kSearchPreviewReady:
-                delete reinterpret_cast<SearchPreviewPayload*>(message.lParam);
-                break;
-            case frame::message_id::kSearchSortReady:
-                delete reinterpret_cast<SearchSortPayload*>(message.lParam);
-                break;
-            case frame::message_id::kSearchTabLoadReady:
-                delete reinterpret_cast<SearchTabLoadPayload*>(message.lParam);
-                break;
-            case frame::message_id::kUpdateCheckReady:
-                delete reinterpret_cast<frame::UpdateCheckPayload*>(message.lParam);
-                break;
-            case frame::message_id::kExternalHandoff:
-                delete reinterpret_cast<std::wstring*>(message.lParam);
-                break;
-            default:
-                break;
-            }
+            delete work::PayloadFrom<work::MoveOnly>(message.lParam);
         }
+    }
+    while (PeekMessageW(&message, hwnd_, frame::message_id::kExternalHandoff, frame::message_id::kExternalHandoff, PM_REMOVE))
+    {
+        delete reinterpret_cast<std::wstring*>(message.lParam);
     }
 }
 

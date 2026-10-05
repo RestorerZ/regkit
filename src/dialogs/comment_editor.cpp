@@ -1,11 +1,11 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "editors/comment_editor.h"
+#include "dialogs/comment_editor.h"
 
-#include "appearance/autocomplete.h"
-#include "appearance/dialog_layout.h"
-#include "editors/dialog_support.h"
+#include "ui/autocomplete.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_support.h"
 #include "win32/translation.h"
 
 #include "resource.h"

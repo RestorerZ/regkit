@@ -4,8 +4,8 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
-#include "appearance/dialog_layout.h"
-#include "appearance/list_header.h"
+#include "ui/dialog_layout.h"
+#include "ui/list_header.h"
 #include "win32/translation.h"
 
 namespace regkit
@@ -491,7 +491,7 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
         }
         if (header->code == TVN_BEGINLABELEDITW)
         {
-            if (read_only_)
+            if (settings_.read_only)
             {
                 return TRUE;
             }
@@ -515,7 +515,7 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
         }
         if (header->code == TVN_ENDLABELEDITW)
         {
-            if (read_only_)
+            if (settings_.read_only)
             {
                 return FALSE;
             }
@@ -630,61 +630,23 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
 
 LRESULT MainWindow::Impl::HandleHeaderNotification(NMHDR* header, LPARAM lparam)
 {
-    HWND value_header = ListView_GetHeader(browse_.values().hwnd());
-    HWND history_header = ListView_GetHeader(history_list_);
-    HWND search_header = ListView_GetHeader(search_results_list_);
-
-    if (header->hwndFrom == value_header && (header->code == HDN_ENDTRACKW || header->code == HDN_ENDTRACKA ||
-                                             header->code == HDN_ITEMCHANGEDW || header->code == HDN_ITEMCHANGEDA))
+    const bool width_change = header->code == HDN_ENDTRACKW || header->code == HDN_ENDTRACKA || header->code == HDN_ITEMCHANGEDW || header->code == HDN_ITEMCHANGEDA;
+    HWND list = GetParent(header->hwndFrom);
+    ui::ColumnSet* set = width_change ? ColumnSetFor(list) : nullptr;
+    auto* info = reinterpret_cast<NMHEADERW*>(lparam);
+    if (set && info->iItem >= 0 && info->pitem && (info->pitem->mask & HDI_WIDTH))
     {
-        auto* info = reinterpret_cast<NMHEADERW*>(lparam);
-        if (info && info->iItem >= 0 && info->pitem && (info->pitem->mask & HDI_WIDTH))
+        const int subitem = GetListViewColumnSubItem(list, info->iItem);
+        if (subitem >= 0 && static_cast<size_t>(subitem) < set->widths.size())
         {
-            int subitem = GetListViewColumnSubItem(browse_.values().hwnd(), info->iItem);
-            if (subitem >= 0 && static_cast<size_t>(subitem) < browse_.columns().widths.size())
+            set->widths[static_cast<size_t>(subitem)] = info->pitem->cxy;
+            if (list == browse_.values().hwnd() && (header->code == HDN_ENDTRACKW || header->code == HDN_ENDTRACKA))
             {
-                browse_.columns().widths[static_cast<size_t>(subitem)] = info->pitem->cxy;
-                if (header->code == HDN_ENDTRACKW || header->code == HDN_ENDTRACKA)
-                {
-                    SaveSettings();
-                }
+                SaveSettings();
             }
-
-            InvalidateListViewColumn(browse_.values().hwnd(), info->iItem);
-            InvalidateListViewTail(browse_.values().hwnd());
         }
-    }
-    if (header->hwndFrom == history_header && (header->code == HDN_ENDTRACKW || header->code == HDN_ENDTRACKA ||
-                                               header->code == HDN_ITEMCHANGEDW || header->code == HDN_ITEMCHANGEDA))
-    {
-        auto* info = reinterpret_cast<NMHEADERW*>(lparam);
-        if (info && info->iItem >= 0 && info->pitem && (info->pitem->mask & HDI_WIDTH))
-        {
-            int subitem = GetListViewColumnSubItem(history_list_, info->iItem);
-            if (subitem >= 0 && static_cast<size_t>(subitem) < history_column_widths_.size())
-            {
-                history_column_widths_[static_cast<size_t>(subitem)] = info->pitem->cxy;
-            }
-            InvalidateListViewColumn(history_list_, info->iItem);
-            InvalidateListViewTail(history_list_);
-        }
-    }
-    if (header->hwndFrom == search_header && (header->code == HDN_ENDTRACKW || header->code == HDN_ENDTRACKA ||
-                                              header->code == HDN_ITEMCHANGEDW || header->code == HDN_ITEMCHANGEDA))
-    {
-        auto* info = reinterpret_cast<NMHEADERW*>(lparam);
-        if (info && info->iItem >= 0 && info->pitem && (info->pitem->mask & HDI_WIDTH))
-        {
-            int subitem = GetListViewColumnSubItem(search_results_list_, info->iItem);
-            bool compare = IsCompareTabSelected();
-            auto& widths = compare ? compare_column_widths_ : search_column_widths_;
-            if (subitem >= 0 && static_cast<size_t>(subitem) < widths.size())
-            {
-                widths[static_cast<size_t>(subitem)] = info->pitem->cxy;
-            }
-            InvalidateListViewColumn(search_results_list_, info->iItem);
-            InvalidateListViewTail(search_results_list_);
-        }
+        InvalidateListViewColumn(list, info->iItem);
+        InvalidateListViewTail(list);
     }
     return 0;
 }
@@ -749,7 +711,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
     }
     if (header->hwndFrom == browse_.values().hwnd() && header->code == LVN_BEGINLABELEDITW)
     {
-        if (read_only_)
+        if (settings_.read_only)
         {
             return TRUE;
         }
@@ -773,7 +735,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
     }
     if (header->hwndFrom == browse_.values().hwnd() && header->code == LVN_ENDLABELEDITW)
     {
-        if (read_only_)
+        if (settings_.read_only)
         {
             return FALSE;
         }

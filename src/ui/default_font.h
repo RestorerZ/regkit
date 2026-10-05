@@ -10,6 +10,9 @@
 namespace regkit::ui
 {
 
+// the font every dialog uses, the system font unless a custom one is set
+void SetCustomFont(const LOGFONTW* font);
+LOGFONTW SystemUIFontLogFont();
 LOGFONTW DefaultUIFontLogFont();
 LOGFONTW DefaultUIFontLogFont(UINT dpi);
 HFONT DefaultUIFont();

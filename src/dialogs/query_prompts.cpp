@@ -1,7 +1,7 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "search/query_prompts.h"
+#include "dialogs/query_prompts.h"
 
 #include <algorithm>
 #include <vector>
@@ -9,15 +9,15 @@
 #include <commctrl.h>
 #include <windowsx.h>
 
-#include "appearance/dialog_fit.h"
-#include "appearance/dialog_layout.h"
-#include "appearance/dialog_metrics.h"
-#include "appearance/feedback.h"
-#include "appearance/theme.h"
 #include "browse/key_tree.h"
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
 #include "registry/value_format.h"
+#include "ui/dialog_fit.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_metrics.h"
+#include "ui/feedback.h"
+#include "ui/theme.h"
 #include "win32/translation.h"
 #include "win32/window_metrics.h"
 
@@ -30,27 +30,6 @@ struct DataTypeItem
     std::wstring label;
 };
 
-struct BaseTypeItem
-{
-    DWORD type = 0;
-    const wchar_t* label = nullptr;
-};
-
-constexpr BaseTypeItem kBaseDataTypes[] = {
-    {REG_SZ, L"REG_SZ"},
-    {REG_EXPAND_SZ, L"REG_EXPAND_SZ"},
-    {REG_MULTI_SZ, L"REG_MULTI_SZ"},
-    {REG_DWORD, L"DWORD (32-bit)"},
-    {REG_QWORD, L"QWORD (64-bit)"},
-    {REG_BINARY, L"REG_BINARY"},
-    {REG_NONE, L"REG_NONE"},
-    {REG_DWORD_BIG_ENDIAN, L"REG_DWORD_BIG_ENDIAN"},
-    {REG_LINK, L"REG_LINK"},
-    {REG_RESOURCE_LIST, L"REG_RESOURCE_LIST"},
-    {REG_FULL_RESOURCE_DESCRIPTOR, L"REG_FULL_RESOURCE_DESCRIPTOR"},
-    {REG_RESOURCE_REQUIREMENTS_LIST, L"REG_RESOURCE_REQUIREMENTS_LIST"},
-};
-
 constexpr DWORD kExtendedTypeFlags[] = {0x20000, 0x40000};
 
 constexpr int kDataTypesColCount = 3;
@@ -59,14 +38,15 @@ constexpr int kDataTypesColWidth = 310;
 std::vector<DataTypeItem> BuildDataTypeItems()
 {
     std::vector<DataTypeItem> items;
-    items.reserve(_countof(kBaseDataTypes) * (1 + _countof(kExtendedTypeFlags)));
-    for (const auto& entry : kBaseDataTypes)
+    const auto base_types = value_format::TypeLabels();
+    items.reserve(base_types.size() * (1 + _countof(kExtendedTypeFlags)));
+    for (const auto& entry : base_types)
     {
-        items.push_back({entry.type, entry.label});
+        items.push_back({entry.type, entry.name});
     }
     for (DWORD flag : kExtendedTypeFlags)
     {
-        for (const auto& entry : kBaseDataTypes)
+        for (const auto& entry : base_types)
         {
             DWORD type = flag | entry.type;
             items.push_back({type, value_format::TypeName(type)});

@@ -1,9 +1,9 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "frame/window/toolbar.h"
+#include "ui/toolbar.h"
 
-#include "appearance/icon_loader.h"
+#include "ui/icon_loader.h"
 #include "win32/window_metrics.h"
 
 namespace regkit

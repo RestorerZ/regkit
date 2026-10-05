@@ -154,7 +154,7 @@ void MainWindow::Impl::StartValueListWorker()
                     continue;
                 }
                 default_keys.push_back(
-                    {ShortDefaultLabel(defaults.label, defaults.source_path), it->second, defaults.selection.get()}
+                    {defaults::ShortLabel(defaults.label, defaults.source_path), it->second, defaults.selection.get()}
                 );
             }
         }
@@ -431,6 +431,7 @@ void MainWindow::Impl::StartValueListWorker()
                     ListRow row;
                     row.name = value_name.empty() ? util::Tr(L"(Default)") : value_name;
                     row.type = L"TRACE";
+                    row.trace_only = true;
                     row.data = util::Tr(L"(value not set)");
                     row.read_on_boot = format_read_on_boot(gather_labels(value_lower));
                     row.image_index = kTraceIconIndex;
@@ -454,10 +455,7 @@ void MainWindow::Impl::StartValueListWorker()
         {
             return;
         }
-        if (PostMessageW(task->hwnd, frame::message_id::kValueListReady, static_cast<WPARAM>(task->generation), reinterpret_cast<LPARAM>(payload.get())) != 0)
-        {
-            ReleasePostedPayload(payload);
-        }
+        work::PostPayload(task->hwnd, frame::message_id::kValueListReady, static_cast<WPARAM>(task->generation), payload);
     });
 }
 
@@ -502,10 +500,7 @@ void MainWindow::Impl::StartValuePreviewWorker()
         {
             return;
         }
-        if (PostMessageW(task->hwnd, frame::message_id::kValuePreviewReady, static_cast<WPARAM>(task->generation), reinterpret_cast<LPARAM>(payload.get())) != 0)
-        {
-            payload.release();
-        }
+        work::PostPayload(task->hwnd, frame::message_id::kValuePreviewReady, static_cast<WPARAM>(task->generation), payload);
     });
 }
 
@@ -586,10 +581,7 @@ void MainWindow::Impl::StartSearchPreviewWorker()
         {
             return;
         }
-        if (PostMessageW(task->hwnd, frame::message_id::kSearchPreviewReady, static_cast<WPARAM>(task->generation), reinterpret_cast<LPARAM>(payload.get())) != 0)
-        {
-            payload.release();
-        }
+        work::PostPayload(task->hwnd, frame::message_id::kSearchPreviewReady, static_cast<WPARAM>(task->generation), payload);
     });
 }
 
@@ -684,10 +676,7 @@ void MainWindow::Impl::StartSearchSortWorker()
         payload->generation = task->generation;
         payload->tab_index = task->tab_index;
         payload->rows = std::move(task->rows);
-        if (PostMessageW(task->hwnd, frame::message_id::kSearchSortReady, static_cast<WPARAM>(task->generation), reinterpret_cast<LPARAM>(payload.get())) != 0)
-        {
-            payload.release();
-        }
+        work::PostPayload(task->hwnd, frame::message_id::kSearchSortReady, static_cast<WPARAM>(task->generation), payload);
     });
 }
 
@@ -761,10 +750,7 @@ void MainWindow::Impl::StartSearchTabLoadWorker()
         {
             return;
         }
-        if (PostMessageW(task->hwnd, frame::message_id::kSearchTabLoadReady, static_cast<WPARAM>(task->generation), reinterpret_cast<LPARAM>(payload.get())) != 0)
-        {
-            payload.release();
-        }
+        work::PostPayload(task->hwnd, frame::message_id::kSearchTabLoadReady, static_cast<WPARAM>(task->generation), payload);
     });
 }
 

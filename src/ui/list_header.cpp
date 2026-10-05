@@ -1,10 +1,10 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "appearance/list_header.h"
+#include "ui/list_header.h"
 
-#include "appearance/gdi_cache.h"
-#include "appearance/theme.h"
+#include "ui/gdi_cache.h"
+#include "ui/theme.h"
 
 #include <commctrl.h>
 #include <uxtheme.h>

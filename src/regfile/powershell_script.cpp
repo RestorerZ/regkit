@@ -82,7 +82,6 @@ struct Token
 
 using Kind = Token::Kind;
 
-// double quoted text keeps $variables as parts so they resolve when the statement runs
 std::vector<std::pair<bool, std::wstring>> ExpandableParts(std::wstring_view body, size_t line)
 {
     std::vector<std::pair<bool, std::wstring>> parts(1);

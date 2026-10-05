@@ -1,10 +1,10 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "appearance/font_picker.h"
+#include "ui/font_picker.h"
 
-#include "appearance/font_metrics.h"
-#include "appearance/gdi_cache.h"
+#include "ui/font_metrics.h"
+#include "ui/gdi_cache.h"
 
 #include <algorithm>
 #include <commctrl.h>
@@ -12,7 +12,7 @@
 #include <dlgs.h>
 #include <uxtheme.h>
 
-#include "appearance/theme.h"
+#include "ui/theme.h"
 #include "win32/text_transform.h"
 
 namespace regkit

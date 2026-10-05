@@ -4,6 +4,7 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 #include "win32/translation.h"
+#include "trace/trace_paths.h"
 
 namespace regkit
 {
@@ -17,10 +18,10 @@ bool MainWindow::Impl::AddDefaultFromFile(const std::wstring& label, const std::
     }
     std::wstring source = path;
     std::wstring use_label = label;
-    if (!FileExists(source))
+    if (!util::IsFile(source))
     {
         std::wstring bundled = ResolveBundledDefaultPath(path);
-        if (!bundled.empty() && FileExists(bundled))
+        if (!bundled.empty() && util::IsFile(bundled))
         {
             source = bundled;
             if (use_label.empty())
@@ -39,7 +40,7 @@ bool MainWindow::Impl::AddDefaultFromFile(const std::wstring& label, const std::
     }
     if (use_label.empty())
     {
-        use_label = FileBaseName(source);
+        use_label = util::FileBaseName(source);
     }
     if (use_label.empty())
     {
@@ -78,7 +79,6 @@ bool MainWindow::Impl::AddDefaultFromFile(const std::wstring& label, const std::
         trace::Selection dialog_selection = selection;
         TraceDialogOptions options;
         options.title = util::Tr(L"Default entries") + (use_label.empty() ? std::wstring() : L" - " + use_label);
-        options.prompt = L"";
         options.show_values = true;
         DefaultDialogStartContext context;
         context.window = this;
@@ -137,7 +137,7 @@ bool MainWindow::Impl::LoadDefaultFromPrompt()
     {
         return false;
     }
-    std::wstring label = FileBaseName(path);
+    std::wstring label = util::FileBaseName(path);
     if (label.empty())
     {
         label = L"Custom";
@@ -193,7 +193,7 @@ std::vector<MainWindow::Impl::DefaultValueChoice> MainWindow::Impl::CollectDefau
         return choices;
     }
     std::wstring path = registry_path::Build(*node);
-    std::wstring default_path = NormalizeTraceKeyPathBasic(path);
+    std::wstring default_path = trace::NormalizeKeyPathBasic(path);
     if (default_path.empty())
     {
         default_path = path;
@@ -218,7 +218,7 @@ std::vector<MainWindow::Impl::DefaultValueChoice> MainWindow::Impl::CollectDefau
             continue;
         }
         DefaultValueChoice choice;
-        choice.label = ShortDefaultLabel(defaults.label, defaults.source_path);
+        choice.label = defaults::ShortLabel(defaults.label, defaults.source_path);
         auto value = key->second.values.find(value_lower);
         if (value != key->second.values.end())
         {

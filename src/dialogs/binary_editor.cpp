@@ -1,15 +1,15 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "editors/binary_editor.h"
+#include "dialogs/binary_editor.h"
 
-#include "appearance/dialog_layout.h"
-#include "appearance/feedback.h"
-#include "editors/binary_text.h"
-#include "editors/bitfield_editor.h"
-#include "editors/dialog_support.h"
+#include "dialogs/binary_text.h"
+#include "dialogs/bitfield_editor.h"
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_support.h"
+#include "ui/feedback.h"
 
 #include "resource.h"
 #include "win32/text_transform.h"

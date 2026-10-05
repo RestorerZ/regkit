@@ -10,13 +10,48 @@ namespace regkit
 
 using namespace window_detail;
 
-void MainWindow::Impl::ShowHeaderMenu(HWND list, std::vector<ColumnInfo>& columns, std::vector<int>& widths, std::vector<bool>& visible, POINT screen_pt, int unavailable_column)
+ui::ColumnSet* MainWindow::Impl::ColumnSetFor(HWND list)
 {
+    if (list == browse_.values().hwnd())
+    {
+        return &browse_.columns();
+    }
+    if (list == history_list_)
+    {
+        return &history_columns_;
+    }
+    if (list == search_results_list_)
+    {
+        return IsCompareTabSelected() ? &compare_columns_ : &search_columns_;
+    }
+    return nullptr;
+}
+
+void MainWindow::Impl::ApplyColumns(HWND list)
+{
+    if (list == browse_.values().hwnd())
+    {
+        ApplyValueColumns();
+    }
+    else if (list == history_list_)
+    {
+        ApplyHistoryColumns();
+    }
+    else if (list == search_results_list_)
+    {
+        ApplySearchColumns(IsCompareTabSelected());
+    }
+}
+
+void MainWindow::Impl::ShowHeaderMenu(HWND list, POINT screen_pt)
+{
+    ui::ColumnSet* set = ColumnSetFor(list);
     HWND header_hwnd = ListView_GetHeader(list);
-    if (!header_hwnd)
+    if (!set || !header_hwnd)
     {
         return;
     }
+    const int unavailable_column = list == search_results_list_ && IsCompareTabSelected() && !IsCompareResultColumnAvailable() ? 4 : -1;
     POINT client_pt = screen_pt;
     ScreenToClient(header_hwnd, &client_pt);
     HDHITTESTINFO hit = {};
@@ -33,14 +68,13 @@ void MainWindow::Impl::ShowHeaderMenu(HWND list, std::vector<ColumnInfo>& column
     AppendMenuW(menu, MF_STRING, cmd::kHeaderSizeAll, util::Tr(L"Size all columns to fit"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
-    for (size_t i = 0; i < columns.size(); ++i)
+    const auto shown = [&](size_t i) { return static_cast<int>(i) != unavailable_column && (i >= set->visible.size() || set->visible[i]); };
+    for (size_t i = 0; i < set->items.size(); ++i)
     {
-        if (static_cast<int>(i) == unavailable_column)
+        if (static_cast<int>(i) != unavailable_column)
         {
-            continue;
+            AppendMenuW(menu, MF_STRING | (shown(i) ? MF_CHECKED : MF_UNCHECKED), cmd::kHeaderToggleBase + static_cast<int>(i), set->items[i].title.c_str());
         }
-        const UINT state = i < visible.size() && visible[i] ? MF_CHECKED : MF_UNCHECKED;
-        AppendMenuW(menu, MF_STRING | state, cmd::kHeaderToggleBase + static_cast<int>(i), columns[i].title.c_str());
     }
 
     const int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
@@ -50,200 +84,61 @@ void MainWindow::Impl::ShowHeaderMenu(HWND list, std::vector<ColumnInfo>& column
     {
         const int subitem = GetListViewColumnSubItem(list, column_hit);
         ListView_SetColumnWidth(list, column_hit, LVSCW_AUTOSIZE_USEHEADER);
-        if (subitem >= 0 && static_cast<size_t>(subitem) < widths.size())
+        if (subitem >= 0 && static_cast<size_t>(subitem) < set->widths.size())
         {
-            widths[static_cast<size_t>(subitem)] = ListView_GetColumnWidth(list, column_hit);
+            set->widths[static_cast<size_t>(subitem)] = ListView_GetColumnWidth(list, column_hit);
         }
     }
     else if (command == cmd::kHeaderSizeAll)
     {
         int last_visible = -1;
-        for (size_t i = 0; i < columns.size(); ++i)
+        for (size_t i = 0; i < set->items.size(); ++i)
         {
-            if (static_cast<int>(i) != unavailable_column && (i >= visible.size() || visible[i]))
-            {
-                last_visible = static_cast<int>(i);
-            }
+            last_visible = shown(i) ? static_cast<int>(i) : last_visible;
         }
-        for (size_t i = 0; i < columns.size(); ++i)
+        for (size_t i = 0; i < set->items.size(); ++i)
         {
-            if (static_cast<int>(i) == unavailable_column || (i < visible.size() && !visible[i]))
-            {
-                continue;
-            }
-            const int display = FindListViewColumnBySubItem(list, static_cast<int>(i));
+            const int display = shown(i) ? FindListViewColumnBySubItem(list, static_cast<int>(i)) : -1;
             if (display < 0)
             {
                 continue;
             }
-            int width = 0;
             if (static_cast<int>(i) == last_visible)
             {
-                width = CalcListViewColumnFitWidth(list, static_cast<int>(i), columns[i].width);
-                ListView_SetColumnWidth(list, display, width);
+                ListView_SetColumnWidth(list, display, CalcListViewColumnFitWidth(list, static_cast<int>(i), set->items[i].width));
             }
             else
             {
                 ListView_SetColumnWidth(list, display, LVSCW_AUTOSIZE_USEHEADER);
-                width = ListView_GetColumnWidth(list, display);
             }
-            widths[i] = width;
+            set->widths[i] = ListView_GetColumnWidth(list, display);
         }
     }
     else if (command >= cmd::kHeaderToggleBase)
     {
-        const int index = command - cmd::kHeaderToggleBase;
-        if (index < 0 || static_cast<size_t>(index) >= columns.size() || index == unavailable_column)
+        const size_t index = static_cast<size_t>(command - cmd::kHeaderToggleBase);
+        if (index >= set->items.size() || index >= set->visible.size() || static_cast<int>(index) == unavailable_column)
         {
             return;
         }
-        const bool show = !(static_cast<size_t>(index) < visible.size() && visible[static_cast<size_t>(index)]);
-        if (list == browse_.values().hwnd())
+        if (set->visible[index])
         {
-            ToggleValueColumn(index, show);
+            const int display = FindListViewColumnBySubItem(list, static_cast<int>(index));
+            const int width = display >= 0 ? ListView_GetColumnWidth(list, display) : 0;
+            set->widths[index] = width > 0 ? width : set->widths[index];
         }
-        else if (list == history_list_)
+        else if (set->widths[index] <= 0)
         {
-            ToggleHistoryColumn(index, show);
+            set->widths[index] = set->items[index].width;
         }
-        else if (list == search_results_list_)
-        {
-            ToggleSearchColumn(index, show);
-        }
+        set->visible[index] = !set->visible[index];
+        ApplyColumns(list);
     }
 
     if (list == browse_.values().hwnd() && command != 0)
     {
         SaveSettings();
     }
-}
-
-void MainWindow::Impl::ShowValueHeaderMenu(POINT screen_pt)
-{
-    ShowHeaderMenu(browse_.values().hwnd(), browse_.columns().items, browse_.columns().widths, browse_.columns().visible, screen_pt);
-}
-
-void MainWindow::Impl::ShowHistoryHeaderMenu(POINT screen_pt)
-{
-    ShowHeaderMenu(history_list_, history_columns_, history_column_widths_, history_column_visible_, screen_pt);
-}
-
-void MainWindow::Impl::ShowSearchHeaderMenu(POINT screen_pt)
-{
-    const bool compare = IsCompareTabSelected();
-    auto& columns = compare ? compare_columns_ : search_columns_;
-    auto& widths = compare ? compare_column_widths_ : search_column_widths_;
-    auto& visible = compare ? compare_column_visible_ : search_column_visible_;
-    ShowHeaderMenu(search_results_list_, columns, widths, visible, screen_pt, compare && !IsCompareResultColumnAvailable() ? 4 : -1);
-}
-
-void MainWindow::Impl::ToggleValueColumn(int column, bool visible)
-{
-    if (column < 0 || static_cast<size_t>(column) >= browse_.columns().visible.size())
-    {
-        return;
-    }
-    if (visible == browse_.columns().visible[static_cast<size_t>(column)])
-    {
-        return;
-    }
-
-    if (visible)
-    {
-        int width = browse_.columns().widths[static_cast<size_t>(column)];
-        if (width <= 0)
-        {
-            width = browse_.columns().items[static_cast<size_t>(column)].width;
-        }
-        browse_.columns().visible[static_cast<size_t>(column)] = true;
-        browse_.columns().widths[static_cast<size_t>(column)] = width;
-    }
-    else
-    {
-        int display_index = FindListViewColumnBySubItem(browse_.values().hwnd(), column);
-        int width = display_index >= 0 ? ListView_GetColumnWidth(browse_.values().hwnd(), display_index)
-                                       : browse_.columns().widths[static_cast<size_t>(column)];
-        if (width > 0)
-        {
-            browse_.columns().widths[static_cast<size_t>(column)] = width;
-        }
-        browse_.columns().visible[static_cast<size_t>(column)] = false;
-    }
-    ApplyValueColumns();
-}
-
-void MainWindow::Impl::ToggleHistoryColumn(int column, bool visible)
-{
-    if (column < 0 || static_cast<size_t>(column) >= history_column_visible_.size())
-    {
-        return;
-    }
-    if (visible == history_column_visible_[static_cast<size_t>(column)])
-    {
-        return;
-    }
-
-    if (visible)
-    {
-        int width = history_column_widths_[static_cast<size_t>(column)];
-        if (width <= 0)
-        {
-            width = history_columns_[static_cast<size_t>(column)].width;
-        }
-        history_column_visible_[static_cast<size_t>(column)] = true;
-        history_column_widths_[static_cast<size_t>(column)] = width;
-    }
-    else
-    {
-        int display_index = FindListViewColumnBySubItem(history_list_, column);
-        int width = display_index >= 0 ? ListView_GetColumnWidth(history_list_, display_index)
-                                       : history_column_widths_[static_cast<size_t>(column)];
-        if (width > 0)
-        {
-            history_column_widths_[static_cast<size_t>(column)] = width;
-        }
-        history_column_visible_[static_cast<size_t>(column)] = false;
-    }
-    ApplyHistoryColumns();
-}
-
-void MainWindow::Impl::ToggleSearchColumn(int column, bool visible)
-{
-    bool compare = IsCompareTabSelected();
-    auto& columns = compare ? compare_columns_ : search_columns_;
-    auto& widths = compare ? compare_column_widths_ : search_column_widths_;
-    auto& visibility = compare ? compare_column_visible_ : search_column_visible_;
-    if (column < 0 || static_cast<size_t>(column) >= visibility.size() || static_cast<size_t>(column) >= columns.size())
-    {
-        return;
-    }
-    if (visible == visibility[static_cast<size_t>(column)])
-    {
-        return;
-    }
-
-    if (visible)
-    {
-        int width = widths[static_cast<size_t>(column)];
-        if (width <= 0)
-        {
-            width = columns[static_cast<size_t>(column)].width;
-        }
-        visibility[static_cast<size_t>(column)] = true;
-        widths[static_cast<size_t>(column)] = width;
-    }
-    else
-    {
-        int display_index = FindListViewColumnBySubItem(search_results_list_, column);
-        int width = display_index >= 0 ? ListView_GetColumnWidth(search_results_list_, display_index)
-                                       : widths[static_cast<size_t>(column)];
-        if (width > 0)
-        {
-            widths[static_cast<size_t>(column)] = width;
-        }
-        visibility[static_cast<size_t>(column)] = false;
-    }
-    ApplySearchColumns(compare);
 }
 
 } // namespace regkit

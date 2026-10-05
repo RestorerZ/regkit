@@ -7,6 +7,7 @@
 #include "regfile/registry_transfer.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
+#include "trace/trace_paths.h"
 
 namespace regkit
 {
@@ -217,94 +218,56 @@ std::optional<LRESULT> MainWindow::Impl::HandleLayoutInputMessage(UINT message, 
     {
     case WM_LBUTTONDOWN:
         {
-            POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-            if (show_tree_ && PtInRect(&splitter_rect_, pt))
+            const POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+            const int width = content_rect_.right - content_rect_.left;
+            const int height = content_rect_.bottom - content_rect_.top;
+            if (tree_splitter_.Hit(pt))
             {
-                splitter_start_x_ = pt.x;
-                splitter_start_width_ = tree_width_;
-                BeginSplitterDrag();
+                tree_splitter_.Begin(hwnd_, pt, settings_.tree_width, kMinTreeWidth, width - kMinValueListWidth - kSplitterWidth);
                 return 0;
             }
-            if (show_history_ && PtInRect(&history_splitter_rect_, pt))
+            if (history_splitter_.Hit(pt))
             {
-                history_splitter_start_y_ = pt.y;
-                history_splitter_start_height_ = history_height_;
-                BeginHistorySplitterDrag();
+                history_splitter_.Begin(hwnd_, pt, settings_.history_height, kMinHistoryHeight, height - kHistoryMaxPadding);
                 return 0;
             }
             break;
         }
     case WM_LBUTTONUP:
-        if (splitter_dragging_)
+    case WM_CAPTURECHANGED:
+        if (tree_splitter_.End(hwnd_) || history_splitter_.End(hwnd_))
         {
-            EndSplitterDrag();
-            return 0;
-        }
-        if (history_splitter_dragging_)
-        {
-            EndHistorySplitterDrag();
+            RECT rect = {};
+            GetClientRect(hwnd_, &rect);
+            LayoutControls(rect.right, rect.bottom);
             return 0;
         }
         break;
     case WM_MOUSEMOVE:
         {
-            if (splitter_dragging_)
+            const POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+            if (tree_splitter_.dragging())
             {
-                POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-                UpdateSplitterTrack(pt.x);
+                DragSplitter(&tree_splitter_, &settings_.tree_width, pt);
                 return 0;
             }
-            if (history_splitter_dragging_)
+            if (history_splitter_.dragging())
             {
-                POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-                UpdateHistorySplitterTrack(pt.y);
+                DragSplitter(&history_splitter_, &settings_.history_height, pt);
                 return 0;
             }
             break;
         }
-    case WM_CAPTURECHANGED:
-        if (splitter_dragging_)
-        {
-            EndSplitterDrag();
-            return 0;
-        }
-        if (history_splitter_dragging_)
-        {
-            EndHistorySplitterDrag();
-            return 0;
-        }
-        break;
     case WM_SETCURSOR:
         {
-            if (splitter_dragging_)
+            POINT pt = {};
+            GetCursorPos(&pt);
+            ScreenToClient(hwnd_, &pt);
+            for (const ui::Splitter* splitter : {&tree_splitter_, &history_splitter_})
             {
-                SetCursor(LoadCursorW(nullptr, IDC_SIZEWE));
-                return TRUE;
-            }
-            if (history_splitter_dragging_)
-            {
-                SetCursor(LoadCursorW(nullptr, IDC_SIZENS));
-                return TRUE;
-            }
-            if (show_tree_)
-            {
-                POINT pt = {};
-                GetCursorPos(&pt);
-                ScreenToClient(hwnd_, &pt);
-                if (PtInRect(&splitter_rect_, pt))
+                if (splitter->dragging() || splitter->Hit(pt))
                 {
-                    SetCursor(LoadCursorW(nullptr, IDC_SIZEWE));
-                    return TRUE;
-                }
-            }
-            if (show_history_)
-            {
-                POINT pt = {};
-                GetCursorPos(&pt);
-                ScreenToClient(hwnd_, &pt);
-                if (PtInRect(&history_splitter_rect_, pt))
-                {
-                    SetCursor(LoadCursorW(nullptr, IDC_SIZENS));
+                    SetCursor(splitter->Cursor());
                     return TRUE;
                 }
             }
@@ -499,7 +462,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
         }
     case frame::message_id::kSearchPreviewReady:
         {
-            auto* raw = reinterpret_cast<SearchPreviewPayload*>(lparam);
+            auto* raw = work::PayloadFrom<SearchPreviewPayload>(lparam);
             if (!raw)
             {
                 return 0;
@@ -555,7 +518,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
         }
     case frame::message_id::kSearchSortReady:
         {
-            auto* raw = reinterpret_cast<SearchSortPayload*>(lparam);
+            auto* raw = work::PayloadFrom<SearchSortPayload>(lparam);
             if (!raw)
             {
                 return 0;
@@ -578,7 +541,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
             return 0;
         }
     case frame::message_id::kSearchTabLoadReady:
-        ApplySearchTabLoad(reinterpret_cast<SearchTabLoadPayload*>(lparam));
+        ApplySearchTabLoad(work::PayloadFrom<SearchTabLoadPayload>(lparam));
         return 0;
     case frame::message_id::kSearchProgress:
         {
@@ -610,7 +573,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
             return 0;
         }
     case frame::message_id::kReplaceReady:
-        ApplyReplacePayload(reinterpret_cast<ReplacePayload*>(lparam));
+        ApplyReplacePayload(work::PayloadFrom<ReplacePayload>(lparam));
         return 0;
     default:
         return std::nullopt;
@@ -630,7 +593,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleLoadWorkerMessage(UINT message, W
         return 0;
     case frame::message_id::kTraceLoadReady:
         {
-            auto* payload = reinterpret_cast<TraceLoadPayload*>(lparam);
+            auto* payload = work::PayloadFrom<TraceLoadPayload>(lparam);
             if (!payload)
             {
                 return 0;
@@ -650,7 +613,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleLoadWorkerMessage(UINT message, W
         }
     case frame::message_id::kDefaultLoadReady:
         {
-            auto* payload = reinterpret_cast<DefaultLoadPayload*>(lparam);
+            auto* payload = work::PayloadFrom<DefaultLoadPayload>(lparam);
             if (!payload)
             {
                 return 0;
@@ -670,11 +633,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleLoadWorkerMessage(UINT message, W
         RunDeferredStartup();
         return 0;
     case frame::message_id::kStartupCacheReady:
-        ApplyStartupCachePayload(reinterpret_cast<StartupCachePayload*>(lparam));
+        ApplyStartupCachePayload(work::PayloadFrom<StartupCachePayload>(lparam));
         return 0;
     case frame::message_id::kUpdateCheckReady:
         {
-            std::unique_ptr<frame::UpdateCheckPayload> payload(reinterpret_cast<frame::UpdateCheckPayload*>(lparam));
+            std::unique_ptr<frame::UpdateCheckPayload> payload(work::PayloadFrom<frame::UpdateCheckPayload>(lparam));
             updates_.Apply(payload.get());
             return 0;
         }
@@ -690,7 +653,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleRegFileWorkerMessage(UINT message
     {
     case frame::message_id::kRegFileLoadReady:
         {
-            auto* payload = reinterpret_cast<RegFileParsePayload*>(lparam);
+            auto* payload = work::PayloadFrom<RegFileParsePayload>(lparam);
             if (!payload)
             {
                 return 0;
@@ -784,7 +747,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleTraceWorkerMessage(UINT message, 
     {
     case frame::message_id::kTraceParseBatch:
         {
-            auto* payload = reinterpret_cast<TraceParseBatch*>(lparam);
+            auto* payload = work::PayloadFrom<TraceParseBatch>(lparam);
             if (!payload)
             {
                 return 0;
@@ -891,7 +854,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleDefaultWorkerMessage(UINT message
     {
     case frame::message_id::kDefaultParseBatch:
         {
-            auto* payload = reinterpret_cast<DefaultParseBatch*>(lparam);
+            auto* payload = work::PayloadFrom<DefaultParseBatch>(lparam);
             if (!payload)
             {
                 return 0;
@@ -911,7 +874,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleDefaultWorkerMessage(UINT message
             if (browse_.current_node())
             {
                 std::wstring path = registry_path::Build(*browse_.current_node());
-                std::wstring normalized = NormalizeTraceKeyPathBasic(path);
+                std::wstring normalized = trace::NormalizeKeyPathBasic(path);
                 if (normalized.empty())
                 {
                     normalized = path;
@@ -1001,7 +964,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message, 
         }
     case frame::message_id::kValuePreviewReady:
         {
-            auto* raw = reinterpret_cast<ValuePreviewPayload*>(lparam);
+            auto* raw = work::PayloadFrom<ValuePreviewPayload>(lparam);
             if (!raw)
             {
                 return 0;
@@ -1063,7 +1026,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message, 
         }
     case frame::message_id::kValueListReady:
         {
-            auto* payload = reinterpret_cast<ValueListPayload*>(lparam);
+            auto* payload = work::PayloadFrom<ValueListPayload>(lparam);
             if (!payload)
             {
                 return 0;
@@ -1367,7 +1330,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
             HMENU menu = reinterpret_cast<HMENU>(wparam);
             RefreshStorageMenuState(menu);
             FillBitfieldMenu(menu);
-            CheckMenuItem(menu, cmd::kViewGridLines, MF_BYCOMMAND | (show_value_grid_ ? MF_CHECKED : MF_UNCHECKED));
+            CheckMenuItem(menu, cmd::kViewGridLines, MF_BYCOMMAND | (settings_.show_value_grid ? MF_CHECKED : MF_UNCHECKED));
             UINT state = browse_.current_node() ? MF_ENABLED : MF_GRAYED;
             EnableMenuItem(menu, cmd::kEditPermissions, MF_BYCOMMAND | state);
             EnableMenuItem(menu, cmd::kEditKeyInfo, MF_BYCOMMAND | state);
@@ -1377,7 +1340,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
             const ListRow* selected_row = selected_index >= 0 ? browse_.values().RowAt(selected_index) : nullptr;
             const bool can_open_value = selected_row && selected_row->kind == rowkind::kValue && !selected_row->simulated;
             const UINT open_state = can_open_value ? MF_ENABLED : MF_GRAYED;
-            const UINT data_state = can_open_value && selected_row->type != L"TRACE" ? MF_ENABLED : MF_GRAYED;
+            const UINT data_state = can_open_value && !selected_row->trace_only ? MF_ENABLED : MF_GRAYED;
             EnableMenuItem(menu, cmd::kEditModify, MF_BYCOMMAND | open_state);
             EnableMenuItem(menu, cmd::kEditModifyBinary, MF_BYCOMMAND | open_state);
             EnableMenuItem(menu, cmd::kEditChangeType, MF_BYCOMMAND | data_state);
@@ -1387,7 +1350,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
             EnableMenuItem(menu, cmd::kEditCopyValueName, MF_BYCOMMAND | open_state);
             EnableMenuItem(menu, cmd::kEditCopyValueData, MF_BYCOMMAND | data_state);
             RefreshResetDefaultMenu(menu);
-            const bool hives_allowed = !read_only_ && registry_mode_ != RegistryMode::kRemote;
+            const bool hives_allowed = !settings_.read_only && session_->mode != RegistryMode::kRemote;
             const RegistryNode* hive_node = browse_.current_node();
             const bool hive_selected = hives_allowed && hive_node && IsMountedHive(hive_node->root, hive_node->subkey);
             EnableMenuItem(menu, cmd::kFileLoadHive, MF_BYCOMMAND | (hives_allowed ? MF_ENABLED : MF_GRAYED));
@@ -1425,24 +1388,9 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
                 OnDrawMenuItem(draw);
                 return TRUE;
             }
-            if (draw && draw->CtlType == ODT_BUTTON && draw->CtlID == kAddressGoId)
+            if (draw && draw->CtlType == ODT_BUTTON)
             {
-                DrawAddressButton(draw);
-                return TRUE;
-            }
-            if (draw && draw->CtlType == ODT_BUTTON && draw->CtlID == kTreeHeaderCloseId)
-            {
-                DrawHeaderCloseButton(draw);
-                return TRUE;
-            }
-            if (draw && draw->CtlType == ODT_BUTTON && draw->CtlID == kFilterClearId)
-            {
-                DrawFilterClearButton(draw);
-                return TRUE;
-            }
-            if (draw && draw->CtlType == ODT_BUTTON && draw->CtlID == kHistoryHeaderCloseId)
-            {
-                DrawHeaderCloseButton(draw);
+                DrawPanelButton(draw);
                 return TRUE;
             }
             if (draw && draw->CtlType == ODT_STATIC && (draw->CtlID == kTreeHeaderId || draw->CtlID == kHistoryLabelId))
@@ -1498,14 +1446,14 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message, WPARA
         {
             if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == kTreeHeaderCloseId)
             {
-                show_tree_ = false;
+                settings_.show_tree = false;
                 ApplyViewVisibility();
                 BuildMenus();
                 return 0;
             }
             if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == kHistoryHeaderCloseId)
             {
-                show_history_ = false;
+                settings_.show_history = false;
                 SaveSettings();
                 ApplyViewVisibility();
                 BuildMenus();

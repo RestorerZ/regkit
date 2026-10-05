@@ -10,28 +10,29 @@ namespace regkit
 
 using namespace window_detail;
 
+void MainWindow::Impl::UpdateUndoButtons()
+{
+    if (toolbar_.hwnd())
+    {
+        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, !settings_.read_only && session_->undo.CanUndo() ? TBSTATE_ENABLED : 0);
+        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, !settings_.read_only && session_->undo.CanRedo() ? TBSTATE_ENABLED : 0);
+    }
+}
+
 void MainWindow::Impl::PushUndo(changes::UndoOperation operation)
 {
     if (is_replaying_)
     {
         return;
     }
-    undo_stack_.Push(std::move(operation));
-    if (toolbar_.hwnd())
-    {
-        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
-        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, 0);
-    }
+    session_->undo.Push(std::move(operation));
+    UpdateUndoButtons();
 }
 
 void MainWindow::Impl::ClearRedo()
 {
-    undo_stack_.ClearRedo();
-    if (toolbar_.hwnd())
-    {
-        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
-        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, 0);
-    }
+    session_->undo.ClearRedo();
+    UpdateUndoButtons();
 }
 
 MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(const changes::UndoOperation& operation, bool redo)
@@ -186,11 +187,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(const change
         ui::ShowError(hwnd_, util::Tr(L"The value was copied to the new name but the old name "
                                       L"couldn't be removed. Both names now exist."));
     }
-    if (toolbar_.hwnd())
-    {
-        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
-        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, undo_stack_.CanRedo() ? TBSTATE_ENABLED : 0);
-    }
+    UpdateUndoButtons();
     if (rename_left_both_names)
     {
         return ReplayResult::kPartial;

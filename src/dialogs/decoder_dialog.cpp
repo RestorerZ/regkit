@@ -1,15 +1,15 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "editors/decoder_dialog.h"
+#include "dialogs/decoder_dialog.h"
 
-#include "appearance/dialog_layout.h"
-#include "appearance/feedback.h"
-#include "editors/binary_text.h"
-#include "editors/dialog_support.h"
+#include "dialogs/binary_text.h"
 #include "registry/registry_path.h"
 #include "registry/value_decoder.h"
 #include "registry/value_format.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_support.h"
+#include "ui/feedback.h"
 
 #include "resource.h"
 #include "win32/text_transform.h"

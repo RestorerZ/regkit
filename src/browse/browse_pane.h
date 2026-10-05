@@ -5,7 +5,7 @@
 
 #include "browse/key_tree.h"
 #include "browse/value_table.h"
-#include "frame/commands/command_ids.h"
+#include "ui/column_set.h"
 
 #include <windows.h>
 
@@ -38,11 +38,8 @@ struct CreateRequest
     DWORD_PTR callback_context = 0;
 };
 
-struct ColumnState
+struct ColumnState : ui::ColumnSet
 {
-    std::vector<ColumnInfo> items;
-    std::vector<int> widths;
-    std::vector<bool> visible;
     std::vector<int> saved_widths;
     std::vector<bool> saved_visible;
     bool saved = false;

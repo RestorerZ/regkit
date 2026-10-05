@@ -16,6 +16,14 @@
 namespace regkit::value_format
 {
 
+struct TypeLabel
+{
+    DWORD type;
+    const wchar_t* name;
+};
+
+// the standard value types in the order type pickers list them
+std::span<const TypeLabel> TypeLabels();
 DWORD NormalizeType(DWORD type);
 std::wstring TypeName(DWORD type);
 std::wstring ByteCount(size_t size);

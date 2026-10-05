@@ -20,25 +20,19 @@ namespace regkit::value_format
 namespace
 {
 
-struct TypeLabel
-{
-    DWORD type;
-    const wchar_t* name;
-};
-
 constexpr TypeLabel kTypeLabels[] = {
-    {REG_NONE, L"REG_NONE"},
     {REG_SZ, L"REG_SZ"},
     {REG_EXPAND_SZ, L"REG_EXPAND_SZ"},
     {REG_MULTI_SZ, L"REG_MULTI_SZ"},
+    {REG_LINK, L"REG_LINK"},
     {REG_DWORD, L"REG_DWORD"},
+    {REG_DWORD_BIG_ENDIAN, L"REG_DWORD_BIG_ENDIAN"},
     {REG_QWORD, L"REG_QWORD"},
     {REG_BINARY, L"REG_BINARY"},
     {REG_RESOURCE_LIST, L"REG_RESOURCE_LIST"},
     {REG_FULL_RESOURCE_DESCRIPTOR, L"REG_FULL_RESOURCE_DESCRIPTOR"},
     {REG_RESOURCE_REQUIREMENTS_LIST, L"REG_RESOURCE_REQUIREMENTS_LIST"},
-    {REG_LINK, L"REG_LINK"},
-    {REG_DWORD_BIG_ENDIAN, L"REG_DWORD_BIG_ENDIAN"},
+    {REG_NONE, L"REG_NONE"},
 };
 
 const TypeLabel* FindTypeLabel(DWORD type)
@@ -54,6 +48,11 @@ const TypeLabel* FindTypeLabel(DWORD type)
 }
 
 } // namespace
+
+std::span<const TypeLabel> TypeLabels()
+{
+    return kTypeLabels;
+}
 
 DWORD NormalizeType(DWORD type)
 {

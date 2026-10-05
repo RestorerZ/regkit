@@ -31,23 +31,23 @@
 #include <windowsx.h>
 #include <winternl.h>
 
-#include "appearance/default_font.h"
-#include "appearance/feedback.h"
-#include "appearance/gdi_cache.h"
-#include "appearance/icon_loader.h"
+#include "ui/default_font.h"
+#include "ui/feedback.h"
+#include "ui/gdi_cache.h"
+#include "ui/icon_loader.h"
 #include "defaults/default_loader.h"
-#include "editors/comment_editor.h"
-#include "editors/value_editor.h"
+#include "dialogs/comment_editor.h"
+#include "dialogs/value_editor.h"
 #include "frame/commands/command_ids.h"
 #include "browse/value_table.h"
-#include "trace/trace_dialog.h"
+#include "dialogs/trace_dialog.h"
 #include "work/session.h"
 #include "frame/window/message_dispatch.h"
 #include "frame/window/message_ids.h"
 #include "regfile/reg_file.h"
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
-#include "registry/security_dialog.h"
+#include "dialogs/security_dialog.h"
 #include "registry/value_format.h"
 #include "resource.h"
 #include "search/result_file.h"
@@ -122,7 +122,6 @@ using frame::message_id::kEditRegFileCopyDataId;
 using frame::message_id::kExternalJumpCopyDataId;
 using frame::message_id::kExternalMessageMaxBytes;
 constexpr UINT_PTR kAddressSubclassId = 1;
-constexpr UINT_PTR kTabSubclassId = 2;
 constexpr UINT_PTR kListViewSubclassId = 4;
 constexpr UINT_PTR kTreeViewSubclassId = 5;
 constexpr UINT_PTR kFilterSubclassId = 8;
@@ -150,11 +149,6 @@ constexpr int kTraceIconIndex = 9;
 constexpr int kLocalRegistryIconIndex = 9;
 constexpr int kHeaderTextPadding = 6;
 constexpr int kTabMinWidth = 90;
-constexpr int kTabInsetX = 2;
-constexpr int kTabInsetY = 2;
-constexpr int kTabTextPaddingX = 10;
-constexpr int kTabCloseSize = 14;
-constexpr int kTabCloseGap = 6;
 constexpr int kSplitterWidth = 6;
 constexpr int kHistorySplitterHeight = 4;
 constexpr int kMinTreeWidth = 160;
@@ -204,15 +198,11 @@ struct ValueListPayload : work::MoveOnly
 };
 
 std::wstring NormalizeTraceKeyPathBasic(const std::wstring& text);
-std::wstring ResolveRegistryLinkPath(const std::wstring& path);
 
 bool GetChildRectInParent(HWND parent, HWND child, RECT* rect);
 
-RECT AdjustTabDrawRect(const RECT& item_rect, int header_bottom, bool selected);
 
-bool CalcTabCloseRect(const RECT& tab_rect, RECT* close_rect);
 
-void DrawCloseGlyph(HDC hdc, const RECT& rect, COLORREF color, UINT dpi);
 
 int MappedSubItem(const std::vector<int>& map, int display_index);
 

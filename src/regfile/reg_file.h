@@ -4,6 +4,7 @@
 #pragma once
 
 #include "registry/registry_value.h"
+#include "registry/virtual_registry.h"
 #include "win32/windows_config.h"
 
 #include <windows.h>
@@ -71,5 +72,14 @@ bool ParseOperations(std::wstring_view content, std::vector<Operation>* output, 
 bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr, std::wstring* error = nullptr);
 bool Load(const std::wstring& path, Document* output, std::wstring* error, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr);
 std::wstring RenderReg(const std::vector<Operation>& operations);
+
+struct VirtualRoot
+{
+    std::wstring name;
+    std::shared_ptr<VirtualRegistryData> data;
+};
+
+// a .reg file as one virtual registry per root key it writes to
+bool LoadVirtualRoots(const std::wstring& path, std::vector<VirtualRoot>* roots, std::wstring* error, const std::atomic_bool* cancel, bool* cancelled);
 
 } // namespace regkit::regfile

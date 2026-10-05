@@ -6,6 +6,7 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 #include "win32/translation.h"
+#include "trace/trace_paths.h"
 
 namespace regkit
 {
@@ -54,7 +55,7 @@ void MainWindow::Impl::BuildImageLists()
 
 void MainWindow::Impl::CreateValueColumns()
 {
-    browse_.columns().items = {
+    browse_.columns().Reset({
         {util::Tr(L"Name"), 260, LVCFMT_LEFT},
         {util::Tr(L"Type"), 120, LVCFMT_LEFT},
         {util::Tr(L"Data"), 160, LVCFMT_LEFT},
@@ -64,16 +65,7 @@ void MainWindow::Impl::CreateValueColumns()
         {util::Tr(L"Date Modified"), 140, LVCFMT_LEFT},
         {util::Tr(L"Details"), 160, LVCFMT_LEFT},
         {util::Tr(L"Comment"), 220, LVCFMT_LEFT},
-    };
-    browse_.columns().widths.clear();
-    browse_.columns().visible.clear();
-    browse_.columns().widths.reserve(browse_.columns().items.size());
-    browse_.columns().visible.reserve(browse_.columns().items.size());
-    for (const auto& column : browse_.columns().items)
-    {
-        browse_.columns().widths.push_back(column.width);
-        browse_.columns().visible.push_back(true);
-    }
+    });
     if (browse_.columns().saved)
     {
         auto patch_widths = [&](std::vector<int>& widths) {
@@ -144,28 +136,19 @@ void MainWindow::Impl::CreateValueColumns()
 
 void MainWindow::Impl::CreateHistoryColumns()
 {
-    history_columns_ = {
+    history_columns_.Reset({
         {util::Tr(L"Time"), 140, LVCFMT_LEFT},
         {util::Tr(L"Action"), 280, LVCFMT_LEFT},
         {util::Tr(L"Old Data"), 220, LVCFMT_LEFT},
         {util::Tr(L"New Data"), 220, LVCFMT_LEFT},
-    };
-    history_column_widths_.clear();
-    history_column_visible_.clear();
-    history_column_widths_.reserve(history_columns_.size());
-    history_column_visible_.reserve(history_columns_.size());
-    for (const auto& column : history_columns_)
-    {
-        history_column_widths_.push_back(column.width);
-        history_column_visible_.push_back(true);
-    }
+    });
     ApplyHistoryColumns();
 }
 
 namespace
 {
 
-void RebuildListColumns(HWND list, const std::vector<ColumnInfo>& columns, const std::vector<int>& widths, const std::vector<bool>& visible, std::vector<int>* subitems, const std::function<bool(size_t)>& skip = nullptr)
+void RebuildListColumns(HWND list, const ui::ColumnSet& set, std::vector<int>* subitems, const std::function<bool(size_t)>& skip = nullptr)
 {
     HWND header = ListView_GetHeader(list);
     SendMessageW(list, WM_SETREDRAW, FALSE, 0);
@@ -182,17 +165,17 @@ void RebuildListColumns(HWND list, const std::vector<ColumnInfo>& columns, const
         subitems->clear();
     }
     int insert_index = 0;
-    for (size_t i = 0; i < columns.size(); ++i)
+    for (size_t i = 0; i < set.items.size(); ++i)
     {
-        if ((i < visible.size() && !visible[i]) || (skip && skip(i)))
+        if ((i < set.visible.size() && !set.visible[i]) || (skip && skip(i)))
         {
             continue;
         }
         LVCOLUMNW col = {};
         col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_FMT | LVCF_SUBITEM;
-        col.pszText = const_cast<wchar_t*>(columns[i].title.c_str());
-        col.cx = i < widths.size() && widths[i] > 0 ? widths[i] : columns[i].width;
-        col.fmt = columns[i].fmt;
+        col.pszText = const_cast<wchar_t*>(set.items[i].title.c_str());
+        col.cx = i < set.widths.size() && set.widths[i] > 0 ? set.widths[i] : set.items[i].width;
+        col.fmt = set.items[i].fmt;
         col.iSubItem = static_cast<int>(i);
         ListView_InsertColumn(list, insert_index++, &col);
         if (subitems)
@@ -221,7 +204,7 @@ void MainWindow::Impl::ApplyValueColumns()
     {
         return;
     }
-    RebuildListColumns(list, browse_.columns().items, browse_.columns().widths, browse_.columns().visible, &value_column_subitems_);
+    RebuildListColumns(list, browse_.columns(), &value_column_subitems_);
 
     HWND header = ListView_GetHeader(list);
     if (header)
@@ -249,7 +232,7 @@ void MainWindow::Impl::ApplyHistoryColumns()
     {
         return;
     }
-    RebuildListColumns(history_list_, history_columns_, history_column_widths_, history_column_visible_, nullptr);
+    RebuildListColumns(history_list_, history_columns_, nullptr);
     appearance::UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
     AttachHeader(ListView_GetHeader(history_list_));
     FinishListColumns(history_list_);
@@ -261,7 +244,7 @@ void MainWindow::Impl::CreateSearchColumns()
     {
         return;
     }
-    search_columns_ = {
+    search_columns_.Reset({
         {util::Tr(L"Path"), 320, LVCFMT_LEFT},
         {util::Tr(L"Value"), 180, LVCFMT_LEFT},
         {util::Tr(L"Type"), 110, LVCFMT_LEFT},
@@ -269,33 +252,15 @@ void MainWindow::Impl::CreateSearchColumns()
         {util::Tr(L"Size"), 80, LVCFMT_RIGHT},
         {util::Tr(L"Date Modified"), 150, LVCFMT_LEFT},
         {util::Tr(L"Source"), 190, LVCFMT_LEFT},
-    };
-    search_column_widths_.clear();
-    search_column_visible_.clear();
-    search_column_widths_.reserve(search_columns_.size());
-    search_column_visible_.reserve(search_columns_.size());
-    for (const auto& column : search_columns_)
-    {
-        search_column_widths_.push_back(column.width);
-        search_column_visible_.push_back(true);
-    }
-    compare_columns_ = {
+    });
+    compare_columns_.Reset({
         {util::Tr(L"Path"), 320, LVCFMT_LEFT},
         {util::Tr(L"Value"), 180, LVCFMT_LEFT},
         {util::Tr(L"First Entry"), 320, LVCFMT_LEFT},
         {util::Tr(L"Second Entry"), 320, LVCFMT_LEFT},
         {util::Tr(L"Result"), 90, LVCFMT_LEFT},
-    };
-    compare_column_titles_ = {compare_columns_[2].title, compare_columns_[3].title};
-    compare_column_widths_.clear();
-    compare_column_visible_.clear();
-    compare_column_widths_.reserve(compare_columns_.size());
-    compare_column_visible_.reserve(compare_columns_.size());
-    for (const auto& column : compare_columns_)
-    {
-        compare_column_widths_.push_back(column.width);
-        compare_column_visible_.push_back(true);
-    }
+    });
+    compare_column_titles_ = {compare_columns_.items[2].title, compare_columns_.items[3].title};
     ApplySearchColumns(false);
     HWND header = ListView_GetHeader(search_results_list_);
     AttachHeader(header);
@@ -303,7 +268,7 @@ void MainWindow::Impl::CreateSearchColumns()
 
 void MainWindow::Impl::RefreshCompareColumnTitles()
 {
-    if (compare_columns_.size() < 4 || compare_column_titles_.size() < 2)
+    if (compare_columns_.items.size() < 4 || compare_column_titles_.size() < 2)
     {
         return;
     }
@@ -318,7 +283,7 @@ void MainWindow::Impl::RefreshCompareColumnTitles()
         {
             title += L" (" + search::SourceLabel(tab->sources[side]) + L")";
         }
-        compare_columns_[side + 2].title = std::move(title);
+        compare_columns_.items[side + 2].title = std::move(title);
     }
     if (!compare_columns_active_ || !search_results_list_)
     {
@@ -333,7 +298,7 @@ void MainWindow::Impl::RefreshCompareColumnTitles()
         }
         LVCOLUMNW column = {};
         column.mask = LVCF_TEXT;
-        column.pszText = const_cast<wchar_t*>(compare_columns_[static_cast<size_t>(logical)].title.c_str());
+        column.pszText = const_cast<wchar_t*>(compare_columns_.items[static_cast<size_t>(logical)].title.c_str());
         ListView_SetColumn(search_results_list_, static_cast<int>(display), &column);
     }
 }
@@ -348,11 +313,8 @@ void MainWindow::Impl::ApplySearchColumns(bool compare)
     {
         RefreshCompareColumnTitles();
     }
-    const auto& columns = compare ? compare_columns_ : search_columns_;
-    auto& widths = compare ? compare_column_widths_ : search_column_widths_;
-    auto& visible = compare ? compare_column_visible_ : search_column_visible_;
     const bool result_available = compare && IsCompareResultColumnAvailable();
-    RebuildListColumns(search_results_list_, columns, widths, visible, &search_column_subitems_, [&](size_t index) { return compare && index == 4 && !result_available; });
+    RebuildListColumns(search_results_list_, compare ? compare_columns_ : search_columns_, &search_column_subitems_, [&](size_t index) { return compare && index == 4 && !result_available; });
     AttachHeader(ListView_GetHeader(search_results_list_));
     FinishListColumns(search_results_list_);
     compare_columns_active_ = compare;
@@ -362,10 +324,10 @@ void MainWindow::Impl::ApplySearchColumns(bool compare)
 void MainWindow::Impl::WatchCurrentKey()
 {
     const RegistryNode* node = browse_.current_node();
-    const bool live = node && registry_mode_ == RegistryMode::kLocal && !node->simulated && !RegistryStore::IsVirtualRoot(node->root) &&
+    const bool live = node && session_->mode == RegistryMode::kLocal && !node->simulated && !RegistryStore::IsVirtualRoot(node->root) &&
                       !RegistryStore::IsOfflineRoot(node->root) && node->root != HKEY_PERFORMANCE_DATA && node->root != HKEY_PERFORMANCE_TEXT &&
                       node->root != HKEY_PERFORMANCE_NLSTEXT;
-    if (auto_refresh_ && live)
+    if (settings_.auto_refresh && live)
     {
         key_watcher_.Watch(hwnd_, frame::message_id::kRegistryChanged, node->root, node->subkey);
     }
@@ -468,13 +430,13 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
     RegistryNode snapshot = *node;
     std::wstring path = registry_path::Build(snapshot);
     RecordNavigation(path);
-    std::wstring trace_path = NormalizeTraceKeyPath(path);
+    std::wstring trace_path = trace::NormalizeKeyPath(path);
     if (trace_path.empty())
     {
         trace_path = path;
     }
     std::wstring trace_path_lower = ToLower(trace_path);
-    std::wstring default_path = NormalizeTraceKeyPathBasic(path);
+    std::wstring default_path = trace::NormalizeKeyPathBasic(path);
     if (default_path.empty())
     {
         default_path = path;
@@ -483,7 +445,7 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
     bool is_reg_file = IsRegFileTabSelected();
     auto trace_data_list = is_reg_file ? std::vector<ActiveTrace>() : active_traces_;
     auto default_data_list = is_reg_file ? std::vector<ActiveDefault>() : active_defaults_;
-    bool show_simulated_keys = show_simulated_keys_ && !is_reg_file;
+    bool show_simulated_keys = settings_.show_simulated_keys && !is_reg_file;
     constexpr size_t kDateColumn = static_cast<size_t>(kValueColDate);
     bool include_dates = (browse_.columns().sort_column == static_cast<int>(kDateColumn));
     if (kDateColumn < browse_.columns().visible.size() && browse_.columns().visible[kDateColumn])
@@ -508,7 +470,7 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
 
     int sort_column = browse_.columns().sort_column;
     bool sort_ascending = browse_.columns().sort_ascending;
-    bool show_keys_in_list = show_keys_in_list_;
+    bool show_keys_in_list = settings_.show_keys_in_list;
     if (show_keys_in_list)
     {
         EnsureHiveListLoaded();
@@ -548,7 +510,7 @@ void MainWindow::Impl::StartPendingValueListRename()
     {
         return;
     }
-    if (pending_value_list_kind_ == rowkind::kKey && !show_keys_in_list_)
+    if (pending_value_list_kind_ == rowkind::kKey && !settings_.show_keys_in_list)
     {
         pending_value_list_kind_ = 0;
         pending_value_list_name_.clear();
@@ -606,21 +568,7 @@ void MainWindow::Impl::AttachHeader(HWND header)
         hwnd_,
         list,
         command,
-        [](HWND target, POINT screen, void* context) {
-            auto* self = static_cast<MainWindow::Impl*>(context);
-            if (target == self->browse_.values().hwnd())
-            {
-                self->ShowValueHeaderMenu(screen);
-            }
-            else if (target == self->history_list_)
-            {
-                self->ShowHistoryHeaderMenu(screen);
-            }
-            else if (target == self->search_results_list_)
-            {
-                self->ShowSearchHeaderMenu(screen);
-            }
-        },
+        [](HWND target, POINT screen, void* context) { static_cast<MainWindow::Impl*>(context)->ShowHeaderMenu(target, screen); },
         this
     );
 }

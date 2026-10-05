@@ -1,11 +1,11 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "editors/fields_dialog.h"
+#include "dialogs/fields_dialog.h"
 
-#include "appearance/dialog_layout.h"
-#include "appearance/feedback.h"
-#include "editors/dialog_support.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_support.h"
+#include "ui/feedback.h"
 
 #include "resource.h"
 

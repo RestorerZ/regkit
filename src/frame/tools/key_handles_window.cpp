@@ -3,13 +3,13 @@
 
 #include "frame/tools/key_handles_window.h"
 
-#include "appearance/dialog_layout.h"
-#include "appearance/feedback.h"
-#include "appearance/list_view_support.h"
-#include "appearance/theme.h"
-#include "editors/dialog_support.h"
 #include "registry/registry_path.h"
 #include "resource.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_support.h"
+#include "ui/feedback.h"
+#include "ui/list_view_support.h"
+#include "ui/theme.h"
 #include "win32/key_handle_snapshot.h"
 #include "win32/process_rights.h"
 #include "win32/system_error.h"

@@ -1,9 +1,9 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "search/query_dialog.h"
+#include "dialogs/query_dialog.h"
 
-#include "search/query_prompts.h"
+#include "dialogs/query_prompts.h"
 #include "win32/text_transform.h"
 
 #include <algorithm>
@@ -14,18 +14,16 @@
 #include <commctrl.h>
 #include <windowsx.h>
 
-#include "appearance/autocomplete.h"
-#include "appearance/dialog_fit.h"
-#include "appearance/dialog_layout.h"
-#include "appearance/dialog_metrics.h"
-#include "appearance/feedback.h"
-#include "editors/value_editor.h"
+#include "dialogs/value_editor.h"
 #include "records/escaped_fields.h"
 #include "registry/registry_store.h"
+#include "resource.h"
+#include "ui/autocomplete.h"
+#include "ui/dialog_support.h"
+#include "ui/feedback.h"
 #include "win32/file_text.h"
 #include "win32/shell_paths.h"
 #include "win32/translation.h"
-#include "win32/window_metrics.h"
 
 namespace regkit
 {
@@ -33,99 +31,12 @@ namespace regkit
 namespace
 {
 
-constexpr wchar_t kDialogClass[] = L"RegKitSearchDialog";
+namespace dialog_support = editors::dialog_support;
 
-enum ControlId
+struct SearchDialogState
 {
-    kFindLabel = 100,
-    kFindCombo = 101,
-    kWhereGroup = 110,
-    kScopeTop = 111,
-    kScopeKey = 112,
-    kScopeRecursive = 113,
-    kScopeCombo = 114,
-    kScopeEdit = 116,
-    kScopeBrowse = 117,
-    kOptionsGroup = 120,
-    kOptKeys = 121,
-    kOptValues = 122,
-    kOptData = 123,
-    kOptDataTypes = 124,
-    kOptMatchCase = 125,
-    kOptMatchWhole = 126,
-    kOptUseRegex = 127,
-    kOptSkipLinks = 128,
-    kOptMinSize = 129,
-    kOptMinSizeEdit = 130,
-    kOptMaxSize = 131,
-    kOptMaxSizeEdit = 132,
-    kOptStandardHives = 133,
-    kOptRegistryRoot = 134,
-    kOptTraceValues = 135,
-    kOptOfflineHives = 136,
-    kOptRegFiles = 137,
-    kOptRemoteRegistry = 138,
-    kOptComments = 139,
-    kOptDefaultData = 144,
-    kModifiedLabel = 140,
-    kModifiedFrom = 141,
-    kModifiedDash = 142,
-    kModifiedTo = 143,
-    kExcludeGroup = 150,
-    kExcludeEnable = 151,
-    kExcludeEdit = 152,
-    kExcludeButton = 153,
-    kResultGroup = 160,
-    kResultReuse = 161,
-    kResultNew = 162,
-    kResultOpenNewTab = 163,
-    kResultLimitEnable = 164,
-    kResultLimitEdit = 165,
-    kFindButton = IDOK,
-    kCancelButton = IDCANCEL,
-};
-
-struct SearchDialogState : appearance::DialogWindow
-{
-    HWND find_combo = nullptr;
-    HWND scope_top = nullptr;
-    HWND scope_key = nullptr;
-    HWND scope_recursive = nullptr;
-    HWND scope_combo = nullptr;
-    HWND scope_edit = nullptr;
-    HWND scope_browse = nullptr;
-    HWND options_keys = nullptr;
-    HWND options_values = nullptr;
-    HWND options_data = nullptr;
-    HWND options_data_types = nullptr;
-    HWND options_standard = nullptr;
-    HWND options_registry = nullptr;
-    HWND options_trace = nullptr;
-    HWND options_comments = nullptr;
-    HWND options_defaults = nullptr;
-    HWND options_offline = nullptr;
-    HWND options_reg_files = nullptr;
-    HWND options_remote = nullptr;
-    HWND match_case = nullptr;
-    HWND match_whole = nullptr;
-    HWND use_regex = nullptr;
-    HWND skip_links = nullptr;
-    HWND min_size = nullptr;
-    HWND min_size_edit = nullptr;
-    HWND max_size = nullptr;
-    HWND max_size_edit = nullptr;
-    HWND modified_from = nullptr;
-    HWND modified_to = nullptr;
-    HWND exclude_enable = nullptr;
-    HWND exclude_edit = nullptr;
-    HWND exclude_button = nullptr;
-    HWND result_reuse = nullptr;
-    HWND result_new = nullptr;
-    HWND result_open_new_tab = nullptr;
-    HWND result_limit_enable = nullptr;
-    HWND result_limit_edit = nullptr;
-    HWND find_button = nullptr;
-    HWND cancel_button = nullptr;
+    HWND dialog = nullptr;
+    HFONT font = nullptr;
     SearchDialogResult* out = nullptr;
     SearchSources sources;
     bool recursive = true;
@@ -134,6 +45,11 @@ struct SearchDialogState : appearance::DialogWindow
     std::vector<bool> root_selected;
     std::vector<DWORD> data_types;
 };
+
+HWND Item(const SearchDialogState* state, int id)
+{
+    return GetDlgItem(state->dialog, id);
+}
 
 std::wstring SearchHistoryPath()
 {
@@ -207,7 +123,7 @@ void PopulateHistoryCombo(HWND combo, const std::vector<std::wstring>& items)
 
 void UpdateScopeComboText(SearchDialogState* state)
 {
-    if (!state || !state->scope_combo)
+    if (!state || !Item(state, IDC_FIND_SCOPE_ROOTS))
     {
         return;
     }
@@ -242,19 +158,19 @@ void UpdateScopeComboText(SearchDialogState* state)
     {
         text = util::Tr(L"Multiple keys");
     }
-    SendMessageW(state->scope_combo, CB_RESETCONTENT, 0, 0);
-    SendMessageW(state->scope_combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text.c_str()));
-    SendMessageW(state->scope_combo, CB_SETCURSEL, 0, 0);
+    SendMessageW(Item(state, IDC_FIND_SCOPE_ROOTS), CB_RESETCONTENT, 0, 0);
+    SendMessageW(Item(state, IDC_FIND_SCOPE_ROOTS), CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text.c_str()));
+    SendMessageW(Item(state, IDC_FIND_SCOPE_ROOTS), CB_SETCURSEL, 0, 0);
 }
 
 void ShowRootSelectionMenu(HWND owner, SearchDialogState* state)
 {
-    if (!owner || !state || !state->scope_combo)
+    if (!owner || !state || !Item(state, IDC_FIND_SCOPE_ROOTS))
     {
         return;
     }
     RECT rect = {};
-    GetWindowRect(state->scope_combo, &rect);
+    GetWindowRect(Item(state, IDC_FIND_SCOPE_ROOTS), &rect);
     HMENU menu = CreatePopupMenu();
     for (size_t i = 0; i < state->root_names.size(); ++i)
     {
@@ -394,300 +310,51 @@ void UpdateDialogEnableState(SearchDialogState* state)
         return;
     }
 
-    bool scope_top = state->scope_top && IsChecked(state->scope_top);
-    bool scope_key = state->scope_key && IsChecked(state->scope_key);
-    bool standard_roots = state->options_standard && IsChecked(state->options_standard);
+    bool scope_top = IsChecked(Item(state, IDC_FIND_SCOPE_TOP));
+    bool scope_key = IsChecked(Item(state, IDC_FIND_SCOPE_KEY));
+    bool standard_roots = IsChecked(Item(state, IDC_FIND_ROOT_KEYS));
     bool enable_roots = scope_top;
-    EnableWindow(state->scope_combo, enable_roots && standard_roots);
-    EnableWindow(state->scope_edit, scope_key);
-    EnableWindow(state->scope_browse, scope_key);
-    EnableWindow(state->scope_recursive, scope_key);
+    EnableWindow(Item(state, IDC_FIND_SCOPE_ROOTS), enable_roots && standard_roots);
+    EnableWindow(Item(state, IDC_FIND_SCOPE_EDIT), scope_key);
+    EnableWindow(Item(state, IDC_FIND_BROWSE), scope_key);
+    EnableWindow(Item(state, IDC_FIND_RECURSIVE), scope_key);
 
-    bool search_data = state->options_data && IsChecked(state->options_data);
-    EnableWindow(state->options_data_types, search_data);
-    EnableWindow(state->min_size, search_data);
-    EnableWindow(state->max_size, search_data);
+    bool search_data = IsChecked(Item(state, IDC_FIND_DATA));
+    EnableWindow(Item(state, IDC_FIND_DATA_TYPES), search_data);
+    EnableWindow(Item(state, IDC_FIND_MIN_SIZE), search_data);
+    EnableWindow(Item(state, IDC_FIND_MAX_SIZE), search_data);
 
-    bool min_checked = state->min_size && IsChecked(state->min_size);
-    bool max_checked = state->max_size && IsChecked(state->max_size);
-    EnableWindow(state->min_size_edit, search_data && min_checked);
-    EnableWindow(state->max_size_edit, search_data && max_checked);
+    bool min_checked = IsChecked(Item(state, IDC_FIND_MIN_SIZE));
+    bool max_checked = IsChecked(Item(state, IDC_FIND_MAX_SIZE));
+    EnableWindow(Item(state, IDC_FIND_MIN_SIZE_EDIT), search_data && min_checked);
+    EnableWindow(Item(state, IDC_FIND_MAX_SIZE_EDIT), search_data && max_checked);
 
-    bool exclude_checked = state->exclude_enable && IsChecked(state->exclude_enable);
-    EnableWindow(state->exclude_edit, exclude_checked);
+    bool exclude_checked = IsChecked(Item(state, IDC_FIND_EXCLUDE));
+    EnableWindow(Item(state, IDC_FIND_EXCLUDE_EDIT), exclude_checked);
 
-    bool limit_checked = state->result_limit_enable && IsChecked(state->result_limit_enable);
-    EnableWindow(state->result_limit_edit, limit_checked);
-    EnableWindow(state->exclude_button, exclude_checked);
+    bool limit_checked = IsChecked(Item(state, IDC_FIND_LIMIT));
+    EnableWindow(Item(state, IDC_FIND_LIMIT_EDIT), limit_checked);
+    EnableWindow(Item(state, IDC_FIND_EXCLUDE_BUTTON), exclude_checked);
 
-    EnableWindow(state->options_trace, state->sources.traces);
-    EnableWindow(state->options_defaults, state->sources.defaults);
-    EnableWindow(state->options_registry, state->sources.registry_root);
-    EnableWindow(state->options_offline, state->sources.offline);
-    EnableWindow(state->options_reg_files, state->sources.reg_files);
-    EnableWindow(state->options_remote, state->sources.remote);
-}
-
-void LayoutDialog(HWND hwnd, SearchDialogState* state, HFONT font)
-{
-    if (!hwnd || !state)
-    {
-        return;
-    }
-    appearance::SetControlFont(hwnd, font);
-    RECT client = {};
-    GetClientRect(hwnd, &client);
-    using namespace appearance::metrics;
-    const UINT dpi = win32::DpiForWindow(hwnd);
-    const int margin = Scaled(kDialogContentMargin, dpi);
-    const int block_gap = Scaled(kBlockGap, dpi);
-    const int label_gap = Scaled(kLabelGap, dpi);
-    const int label_inset = Scaled(kLabelInset, dpi);
-    const int label_h = Scaled(kLabelHeight, dpi);
-    const int check_inset = Scaled(kCheckInset, dpi);
-    const int check_h = Scaled(kCheckHeight, dpi);
-    const int line_h = Scaled(kControlHeight, dpi);
-    const int control_pitch = Scaled(kControlPitch, dpi);
-    const int row_pitch = Scaled(kRowPitch, dpi);
-    const int group_top = Scaled(kGroupTop, dpi);
-    const int group_bottom = Scaled(kGroupBottom, dpi);
-    const int group_inset = Scaled(kGroupInset, dpi);
-    const int button_h = Scaled(kButtonHeight, dpi);
-    const int button_w = Scaled(kButtonMinWidth, dpi);
-    const int button_gap = Scaled(kButtonGap, dpi);
-    const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
-    const int bottom_margin = Scaled(kDialogButtonBottomMargin, dpi);
-    const int width = client.right - client.left;
-    const int x = margin;
-    int y = margin;
-
-    HWND find_label = GetDlgItem(hwnd, kFindLabel);
-    const int label_w = std::max(Scaled(94, dpi), appearance::TextFitWidth(find_label));
-    appearance::Place(find_label, x, y + label_inset, label_w, label_h);
-    appearance::Place(state->find_combo, x + label_w + label_gap, y, width - x * 2 - label_w - label_gap, line_h);
-    y += line_h + block_gap;
-
-    const int group_w = width - x * 2;
-    const int where_h = group_top + control_pitch * 2 + line_h + group_bottom;
-    appearance::Place(GetDlgItem(hwnd, kWhereGroup), x, y, group_w, where_h);
-    const int gx = x + group_inset;
-    int gy = y + group_top;
-    const int scope_label_w = std::max(Scaled(150, dpi), appearance::TextFitWidth({state->scope_top, state->scope_key}));
-    const int browse_w = std::max(Scaled(90, dpi), appearance::TextFitWidth(state->scope_browse));
-    appearance::Place(state->scope_top, gx, gy + check_inset, scope_label_w, check_h);
-    const int combo_x = gx + scope_label_w + label_gap;
-    const int combo_w = width - combo_x - x - group_inset;
-    appearance::Place(state->scope_combo, combo_x, gy, combo_w, line_h);
-    appearance::Place(state->scope_key, gx, gy + control_pitch + check_inset, scope_label_w, check_h);
-    const int scope_edit_y = gy + control_pitch;
-    appearance::Place(state->scope_edit, combo_x, scope_edit_y, combo_w - browse_w - label_gap, line_h);
-    appearance::Place(state->scope_browse, combo_x + combo_w - browse_w, scope_edit_y, browse_w, line_h);
-    appearance::Place(state->scope_recursive, combo_x, gy + control_pitch * 2 + check_inset, combo_w, check_h);
-    y += where_h + block_gap;
-
-    const int options_h = group_top + row_pitch * 10 + check_h + group_bottom;
-    appearance::Place(GetDlgItem(hwnd, kOptionsGroup), x, y, group_w, options_h);
-    gy = y + group_top;
-    const int left_x = x + group_inset;
-    const int right_x = x + group_w / 2 + label_gap;
-    auto option_row = [&](int row) { return gy + row_pitch * row; };
-    const int left_w = right_x - left_x - label_gap;
-    const int right_w = x + group_w - group_inset - right_x;
-    int row = 0;
-    for (HWND option : {state->options_keys, state->options_values, state->options_data, state->options_comments, state->options_standard, state->options_registry, state->options_trace, state->options_defaults, state->options_offline, state->options_reg_files, state->options_remote})
-    {
-        appearance::Place(option, left_x, option_row(row++), left_w, check_h);
-    }
-
-    const int size_label_w = appearance::TextFitWidth({state->min_size, state->max_size});
-    const int size_edit_x = right_x + size_label_w + label_gap;
-    const int size_edit_w = right_x + right_w - size_edit_x;
-    appearance::Place(state->min_size, right_x, option_row(0), size_label_w, check_h);
-    appearance::Place(state->min_size_edit, size_edit_x, option_row(0) - check_inset, size_edit_w, line_h);
-    appearance::Place(state->max_size, right_x, option_row(1), size_label_w, check_h);
-    appearance::Place(state->max_size_edit, size_edit_x, option_row(1) - check_inset, size_edit_w, line_h);
-    appearance::Place(state->match_case, right_x, option_row(2), right_w, check_h);
-    appearance::Place(state->match_whole, right_x, option_row(3), right_w, check_h);
-    appearance::Place(state->use_regex, right_x, option_row(4), right_w, check_h);
-    appearance::Place(state->skip_links, right_x, option_row(5), right_w, check_h);
-    const int data_types_w = std::max(Scaled(120, dpi), appearance::TextFitWidth(state->options_data_types));
-    appearance::Place(state->options_data_types, right_x, option_row(6) - check_inset + Scaled(5, dpi), data_types_w, line_h);
-    y += options_h + block_gap;
-
-    const int modified_label_w = std::max(Scaled(150, dpi), appearance::TextFitWidth(GetDlgItem(hwnd, kModifiedLabel)));
-    const int modified_w = Scaled(150, dpi);
-    const int modified_gap = Scaled(6, dpi);
-    const int modified_x = x + modified_label_w + modified_gap;
-    const int dash_x = modified_x + modified_w + modified_gap;
-    appearance::Place(GetDlgItem(hwnd, kModifiedLabel), x, y + label_inset, modified_label_w, label_h);
-    appearance::Place(state->modified_from, modified_x, y, modified_w, line_h);
-    appearance::Place(GetDlgItem(hwnd, kModifiedDash), dash_x, y + label_inset, Scaled(12, dpi), label_h);
-    appearance::Place(state->modified_to, dash_x + Scaled(18, dpi), y, modified_w, line_h);
-    y += line_h + block_gap;
-
-    const int exclude_h = group_top + row_pitch + line_h + group_bottom;
-    const int exclude_button_w = std::max(Scaled(80, dpi), appearance::TextFitWidth(state->exclude_button));
-    appearance::Place(GetDlgItem(hwnd, kExcludeGroup), x, y, group_w, exclude_h);
-    appearance::Place(state->exclude_enable, x + group_inset, y + group_top, group_w - group_inset * 2, check_h);
-    const int exclude_row = y + group_top + row_pitch;
-    appearance::Place(state->exclude_edit, x + group_inset, exclude_row, group_w - group_inset * 2 - exclude_button_w - label_gap, line_h);
-    appearance::Place(state->exclude_button, x + group_w - group_inset - exclude_button_w, exclude_row, exclude_button_w, line_h);
-    y += exclude_h + block_gap;
-
-    const int result_h = group_top + row_pitch * 2 + control_pitch + line_h + group_bottom;
-    appearance::Place(GetDlgItem(hwnd, kResultGroup), x, y, group_w, result_h);
-    const int result_gy = y + group_top;
-    const int inner_w = group_w - group_inset * 2;
-    appearance::Place(state->result_reuse, x + group_inset, result_gy, inner_w, check_h);
-    appearance::Place(state->result_new, x + group_inset, result_gy + row_pitch, inner_w, check_h);
-    appearance::Place(state->result_open_new_tab, x + group_inset, result_gy + row_pitch * 2, inner_w, check_h);
-    const int limit_row = result_gy + row_pitch * 2 + control_pitch;
-    const int limit_w = std::max(Scaled(140, dpi), appearance::TextFitWidth(state->result_limit_enable));
-    appearance::Place(state->result_limit_enable, x + group_inset, limit_row + check_inset, limit_w, check_h);
-    appearance::Place(state->result_limit_edit, x + std::max(Scaled(160, dpi), group_inset + limit_w + label_gap), limit_row, button_w, line_h);
-    y += result_h + block_gap;
-
-    const int buttons_w = appearance::PlaceButtonRow({state->find_button, state->cancel_button}, width - right_margin, y, button_w, button_h, button_gap);
-    const int min_edit_w = Scaled(80, dpi);
-    const int group_min_w = std::max(
-        {2 * (appearance::TextFitWidth({state->options_keys, state->options_values, state->options_data, state->options_comments, state->options_standard, state->options_registry, state->options_trace, state->options_defaults, state->options_offline, state->options_reg_files, state->options_remote}) + group_inset),
-         2 * (std::max({size_label_w + label_gap + Scaled(40, dpi), appearance::TextFitWidth({state->match_case, state->match_whole, state->use_regex, state->skip_links}), data_types_w}) + group_inset + label_gap),
-         group_inset * 2 + scope_label_w + label_gap + std::max(appearance::TextFitWidth(state->scope_recursive), browse_w + label_gap + min_edit_w),
-         group_inset * 2 + std::max(appearance::TextFitWidth(state->exclude_enable), exclude_button_w + label_gap + min_edit_w),
-         group_inset * 2 + appearance::TextFitWidth({state->result_reuse, state->result_new, state->result_open_new_tab}),
-         std::max(Scaled(160, dpi), group_inset + limit_w + label_gap) + button_w + group_inset}
-    );
-    if (appearance::GrowDialogWidth(hwnd, std::max({x * 2 + group_min_w, x * 2 + label_w + label_gap + min_edit_w, x * 2 + modified_label_w + modified_gap * 2 + Scaled(18, dpi) + modified_w * 2, x + buttons_w + right_margin})))
-    {
-        return;
-    }
-    appearance::FitDialogHeight(hwnd, y + button_h + bottom_margin);
-
-    for (HWND edit :
-         {state->scope_edit, state->min_size_edit, state->max_size_edit, state->exclude_edit, state->result_limit_edit})
-    {
-        appearance::CenterEditText(edit, font, 2, 2);
-    }
-
-    appearance::SetControlFont(find_label, font);
-    appearance::SetControlFont(state->find_combo, font);
-    appearance::SetControlFont(state->scope_combo, font);
-}
-
-void CreateSearchControls(HWND hwnd, SearchDialogState* state)
-{
-    appearance::CreateControl(hwnd, L"STATIC", util::Tr(L"Find what:"), 0, kFindLabel);
-    state->find_combo =
-        appearance::CreateControl(hwnd, WC_COMBOBOXW, L"", WS_TABSTOP | CBS_DROPDOWN | CBS_AUTOHSCROLL, kFindCombo);
-
-    appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Where to search"), BS_GROUPBOX, kWhereGroup);
-    state->scope_top = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Top level keys"), WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, kScopeTop);
-    state->scope_key = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Specific key"), BS_AUTORADIOBUTTON, kScopeKey);
-    state->scope_combo =
-        appearance::CreateControl(hwnd, WC_COMBOBOXW, L"", WS_TABSTOP | CBS_DROPDOWNLIST | CBS_HASSTRINGS, kScopeCombo);
-    state->scope_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, kScopeEdit);
-    appearance::AttachAutoComplete(state->scope_edit, appearance::SuggestKeys);
-    state->scope_browse =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Browse..."), WS_TABSTOP | BS_PUSHBUTTON, kScopeBrowse);
-    state->scope_recursive =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Recursive"), WS_TABSTOP | BS_AUTOCHECKBOX, kScopeRecursive);
-
-    appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search options"), BS_GROUPBOX, kOptionsGroup);
-    state->options_keys =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search keys"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptKeys);
-    state->options_values =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search values"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptValues);
-    state->options_data =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search data"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptData);
-    state->options_comments =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search comments"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptComments);
-    state->options_data_types =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Data Types..."), WS_TABSTOP | BS_PUSHBUTTON, kOptDataTypes);
-    state->match_case =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Match case"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptMatchCase);
-    state->match_whole =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Match whole string"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptMatchWhole);
-    state->use_regex =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Regular expressions"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptUseRegex);
-    ui::AddTooltip(
-        hwnd,
-        state->use_regex,
-        util::Tr(L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
-                 L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
-                 L"\\X.\n"
-                 L"Matching is unicode aware and ignores case unless 'Match case' is set.")
-    );
-    state->skip_links =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Skip symbolic links"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptSkipLinks);
-    state->min_size = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Min data size (bytes):"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptMinSize);
-    state->min_size_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, kOptMinSizeEdit);
-    state->max_size = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Max data size (bytes):"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptMaxSize);
-    state->max_size_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, kOptMaxSizeEdit);
-    state->options_standard =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search Root Keys"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptStandardHives);
-    state->options_registry =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search REGISTRY"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptRegistryRoot);
-    state->options_trace =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search Trace Values"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptTraceValues);
-    state->options_defaults =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search Default Data"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptDefaultData);
-    state->options_offline =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search Offline Hives"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptOfflineHives);
-    state->options_reg_files = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search .reg File Tabs"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptRegFiles);
-    state->options_remote = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Search Network Registry"), WS_TABSTOP | BS_AUTOCHECKBOX, kOptRemoteRegistry);
-
-    appearance::CreateControl(hwnd, L"STATIC", util::Tr(L"Modified in period:"), 0, kModifiedLabel);
-    appearance::CreateControl(hwnd, L"STATIC", L"-", 0, kModifiedDash);
-    state->modified_from =
-        appearance::CreateControl(hwnd, DATETIMEPICK_CLASSW, L"", DTS_SHORTDATEFORMAT | DTS_SHOWNONE, kModifiedFrom);
-    state->modified_to =
-        appearance::CreateControl(hwnd, DATETIMEPICK_CLASSW, L"", DTS_SHORTDATEFORMAT | DTS_SHOWNONE, kModifiedTo);
-    SendMessageW(state->modified_from, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(L"M/d/yyyy HH:mm"));
-    SendMessageW(state->modified_to, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(L"M/d/yyyy HH:mm"));
-    SendMessageW(state->modified_from, DTM_SETSYSTEMTIME, GDT_NONE, 0);
-    SendMessageW(state->modified_to, DTM_SETSYSTEMTIME, GDT_NONE, 0);
-
-    appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Exclude keys"), BS_GROUPBOX, kExcludeGroup);
-    state->exclude_enable =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Exclude keys"), WS_TABSTOP | BS_AUTOCHECKBOX, kExcludeEnable);
-    state->exclude_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL | ES_MULTILINE | WS_BORDER, kExcludeEdit);
-    state->exclude_button =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Edit..."), WS_TABSTOP | BS_PUSHBUTTON, kExcludeButton);
-
-    appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Result options"), BS_GROUPBOX, kResultGroup);
-    state->result_reuse = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Reuse last Find Results window"), WS_TABSTOP | BS_AUTORADIOBUTTON | WS_GROUP, kResultReuse);
-    state->result_new =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Open new Find Results window"), BS_AUTORADIOBUTTON, kResultNew);
-    state->result_open_new_tab = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Open result in new tab"), WS_TABSTOP | BS_AUTOCHECKBOX | WS_GROUP, kResultOpenNewTab);
-    state->result_limit_enable =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Limit results to"), WS_TABSTOP | BS_AUTOCHECKBOX, kResultLimitEnable);
-    state->result_limit_edit =
-        appearance::CreateControl(hwnd, L"EDIT", L"1000", WS_TABSTOP | ES_AUTOHSCROLL | ES_NUMBER | ES_MULTILINE | WS_BORDER, kResultLimitEdit);
-
-    state->find_button =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Find"), WS_TABSTOP | BS_DEFPUSHBUTTON, kFindButton);
-    state->cancel_button =
-        appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
-
-    for (HWND bordered : {state->scope_edit, state->min_size_edit, state->max_size_edit, state->exclude_edit, state->result_limit_edit})
-    {
-        appearance::AttachThemedBorder(bordered);
-    }
-
-    appearance::SetDialogFont(hwnd, state->font);
+    EnableWindow(Item(state, IDC_FIND_TRACE), state->sources.traces);
+    EnableWindow(Item(state, IDC_FIND_DEFAULTS), state->sources.defaults);
+    EnableWindow(Item(state, IDC_FIND_REGISTRY), state->sources.registry_root);
+    EnableWindow(Item(state, IDC_FIND_OFFLINE), state->sources.offline);
+    EnableWindow(Item(state, IDC_FIND_REG_FILES), state->sources.reg_files);
+    EnableWindow(Item(state, IDC_FIND_REMOTE), state->sources.remote);
 }
 
 void LoadInitialState(SearchDialogState* state)
 {
     state->history = LoadSearchHistory();
-    PopulateHistoryCombo(state->find_combo, state->history);
+    PopulateHistoryCombo(Item(state, IDC_FIND_WHAT), state->history);
     if (state->out && !state->out->criteria.query.empty())
     {
-        SetWindowTextW(state->find_combo, state->out->criteria.query.c_str());
+        SetWindowTextW(Item(state, IDC_FIND_WHAT), state->out->criteria.query.c_str());
     }
     else if (!state->history.empty())
     {
-        SetWindowTextW(state->find_combo, state->history.front().c_str());
+        SetWindowTextW(Item(state, IDC_FIND_WHAT), state->history.front().c_str());
     }
 
     auto roots = RegistryStore::DefaultRoots(state->sources.extra_hives);
@@ -724,31 +391,31 @@ void LoadInitialState(SearchDialogState* state)
     const SearchDialogResult* initial = state->out;
     if (initial)
     {
-        SetChecked(state->options_keys, initial->criteria.search_keys);
-        SetChecked(state->options_values, initial->criteria.search_values);
-        SetChecked(state->options_data, initial->criteria.search_data);
-        SetChecked(state->options_comments, initial->criteria.search_comments);
-        SetChecked(state->match_case, initial->criteria.match_case);
-        SetChecked(state->match_whole, initial->criteria.match_whole);
-        SetChecked(state->use_regex, initial->criteria.use_regex);
-        SetChecked(state->skip_links, initial->criteria.skip_links);
+        SetChecked(Item(state, IDC_FIND_KEYS), initial->criteria.search_keys);
+        SetChecked(Item(state, IDC_FIND_VALUES), initial->criteria.search_values);
+        SetChecked(Item(state, IDC_FIND_DATA), initial->criteria.search_data);
+        SetChecked(Item(state, IDC_FIND_COMMENTS), initial->criteria.search_comments);
+        SetChecked(Item(state, IDC_FIND_CASE), initial->criteria.match_case);
+        SetChecked(Item(state, IDC_FIND_WHOLE), initial->criteria.match_whole);
+        SetChecked(Item(state, IDC_FIND_REGEX), initial->criteria.use_regex);
+        SetChecked(Item(state, IDC_FIND_SKIP_LINKS), initial->criteria.skip_links);
         if (initial->criteria.use_min_size)
         {
-            SetChecked(state->min_size, true);
-            SetWindowTextW(state->min_size_edit, std::to_wstring(initial->criteria.min_size).c_str());
+            SetChecked(Item(state, IDC_FIND_MIN_SIZE), true);
+            SetWindowTextW(Item(state, IDC_FIND_MIN_SIZE_EDIT), std::to_wstring(initial->criteria.min_size).c_str());
         }
         if (initial->criteria.use_max_size)
         {
-            SetChecked(state->max_size, true);
-            SetWindowTextW(state->max_size_edit, std::to_wstring(initial->criteria.max_size).c_str());
+            SetChecked(Item(state, IDC_FIND_MAX_SIZE), true);
+            SetWindowTextW(Item(state, IDC_FIND_MAX_SIZE_EDIT), std::to_wstring(initial->criteria.max_size).c_str());
         }
         if (initial->criteria.use_modified_from)
         {
-            SetDateTimeValue(state->modified_from, initial->criteria.modified_from);
+            SetDateTimeValue(Item(state, IDC_FIND_MODIFIED_FROM), initial->criteria.modified_from);
         }
         if (initial->criteria.use_modified_to)
         {
-            SetDateTimeValue(state->modified_to, initial->criteria.modified_to);
+            SetDateTimeValue(Item(state, IDC_FIND_MODIFIED_TO), initial->criteria.modified_to);
         }
         bool standard_hives = initial->search_standard_hives;
         bool registry_root = initial->search_registry_root;
@@ -761,74 +428,74 @@ void LoadInitialState(SearchDialogState* state)
         {
             trace_values = false;
         }
-        SetChecked(state->options_standard, standard_hives);
-        SetChecked(state->options_registry, registry_root);
-        SetChecked(state->options_trace, trace_values);
-        SetChecked(state->options_defaults, initial->search_default_data && state->sources.defaults);
-        SetChecked(state->options_offline, initial->search_offline_hives && state->sources.offline);
-        SetChecked(state->options_reg_files, initial->search_reg_files && state->sources.reg_files);
-        SetChecked(state->options_remote, initial->search_remote_registry && state->sources.remote);
+        SetChecked(Item(state, IDC_FIND_ROOT_KEYS), standard_hives);
+        SetChecked(Item(state, IDC_FIND_REGISTRY), registry_root);
+        SetChecked(Item(state, IDC_FIND_TRACE), trace_values);
+        SetChecked(Item(state, IDC_FIND_DEFAULTS), initial->search_default_data && state->sources.defaults);
+        SetChecked(Item(state, IDC_FIND_OFFLINE), initial->search_offline_hives && state->sources.offline);
+        SetChecked(Item(state, IDC_FIND_REG_FILES), initial->search_reg_files && state->sources.reg_files);
+        SetChecked(Item(state, IDC_FIND_REMOTE), initial->search_remote_registry && state->sources.remote);
         bool scope_top = initial->scope == SearchScope::kEntireRegistry;
-        SetChecked(state->scope_top, scope_top);
-        SetChecked(state->scope_key, !scope_top);
+        SetChecked(Item(state, IDC_FIND_SCOPE_TOP), scope_top);
+        SetChecked(Item(state, IDC_FIND_SCOPE_KEY), !scope_top);
         if (!initial->start_key.empty())
         {
-            SetWindowTextW(state->scope_edit, initial->start_key.c_str());
+            SetWindowTextW(Item(state, IDC_FIND_SCOPE_EDIT), initial->start_key.c_str());
         }
         bool new_tab = initial->result_mode == SearchResultMode::kNewTab;
-        SetChecked(state->result_reuse, !new_tab);
-        SetChecked(state->result_new, new_tab);
-        SetChecked(state->result_open_new_tab, initial->open_in_new_tab);
+        SetChecked(Item(state, IDC_FIND_RESULT_REUSE), !new_tab);
+        SetChecked(Item(state, IDC_FIND_RESULT_NEW), new_tab);
+        SetChecked(Item(state, IDC_FIND_RESULT_TAB), initial->open_in_new_tab);
         const bool limited = initial->criteria.max_results > 0;
-        SetChecked(state->result_limit_enable, limited);
-        SetWindowTextW(state->result_limit_edit, std::to_wstring(limited ? initial->criteria.max_results : 1000).c_str());
-        SendMessageW(state->result_limit_edit, EM_SETSEL, 0, 0);
-        EnableWindow(state->result_limit_edit, limited);
+        SetChecked(Item(state, IDC_FIND_LIMIT), limited);
+        SetWindowTextW(Item(state, IDC_FIND_LIMIT_EDIT), std::to_wstring(limited ? initial->criteria.max_results : 1000).c_str());
+        SendMessageW(Item(state, IDC_FIND_LIMIT_EDIT), EM_SETSEL, 0, 0);
+        EnableWindow(Item(state, IDC_FIND_LIMIT_EDIT), limited);
     }
     else
     {
-        SetChecked(state->options_keys, false);
-        SetChecked(state->options_values, true);
-        SetChecked(state->options_data, true);
-        SetChecked(state->options_standard, true);
-        SetChecked(state->options_registry, false);
-        SetChecked(state->options_trace, state->sources.traces);
-        SetChecked(state->scope_top, true);
-        SetChecked(state->result_reuse, true);
-        SetChecked(state->result_limit_enable, true);
+        SetChecked(Item(state, IDC_FIND_KEYS), false);
+        SetChecked(Item(state, IDC_FIND_VALUES), true);
+        SetChecked(Item(state, IDC_FIND_DATA), true);
+        SetChecked(Item(state, IDC_FIND_ROOT_KEYS), true);
+        SetChecked(Item(state, IDC_FIND_REGISTRY), false);
+        SetChecked(Item(state, IDC_FIND_TRACE), state->sources.traces);
+        SetChecked(Item(state, IDC_FIND_SCOPE_TOP), true);
+        SetChecked(Item(state, IDC_FIND_RESULT_REUSE), true);
+        SetChecked(Item(state, IDC_FIND_LIMIT), true);
     }
-    SetChecked(state->scope_recursive, state->recursive);
+    SetChecked(Item(state, IDC_FIND_RECURSIVE), state->recursive);
 }
 
 bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* out)
 {
-    std::wstring query_text = util::WindowText(state->find_combo);
+    std::wstring query_text = util::WindowText(Item(state, IDC_FIND_WHAT));
     if (query_text.empty())
     {
         ui::ShowWarning(hwnd, util::Tr(L"Enter a search term."));
         return false;
     }
-    if (IsChecked(state->use_regex) && query_text.size() > search::regex::kMaxPatternLength)
+    if (IsChecked(Item(state, IDC_FIND_REGEX)) && query_text.size() > search::regex::kMaxPatternLength)
     {
         ui::ShowWarning(hwnd, util::Tr(L"The regular expression is too long."));
         return false;
     }
-    bool keys = IsChecked(state->options_keys);
-    bool values = IsChecked(state->options_values);
-    bool data = IsChecked(state->options_data);
-    bool comments = IsChecked(state->options_comments);
-    bool default_data = state->sources.defaults && IsChecked(state->options_defaults);
+    bool keys = IsChecked(Item(state, IDC_FIND_KEYS));
+    bool values = IsChecked(Item(state, IDC_FIND_VALUES));
+    bool data = IsChecked(Item(state, IDC_FIND_DATA));
+    bool comments = IsChecked(Item(state, IDC_FIND_COMMENTS));
+    bool default_data = state->sources.defaults && IsChecked(Item(state, IDC_FIND_DEFAULTS));
     if (!keys && !values && !data && !comments && !default_data)
     {
         ui::ShowWarning(hwnd, util::Tr(L"Select at least one search option."));
         return false;
     }
-    bool standard_hives = IsChecked(state->options_standard);
-    bool registry_root = IsChecked(state->options_registry);
-    bool trace_values = IsChecked(state->options_trace);
-    bool offline_hives = state->sources.offline && IsChecked(state->options_offline);
-    bool reg_files = state->sources.reg_files && IsChecked(state->options_reg_files);
-    bool remote_registry = state->sources.remote && IsChecked(state->options_remote);
+    bool standard_hives = IsChecked(Item(state, IDC_FIND_ROOT_KEYS));
+    bool registry_root = IsChecked(Item(state, IDC_FIND_REGISTRY));
+    bool trace_values = IsChecked(Item(state, IDC_FIND_TRACE));
+    bool offline_hives = state->sources.offline && IsChecked(Item(state, IDC_FIND_OFFLINE));
+    bool reg_files = state->sources.reg_files && IsChecked(Item(state, IDC_FIND_REG_FILES));
+    bool remote_registry = state->sources.remote && IsChecked(Item(state, IDC_FIND_REMOTE));
     if (!state->sources.registry_root)
     {
         registry_root = false;
@@ -849,17 +516,17 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     result.criteria.search_values = values;
     result.criteria.search_data = data;
     result.criteria.search_comments = comments;
-    result.criteria.match_case = IsChecked(state->match_case);
-    result.criteria.match_whole = IsChecked(state->match_whole);
-    result.criteria.use_regex = IsChecked(state->use_regex);
-    result.criteria.skip_links = IsChecked(state->skip_links);
+    result.criteria.match_case = IsChecked(Item(state, IDC_FIND_CASE));
+    result.criteria.match_whole = IsChecked(Item(state, IDC_FIND_WHOLE));
+    result.criteria.use_regex = IsChecked(Item(state, IDC_FIND_REGEX));
+    result.criteria.skip_links = IsChecked(Item(state, IDC_FIND_SKIP_LINKS));
     if (data)
     {
         result.criteria.allowed_types = state->data_types;
-        if (IsChecked(state->min_size))
+        if (IsChecked(Item(state, IDC_FIND_MIN_SIZE)))
         {
             wchar_t buffer[64] = {};
-            GetWindowTextW(state->min_size_edit, buffer, static_cast<int>(_countof(buffer)));
+            GetWindowTextW(Item(state, IDC_FIND_MIN_SIZE_EDIT), buffer, static_cast<int>(_countof(buffer)));
             uint64_t value = 0;
             if (!ParseUint64(buffer, &value))
             {
@@ -869,10 +536,10 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
             result.criteria.use_min_size = true;
             result.criteria.min_size = value;
         }
-        if (IsChecked(state->max_size))
+        if (IsChecked(Item(state, IDC_FIND_MAX_SIZE)))
         {
             wchar_t buffer[64] = {};
-            GetWindowTextW(state->max_size_edit, buffer, static_cast<int>(_countof(buffer)));
+            GetWindowTextW(Item(state, IDC_FIND_MAX_SIZE_EDIT), buffer, static_cast<int>(_countof(buffer)));
             uint64_t value = 0;
             if (!ParseUint64(buffer, &value))
             {
@@ -885,8 +552,8 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     }
     FILETIME modified_from = {};
     FILETIME modified_to = {};
-    bool has_modified_from = GetDateTimeValue(state->modified_from, &modified_from);
-    bool has_modified_to = GetDateTimeValue(state->modified_to, &modified_to);
+    bool has_modified_from = GetDateTimeValue(Item(state, IDC_FIND_MODIFIED_FROM), &modified_from);
+    bool has_modified_to = GetDateTimeValue(Item(state, IDC_FIND_MODIFIED_TO), &modified_to);
     if (has_modified_from)
     {
         result.criteria.use_modified_from = true;
@@ -916,16 +583,16 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     result.search_reg_files = reg_files;
     result.search_remote_registry = remote_registry;
 
-    bool scope_top = IsChecked(state->scope_top);
+    bool scope_top = IsChecked(Item(state, IDC_FIND_SCOPE_TOP));
     result.scope = scope_top ? SearchScope::kEntireRegistry : SearchScope::kCurrentKey;
-    state->recursive = IsChecked(state->scope_recursive);
+    state->recursive = IsChecked(Item(state, IDC_FIND_RECURSIVE));
     result.criteria.recursive = scope_top ? true : state->recursive;
-    result.result_mode = IsChecked(state->result_new) ? SearchResultMode::kNewTab : SearchResultMode::kReuseTab;
-    result.open_in_new_tab = IsChecked(state->result_open_new_tab);
-    if (IsChecked(state->result_limit_enable))
+    result.result_mode = IsChecked(Item(state, IDC_FIND_RESULT_NEW)) ? SearchResultMode::kNewTab : SearchResultMode::kReuseTab;
+    result.open_in_new_tab = IsChecked(Item(state, IDC_FIND_RESULT_TAB));
+    if (IsChecked(Item(state, IDC_FIND_LIMIT)))
     {
         wchar_t limit_text[32] = {};
-        GetWindowTextW(state->result_limit_edit, limit_text, static_cast<int>(_countof(limit_text)));
+        GetWindowTextW(Item(state, IDC_FIND_LIMIT_EDIT), limit_text, static_cast<int>(_countof(limit_text)));
         uint64_t limit = 0;
         if (!ParseUint64(limit_text, &limit) || limit == 0)
         {
@@ -939,9 +606,9 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
         result.criteria.max_results = 0;
     }
 
-    if (IsChecked(state->exclude_enable))
+    if (IsChecked(Item(state, IDC_FIND_EXCLUDE)))
     {
-        result.criteria.exclude_paths = SplitExcludePaths(util::WindowText(state->exclude_edit));
+        result.criteria.exclude_paths = SplitExcludePaths(util::WindowText(Item(state, IDC_FIND_EXCLUDE_EDIT)));
     }
 
     result.root_paths.clear();
@@ -966,57 +633,83 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     }
     else
     {
-        result.start_key = util::WindowText(state->scope_edit);
+        result.start_key = util::WindowText(Item(state, IDC_FIND_SCOPE_EDIT));
     }
 
     return true;
 }
 
-LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-    auto* state = appearance::DialogWindowState<SearchDialogState>(hwnd);
+    auto* state = reinterpret_cast<SearchDialogState*>(GetWindowLongPtrW(hwnd, DWLP_USER));
+    if (msg == WM_INITDIALOG)
+    {
+        state = reinterpret_cast<SearchDialogState*>(lparam);
+        SetWindowLongPtrW(hwnd, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
+        state->dialog = hwnd;
+        for (const int id : {IDC_FIND_MODIFIED_FROM, IDC_FIND_MODIFIED_TO})
+        {
+            SendDlgItemMessageW(hwnd, id, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(L"M/d/yyyy HH:mm"));
+            SendDlgItemMessageW(hwnd, id, DTM_SETSYSTEMTIME, GDT_NONE, 0);
+        }
+        appearance::AttachAutoComplete(Item(state, IDC_FIND_SCOPE_EDIT), appearance::SuggestKeys);
+        ui::AddTooltip(
+            hwnd,
+            Item(state, IDC_FIND_REGEX),
+            util::Tr(L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
+                 L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
+                 L"\\X.\n"
+                 L"Matching is unicode aware and ignores case unless 'Match case' is set.")
+        );
+        SetDlgItemTextW(hwnd, IDC_FIND_LIMIT_EDIT, L"1000");
+        LoadInitialState(state);
+        UpdateDialogEnableState(state);
+        dialog_support::Initialize(hwnd, &state->font, {IDC_FIND_SCOPE_EDIT, IDC_FIND_MIN_SIZE_EDIT, IDC_FIND_MAX_SIZE_EDIT, IDC_FIND_EXCLUDE_EDIT, IDC_FIND_LIMIT_EDIT});
+        SetFocus(Item(state, IDC_FIND_WHAT));
+        SendDlgItemMessageW(hwnd, IDC_FIND_WHAT, CB_SETEDITSEL, 0, MAKELPARAM(0, -1));
+        return FALSE;
+    }
+    if (!state)
+    {
+        return FALSE;
+    }
+    if (msg == WM_DESTROY)
+    {
+        dialog_support::ReleaseFont(&state->font);
+        return TRUE;
+    }
+    INT_PTR themed = 0;
+    if (dialog_support::HandleThemeMessage(hwnd, msg, wparam, lparam, &themed))
+    {
+        return themed;
+    }
     switch (msg)
     {
-    case WM_CREATE:
-        {
-            CreateSearchControls(hwnd, state);
-            LoadInitialState(state);
-            UpdateDialogEnableState(state);
-            COMBOBOXINFO combo = {sizeof(combo)};
-            state->focus =
-                GetComboBoxInfo(state->find_combo, &combo) && combo.hwndItem ? combo.hwndItem : state->find_combo;
-            SendMessageW(state->focus, EM_SETSEL, 0, -1);
-            LayoutDialog(hwnd, state, state->font);
-            return 0;
-        }
-    case WM_SIZE:
-        LayoutDialog(hwnd, state, state->font);
-        return 0;
     case WM_COMMAND:
         {
-            if (HIWORD(wparam) == CBN_DROPDOWN && LOWORD(wparam) == kScopeCombo)
+            if (HIWORD(wparam) == CBN_DROPDOWN && LOWORD(wparam) == IDC_FIND_SCOPE_ROOTS)
             {
                 ShowRootSelectionMenu(hwnd, state);
-                SendMessageW(state->scope_combo, CB_SHOWDROPDOWN, FALSE, 0);
-                return 0;
+                SendMessageW(Item(state, IDC_FIND_SCOPE_ROOTS), CB_SHOWDROPDOWN, FALSE, 0);
+                return TRUE;
             }
             if (HIWORD(wparam) == BN_CLICKED)
             {
                 switch (LOWORD(wparam))
                 {
-                case kScopeTop:
-                case kScopeKey:
-                case kOptData:
-                case kOptMinSize:
-                case kOptMaxSize:
-                case kOptStandardHives:
-                case kOptRegistryRoot:
-                case kOptTraceValues:
-                case kOptOfflineHives:
-                case kOptRegFiles:
-                case kOptRemoteRegistry:
-                case kExcludeEnable:
-                case kResultLimitEnable:
+                case IDC_FIND_SCOPE_TOP:
+                case IDC_FIND_SCOPE_KEY:
+                case IDC_FIND_DATA:
+                case IDC_FIND_MIN_SIZE:
+                case IDC_FIND_MAX_SIZE:
+                case IDC_FIND_ROOT_KEYS:
+                case IDC_FIND_REGISTRY:
+                case IDC_FIND_TRACE:
+                case IDC_FIND_OFFLINE:
+                case IDC_FIND_REG_FILES:
+                case IDC_FIND_REMOTE:
+                case IDC_FIND_EXCLUDE:
+                case IDC_FIND_LIMIT:
                     UpdateDialogEnableState(state);
                     break;
                 default:
@@ -1025,53 +718,56 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
             }
             switch (LOWORD(wparam))
             {
-            case kScopeBrowse:
+            case IDC_FIND_BROWSE:
                 {
                     std::wstring selected;
                     if (ShowBrowseKeyDialog(hwnd, &selected))
                     {
                         if (!selected.empty())
                         {
-                            SetWindowTextW(state->scope_edit, selected.c_str());
+                            SetWindowTextW(Item(state, IDC_FIND_SCOPE_EDIT), selected.c_str());
                         }
-                        SetChecked(state->scope_key, true);
-                        SetChecked(state->scope_top, false);
+                        SetChecked(Item(state, IDC_FIND_SCOPE_KEY), true);
+                        SetChecked(Item(state, IDC_FIND_SCOPE_TOP), false);
                         UpdateDialogEnableState(state);
                     }
-                    return 0;
+                    return TRUE;
                 }
-            case kOptDataTypes:
+            case IDC_FIND_DATA_TYPES:
                 query_prompts::ShowDataTypes(hwnd, &state->data_types);
-                return 0;
-            case kExcludeButton:
+                return TRUE;
+            case IDC_FIND_EXCLUDE_BUTTON:
                 {
                     editors::TextRequest request;
                     request.title = util::Tr(L"Exclude Keys");
                     request.label = util::Tr(L"Each line should include one key.");
-                    request.text = util::JoinLines(SplitExcludePaths(util::WindowText(state->exclude_edit)));
+                    request.text = util::JoinLines(SplitExcludePaths(util::WindowText(Item(state, IDC_FIND_EXCLUDE_EDIT))));
                     request.multiline = true;
                     request.browse = ShowBrowseKeyDialog;
                     editors::TextResult result;
                     if (editors::EditText(hwnd, request, &result))
                     {
-                        SetWindowTextW(state->exclude_edit, JoinExcludePaths(SplitExcludePaths(result.text)).c_str());
+                        SetWindowTextW(Item(state, IDC_FIND_EXCLUDE_EDIT), JoinExcludePaths(SplitExcludePaths(result.text)).c_str());
                     }
-                    return 0;
+                    return TRUE;
                 }
-            case kFindButton:
+            case IDOK:
                 {
                     SearchDialogResult result;
                     if (!ReadSearchResult(hwnd, state, &result))
                     {
-                        return 0;
+                        return TRUE;
                     }
                     UpdateHistoryList(&state->history, result.criteria.query);
                     SaveSearchHistory(state->history);
 
                     *state->out = std::move(result);
-                    appearance::CloseDialogWindow(state, true);
-                    return 0;
+                    EndDialog(hwnd, IDOK);
+                    return TRUE;
                 }
+            case IDCANCEL:
+                EndDialog(hwnd, IDCANCEL);
+                return TRUE;
             default:
                 break;
             }
@@ -1080,7 +776,7 @@ LRESULT CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     default:
         break;
     }
-    return appearance::DefDialogWindowProc(hwnd, msg, wparam, lparam);
+    return FALSE;
 }
 
 } // namespace
@@ -1094,11 +790,8 @@ bool ShowSearchDialog(HWND owner, SearchDialogResult* result, const SearchSource
 {
     SearchDialogState state;
     state.out = result;
-    state.owner = owner;
     state.sources = available;
-    const UINT dpi = win32::DpiForWindow(owner);
-    return result &&
-           appearance::RunDialogWindow(&state, kDialogClass, SearchDialogProc, util::Tr(L"Find"), {appearance::metrics::Scaled(600, dpi), appearance::metrics::Scaled(744, dpi)});
+    return result && DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_FIND), owner, SearchDialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
 }
 
 } // namespace regkit

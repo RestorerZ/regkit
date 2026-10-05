@@ -16,15 +16,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "appearance/default_font.h"
-#include "appearance/dialog_layout.h"
-#include "appearance/feedback.h"
-#include "appearance/font_picker.h"
-#include "appearance/gdi_cache.h"
-#include "appearance/theme.h"
-#include "editors/binary_editor.h"
-#include "editors/hive_dialog.h"
-#include "editors/value_editor.h"
+#include "dialogs/binary_editor.h"
+#include "dialogs/hive_dialog.h"
+#include "dialogs/transfer_dialogs.h"
+#include "dialogs/value_editor.h"
 #include "frame/commands/command_dispatch.h"
 #include "frame/commands/command_ids.h"
 #include "regfile/reg_file.h"
@@ -36,6 +31,12 @@
 #include "resource.h"
 #include "search/compare.h"
 #include "search/search.h"
+#include "ui/default_font.h"
+#include "ui/dialog_layout.h"
+#include "ui/feedback.h"
+#include "ui/font_picker.h"
+#include "ui/gdi_cache.h"
+#include "ui/theme.h"
 #include "win32/file_dialog.h"
 #include "win32/process_rights.h"
 #include "win32/shell_paths.h"
@@ -50,14 +51,12 @@ namespace regkit::command_detail
 using window_detail::ChildNode;
 using window_detail::EqualsInsensitive;
 using window_detail::FetchListViewItemText;
-using window_detail::FileBaseName;
 using window_detail::FindChildByText;
 using window_detail::kIconSetClassic;
 using window_detail::kIconSetCustom;
 using window_detail::kIconSetPhosphor;
 using window_detail::LeafName;
 using window_detail::MakeValueListRow;
-using window_detail::ShortDefaultLabel;
 using window_detail::StartsWithInsensitive;
 using workspace::FavoritesStore;
 

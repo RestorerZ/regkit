@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <cstdint>
 namespace regkit
 {
 namespace cmd
@@ -208,15 +207,4 @@ constexpr int kHeaderSizeAll = 4001;
 constexpr int kHeaderToggleBase = 4100;
 
 } // namespace cmd
-} // namespace regkit
-
-namespace regkit
-{
-namespace rowkind
-{
-
-constexpr std::intptr_t kKey = 1;
-constexpr std::intptr_t kValue = 2;
-
-} // namespace rowkind
 } // namespace regkit

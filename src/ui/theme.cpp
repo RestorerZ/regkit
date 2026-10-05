@@ -1,11 +1,11 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "appearance/theme.h"
+#include "ui/theme.h"
 #include "win32/system_api.h"
 #include "win32/text_transform.h"
 
-#include "appearance/gdi_cache.h"
+#include "ui/gdi_cache.h"
 
 #include <commctrl.h>
 #include <dwmapi.h>

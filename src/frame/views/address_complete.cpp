@@ -4,7 +4,7 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
-#include "appearance/autocomplete.h"
+#include "ui/autocomplete.h"
 
 namespace regkit
 {
@@ -21,7 +21,6 @@ void MainWindow::Impl::EnableAddressAutoComplete()
 
 std::vector<std::wstring> MainWindow::Impl::BuildAddressSuggestions(const std::wstring& text) const
 {
-    // match registry_path::Clean, which reads slashes as separators only without backslashes
     const wchar_t separator = text.find(L'\\') == std::wstring::npos && text.find(L'/') != std::wstring::npos ? L'/' : L'\\';
     const size_t sep = text.find_last_of(separator);
     std::vector<std::wstring> items;

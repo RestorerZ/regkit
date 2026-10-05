@@ -3,6 +3,7 @@
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
+#include "trace/trace_paths.h"
 
 namespace regkit
 {
@@ -46,7 +47,7 @@ void MainWindow::Impl::StartTraceLoadWorker()
                 continue;
             }
             trace::Data data;
-            if (!trace::Load(use_label, source, TraceNormalizers(), &data, nullptr, &cancel))
+            if (!trace::Load(use_label, source, trace::PathNormalizers(), &data, nullptr, &cancel))
             {
                 continue;
             }
@@ -70,10 +71,9 @@ void MainWindow::Impl::StartTraceLoadWorker()
         {
             return;
         }
-        if (hwnd && IsWindow(hwnd) &&
-            PostMessageW(hwnd, frame::message_id::kTraceLoadReady, 0, reinterpret_cast<LPARAM>(payload.get())))
+        if (hwnd && IsWindow(hwnd))
         {
-            ReleasePostedPayload(payload);
+            work::PostPayload(hwnd, frame::message_id::kTraceLoadReady, 0, payload);
         }
     });
 }

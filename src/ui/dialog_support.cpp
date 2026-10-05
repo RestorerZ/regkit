@@ -1,16 +1,16 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "editors/dialog_support.h"
+#include "ui/dialog_support.h"
 #include "win32/text_transform.h"
 #include "win32/window_metrics.h"
 
-#include "appearance/default_font.h"
-#include "appearance/dialog_fit.h"
-#include "appearance/dialog_layout.h"
-#include "appearance/feedback.h"
-#include "appearance/list_view_support.h"
-#include "appearance/theme.h"
+#include "ui/default_font.h"
+#include "ui/dialog_fit.h"
+#include "ui/dialog_layout.h"
+#include "ui/feedback.h"
+#include "ui/list_view_support.h"
+#include "ui/theme.h"
 
 #include "resource.h"
 
@@ -191,8 +191,7 @@ void Initialize(HWND dialog, HFONT* owned_font, std::initializer_list<int> borde
         );
     }
     appearance::LocalizeDialog(dialog);
-    Theme::Current().ApplyToWindow(dialog);
-    Theme::Current().ApplyToChildren(dialog);
+    appearance::ApplyDialogTheme(dialog);
     regkit::appearance::CenterWindow(dialog, GetWindow(dialog, GW_OWNER));
 }
 
@@ -235,9 +234,7 @@ bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam,
     {
         if (Theme::UpdateFromSystem())
         {
-            Theme::Current().ApplyToWindow(dialog);
-            Theme::Current().ApplyToChildren(dialog);
-            InvalidateRect(dialog, nullptr, TRUE);
+            appearance::ApplyDialogTheme(dialog);
         }
         *result = TRUE;
         return true;

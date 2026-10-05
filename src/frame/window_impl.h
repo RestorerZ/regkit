@@ -24,25 +24,27 @@
 #include <unordered_set>
 #include <vector>
 
-#include "appearance/presets.h"
-#include "appearance/theme.h"
 #include "browse/browse_pane.h"
 #include "changes/change_history.h"
 #include "changes/key_snapshot.h"
 #include "changes/undo_stack.h"
 #include "changes/value_comments.h"
 #include "defaults/default_data.h"
-#include "frame/window/toolbar.h"
+#include "dialogs/query_dialog.h"
+#include "dialogs/replace_dialog.h"
+#include "dialogs/trace_dialog.h"
 #include "registry/registry_store.h"
 #include "registry/virtual_registry.h"
 #include "search/compare.h"
-#include "search/query_dialog.h"
-#include "search/replace_dialog.h"
 #include "search/search.h"
 #include "trace/trace_data.h"
-#include "trace/trace_dialog.h"
-#include "win32/handle_owner.h"
+#include "ui/presets.h"
+#include "ui/splitter.h"
+#include "ui/tab_strip.h"
+#include "ui/theme.h"
+#include "ui/toolbar.h"
 #include "win32/file_dialog.h"
+#include "win32/handle_owner.h"
 #include "win32/translation.h"
 #include "work/key_watcher.h"
 #include "work/session.h"
@@ -73,6 +75,29 @@ class MainWindow::Impl
         kLocal,
         kRemote,
         kOffline,
+    };
+
+    // the local registry, one remote machine or a set of offline hives; local tabs share one, the others own theirs
+    struct RegistrySession
+    {
+        RegistrySession() = default;
+        RegistrySession(const RegistrySession&) = delete;
+        RegistrySession& operator=(const RegistrySession&) = delete;
+        ~RegistrySession();
+
+        RegistryMode mode = RegistryMode::kLocal;
+        std::wstring remote_machine;
+        HKEY remote_hklm = nullptr;
+        HKEY remote_hku = nullptr;
+        HKEY offline_root = nullptr;
+        std::vector<HKEY> offline_roots;
+        std::wstring offline_mount;
+        std::vector<std::wstring> offline_root_labels;
+        std::vector<std::wstring> offline_root_paths;
+        std::wstring offline_root_name;
+        bool offline_dirty = false;
+        std::vector<RegistryRootEntry> roots;
+        changes::UndoStack undo;
     };
     enum class CacheKind
     {
@@ -130,7 +155,6 @@ class MainWindow::Impl
     static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
     static LRESULT CALLBACK AddressEditProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
     static LRESULT CALLBACK FilterEditProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
-    static LRESULT CALLBACK TabProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
     static LRESULT CALLBACK ListViewProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
     static LRESULT CALLBACK TreeViewProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
 
@@ -180,16 +204,8 @@ class MainWindow::Impl
     void UpdateUIFont();
     void ApplyUIFontToControls();
     void LayoutControls(int width, int height);
-    void InitDragLayout();
-    void ApplyDragLayout();
-    void BeginSplitterDrag();
-    void BeginHistorySplitterDrag();
-    void UpdateSplitterTrack(int client_x);
-    void UpdateHistorySplitterTrack(int client_y);
-    void EndSplitterDrag();
-    void EndHistorySplitterDrag();
-    void ComputeSplitterLimits(int* min_width, int* max_width) const;
-    void ComputeHistorySplitterLimits(int* min_height, int* max_height) const;
+    void LayoutContent(bool dragging);
+    void DragSplitter(ui::Splitter* splitter, int* size, POINT point);
     void BuildImageLists();
     void ReloadThemeIcons();
     bool ShouldUseLightIcons() const;
@@ -267,7 +283,7 @@ class MainWindow::Impl
     bool SwitchToRemoteRegistry();
     bool ConnectRemoteRegistry(const std::wstring& machine, bool open_new_tab = false);
     bool SwitchToOfflineRegistry();
-    bool SaveOfflineRegistry();
+    bool SaveOfflineRegistry(RegistrySession& session);
     bool LoadOfflineRegistryFromPath(const std::wstring& path, bool open_new_tab);
     void ApplyRegistryRoots(const std::vector<RegistryRootEntry>& roots);
     std::vector<std::wstring> BuildVisibleTreePathParts(const std::wstring& path) const;
@@ -286,9 +302,8 @@ class MainWindow::Impl
     void ActivateTabIndex(int index);
     bool HandleTabCommand(int command_id);
     bool ConfirmCloseTab(int tab_index);
-    bool ConfirmOfflineChanges(const wchar_t* message);
+    bool ConfirmOfflineChanges(RegistrySession& session, const wchar_t* message);
     void MarkOfflineDirty();
-    void ClearOfflineDirty();
     int AddRegistryTab(RegistryMode mode, const wchar_t* label);
     void OpenLocalRegistryTab();
     int CurrentRegistryTabIndex() const;
@@ -304,12 +319,9 @@ class MainWindow::Impl
     bool SearchResultOpensInNewTab() const;
     bool OpenSearchResultRow(int item, bool new_tab);
     bool OpenSelectedSearchResult(bool new_tab);
-    void UpdateTabHotState(HWND hwnd, POINT pt);
-    void PaintTabControl(HWND hwnd, HDC hdc);
-    void DrawTabItem(HDC hdc, int index, const RECT& item_rect, int header_bottom, bool selected);
-    bool GetTabCloseRect(int index, RECT* rect) const;
-    void ReleaseRemoteRegistry();
-    bool UnloadOfflineRegistry(std::wstring* error);
+    RegistrySession* CurrentTabSession();
+    void ShowSession(const std::shared_ptr<RegistrySession>& session);
+    void UpdateUndoButtons();
     void NavigateToAddress();
     bool SelectTreePath(const std::wstring& path);
     std::wstring TreeNeighbourPath(HTREEITEM item);
@@ -372,13 +384,9 @@ class MainWindow::Impl
     void OnMeasureMenuItem(MEASUREITEMSTRUCT* info);
     void OnDrawMenuItem(const DRAWITEMSTRUCT* info);
     void PaintMenuBarSeparator();
-    void ShowHeaderMenu(HWND list, std::vector<ColumnInfo>& columns, std::vector<int>& widths, std::vector<bool>& visible, POINT screen_pt, int unavailable_column = -1);
-    void ShowValueHeaderMenu(POINT screen_pt);
-    void ShowHistoryHeaderMenu(POINT screen_pt);
-    void ShowSearchHeaderMenu(POINT screen_pt);
-    void ToggleValueColumn(int column, bool visible);
-    void ToggleHistoryColumn(int column, bool visible);
-    void ToggleSearchColumn(int column, bool visible);
+    void ShowHeaderMenu(HWND list, POINT screen_pt);
+    ui::ColumnSet* ColumnSetFor(HWND list);
+    void ApplyColumns(HWND list);
     void AppendHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data);
     void AppendHistoryEntry(HistoryEntry entry);
     void AppendValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value = nullptr);
@@ -391,9 +399,7 @@ class MainWindow::Impl
     void ShowValueContextMenu(POINT screen_pt);
     void ShowHistoryContextMenu(POINT screen_pt);
     void ShowSearchResultContextMenu(POINT screen_pt);
-    void DrawAddressButton(const DRAWITEMSTRUCT* info);
-    void DrawHeaderCloseButton(const DRAWITEMSTRUCT* info);
-    void DrawFilterClearButton(const DRAWITEMSTRUCT* info);
+    void DrawPanelButton(const DRAWITEMSTRUCT* info);
     void ClearValueFilter(bool focus_values);
     void ShowPermissionsDialog(const RegistryNode& node);
     void ShowKeyInfoDialog(const RegistryNode& node);
@@ -570,8 +576,9 @@ class MainWindow::Impl
     HFONT ui_font_ = nullptr;
     HFONT icon_font_ = nullptr;
     bool ui_font_owned_ = false;
-    bool use_custom_font_ = false;
     LOGFONTW custom_font_ = {};
+    // the saved settings, and the live value of every setting that has no richer form below
+    workspace::Settings settings_;
     HACCEL accelerators_ = nullptr;
     Toolbar toolbar_;
     HWND tab_ = nullptr;
@@ -590,100 +597,43 @@ class MainWindow::Impl
     HIMAGELIST list_images_ = nullptr;
     std::vector<int> value_column_subitems_;
     std::vector<int> search_column_subitems_;
-    std::vector<ColumnInfo> history_columns_;
-    std::vector<int> history_column_widths_;
-    std::vector<bool> history_column_visible_;
-    std::vector<ColumnInfo> search_columns_;
-    std::vector<int> search_column_widths_;
-    std::vector<bool> search_column_visible_;
-    std::vector<ColumnInfo> compare_columns_;
+    ui::ColumnSet history_columns_;
+    ui::ColumnSet search_columns_;
+    ui::ColumnSet compare_columns_;
     std::vector<std::wstring> compare_column_titles_;
-    std::vector<int> compare_column_widths_;
-    std::vector<bool> compare_column_visible_;
     bool compare_columns_active_ = false;
     bool compare_result_column_active_ = false;
     int history_sort_column_ = 0;
     bool history_sort_ascending_ = true;
     int history_max_rows_ = 500;
     changes::ChangeHistory change_history_;
-    RegistryMode registry_mode_ = RegistryMode::kLocal;
-    std::wstring remote_machine_;
-    HKEY remote_hklm_ = nullptr;
-    HKEY remote_hku_ = nullptr;
-    HKEY offline_root_ = nullptr;
-    std::vector<HKEY> offline_roots_;
-    std::wstring offline_mount_;
-    std::vector<std::wstring> offline_root_labels_;
-    std::vector<std::wstring> offline_root_paths_;
-    std::wstring offline_root_name_;
+    std::shared_ptr<RegistrySession> local_session_ = std::make_shared<RegistrySession>();
+    // the session of the registry tab shown last, search and .reg tabs keep it
+    std::shared_ptr<RegistrySession> session_ = local_session_;
     int current_key_count_ = 0;
     int current_value_count_ = 0;
     int tab_height_ = 22;
     bool suppress_tab_change_ = false;
-    int tree_width_ = 260;
-    int history_height_ = 160;
-    RECT splitter_rect_ = {};
-    bool splitter_dragging_ = false;
-    int splitter_start_x_ = 0;
-    int splitter_start_width_ = 0;
-    int splitter_min_width_ = 0;
-    int splitter_max_width_ = 0;
-    RECT history_splitter_rect_ = {};
-    bool history_splitter_dragging_ = false;
-    int history_splitter_start_y_ = 0;
-    int history_splitter_start_height_ = 0;
-    int history_splitter_min_height_ = 0;
-    int history_splitter_max_height_ = 0;
-    bool drag_layout_valid_ = false;
-    int drag_client_width_ = 0;
-    int drag_client_height_ = 0;
-    int drag_content_top_ = 0;
-    int drag_content_left_ = 0;
-    int drag_content_right_ = 0;
-    int drag_status_top_ = 0;
-    int drag_tree_header_height_ = 0;
-    int drag_history_label_height_ = 0;
+    // the area below the tab row and above the status bar that the panes share
+    RECT content_rect_ = {};
+    ui::Splitter tree_splitter_{true, false};
+    ui::Splitter history_splitter_{false, true};
     HICON address_go_icon_ = nullptr;
     HWND value_tooltip_ = nullptr;
     HWND value_tip_list_ = nullptr;
     int value_tip_item_ = -1;
     int value_tip_subitem_ = -1;
     std::wstring value_tooltip_text_;
-    bool show_value_grid_ = false;
-    bool auto_refresh_ = false;
-    bool hkcu_follows_shell_user_ = true;
     std::unique_ptr<util::PrivilegeScope> backup_privileges_;
     std::wstring status_account_sid_;
     std::wstring status_account_;
     work::KeyWatcher key_watcher_;
-    bool auto_check_updates_ = false;
-    bool default_reset_enabled_ = false;
     HMENU reset_default_menu_ = nullptr;
-    bool show_toolbar_ = true;
-    bool show_address_bar_ = true;
-    bool show_filter_bar_ = true;
-    bool show_tab_control_ = true;
-    bool show_tree_ = true;
-    bool show_history_ = true;
     bool show_value_ = true;
-    bool show_status_bar_ = true;
-    bool show_keys_in_list_ = true;
-    bool show_extra_hives_ = false;
-    bool show_simulated_keys_ = true;
-    bool save_tree_state_ = true;
     work::DebouncedTask<workspace::TreeState> tree_state_saver_;
-    bool always_on_top_ = false;
-    bool always_run_as_admin_ = false;
-    bool always_run_as_system_ = false;
-    bool always_run_as_trustedinstaller_ = false;
     bool replace_regedit_ = false;
     bool edit_context_menu_ = false;
-    bool single_instance_ = true;
-    bool autocomplete_ = true;
-    bool read_only_ = false;
     ThemeMode theme_mode_ = ThemeMode::kSystem;
-    std::wstring icon_set_ = L"phosphor";
-    std::wstring language_;
     std::vector<util::LanguagePack> language_packs_;
     std::wstring icon_dir_;
     bool updating_value_list_ = false;
@@ -697,12 +647,8 @@ class MainWindow::Impl
     bool history_cache_failed_ = false;
     std::wstring status_message_;
     bool is_replaying_ = false;
-    bool clear_history_on_exit_ = false;
-    int save_tab_kinds_ = workspace::kSaveTabsAll;
-    bool clear_tabs_on_exit_ = false;
     bool hive_list_loaded_ = false;
     std::vector<ThemePreset> theme_presets_;
-    std::wstring active_theme_preset_;
     LPARAM pending_value_list_kind_ = 0;
     std::wstring pending_value_list_name_;
     std::wstring appended_value_name_;
@@ -732,13 +678,7 @@ class MainWindow::Impl
     bool startup_tree_restore_pending_ = false;
     bool applying_startup_tree_restore_ = false;
     bool window_placement_loaded_ = false;
-    int window_x_ = 0;
-    int window_y_ = 0;
-    int window_width_ = 0;
-    int window_height_ = 0;
-    bool window_maximized_ = false;
     ClipboardItem clipboard_;
-    changes::UndoStack undo_stack_;
     ReplaceDialogResult last_replace_;
     SearchDialogResult last_search_;
 
@@ -783,7 +723,7 @@ class MainWindow::Impl
         std::vector<std::wstring> selected_values;
         int value_top_index = 0;
         std::vector<std::wstring> expanded_paths;
-        bool offline_dirty = false;
+        std::shared_ptr<RegistrySession> session;
         std::wstring reg_file_path;
         std::wstring reg_file_label;
         std::wstring reg_file_session_key;
@@ -830,10 +770,7 @@ class MainWindow::Impl
     bool search_running_ = false;
     int active_search_tab_index_ = -1;
     int search_results_view_tab_index_ = -1;
-    int tab_hot_index_ = -1;
-    int tab_close_hot_index_ = -1;
-    int tab_close_down_index_ = -1;
-    bool tab_mouse_tracking_ = false;
+    ui::TabStrip tab_strip_;
     bool value_activate_from_key_ = false;
     bool address_autocomplete_ = false;
     struct ActiveTrace
@@ -940,7 +877,7 @@ class MainWindow::Impl
         DWORD size = 0;
         std::wstring preview;
     };
-    struct ValuePreviewPayload
+    struct ValuePreviewPayload : work::MoveOnly
     {
         uint64_t generation = 0;
         std::vector<ValuePreviewItem> items;
@@ -968,7 +905,7 @@ class MainWindow::Impl
         DWORD data_size = 0;
         std::wstring preview;
     };
-    struct SearchPreviewPayload
+    struct SearchPreviewPayload : work::MoveOnly
     {
         uint64_t generation = 0;
         int tab_index = -1;
@@ -985,7 +922,7 @@ class MainWindow::Impl
         std::vector<RegistryNode> nodes;
         HWND hwnd = nullptr;
     };
-    struct SearchSortPayload
+    struct SearchSortPayload : work::MoveOnly
     {
         uint64_t generation = 0;
         int tab_index = -1;
@@ -1001,7 +938,7 @@ class MainWindow::Impl
         bool sort_ascending = true;
         HWND hwnd = nullptr;
     };
-    struct SearchTabLoadPayload
+    struct SearchTabLoadPayload : work::MoveOnly
     {
         uint64_t generation = 0;
         int tab_index = -1;

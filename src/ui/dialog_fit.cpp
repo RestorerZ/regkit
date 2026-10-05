@@ -1,10 +1,10 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "appearance/dialog_fit.h"
+#include "ui/dialog_fit.h"
 
-#include "appearance/dialog_layout.h"
-#include "appearance/dialog_metrics.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_metrics.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
 #include "win32/window_metrics.h"

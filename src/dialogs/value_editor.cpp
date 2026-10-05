@@ -1,13 +1,13 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "editors/value_editor.h"
+#include "dialogs/value_editor.h"
 #include "win32/text_transform.h"
 
-#include "appearance/dialog_layout.h"
-#include "editors/binary_text.h"
-#include "editors/bitfield_editor.h"
-#include "editors/dialog_support.h"
+#include "dialogs/binary_text.h"
+#include "dialogs/bitfield_editor.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_support.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -18,7 +18,7 @@
 #include <initializer_list>
 #include <limits>
 
-#include "appearance/feedback.h"
+#include "ui/feedback.h"
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "win32/translation.h"
@@ -130,46 +130,17 @@ struct BinaryGroupIds
 const BinaryGroupIds kBinaryIds = {IDC_REG_BINARY_EDIT, IDC_REG_BINARY_PREVIEW, IDC_REG_BINARY_FORMAT_BYTE, IDC_REG_BINARY_FORMAT_WORD, IDC_REG_BINARY_FORMAT_DWORD, IDC_REG_BINARY_FORMAT_QWORD, IDC_REG_BINARY_TEXT_ANSI, IDC_REG_BINARY_TEXT_UNICODE};
 const BinaryGroupIds kNoneIds = {IDC_REG_NONE_EDIT, IDC_REG_NONE_PREVIEW, IDC_REG_NONE_FORMAT_BYTE, IDC_REG_NONE_FORMAT_WORD, IDC_REG_NONE_FORMAT_DWORD, IDC_REG_NONE_FORMAT_QWORD, IDC_REG_NONE_TEXT_ANSI, IDC_REG_NONE_TEXT_UNICODE};
 
-struct TraceTypeEntry
-{
-    DWORD type = REG_SZ;
-    const wchar_t* label = nullptr;
-};
-
-const TraceTypeEntry kTraceTypes[] = {
-    {REG_SZ, L"REG_SZ"},
-    {REG_EXPAND_SZ, L"REG_EXPAND_SZ"},
-    {REG_MULTI_SZ, L"REG_MULTI_SZ"},
-    {REG_LINK, L"REG_LINK"},
-    {REG_DWORD, L"REG_DWORD"},
-    {REG_DWORD_BIG_ENDIAN, L"REG_DWORD_BIG_ENDIAN"},
-    {REG_QWORD, L"REG_QWORD"},
-    {REG_BINARY, L"REG_BINARY"},
-    {REG_RESOURCE_LIST, L"REG_RESOURCE_LIST"},
-    {REG_FULL_RESOURCE_DESCRIPTOR, L"REG_FULL_RESOURCE_DESCRIPTOR"},
-    {REG_RESOURCE_REQUIREMENTS_LIST, L"REG_RESOURCE_REQUIREMENTS_LIST"},
-    {REG_NONE, L"REG_NONE"},
-};
-
 int TypeToComboIndex(DWORD type)
 {
-    for (size_t i = 0; i < _countof(kTraceTypes); ++i)
-    {
-        if (kTraceTypes[i].type == type)
-        {
-            return static_cast<int>(i);
-        }
-    }
-    return 0;
+    const auto types = value_format::TypeLabels();
+    const auto found = std::find_if(types.begin(), types.end(), [&](const value_format::TypeLabel& label) { return label.type == type; });
+    return found == types.end() ? 0 : static_cast<int>(found - types.begin());
 }
 
 DWORD ComboIndexToType(int index)
 {
-    if (index < 0 || index >= static_cast<int>(_countof(kTraceTypes)))
-    {
-        return REG_SZ;
-    }
-    return kTraceTypes[index].type;
+    const auto types = value_format::TypeLabels();
+    return index >= 0 && static_cast<size_t>(index) < types.size() ? types[static_cast<size_t>(index)].type : REG_SZ;
 }
 
 void PopulateTraceTypeCombo(HWND dlg)
@@ -180,9 +151,9 @@ void PopulateTraceTypeCombo(HWND dlg)
         return;
     }
     SendMessageW(combo, CB_RESETCONTENT, 0, 0);
-    for (const auto& entry : kTraceTypes)
+    for (const auto& entry : value_format::TypeLabels())
     {
-        int idx = static_cast<int>(SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(entry.label)));
+        int idx = static_cast<int>(SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(entry.name)));
         SendMessageW(combo, CB_SETITEMDATA, idx, static_cast<LPARAM>(entry.type));
     }
 }
@@ -236,11 +207,11 @@ const TraceTypeGroup kTraceTypeGroups[] = {
 
 const wchar_t* TraceTypeLabel(DWORD type)
 {
-    for (const auto& entry : kTraceTypes)
+    for (const auto& entry : value_format::TypeLabels())
     {
         if (entry.type == type)
         {
-            return entry.label;
+            return entry.name;
         }
     }
     return L"REG_BINARY";

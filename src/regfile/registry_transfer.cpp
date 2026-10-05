@@ -3,15 +3,7 @@
 
 #include "regfile/registry_transfer.h"
 
-#include "appearance/feedback.h"
-#include "editors/export_dialog.h"
-#include "editors/hive_dialog.h"
-#include "editors/value_editor.h"
-#include "regfile/reg_file.h"
-#include "registry/key_algorithms.h"
 #include "registry/registry_path.h"
-#include "registry/registry_store.h"
-#include "win32/file_dialog.h"
 #include "win32/file_text.h"
 #include "win32/handle_owner.h"
 #include "win32/process_rights.h"
@@ -22,21 +14,16 @@
 #include "win32/text_transform.h"
 #include "win32/translation.h"
 
-#include <algorithm>
 #include <cstring>
 #include <cwchar>
+#include <string>
 #include <vector>
 
-#include <shlobj.h>
 namespace regkit
 {
 
 namespace
 {
-
-using util::FormatWin32Error;
-
-constexpr wchar_t kRegFileFilter[] = L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0";
 
 bool RunRegCommand(const std::wstring& args, std::wstring* error)
 {
@@ -95,7 +82,7 @@ bool RunRegCommand(const std::wstring& args, std::wstring* error)
     {
         if (error)
         {
-            *error = FormatWin32Error(create_error);
+            *error = util::FormatWin32Error(create_error);
         }
         return false;
     }
@@ -119,42 +106,6 @@ bool RunRegCommand(const std::wstring& args, std::wstring* error)
     return code == 0;
 }
 
-bool ResolveExportKey(const std::wstring& key_path, RegistryNode* node, std::wstring* display, std::wstring* error)
-{
-    *display = registry_path::Normalize(key_path, util::GetCurrentUserSidString());
-    if (!registry_path::ParseRoot(*display, node) || !node->root)
-    {
-        if (error)
-        {
-            *error = util::Tr(L"Export supports the standard root keys only.");
-        }
-        return false;
-    }
-    return true;
-}
-
-bool WriteRegFile(const std::wstring& path, regfile::Writer&& writer, std::wstring* error)
-{
-    if (util::WriteTextFile(path, std::move(writer).Finish(), true))
-    {
-        return true;
-    }
-    if (error)
-    {
-        *error = util::TrDetail(L"Failed to write the exported registry file.", path);
-    }
-    return false;
-}
-
-bool ReportUnreadableKey(LONG status, const std::wstring& display, std::wstring* error)
-{
-    if (error)
-    {
-        *error = util::FormatWin32Error(static_cast<DWORD>(status)) + L"\n" + display;
-    }
-    return false;
-}
-
 std::wstring SanitizeFileName(const std::wstring& name)
 {
     std::wstring out;
@@ -173,9 +124,14 @@ std::wstring SanitizeFileName(const std::wstring& name)
 
 } // namespace
 
+std::wstring ExportFileName(const std::wstring& name, const wchar_t* extension)
+{
+    return util::EnsureFileExtension(SanitizeFileName(name), extension);
+}
+
 std::wstring DefaultExportPath(const std::wstring& key_path, const wchar_t* extension)
 {
-    const std::wstring file_name = util::EnsureFileExtension(SanitizeFileName(registry_path::Leaf(key_path)), extension);
+    const std::wstring file_name = ExportFileName(registry_path::Leaf(key_path), extension);
     const std::wstring desktop = util::GetShellUserDesktop();
     return desktop.empty() ? file_name : util::JoinPath(desktop, file_name);
 }
@@ -184,137 +140,6 @@ bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error)
 {
     return !path.empty() &&
            RunRegCommand(L"import \"" + path + L"\" " + win32::RegExeViewSwitch(win32::kDefaultRegistryView), error);
-}
-
-bool ExportRegFile(HWND owner, const std::wstring& key_path, bool allow_hive, std::wstring* error, std::wstring* saved_path, win32::OpenAfter* open_after)
-{
-    static win32::OpenAfter last_open_after = win32::OpenAfter::kNone;
-    editors::ExportRequest request;
-    request.path = DefaultExportPath(key_path, L".reg");
-    request.open_after = last_open_after;
-    request.allow_hive = allow_hive;
-    editors::ExportResult options;
-    if (!editors::ChooseExport(owner, request, &options))
-    {
-        return false;
-    }
-    RegistryNode node;
-    std::wstring display;
-    if (!ResolveExportKey(key_path, &node, &display, error))
-    {
-        return false;
-    }
-    if (options.hive)
-    {
-        const LONG saved = SaveKeyToHive(node.root, node.subkey, win32::kDefaultRegistryView, options.path);
-        if (saved != ERROR_SUCCESS)
-        {
-            *error = HiveTransferError(saved, options.path);
-            return false;
-        }
-        *saved_path = options.path;
-        *open_after = win32::OpenAfter::kNone;
-        return true;
-    }
-    last_open_after = options.open_after;
-    regfile::Writer writer;
-    std::vector<std::wstring> skipped;
-    const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, win32::kDefaultRegistryView, options.include_subkeys, &skipped);
-    if (status != ERROR_SUCCESS)
-    {
-        return ReportUnreadableKey(status, display, error);
-    }
-    if ((!skipped.empty() && !ui::ConfirmConversionSkips(owner, skipped, util::Tr(L"Export"))) || !WriteRegFile(options.path, std::move(writer), error))
-    {
-        return false;
-    }
-    *saved_path = options.path;
-    *open_after = options.open_after;
-    return true;
-}
-
-bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const std::vector<std::wstring>& value_names, const std::vector<std::wstring>& subkey_names, std::wstring* error, std::wstring* saved_path, win32::OpenAfter* open_after)
-{
-    if (value_names.empty() && subkey_names.empty())
-    {
-        if (error)
-        {
-            *error = util::Tr(L"No data to export.");
-        }
-        return false;
-    }
-    const std::wstring first_name =
-        !value_names.empty() ? (value_names.front().empty() ? L"Default" : value_names.front()) : subkey_names.front();
-    std::wstring path;
-    if (!ui::ReportFileDialogResult(
-            owner,
-            win32::ChooseFileToSave(owner, kRegFileFilter, util::EnsureFileExtension(SanitizeFileName(first_name), L".reg").c_str(), &path, open_after, true)
-        ))
-    {
-        return false;
-    }
-    path = util::EnsureFileExtension(path, L".reg");
-
-    regfile::Writer writer;
-    std::vector<std::wstring> skipped;
-    if (!value_names.empty())
-    {
-        RegistryNode base;
-        std::wstring display;
-        if (!ResolveExportKey(base_key_path, &base, &display, error))
-        {
-            return false;
-        }
-        registry_backend::KeyContents contents;
-        const LONG status = registry_backend::ReadKeyContents(base.root, base.subkey, win32::kDefaultRegistryView, true, &contents);
-        if (status != ERROR_SUCCESS)
-        {
-            return ReportUnreadableKey(status, display, error);
-        }
-        std::erase_if(contents.values, [&](const RegistryValue& value) {
-            return std::none_of(value_names.begin(), value_names.end(), [&](const std::wstring& name) { return util::EqualsInsensitive(name, value.name); });
-        });
-        const bool found = !contents.values.empty();
-        regfile::SkipNullNames(display, &contents.values, nullptr, &skipped);
-        std::vector<const regfile::Value*> selected;
-        for (const RegistryValue& value : contents.values)
-        {
-            selected.push_back(&value);
-        }
-        if (!found)
-        {
-            if (error)
-            {
-                *error = util::Tr(L"No selected values were found in the export.");
-            }
-            return false;
-        }
-        writer.AppendKey(display, std::move(selected), false);
-    }
-    for (const auto& subkey : subkey_names)
-    {
-        if (subkey.empty())
-        {
-            continue;
-        }
-        RegistryNode node;
-        std::wstring display;
-        if (!ResolveExportKey(base_key_path.empty() ? subkey : base_key_path + L"\\" + subkey, &node, &display, error))
-        {
-            return false;
-        }
-        const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, win32::kDefaultRegistryView, true, &skipped);
-        if (status != ERROR_SUCCESS)
-        {
-            return ReportUnreadableKey(status, display, error);
-        }
-    }
-    if (!skipped.empty() && !ui::ConfirmConversionSkips(owner, skipped, util::Tr(L"Export")))
-    {
-        return false;
-    }
-    *saved_path = path;
-    return WriteRegFile(path, std::move(writer), error);
 }
 
 bool IsHiveFile(const std::wstring& path)
@@ -398,84 +223,6 @@ bool IsMountedHive(HKEY root, const std::wstring& subkey)
     const std::wstring native =
         (root == HKEY_LOCAL_MACHINE ? L"\\REGISTRY\\MACHINE\\" : L"\\REGISTRY\\USER\\") + subkey;
     return RegGetValueW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\hivelist", native.c_str(), RRF_RT_ANY, nullptr, nullptr, nullptr) == ERROR_SUCCESS;
-}
-bool LoadHive(HWND owner, HKEY* root, std::wstring* error)
-{
-    if (!root)
-    {
-        return false;
-    }
-    editors::LoadHiveResult choice;
-    choice.root = *root;
-    if (!editors::ChooseHiveToLoad(owner, &choice))
-    {
-        return false;
-    }
-    *root = choice.root;
-    const util::PrivilegeScope privileges({SE_RESTORE_NAME, SE_BACKUP_NAME});
-    if (!privileges.held())
-    {
-        if (error)
-        {
-            *error = util::Tr(L"Loading a hive needs the backup and restore privileges. Run RegKit elevated.");
-        }
-        return false;
-    }
-    const LONG result = RegLoadKeyW(*root, choice.key_name.c_str(), choice.file.c_str());
-    if (result != ERROR_SUCCESS)
-    {
-        if (error)
-        {
-            *error = FormatWin32Error(result);
-        }
-        return false;
-    }
-    return true;
-}
-
-bool UnloadHive(HWND owner, HKEY root, const std::wstring& subkey, std::wstring* error)
-{
-    std::wstring target = subkey;
-    if (target.empty())
-    {
-        editors::TextRequest request;
-        request.title = util::Tr(L"Unload Hive");
-        request.label = util::Tr(L"Key name:");
-        request.text = target;
-        editors::TextResult result;
-        if (!editors::EditText(owner, request, &result))
-        {
-            return false;
-        }
-        target = std::move(result.text);
-    }
-    if (target.empty())
-    {
-        if (error)
-        {
-            *error = util::Tr(L"Key name is required.");
-        }
-        return false;
-    }
-    const util::PrivilegeScope privileges({SE_RESTORE_NAME, SE_BACKUP_NAME});
-    if (!privileges.held())
-    {
-        if (error)
-        {
-            *error = util::Tr(L"Unloading a hive needs the backup and restore privileges. Run RegKit elevated.");
-        }
-        return false;
-    }
-    const LONG result = RegUnLoadKeyW(root, target.c_str());
-    if (result != ERROR_SUCCESS)
-    {
-        if (error)
-        {
-            *error = FormatWin32Error(result);
-        }
-        return false;
-    }
-    return true;
 }
 
 } // namespace regkit

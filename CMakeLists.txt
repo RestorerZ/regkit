@@ -56,9 +56,8 @@ target_include_directories(RegKit PRIVATE
 target_link_libraries(RegKit PRIVATE
     regkit_frame
     regkit_cli
-    regkit_registry_io
-    regkit_editors
-    regkit_appearance
+    regkit_dialogs
+    regkit_ui
     regkit_win32
     advapi32
     comctl32
@@ -142,21 +141,19 @@ regkit_verify_dependency_order(
     regkit_win32
     regkit_records
     regkit_work
+    regkit_ui
     regkit_registry
     regkit_regfile
     regkit_search
     regkit_trace
     regkit_defaults
     regkit_changes
-    regkit_browse
     regkit_workspace
-    regkit_appearance
-    regkit_editors
-    regkit_registry_io
-    regkit_search_dialogs
-    regkit_trace_dialog
-    regkit_security
+    regkit_browse
+    regkit_dialogs
     regkit_frame
     regkit_cli
     RegKit
 )
+
+regkit_verify_include_order(win32 records work ui registry regfile search trace defaults changes workspace browse dialogs frame cli launch)

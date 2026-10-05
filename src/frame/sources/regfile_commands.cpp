@@ -173,9 +173,9 @@ void MainWindow::Impl::StartRegFileParse(const std::wstring& path, const std::ws
         payload->source_path = session_ptr->source_path;
         payload->source_lower = session_ptr->source_lower;
         std::wstring parse_error;
-        std::vector<ParsedRegFileRoot> parsed_roots;
+        std::vector<regfile::VirtualRoot> parsed_roots;
         bool cancelled = false;
-        if (!ParseRegFileToVirtualRoots(payload->source_path, &parsed_roots, &parse_error, &cancel, &cancelled))
+        if (!regfile::LoadVirtualRoots(payload->source_path, &parsed_roots, &parse_error, &cancel, &cancelled))
         {
             if (!cancelled && parse_error.empty())
             {
@@ -186,11 +186,10 @@ void MainWindow::Impl::StartRegFileParse(const std::wstring& path, const std::ws
         payload->error = std::move(parse_error);
         payload->cancelled = cancelled;
         if (!hwnd || !IsWindow(hwnd) ||
-            !PostMessageW(hwnd, frame::message_id::kRegFileLoadReady, 0, reinterpret_cast<LPARAM>(payload.get())))
+            !work::PostPayload(hwnd, frame::message_id::kRegFileLoadReady, 0, payload))
         {
             return;
         }
-        ReleasePostedPayload(payload);
     });
     reg_file_parse_sessions_.emplace(session_key, std::move(session));
 }
@@ -213,7 +212,7 @@ bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path, bool force_new_t
     {
         return false;
     }
-    if (!FileExists(path))
+    if (!util::IsFile(path))
     {
         ui::ShowError(hwnd_, util::Tr(L"Registry file not found."));
         return false;

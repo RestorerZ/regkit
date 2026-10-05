@@ -1,7 +1,7 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "appearance/preset_editor.h"
+#include "ui/preset_editor.h"
 
 #include <algorithm>
 #include <commctrl.h>
@@ -10,12 +10,12 @@
 #include <vsstyle.h>
 #include <windowsx.h>
 
-#include "appearance/default_font.h"
-#include "appearance/dialog_fit.h"
-#include "appearance/dialog_layout.h"
-#include "appearance/dialog_metrics.h"
-#include "appearance/feedback.h"
-#include "appearance/list_view_support.h"
+#include "ui/default_font.h"
+#include "ui/dialog_fit.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_metrics.h"
+#include "ui/feedback.h"
+#include "ui/list_view_support.h"
 #include "win32/file_dialog.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"

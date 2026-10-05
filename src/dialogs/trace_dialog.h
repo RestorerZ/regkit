@@ -28,7 +28,6 @@ struct KeyValueDialogEntry
 struct TraceDialogOptions
 {
     std::wstring title;
-    std::wstring prompt;
     bool show_values = true;
 };
 

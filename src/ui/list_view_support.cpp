@@ -1,12 +1,12 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "appearance/list_view_support.h"
+#include "ui/list_view_support.h"
 
-#include "appearance/dialog_layout.h"
-#include "appearance/icon_loader.h"
-#include "appearance/list_header.h"
-#include "appearance/theme.h"
+#include "ui/dialog_layout.h"
+#include "ui/icon_loader.h"
+#include "ui/list_header.h"
+#include "ui/theme.h"
 #include "win32/translation.h"
 #include "win32/window_metrics.h"
 

@@ -38,12 +38,11 @@ void MainWindow::Impl::RestoreHiveFile(const std::wstring& path)
         return;
     }
     const RegistryNode node = SelectedKeyNode();
-    if (registry_mode_ != RegistryMode::kLocal || node.root == HKEY_CLASSES_ROOT || RegistryStore::IsVirtualRoot(node.root))
+    if (session_->mode != RegistryMode::kLocal || node.root == HKEY_CLASSES_ROOT || RegistryStore::IsVirtualRoot(node.root))
     {
         ui::ShowError(hwnd_, util::Tr(L"Hive files can only be restored into the local registry, outside HKEY_CLASSES_ROOT."));
         return;
     }
-    // ponytail: fixed key limit for the undo snapshot, size it by memory if large restores need undo
     changes::KeySnapshot before;
     const bool can_undo = CountKeys(node, kRestoreUndoLimit) <= kRestoreUndoLimit && (before = changes::CaptureKey(node)).complete;
     const std::wstring message = can_undo ? util::Tr(L"Replace all contents of this key with the hive file?")
@@ -116,7 +115,7 @@ bool MainWindow::Impl::HandleDynamicCommand(int command_id)
         if (index < recent_default_paths_.items().size())
         {
             std::wstring path = recent_default_paths_.items()[index];
-            std::wstring label = FileBaseName(path);
+            std::wstring label = util::FileBaseName(path);
             if (label.empty())
             {
                 label = L"Default";
@@ -140,7 +139,7 @@ bool MainWindow::Impl::HandleDynamicCommand(int command_id)
         if (index < recent_trace_paths_.items().size())
         {
             std::wstring path = recent_trace_paths_.items()[index];
-            std::wstring label = FileBaseName(path);
+            std::wstring label = util::FileBaseName(path);
             if (label.empty())
             {
                 label = L"Trace";
@@ -225,17 +224,9 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
                 }
                 return true;
             }
-            if (registry_mode_ == RegistryMode::kOffline)
+            if (session_->offline_dirty)
             {
-                int index = CurrentRegistryTabIndex();
-                if (index >= 0 && static_cast<size_t>(index) < tabs_.size())
-                {
-                    if (tabs_[static_cast<size_t>(index)].offline_dirty)
-                    {
-                        SaveOfflineRegistry();
-                    }
-                }
-                return true;
+                SaveOfflineRegistry(*session_);
             }
             return true;
         }
@@ -329,7 +320,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             std::wstring path = registry_path::Build(*browse_.current_node());
             std::wstring saved_path;
             win32::OpenAfter open_after = win32::OpenAfter::kNone;
-            const bool allow_hive = registry_mode_ == RegistryMode::kLocal && browse_.current_node()->root != HKEY_CLASSES_ROOT;
+            const bool allow_hive = session_->mode == RegistryMode::kLocal && browse_.current_node()->root != HKEY_CLASSES_ROOT;
             if (ExportRegFile(hwnd_, path, allow_hive, &error, &saved_path, &open_after))
             {
                 HistoryEntry entry;
@@ -387,7 +378,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             {
                 return true;
             }
-            if (registry_mode_ == RegistryMode::kRemote)
+            if (session_->mode == RegistryMode::kRemote)
             {
                 ui::ShowError(hwnd_, util::Tr(L"Loading hives isn't supported for remote registries."));
                 return true;
@@ -414,7 +405,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             {
                 return true;
             }
-            if (registry_mode_ == RegistryMode::kRemote)
+            if (session_->mode == RegistryMode::kRemote)
             {
                 ui::ShowError(hwnd_, util::Tr(L"Unloading hives isn't supported for remote registries."));
                 return true;
@@ -452,15 +443,15 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             return true;
         }
     case cmd::kFileSaveOfflineHive:
-        SaveOfflineRegistry();
+        SaveOfflineRegistry(*session_);
         return true;
     case cmd::kFileClearHistoryOnExit:
-        clear_history_on_exit_ = !clear_history_on_exit_;
+        settings_.clear_history_on_exit = !settings_.clear_history_on_exit;
         SaveSettings();
         BuildMenus();
         return true;
     case cmd::kFileClearTabsOnExit:
-        clear_tabs_on_exit_ = !clear_tabs_on_exit_;
+        settings_.clear_tabs_on_exit = !settings_.clear_tabs_on_exit;
         SaveSettings();
         BuildMenus();
         return true;
@@ -515,21 +506,21 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         UpdateValueListForNode(browse_.current_node());
         return true;
     case cmd::kViewAddressBar:
-        show_address_bar_ = !show_address_bar_;
+        settings_.show_address_bar = !settings_.show_address_bar;
         SaveSettings();
         ApplyViewVisibility();
         BuildMenus();
         return true;
     case cmd::kViewFilterBar:
-        show_filter_bar_ = !show_filter_bar_;
+        settings_.show_filter_bar = !settings_.show_filter_bar;
         SaveSettings();
         ApplyViewVisibility();
         BuildMenus();
         return true;
     case cmd::kViewFocusFilter:
-        if (!show_filter_bar_)
+        if (!settings_.show_filter_bar)
         {
-            show_filter_bar_ = true;
+            settings_.show_filter_bar = true;
             SaveSettings();
             ApplyViewVisibility();
             BuildMenus();
@@ -541,7 +532,7 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         }
         return true;
     case cmd::kViewTabControl:
-        show_tab_control_ = !show_tab_control_;
+        settings_.show_tab_control = !settings_.show_tab_control;
         SaveSettings();
         ApplyViewVisibility();
         BuildMenus();
@@ -624,73 +615,73 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         InvertSelectionInFocusedList();
         return true;
     case cmd::kViewToolbar:
-        show_toolbar_ = !show_toolbar_;
+        settings_.show_toolbar = !settings_.show_toolbar;
         ApplyViewVisibility();
         SaveSettings();
         BuildMenus();
         return true;
     case cmd::kViewKeyTree:
-        show_tree_ = !show_tree_;
+        settings_.show_tree = !settings_.show_tree;
         ApplyViewVisibility();
         SaveSettings();
         BuildMenus();
         return true;
     case cmd::kViewGridLines:
-        SetValueGridEnabled(!show_value_grid_, true);
+        SetValueGridEnabled(!settings_.show_value_grid, true);
         return true;
     case cmd::kViewAutoRefresh:
-        auto_refresh_ = !auto_refresh_;
+        settings_.auto_refresh = !settings_.auto_refresh;
         SaveSettings();
         BuildMenus();
         WatchCurrentKey();
         return true;
     case cmd::kViewKeysInList:
-        show_keys_in_list_ = !show_keys_in_list_;
+        settings_.show_keys_in_list = !settings_.show_keys_in_list;
         BuildMenus();
         UpdateValueListForNode(browse_.current_node());
         SaveSettings();
         return true;
     case cmd::kViewSimulatedKeys:
-        show_simulated_keys_ = !show_simulated_keys_;
+        settings_.show_simulated_keys = !settings_.show_simulated_keys;
         BuildMenus();
         RefreshTreeSelection();
         UpdateValueListForNode(browse_.current_node());
         SaveSettings();
         return true;
     case cmd::kViewHistory:
-        show_history_ = !show_history_;
+        settings_.show_history = !settings_.show_history;
         ApplyViewVisibility();
         SaveSettings();
         BuildMenus();
         return true;
     case cmd::kViewStatusBar:
-        show_status_bar_ = !show_status_bar_;
+        settings_.show_status_bar = !settings_.show_status_bar;
         ApplyViewVisibility();
         SaveSettings();
         BuildMenus();
         return true;
     case cmd::kViewExtraHives:
-        show_extra_hives_ = !show_extra_hives_;
+        settings_.show_extra_hives = !settings_.show_extra_hives;
         SaveSettings();
         BuildMenus();
-        if (registry_mode_ == RegistryMode::kLocal)
+        if (session_->mode == RegistryMode::kLocal)
         {
-            std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(show_extra_hives_);
+            std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(settings_.show_extra_hives);
             AppendRealRegistryRoot(&roots);
             ApplyRegistryRoots(roots);
         }
         return true;
     case cmd::kViewSaveTreeState:
-        if (save_tree_state_)
+        if (settings_.save_tree_state)
         {
             StopTreeStateWorker();
-            save_tree_state_ = false;
+            settings_.save_tree_state = false;
             saved_tree_state_.selected_path.clear();
             saved_tree_state_.expanded_paths.clear();
         }
         else
         {
-            save_tree_state_ = true;
+            settings_.save_tree_state = true;
             LoadTreeState();
             tree_state_restored_ = false;
             RestoreTreeState();
@@ -710,14 +701,14 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         {
             if (command_id == cmd::kOptionsSaveTabs)
             {
-                save_tab_kinds_ =
-                    (save_tab_kinds_ & workspace::kSaveTabsAll) == workspace::kSaveTabsAll ? 0 : workspace::kSaveTabsAll;
+                settings_.save_tab_kinds =
+                    (settings_.save_tab_kinds & workspace::kSaveTabsAll) == workspace::kSaveTabsAll ? 0 : workspace::kSaveTabsAll;
             }
             else
             {
-                save_tab_kinds_ ^= 1 << (command_id - cmd::kOptionsSaveTabsLocal);
+                settings_.save_tab_kinds ^= 1 << (command_id - cmd::kOptionsSaveTabsLocal);
             }
-            if (save_tab_kinds_ == 0)
+            if (settings_.save_tab_kinds == 0)
             {
                 ClearTabsCache();
             }
@@ -730,15 +721,14 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
             return true;
         }
     case cmd::kOptionsReadOnly:
-        read_only_ = !read_only_;
+        settings_.read_only = !settings_.read_only;
         SaveSettings();
         BuildMenus();
         if (toolbar_.hwnd())
         {
-            SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditPaste, read_only_ ? 0 : TBSTATE_ENABLED);
-            SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditDelete, read_only_ ? 0 : TBSTATE_ENABLED);
-            SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, !read_only_ && undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
-            SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, !read_only_ && undo_stack_.CanRedo() ? TBSTATE_ENABLED : 0);
+            SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditPaste, settings_.read_only ? 0 : TBSTATE_ENABLED);
+            SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditDelete, settings_.read_only ? 0 : TBSTATE_ENABLED);
+            UpdateUndoButtons();
         }
         return true;
     case cmd::kOptionsCompareRegistries:
@@ -747,9 +737,9 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
     case cmd::kViewFont:
         {
             FontDialogResult result = {};
-            if (ShowFontDialog(hwnd_, DefaultLogFont(), !use_custom_font_, custom_font_, &result))
+            if (ShowFontDialog(hwnd_, DefaultLogFont(), !settings_.use_custom_font, custom_font_, &result))
             {
-                use_custom_font_ = !result.use_default;
+                settings_.use_custom_font = !result.use_default;
                 custom_font_ = result.font;
                 UpdateUIFont();
                 SaveSettings();
@@ -809,7 +799,7 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
         BuildMenus();
         return true;
     case cmd::kDefaultResetEnable:
-        default_reset_enabled_ = !default_reset_enabled_;
+        settings_.default_reset_enabled = !settings_.default_reset_enabled;
         BuildMenus();
         SaveSettings();
         return true;

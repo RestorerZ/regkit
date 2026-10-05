@@ -4,7 +4,7 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
-#include "appearance/autocomplete.h"
+#include "ui/autocomplete.h"
 #include "win32/translation.h"
 
 namespace regkit
@@ -466,7 +466,7 @@ bool MainWindow::Impl::ClearCache(CacheKind kind, bool resume_tree_worker)
         saved_tree_state_.Clear();
         tree_state_restored_ = false;
         cleared = DeleteCacheFile(TreeStatePath()) && cleared;
-        restart_tree_worker = resume_tree_worker && save_tree_state_;
+        restart_tree_worker = resume_tree_worker && settings_.save_tree_state;
     }
     if (all || kind == CacheKind::kTemporary)
     {
@@ -504,7 +504,7 @@ void MainWindow::Impl::LoadTabs()
         loaded = true;
         DeleteFileW(session_path.c_str());
     }
-    else if (save_tab_kinds_ != 0)
+    else if (settings_.save_tab_kinds != 0)
     {
         loaded = workspace::LoadTabs(TabsCachePath(), &state);
     }
@@ -627,7 +627,7 @@ void MainWindow::Impl::LoadTabs()
 
 bool MainWindow::Impl::SaveTabs()
 {
-    return SaveTabState(TabsCachePath(), save_tab_kinds_);
+    return SaveTabState(TabsCachePath(), settings_.save_tab_kinds);
 }
 
 bool MainWindow::Impl::SaveSessionTabs()
@@ -868,14 +868,14 @@ std::wstring MainWindow::Impl::CommentsPath() const
     const std::wstring path = util::JoinPath(folder, L"comments.jsonc");
     // keep using the previous file until the next save renames it
     const std::wstring legacy = util::JoinPath(folder, L"comments.json");
-    return IsFilePath(path) || !IsFilePath(legacy) ? path : legacy;
+    return util::IsFile(path) || !util::IsFile(legacy) ? path : legacy;
 }
 
 std::wstring MainWindow::Impl::CommentKeyPath(const RegistryNode& node) const
 {
     const std::wstring path = registry_path::Build(node);
-    return registry_mode_ == RegistryMode::kRemote && !remote_machine_.empty()
-               ? L"\\\\" + StripMachinePrefix(remote_machine_) + L"\\" + path
+    return session_->mode == RegistryMode::kRemote && !session_->remote_machine.empty()
+               ? L"\\\\" + StripMachinePrefix(session_->remote_machine) + L"\\" + path
                : path;
 }
 
@@ -1002,7 +1002,7 @@ bool MainWindow::Impl::EditComments(const std::vector<changes::CommentTarget>& t
     }
     request.name = L"\"" + (first.name.empty() ? std::wstring(util::Tr(L"(Default)")) : first.name) + L"\"";
     request.type = same_type ? value_format::TypeName(first.type) : util::Tr(L"Different types");
-    request.size = same_size ? value_format::ByteCount(first.data_size)
+    request.size = same_size ? value_format::ByteCount(static_cast<size_t>(first.data_size))
                              : util::Tr(L"Different lengths");
     request.multiple = targets.size() > 1;
     request.can_restore = can_restore;
@@ -1059,179 +1059,57 @@ bool MainWindow::Impl::EditComments(const std::vector<changes::CommentTarget>& t
 
 void MainWindow::Impl::LoadSettings()
 {
-    workspace::Settings settings;
-    settings.clear_history_on_exit = clear_history_on_exit_;
-    settings.clear_tabs_on_exit = clear_tabs_on_exit_;
-    settings.show_toolbar = show_toolbar_;
-    settings.show_address_bar = show_address_bar_;
-    settings.show_filter_bar = show_filter_bar_;
-    settings.show_tab_control = show_tab_control_;
-    settings.show_tree = show_tree_;
-    settings.show_history = show_history_;
-    settings.show_status_bar = show_status_bar_;
-    settings.show_keys_in_list = show_keys_in_list_;
-    settings.show_simulated_keys = show_simulated_keys_;
-    settings.show_extra_hives = show_extra_hives_;
-    settings.show_value_grid = show_value_grid_;
-    settings.auto_refresh = auto_refresh_;
-    settings.hkcu_follows_shell_user = hkcu_follows_shell_user_;
-    settings.save_tree_state = save_tree_state_;
-    settings.save_tab_kinds = save_tab_kinds_;
-    settings.save_tabs = save_tab_kinds_ != 0;
-    settings.always_run_as_admin = always_run_as_admin_;
-    settings.always_run_as_system = always_run_as_system_;
-    settings.always_run_as_trustedinstaller = always_run_as_trustedinstaller_;
-    settings.always_on_top = always_on_top_;
-    settings.single_instance = single_instance_;
-    settings.autocomplete = autocomplete_;
-    settings.read_only = read_only_;
-    settings.auto_check_updates = auto_check_updates_;
-    settings.default_reset_enabled = default_reset_enabled_;
-    settings.window_x = window_x_;
-    settings.window_y = window_y_;
-    settings.window_width = window_width_;
-    settings.window_height = window_height_;
-    settings.window_maximized = window_maximized_;
-    settings.tree_width = tree_width_;
-    settings.history_height = history_height_;
-    settings.theme_preset = active_theme_preset_;
-    settings.language = language_;
-    settings.icon_set = icon_set_;
-    settings.use_custom_font = use_custom_font_;
-    settings.font_face = custom_font_.lfFaceName;
-    settings.font_size = appearance::FontPointSize(custom_font_, 9);
-    settings.font_weight = custom_font_.lfWeight;
-    settings.font_italic = custom_font_.lfItalic != FALSE;
-    settings.value_column_widths = browse_.columns().saved_widths;
-    settings.value_column_visible = browse_.columns().saved_visible;
-
-    if (!workspace::LoadSettings(SettingsPath(), &settings))
+    if (!workspace::LoadSettings(SettingsPath(), &settings_))
     {
         return;
     }
-
-    clear_history_on_exit_ = settings.clear_history_on_exit;
-    clear_tabs_on_exit_ = settings.clear_tabs_on_exit;
-    show_toolbar_ = settings.show_toolbar;
-    show_address_bar_ = settings.show_address_bar;
-    show_filter_bar_ = settings.show_filter_bar;
-    show_tab_control_ = settings.show_tab_control;
-    show_tree_ = settings.show_tree;
-    show_history_ = settings.show_history;
-    show_status_bar_ = settings.show_status_bar;
-    show_keys_in_list_ = settings.show_keys_in_list;
-    show_simulated_keys_ = settings.show_simulated_keys;
-    show_extra_hives_ = settings.show_extra_hives;
-    show_value_grid_ = settings.show_value_grid;
-    auto_refresh_ = settings.auto_refresh;
-    hkcu_follows_shell_user_ = settings.hkcu_follows_shell_user;
-    util::SetCurrentUserFollowsShell(hkcu_follows_shell_user_);
-    save_tree_state_ = settings.save_tree_state;
-    save_tab_kinds_ = settings.save_tab_kinds;
-    always_run_as_admin_ = settings.always_run_as_admin;
-    always_run_as_system_ = settings.always_run_as_system;
-    always_run_as_trustedinstaller_ = settings.always_run_as_trustedinstaller;
-    always_on_top_ = settings.always_on_top;
-    single_instance_ = settings.single_instance;
-    autocomplete_ = settings.autocomplete;
-    appearance::SetAutoCompleteEnabled(autocomplete_);
-    read_only_ = settings.read_only;
-    auto_check_updates_ = settings.auto_check_updates;
-    default_reset_enabled_ = settings.default_reset_enabled;
-    window_placement_loaded_ = settings.window_placement_present;
-    window_x_ = settings.window_x;
-    window_y_ = settings.window_y;
-    window_width_ = settings.window_width;
-    window_height_ = settings.window_height;
-    window_maximized_ = settings.window_maximized;
-    tree_width_ = settings.tree_width;
-    history_height_ = settings.history_height;
-    theme_mode_ = ParseThemeMode(settings.theme_mode);
-    active_theme_preset_ = std::move(settings.theme_preset);
-    language_ = std::move(settings.language);
-    icon_set_ = IsKnownIconSetName(settings.icon_set) ? std::move(settings.icon_set) : kIconSetPhosphor;
-    use_custom_font_ = settings.use_custom_font;
-    if (!settings.font_face.empty())
+    util::SetCurrentUserFollowsShell(settings_.hkcu_follows_shell_user);
+    appearance::SetAutoCompleteEnabled(settings_.autocomplete);
+    window_placement_loaded_ = settings_.window_placement_present;
+    theme_mode_ = ParseThemeMode(settings_.theme_mode);
+    if (!IsKnownIconSetName(settings_.icon_set))
     {
-        wcsncpy_s(custom_font_.lfFaceName, settings.font_face.c_str(), _TRUNCATE);
+        settings_.icon_set = kIconSetPhosphor;
     }
-    if (settings.font_size > 0)
+    if (!settings_.font_face.empty())
     {
-        custom_font_.lfHeight = appearance::FontHeight(settings.font_size);
+        wcsncpy_s(custom_font_.lfFaceName, settings_.font_face.c_str(), _TRUNCATE);
     }
-    custom_font_.lfWeight = settings.font_weight;
-    custom_font_.lfItalic = settings.font_italic ? TRUE : FALSE;
-    recent_trace_paths_.Replace(std::move(settings.recent_traces));
-    recent_default_paths_.Replace(std::move(settings.recent_defaults));
-    browse_.columns().saved_widths = std::move(settings.value_column_widths);
-    browse_.columns().saved_visible = std::move(settings.value_column_visible);
+    if (settings_.font_size > 0)
+    {
+        custom_font_.lfHeight = appearance::FontHeight(settings_.font_size);
+    }
+    custom_font_.lfWeight = settings_.font_weight;
+    custom_font_.lfItalic = settings_.font_italic ? TRUE : FALSE;
+    recent_trace_paths_.Replace(std::move(settings_.recent_traces));
+    recent_default_paths_.Replace(std::move(settings_.recent_defaults));
+    browse_.columns().saved_widths = std::move(settings_.value_column_widths);
+    browse_.columns().saved_visible = std::move(settings_.value_column_visible);
     browse_.columns().saved = !browse_.columns().saved_widths.empty() || !browse_.columns().saved_visible.empty();
-    if (!save_tree_state_)
+    if (!settings_.save_tree_state)
     {
         saved_tree_state_.Clear();
     }
 }
+
 workspace::Settings MainWindow::Impl::CurrentSettings() const
 {
-    workspace::Settings settings;
-    settings.clear_history_on_exit = clear_history_on_exit_;
-    settings.clear_tabs_on_exit = clear_tabs_on_exit_;
-    settings.show_toolbar = show_toolbar_;
-    settings.show_address_bar = show_address_bar_;
-    settings.show_filter_bar = show_filter_bar_;
-    settings.show_tab_control = show_tab_control_;
-    settings.show_tree = show_tree_;
-    settings.show_history = show_history_;
-    settings.show_status_bar = show_status_bar_;
-    settings.show_keys_in_list = show_keys_in_list_;
-    settings.show_simulated_keys = show_simulated_keys_;
-    settings.show_extra_hives = show_extra_hives_;
-    settings.show_value_grid = show_value_grid_;
-    settings.auto_refresh = auto_refresh_;
-    settings.hkcu_follows_shell_user = hkcu_follows_shell_user_;
-    settings.save_tree_state = save_tree_state_;
-    settings.save_tab_kinds = save_tab_kinds_;
-    settings.save_tabs = save_tab_kinds_ != 0;
-    settings.always_run_as_admin = always_run_as_admin_;
-    settings.always_run_as_system = always_run_as_system_;
-    settings.always_run_as_trustedinstaller = always_run_as_trustedinstaller_;
-    settings.always_on_top = always_on_top_;
-    settings.single_instance = single_instance_;
-    settings.autocomplete = autocomplete_;
-    settings.read_only = read_only_;
-    settings.auto_check_updates = auto_check_updates_;
-    settings.default_reset_enabled = default_reset_enabled_;
-    settings.window_x = window_x_;
-    settings.window_y = window_y_;
-    settings.window_width = window_width_;
-    settings.window_height = window_height_;
-    settings.window_maximized = window_maximized_;
-    if (hwnd_ && IsWindow(hwnd_))
+    workspace::Settings settings = settings_;
+    settings.save_tabs = settings.save_tab_kinds != 0;
+    WINDOWPLACEMENT placement = {sizeof(placement)};
+    if (hwnd_ && IsWindow(hwnd_) && GetWindowPlacement(hwnd_, &placement))
     {
-        WINDOWPLACEMENT placement = {};
-        placement.length = sizeof(placement);
-        if (GetWindowPlacement(hwnd_, &placement))
+        const RECT& normal = placement.rcNormalPosition;
+        if (normal.right > normal.left && normal.bottom > normal.top)
         {
-            const RECT& normal = placement.rcNormalPosition;
-            const int width = normal.right - normal.left;
-            const int height = normal.bottom - normal.top;
-            if (width > 0 && height > 0)
-            {
-                settings.window_x = normal.left;
-                settings.window_y = normal.top;
-                settings.window_width = width;
-                settings.window_height = height;
-            }
-            settings.window_maximized = placement.showCmd == SW_SHOWMAXIMIZED;
+            settings.window_x = normal.left;
+            settings.window_y = normal.top;
+            settings.window_width = normal.right - normal.left;
+            settings.window_height = normal.bottom - normal.top;
         }
+        settings.window_maximized = placement.showCmd == SW_SHOWMAXIMIZED;
     }
-    settings.tree_width = tree_width_;
-    settings.history_height = history_height_;
     settings.theme_mode = ThemeModeName(theme_mode_);
-    settings.theme_preset = active_theme_preset_;
-    settings.language = language_;
-    settings.icon_set = IsKnownIconSetName(icon_set_) ? icon_set_ : kIconSetPhosphor;
-    settings.use_custom_font = use_custom_font_;
     settings.font_face = custom_font_.lfFaceName;
     settings.font_size = appearance::FontPointSize(custom_font_, 9);
     settings.font_weight = custom_font_.lfWeight;
@@ -1244,6 +1122,7 @@ workspace::Settings MainWindow::Impl::CurrentSettings() const
     settings.value_column_visible.resize(browse_.columns().items.size(), true);
     return settings;
 }
+
 void MainWindow::Impl::SaveSettings() const
 {
     workspace::SaveSettings(SettingsPath(), CurrentSettings());
@@ -1271,7 +1150,7 @@ std::wstring MainWindow::Impl::TreeStatePath() const
 void MainWindow::Impl::LoadTreeState()
 {
     saved_tree_state_.Clear();
-    if (!save_tree_state_)
+    if (!settings_.save_tree_state)
     {
         return;
     }
@@ -1280,7 +1159,7 @@ void MainWindow::Impl::LoadTreeState()
 
 void MainWindow::Impl::StartTreeStateWorker()
 {
-    if (!save_tree_state_ || tree_state_saver_.running())
+    if (!settings_.save_tree_state || tree_state_saver_.running())
     {
         return;
     }
@@ -1292,7 +1171,7 @@ void MainWindow::Impl::StartTreeStateWorker()
 void MainWindow::Impl::StopTreeStateWorker()
 {
     tree_state_saver_.Stop();
-    if (save_tree_state_ && browse_.tree().hwnd() && IsWindow(browse_.tree().hwnd()))
+    if (settings_.save_tree_state && browse_.tree().hwnd() && IsWindow(browse_.tree().hwnd()))
     {
         std::wstring selected;
         std::vector<std::wstring> expanded;

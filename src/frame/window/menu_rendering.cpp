@@ -85,42 +85,11 @@ void MainWindow::Impl::OnMeasureMenuItem(MEASUREITEMSTRUCT* info)
     {
         return;
     }
-    auto* data = reinterpret_cast<MenuItemData*>(info->itemData);
-    if (!data)
-    {
-        return;
-    }
-    if (data->width > 0 && data->height > 0)
+    if (const auto* data = reinterpret_cast<const MenuItemData*>(info->itemData))
     {
         info->itemWidth = static_cast<UINT>(data->width);
         info->itemHeight = static_cast<UINT>(data->height);
-        return;
     }
-    if (data->separator)
-    {
-        info->itemHeight = 8;
-        info->itemWidth = 4;
-        return;
-    }
-
-    SIZE size = {};
-    HDC hdc = GetDC(hwnd_);
-    if (hdc)
-    {
-        HFONT old = nullptr;
-        if (ui_font_)
-        {
-            old = reinterpret_cast<HFONT>(SelectObject(hdc, ui_font_));
-        }
-        GetTextExtentPoint32W(hdc, data->text.c_str(), static_cast<int>(data->text.size()), &size);
-        if (old)
-        {
-            SelectObject(hdc, old);
-        }
-        ReleaseDC(hwnd_, hdc);
-    }
-    info->itemHeight = 18;
-    info->itemWidth = size.cx + 8;
 }
 
 void MainWindow::Impl::OnDrawMenuItem(const DRAWITEMSTRUCT* info)

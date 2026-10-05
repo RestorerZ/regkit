@@ -74,7 +74,7 @@ bool MainWindow::Impl::HandleMutationCommand(int command_id)
             {
                 return true;
             }
-            if (registry_mode_ != RegistryMode::kLocal)
+            if (session_->mode != RegistryMode::kLocal)
             {
                 ui::ShowWarning(hwnd_, util::Tr(L"Symbolic links can only be created in the local registry."));
                 return true;
@@ -226,7 +226,7 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
                     path.append(name);
                 }
                 HWND focus = GetFocus();
-                bool edit_in_list = (focus == browse_.values().hwnd()) && show_keys_in_list_ && browse_.values().hwnd();
+                bool edit_in_list = (focus == browse_.values().hwnd()) && settings_.show_keys_in_list && browse_.values().hwnd();
                 if (edit_in_list)
                 {
                     ScheduleValueListRename(rowkind::kKey, name);
@@ -406,13 +406,13 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
             request.value_name = entry.name;
             request.type = entry.type;
             request.data = entry.data;
-            request.read_only = read_only_;
+            request.read_only = settings_.read_only;
             editors::CustomValueResult result;
             if (!editors::EditCustomValue(hwnd_, request, &result))
             {
                 return true;
             }
-            if (read_only_)
+            if (settings_.read_only)
             {
                 return true;
             }
@@ -459,11 +459,11 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
             RegistryValue entry;
             if (!GetValueEntry(*browse_.current_node(), row->extra, &entry))
             {
-                if (read_only_)
+                if (settings_.read_only)
                 {
                     return true;
                 }
-                if (HasActiveTraces() && (row->type.empty() || EqualsInsensitive(row->type, L"TRACE")))
+                if (HasActiveTraces() && (row->type.empty() || row->trace_only))
                 {
                     bool needs_create = browse_.current_node()->simulated;
                     editors::CustomValueRequest request;
@@ -532,7 +532,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                 request.key_path = registry_path::Build(*browse_.current_node());
                 request.base_type = base_type;
                 request.data = entry.data;
-                request.read_only = read_only_;
+                request.read_only = settings_.read_only;
                 if (!editors::EditValueBits(hwnd_, request, &new_data))
                 {
                     return true;
@@ -543,7 +543,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                 editors::BinaryRequest request;
                 request.value_name = entry.name;
                 request.data = entry.data;
-                request.read_only = read_only_;
+                request.read_only = settings_.read_only;
                 editors::BinaryResult result;
                 if (!editors::EditBinary(hwnd_, request, &result))
                 {
@@ -557,7 +557,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                 request.value_name = entry.name;
                 request.base_type = base_type;
                 request.data = entry.data;
-                request.read_only = read_only_;
+                request.read_only = settings_.read_only;
                 editors::FlaggedValueResult result;
                 if (!editors::EditFlaggedValue(hwnd_, request, &result))
                 {
@@ -570,7 +570,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                 editors::BinaryRequest request;
                 request.value_name = entry.name;
                 request.data = entry.data;
-                request.read_only = read_only_;
+                request.read_only = settings_.read_only;
                 editors::BinaryResult result;
                 if (!editors::EditBinary(hwnd_, request, &result))
                 {
@@ -578,7 +578,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                 }
                 new_data = std::move(result.data);
             }
-            if (read_only_)
+            if (settings_.read_only)
             {
                 return true;
             }
@@ -739,7 +739,7 @@ bool MainWindow::Impl::HandleRenameCommand(int command_id)
 
 bool MainWindow::Impl::HandleResetDefaultCommand(int command_id)
 {
-    if (!default_reset_enabled_ || !EnsureWritable() || !browse_.current_node())
+    if (!settings_.default_reset_enabled || !EnsureWritable() || !browse_.current_node())
     {
         return true;
     }

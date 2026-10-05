@@ -55,11 +55,11 @@ bool MainWindow::Impl::Create(HINSTANCE instance)
 void MainWindow::Impl::Show(int cmd_show)
 {
     int show_cmd = cmd_show;
-    if (window_placement_loaded_ && window_width_ > 0 && window_height_ > 0)
+    if (window_placement_loaded_ && settings_.window_width > 0 && settings_.window_height > 0)
     {
-        show_cmd = window_maximized_ ? SW_MAXIMIZE : SW_SHOWNORMAL;
+        show_cmd = settings_.window_maximized ? SW_MAXIMIZE : SW_SHOWNORMAL;
     }
-    else if (window_placement_loaded_ && window_maximized_)
+    else if (window_placement_loaded_ && settings_.window_maximized)
     {
         show_cmd = SW_MAXIMIZE;
     }
@@ -453,103 +453,6 @@ LRESULT CALLBACK MainWindow::Impl::FilterEditProc(HWND hwnd, UINT message, WPARA
     {
         return 0;
     }
-    return DefSubclassProc(hwnd, message, wparam, lparam);
-}
-
-LRESULT CALLBACK MainWindow::Impl::TabProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR ref_data)
-{
-    auto* self = reinterpret_cast<MainWindow::Impl*>(ref_data);
-    if (!self)
-    {
-        return DefSubclassProc(hwnd, message, wparam, lparam);
-    }
-
-    switch (message)
-    {
-    case WM_ERASEBKGND:
-        return 1;
-    case WM_MOUSEMOVE:
-        {
-            POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-            self->UpdateTabHotState(hwnd, pt);
-            if (!self->tab_mouse_tracking_)
-            {
-                TRACKMOUSEEVENT tme = {};
-                tme.cbSize = sizeof(tme);
-                tme.dwFlags = TME_LEAVE;
-                tme.hwndTrack = hwnd;
-                TrackMouseEvent(&tme);
-                self->tab_mouse_tracking_ = true;
-            }
-            return 0;
-        }
-    case WM_MOUSELEAVE:
-        self->tab_mouse_tracking_ = false;
-        if (self->tab_hot_index_ != -1 || self->tab_close_hot_index_ != -1)
-        {
-            self->tab_hot_index_ = -1;
-            self->tab_close_hot_index_ = -1;
-            InvalidateRect(hwnd, nullptr, FALSE);
-        }
-        return 0;
-    case WM_LBUTTONDOWN:
-        {
-            POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-            TCHITTESTINFO hit = {};
-            hit.pt = pt;
-            int index = TabCtrl_HitTest(hwnd, &hit);
-            RECT close_rect = {};
-            if (self->GetTabCloseRect(index, &close_rect) && PtInRect(&close_rect, pt))
-            {
-                self->tab_close_down_index_ = index;
-                SetCapture(hwnd);
-                InvalidateRect(hwnd, nullptr, FALSE);
-                return 0;
-            }
-            if (self->tab_close_down_index_ != -1)
-            {
-                self->tab_close_down_index_ = -1;
-                InvalidateRect(hwnd, nullptr, FALSE);
-            }
-            break;
-        }
-    case WM_LBUTTONUP:
-        {
-            if (self->tab_close_down_index_ >= 0)
-            {
-                POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-                int close_index = self->tab_close_down_index_;
-                self->tab_close_down_index_ = -1;
-                ReleaseCapture();
-                RECT close_rect = {};
-                if (self->GetTabCloseRect(close_index, &close_rect) && PtInRect(&close_rect, pt))
-                {
-                    self->CloseTab(close_index);
-                    self->tab_hot_index_ = -1;
-                    self->tab_close_hot_index_ = -1;
-                }
-                InvalidateRect(hwnd, nullptr, FALSE);
-                return 0;
-            }
-            break;
-        }
-    case WM_CAPTURECHANGED:
-        if (self->tab_close_down_index_ >= 0)
-        {
-            self->tab_close_down_index_ = -1;
-            InvalidateRect(hwnd, nullptr, FALSE);
-        }
-        break;
-    case WM_PAINT:
-        PaintBuffered(hwnd);
-        return 0;
-    case WM_PRINTCLIENT:
-        self->PaintTabControl(hwnd, reinterpret_cast<HDC>(wparam));
-        return 0;
-    default:
-        break;
-    }
-
     return DefSubclassProc(hwnd, message, wparam, lparam);
 }
 

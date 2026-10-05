@@ -8,12 +8,12 @@
 #include <commctrl.h>
 #include <shellapi.h>
 
-#include "appearance/autocomplete.h"
-#include "appearance/feedback.h"
-#include "editors/dialog_support.h"
 #include "regfile/reg_file.h"
 #include "registry/registry_path.h"
 #include "resource.h"
+#include "ui/autocomplete.h"
+#include "ui/dialog_support.h"
+#include "ui/feedback.h"
 #include "win32/file_dialog.h"
 #include "win32/translation.h"
 

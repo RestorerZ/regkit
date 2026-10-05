@@ -21,12 +21,13 @@ inline constexpr int kValueTooltipCursorGap = 18;
 inline constexpr size_t kValueTooltipTextLimit = 2000;
 inline constexpr size_t kValueTooltipLineLimit = 60;
 
-struct ColumnInfo
+namespace rowkind
 {
-    std::wstring title;
-    int width = 0;
-    int fmt = LVCFMT_LEFT;
-};
+
+constexpr LPARAM kKey = 1;
+constexpr LPARAM kValue = 2;
+
+} // namespace rowkind
 
 struct ListRow
 {
@@ -51,6 +52,8 @@ struct ListRow
     DWORD value_data_size = 0;
     bool data_ready = false;
     bool simulated = false;
+    // a value a trace lists that the registry doesn't have
+    bool trace_only = false;
     int image_index = 0;
     LPARAM kind = 0;
 };

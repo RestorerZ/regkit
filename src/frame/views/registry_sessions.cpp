@@ -53,85 +53,51 @@ bool SaveHiveAtomically(HKEY root, const std::wstring& path, std::wstring* error
 
 } // namespace
 
-void MainWindow::Impl::ReleaseRemoteRegistry()
+MainWindow::Impl::RegistrySession::~RegistrySession()
 {
-    if (remote_hklm_)
+    for (HKEY key : {remote_hklm, remote_hku})
     {
-        RegCloseKey(remote_hklm_);
-        remote_hklm_ = nullptr;
+        if (key)
+        {
+            RegCloseKey(key);
+        }
     }
-    if (remote_hku_)
+    for (HKEY root : offline_roots)
     {
-        RegCloseKey(remote_hku_);
-        remote_hku_ = nullptr;
+        RegistryStore::RemoveOfflineRoot(root);
+        RegistryStore::CloseOfflineHive(root, nullptr);
     }
-    remote_machine_.clear();
 }
 
-bool MainWindow::Impl::UnloadOfflineRegistry(std::wstring* error)
+MainWindow::Impl::RegistrySession* MainWindow::Impl::CurrentTabSession()
 {
-    if (error)
-    {
-        error->clear();
-    }
-    if (offline_roots_.empty())
-    {
-        return true;
-    }
-    std::vector<HKEY> remaining_roots;
-    std::vector<std::wstring> remaining_labels;
-    std::vector<std::wstring> remaining_paths;
-    for (size_t i = 0; i < offline_roots_.size(); ++i)
-    {
-        std::wstring close_error;
-        if (RegistryStore::CloseOfflineHive(offline_roots_[i], &close_error))
-        {
-            continue;
-        }
-        remaining_roots.push_back(offline_roots_[i]);
-        if (i < offline_root_labels_.size())
-        {
-            remaining_labels.push_back(offline_root_labels_[i]);
-        }
-        if (i < offline_root_paths_.size())
-        {
-            remaining_paths.push_back(offline_root_paths_[i]);
-        }
-        if (error && error->empty())
-        {
-            *error = close_error;
-        }
-    }
-    if (!remaining_roots.empty())
-    {
-        offline_roots_ = std::move(remaining_roots);
-        offline_root_labels_ = std::move(remaining_labels);
-        offline_root_paths_ = std::move(remaining_paths);
-        offline_root_ = offline_roots_.size() == 1 ? offline_roots_.front() : nullptr;
-        offline_mount_ =
-            offline_roots_.size() == 1 && !offline_root_labels_.empty() ? offline_root_labels_.front() : std::wstring();
-        RegistryStore::SetOfflineRoots(offline_roots_);
-        std::vector<RegistryRootEntry> roots;
-        roots.reserve(offline_roots_.size());
-        for (size_t i = 0; i < offline_roots_.size(); ++i)
-        {
-            const std::wstring label =
-                i < offline_root_labels_.size() ? offline_root_labels_[i] : std::wstring(L"OfflineHive");
-            roots.push_back({offline_roots_[i], label, offline_root_name_ + L"\\" + label, L""});
-        }
-        ApplyRegistryRoots(roots);
-        return false;
-    }
-    ClearOfflineDirty();
-    RegistryStore::SetOfflineRoots({});
-    offline_roots_.clear();
-    offline_root_labels_.clear();
-    offline_root_paths_.clear();
-    offline_root_ = nullptr;
-    offline_mount_.clear();
-    offline_root_name_.clear();
-    return true;
+    const int index = CurrentRegistryTabIndex();
+    return index >= 0 && static_cast<size_t>(index) < tabs_.size() ? tabs_[static_cast<size_t>(index)].session.get() : nullptr;
 }
+
+void MainWindow::Impl::ShowSession(const std::shared_ptr<RegistrySession>& session)
+{
+    const int index = CurrentRegistryTabIndex();
+    if (index >= 0 && static_cast<size_t>(index) < tabs_.size())
+    {
+        tabs_[static_cast<size_t>(index)].session = session;
+    }
+    const bool shown = session_ == session && !browse_.roots().empty() && !RegistryStore::IsVirtualRoot(browse_.roots().front().root);
+    session_ = session;
+    if (session_ == local_session_)
+    {
+        session_->roots = RegistryStore::DefaultRoots(settings_.show_extra_hives);
+        AppendRealRegistryRoot(&session_->roots);
+    }
+    if (!shown)
+    {
+        ApplyRegistryRoots(session_->roots);
+    }
+    RefreshRegistryTabLabels();
+    UpdateUndoButtons();
+    BuildMenus();
+}
+
 
 void MainWindow::Impl::ApplyRegistryRoots(const std::vector<RegistryRootEntry>& roots)
 {
@@ -193,19 +159,19 @@ std::vector<std::wstring> MainWindow::Impl::BuildVisibleTreePathParts(const std:
         parts.front() = kRootKeysGroupLabel;
     }
 
-    if (registry_mode_ == RegistryMode::kRemote && !remote_machine_.empty())
+    if (session_->mode == RegistryMode::kRemote && !session_->remote_machine.empty())
     {
-        std::wstring machine = StripMachinePrefix(remote_machine_);
+        std::wstring machine = StripMachinePrefix(session_->remote_machine);
         if (!machine.empty() && !parts.empty() && EqualsInsensitive(parts.front(), machine))
         {
             parts.erase(parts.begin());
         }
     }
-    if (registry_mode_ == RegistryMode::kOffline && !offline_root_labels_.empty() && parts.size() >= 2)
+    if (session_->mode == RegistryMode::kOffline && !session_->offline_root_labels.empty() && parts.size() >= 2)
     {
-        std::wstring root_name = offline_root_name_;
+        std::wstring root_name = session_->offline_root_name;
         auto is_offline_label = [&](const std::wstring& name) {
-            for (const auto& label : offline_root_labels_)
+            for (const auto& label : session_->offline_root_labels)
             {
                 if (EqualsInsensitive(label, name))
                 {
@@ -240,9 +206,9 @@ std::vector<std::wstring> MainWindow::Impl::BuildVisibleTreePathParts(const std:
 
 std::wstring MainWindow::Impl::TreeRootLabel() const
 {
-    if (registry_mode_ == RegistryMode::kRemote && !remote_machine_.empty())
+    if (session_->mode == RegistryMode::kRemote && !session_->remote_machine.empty())
     {
-        return StripMachinePrefix(remote_machine_);
+        return StripMachinePrefix(session_->remote_machine);
     }
     wchar_t buffer[MAX_COMPUTERNAME_LENGTH + 1] = {};
     DWORD size = static_cast<DWORD>(_countof(buffer));
@@ -255,7 +221,7 @@ std::wstring MainWindow::Impl::TreeRootLabel() const
 
 int MainWindow::Impl::TreeRootIcon() const
 {
-    return kLocalRegistryIconIndex + static_cast<int>(registry_mode_);
+    return kLocalRegistryIconIndex + static_cast<int>(session_->mode);
 }
 
 void MainWindow::Impl::SelectDefaultTreeItem()
@@ -502,67 +468,16 @@ void MainWindow::Impl::AppendRealRegistryRoot(std::vector<RegistryRootEntry>* ro
 
 bool MainWindow::Impl::SwitchToLocalRegistry()
 {
-    bool needs_reload = registry_mode_ != RegistryMode::kLocal;
-    if (!needs_reload)
-    {
-        if (browse_.roots().empty())
-        {
-            needs_reload = true;
-        }
-        else if (RegistryStore::IsVirtualRoot(browse_.roots().front().root))
-        {
-            needs_reload = true;
-        }
-        else
-        {
-            auto has_root = [&](HKEY root) -> bool {
-                for (const auto& entry_root : browse_.roots())
-                {
-                    if (entry_root.root == root)
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            };
-            if (!has_root(HKEY_CLASSES_ROOT) || !has_root(HKEY_CURRENT_USER) || !has_root(HKEY_LOCAL_MACHINE) ||
-                !has_root(HKEY_USERS) || !has_root(HKEY_CURRENT_CONFIG))
-            {
-                needs_reload = true;
-            }
-        }
-    }
-    if (!needs_reload)
-    {
-        return true;
-    }
-    if (!ConfirmOfflineChanges(util::Tr(L"The offline registry has unsaved changes.\n"
-                                        L"Save before switching?")))
+    RegistrySession* current = CurrentTabSession();
+    if (current && !ConfirmOfflineChanges(*current, util::Tr(L"The offline registry has unsaved changes.\n"
+                                                            L"Save before switching?")))
     {
         return false;
     }
-    if (registry_mode_ == RegistryMode::kOffline)
-    {
-        std::wstring error;
-        if (!UnloadOfflineRegistry(&error))
-        {
-            if (!error.empty())
-            {
-                ui::ShowError(hwnd_, error);
-            }
-            return false;
-        }
-    }
-    ReleaseRemoteRegistry();
-    registry_mode_ = RegistryMode::kLocal;
     UpdateRegistryTabEntry(RegistryMode::kLocal, L"", L"");
-    std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(show_extra_hives_);
-    AppendRealRegistryRoot(&roots);
-    ApplyRegistryRoots(roots);
-    RefreshRegistryTabLabels();
+    ShowSession(local_session_);
     return true;
 }
-
 bool MainWindow::Impl::SwitchToRemoteRegistry()
 {
     std::wstring machine;
@@ -576,7 +491,7 @@ bool MainWindow::Impl::SwitchToRemoteRegistry()
         editors::TextRequest request;
         request.title = util::Tr(L"Connect to Remote Registry");
         request.label = util::Tr(L"Computer name (e.g. \\\\MACHINE):");
-        request.text = remote_machine_;
+        request.text = session_->remote_machine;
         editors::TextResult text_result;
         if (!editors::EditText(hwnd_, request, &text_result))
         {
@@ -589,83 +504,47 @@ bool MainWindow::Impl::SwitchToRemoteRegistry()
 
 bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open_new_tab)
 {
-    std::wstring machine = name;
-    machine = NormalizeMachineName(machine);
+    const std::wstring machine = NormalizeMachineName(name);
     if (machine.empty())
     {
         ui::ShowError(hwnd_, util::Tr(L"Computer name is required."));
         return false;
     }
-
-    HKEY hklm = nullptr;
-    LONG result = RegConnectRegistryW(machine.c_str(), HKEY_LOCAL_MACHINE, &hklm);
+    auto session = std::make_shared<RegistrySession>();
+    session->mode = RegistryMode::kRemote;
+    session->remote_machine = machine;
+    const LONG result = RegConnectRegistryW(machine.c_str(), HKEY_LOCAL_MACHINE, &session->remote_hklm);
     if (result != ERROR_SUCCESS)
     {
         ui::ShowError(hwnd_, FormatWin32Error(result));
         return false;
     }
-
-    HKEY hku = nullptr;
-    LONG hku_result = RegConnectRegistryW(machine.c_str(), HKEY_USERS, &hku);
-
-    if (registry_mode_ == RegistryMode::kOffline)
+    const LONG hku_result = RegConnectRegistryW(machine.c_str(), HKEY_USERS, &session->remote_hku);
+    RegistrySession* current = CurrentTabSession();
+    if (!open_new_tab && current && !ConfirmOfflineChanges(*current, util::Tr(L"The offline registry has unsaved changes.\n"
+                                                                             L"Save before switching?")))
     {
-        if (!ConfirmOfflineChanges(util::Tr(L"The offline registry has unsaved changes.\n"
-                                            L"Save before switching?")))
-        {
-            if (hku)
-            {
-                RegCloseKey(hku);
-            }
-            RegCloseKey(hklm);
-            return false;
-        }
-        std::wstring error;
-        if (!UnloadOfflineRegistry(&error))
-        {
-            if (!error.empty())
-            {
-                ui::ShowError(hwnd_, error);
-            }
-            if (hku)
-            {
-                RegCloseKey(hku);
-            }
-            RegCloseKey(hklm);
-            return false;
-        }
+        return false;
     }
-
+    const std::wstring prefix = machine + L"\\";
+    session->roots.push_back({session->remote_hklm, L"HKEY_LOCAL_MACHINE", prefix + L"HKEY_LOCAL_MACHINE", L""});
+    if (session->remote_hku)
+    {
+        session->roots.push_back({session->remote_hku, L"HKEY_USERS", prefix + L"HKEY_USERS", L""});
+    }
     if (tab_ && open_new_tab)
     {
         AddRegistryTab(RegistryMode::kRemote, util::Tr(L"Remote Registry"));
     }
-    ReleaseRemoteRegistry();
-    registry_mode_ = RegistryMode::kRemote;
-    remote_machine_ = machine;
-    remote_hklm_ = hklm;
-    remote_hku_ = hku;
-    UpdateRegistryTabEntry(RegistryMode::kRemote, L"", remote_machine_);
-
-    std::wstring prefix = machine + L"\\";
-    std::vector<RegistryRootEntry> roots;
-    roots.push_back({remote_hklm_, L"HKEY_LOCAL_MACHINE", prefix + L"HKEY_LOCAL_MACHINE", L""});
-    if (remote_hku_)
-    {
-        roots.push_back({remote_hku_, L"HKEY_USERS", prefix + L"HKEY_USERS", L""});
-    }
-
+    UpdateRegistryTabEntry(RegistryMode::kRemote, L"", machine);
     UpdateTabText(util::Tr(L"Remote Registry") + std::wstring(L" (") + StripMachinePrefix(machine) + L")");
-    ApplyRegistryRoots(roots);
-    RefreshRegistryTabLabels();
-
+    ShowSession(session);
     if (hku_result != ERROR_SUCCESS)
     {
         ui::ShowError(hwnd_, util::TrDetail(L"Connected to HKEY_LOCAL_MACHINE, but HKEY_USERS was unavailable.", FormatWin32Error(hku_result)));
     }
     return true;
 }
-
 bool MainWindow::Impl::SwitchToOfflineRegistry()
 {
     const int choice =
@@ -693,31 +572,20 @@ bool MainWindow::Impl::SwitchToOfflineRegistry()
 
 bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, bool open_new_tab)
 {
-    if (registry_mode_ == RegistryMode::kOffline && !offline_roots_.empty())
+    RegistrySession* current = CurrentTabSession();
+    if (!open_new_tab && current && !ConfirmOfflineChanges(*current, util::Tr(L"The offline registry has unsaved changes.\n"
+                                                                             L"Save before switching?")))
     {
-        if (!ConfirmOfflineChanges(util::Tr(L"The offline registry has unsaved changes.\n"
-                                            L"Save before switching?")))
-        {
-            return false;
-        }
-        std::wstring error;
-        if (!UnloadOfflineRegistry(&error))
-        {
-            if (!error.empty())
-            {
-                ui::ShowError(hwnd_, error);
-            }
-            return false;
-        }
+        return false;
     }
 
-    std::wstring selection_path = TrimTrailingSeparators(path);
+    std::wstring selection_path = util::TrimTrailingSeparators(path);
     if (selection_path.empty())
     {
         return false;
     }
 
-    bool is_dir = IsDirectoryPath(selection_path);
+    bool is_dir = util::IsDirectory(selection_path);
     std::vector<OfflineHiveCandidate> candidates;
     if (is_dir)
     {
@@ -730,7 +598,7 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
     }
     else
     {
-        std::wstring mount_name = TrimWhitespace(FileBaseName(selection_path));
+        std::wstring mount_name = TrimWhitespace(util::FileBaseName(selection_path));
         if (mount_name.empty())
         {
             mount_name = L"OfflineHive";
@@ -738,57 +606,41 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
         candidates.push_back({selection_path, mount_name});
     }
 
-    offline_root_name_ = ResolveOfflineRootName(selection_path, is_dir, browse_.current_node());
-    if (offline_root_name_.empty())
-    {
-        offline_root_name_ = L"HKEY_LOCAL_MACHINE";
-    }
+    auto session = std::make_shared<RegistrySession>();
+    session->mode = RegistryMode::kOffline;
+    session->offline_root_name = ResolveOfflineRootName(selection_path, is_dir, browse_.current_node());
 
     std::wstring error;
-    std::vector<HKEY> handles;
-    std::vector<std::wstring> labels;
-    std::vector<std::wstring> paths;
-    std::vector<RegistryRootEntry> roots;
-    handles.reserve(candidates.size());
-    labels.reserve(candidates.size());
-    paths.reserve(candidates.size());
-    roots.reserve(candidates.size());
-    auto close_handles = [&](std::vector<HKEY>* to_close) {
-        if (!to_close)
-        {
-            return;
-        }
-        for (HKEY root : *to_close)
-        {
-            RegistryStore::CloseOfflineHive(root, nullptr);
-        }
-    };
     for (const auto& candidate : candidates)
     {
-        HKEY hive_handle = nullptr;
-        if (!RegistryStore::OpenOfflineHive(candidate.path, &hive_handle, &error))
+        HKEY hive = nullptr;
+        if (!RegistryStore::OpenOfflineHive(candidate.path, &hive, &error))
         {
-            close_handles(&handles);
             if (!error.empty())
             {
                 ui::ShowError(hwnd_, error);
             }
             return false;
         }
+        RegistryStore::AddOfflineRoot(hive);
         std::wstring label = TrimWhitespace(candidate.label);
         if (label.empty())
         {
-            label = TrimWhitespace(FileBaseName(candidate.path));
-            if (label.empty())
-            {
-                label = L"OfflineHive";
-            }
+            label = TrimWhitespace(util::FileBaseName(candidate.path));
         }
-        std::wstring path_name = offline_root_name_ + L"\\" + label;
-        roots.push_back({hive_handle, label, path_name, L""});
-        handles.push_back(hive_handle);
-        labels.push_back(label);
-        paths.push_back(candidate.path);
+        if (label.empty())
+        {
+            label = L"OfflineHive";
+        }
+        session->offline_roots.push_back(hive);
+        session->offline_root_labels.push_back(label);
+        session->offline_root_paths.push_back(candidate.path);
+        session->roots.push_back({hive, label, session->offline_root_name + L"\\" + label, L""});
+    }
+    if (session->offline_roots.size() == 1)
+    {
+        session->offline_root = session->offline_roots.front();
+        session->offline_mount = session->offline_root_labels.front();
     }
 
     if (tab_ && open_new_tab)
@@ -796,36 +648,11 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
         AddRegistryTab(RegistryMode::kOffline, util::Tr(L"Offline Registry"));
     }
 
-    ReleaseRemoteRegistry();
-    registry_mode_ = RegistryMode::kOffline;
-    offline_roots_ = std::move(handles);
-    offline_root_labels_ = std::move(labels);
-    offline_root_paths_ = std::move(paths);
-    if (offline_roots_.size() == 1)
-    {
-        offline_root_ = offline_roots_.front();
-        offline_mount_ = offline_root_labels_.front();
-    }
-    else
-    {
-        offline_root_ = nullptr;
-        offline_mount_.clear();
-    }
-    RegistryStore::SetOfflineRoots(offline_roots_);
-
     std::wstring tab_text = util::Tr(L"Offline Registry");
-    if (offline_roots_.size() == 1 && !offline_root_name_.empty() && !offline_mount_.empty())
-    {
-        tab_text = util::Tr(L"Offline Registry") + std::wstring(L" (") + offline_root_name_ + L"\\" + offline_mount_ + L")";
-    }
-    else if (!offline_root_name_.empty())
-    {
-        tab_text = util::Tr(L"Offline Registry") + std::wstring(L" (") + offline_root_name_ + L")";
-    }
+    tab_text += L" (" + session->offline_root_name + (session->offline_mount.empty() ? L"" : L"\\" + session->offline_mount) + L")";
     UpdateTabText(tab_text);
     UpdateRegistryTabEntry(RegistryMode::kOffline, selection_path, L"");
-    ApplyRegistryRoots(roots);
-    RefreshRegistryTabLabels();
+    ShowSession(session);
     HistoryEntry history;
     history.action = L"Load offline registry";
     history.new_data = selection_path;
@@ -833,43 +660,44 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
     return true;
 }
 
-bool MainWindow::Impl::SaveOfflineRegistry()
+bool MainWindow::Impl::SaveOfflineRegistry(RegistrySession& session)
 {
-    if (registry_mode_ != RegistryMode::kOffline || offline_roots_.empty())
+    if (session.mode != RegistryMode::kOffline || session.offline_roots.empty())
     {
         ui::ShowError(hwnd_, util::Tr(L"No offline registry is loaded."));
         return false;
     }
-    if (offline_roots_.size() > 1)
+    if (session.offline_roots.size() > 1)
     {
-        if (offline_root_paths_.size() != offline_roots_.size())
+        if (session.offline_root_paths.size() != session.offline_roots.size())
         {
             ui::ShowError(hwnd_, util::Tr(L"Failed to resolve offline hive paths for saving."));
             return false;
         }
-        for (size_t i = 0; i < offline_roots_.size(); ++i)
+        for (size_t i = 0; i < session.offline_roots.size(); ++i)
         {
-            const std::wstring& path = offline_root_paths_[i];
+            const std::wstring& path = session.offline_root_paths[i];
             if (path.empty())
             {
                 ui::ShowError(hwnd_, util::Tr(L"Failed to resolve offline hive path for saving."));
                 return false;
             }
             std::wstring error;
-            if (!SaveHiveAtomically(offline_roots_[i], path, &error))
+            if (!SaveHiveAtomically(session.offline_roots[i], path, &error))
             {
                 ui::ShowError(hwnd_, error.empty() ? util::Tr(L"Failed to save offline hive.") : error);
                 return false;
             }
         }
-        ClearOfflineDirty();
+        session.offline_dirty = false;
+        BuildMenus();
         HistoryEntry history;
         history.action = L"Save offline registry";
-        history.new_data = std::to_wstring(offline_roots_.size()) + L" hives";
+        history.new_data = std::to_wstring(session.offline_roots.size()) + L" hives";
         AppendHistoryEntry(std::move(history));
         return true;
     }
-    if (!offline_root_)
+    if (!session.offline_root)
     {
         ui::ShowError(hwnd_, util::Tr(L"No offline registry is loaded."));
         return false;
@@ -882,12 +710,13 @@ bool MainWindow::Impl::SaveOfflineRegistry()
     }
 
     std::wstring error;
-    if (!SaveHiveAtomically(offline_root_, path, &error))
+    if (!SaveHiveAtomically(session.offline_root, path, &error))
     {
         ui::ShowError(hwnd_, error.empty() ? util::Tr(L"Failed to save offline hive.") : error);
         return false;
     }
-    ClearOfflineDirty();
+    session.offline_dirty = false;
+        BuildMenus();
     HistoryEntry history;
     history.action = L"Save offline registry";
     history.new_data = path;
@@ -932,7 +761,7 @@ void MainWindow::Impl::NavigateToAddress()
         return;
     }
     std::wstring message = util::Tr(L"The registry key doesn't exist:");
-    if (read_only_)
+    if (settings_.read_only)
     {
         message += L"\nRead only mode is enabled.";
         int result = ui::PromptKeyChoice(hwnd_, message, path, util::Tr(L"Registry Path Not Found"), util::Tr(L"Go to Nearest Key"), L"", util::Tr(L"Cancel"), {150, 70, 70});
@@ -1073,7 +902,7 @@ bool MainWindow::Impl::ActivateLocalRegistryTab()
             ApplyTabSelection(local_tab);
         }
     }
-    return registry_mode_ == RegistryMode::kLocal || SwitchToLocalRegistry();
+    return session_ == local_session_ || SwitchToLocalRegistry();
 }
 
 void MainWindow::Impl::QueueCompatJump(const RegistryNode& node)

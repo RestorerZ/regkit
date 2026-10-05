@@ -3,6 +3,7 @@
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
+#include "trace/trace_paths.h"
 
 namespace regkit
 {
@@ -50,7 +51,7 @@ void MainWindow::Impl::MergeDefaultEntries(DefaultParseSession* session, const s
     defaults::Merge(
         session->data.get(),
         parsed,
-        [](const std::wstring& path) { return MapControlSetToCurrent(path); },
+        [](const std::wstring& path) { return trace::MapControlSetToCurrent(path); },
         affected_keys
     );
 }
@@ -80,11 +81,10 @@ void MainWindow::Impl::StartTraceParseThread(TraceParseSession* session)
             payload->error = error;
             payload->cancelled = cancelled;
             if (!hwnd || !IsWindow(hwnd) ||
-                !PostMessageW(hwnd, frame::message_id::kTraceParseBatch, 0, reinterpret_cast<LPARAM>(payload.get())))
+                !work::PostPayload(hwnd, frame::message_id::kTraceParseBatch, 0, payload))
             {
                 return;
             }
-            ReleasePostedPayload(payload);
         };
 
         std::vector<KeyValueDialogEntry> entries;
@@ -93,7 +93,7 @@ void MainWindow::Impl::StartTraceParseThread(TraceParseSession* session)
         std::wstring parse_error;
         const bool parsed = trace::LoadEntries(
             source,
-            TraceNormalizers(),
+            trace::PathNormalizers(),
             [&](trace::Entry&& parsed_entry) {
                 KeyValueDialogEntry entry;
                 entry.key_path = std::move(parsed_entry.key_path);
@@ -153,18 +153,17 @@ void MainWindow::Impl::StartDefaultParseThread(DefaultParseSession* session)
             payload->error = error;
             payload->cancelled = cancelled;
             if (!hwnd || !IsWindow(hwnd) ||
-                !PostMessageW(hwnd, frame::message_id::kDefaultParseBatch, 0, reinterpret_cast<LPARAM>(payload.get())))
+                !work::PostPayload(hwnd, frame::message_id::kDefaultParseBatch, 0, payload))
             {
                 return;
             }
-            ReleasePostedPayload(payload);
         };
 
         std::vector<defaults::Entry> parsed_entries;
         std::wstring parse_error;
         if (!defaults::Load(
                 source,
-                [](const std::wstring& path) { return NormalizeTraceKeyPathBasic(path); },
+                [](const std::wstring& path) { return trace::NormalizeKeyPathBasic(path); },
                 nullptr,
                 &parsed_entries,
                 &parse_error,
@@ -197,7 +196,7 @@ void MainWindow::Impl::StartDefaultParseThread(DefaultParseSession* session)
             }
             KeyValueDialogEntry entry;
             entry.key_path = std::move(parsed.key_path);
-            entry.display_path = NormalizeTraceSelectionPath(parsed.source_path);
+            entry.display_path = trace::NormalizeSelectionPath(parsed.source_path);
             if (entry.display_path.empty())
             {
                 entry.display_path = entry.key_path;

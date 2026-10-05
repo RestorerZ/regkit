@@ -5,6 +5,7 @@
 #include "frame/window_impl.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
+#include "trace/trace_paths.h"
 
 namespace regkit
 {
@@ -38,7 +39,7 @@ bool MainWindow::Impl::AllowTraceSimulation(const RegistryNode& node) const
     {
         return false;
     }
-    if (!show_simulated_keys_)
+    if (!settings_.show_simulated_keys)
     {
         return false;
     }
@@ -52,7 +53,7 @@ bool MainWindow::Impl::AllowTraceSimulation(const RegistryNode& node) const
 std::wstring MainWindow::Impl::TracePathLowerForNode(const RegistryNode& node)
 {
     std::wstring path = registry_path::Build(node);
-    std::wstring trace_path = NormalizeTraceKeyPath(path);
+    std::wstring trace_path = trace::NormalizeKeyPath(path);
     if (trace_path.empty())
     {
         trace_path = path;
@@ -172,15 +173,15 @@ std::wstring MainWindow::Impl::ResolveBundledDefaultPath(const std::wstring& lab
     std::wstring assets = util::JoinPath(module_dir, L"assets");
     std::wstring defaults = util::JoinPath(assets, L"defaults");
     std::wstring direct = util::JoinPath(defaults, file);
-    if (FileExists(direct))
+    if (util::IsFile(direct))
     {
         return direct;
     }
-    std::wstring requested = FileBaseName(file);
+    std::wstring requested = util::FileBaseName(file);
     for (const auto& entry : bundled_defaults_)
     {
-        if (EqualsInsensitive(entry.label, FileBaseName(label)) ||
-            EqualsInsensitive(FileBaseName(entry.path), requested))
+        if (EqualsInsensitive(entry.label, util::FileBaseName(label)) ||
+            EqualsInsensitive(util::FileBaseName(entry.path), requested))
         {
             return entry.path;
         }
@@ -198,7 +199,7 @@ std::wstring MainWindow::Impl::ResolveBundledDefaultPath(const std::wstring& lab
             }
             std::wstring directory = util::JoinPath(defaults, data.cFileName);
             std::wstring candidate = util::JoinPath(directory, file);
-            if (FileExists(candidate))
+            if (util::IsFile(candidate))
             {
                 FindClose(find);
                 return candidate;
@@ -217,11 +218,11 @@ bool MainWindow::Impl::AddTraceFromFile(const std::wstring& label, const std::ws
         return false;
     }
     std::wstring use_label = label;
-    if (!FileExists(source))
+    if (!util::IsFile(source))
     {
         std::wstring candidate_label = use_label.empty() ? source : use_label;
         std::wstring bundled = ResolveBundledTracePath(candidate_label);
-        if (!bundled.empty() && FileExists(bundled))
+        if (!bundled.empty() && util::IsFile(bundled))
         {
             source = bundled;
             if (use_label.empty())
@@ -240,7 +241,7 @@ bool MainWindow::Impl::AddTraceFromFile(const std::wstring& label, const std::ws
     }
     if (use_label.empty())
     {
-        use_label = FileBaseName(source);
+        use_label = util::FileBaseName(source);
     }
     if (use_label.empty())
     {
@@ -292,7 +293,6 @@ bool MainWindow::Impl::AddTraceFromFile(const std::wstring& label, const std::ws
         trace::Selection dialog_selection = selection;
         TraceDialogOptions options;
         options.title = util::Tr(L"Trace entries") + (use_label.empty() ? std::wstring() : L" - " + use_label);
-        options.prompt = L"";
         options.show_values = true;
         TraceDialogStartContext context;
         context.window = this;
@@ -355,7 +355,7 @@ bool MainWindow::Impl::LoadTraceFromPrompt()
     {
         return false;
     }
-    std::wstring label = FileBaseName(path);
+    std::wstring label = util::FileBaseName(path);
     if (label.empty())
     {
         label = L"Custom";

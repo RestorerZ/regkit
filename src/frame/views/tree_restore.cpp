@@ -248,7 +248,7 @@ void MainWindow::Impl::RestoreTreeState()
     {
         return;
     }
-    if (!save_tree_state_)
+    if (!settings_.save_tree_state)
     {
         return;
     }
@@ -272,21 +272,21 @@ void MainWindow::Impl::ApplySavedWindowPlacement()
     {
         return;
     }
-    if (window_width_ <= 0 || window_height_ <= 0)
+    if (settings_.window_width <= 0 || settings_.window_height <= 0)
     {
         return;
     }
     const int min_width = 640;
     const int min_height = 480;
-    const int width = std::max(window_width_, min_width);
-    const int height = std::max(window_height_, min_height);
+    const int width = std::max(settings_.window_width, min_width);
+    const int height = std::max(settings_.window_height, min_height);
 
     RECT work = {};
     if (!SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0))
     {
         work = {};
     }
-    RECT target = {window_x_ + work.left, window_y_ + work.top, window_x_ + work.left + width, window_y_ + work.top + height};
+    RECT target = {settings_.window_x + work.left, settings_.window_y + work.top, settings_.window_x + work.left + width, settings_.window_y + work.top + height};
     win32::ClampToWorkArea(&target);
     SetWindowPos(hwnd_, nullptr, target.left, target.top, target.right - target.left, target.bottom - target.top, SWP_NOZORDER | SWP_NOACTIVATE);
 }
@@ -377,7 +377,7 @@ void MainWindow::Impl::ExpandTreePaths(const std::vector<std::wstring>& paths)
 
 void MainWindow::Impl::MarkTreeStateDirty()
 {
-    if (!save_tree_state_ || !hwnd_ || !browse_.tree().hwnd() || !IsWindow(browse_.tree().hwnd()))
+    if (!settings_.save_tree_state || !hwnd_ || !browse_.tree().hwnd() || !IsWindow(browse_.tree().hwnd()))
     {
         return;
     }
@@ -386,7 +386,7 @@ void MainWindow::Impl::MarkTreeStateDirty()
 
 void MainWindow::Impl::CaptureTreeStateNow()
 {
-    if (!save_tree_state_ || !browse_.tree().hwnd() || !IsWindow(browse_.tree().hwnd()))
+    if (!settings_.save_tree_state || !browse_.tree().hwnd() || !IsWindow(browse_.tree().hwnd()))
     {
         return;
     }

@@ -4,8 +4,8 @@
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
 
-#include "editors/bitfield_definition_editor.h"
-#include "editors/decoder_dialog.h"
+#include "dialogs/bitfield_definition_editor.h"
+#include "dialogs/decoder_dialog.h"
 #include "frame/tools/convert_dialog.h"
 #include "frame/tools/key_handles_window.h"
 #include "regfile/registry_transfer.h"

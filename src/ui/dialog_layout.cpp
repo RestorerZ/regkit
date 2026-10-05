@@ -1,12 +1,12 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "appearance/dialog_layout.h"
+#include "ui/dialog_layout.h"
 
-#include "appearance/default_font.h"
-#include "appearance/gdi_cache.h"
-#include "appearance/list_view_support.h"
-#include "appearance/theme.h"
+#include "ui/default_font.h"
+#include "ui/gdi_cache.h"
+#include "ui/list_view_support.h"
+#include "ui/theme.h"
 #include "win32/text_transform.h"
 #include "win32/window_metrics.h"
 
@@ -175,37 +175,6 @@ void ApplyDpiChange(HWND window, LPARAM suggested_rect)
         return;
     }
     SetWindowPos(window, nullptr, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
-}
-
-void CenterEditText(HWND edit, HFONT font, int left_pad, int right_pad)
-{
-    if (!edit || !font)
-    {
-        return;
-    }
-    RECT rect = {};
-    GetClientRect(edit, &rect);
-    HDC hdc = GetDC(edit);
-    if (!hdc)
-    {
-        return;
-    }
-    HFONT old = reinterpret_cast<HFONT>(SelectObject(hdc, font));
-    TEXTMETRICW tm = {};
-    const bool ok = GetTextMetricsW(hdc, &tm) != FALSE;
-    SelectObject(hdc, old);
-    ReleaseDC(edit, hdc);
-    if (!ok)
-    {
-        return;
-    }
-    const int line = static_cast<int>(tm.tmHeight + tm.tmExternalLeading);
-    const int pad = std::max(0, (static_cast<int>(rect.bottom - rect.top) - line) / 2);
-    rect.left += left_pad;
-    rect.right -= right_pad;
-    rect.top += pad;
-    rect.bottom = rect.top + line;
-    SendMessageW(edit, EM_SETRECT, 0, reinterpret_cast<LPARAM>(&rect));
 }
 
 void RunModalLoop(HWND dialog)

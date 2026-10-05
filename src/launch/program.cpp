@@ -15,15 +15,15 @@
 #include <uxtheme.h>
 #include <vector>
 
-#include "appearance/feedback.h"
-#include "appearance/presets.h"
-#include "appearance/theme.h"
 #include "cli/reg_command.h"
 #include "frame/main_window.h"
 #include "frame/window/message_ids.h"
 #include "regfile/registry_transfer.h"
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
+#include "ui/feedback.h"
+#include "ui/presets.h"
+#include "ui/theme.h"
 #include "win32/file_text.h"
 #include "win32/handle_owner.h"
 #include "win32/process_rights.h"

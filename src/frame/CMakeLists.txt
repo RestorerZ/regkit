@@ -10,7 +10,6 @@ regkit_add_library(regkit_frame
     detail/control_detail.cpp
     detail/draw_detail.cpp
     detail/file_detail.cpp
-    detail/registry_detail.cpp
     main_window.cpp
     search/compare_command.cpp
     search/compare_dialog.cpp
@@ -46,7 +45,6 @@ regkit_add_library(regkit_frame
     window/notifications.cpp
     window/owner_draw.cpp
     window/paint.cpp
-    window/toolbar.cpp
 )
 target_precompile_headers(regkit_frame PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/window_detail.h"
@@ -61,12 +59,8 @@ target_link_libraries(regkit_frame PRIVATE
     regkit_browse
     regkit_changes
     regkit_workspace
-    regkit_appearance
-    regkit_editors
-    regkit_registry_io
-    regkit_search_dialogs
-    regkit_trace_dialog
-    regkit_security
+    regkit_dialogs
+    regkit_ui
     regkit_search
     regkit_trace
     regkit_defaults

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "editors/bitfield_definition.h"
+#include "dialogs/bitfield_definition.h"
 
 namespace regkit::editors
 {

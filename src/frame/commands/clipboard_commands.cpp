@@ -465,12 +465,12 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id)
             sources.traces = HasActiveTraces();
             sources.defaults = !active_defaults_.empty();
             sources.registry_root = registry_root_.get() != nullptr;
-            sources.offline = !offline_roots_.empty();
+            sources.offline = !session_->offline_roots.empty();
             sources.reg_files = std::any_of(tabs_.begin(), tabs_.end(), [](const TabEntry& tab) {
                 return tab.kind == TabEntry::Kind::kRegFile && !tab.reg_file_roots.empty();
             });
-            sources.remote = remote_hklm_ != nullptr;
-            sources.extra_hives = show_extra_hives_;
+            sources.remote = session_->remote_hklm != nullptr;
+            sources.extra_hives = settings_.show_extra_hives;
             if (ShowSearchDialog(hwnd_, &options, sources))
             {
                 last_search_ = options;
@@ -592,7 +592,7 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
             {
                 return true;
             }
-            auto operation = undo_stack_.TakeUndo();
+            auto operation = session_->undo.TakeUndo();
             if (!operation)
             {
                 return true;
@@ -600,20 +600,16 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
             switch (ApplyUndoOperation(*operation, false))
             {
             case ReplayResult::kSuccess:
-                undo_stack_.CompleteUndo(std::move(*operation));
+                session_->undo.CompleteUndo(std::move(*operation));
                 break;
             case ReplayResult::kUnchanged:
-                undo_stack_.CompleteRedo(std::move(*operation));
+                session_->undo.CompleteRedo(std::move(*operation));
                 ui::ShowError(hwnd_, util::Tr(L"The change couldn't be undone."));
                 break;
             case ReplayResult::kPartial:
                 break;
             }
-            if (toolbar_.hwnd())
-            {
-                SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
-                SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, undo_stack_.CanRedo() ? TBSTATE_ENABLED : 0);
-            }
+            UpdateUndoButtons();
             return true;
         }
     case cmd::kEditRedo:
@@ -622,7 +618,7 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
             {
                 return true;
             }
-            auto operation = undo_stack_.TakeRedo();
+            auto operation = session_->undo.TakeRedo();
             if (!operation)
             {
                 return true;
@@ -630,20 +626,16 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
             switch (ApplyUndoOperation(*operation, true))
             {
             case ReplayResult::kSuccess:
-                undo_stack_.CompleteRedo(std::move(*operation));
+                session_->undo.CompleteRedo(std::move(*operation));
                 break;
             case ReplayResult::kUnchanged:
-                undo_stack_.CompleteUndo(std::move(*operation));
+                session_->undo.CompleteUndo(std::move(*operation));
                 ui::ShowError(hwnd_, util::Tr(L"The change couldn't be redone."));
                 break;
             case ReplayResult::kPartial:
                 break;
             }
-            if (toolbar_.hwnd())
-            {
-                SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, undo_stack_.CanUndo() ? TBSTATE_ENABLED : 0);
-                SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, undo_stack_.CanRedo() ? TBSTATE_ENABLED : 0);
-            }
+            UpdateUndoButtons();
             return true;
         }
     default:

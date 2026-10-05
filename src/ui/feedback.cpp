@@ -1,12 +1,12 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "appearance/feedback.h"
+#include "ui/feedback.h"
 
-#include "appearance/default_font.h"
-#include "appearance/dialog_fit.h"
-#include "appearance/dialog_layout.h"
-#include "appearance/dialog_metrics.h"
+#include "ui/default_font.h"
+#include "ui/dialog_fit.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_metrics.h"
 #include "win32/translation.h"
 #include "win32/window_metrics.h"
 
@@ -18,8 +18,8 @@
 #include <shellapi.h>
 #include <uxtheme.h>
 
-#include "appearance/gdi_cache.h"
-#include "appearance/theme.h"
+#include "ui/gdi_cache.h"
+#include "ui/theme.h"
 #include "win32/file_dialog.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"

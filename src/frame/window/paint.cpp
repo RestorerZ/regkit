@@ -4,8 +4,8 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
-#include "appearance/autocomplete.h"
-#include "appearance/dialog_layout.h"
+#include "ui/autocomplete.h"
+#include "ui/dialog_layout.h"
 
 namespace regkit
 {
@@ -27,22 +27,11 @@ void MainWindow::Impl::OnPrintClient(HDC mem_dc)
     HPEN old_pen = reinterpret_cast<HPEN>(SelectObject(mem_dc, pen));
     HBRUSH old_brush = reinterpret_cast<HBRUSH>(SelectObject(mem_dc, GetStockObject(NULL_BRUSH)));
 
-    if (show_tree_ && show_value_ && splitter_rect_.right > splitter_rect_.left)
+    if (show_value_)
     {
-        RECT split = splitter_rect_;
-        FillRect(mem_dc, &split, theme.PanelBrush());
-        int mid_x = (split.left + split.right) / 2;
-        MoveToEx(mem_dc, mid_x, split.top + 4, nullptr);
-        LineTo(mem_dc, mid_x, split.bottom - 4);
+        tree_splitter_.Paint(mem_dc, theme.PanelBrush());
     }
-    if (show_history_ && history_splitter_rect_.bottom > history_splitter_rect_.top)
-    {
-        RECT split = history_splitter_rect_;
-        FillRect(mem_dc, &split, theme.PanelBrush());
-        int mid_y = (split.top + split.bottom) / 2;
-        MoveToEx(mem_dc, split.left + 4, mid_y, nullptr);
-        LineTo(mem_dc, split.right - 4, mid_y);
-    }
+    history_splitter_.Paint(mem_dc, theme.PanelBrush());
 
     SelectObject(mem_dc, old_brush);
     SelectObject(mem_dc, old_pen);
@@ -179,7 +168,7 @@ void MainWindow::Impl::LoadThemePresets()
     {
         return;
     }
-    active_theme_preset_ = FindThemePreset(theme_presets_, active_theme_preset_)->name;
+    settings_.theme_preset = FindThemePreset(theme_presets_, settings_.theme_preset)->name;
     if (!loaded || updated_builtins)
     {
         SaveThemePresets();
@@ -200,7 +189,7 @@ bool MainWindow::Impl::ApplyThemePresetByName(const std::wstring& name, bool per
     const ThemePreset* it = FindThemePreset(theme_presets_, name);
     Theme::SetCustomColors(it->colors, it->is_dark);
     theme_mode_ = ThemeMode::kCustom;
-    active_theme_preset_ = it->name;
+    settings_.theme_preset = it->name;
     Theme::SetMode(theme_mode_);
     ApplySystemTheme();
     if (persist)
@@ -214,11 +203,11 @@ bool MainWindow::Impl::ApplyThemePresetByName(const std::wstring& name, bool per
 void MainWindow::Impl::UpdateThemePresets(const std::vector<ThemePreset>& presets, const std::wstring& active_name, bool apply_now)
 {
     theme_presets_ = presets;
-    active_theme_preset_ = active_name;
+    settings_.theme_preset = active_name;
     SaveThemePresets();
     if (apply_now)
     {
-        ApplyThemePresetByName(active_theme_preset_, true);
+        ApplyThemePresetByName(settings_.theme_preset, true);
     }
     else
     {
@@ -233,24 +222,15 @@ void MainWindow::Impl::ApplyAlwaysOnTop()
     {
         return;
     }
-    SetWindowPos(hwnd_, always_on_top_ ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+    SetWindowPos(hwnd_, settings_.always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 }
 
 void MainWindow::Impl::UpdateUIFont()
 {
-    HFONT next_font = nullptr;
-    bool next_owned = false;
-    if (use_custom_font_)
-    {
-        next_font = CreateFontIndirectW(&custom_font_);
-        next_owned = next_font != nullptr;
-    }
-    else
-    {
-        LOGFONTW lf = DefaultLogFont();
-        next_font = CreateFontIndirectW(&lf);
-        next_owned = next_font != nullptr;
-    }
+    ui::SetCustomFont(settings_.use_custom_font ? &custom_font_ : nullptr);
+    const LOGFONTW lf = ui::DefaultUIFontLogFont();
+    HFONT next_font = CreateFontIndirectW(&lf);
+    bool next_owned = next_font != nullptr;
     if (!next_font)
     {
         next_font = CreateUIFont();

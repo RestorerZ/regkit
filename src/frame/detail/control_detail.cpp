@@ -3,10 +3,9 @@
 
 #include "frame/detail/control_detail.h"
 
-#include "appearance/font_metrics.h"
-#include "appearance/list_view_support.h"
-#include "frame/detail/registry_detail.h"
 #include "frame/window_impl.h"
+#include "ui/font_metrics.h"
+#include "ui/list_view_support.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -28,15 +27,15 @@
 #include <vsstyle.h>
 #include <windowsx.h>
 #include <winternl.h>
-#include "appearance/feedback.h"
-#include "appearance/gdi_cache.h"
-#include "appearance/icon_loader.h"
+#include "ui/feedback.h"
+#include "ui/gdi_cache.h"
+#include "ui/icon_loader.h"
 #include "frame/commands/command_ids.h"
 #include "registry/registry_store.h"
-#include "registry/security_dialog.h"
+#include "dialogs/security_dialog.h"
 #include "defaults/default_loader.h"
-#include "editors/comment_editor.h"
-#include "editors/value_editor.h"
+#include "dialogs/comment_editor.h"
+#include "dialogs/value_editor.h"
 #include "frame/window/message_dispatch.h"
 #include "frame/window/message_ids.h"
 #include "regfile/reg_file.h"
@@ -246,7 +245,7 @@ uint64_t FileTimeToUint64(const FILETIME& filetime)
     return value.QuadPart;
 }
 
-int CompareUint64(uint64_t left, uint64_t right)
+static int CompareUint64(uint64_t left, uint64_t right)
 {
     if (left < right)
     {
@@ -295,7 +294,7 @@ bool CellTextIsClipped(HWND list, const std::wstring& text, int available)
     return ListView_GetStringWidth(list, text.c_str()) > available;
 }
 
-int CompareValueRow(const ListRow& left, const ListRow& right, int column)
+static int CompareValueRow(const ListRow& left, const ListRow& right, int column)
 {
     if (left.kind != right.kind)
     {

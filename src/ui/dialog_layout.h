@@ -22,7 +22,6 @@ void CenterWindow(HWND window, HWND owner);
 void ApplyDpiChange(HWND window, LPARAM suggested_rect);
 void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi);
 void RunModalLoop(HWND dialog);
-void CenterEditText(HWND edit, HFONT font, int left_pad, int right_pad);
 
 enum AnchorFlags : unsigned
 {

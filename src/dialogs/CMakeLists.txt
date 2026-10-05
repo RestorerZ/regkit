@@ -1,0 +1,40 @@
+regkit_add_library(regkit_dialogs
+    binary_editor.cpp
+    binary_text.cpp
+    bitfield_definition.cpp
+    bitfield_definition_editor.cpp
+    bitfield_editor.cpp
+    comment_editor.cpp
+    decoder_dialog.cpp
+    export_dialog.cpp
+    fields_dialog.cpp
+    hive_dialog.cpp
+    query_dialog.cpp
+    query_prompts.cpp
+    replace_dialog.cpp
+    security_dialog.cpp
+    trace_dialog.cpp
+    transfer_dialogs.cpp
+    value_editor.cpp
+)
+target_include_directories(regkit_dialogs PUBLIC
+    "${PROJECT_SOURCE_DIR}/src"
+)
+target_include_directories(regkit_dialogs PRIVATE
+    "${PROJECT_SOURCE_DIR}/resources"
+)
+target_link_libraries(regkit_dialogs PRIVATE
+    regkit_browse
+    regkit_search
+    regkit_trace
+    regkit_regfile
+    regkit_records
+    regkit_registry
+    regkit_ui
+    regkit_win32
+    aclui
+    advapi32
+    comctl32
+    shell32
+    uxtheme
+)

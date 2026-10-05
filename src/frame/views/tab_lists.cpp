@@ -413,46 +413,9 @@ void MainWindow::Impl::MarkOfflineDirty()
         }
         return;
     }
-    if (registry_mode_ != RegistryMode::kOffline)
+    if (session_->mode == RegistryMode::kOffline && !session_->offline_dirty)
     {
-        return;
-    }
-    int index = CurrentRegistryTabIndex();
-    if (index < 0 || static_cast<size_t>(index) >= tabs_.size())
-    {
-        return;
-    }
-    TabEntry& entry = tabs_[static_cast<size_t>(index)];
-    if (entry.kind != TabEntry::Kind::kRegistry || entry.registry_mode != RegistryMode::kOffline)
-    {
-        return;
-    }
-    if (!entry.offline_dirty)
-    {
-        entry.offline_dirty = true;
-        BuildMenus();
-    }
-}
-
-void MainWindow::Impl::ClearOfflineDirty()
-{
-    if (registry_mode_ != RegistryMode::kOffline)
-    {
-        return;
-    }
-    int index = CurrentRegistryTabIndex();
-    if (index < 0 || static_cast<size_t>(index) >= tabs_.size())
-    {
-        return;
-    }
-    TabEntry& entry = tabs_[static_cast<size_t>(index)];
-    if (entry.kind != TabEntry::Kind::kRegistry || entry.registry_mode != RegistryMode::kOffline)
-    {
-        return;
-    }
-    if (entry.offline_dirty)
-    {
-        entry.offline_dirty = false;
+        session_->offline_dirty = true;
         BuildMenus();
     }
 }
@@ -485,49 +448,23 @@ bool MainWindow::Impl::ConfirmCloseTab(int tab_index)
         }
         return false;
     }
-    if (entry.kind != TabEntry::Kind::kRegistry || entry.registry_mode != RegistryMode::kOffline ||
-        !entry.offline_dirty)
+    if (entry.kind != TabEntry::Kind::kRegistry || !entry.session)
     {
         return true;
     }
-    if (tab_index != CurrentRegistryTabIndex())
-    {
-        return true;
-    }
-    return ConfirmOfflineChanges(util::Tr(L"The offline registry has unsaved changes.\n"
-                                          L"Save before closing the tab?"));
+    return ConfirmOfflineChanges(*entry.session, util::Tr(L"The offline registry has unsaved changes.\n"
+                                                          L"Save before closing the tab?"));
 }
 
-bool MainWindow::Impl::ConfirmOfflineChanges(const wchar_t* message)
+bool MainWindow::Impl::ConfirmOfflineChanges(RegistrySession& session, const wchar_t* message)
 {
-    const int index = CurrentRegistryTabIndex();
-    if (index < 0 || static_cast<size_t>(index) >= tabs_.size())
+    if (session.mode != RegistryMode::kOffline || !session.offline_dirty)
     {
         return true;
     }
-    TabEntry& entry = tabs_[static_cast<size_t>(index)];
-    if (entry.kind != TabEntry::Kind::kRegistry || entry.registry_mode != RegistryMode::kOffline ||
-        !entry.offline_dirty)
-    {
-        return true;
-    }
-    int result = ui::PromptChoice(hwnd_, message, util::Tr(L"Unsaved Changes"), util::Tr(L"Save"), util::Tr(L"Don't Save"), util::Tr(L"Cancel"), {70, 100, 70});
-    if (result == IDCANCEL)
-    {
-        return false;
-    }
-    if (result == IDNO)
-    {
-        return true;
-    }
-    if (SaveOfflineRegistry())
-    {
-        entry.offline_dirty = false;
-        return true;
-    }
-    return false;
+    const int result = ui::PromptChoice(hwnd_, message, util::Tr(L"Unsaved Changes"), util::Tr(L"Save"), util::Tr(L"Don't Save"), util::Tr(L"Cancel"), {70, 100, 70});
+    return result == IDNO || (result == IDYES && SaveOfflineRegistry(session));
 }
-
 void MainWindow::Impl::CloseTab(int tab_index)
 {
     if (!tab_)
@@ -708,49 +645,7 @@ void MainWindow::Impl::UpdateTabWidth()
     {
         return;
     }
-    bool has_close = count > 1;
-    int pad_x = kTabTextPaddingX + (has_close ? (kTabCloseSize + kTabCloseGap) : 0);
-    int pad_y = kTabInsetY + 2;
-    TabCtrl_SetPadding(tab_, pad_x, pad_y);
-    int text_height = 0;
-    HDC hdc = GetDC(tab_);
-    HFONT font = reinterpret_cast<HFONT>(SendMessageW(tab_, WM_GETFONT, 0, 0));
-    HFONT old_font = nullptr;
-    if (hdc && font)
-    {
-        old_font = reinterpret_cast<HFONT>(SelectObject(hdc, font));
-    }
-    if (hdc)
-    {
-        TEXTMETRICW tm = {};
-        if (GetTextMetricsW(hdc, &tm))
-        {
-            text_height = tm.tmHeight;
-        }
-    }
-
-    if (hdc)
-    {
-        if (old_font)
-        {
-            SelectObject(hdc, old_font);
-        }
-        ReleaseDC(tab_, hdc);
-    }
-
-    int min_height = std::max<int>(24, text_height + pad_y * 2 + 2);
-    SendMessageW(tab_, TCM_SETMINTABWIDTH, 0, static_cast<LPARAM>(kTabMinWidth));
-    RECT item_rect = {};
-    if (TabCtrl_GetItemRect(tab_, 0, &item_rect))
-    {
-        int item_height = static_cast<int>(item_rect.bottom - item_rect.top);
-        tab_height_ = std::max<int>(min_height, item_height);
-    }
-    else
-    {
-        tab_height_ = min_height;
-    }
-    InvalidateRect(tab_, nullptr, FALSE);
+    tab_height_ = tab_strip_.Refit(kTabMinWidth);
     if (hwnd_)
     {
         RECT rect = {};
@@ -920,193 +815,6 @@ bool MainWindow::Impl::InvertSelectionInFocusedList()
         }
     }
     return true;
-}
-
-void MainWindow::Impl::UpdateTabHotState(HWND hwnd, POINT pt)
-{
-    int new_hot = -1;
-    int new_close_hot = -1;
-
-    TCHITTESTINFO hit = {};
-    hit.pt = pt;
-    int index = TabCtrl_HitTest(hwnd, &hit);
-    if (index >= 0)
-    {
-        new_hot = index;
-        RECT close_rect = {};
-        if (GetTabCloseRect(index, &close_rect) && PtInRect(&close_rect, pt))
-        {
-            new_close_hot = index;
-        }
-    }
-
-    if (new_hot != tab_hot_index_ || new_close_hot != tab_close_hot_index_)
-    {
-        tab_hot_index_ = new_hot;
-        tab_close_hot_index_ = new_close_hot;
-        InvalidateRect(hwnd, nullptr, FALSE);
-    }
-}
-
-bool MainWindow::Impl::GetTabCloseRect(int index, RECT* rect) const
-{
-    if (!tab_ || !rect || index < 0)
-    {
-        return false;
-    }
-    int count = TabCtrl_GetItemCount(tab_);
-    if (count <= 1)
-    {
-        return false;
-    }
-    RECT item_rect = {};
-    if (!TabCtrl_GetItemRect(tab_, index, &item_rect))
-    {
-        return false;
-    }
-    int header_bottom = item_rect.bottom + 1;
-    RECT draw_rect = AdjustTabDrawRect(item_rect, header_bottom, false);
-    RECT close_area = draw_rect;
-    close_area.left = item_rect.left;
-    close_area.right = item_rect.right;
-    return CalcTabCloseRect(close_area, rect);
-}
-
-void MainWindow::Impl::DrawTabItem(HDC hdc, int index, const RECT& item_rect, int header_bottom, bool selected)
-{
-    const Theme& theme = Theme::Current();
-    RECT draw_rect = AdjustTabDrawRect(item_rect, header_bottom, selected);
-
-    bool is_hot = (index == tab_hot_index_);
-    bool close_hot = (index == tab_close_hot_index_);
-    bool close_down = (index == tab_close_down_index_);
-
-    COLORREF fill = selected ? theme.SurfaceColor() : theme.PanelColor();
-    if (is_hot)
-    {
-        fill = theme.HoverColor();
-    }
-    HBRUSH fill_brush = appearance::CachedBrush(fill);
-    FillRect(hdc, &draw_rect, fill_brush);
-
-    HPEN border_pen = appearance::CachedPen(theme.BorderColor(), 1);
-    HGDIOBJ old_pen = SelectObject(hdc, border_pen);
-    MoveToEx(hdc, draw_rect.left, draw_rect.bottom, nullptr);
-    LineTo(hdc, draw_rect.left, draw_rect.top);
-    LineTo(hdc, draw_rect.right, draw_rect.top);
-    LineTo(hdc, draw_rect.right, draw_rect.bottom);
-    if (!selected)
-    {
-        LineTo(hdc, draw_rect.left, draw_rect.bottom);
-    }
-    SelectObject(hdc, old_pen);
-
-    RECT close_rect = {};
-    RECT close_area = draw_rect;
-    close_area.left = item_rect.left;
-    close_area.right = item_rect.right;
-    bool has_close = TabCtrl_GetItemCount(tab_) > 1 && CalcTabCloseRect(close_area, &close_rect);
-
-    RECT text_rect = draw_rect;
-    text_rect.left = item_rect.left + kTabTextPaddingX;
-    text_rect.right = item_rect.right - kTabTextPaddingX;
-    if (has_close)
-    {
-        text_rect.right = std::max(text_rect.left, close_rect.left - kTabCloseGap);
-    }
-
-    COLORREF text_color = selected || is_hot ? theme.TextColor() : theme.MutedTextColor();
-    SetTextColor(hdc, text_color);
-    SetBkMode(hdc, TRANSPARENT);
-
-    wchar_t text[256] = {};
-    TCITEMW item = {};
-    item.mask = TCIF_TEXT;
-    item.pszText = text;
-    item.cchTextMax = static_cast<int>(_countof(text));
-    if (TabCtrl_GetItem(tab_, index, &item))
-    {
-        DrawTextW(hdc, text, -1, &text_rect, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS);
-    }
-
-    if (has_close)
-    {
-        if (close_down)
-        {
-            HBRUSH down_brush = appearance::CachedBrush(theme.SelectionColor());
-            FillRect(hdc, &close_rect, down_brush);
-        }
-        else if (close_hot)
-        {
-            HBRUSH hot_brush = appearance::CachedBrush(theme.HoverColor());
-            FillRect(hdc, &close_rect, hot_brush);
-        }
-
-        COLORREF close_color = close_down ? theme.SelectionTextColor() : theme.TextColor();
-        DrawCloseGlyph(hdc, close_rect, close_color, win32::DpiForWindow(tab_));
-    }
-}
-
-void MainWindow::Impl::PaintTabControl(HWND hwnd, HDC hdc)
-{
-    RECT client = {};
-    GetClientRect(hwnd, &client);
-    const Theme& theme = Theme::Current();
-    FillRect(hdc, &client, theme.BackgroundBrush());
-
-    HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
-    HGDIOBJ old_font = nullptr;
-    if (font)
-    {
-        old_font = SelectObject(hdc, font);
-    }
-
-    int count = TabCtrl_GetItemCount(hwnd);
-    int current = TabCtrl_GetCurSel(hwnd);
-
-    int header_bottom = client.top;
-    RECT first_rect = {};
-    if (count > 0 && TabCtrl_GetItemRect(hwnd, 0, &first_rect))
-    {
-        int row_height = first_rect.bottom - first_rect.top;
-        int rows = std::max(1, TabCtrl_GetRowCount(hwnd));
-        header_bottom = first_rect.top + row_height * rows + 1;
-    }
-
-    if (header_bottom > client.top)
-    {
-        HPEN line_pen = appearance::CachedPen(theme.BorderColor(), 1);
-        HGDIOBJ old_pen = SelectObject(hdc, line_pen);
-        MoveToEx(hdc, client.left, header_bottom, nullptr);
-        LineTo(hdc, client.right, header_bottom);
-        SelectObject(hdc, old_pen);
-    }
-
-    for (int i = 0; i < count; ++i)
-    {
-        if (i == current)
-        {
-            continue;
-        }
-        RECT item_rect = {};
-        if (TabCtrl_GetItemRect(hwnd, i, &item_rect))
-        {
-            DrawTabItem(hdc, i, item_rect, header_bottom, false);
-        }
-    }
-    if (current >= 0)
-    {
-        RECT item_rect = {};
-        if (TabCtrl_GetItemRect(hwnd, current, &item_rect))
-        {
-            DrawTabItem(hdc, current, item_rect, header_bottom, true);
-        }
-    }
-
-    if (old_font)
-    {
-        SelectObject(hdc, old_font);
-    }
 }
 
 } // namespace regkit

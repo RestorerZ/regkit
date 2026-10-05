@@ -10,7 +10,7 @@
 #include "win32/handle_owner.h"
 #include "win32/system_api.h"
 #include "win32/system_error.h"
-#include "appearance/feedback.h"
+#include "ui/feedback.h"
 #include "win32/translation.h"
 #include "resource.h"
 
@@ -330,10 +330,7 @@ void UpdateChecker::Check(bool silent)
             payload->failed = true;
             payload->error = util::TrDetail(L"Failed to reach the update server.", error);
         }
-        if (PostMessageW(owner, frame::message_id::kUpdateCheckReady, 0, reinterpret_cast<LPARAM>(payload.get())))
-        {
-            (void)payload.release();
-        }
+        work::PostPayload(owner, frame::message_id::kUpdateCheckReady, 0, payload);
     });
 }
 
@@ -362,10 +359,7 @@ void UpdateChecker::Download(const UpdateCheckPayload& release)
                 payload->setup_path.clear();
                 payload->error = util::TrDetail(L"The update couldn't be downloaded.", error);
             }
-            if (PostMessageW(owner, frame::message_id::kUpdateCheckReady, 0, reinterpret_cast<LPARAM>(payload.get())))
-            {
-                (void)payload.release();
-            }
+            work::PostPayload(owner, frame::message_id::kUpdateCheckReady, 0, payload);
         }
     );
 }

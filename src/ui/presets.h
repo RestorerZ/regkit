@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-#include "appearance/theme.h"
+#include "ui/theme.h"
 
 namespace regkit
 {

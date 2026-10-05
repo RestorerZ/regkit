@@ -4,7 +4,7 @@
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
 #include "frame/tools/research_links.h"
-#include "appearance/autocomplete.h"
+#include "ui/autocomplete.h"
 #include "win32/translation.h"
 
 namespace regkit
@@ -30,10 +30,10 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(int command_id)
     {
         const size_t index = static_cast<size_t>(command_id - cmd::kOptionsLanguageBase);
         const std::wstring code = command_id == cmd::kOptionsLanguageAuto ? L"" : index < language_packs_.size() ? language_packs_[index].code
-                                                                                                                 : language_;
-        if (code != language_)
+                                                                                                                 : settings_.language;
+        if (code != settings_.language)
         {
-            language_ = code;
+            settings_.language = code;
             SaveSettings();
             BuildMenus();
             if (ui::PromptChoice(hwnd_, util::Tr(L"Restart RegKit now to apply the language?"), util::Tr(L"Language"), util::Tr(L"Restart"), L"", util::Tr(L"Later")) == IDYES)
@@ -101,7 +101,7 @@ bool MainWindow::Impl::HandleWindowAppearanceCommand(int command_id)
         PostMessageW(hwnd_, WM_CLOSE, 0, 0);
         return true;
     case cmd::kWindowAlwaysOnTop:
-        always_on_top_ = !always_on_top_;
+        settings_.always_on_top = !settings_.always_on_top;
         ApplyAlwaysOnTop();
         SaveSettings();
         BuildMenus();
@@ -128,25 +128,25 @@ bool MainWindow::Impl::HandleWindowAppearanceCommand(int command_id)
         BuildMenus();
         return true;
     case cmd::kOptionsThemeCustom:
-        ApplyThemePresetByName(active_theme_preset_, true);
+        ApplyThemePresetByName(settings_.theme_preset, true);
         return true;
     case cmd::kOptionsThemePresets:
         ShowThemePresetsDialog();
         return true;
     case cmd::kOptionsIconSetPhosphor:
-        icon_set_ = kIconSetPhosphor;
+        settings_.icon_set = kIconSetPhosphor;
         ReloadThemeIcons();
         SaveSettings();
         BuildMenus();
         return true;
     case cmd::kOptionsIconSetClassic:
-        icon_set_ = kIconSetClassic;
+        settings_.icon_set = kIconSetClassic;
         ReloadThemeIcons();
         SaveSettings();
         BuildMenus();
         return true;
     case cmd::kOptionsIconSetCustom:
-        icon_set_ = kIconSetCustom;
+        settings_.icon_set = kIconSetCustom;
         ReloadThemeIcons();
         SaveSettings();
         BuildMenus();
@@ -167,15 +167,15 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         RestartAsUser();
         return true;
     case cmd::kOptionsAlwaysRunAdmin:
-        always_run_as_admin_ = !always_run_as_admin_;
-        if (always_run_as_admin_)
+        settings_.always_run_as_admin = !settings_.always_run_as_admin;
+        if (settings_.always_run_as_admin)
         {
-            always_run_as_system_ = false;
-            always_run_as_trustedinstaller_ = false;
+            settings_.always_run_as_system = false;
+            settings_.always_run_as_trustedinstaller = false;
         }
         SaveSettings();
         BuildMenus();
-        if (always_run_as_admin_ && !util::IsProcessElevated())
+        if (settings_.always_run_as_admin && !util::IsProcessElevated())
         {
             RestartAsAdmin();
         }
@@ -184,15 +184,15 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         RestartAsSystem();
         return true;
     case cmd::kOptionsAlwaysRunSystem:
-        always_run_as_system_ = !always_run_as_system_;
-        if (always_run_as_system_)
+        settings_.always_run_as_system = !settings_.always_run_as_system;
+        if (settings_.always_run_as_system)
         {
-            always_run_as_admin_ = false;
-            always_run_as_trustedinstaller_ = false;
+            settings_.always_run_as_admin = false;
+            settings_.always_run_as_trustedinstaller = false;
         }
         SaveSettings();
         BuildMenus();
-        if (always_run_as_system_ && !util::IsProcessSystem())
+        if (settings_.always_run_as_system && !util::IsProcessSystem())
         {
             RestartAsSystem();
         }
@@ -201,15 +201,15 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         RestartAsTrustedInstaller();
         return true;
     case cmd::kOptionsAlwaysRunTrustedInstaller:
-        always_run_as_trustedinstaller_ = !always_run_as_trustedinstaller_;
-        if (always_run_as_trustedinstaller_)
+        settings_.always_run_as_trustedinstaller = !settings_.always_run_as_trustedinstaller;
+        if (settings_.always_run_as_trustedinstaller)
         {
-            always_run_as_admin_ = false;
-            always_run_as_system_ = false;
+            settings_.always_run_as_admin = false;
+            settings_.always_run_as_system = false;
         }
         SaveSettings();
         BuildMenus();
-        if (always_run_as_trustedinstaller_ && !util::IsProcessTrustedInstaller())
+        if (settings_.always_run_as_trustedinstaller && !util::IsProcessTrustedInstaller())
         {
             RestartAsTrustedInstaller();
         }
@@ -221,18 +221,18 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         SetEditContextMenu(!edit_context_menu_);
         return true;
     case cmd::kOptionsSingleInstance:
-        single_instance_ = !single_instance_;
+        settings_.single_instance = !settings_.single_instance;
         SaveSettings();
         BuildMenus();
         return true;
     case cmd::kOptionsHkcuFollowsUser:
-        hkcu_follows_shell_user_ = !hkcu_follows_shell_user_;
-        util::SetCurrentUserFollowsShell(hkcu_follows_shell_user_);
+        settings_.hkcu_follows_shell_user = !settings_.hkcu_follows_shell_user;
+        util::SetCurrentUserFollowsShell(settings_.hkcu_follows_shell_user);
         SaveSettings();
         BuildMenus();
-        if (registry_mode_ == RegistryMode::kLocal)
+        if (session_->mode == RegistryMode::kLocal)
         {
-            std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(show_extra_hives_);
+            std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(settings_.show_extra_hives);
             AppendRealRegistryRoot(&roots);
             ApplyRegistryRoots(roots);
         }
@@ -259,8 +259,8 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         UpdateStatus();
         return true;
     case cmd::kOptionsAutoComplete:
-        autocomplete_ = !autocomplete_;
-        appearance::SetAutoCompleteEnabled(autocomplete_);
+        settings_.autocomplete = !settings_.autocomplete;
+        appearance::SetAutoCompleteEnabled(settings_.autocomplete);
         SaveSettings();
         BuildMenus();
         return true;
@@ -284,7 +284,7 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         updates_.Check(false);
         return true;
     case cmd::kHelpAutoCheckUpdates:
-        auto_check_updates_ = !auto_check_updates_;
+        settings_.auto_check_updates = !settings_.auto_check_updates;
         SaveSettings();
         BuildMenus();
         return true;

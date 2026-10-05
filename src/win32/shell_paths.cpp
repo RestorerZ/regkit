@@ -88,6 +88,33 @@ std::wstring FileName(std::wstring_view path)
     return std::wstring(separator == std::wstring_view::npos ? path : path.substr(separator + 1));
 }
 
+std::wstring FileBaseName(std::wstring_view path)
+{
+    std::wstring name = FileName(path);
+    return name.substr(0, name.find_last_of(L'.'));
+}
+
+std::wstring TrimTrailingSeparators(std::wstring path)
+{
+    while (!path.empty() && (path.back() == L'\\' || path.back() == L'/'))
+    {
+        path.pop_back();
+    }
+    return path;
+}
+
+bool IsFile(const std::wstring& path)
+{
+    const DWORD attributes = GetFileAttributesW(path.c_str());
+    return attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+bool IsDirectory(const std::wstring& path)
+{
+    const DWORD attributes = GetFileAttributesW(path.c_str());
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY);
+}
+
 std::wstring GetAppDataFolder()
 {
     const DWORD override_size = GetEnvironmentVariableW(L"REGKIT_DATA_DIR", nullptr, 0);

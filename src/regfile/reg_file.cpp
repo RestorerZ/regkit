@@ -640,4 +640,57 @@ std::wstring RenderReg(const std::vector<Operation>& operations)
     return std::move(writer).Finish();
 }
 
+bool LoadVirtualRoots(const std::wstring& path, std::vector<VirtualRoot>* roots, std::wstring* error, const std::atomic_bool* cancel, bool* cancelled)
+{
+    roots->clear();
+    Document document;
+    if (!Load(path, &document, error, cancel, cancelled))
+    {
+        return false;
+    }
+    std::unordered_map<std::wstring, VirtualRegistryData*> by_root;
+    for (const auto& source_path : document.key_order)
+    {
+        if (cancel && cancel->load())
+        {
+            if (cancelled)
+            {
+                *cancelled = true;
+            }
+            return false;
+        }
+        const std::wstring normalized = registry_path::Normalize(source_path);
+        const std::wstring key_path = normalized.empty() ? source_path : normalized;
+        const size_t slash = key_path.find(L'\\');
+        const std::wstring root_name = key_path.substr(0, slash);
+        const auto source = document.keys.find(util::ToLower(source_path));
+        if (root_name.empty() || source == document.keys.end())
+        {
+            continue;
+        }
+        VirtualRegistryData*& data = by_root[util::ToLower(root_name)];
+        if (!data)
+        {
+            VirtualRoot& root = roots->emplace_back(VirtualRoot{root_name, std::make_shared<VirtualRegistryData>()});
+            root.data->root_name = root_name;
+            root.data->root = std::make_unique<VirtualRegistryKey>();
+            root.data->root->name = root_name;
+            data = root.data.get();
+        }
+        VirtualRegistryKey* target = data->root.get();
+        for (const std::wstring& part : registry_path::Split(slash == std::wstring::npos ? L"" : key_path.substr(slash + 1)))
+        {
+            auto& child = target->children[util::ToLower(part)];
+            if (!child)
+            {
+                child = std::make_unique<VirtualRegistryKey>();
+                child->name = part;
+            }
+            target = child.get();
+        }
+        target->values.insert(source->second.values.begin(), source->second.values.end());
+    }
+    return true;
+}
+
 } // namespace regkit::regfile

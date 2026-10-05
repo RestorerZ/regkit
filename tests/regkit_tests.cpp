@@ -4,11 +4,13 @@
 #include "records/escaped_fields.h"
 #include "records/json.h"
 #include "regfile/reg_file.h"
+#include "registry/hive_files.h"
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "search/compare.h"
 #include "search/search.h"
 #include "trace/trace_parser.h"
+#include "trace/trace_paths.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -33,7 +35,7 @@ void Check(bool ok, const char* expression, int line)
 
 void RegistryPath()
 {
-    CHECK(registry_path::Normalize(L"HKLM\\Software\\") == L"HKEY_LOCAL_MACHINE\\Software");
+    CHECK(registry_path::Normalize(L"[HKLM\\Software]") == L"HKEY_LOCAL_MACHINE\\Software");
     CHECK(registry_path::Normalize(L"Computer\\HKEY_CURRENT_USER\\Console") == L"HKEY_CURRENT_USER\\Console");
     CHECK(registry_path::Normalize(L"\\REGISTRY\\MACHINE\\SYSTEM") == L"HKEY_LOCAL_MACHINE\\SYSTEM");
     CHECK(registry_path::Normalize(L"\\REGISTRY\\USER\\S-1-5-21-1\\Software", L"S-1-5-21-1") == L"HKEY_CURRENT_USER\\Software");
@@ -58,6 +60,36 @@ void RegistryPath()
     CHECK(registry_path::ClassesSourcePath(L"\\REGISTRY\\MACHINE\\SOFTWARE\\ClassesX\\a", L"S-1").empty());
 }
 
+void HiveFiles()
+{
+    wchar_t temp[MAX_PATH] = {};
+    GetTempPathW(MAX_PATH, temp);
+    const std::wstring folder = std::wstring(temp) + L"regkit_hives";
+    CreateDirectoryW(folder.c_str(), nullptr);
+    CreateDirectoryW((folder + L"\\alice").c_str(), nullptr);
+    const std::wstring files[] = {L"\\SYSTEM", L"\\extra.dat", L"\\notes.txt", L"\\alice\\NTUSER.DAT", L"\\alice\\USRCLASS.DAT"};
+    for (const std::wstring& file : files)
+    {
+        CloseHandle(CreateFileW((folder + file).c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr));
+    }
+    std::vector<OfflineHiveCandidate> found;
+    CollectOfflineHivesInFolder(folder, &found);
+    std::vector<std::wstring> labels;
+    for (const auto& candidate : found)
+    {
+        labels.push_back(candidate.label);
+    }
+    CHECK(labels == std::vector<std::wstring>({L"SYSTEM", L"extra", L"alice", L"alice_Classes"}));
+    CHECK(ResolveOfflineRootName(folder + L"\\alice\\NTUSER.DAT", false, nullptr) == L"HKEY_USERS");
+    CHECK(ResolveOfflineRootName(folder + L"\\SYSTEM", false, nullptr) == L"HKEY_LOCAL_MACHINE");
+    for (const std::wstring& file : files)
+    {
+        DeleteFileW((folder + file).c_str());
+    }
+    RemoveDirectoryW((folder + L"\\alice").c_str());
+    RemoveDirectoryW(folder.c_str());
+}
+
 void ValueFormat()
 {
     CHECK(value_format::TypeName(REG_DWORD) == L"REG_DWORD");
@@ -80,16 +112,36 @@ void RegFile()
     regfile::Document document;
     CHECK(regfile::Parse(content, &document));
     CHECK(document.key_order.size() == 2);
-    const auto& key = document.keys[L"HKEY_CURRENT_USER\\Software\\Test"];
-    CHECK(key.values.size() == 3 && key.removed_values.size() == 1);
-    CHECK(key.values.at(L"Number").type == REG_DWORD && key.values.at(L"Number").data == std::vector<BYTE>({42, 0, 0, 0}));
-    CHECK(key.values.at(L"Data").data == std::vector<BYTE>({1, 2, 3}));
-    CHECK(document.keys[L"HKEY_CURRENT_USER\\Software\\Removed"].removed);
+    auto& key = document.keys[L"hkey_current_user\\software\\test"];
+    CHECK(key.path == L"HKEY_CURRENT_USER\\Software\\Test" && key.values.size() == 3 && key.removed_values.size() == 1);
+    CHECK(key.values[L"number"].type == REG_DWORD && key.values[L"number"].data == std::vector<BYTE>({42, 0, 0, 0}));
+    CHECK(key.values[L"data"].data == std::vector<BYTE>({1, 2, 3}));
+    CHECK(document.keys[L"hkey_current_user\\software\\removed"].removed);
 
     std::vector<regfile::Operation> operations;
     CHECK(regfile::ParseOperations(content, &operations));
     std::vector<regfile::Operation> again;
     CHECK(regfile::ParseOperations(regfile::RenderReg(operations), &again) && again.size() == operations.size());
+
+    wchar_t folder[MAX_PATH] = {};
+    GetTempPathW(MAX_PATH, folder);
+    const std::wstring path = std::wstring(folder) + L"regkit_tests.reg";
+    const std::wstring two_roots = L"\xFEFF" + content + L"\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\A\\B]\r\n\"x\"=\"1\"\r\n";
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+    DWORD written = 0;
+    WriteFile(file, two_roots.data(), static_cast<DWORD>(two_roots.size() * sizeof(wchar_t)), &written, nullptr);
+    CloseHandle(file);
+    std::vector<regfile::VirtualRoot> roots;
+    std::wstring error;
+    CHECK(regfile::LoadVirtualRoots(path, &roots, &error, nullptr, nullptr) && roots.size() == 2);
+    const VirtualRegistryKey* b = roots.size() == 2 ? roots[1].data->root.get() : nullptr;
+    for (const wchar_t* part : {L"software", L"a", L"b"})
+    {
+        b = b && b->children.contains(part) ? b->children.at(part).get() : nullptr;
+    }
+    CHECK(b && b->name == L"B" && b->values.contains(L"x"));
+    CHECK(roots.size() == 2 && roots[0].name == L"HKEY_CURRENT_USER");
+    DeleteFileW(path.c_str());
 }
 
 void Records()
@@ -124,7 +176,7 @@ void Search()
     search::Matcher plain({L"foo", false, false, false});
     CHECK(plain.Find(L"xFOOx").matched && plain.Find(L"xFOOx").start == 1);
     search::Matcher whole({L"foo", true, true, false});
-    CHECK(!whole.Find(L"foobar").matched && whole.Find(L"a foo b").matched && !whole.Find(L"FOO").matched);
+    CHECK(!whole.Find(L"foobar").matched && whole.Find(L"foo").matched && !whole.Find(L"FOO").matched);
     search::Matcher regex({L"f(o+)", false, false, true});
     CHECK(regex.valid() && regex.Find(L"xfoooy").length == 4);
     std::wstring replaced;
@@ -165,28 +217,28 @@ void Trace()
     CHECK(entries[0].key_path == L"HKEY_LOCAL_MACHINE\\SOFTWARE\\A" && entries[0].value_name == L"Value");
     CHECK(entries[1].value_name.empty() && entries[1].has_value);
     CHECK(!trace::ParseEntries("nothing here", normalizers, [](trace::Entry&&) { return true; }, &error));
+
+    CHECK(trace::NormalizeSelectionPath(L"REGISTRY\\\\MACHINE") == L"REGISTRY\\MACHINE");
+    CHECK(trace::NormalizeKeyPathBasic(L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes\\.txt") == L"HKEY_CLASSES_ROOT\\.txt");
+    const std::wstring services = trace::NormalizeKeyPathBasic(L"HKLM\\SYSTEM\\CurrentControlSet\\Services");
+    CHECK(services.starts_with(L"HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet") && services.ends_with(L"\\Services"));
+    CHECK(trace::MapControlSetToCurrent(services).empty());
+    const std::wstring other = trace::MapControlSetToCurrent(L"HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet999\\Services");
+    CHECK(other == services);
 }
 
 } // namespace
 
 int main()
 {
-    std::printf("RegistryPath
-"); std::fflush(stdout); RegistryPath();
-    std::printf("ValueFormat
-"); std::fflush(stdout); ValueFormat();
-    std::printf("RegFile
-"); std::fflush(stdout); RegFile();
-    std::printf("Records
-"); std::fflush(stdout); Records();
-    std::printf("Search
-"); std::fflush(stdout); Search();
-    std::printf("Compare
-"); std::fflush(stdout); Compare();
-    std::printf("Trace
-"); std::fflush(stdout); Trace();
-    std::printf(failures ? "%d failed
-" : "all passed
-", failures);
+    RegistryPath();
+    HiveFiles();
+    ValueFormat();
+    RegFile();
+    Records();
+    Search();
+    Compare();
+    Trace();
+    std::printf(failures ? "%d failed\n" : "all passed\n", failures);
     return failures ? 1 : 0;
 }

@@ -1,22 +1,14 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "search/replace_dialog.h"
+#include "dialogs/replace_dialog.h"
 
-#include <algorithm>
-
-#include <commctrl.h>
-#include <windowsx.h>
-
-#include "appearance/autocomplete.h"
-#include "appearance/dialog_fit.h"
-#include "appearance/dialog_layout.h"
-#include "appearance/dialog_metrics.h"
-#include "appearance/feedback.h"
-#include "search/query_dialog.h"
-#include "win32/text_transform.h"
+#include "dialogs/query_dialog.h"
+#include "resource.h"
+#include "ui/autocomplete.h"
+#include "ui/dialog_support.h"
+#include "ui/feedback.h"
 #include "win32/translation.h"
-#include "win32/window_metrics.h"
 
 namespace regkit
 {
@@ -24,309 +16,144 @@ namespace regkit
 namespace
 {
 
-constexpr wchar_t kDialogClass[] = L"RegKitReplaceDialog";
-constexpr int kReplaceButtonWidth = 80;
-constexpr int kFindReplaceLabelWidth = 100;
-constexpr int kNumberDecimalWidth = 144;
-constexpr int kNumberHexWidth = 116;
+namespace dialog_support = editors::dialog_support;
 
-enum ControlId
+struct State
 {
-    kFindLabel = 100,
-    kFindEdit = 101,
-    kReplaceLabel = 102,
-    kReplaceEdit = 103,
-    kWhereGroup = 110,
-    kKeyLabel = 111,
-    kKeyEdit = 112,
-    kKeyBrowse = 113,
-    kOptionsGroup = 120,
-    kRecursive = 121,
-    kMatchCase = 122,
-    kMatchWhole = 123,
-    kUseRegex = 124,
-    kSearchKeys = 125,
-    kSearchValues = 126,
-    kSearchData = 127,
-    kValueDataGroup = 128,
-    kNumberDecimal = 129,
-    kNumberHex = 130,
-    kReplaceButton = IDOK,
-    kCancelButton = IDCANCEL,
-};
-
-struct ReplaceDialogState : appearance::DialogWindow
-{
-    HWND find_edit = nullptr;
-    HWND replace_edit = nullptr;
-    HWND key_edit = nullptr;
-    HWND key_browse = nullptr;
-    HWND recursive = nullptr;
-    HWND match_case = nullptr;
-    HWND match_whole = nullptr;
-    HWND use_regex = nullptr;
-    HWND search_keys = nullptr;
-    HWND search_values = nullptr;
-    HWND search_data = nullptr;
-    HWND number_decimal = nullptr;
-    HWND number_hex = nullptr;
-    HWND replace_button = nullptr;
-    HWND cancel_button = nullptr;
     ReplaceDialogResult* out = nullptr;
+    HFONT font = nullptr;
 };
 
-void UpdateValueDataOptions(HWND hwnd, const ReplaceDialogState* state)
+constexpr struct
 {
-    if (!state)
-    {
-        return;
-    }
-    const bool enabled = Button_GetCheck(state->search_data) == BST_CHECKED;
-    EnableWindow(GetDlgItem(hwnd, kValueDataGroup), enabled);
-    EnableWindow(state->number_decimal, enabled);
-    EnableWindow(state->number_hex, enabled);
-}
+    int id;
+    bool ReplaceDialogResult::*field;
+} kChecks[] = {
+    {IDC_REPLACE_RECURSIVE, &ReplaceDialogResult::recursive},
+    {IDC_REPLACE_CASE, &ReplaceDialogResult::match_case},
+    {IDC_REPLACE_WHOLE, &ReplaceDialogResult::match_whole},
+    {IDC_REPLACE_REGEX, &ReplaceDialogResult::use_regex},
+    {IDC_REPLACE_KEYS, &ReplaceDialogResult::replace_keys},
+    {IDC_REPLACE_VALUES, &ReplaceDialogResult::replace_values},
+    {IDC_REPLACE_DATA, &ReplaceDialogResult::replace_data},
+    {IDC_REPLACE_DECIMAL, &ReplaceDialogResult::number_decimal},
+    {IDC_REPLACE_HEX, &ReplaceDialogResult::number_hex},
+};
 
-void LayoutDialog(HWND hwnd, ReplaceDialogState* state, HFONT font)
+void UpdateValueDataOptions(HWND dialog)
 {
-    if (!hwnd || !state)
+    const bool enabled = IsDlgButtonChecked(dialog, IDC_REPLACE_DATA) == BST_CHECKED;
+    for (const int id : {IDC_REPLACE_VALUE_GROUP, IDC_REPLACE_DECIMAL, IDC_REPLACE_HEX})
     {
-        return;
-    }
-    using namespace appearance::metrics;
-    RECT client = {};
-    GetClientRect(hwnd, &client);
-    const UINT dpi = win32::DpiForWindow(hwnd);
-    const int margin = Scaled(kDialogContentMargin, dpi);
-    const int block_gap = Scaled(kBlockGap, dpi);
-    const int label_gap = Scaled(kLabelGap, dpi);
-    const int label_inset = Scaled(kLabelInset, dpi);
-    const int label_h = Scaled(kLabelHeight, dpi);
-    const int line_h = Scaled(kControlHeight, dpi);
-    const int control_pitch = Scaled(kControlPitch, dpi);
-    const int row_pitch = Scaled(kRowPitch, dpi);
-    const int check_h = Scaled(kCheckHeight, dpi);
-    const int group_top = Scaled(kGroupTop, dpi);
-    const int group_bottom = Scaled(kGroupBottom, dpi);
-    const int group_inset = Scaled(kGroupInset, dpi);
-    const int button_h = Scaled(kButtonHeight, dpi);
-    const int button_gap = Scaled(kButtonGap, dpi);
-    const int button_w = Scaled(kButtonMinWidth, dpi);
-    const int replace_w = std::max(Scaled(kReplaceButtonWidth, dpi), appearance::TextFitWidth(state->replace_button));
-    const int cancel_w = std::max(button_w, appearance::TextFitWidth(state->cancel_button));
-    const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
-    const int bottom_margin = Scaled(kDialogButtonBottomMargin, dpi);
-    const int width = client.right - client.left;
-    const int x = margin;
-    HWND find_label = GetDlgItem(hwnd, kFindLabel);
-    HWND replace_label = GetDlgItem(hwnd, kReplaceLabel);
-    const int label_w = std::max(Scaled(kFindReplaceLabelWidth, dpi), appearance::TextFitWidth({find_label, replace_label}));
-    const int key_label_w = std::max(Scaled(32, dpi), appearance::TextFitWidth(GetDlgItem(hwnd, kKeyLabel)));
-    const int browse_w = std::max(Scaled(90, dpi), appearance::TextFitWidth(state->key_browse));
-    int y = margin;
-
-    appearance::Place(find_label, x, y + label_inset, label_w, label_h);
-    const int edit_w = width - x * 2 - label_w - label_gap;
-    appearance::Place(state->find_edit, x + label_w + label_gap, y, edit_w, line_h);
-    y += control_pitch;
-
-    appearance::Place(replace_label, x, y + label_inset, label_w, label_h);
-    appearance::Place(state->replace_edit, x + label_w + label_gap, y, edit_w, line_h);
-    y += line_h + block_gap;
-
-    const int group_w = width - x * 2;
-    const int where_h = group_top + line_h + group_bottom;
-    appearance::Place(GetDlgItem(hwnd, kWhereGroup), x, y, group_w, where_h);
-    const int gx = x + group_inset;
-    const int gy = y + group_top;
-    const int key_w = group_w - group_inset * 2 - key_label_w - label_gap * 2 - browse_w;
-    appearance::Place(GetDlgItem(hwnd, kKeyLabel), gx, gy + label_inset, key_label_w, label_h);
-    appearance::Place(state->key_edit, gx + key_label_w + label_gap, gy, key_w, line_h);
-    appearance::Place(state->key_browse, gx + key_label_w + label_gap * 2 + key_w, gy, browse_w, line_h);
-    y += where_h + block_gap;
-
-    const int option_gap = Scaled(kOptionGap, dpi);
-    const int dec_fit = appearance::TextFitWidth(state->number_decimal);
-    const int hex_fit = appearance::TextFitWidth(state->number_hex);
-    const int dec_w = dec_fit > 0 ? dec_fit : Scaled(kNumberDecimalWidth, dpi);
-    const int hex_w = hex_fit > 0 ? hex_fit : Scaled(kNumberHexWidth, dpi);
-    const int column_fit = appearance::TextFitWidth({state->recursive, state->match_whole, state->match_case, state->use_regex, state->search_keys, state->search_values, state->search_data});
-    if (appearance::GrowDialogWidth(hwnd, x * 2 + group_inset * 2 + std::max(column_fit * 2 + label_gap, group_inset * 2 + dec_w + option_gap + hex_w)))
-    {
-        return;
-    }
-    const int nested_w = group_w - group_inset * 2;
-    const int nested_h = group_top + check_h + group_bottom;
-    const int options_h = group_top + row_pitch * 4 + nested_h + group_bottom;
-    appearance::Place(GetDlgItem(hwnd, kOptionsGroup), x, y, group_w, options_h);
-    const int ox = x + group_inset;
-    const int oy = y + group_top;
-    const int col_w = (group_w - group_inset * 2 - label_gap) / 2;
-    const int col2_x = ox + col_w + label_gap;
-    appearance::Place(state->recursive, ox, oy, col_w, check_h);
-    appearance::Place(state->match_whole, ox, oy + row_pitch, col_w, check_h);
-    appearance::Place(state->match_case, ox, oy + row_pitch * 2, col_w, check_h);
-    appearance::Place(state->use_regex, ox, oy + row_pitch * 3, col_w, check_h);
-    appearance::Place(state->search_keys, col2_x, oy, col_w, check_h);
-    appearance::Place(state->search_values, col2_x, oy + row_pitch, col_w, check_h);
-    appearance::Place(state->search_data, col2_x, oy + row_pitch * 2, col_w, check_h);
-    const int nested_y = oy + row_pitch * 4;
-    appearance::Place(GetDlgItem(hwnd, kValueDataGroup), ox, nested_y, nested_w, nested_h);
-    const int ny = nested_y + group_top;
-    const int number_x = ox + group_inset;
-    appearance::Place(state->number_decimal, number_x, ny, dec_w, check_h);
-    appearance::Place(state->number_hex, number_x + dec_w + option_gap, ny, hex_w, check_h);
-    y += options_h + block_gap;
-
-    const int cancel_x = width - right_margin - cancel_w;
-    appearance::Place(state->replace_button, cancel_x - button_gap - replace_w, y, replace_w, button_h);
-    appearance::Place(state->cancel_button, cancel_x, y, cancel_w, button_h);
-    appearance::FitDialogHeight(hwnd, y + button_h + bottom_margin);
-
-    appearance::SetControlFont(hwnd, font);
-    appearance::SetControlFont(find_label, font);
-    appearance::SetControlFont(replace_label, font);
-    for (HWND edit : {state->find_edit, state->replace_edit, state->key_edit})
-    {
-        appearance::CenterEditText(edit, font, 2, 2);
+        EnableWindow(GetDlgItem(dialog, id), enabled);
     }
 }
 
-LRESULT CALLBACK ReplaceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+bool Accept(HWND dialog, State* state)
 {
-    auto* state = appearance::DialogWindowState<ReplaceDialogState>(hwnd);
-    switch (msg)
+    ReplaceDialogResult result;
+    result.find_text = dialog_support::ReadText(dialog, IDC_REPLACE_FIND);
+    if (result.find_text.empty())
     {
-    case WM_CREATE:
+        ui::ShowWarning(dialog, util::Tr(L"Enter text to find."));
+        return false;
+    }
+    result.replace_text = dialog_support::ReadText(dialog, IDC_REPLACE_WITH);
+    result.start_key = dialog_support::ReadText(dialog, IDC_REPLACE_KEY);
+    for (const auto& check : kChecks)
+    {
+        result.*check.field = IsDlgButtonChecked(dialog, check.id) == BST_CHECKED;
+    }
+    if (!result.replace_keys && !result.replace_values && !result.replace_data)
+    {
+        ui::ShowWarning(dialog, util::Tr(L"Select what should be replaced."));
+        return false;
+    }
+    *state->out = std::move(result);
+    return true;
+}
+
+INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam)
+{
+    auto* state = reinterpret_cast<State*>(GetWindowLongPtrW(dialog, DWLP_USER));
+    if (message == WM_INITDIALOG)
+    {
+        state = reinterpret_cast<State*>(lparam);
+        SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
+        const ReplaceDialogResult& initial = *state->out;
+        SetDlgItemTextW(dialog, IDC_REPLACE_FIND, initial.find_text.c_str());
+        SetDlgItemTextW(dialog, IDC_REPLACE_WITH, initial.replace_text.c_str());
+        SetDlgItemTextW(dialog, IDC_REPLACE_KEY, initial.start_key.c_str());
+        for (const auto& check : kChecks)
         {
-            appearance::CreateControl(hwnd, L"STATIC", util::Tr(L"Find what:"), 0, kFindLabel);
-            state->find_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, kFindEdit);
-            appearance::CreateControl(hwnd, L"STATIC", util::Tr(L"Replace with:"), 0, kReplaceLabel);
-            state->replace_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, kReplaceEdit);
-            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Where to search"), BS_GROUPBOX, kWhereGroup);
-            appearance::CreateControl(hwnd, L"STATIC", util::Tr(L"Key:"), 0, kKeyLabel);
-            state->key_edit = appearance::CreateControl(hwnd, L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_MULTILINE, kKeyEdit);
-            appearance::AttachAutoComplete(state->key_edit, appearance::SuggestKeys);
-            state->key_browse =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Browse..."), WS_TABSTOP | BS_PUSHBUTTON, kKeyBrowse);
-            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Options"), BS_GROUPBOX, kOptionsGroup);
-            state->recursive =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Recursive"), WS_TABSTOP | BS_AUTOCHECKBOX, kRecursive);
-            state->match_case =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Match case"), WS_TABSTOP | BS_AUTOCHECKBOX, kMatchCase);
-            state->match_whole =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Match whole string"), WS_TABSTOP | BS_AUTOCHECKBOX, kMatchWhole);
-            state->use_regex =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Regular expressions"), WS_TABSTOP | BS_AUTOCHECKBOX, kUseRegex);
-            ui::AddTooltip(
-                hwnd,
-                state->use_regex,
-                util::Tr(L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
+            CheckDlgButton(dialog, check.id, initial.*check.field ? BST_CHECKED : BST_UNCHECKED);
+        }
+        UpdateValueDataOptions(dialog);
+        appearance::AttachAutoComplete(GetDlgItem(dialog, IDC_REPLACE_KEY), appearance::SuggestKeys);
+        ui::AddTooltip(
+            dialog,
+            GetDlgItem(dialog, IDC_REPLACE_REGEX),
+            util::Tr(L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
                          L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
                          L"\\X.\n"
                          L"Replace with: $1 or ${1} for a group, $<name> or ${name} for a named group, $& for the whole match, $$ "
                          L"for a dollar.")
-            );
-            state->search_keys =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Replace in key names"), WS_TABSTOP | BS_AUTOCHECKBOX, kSearchKeys);
-            state->search_values = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Replace in value names"), WS_TABSTOP | BS_AUTOCHECKBOX, kSearchValues);
-            state->search_data = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Replace in value data"), WS_TABSTOP | BS_AUTOCHECKBOX, kSearchData);
-            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Value Data"), BS_GROUPBOX, kValueDataGroup);
-            state->number_decimal =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Numbers as decimal"), WS_TABSTOP | BS_AUTOCHECKBOX, kNumberDecimal);
-            state->number_hex =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Numbers as hex"), WS_TABSTOP | BS_AUTOCHECKBOX, kNumberHex);
-            state->replace_button =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Replace"), WS_TABSTOP | BS_DEFPUSHBUTTON, kReplaceButton);
-            state->cancel_button =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
-
-            const ReplaceDialogResult& initial = *state->out;
-            SetWindowTextW(state->find_edit, initial.find_text.c_str());
-            SetWindowTextW(state->replace_edit, initial.replace_text.c_str());
-            SetWindowTextW(state->key_edit, initial.start_key.c_str());
-            Button_SetCheck(state->recursive, initial.recursive ? BST_CHECKED : BST_UNCHECKED);
-            Button_SetCheck(state->match_case, initial.match_case ? BST_CHECKED : BST_UNCHECKED);
-            Button_SetCheck(state->match_whole, initial.match_whole ? BST_CHECKED : BST_UNCHECKED);
-            Button_SetCheck(state->use_regex, initial.use_regex ? BST_CHECKED : BST_UNCHECKED);
-            Button_SetCheck(state->search_keys, initial.replace_keys ? BST_CHECKED : BST_UNCHECKED);
-            Button_SetCheck(state->search_values, initial.replace_values ? BST_CHECKED : BST_UNCHECKED);
-            Button_SetCheck(state->search_data, initial.replace_data ? BST_CHECKED : BST_UNCHECKED);
-            Button_SetCheck(state->number_decimal, initial.number_decimal ? BST_CHECKED : BST_UNCHECKED);
-            Button_SetCheck(state->number_hex, initial.number_hex ? BST_CHECKED : BST_UNCHECKED);
-            UpdateValueDataOptions(hwnd, state);
-            state->focus = state->find_edit;
-            appearance::SetDialogFont(hwnd, state->font);
-            LayoutDialog(hwnd, state, state->font);
-            return 0;
-        }
-    case WM_SIZE:
-        LayoutDialog(hwnd, state, state->font);
-        return 0;
-    case WM_COMMAND:
-        switch (LOWORD(wparam))
-        {
-        case kSearchData:
-            UpdateValueDataOptions(hwnd, state);
-            return 0;
-        case kKeyBrowse:
-            {
-                std::wstring selected;
-                if (ShowBrowseKeyDialog(hwnd, &selected) && !selected.empty())
-                {
-                    SetWindowTextW(state->key_edit, selected.c_str());
-                }
-                return 0;
-            }
-        case kReplaceButton:
-            {
-                ReplaceDialogResult result;
-                result.find_text = util::WindowText(state->find_edit);
-                if (result.find_text.empty())
-                {
-                    ui::ShowWarning(hwnd, util::Tr(L"Enter text to find."));
-                    return 0;
-                }
-                result.replace_text = util::WindowText(state->replace_edit);
-                result.start_key = util::WindowText(state->key_edit);
-                result.recursive = Button_GetCheck(state->recursive) == BST_CHECKED;
-                result.match_case = Button_GetCheck(state->match_case) == BST_CHECKED;
-                result.match_whole = Button_GetCheck(state->match_whole) == BST_CHECKED;
-                result.use_regex = Button_GetCheck(state->use_regex) == BST_CHECKED;
-                result.replace_keys = Button_GetCheck(state->search_keys) == BST_CHECKED;
-                result.replace_values = Button_GetCheck(state->search_values) == BST_CHECKED;
-                result.replace_data = Button_GetCheck(state->search_data) == BST_CHECKED;
-                result.number_decimal = Button_GetCheck(state->number_decimal) == BST_CHECKED;
-                result.number_hex = Button_GetCheck(state->number_hex) == BST_CHECKED;
-                if (!result.replace_keys && !result.replace_values && !result.replace_data)
-                {
-                    ui::ShowWarning(hwnd, util::Tr(L"Select what should be replaced."));
-                    return 0;
-                }
-                *state->out = std::move(result);
-                appearance::CloseDialogWindow(state, true);
-                return 0;
-            }
-        default:
-            break;
-        }
-        break;
-    default:
-        break;
+        );
+        dialog_support::Initialize(dialog, &state->font, {IDC_REPLACE_FIND, IDC_REPLACE_WITH, IDC_REPLACE_KEY});
+        return TRUE;
     }
-    return appearance::DefDialogWindowProc(hwnd, msg, wparam, lparam);
+    if (message == WM_DESTROY)
+    {
+        if (state)
+        {
+            dialog_support::ReleaseFont(&state->font);
+        }
+        return TRUE;
+    }
+    INT_PTR themed = 0;
+    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed))
+    {
+        return themed;
+    }
+    if (message != WM_COMMAND || !state)
+    {
+        return FALSE;
+    }
+    switch (LOWORD(wparam))
+    {
+    case IDC_REPLACE_DATA:
+        UpdateValueDataOptions(dialog);
+        return TRUE;
+    case IDC_REPLACE_BROWSE:
+        {
+            std::wstring selected;
+            if (ShowBrowseKeyDialog(dialog, &selected) && !selected.empty())
+            {
+                SetDlgItemTextW(dialog, IDC_REPLACE_KEY, selected.c_str());
+            }
+            return TRUE;
+        }
+    case IDOK:
+        if (Accept(dialog, state))
+        {
+            EndDialog(dialog, IDOK);
+        }
+        return TRUE;
+    case IDCANCEL:
+        EndDialog(dialog, IDCANCEL);
+        return TRUE;
+    default:
+        return FALSE;
+    }
 }
 
 } // namespace
 
 bool ShowReplaceDialog(HWND owner, ReplaceDialogResult* result)
 {
-    ReplaceDialogState state;
+    State state;
     state.out = result;
-    state.owner = owner;
-    const UINT dpi = win32::DpiForWindow(owner);
-    return result &&
-           appearance::RunDialogWindow(&state, kDialogClass, ReplaceDialogProc, util::Tr(L"Replace"), {appearance::metrics::Scaled(520, dpi), appearance::metrics::Scaled(360, dpi)});
+    return result && DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_REPLACE), owner, DialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
 }
 
 } // namespace regkit

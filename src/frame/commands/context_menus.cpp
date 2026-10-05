@@ -219,7 +219,7 @@ void MainWindow::Impl::ShowTreeContextMenu(POINT screen_pt)
     bool has_node = node != nullptr;
     bool can_rename = has_node && !node->subkey.empty();
     bool is_simulated = has_node && node->simulated;
-    bool can_modify = !read_only_;
+    bool can_modify = !settings_.read_only;
     UINT edit_flags = MF_STRING | (has_node ? 0 : MF_GRAYED);
     UINT modify_flags = MF_STRING | ((has_node && can_modify) ? 0 : MF_GRAYED);
     UINT rename_flags = MF_STRING | ((can_rename && can_modify) ? 0 : MF_GRAYED);
@@ -337,7 +337,7 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
     {
         bool is_simulated = row->simulated;
         bool can_rename = !row->extra.empty();
-        bool can_modify = !read_only_;
+        bool can_modify = !settings_.read_only;
         UINT edit_flags = MF_STRING;
         UINT modify_flags = MF_STRING | (can_modify ? 0 : MF_GRAYED);
         UINT rename_flags = MF_STRING | ((can_rename && can_modify) ? 0 : MF_GRAYED);
@@ -409,10 +409,10 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
                                 });
         const bool single_value = all_values && selected_rows.size() == 1;
         const bool has_data = std::any_of(selected_rows.begin(), selected_rows.end(), [](const ListRow& selected) {
-            return selected.type != L"TRACE";
+            return !selected.trace_only;
         });
-        bool can_rename = !read_only_ && single_value && has_data;
-        bool can_delete = !read_only_ && all_values && has_data;
+        bool can_rename = !settings_.read_only && single_value && has_data;
+        bool can_delete = !settings_.read_only && all_values && has_data;
         bool can_comment = all_values;
         bool can_export = !row->simulated && browse_.current_node() && !browse_.current_node()->simulated && has_data;
         UINT rename_flags = MF_STRING | (can_rename ? 0 : MF_GRAYED);
@@ -466,7 +466,7 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
     else
     {
         bool is_simulated = browse_.current_node() && browse_.current_node()->simulated;
-        bool can_modify = !read_only_;
+        bool can_modify = !settings_.read_only;
         UINT edit_flags = MF_STRING | (browse_.current_node() ? 0 : MF_GRAYED);
         UINT modify_flags = MF_STRING | ((browse_.current_node() && can_modify) ? 0 : MF_GRAYED);
         AppendMenuW(menu, edit_flags, cmd::kEditCopyKey, util::Tr(L"Copy Key Name"));
@@ -674,7 +674,7 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
     bool node_ok = ResolvePathToNode(key_path, &node);
     KeyInfo info = {};
     bool key_exists = node_ok && RegistryStore::QueryKeyInfo(node, &info);
-    bool can_modify = !read_only_;
+    bool can_modify = !settings_.read_only;
     bool can_rename = key_exists && can_modify && (!is_key_row || !node.subkey.empty());
     bool can_delete = key_exists && can_modify && (!is_key_row || !node.subkey.empty());
     bool can_export = key_exists;

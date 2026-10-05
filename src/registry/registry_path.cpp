@@ -175,7 +175,7 @@ std::wstring Build(const RegistryNode& node)
 
 bool InVolatileHive(std::wstring_view native_path)
 {
-    // ponytail: HARDWARE is the only volatile hive windows mounts, keys in it carry no volatile flag
+    // HARDWARE is the only volatile hive windows mounts, keys in it carry no volatile flag
     return HasComponentPrefix(native_path, L"\\REGISTRY\\MACHINE\\HARDWARE");
 }
 

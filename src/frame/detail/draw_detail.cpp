@@ -26,25 +26,25 @@
 #include <vssym32.h>
 #include <windowsx.h>
 #include <winternl.h>
-#include "appearance/default_font.h"
-#include "appearance/feedback.h"
-#include "appearance/gdi_cache.h"
-#include "appearance/icon_loader.h"
 #include "defaults/default_loader.h"
-#include "editors/comment_editor.h"
-#include "editors/value_editor.h"
+#include "dialogs/comment_editor.h"
+#include "dialogs/security_dialog.h"
+#include "dialogs/value_editor.h"
 #include "frame/commands/command_ids.h"
 #include "frame/window/message_dispatch.h"
 #include "frame/window/message_ids.h"
 #include "regfile/reg_file.h"
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
-#include "registry/security_dialog.h"
 #include "registry/value_format.h"
 #include "resource.h"
 #include "search/result_file.h"
 #include "trace/trace_loader.h"
 #include "trace/trace_parser.h"
+#include "ui/default_font.h"
+#include "ui/feedback.h"
+#include "ui/gdi_cache.h"
+#include "ui/icon_loader.h"
 #include "win32/file_dialog.h"
 #include "win32/file_text.h"
 #include "win32/process_rights.h"
@@ -71,55 +71,6 @@ bool GetChildRectInParent(HWND parent, HWND child, RECT* rect)
     }
     MapWindowPoints(nullptr, parent, reinterpret_cast<POINT*>(rect), 2);
     return true;
-}
-
-RECT AdjustTabDrawRect(const RECT& item_rect, int header_bottom, bool selected)
-{
-    RECT rect = item_rect;
-    rect.left += kTabInsetX;
-    rect.right -= kTabInsetX;
-    rect.top += kTabInsetY;
-    rect.bottom = header_bottom - 1;
-    if (selected)
-    {
-        rect.top -= 1;
-        rect.bottom = header_bottom;
-    }
-    return rect;
-}
-
-bool CalcTabCloseRect(const RECT& tab_rect, RECT* close_rect)
-{
-    if (!close_rect)
-    {
-        return false;
-    }
-    int height = tab_rect.bottom - tab_rect.top;
-    int size = std::min(kTabCloseSize, std::max(8, height - 6));
-    if (size <= 0)
-    {
-        return false;
-    }
-    int right = tab_rect.right - kTabCloseGap;
-    close_rect->right = right;
-    close_rect->left = right - size;
-    close_rect->top = tab_rect.top + (height - size) / 2;
-    close_rect->bottom = close_rect->top + size;
-    return close_rect->left < close_rect->right;
-}
-
-void DrawCloseGlyph(HDC hdc, const RECT& rect, COLORREF color, UINT dpi)
-{
-    const int radius = appearance::ScaleForDpi(3, dpi);
-    const int pen_width = std::max(1, appearance::ScaleForDpi(1, dpi));
-    const int center_x = (rect.left + rect.right) / 2;
-    const int center_y = (rect.top + rect.bottom) / 2;
-    HGDIOBJ old_pen = SelectObject(hdc, appearance::CachedPen(color, pen_width));
-    MoveToEx(hdc, center_x - radius, center_y - radius, nullptr);
-    LineTo(hdc, center_x + radius + 1, center_y + radius + 1);
-    MoveToEx(hdc, center_x + radius, center_y - radius, nullptr);
-    LineTo(hdc, center_x - radius - 1, center_y + radius + 1);
-    SelectObject(hdc, old_pen);
 }
 
 int MappedSubItem(const std::vector<int>& map, int display_index)

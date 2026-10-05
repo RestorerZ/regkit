@@ -5,6 +5,7 @@
 #include "frame/window_impl.h"
 #include "records/escaped_fields.h"
 #include "win32/text_transform.h"
+#include "trace/trace_paths.h"
 
 namespace regkit
 {
@@ -68,7 +69,7 @@ void MainWindow::Impl::StartDefaultLoadWorker()
             defaults::Data data;
             if (!defaults::Load(
                     source,
-                    [](const std::wstring& path) { return NormalizeTraceKeyPathBasic(path); },
+                    [](const std::wstring& path) { return trace::NormalizeKeyPathBasic(path); },
                     &data,
                     nullptr,
                     nullptr,
@@ -90,10 +91,9 @@ void MainWindow::Impl::StartDefaultLoadWorker()
         {
             return;
         }
-        if (hwnd && IsWindow(hwnd) &&
-            PostMessageW(hwnd, frame::message_id::kDefaultLoadReady, 0, reinterpret_cast<LPARAM>(payload.get())))
+        if (hwnd && IsWindow(hwnd))
         {
-            ReleasePostedPayload(payload);
+            work::PostPayload(hwnd, frame::message_id::kDefaultLoadReady, 0, payload);
         }
     });
 }

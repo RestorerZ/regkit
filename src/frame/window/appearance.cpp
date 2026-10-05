@@ -3,8 +3,8 @@
 
 #include "frame/window_impl.h"
 
-#include "appearance/preset_editor.h"
-#include "editors/value_editor.h"
+#include "dialogs/value_editor.h"
+#include "ui/preset_editor.h"
 #include "win32/translation.h"
 
 namespace regkit
@@ -20,7 +20,7 @@ void MainWindow::Impl::ShowThemePresetsDialog()
     appearance::ShowThemePresetEditor(
         hwnd_,
         theme_presets_,
-        active_theme_preset_,
+        settings_.theme_preset,
         [](void* context, const std::vector<ThemePreset>& presets, const std::wstring& active_name) {
             static_cast<MainWindow::Impl*>(context)->UpdateThemePresets(presets, active_name, true);
         },

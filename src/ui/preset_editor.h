@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "appearance/presets.h"
+#include "ui/presets.h"
 
 namespace regkit::appearance
 {

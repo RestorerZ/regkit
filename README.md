@@ -23,7 +23,17 @@ RegKit adds functionality that native RegEdit doesn't support:
 
 - A `REGISTRY` root view in addition to the standard root keys, see [`\REGISTRY`](https://noverse.dev/docs/regkit/registry-internals/registry-fundamentals/#root-keys--registry)
 - [Theme modes](https://noverse.dev/docs/regkit/overview/#theme-presets) (System/Light/Dark) and custom theme presets (edit colors, import/export `.rktheme` files)
-- Supports several languages, which [you can edit/add on your own](https://noverse.dev/docs/regkit/overview/#translations)
+- Supports several languages, which [you can edit/add on your own](https://noverse.dev/docs/regkit/overview/#translations), currently:
+  - English
+  - German
+  - French
+  - Spanish
+  - Italian
+  - Japanese
+  - Simplified Chinese
+  - Korean
+  - Russian
+  - Brazilian Portuguese
 - Custom font support
 - Custom [icon sets](https://noverse.dev/docs/regkit/overview/#icon-sets), with four sets included by default
 - [Symbolic link](https://noverse.dev/docs/regkit/registry-internals/registry-fundamentals/#symbolic-links) detection, including the link target

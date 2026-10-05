@@ -32,24 +32,24 @@
 #include <windowsx.h>
 #include <winternl.h>
 
-#include "appearance/feedback.h"
-#include "appearance/gdi_cache.h"
-#include "appearance/icon_loader.h"
 #include "defaults/default_loader.h"
-#include "editors/comment_editor.h"
-#include "editors/value_editor.h"
+#include "dialogs/comment_editor.h"
+#include "dialogs/security_dialog.h"
+#include "dialogs/value_editor.h"
 #include "frame/commands/command_ids.h"
 #include "frame/window/message_dispatch.h"
 #include "frame/window/message_ids.h"
 #include "regfile/reg_file.h"
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
-#include "registry/security_dialog.h"
 #include "registry/value_format.h"
 #include "resource.h"
 #include "search/result_file.h"
 #include "trace/trace_loader.h"
 #include "trace/trace_parser.h"
+#include "ui/feedback.h"
+#include "ui/gdi_cache.h"
+#include "ui/icon_loader.h"
 #include "win32/file_text.h"
 #include "win32/process_rights.h"
 #include "win32/registry_native.h"
@@ -61,9 +61,7 @@
 namespace regkit::window_detail
 {
 
-std::wstring TrimTrailingSeparators(const std::wstring& path);
 
-bool IsDirectoryPath(const std::wstring& path);
 
 constexpr wchar_t kIconSetPhosphor[] = L"phosphor";
 constexpr wchar_t kIconSetClassic[] = L"classic";
@@ -72,8 +70,6 @@ constexpr wchar_t kIconSetCustom[] = L"custom";
 bool IsIconSetName(const std::wstring& value, const wchar_t* name);
 
 bool IsKnownIconSetName(const std::wstring& value);
-
-std::wstring FindAssetsIconsRoot();
 
 std::wstring AssetsIconsRoot();
 
@@ -85,7 +81,6 @@ std::wstring NormalizeMachineName(const std::wstring& text);
 
 std::wstring StripMachinePrefix(const std::wstring& machine);
 
-bool FileExists(const std::wstring& path);
 bool ReadActiveEntries(const std::wstring& path, std::wstring_view prefix, std::vector<std::wstring>* entries);
 bool ResolveActiveSource(const std::wstring& entry, const std::function<std::wstring(const std::wstring&)>& resolve_bundled, const wchar_t* fallback_label, std::wstring* source, std::wstring* label);
 
@@ -93,26 +88,17 @@ using util::EqualsInsensitive;
 
 using util::StartsWithInsensitive;
 
-bool WindowClassEquals(HWND hwnd, const wchar_t* class_name);
-
-struct ParsedRegFileRoot
-{
-    std::wstring name;
-    std::shared_ptr<VirtualRegistryData> data;
-};
 
 struct RegFileParsePayload : work::MoveOnly
 {
     uint64_t generation = 0;
     std::wstring source_path;
     std::wstring source_lower;
-    std::vector<ParsedRegFileRoot> roots;
+    std::vector<regfile::VirtualRoot> roots;
     std::wstring error;
     bool cancelled = false;
 };
 
-VirtualRegistryKey* EnsureVirtualKey(VirtualRegistryKey* root, const std::wstring& subkey);
 
-bool ParseRegFileToVirtualRoots(const std::wstring& path, std::vector<ParsedRegFileRoot>* roots, std::wstring* error, const std::atomic_bool* cancel, bool* cancelled);
 
 } // namespace regkit::window_detail

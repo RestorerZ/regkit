@@ -3,6 +3,10 @@
 
 #pragma once
 
+#include "win32/windows_config.h"
+
+#include <windows.h>
+
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -24,11 +28,30 @@ class MoveOnly
 {
   public:
     MoveOnly() = default;
+    virtual ~MoveOnly() = default;
     MoveOnly(MoveOnly&&) noexcept = default;
     MoveOnly& operator=(MoveOnly&&) noexcept = default;
     MoveOnly(const MoveOnly&) = delete;
     MoveOnly& operator=(const MoveOnly&) = delete;
 };
+
+// a worker result travels as a MoveOnly pointer in lparam, so whoever drops a queued one can delete it through the base
+template <typename T>
+bool PostPayload(HWND hwnd, UINT message, WPARAM wparam, std::unique_ptr<T>& payload)
+{
+    if (!PostMessageW(hwnd, message, wparam, reinterpret_cast<LPARAM>(static_cast<MoveOnly*>(payload.get()))))
+    {
+        return false;
+    }
+    payload.release();
+    return true;
+}
+
+template <typename T>
+T* PayloadFrom(LPARAM lparam)
+{
+    return static_cast<T*>(reinterpret_cast<MoveOnly*>(lparam));
+}
 
 class Session
 {

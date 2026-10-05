@@ -1,10 +1,10 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "appearance/autocomplete.h"
+#include "ui/autocomplete.h"
 
-#include "appearance/gdi_cache.h"
-#include "appearance/theme.h"
+#include "ui/gdi_cache.h"
+#include "ui/theme.h"
 #include "win32/text_transform.h"
 #include "win32/window_metrics.h"
 
@@ -227,7 +227,6 @@ class AutoCompleteSource : public ::IEnumString, public ::IACList
         suggestions_ = SuggestOnEditThread(query);
     }
 
-    // autocomplete enumerates on a worker thread, suggestions read state owned by the edit thread
     std::vector<std::wstring> SuggestOnEditThread(const std::wstring& query) const
     {
         auto call = std::make_shared<SuggestCall>(SuggestCall{suggest_, query, {}});
@@ -235,7 +234,6 @@ class AutoCompleteSource : public ::IEnumString, public ::IACList
         DWORD_PTR handled = 0;
         if (!SendMessageTimeoutW(edit_, SuggestMessage(), 0, reinterpret_cast<LPARAM>(message_ref), SMTO_BLOCK, 2000, &handled))
         {
-            // a timed out message can still arrive later and owns the reference then
             if (GetLastError() != ERROR_TIMEOUT)
             {
                 delete message_ref;

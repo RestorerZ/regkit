@@ -1,17 +1,17 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "editors/bitfield_editor.h"
+#include "dialogs/bitfield_editor.h"
 
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
 
-#include "appearance/dialog_layout.h"
-#include "appearance/feedback.h"
-#include "appearance/list_view_support.h"
-#include "appearance/theme.h"
-#include "editors/bitfield_definition_editor.h"
-#include "editors/dialog_support.h"
+#include "dialogs/bitfield_definition_editor.h"
+#include "ui/dialog_layout.h"
+#include "ui/dialog_support.h"
+#include "ui/feedback.h"
+#include "ui/list_view_support.h"
+#include "ui/theme.h"
 #include "win32/file_dialog.h"
 #include "win32/translation.h"
 #include "win32/window_metrics.h"

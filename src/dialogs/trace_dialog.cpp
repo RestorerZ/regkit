@@ -1,7 +1,7 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "trace/trace_dialog.h"
+#include "dialogs/trace_dialog.h"
 
 #include <algorithm>
 #include <cwchar>
@@ -13,15 +13,12 @@
 #include <commctrl.h>
 #include <windowsx.h>
 
-#include "appearance/dialog_fit.h"
-#include "appearance/dialog_layout.h"
-#include "appearance/dialog_metrics.h"
-#include "appearance/feedback.h"
-#include "appearance/theme.h"
 #include "registry/registry_path.h"
+#include "resource.h"
+#include "ui/dialog_support.h"
+#include "ui/feedback.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
-#include "win32/window_metrics.h"
 
 #ifndef NMTVITEMCHANGE
 typedef struct tagNMTVITEMCHANGE
@@ -41,23 +38,13 @@ namespace regkit
 namespace
 {
 
-constexpr wchar_t kDialogClass[] = L"RegKitTraceDialog";
+namespace dialog_support = editors::dialog_support;
+
 constexpr UINT kDialogAddEntriesMessage = WM_APP + 1;
 constexpr UINT kDialogDoneMessage = WM_APP + 2;
 constexpr UINT kDialogProcessEntriesMessage = WM_APP + 3;
 
 using util::ToLower;
-
-enum ControlId
-{
-    kTraceLabel = 100,
-    kTraceStatus = 101,
-    kTraceTree = 102,
-    kRecursiveCheck = 103,
-    kSelectAllButton = 104,
-    kOkButton = IDOK,
-    kCancelButton = IDCANCEL,
-};
 
 struct TraceNodeData
 {
@@ -66,21 +53,18 @@ struct TraceNodeData
     std::wstring value_name;
 };
 
-struct TraceDialogState : appearance::DialogWindow
+struct TraceDialogState
 {
-    HWND label = nullptr;
+    HWND dialog = nullptr;
     HWND status = nullptr;
     HWND tree = nullptr;
-    HWND recursive = nullptr;
-    HWND select_all = nullptr;
-    HWND ok_button = nullptr;
-    HWND cancel_button = nullptr;
+    HFONT font = nullptr;
+    std::wstring title;
     trace::Selection* out = nullptr;
     bool loading_done = false;
     bool show_values = true;
     TraceDialogReadyCallback on_ready = nullptr;
     void* on_ready_context = nullptr;
-    std::wstring prompt;
     bool processing_entries = false;
     bool updating_checks = false;
     size_t pending_index = 0;
@@ -122,7 +106,7 @@ void UpdateStatus(TraceDialogState* state)
     {
         text.append(L" (").append(util::Tr(L"loading...")).append(L")");
     }
-    EnableWindow(state->ok_button, ready);
+    EnableWindow(GetDlgItem(state->dialog, IDOK), ready);
     SetWindowTextW(state->status, text.c_str());
 }
 
@@ -435,14 +419,14 @@ void AcceptSelection(HWND hwnd, TraceDialogState* state, bool select_all)
     {
         return;
     }
-    bool recursive = Button_GetCheck(state->recursive) == BST_CHECKED;
+    bool recursive = IsDlgButtonChecked(hwnd, IDC_TRACE_RECURSIVE) == BST_CHECKED;
     if (select_all)
     {
         state->out->select_all = true;
         state->out->recursive = recursive;
         state->out->key_paths.clear();
         state->out->values_by_key.clear();
-        appearance::CloseDialogWindow(state, true);
+        EndDialog(hwnd, IDOK);
         return;
     }
 
@@ -461,99 +445,47 @@ void AcceptSelection(HWND hwnd, TraceDialogState* state, bool select_all)
         return;
     }
     *state->out = std::move(selection);
-    appearance::CloseDialogWindow(state, true);
+    EndDialog(hwnd, IDOK);
 }
 
-void LayoutDialog(HWND hwnd, TraceDialogState* state, HFONT font)
+INT_PTR CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
+    auto* state = reinterpret_cast<TraceDialogState*>(GetWindowLongPtrW(hwnd, DWLP_USER));
+    if (msg == WM_INITDIALOG)
+    {
+        state = reinterpret_cast<TraceDialogState*>(lparam);
+        SetWindowLongPtrW(hwnd, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
+        state->dialog = hwnd;
+        state->status = GetDlgItem(hwnd, IDC_TRACE_STATUS);
+        state->tree = GetDlgItem(hwnd, IDC_TRACE_TREE);
+        // set after creation so the tree builds its checkbox state images before the first item is added
+        SetWindowLongPtrW(state->tree, GWL_STYLE, GetWindowLongPtrW(state->tree, GWL_STYLE) | TVS_CHECKBOXES);
+        SendMessageW(state->tree, TVM_SETEXTENDEDSTYLE, TVS_EX_DOUBLEBUFFER, TVS_EX_DOUBLEBUFFER);
+        CheckDlgButton(hwnd, IDC_TRACE_RECURSIVE, BST_CHECKED);
+        dialog_support::Initialize(hwnd, &state->font, {});
+        if (!state->title.empty())
+        {
+            SetWindowTextW(hwnd, state->title.c_str());
+        }
+        UpdateStatus(state);
+        SetFocus(state->tree);
+        if (state->on_ready)
+        {
+            state->on_ready(hwnd, state->on_ready_context);
+        }
+        return FALSE;
+    }
     if (!state)
     {
-        return;
+        return FALSE;
     }
-    RECT rect = {};
-    GetClientRect(hwnd, &rect);
-    using namespace appearance::metrics;
-    const UINT dpi = win32::DpiForWindow(hwnd);
-    const int padding = Scaled(kDialogContentMargin, dpi);
-    const int gap = Scaled(kRowGap, dpi);
-    const int block_gap = Scaled(kBlockGap, dpi);
-    const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
-    const int bottom_margin = Scaled(kDialogButtonBottomMargin, dpi);
-    const int button_h = Scaled(kButtonHeight, dpi);
-    const int button_w = Scaled(kButtonMinWidth, dpi);
-    const int button_gap = Scaled(kButtonGap, dpi);
-    const int check_h = Scaled(kCheckHeight, dpi);
-    const int label_h = Scaled(kLabelHeight, dpi);
-    const int width = rect.right - rect.left;
-    const int height = rect.bottom - rect.top;
-    const int content_w = width - padding * 2;
-
-    int y = padding;
-    if (state->label)
+    INT_PTR themed = 0;
+    if (dialog_support::HandleThemeMessage(hwnd, msg, wparam, lparam, &themed))
     {
-        appearance::Place(state->label, padding, y, content_w, label_h);
-        y += label_h + gap;
+        return themed;
     }
-    if (state->status)
-    {
-        appearance::Place(state->status, padding, y, content_w, label_h);
-        y += label_h + gap;
-    }
-
-    const int buttons_y = height - bottom_margin - button_h;
-    const int check_y = buttons_y - button_h - block_gap;
-    const int tree_height = std::max(Scaled(80, dpi), check_y - y - block_gap);
-    appearance::Place(state->tree, padding, y, content_w, tree_height);
-
-    const int select_all_w = std::max(Scaled(135, dpi), appearance::TextFitWidth(state->select_all));
-    const int recursive_w = std::max(Scaled(160, dpi), appearance::TextFitWidth(state->recursive));
-    appearance::Place(state->select_all, padding, check_y, select_all_w, button_h);
-    appearance::Place(state->recursive, padding + select_all_w + gap, check_y + (button_h - check_h) / 2, recursive_w, check_h);
-    const int buttons_w = appearance::PlaceButtonRow({state->ok_button, state->cancel_button}, width - right_margin, buttons_y, button_w, button_h, button_gap);
-    if (appearance::GrowDialogWidth(hwnd, std::max(padding + select_all_w + gap + recursive_w + padding, padding + buttons_w + right_margin)))
-    {
-        return;
-    }
-
-    if (font)
-    {
-        appearance::SetControlFont(hwnd, font);
-    }
-}
-
-LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
-{
-    auto* state = appearance::DialogWindowState<TraceDialogState>(hwnd);
     switch (msg)
     {
-    case WM_CREATE:
-        {
-            if (!state->prompt.empty())
-            {
-                state->label = appearance::CreateControl(hwnd, L"STATIC", state->prompt.c_str(), 0, kTraceLabel);
-            }
-            state->status = appearance::CreateControl(hwnd, L"STATIC", L"", 0, kTraceStatus);
-            state->tree = appearance::CreateControl(hwnd, WC_TREEVIEWW, L"", WS_BORDER | WS_TABSTOP | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_CHECKBOXES, kTraceTree);
-            state->recursive =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Recursive"), WS_TABSTOP | BS_AUTOCHECKBOX, kRecursiveCheck);
-            state->select_all =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Select All Keys"), WS_TABSTOP | BS_PUSHBUTTON, kSelectAllButton);
-            state->ok_button =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Select"), WS_TABSTOP | BS_DEFPUSHBUTTON, kOkButton);
-            state->cancel_button =
-                appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, kCancelButton);
-            appearance::SetDialogFont(hwnd, state->font);
-            Button_SetCheck(state->recursive, BST_CHECKED);
-            SendMessageW(state->tree, TVM_SETEXTENDEDSTYLE, TVS_EX_DOUBLEBUFFER, TVS_EX_DOUBLEBUFFER);
-            state->focus = state->tree;
-            UpdateStatus(state);
-            LayoutDialog(hwnd, state, state->font);
-            if (state->on_ready)
-            {
-                state->on_ready(hwnd, state->on_ready_context);
-            }
-            return 0;
-        }
     case WM_DESTROY:
         {
             MSG pending = {};
@@ -561,16 +493,21 @@ LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
             {
                 delete reinterpret_cast<std::vector<KeyValueDialogEntry>*>(pending.lParam);
             }
-            break;
+            dialog_support::ReleaseFont(&state->font);
+            return TRUE;
         }
-    case WM_SIZE:
-        LayoutDialog(hwnd, state, state->font);
-        return 0;
     case WM_COMMAND:
-        if (HIWORD(wparam) == BN_CLICKED && (LOWORD(wparam) == kSelectAllButton || LOWORD(wparam) == kOkButton))
+        switch (LOWORD(wparam))
         {
-            AcceptSelection(hwnd, state, LOWORD(wparam) == kSelectAllButton);
-            return 0;
+        case IDC_TRACE_SELECT_ALL:
+        case IDOK:
+            AcceptSelection(hwnd, state, LOWORD(wparam) == IDC_TRACE_SELECT_ALL);
+            return TRUE;
+        case IDCANCEL:
+            EndDialog(hwnd, IDCANCEL);
+            return TRUE;
+        default:
+            break;
         }
         break;
     case WM_NOTIFY:
@@ -618,19 +555,19 @@ LRESULT CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
             {
                 QueueEntries(hwnd, state, std::move(*owned));
             }
-            return 0;
+            return TRUE;
         }
     case kDialogDoneMessage:
         state->loading_done = wparam != 0;
         UpdateStatus(state);
-        return 0;
+        return TRUE;
     case kDialogProcessEntriesMessage:
         ProcessPendingEntries(hwnd, state);
-        return 0;
+        return TRUE;
     default:
         break;
     }
-    return appearance::DefDialogWindowProc(hwnd, msg, wparam, lparam);
+    return FALSE;
 }
 
 } // namespace
@@ -639,14 +576,11 @@ bool ShowTraceDialog(HWND owner, const TraceDialogOptions& options, trace::Selec
 {
     TraceDialogState state;
     state.out = selection;
-    state.owner = owner;
+    state.title = options.title;
     state.show_values = options.show_values;
     state.on_ready = on_ready;
     state.on_ready_context = context;
-    state.prompt = options.prompt;
-    const UINT dpi = win32::DpiForWindow(owner);
-    return selection &&
-           appearance::RunDialogWindow(&state, kDialogClass, TraceDialogProc, options.title.empty() ? util::Tr(L"Trace") : options.title.c_str(), {appearance::metrics::Scaled(560, dpi), appearance::metrics::Scaled(552, dpi)});
+    return selection && DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_TRACE_SELECT), owner, TraceDialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
 }
 void TraceDialogPostEntries(HWND dialog, std::vector<KeyValueDialogEntry>* entries)
 {

@@ -354,9 +354,9 @@ void MainWindow::Impl::OpenSourceEntry(const search::Source& source, const std::
                 ActivateTabIndex(existing);
             }
             std::wstring target = path;
-            if (!offline_mount_.empty())
+            if (!session_->offline_mount.empty())
             {
-                for (const std::wstring& prefix : {offline_mount_, util::FileName(source.name)})
+                for (const std::wstring& prefix : {session_->offline_mount, util::FileName(source.name)})
                 {
                     if (prefix.empty())
                     {
@@ -373,7 +373,7 @@ void MainWindow::Impl::OpenSourceEntry(const search::Source& source, const std::
                         break;
                     }
                 }
-                const std::wstring mount = offline_root_name_ + L"\\" + offline_mount_;
+                const std::wstring mount = session_->offline_root_name + L"\\" + session_->offline_mount;
                 target = target.empty() ? mount : mount + L"\\" + target;
             }
             SelectTreePath(target);

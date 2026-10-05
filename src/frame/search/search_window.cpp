@@ -5,6 +5,7 @@
 #include "frame/window_impl.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
+#include "trace/trace_paths.h"
 
 namespace regkit
 {
@@ -27,9 +28,9 @@ std::wstring MainWindow::Impl::NormalizeRegistryPath(const std::wstring& input) 
         }
     };
     strip_context(TreeRootLabel());
-    if (registry_mode_ == RegistryMode::kRemote)
+    if (session_->mode == RegistryMode::kRemote)
     {
-        strip_context(StripMachinePrefix(remote_machine_));
+        strip_context(StripMachinePrefix(session_->remote_machine));
     }
     return registry_path::Normalize(path, sid);
 }
@@ -41,7 +42,7 @@ std::wstring MainWindow::Impl::FormatRegistryPath(const std::wstring& path, Regi
     {
         return {};
     }
-    std::wstring tree_root = registry_mode_ == RegistryMode::kLocal ? L"Computer" : TreeRootLabel();
+    std::wstring tree_root = session_->mode == RegistryMode::kLocal ? L"Computer" : TreeRootLabel();
     registry_path::Style style = registry_path::Style::kFull;
     switch (format)
     {
@@ -233,7 +234,7 @@ void MainWindow::Impl::UpdateStatus()
         path_text = registry_path::Build(*browse_.current_node());
     }
     std::wstring mode_text;
-    if (registry_mode_ == RegistryMode::kLocal && util::ShellUserDiffers())
+    if (session_->mode == RegistryMode::kLocal && util::ShellUserDiffers())
     {
         const std::wstring sid = util::GetCurrentUserSidString();
         if (sid != status_account_sid_)
@@ -438,7 +439,7 @@ void MainWindow::Impl::SyncRegFileTabSelection()
         entry.reg_file_loading = true;
         StartRegFileParse(entry.reg_file_path, entry.reg_file_session_key);
     }
-    registry_mode_ = RegistryMode::kLocal;
+    session_->mode = RegistryMode::kLocal;
     std::vector<RegistryRootEntry> roots;
     roots.reserve(entry.reg_file_roots.size());
     for (const auto& root : entry.reg_file_roots)
@@ -600,7 +601,7 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
             start_nodes.push_back({std::move(node), source});
         };
 
-        std::vector<RegistryRootEntry> local_roots = RegistryStore::DefaultRoots(show_extra_hives_);
+        std::vector<RegistryRootEntry> local_roots = RegistryStore::DefaultRoots(settings_.show_extra_hives);
         AppendRealRegistryRoot(&local_roots);
         if (options.search_standard_hives)
         {
@@ -638,7 +639,7 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
                 }
             }
         }
-        if (options.search_offline_hives && !offline_roots_.empty())
+        if (options.search_offline_hives && !session_->offline_roots.empty())
         {
             std::wstring offline_path;
             for (const auto& tab : tabs_)
@@ -650,12 +651,12 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
                 }
             }
             const uint16_t source = source_index(search::Source::Kind::kOffline, offline_path);
-            for (size_t i = 0; i < offline_roots_.size(); ++i)
+            for (size_t i = 0; i < session_->offline_roots.size(); ++i)
             {
                 RegistryRootEntry entry;
-                entry.root = offline_roots_[i];
-                entry.display_name = i < offline_root_labels_.size() ? offline_root_labels_[i] : L"OfflineHive";
-                entry.path_name = offline_root_name_ + L"\\" + entry.display_name;
+                entry.root = session_->offline_roots[i];
+                entry.display_name = i < session_->offline_root_labels.size() ? session_->offline_root_labels[i] : L"OfflineHive";
+                entry.path_name = session_->offline_root_name + L"\\" + entry.display_name;
                 add_root(entry, source);
             }
         }
@@ -682,15 +683,15 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
                 }
             }
         }
-        if (options.search_remote_registry && remote_hklm_)
+        if (options.search_remote_registry && session_->remote_hklm)
         {
-            const std::wstring prefix = remote_machine_ + L"\\";
-            const uint16_t source = source_index(search::Source::Kind::kRemote, remote_machine_);
+            const std::wstring prefix = session_->remote_machine + L"\\";
+            const uint16_t source = source_index(search::Source::Kind::kRemote, session_->remote_machine);
             remote_nodes = true;
-            add_root({remote_hklm_, L"HKEY_LOCAL_MACHINE", prefix + L"HKEY_LOCAL_MACHINE", L""}, source);
-            if (remote_hku_)
+            add_root({session_->remote_hklm, L"HKEY_LOCAL_MACHINE", prefix + L"HKEY_LOCAL_MACHINE", L""}, source);
+            if (session_->remote_hku)
             {
-                add_root({remote_hku_, L"HKEY_USERS", prefix + L"HKEY_USERS", L""}, source);
+                add_root({session_->remote_hku, L"HKEY_USERS", prefix + L"HKEY_USERS", L""}, source);
             }
         }
     }
@@ -705,7 +706,7 @@ std::function<std::wstring(const std::wstring&, const std::wstring&)> MainWindow
         if (path != last_path)
         {
             last_path = path;
-            const std::wstring normalized = NormalizeTraceKeyPathBasic(path);
+            const std::wstring normalized = trace::NormalizeKeyPathBasic(path);
             key_lower = ToLower(normalized.empty() ? path : normalized);
         }
         const std::wstring value_lower = ToLower(name);
@@ -913,8 +914,8 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
     }
     else
     {
-        criteria.provider = registry_mode_ == RegistryMode::kRemote    ? search::Provider::kRemote
-                            : registry_mode_ == RegistryMode::kOffline ? search::Provider::kOffline
+        criteria.provider = session_->mode == RegistryMode::kRemote    ? search::Provider::kRemote
+                            : session_->mode == RegistryMode::kOffline ? search::Provider::kOffline
                                                                        : search::Provider::kLocal;
     }
     std::vector<std::wstring> exclude_paths = criteria.exclude_paths;
@@ -1353,7 +1354,7 @@ DataReplace ReplaceValueData(const search::Replacer& matcher, DWORD type, const 
 
 void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
 {
-    if (read_only_)
+    if (settings_.read_only)
     {
         ui::ShowWarning(hwnd_, util::Tr(L"Read only mode is enabled."));
         return;
@@ -1575,10 +1576,9 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
             }
 
             payload->cancelled = cancel.load();
-            if (hwnd && IsWindow(hwnd) &&
-                PostMessageW(hwnd, frame::message_id::kReplaceReady, static_cast<WPARAM>(generation), reinterpret_cast<LPARAM>(payload.get())))
+            if (hwnd && IsWindow(hwnd))
             {
-                ReleasePostedPayload(payload);
+                work::PostPayload(hwnd, frame::message_id::kReplaceReady, static_cast<WPARAM>(generation), payload);
             }
         }
     );

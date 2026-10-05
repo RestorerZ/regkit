@@ -1,10 +1,10 @@
 // Copyright (C) 2026 nohuto
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#include "editors/hive_dialog.h"
+#include "dialogs/hive_dialog.h"
 
-#include "appearance/feedback.h"
-#include "editors/dialog_support.h"
+#include "ui/dialog_support.h"
+#include "ui/feedback.h"
 #include "win32/file_dialog.h"
 #include "win32/translation.h"
 

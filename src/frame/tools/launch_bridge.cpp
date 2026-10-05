@@ -4,7 +4,7 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
-#include "editors/fields_dialog.h"
+#include "dialogs/fields_dialog.h"
 #include "registry/key_access.h"
 #include "registry/resource_list.h"
 #include "registry/value_format.h"
@@ -172,7 +172,7 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
         fields.push_back({util::Tr(L"Write needs"), write_needs ? util::Tr(write_needs) : util::Tr(L"Taking ownership")});
     }
     request.action_label = util::Tr(L"Permissions...");
-    if (!read_only_)
+    if (!settings_.read_only)
     {
         request.action = [node](HWND owner) { ShowRegistryPermissions(owner, node); };
     }
@@ -336,7 +336,7 @@ bool MainWindow::Impl::RestartAfterCacheClear(CacheKind kind)
     if (!ClearCache(kind, false))
     {
         // continue tree state saving when the restart doesnt complete
-        if ((kind == CacheKind::kAll || kind == CacheKind::kTreeState) && save_tree_state_)
+        if ((kind == CacheKind::kAll || kind == CacheKind::kTreeState) && settings_.save_tree_state)
         {
             StartTreeStateWorker();
         }
@@ -346,7 +346,7 @@ bool MainWindow::Impl::RestartAfterCacheClear(CacheKind kind)
     }
     if (!LaunchRestart(restore_session))
     {
-        if ((kind == CacheKind::kAll || kind == CacheKind::kTreeState) && save_tree_state_)
+        if ((kind == CacheKind::kAll || kind == CacheKind::kTreeState) && settings_.save_tree_state)
         {
             StartTreeStateWorker();
         }
@@ -514,7 +514,7 @@ void MainWindow::Impl::SetEditContextMenu(bool enable)
 
 std::wstring MainWindow::Impl::ResolveSelectedHiveFilePath()
 {
-    if (registry_mode_ == RegistryMode::kRemote)
+    if (session_->mode == RegistryMode::kRemote)
     {
         return L"";
     }
@@ -546,7 +546,7 @@ std::wstring MainWindow::Impl::ResolveSelectedHiveFilePath()
 
 void MainWindow::Impl::OpenHiveFileDir()
 {
-    if (registry_mode_ == RegistryMode::kRemote)
+    if (session_->mode == RegistryMode::kRemote)
     {
         ui::ShowError(hwnd_, util::Tr(L"Hive files aren't available for remote registries."));
         return;
@@ -566,7 +566,7 @@ void MainWindow::Impl::OpenHiveFileDir()
 
 LOGFONTW MainWindow::Impl::DefaultLogFont() const
 {
-    return ui::DefaultUIFontLogFont();
+    return ui::SystemUIFontLogFont();
 }
 
 } // namespace regkit
