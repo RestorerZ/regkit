@@ -47,6 +47,7 @@ CommandArea ClassifyCommand(int command_id) noexcept
         return CommandArea::kTraceDefaults;
     case cmd::kEditModify:
     case cmd::kNewSymbolicLink:
+    case cmd::kNewVolatileKey:
     case cmd::kEditModifyBinary:
     case cmd::kEditChangeType:
     case cmd::kEditResetDefault:
@@ -75,6 +76,7 @@ CommandArea ClassifyCommand(int command_id) noexcept
     case cmd::kOptionsCompareRegistries:
         return CommandArea::kView;
     case cmd::kOptionsEditContextMenu:
+    case cmd::kOptionsBackupRestore:
     case cmd::kOptionsResetSettings:
         return CommandArea::kWorkspaceAppearance;
     default:
@@ -86,7 +88,7 @@ CommandArea ClassifyCommand(int command_id) noexcept
     {
         return CommandArea::kNavigateClipboard;
     }
-    if (command_id >= cmd::kViewRefresh && command_id <= cmd::kViewFocusFilter)
+    if (command_id >= cmd::kViewRefresh && command_id <= cmd::kViewAutoRefresh)
     {
         return CommandArea::kView;
     }

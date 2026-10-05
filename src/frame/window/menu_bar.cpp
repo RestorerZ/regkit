@@ -305,6 +305,7 @@ void MainWindow::Impl::BuildMenus()
     AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
     HMENU edit_new = CreatePopupMenu();
     append_menu(edit_new, MF_STRING, cmd::kNewKey, util::Tr(L"Key"));
+    append_menu(edit_new, MF_STRING | (registry_mode_ == RegistryMode::kOffline ? MF_GRAYED : 0), cmd::kNewVolatileKey, util::Tr(L"Volatile Key"));
     AppendNewValueItems(edit_new);
     AppendMenuW(edit_menu, MF_POPUP | (can_modify ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(edit_new), util::Tr(L"New"));
     AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
@@ -339,10 +340,12 @@ void MainWindow::Impl::BuildMenus()
     append_menu(edit_menu, MF_STRING, cmd::kEditGoTo, util::Tr(L"Go To..."));
     AppendMenuW(edit_menu, MF_SEPARATOR, 0, nullptr);
     append_menu(edit_menu, permissions_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
+    append_menu(edit_menu, MF_STRING | (browse_.current_node() ? 0 : MF_GRAYED), cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(edit_menu), util::Tr(L"&Edit"));
 
     HMENU view_menu = CreatePopupMenu();
     append_menu(view_menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
+    append_menu(view_menu, MF_STRING | (auto_refresh_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewAutoRefresh, util::Tr(L"Auto Refresh"));
     AppendMenuW(view_menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(view_menu, MF_STRING | (show_toolbar_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewToolbar, util::Tr(L"Toolbar"));
     AppendMenuW(view_menu, MF_STRING | (show_address_bar_ ? MF_CHECKED : MF_UNCHECKED), cmd::kViewAddressBar, util::Tr(L"Address Bar"));
@@ -399,6 +402,8 @@ void MainWindow::Impl::BuildMenus()
     AppendMenuW(options_menu, MF_STRING, cmd::kViewFont, util::Tr(L"Font..."));
     AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(options_menu, MF_STRING | (read_only_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsReadOnly, util::Tr(L"Read Only Mode"));
+    const UINT backup_flags = (util::IsProcessPrivileged() ? 0 : MF_GRAYED) | (backup_privileges_ ? MF_CHECKED : MF_UNCHECKED);
+    AppendMenuW(options_menu, MF_STRING | backup_flags, cmd::kOptionsBackupRestore, util::Tr(L"Use Backup/Restore Privileges"));
     AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
     bool is_elevated = util::IsProcessElevated();
     bool is_system = util::IsProcessSystem();
@@ -418,6 +423,8 @@ void MainWindow::Impl::BuildMenus()
     AppendMenuW(run_as_menu, MF_STRING | (always_run_as_admin_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunAdmin, util::Tr(L"Always Run as Admin"));
     AppendMenuW(run_as_menu, MF_STRING | (always_run_as_system_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunSystem, util::Tr(L"Always Run as SYSTEM"));
     AppendMenuW(run_as_menu, MF_STRING | (always_run_as_trustedinstaller_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsAlwaysRunTrustedInstaller, util::Tr(L"Always Run as TrustedInstaller"));
+    AppendMenuW(run_as_menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(run_as_menu, MF_STRING | (hkcu_follows_shell_user_ ? MF_CHECKED : MF_UNCHECKED), cmd::kOptionsHkcuFollowsUser, util::Tr(L"HKCU Follows Signed-In User"));
     AppendMenuW(options_menu, MF_POPUP, reinterpret_cast<UINT_PTR>(run_as_menu), util::Tr(L"Run As"));
     AppendMenuW(options_menu, MF_SEPARATOR, 0, nullptr);
     UINT replace_flags = MF_STRING | ((is_elevated || is_system || is_ti) ? 0 : MF_GRAYED);

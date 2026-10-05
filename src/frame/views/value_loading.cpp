@@ -38,7 +38,7 @@ void MainWindow::Impl::StartValueListWorker()
             {
                 return inspection.denied ? kDatabaseDeniedIconIndex : kDatabaseIconIndex;
             }
-            return inspection.denied ? kFolderDeniedIconIndex : kFolderIconIndex;
+            return inspection.denied ? kFolderDeniedIconIndex : inspection.is_volatile ? kFolderVolatileIconIndex : kFolderIconIndex;
         };
 
         std::vector<std::wstring> subkeys;
@@ -226,7 +226,7 @@ void MainWindow::Impl::StartValueListWorker()
                 const RegistryNode child = registry_path::ChildNode(task->snapshot, name);
                 const KeyInspection inspection = RegistryStore::InspectKey(child, task->include_dates || task->include_details);
                 row.image_index = key_icon(child, inspection);
-                row.type = inspection.link ? util::Tr(L"Link") : util::Tr(L"Key");
+                row.type = inspection.link ? util::Tr(L"Link") : inspection.is_volatile ? util::Tr(L"Volatile Key") : util::Tr(L"Key");
                 row.extra = name;
                 row.kind = rowkind::kKey;
                 const KeyInfo& info = inspection.info;
@@ -242,6 +242,10 @@ void MainWindow::Impl::StartValueListWorker()
                     row.detail_value_count = info.value_count;
                     row.has_details = true;
                     row.details = util::TrLabel(L"Keys", std::to_wstring(info.subkey_count)) + L", " + util::TrLabel(L"Values", std::to_wstring(info.value_count));
+                    if (inspection.class_source != ClassSource::kNone)
+                    {
+                        row.details.insert(0, std::wstring(inspection.class_source == ClassSource::kMachine ? util::Tr(L"Machine") : util::Tr(L"User")) + L", ");
+                    }
                 }
                 payload->rows.emplace_back(std::move(row));
             }

@@ -22,6 +22,7 @@ class LiveKey : public RegistryKeyHandle
             util::OpenRegistryPath(node.root, node.subkey, access | win32::kDefaultRegistryView, open_link, &key_);
         }
     }
+    LiveKey() = default;
     using RegistryKeyHandle::RegistryKeyHandle;
 };
 LiveKey OpenChild(const RegistryNode& node, REGSAM parent_access, REGSAM child_access, bool open_link, std::wstring* name = nullptr)
@@ -42,6 +43,27 @@ LiveKey OpenChild(const RegistryNode& node, REGSAM parent_access, REGSAM child_a
         *name = std::move(leaf);
     }
     return LiveKey(std::move(child));
+}
+
+bool KernelHandle(const RegistryNode& node)
+{
+    // remote roots are rpc handles that native calls must never see
+    return node.root == HKEY_CLASSES_ROOT || node.root == HKEY_CURRENT_USER || node.root == HKEY_LOCAL_MACHINE ||
+           node.root == HKEY_USERS || node.root == HKEY_CURRENT_CONFIG || util::EqualsInsensitive(node.root_name, L"REGISTRY");
+}
+
+LiveKey OpenSecurity(const RegistryNode& node, REGSAM access, SECURITY_INFORMATION* parts)
+{
+    if (*parts & SACL_SECURITY_INFORMATION)
+    {
+        LiveKey key(node, access | ACCESS_SYSTEM_SECURITY, true);
+        if (key)
+        {
+            return key;
+        }
+        *parts &= ~SACL_SECURITY_INFORMATION;
+    }
+    return LiveKey(node, access, true);
 }
 
 } // namespace
@@ -74,10 +96,26 @@ KeyInspection InspectKey(const RegistryNode& node, bool want_info)
 {
     KeyInspection result;
     LONG error = ERROR_SUCCESS;
-    LiveKey key(util::OpenNativeRegistryKey(registry_path::BuildNative(node), KEY_QUERY_VALUE, true, &error));
+    const std::wstring native = registry_path::BuildNative(node);
+    LiveKey key;
+    if (native.empty() && node.root == HKEY_CLASSES_ROOT && !node.subkey.empty())
+    {
+        // hkcr has no native path, the merged key itself tells which hive backs it
+        util::UniqueHKey handle;
+        error = util::OpenRegistryPath(node.root, node.subkey, KEY_QUERY_VALUE | win32::kDefaultRegistryView, true, &handle);
+        key = LiveKey(std::move(handle));
+        result.class_source = key ? registry_path::ClassesSource(util::QueryKeyName(key.get())) : ClassSource::kNone;
+    }
+    else
+    {
+        key = LiveKey(util::OpenNativeRegistryKey(native, KEY_QUERY_VALUE, true, &error));
+    }
     result.denied = error == ERROR_ACCESS_DENIED;
     std::wstring target;
-    result.link = key && ReadLinkTarget(key, &target) && !target.empty();
+    // the flags spare the link value read for ordinary keys
+    const std::optional<ULONG> flags = key ? util::QueryKeyFlags(key.get()) : std::nullopt;
+    result.link = key && (!flags || (*flags & util::kKeyFlagLink)) && ReadLinkTarget(key, &target) && !target.empty();
+    result.is_volatile = (flags.value_or(0) & util::kKeyFlagVolatile) || registry_path::InVolatileHive(native);
     if (key && want_info && !result.link)
     {
         result.info_valid = registry_backend::QueryKeyInfo(key, &result.info);
@@ -94,6 +132,10 @@ std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node, bool sorted)
 bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, RegistryStore::KeyEnumResult* out_info, const RegistryStore::ValueStreamCallback& value_callback, const RegistryStore::SubkeyStreamCallback& subkey_callback, DWORD max_data_size, EnumerationScratch* scratch, bool, bool open_link)
 {
     LiveKey key(node, kKeyReadAccess, open_link);
+    if (key && out_info && out_info->want_options && KernelHandle(node))
+    {
+        out_info->options.is_volatile = util::QueryKeyFlags(key.get()).value_or(0) & util::kKeyFlagVolatile;
+    }
     return key && EnumerateKey(key, include_values, include_data, include_subkeys, out_info, value_callback, subkey_callback, max_data_size, scratch);
 }
 
@@ -103,14 +145,41 @@ bool QueryValue(const RegistryNode& node, const std::wstring& value_name, Regist
     return key && registry_backend::QueryValue(key, value_name, out);
 }
 
-bool CreateKey(const RegistryNode& node, const std::wstring& name)
+bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details)
+{
+    LiveKey key(node, kKeyReadAccess);
+    if (!key || !registry_backend::QueryKeyDetails(key, details))
+    {
+        return false;
+    }
+    if (KernelHandle(node))
+    {
+        details->native = util::QueryNativeKeyInfo(key.get());
+    }
+    return true;
+}
+
+bool CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCreateOptions& options, bool* created_volatile)
 {
     LiveKey parent(node, KEY_WRITE);
+    if (!parent)
+    {
+        return false;
+    }
     util::UniqueHKey created;
     DWORD disposition = 0;
-    return parent &&
-           util::CreateRegistryKey(parent.get(), name, KEY_READ | KEY_WRITE, REG_OPTION_NON_VOLATILE, &created, &disposition) == ERROR_SUCCESS &&
-           disposition == REG_CREATED_NEW_KEY;
+    DWORD flags = options.is_volatile ? REG_OPTION_VOLATILE : REG_OPTION_NON_VOLATILE;
+    LONG result = util::CreateRegistryKey(parent.get(), name, KEY_READ | KEY_WRITE, flags, &created, &disposition, options.class_name);
+    if (result == ERROR_CHILD_MUST_BE_VOLATILE)
+    {
+        flags = REG_OPTION_VOLATILE;
+        result = util::CreateRegistryKey(parent.get(), name, KEY_READ | KEY_WRITE, flags, &created, &disposition, options.class_name);
+    }
+    if (created_volatile)
+    {
+        *created_volatile = flags == REG_OPTION_VOLATILE;
+    }
+    return result == ERROR_SUCCESS && disposition == REG_CREATED_NEW_KEY;
 }
 
 bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target, DWORD* error)
@@ -153,17 +222,29 @@ bool ReadKeyLink(const RegistryNode& node, std::wstring* target)
     return true;
 }
 
-bool ReadKeySecurity(const RegistryNode& node, std::vector<BYTE>* descriptor)
+bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor)
 {
     descriptor->clear();
-    LiveKey key(node, READ_CONTROL, true);
-    return key && ReadSecurity(key, descriptor);
+    const LiveKey key = OpenSecurity(node, READ_CONTROL, parts);
+    return key && ReadSecurity(key, parts, descriptor);
 }
 
-bool WriteKeySecurity(const RegistryNode& node, const std::vector<BYTE>& descriptor)
+bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor, const FILETIME* last_write)
 {
-    LiveKey key(node, WRITE_DAC | WRITE_OWNER, true);
-    return key && WriteSecurity(key, descriptor);
+    // security writes bump the last write time, so it's put back through the same handle
+    const SECURITY_INFORMATION requested = parts;
+    LiveKey key = OpenSecurity(node, WRITE_DAC | WRITE_OWNER | (last_write ? KEY_SET_VALUE : 0), &parts);
+    if (!key && last_write)
+    {
+        parts = requested;
+        key = OpenSecurity(node, WRITE_DAC | WRITE_OWNER, &parts);
+    }
+    const bool written = key && WriteSecurity(key, parts, descriptor) && parts == requested;
+    if (key && last_write && KernelHandle(node))
+    {
+        util::SetKeyLastWriteTime(key.get(), *last_write);
+    }
+    return written;
 }
 
 bool DeleteKey(const RegistryNode& node)
@@ -188,13 +269,13 @@ bool RenameKey(const RegistryNode& node, const std::wstring& new_name)
 bool DeleteValue(const RegistryNode& node, const std::wstring& value_name)
 {
     LiveKey key(node, KEY_SET_VALUE);
-    return key && key.DeleteValue(value_name.c_str()) == ERROR_SUCCESS;
+    return key && key.DeleteValue(value_name) == ERROR_SUCCESS;
 }
 
 bool SetValue(const RegistryNode& node, const std::wstring& value_name, DWORD type, const std::vector<BYTE>& data)
 {
     LiveKey key(node, KEY_SET_VALUE);
-    return key && key.SetValue(value_name.c_str(), type, data.empty() ? nullptr : data.data(), static_cast<DWORD>(data.size())) == ERROR_SUCCESS;
+    return key && key.SetValue(value_name, type, data.empty() ? nullptr : data.data(), static_cast<DWORD>(data.size())) == ERROR_SUCCESS;
 }
 
 bool RenameValue(const RegistryNode& node, const std::wstring& old_name, const std::wstring& new_name, bool* both_names_left)

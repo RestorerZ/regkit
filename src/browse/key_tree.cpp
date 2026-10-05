@@ -14,8 +14,8 @@ namespace regkit
 namespace
 {
 constexpr int kFolderIconIndex = 0;
-constexpr int kRootKeysIconIndex = 6;
-constexpr int kRegistryIconIndex = 7;
+constexpr int kRootKeysIconIndex = 7;
+constexpr int kRegistryIconIndex = 8;
 constexpr wchar_t kRootKeysGroupLabel[] = L"Root Keys";
 constexpr wchar_t kRealGroupLabel[] = L"REGISTRY";
 #ifndef TVS_EX_DOUBLEBUFFER

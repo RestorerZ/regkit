@@ -253,6 +253,11 @@ void MainWindow::Impl::ShowTreeContextMenu(POINT screen_pt)
     if (!is_simulated)
     {
         AppendMenuW(menu, modify_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
+        AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
+        if (has_node && node->root == HKEY_CLASSES_ROOT && !node->subkey.empty())
+        {
+            AppendMenuW(menu, MF_STRING, cmd::kEditOpenSourceHive, util::Tr(L"Open in Source Hive"));
+        }
         if (can_open_hive)
         {
             AppendMenuW(menu, MF_STRING, cmd::kOptionsHiveFileDir, util::Tr(L"On-Disk Hive File"));
@@ -357,6 +362,11 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
         if (!is_simulated)
         {
             AppendMenuW(menu, modify_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
+            AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
+            if (browse_.current_node() && browse_.current_node()->root == HKEY_CLASSES_ROOT)
+            {
+                AppendMenuW(menu, MF_STRING, cmd::kEditOpenSourceHive, util::Tr(L"Open in Source Hive"));
+            }
             if (can_open_hive)
             {
                 AppendMenuW(menu, MF_STRING, cmd::kOptionsHiveFileDir, util::Tr(L"On-Disk Hive File"));
@@ -484,6 +494,7 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
         if (!is_simulated)
         {
             AppendMenuW(menu, modify_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
+            AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
         }
     }
 

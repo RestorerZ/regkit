@@ -3,11 +3,16 @@
 
 #include "win32/registry_native.h"
 
+#include "win32/process_rights.h"
 #include "win32/system_api.h"
 
 #include <winternl.h>
 
+#include <algorithm>
+#include <atomic>
+#include <cstring>
 #include <limits>
+#include <vector>
 
 namespace regkit::util
 {
@@ -27,9 +32,24 @@ using NtOpenKeyExFn = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES,
 using NtCreateKeyFn = NTSTATUS(NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, ULONG, PUNICODE_STRING, ULONG, PULONG);
 using NtRenameKeyFn = NTSTATUS(NTAPI*)(HANDLE, PUNICODE_STRING);
 using NtDeleteKeyFn = NTSTATUS(NTAPI*)(HANDLE);
+using NtQueryKeyFn = NTSTATUS(NTAPI*)(HANDLE, ULONG, PVOID, ULONG, PULONG);
+using NtSetInformationKeyFn = NTSTATUS(NTAPI*)(HANDLE, ULONG, PVOID, ULONG);
+using NtQueryValueKeyFn = NTSTATUS(NTAPI*)(HANDLE, PUNICODE_STRING, ULONG, PVOID, ULONG, PULONG);
+using NtSetValueKeyFn = NTSTATUS(NTAPI*)(HANDLE, PUNICODE_STRING, ULONG, ULONG, PVOID, ULONG);
+using NtDeleteValueKeyFn = NTSTATUS(NTAPI*)(HANDLE, PUNICODE_STRING);
 using RtlNtStatusToDosErrorFn = ULONG(NTAPI*)(NTSTATUS);
 
 constexpr REGSAM kViewFlags = KEY_WOW64_32KEY | KEY_WOW64_64KEY;
+constexpr NTSTATUS kBufferOverflow = static_cast<NTSTATUS>(0x80000005L);
+constexpr NTSTATUS kBufferTooSmall = static_cast<NTSTATUS>(0xC0000023L);
+constexpr ULONG kKeyNameInformation = 3;
+constexpr ULONG kKeyFlagsInformation = 5;
+constexpr ULONG kKeyVirtualizationInformation = 6;
+constexpr ULONG kKeyTrustInformation = 8;
+constexpr ULONG kKeyLayerInformation = 9;
+constexpr ULONG kKeyWriteTimeInformation = 0;
+constexpr ULONG kKeyValuePartialInformation = 2;
+constexpr ULONG kPartialHeader = 3 * sizeof(ULONG);
 
 LONG DosError(NTSTATUS status)
 {
@@ -55,7 +75,9 @@ bool CountedName(const std::wstring& text, UNICODE_STRING* name)
     return true;
 }
 
-LONG OpenNative(HKEY parent, const std::wstring& path, REGSAM access, bool open_link, UniqueHKey* key)
+std::atomic_bool g_backup_restore{false};
+
+LONG OpenNative(HKEY parent, const std::wstring& path, REGSAM access, bool open_link, UniqueHKey* key, ULONG options = 0)
 {
     static const auto open_key = win32::ImportProc<NtOpenKeyFn>(L"ntdll.dll", "NtOpenKey");
     static const auto open_key_ex = win32::ImportProc<NtOpenKeyExFn>(L"ntdll.dll", "NtOpenKeyEx");
@@ -64,7 +86,8 @@ LONG OpenNative(HKEY parent, const std::wstring& path, REGSAM access, bool open_
     {
         return ERROR_INVALID_PARAMETER;
     }
-    if (open_link ? !open_key_ex : !open_key)
+    options |= open_link ? REG_OPTION_OPEN_LINK : 0;
+    if (options ? !open_key_ex : !open_key)
     {
         return ERROR_CALL_NOT_IMPLEMENTED;
     }
@@ -73,8 +96,7 @@ LONG OpenNative(HKEY parent, const std::wstring& path, REGSAM access, bool open_
     InitializeObjectAttributes(&attributes, &name, OBJ_CASE_INSENSITIVE | (open_link ? OBJ_OPENLINK : 0ul), parent ? RootHandle(parent) : nullptr, nullptr);
     HANDLE handle = nullptr;
     // rem win32 registry view flags before the native call
-    const NTSTATUS status = open_link ? open_key_ex(&handle, access & ~kViewFlags, &attributes, REG_OPTION_OPEN_LINK)
-                                      : open_key(&handle, access & ~kViewFlags, &attributes);
+    const NTSTATUS status = options ? open_key_ex(&handle, access & ~kViewFlags, &attributes, options) : open_key(&handle, access & ~kViewFlags, &attributes);
     if (NT_SUCCESS(status))
     {
         key->reset(reinterpret_cast<HKEY>(handle));
@@ -82,12 +104,30 @@ LONG OpenNative(HKEY parent, const std::wstring& path, REGSAM access, bool open_
     return DosError(status);
 }
 
+template <size_t N>
+bool QueryKeyWords(HKEY key, ULONG info_class, ULONG (&words)[N])
+{
+    static const auto query = win32::ImportProc<NtQueryKeyFn>(L"ntdll.dll", "NtQueryKey");
+    ULONG length = 0;
+    return query && NT_SUCCESS(query(RootHandle(key), info_class, words, sizeof(words), &length));
+}
+
+std::optional<ULONG> KeyWord(HKEY key, ULONG info_class)
+{
+    ULONG word[1] = {};
+    return QueryKeyWords(key, info_class, word) ? std::optional<ULONG>(word[0]) : std::nullopt;
+}
+
 } // namespace
 
 UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access, bool open_link, LONG* error)
 {
     UniqueHKey key;
-    const LONG result = OpenNative(nullptr, path, access, open_link, &key);
+    LONG result = OpenNative(nullptr, path, access, open_link, &key);
+    if (result == ERROR_ACCESS_DENIED && g_backup_restore)
+    {
+        result = OpenNative(nullptr, path, access, open_link, &key, REG_OPTION_BACKUP_RESTORE);
+    }
     if (error)
     {
         *error = result;
@@ -103,33 +143,72 @@ UniqueHKey OpenNativeRegistryRoot()
 LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool open_link, UniqueHKey* key)
 {
     key->reset();
+    const bool merged = root == HKEY_CLASSES_ROOT;
+    root = MapCurrentUserRoot(root);
     const size_t null_char = subkey.find(L'\0');
+    LONG result = ERROR_SUCCESS;
     if (null_char == std::wstring::npos)
     {
-        return RegOpenKeyExW(root, subkey.empty() ? nullptr : subkey.c_str(), open_link ? REG_OPTION_OPEN_LINK : 0, access, key->put());
+        result = RegOpenKeyExW(root, subkey.empty() ? nullptr : subkey.c_str(), open_link ? REG_OPTION_OPEN_LINK : 0, access, key->put());
     }
-    const size_t split = subkey.rfind(L'\\', null_char);
-    const std::wstring prefix = split == std::wstring::npos ? std::wstring() : subkey.substr(0, split);
-    UniqueHKey parent;
-    const LONG result = RegOpenKeyExW(root, prefix.c_str(), 0, MAXIMUM_ALLOWED | (access & kViewFlags), parent.put());
-    if (result != ERROR_SUCCESS)
+    else
     {
-        return result;
+        const size_t split = subkey.rfind(L'\\', null_char);
+        const std::wstring prefix = split == std::wstring::npos ? std::wstring() : subkey.substr(0, split);
+        UniqueHKey parent;
+        result = RegOpenKeyExW(root, prefix.c_str(), 0, MAXIMUM_ALLOWED | (access & kViewFlags), parent.put());
+        if (result == ERROR_SUCCESS)
+        {
+            result = OpenNative(parent.get(), split == std::wstring::npos ? subkey : subkey.substr(split + 1), access, open_link, key);
+        }
     }
-    return OpenNative(parent.get(), split == std::wstring::npos ? subkey : subkey.substr(split + 1), access, open_link, key);
+    // backup/restore mode lets the held privileges stand in for a dacl that denies access
+    // remote and merged classes handles carry tag bits and are skipped, predefined roots are resolved to real handles first
+    const ULONG_PTR value = reinterpret_cast<ULONG_PTR>(root);
+    const bool predefined = (value & ~static_cast<ULONG_PTR>(0xFF)) == reinterpret_cast<ULONG_PTR>(HKEY_CLASSES_ROOT);
+    if (result == ERROR_ACCESS_DENIED && g_backup_restore && !merged && !subkey.empty() && (predefined || !(value & 3)))
+    {
+        UniqueHKey base;
+        if (predefined)
+        {
+            result = RegOpenKeyExW(root, nullptr, 0, KEY_QUERY_VALUE | (access & kViewFlags), base.put());
+        }
+        if (result == ERROR_SUCCESS || !predefined)
+        {
+            result = OpenNative(predefined ? base.get() : root, subkey, access, open_link, key, REG_OPTION_BACKUP_RESTORE);
+        }
+    }
+    return result;
 }
 
-LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWORD options, UniqueHKey* key, DWORD* disposition)
+void SetBackupRestoreMode(bool enable)
+{
+    g_backup_restore = enable;
+}
+
+bool BackupRestoreMode()
+{
+    return g_backup_restore;
+}
+
+LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWORD options, UniqueHKey* key, DWORD* disposition, const std::wstring& class_name)
 {
     key->reset();
     if (name.find(L'\0') == std::wstring::npos)
     {
-        return RegCreateKeyExW(parent, name.c_str(), 0, nullptr, options, access, nullptr, key->put(), disposition);
+        const LPWSTR key_class = class_name.empty() ? nullptr : const_cast<LPWSTR>(class_name.c_str());
+        LONG result = RegCreateKeyExW(parent, name.c_str(), 0, key_class, options, access, nullptr, key->put(), disposition);
+        if (result == ERROR_ACCESS_DENIED && g_backup_restore)
+        {
+            result = RegCreateKeyExW(parent, name.c_str(), 0, key_class, options | REG_OPTION_BACKUP_RESTORE, access, nullptr, key->put(), disposition);
+        }
+        return result;
     }
     // use NtCreateKey to keep the full name when it contains embedded nulls
     static const auto create_key = win32::ImportProc<NtCreateKeyFn>(L"ntdll.dll", "NtCreateKey");
     UNICODE_STRING counted = {};
-    if (!create_key || !CountedName(name, &counted))
+    UNICODE_STRING counted_class = {};
+    if (!create_key || !CountedName(name, &counted) || !CountedName(class_name, &counted_class))
     {
         return ERROR_INVALID_PARAMETER;
     }
@@ -137,7 +216,7 @@ LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWO
     InitializeObjectAttributes(&attributes, &counted, OBJ_CASE_INSENSITIVE | ((options & REG_OPTION_CREATE_LINK) ? OBJ_OPENLINK : 0ul), RootHandle(parent), nullptr);
     HANDLE handle = nullptr;
     ULONG created = 0;
-    const NTSTATUS status = create_key(&handle, access & ~kViewFlags, &attributes, 0, nullptr, options, &created);
+    const NTSTATUS status = create_key(&handle, access & ~kViewFlags, &attributes, 0, class_name.empty() ? nullptr : &counted_class, options, &created);
     if (NT_SUCCESS(status))
     {
         key->reset(reinterpret_cast<HKEY>(handle));
@@ -205,6 +284,114 @@ bool DeleteNativeRegistryKey(HKEY key)
 {
     static const auto delete_key = win32::ImportProc<NtDeleteKeyFn>(L"ntdll.dll", "NtDeleteKey");
     return key && delete_key && NT_SUCCESS(delete_key(reinterpret_cast<HANDLE>(key)));
+}
+
+std::optional<ULONG> QueryKeyFlags(HKEY key)
+{
+    ULONG flags[3] = {};
+    return QueryKeyWords(key, kKeyFlagsInformation, flags) ? std::optional<ULONG>(flags[1]) : std::nullopt;
+}
+
+std::wstring QueryKeyName(HKEY key)
+{
+    static const auto query = win32::ImportProc<NtQueryKeyFn>(L"ntdll.dll", "NtQueryKey");
+    std::vector<ULONG> buffer(130);
+    for (int attempt = 0; query && attempt < 3; ++attempt)
+    {
+        ULONG needed = 0;
+        const NTSTATUS status = query(RootHandle(key), kKeyNameInformation, buffer.data(), static_cast<ULONG>(buffer.size() * sizeof(ULONG)), &needed);
+        if (NT_SUCCESS(status))
+        {
+            return std::wstring(reinterpret_cast<const wchar_t*>(buffer.data() + 1), buffer[0] / sizeof(wchar_t));
+        }
+        if (status != kBufferOverflow && status != kBufferTooSmall)
+        {
+            break;
+        }
+        buffer.resize(needed / sizeof(ULONG) + 1);
+    }
+    return {};
+}
+
+NativeKeyInfo QueryNativeKeyInfo(HKEY key)
+{
+    NativeKeyInfo info;
+    info.native_name = QueryKeyName(key);
+    ULONG flags[3] = {};
+    if (QueryKeyWords(key, kKeyFlagsInformation, flags))
+    {
+        info.key_flags = flags[1];
+        info.control_flags = flags[2];
+    }
+    info.virtualization = KeyWord(key, kKeyVirtualizationInformation);
+    info.trust = KeyWord(key, kKeyTrustInformation);
+    info.layer = KeyWord(key, kKeyLayerInformation);
+    return info;
+}
+
+LONG SetKeyLastWriteTime(HKEY key, const FILETIME& time)
+{
+    static const auto set_information = win32::ImportProc<NtSetInformationKeyFn>(L"ntdll.dll", "NtSetInformationKey");
+    LARGE_INTEGER value = {};
+    value.LowPart = time.dwLowDateTime;
+    value.HighPart = static_cast<LONG>(time.dwHighDateTime);
+    return set_information ? DosError(set_information(RootHandle(key), kKeyWriteTimeInformation, &value, sizeof(value))) : ERROR_CALL_NOT_IMPLEMENTED;
+}
+
+LONG QueryValueCounted(HKEY key, const std::wstring& name, DWORD* type, BYTE* data, DWORD* size)
+{
+    // mirrors RegQueryValueExW for names that only a counted string can address
+    static const auto query_value = win32::ImportProc<NtQueryValueKeyFn>(L"ntdll.dll", "NtQueryValueKey");
+    UNICODE_STRING counted = {};
+    if (!query_value || !CountedName(name, &counted) || !size || (data ? *size : 0) > MAXDWORD - kPartialHeader)
+    {
+        return ERROR_INVALID_PARAMETER;
+    }
+    std::vector<BYTE> buffer(kPartialHeader + (data ? *size : 0));
+    ULONG needed = 0;
+    const NTSTATUS status = query_value(RootHandle(key), &counted, kKeyValuePartialInformation, buffer.data(), static_cast<ULONG>(buffer.size()), &needed);
+    const bool header = NT_SUCCESS(status) || status == kBufferOverflow;
+    if (!header && status != kBufferTooSmall)
+    {
+        return DosError(status);
+    }
+    const auto* words = reinterpret_cast<const ULONG*>(buffer.data());
+    if (type && header)
+    {
+        *type = words[1];
+    }
+    *size = header ? words[2] : (std::max)(needed, kPartialHeader) - kPartialHeader;
+    if (!NT_SUCCESS(status))
+    {
+        return data ? ERROR_MORE_DATA : ERROR_SUCCESS;
+    }
+    if (data)
+    {
+        std::memcpy(data, buffer.data() + kPartialHeader, *size);
+    }
+    return ERROR_SUCCESS;
+}
+
+LONG SetValueCounted(HKEY key, const std::wstring& name, DWORD type, const BYTE* data, DWORD size)
+{
+    static const auto set_value = win32::ImportProc<NtSetValueKeyFn>(L"ntdll.dll", "NtSetValueKey");
+    UNICODE_STRING counted = {};
+    if (!set_value || !CountedName(name, &counted))
+    {
+        return ERROR_INVALID_PARAMETER;
+    }
+    return DosError(set_value(RootHandle(key), &counted, 0, type, const_cast<BYTE*>(data), size));
+}
+
+LONG DeleteValueCounted(HKEY key, const std::wstring& name)
+{
+    static const auto delete_value = win32::ImportProc<NtDeleteValueKeyFn>(L"ntdll.dll", "NtDeleteValueKey");
+    UNICODE_STRING counted = {};
+    if (!delete_value || !CountedName(name, &counted))
+    {
+        return ERROR_INVALID_PARAMETER;
+    }
+    return DosError(delete_value(RootHandle(key), &counted));
 }
 
 LONG ReadRegistryString(HKEY root, const wchar_t* subkey, const wchar_t* value_name, std::wstring* value)

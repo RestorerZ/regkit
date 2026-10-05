@@ -232,6 +232,21 @@ void MainWindow::Impl::UpdateStatus()
     {
         path_text = registry_path::Build(*browse_.current_node());
     }
+    std::wstring mode_text;
+    if (registry_mode_ == RegistryMode::kLocal && util::ShellUserDiffers())
+    {
+        const std::wstring sid = util::GetCurrentUserSidString();
+        if (sid != status_account_sid_)
+        {
+            status_account_sid_ = sid;
+            status_account_ = util::AccountName(sid);
+        }
+        mode_text = util::TrLabel(L"HKCU", status_account_);
+    }
+    if (backup_privileges_)
+    {
+        mode_text.append(mode_text.empty() ? L"" : L", ").append(util::Tr(L"Backup/restore mode"));
+    }
     swprintf_s(buffer, util::Tr(L"Keys: %d"), current_key_count_);
     keys_text = buffer;
     swprintf_s(buffer, util::Tr(L"Values: %d"), current_value_count_);
@@ -245,6 +260,7 @@ void MainWindow::Impl::UpdateStatus()
     {
         old_font = reinterpret_cast<HFONT>(SelectObject(hdc, ui_font_));
     }
+    int mode_width = measure_text(hdc, mode_text);
     int values_width = measure_text(hdc, values_text);
     int selected_width = measure_text(hdc, selected_text);
     int keys_width = measure_text(hdc, keys_text);
@@ -261,12 +277,19 @@ void MainWindow::Impl::UpdateStatus()
     int part2 = std::max(part3 - keys_width, 0);
     int part1 = std::max(part2 - selected_width, 0);
     int part0 = std::max(part1 - values_width, 0);
-    int parts[4] = {part0, part1, part2, part3};
-    SendMessageW(status_bar_, SB_SETPARTS, 4, reinterpret_cast<LPARAM>(parts));
-    SendMessageW(status_bar_, SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(path_text.c_str()));
-    SendMessageW(status_bar_, SB_SETTEXTW, 1, reinterpret_cast<LPARAM>(values_text.c_str()));
-    SendMessageW(status_bar_, SB_SETTEXTW, 2, reinterpret_cast<LPARAM>(selected_text.c_str()));
-    SendMessageW(status_bar_, SB_SETTEXTW, 3, reinterpret_cast<LPARAM>(keys_text.c_str()));
+    int path_part = std::max(part0 - mode_width, 0);
+    // the mode part only exists while there is something to report
+    const bool mode = !mode_text.empty();
+    int parts[5] = {path_part, part0, part1, part2, part3};
+    SendMessageW(status_bar_, SB_SETPARTS, mode ? 5 : 4, reinterpret_cast<LPARAM>(mode ? parts : parts + 1));
+    const std::wstring* texts[] = {&path_text, &mode_text, &values_text, &selected_text, &keys_text};
+    for (int part = 0, index = 0; index < 5; ++index)
+    {
+        if (index != 1 || mode)
+        {
+            SendMessageW(status_bar_, SB_SETTEXTW, part++, reinterpret_cast<LPARAM>(texts[index]->c_str()));
+        }
+    }
 }
 
 bool MainWindow::Impl::IsSearchTabSelected() const

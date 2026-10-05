@@ -500,7 +500,13 @@ int CmdCopy(const std::vector<std::wstring>& args)
 bool ExportKeyToFile(const KeyRef& key, const std::wstring& path, REGSAM view, std::wstring* error)
 {
     regfile::Writer writer;
-    if (regfile::AppendRegistryTree(&writer, key.root, key.subkey, key.display, view, true) != ERROR_SUCCESS)
+    std::vector<std::wstring> skipped;
+    const LONG status = regfile::AppendRegistryTree(&writer, key.root, key.subkey, key.display, view, true, &skipped);
+    for (const std::wstring& entry : skipped)
+    {
+        PrintError(L"Skipped " + entry);
+    }
+    if (status != ERROR_SUCCESS)
     {
         if (error)
         {
@@ -592,42 +598,10 @@ int CmdSave(const std::vector<std::wstring>& args)
         PrintError(positional[1] + L" already exists. Use /y to overwrite.");
         return kFailed;
     }
-    const util::PrivilegeScope privileges({SE_BACKUP_NAME});
-    util::UniqueHKey handle;
-    LONG status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_READ | options.view, handle.put());
+    const LONG status = SaveKeyToHive(key.root, key.subkey, options.view, positional[1]);
     if (status != ERROR_SUCCESS)
     {
         return Fail(status);
-    }
-    // RegSaveKey can't overwrite a file, so stage the save before replacing it
-    std::wstring staged = positional[1];
-    const bool existed = GetFileAttributesW(positional[1].c_str()) != INVALID_FILE_ATTRIBUTES;
-    for (int attempt = 0; attempt < 16; ++attempt)
-    {
-        if (existed)
-        {
-            staged = positional[1] + util::RandomFileSuffix(L".part");
-        }
-        status = RegSaveKeyW(handle.get(), staged.c_str(), nullptr);
-        if (!existed || status != ERROR_ALREADY_EXISTS)
-        {
-            break;
-        }
-    }
-    handle.reset();
-    if (status != ERROR_SUCCESS)
-    {
-        if (existed && status != ERROR_ALREADY_EXISTS)
-        {
-            DeleteFileW(staged.c_str());
-        }
-        return Fail(status);
-    }
-    if (existed && !MoveFileExW(staged.c_str(), positional[1].c_str(), MOVEFILE_REPLACE_EXISTING))
-    {
-        const LONG move_error = static_cast<LONG>(GetLastError());
-        DeleteFileW(staged.c_str());
-        return Fail(move_error);
     }
     Print(L"The operation completed successfully.");
     return kOk;
@@ -651,17 +625,7 @@ int CmdRestore(const std::vector<std::wstring>& args)
     {
         return kFailed;
     }
-    const util::PrivilegeScope privileges({SE_RESTORE_NAME, SE_BACKUP_NAME});
-    if (!privileges.held())
-    {
-        return Fail(ERROR_PRIVILEGE_NOT_HELD);
-    }
-    util::UniqueHKey handle;
-    LONG status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_WRITE | options.view, handle.put());
-    if (status == ERROR_SUCCESS)
-    {
-        status = RegRestoreKeyW(handle.get(), positional[1].c_str(), REG_FORCE_RESTORE);
-    }
+    const LONG status = RestoreKeyFromHive(key.root, key.subkey, options.view, positional[1]);
     if (status != ERROR_SUCCESS)
     {
         return Fail(status);

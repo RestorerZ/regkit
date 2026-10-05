@@ -69,6 +69,8 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(int command_id)
     case cmd::kOptionsEditContextMenu:
     case cmd::kOptionsSingleInstance:
     case cmd::kOptionsAutoComplete:
+    case cmd::kOptionsHkcuFollowsUser:
+    case cmd::kOptionsBackupRestore:
     case cmd::kOptionsHiveFileDir:
     case cmd::kOptionsResetSettings:
     case cmd::kHelpAbout:
@@ -222,6 +224,39 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         single_instance_ = !single_instance_;
         SaveSettings();
         BuildMenus();
+        return true;
+    case cmd::kOptionsHkcuFollowsUser:
+        hkcu_follows_shell_user_ = !hkcu_follows_shell_user_;
+        util::SetCurrentUserFollowsShell(hkcu_follows_shell_user_);
+        SaveSettings();
+        BuildMenus();
+        if (registry_mode_ == RegistryMode::kLocal)
+        {
+            std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(show_extra_hives_);
+            AppendRealRegistryRoot(&roots);
+            ApplyRegistryRoots(roots);
+        }
+        UpdateStatus();
+        return true;
+    case cmd::kOptionsBackupRestore:
+        // the privileges stay enabled only while the mode is on, and the mode is never saved
+        if (backup_privileges_)
+        {
+            backup_privileges_.reset();
+        }
+        else
+        {
+            backup_privileges_ = std::make_unique<util::PrivilegeScope>(std::initializer_list<const wchar_t*>{SE_BACKUP_NAME, SE_RESTORE_NAME});
+            if (!backup_privileges_->held())
+            {
+                backup_privileges_.reset();
+                ui::ShowError(hwnd_, util::Tr(L"Backup/restore mode needs the backup and restore privileges. Run RegKit elevated."));
+            }
+        }
+        util::SetBackupRestoreMode(backup_privileges_ != nullptr);
+        BuildMenus();
+        UpdateValueListForNode(browse_.current_node());
+        UpdateStatus();
         return true;
     case cmd::kOptionsAutoComplete:
         autocomplete_ = !autocomplete_;

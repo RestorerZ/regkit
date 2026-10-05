@@ -4,14 +4,22 @@
 #include "changes/key_snapshot.h"
 
 #include "registry/registry_path.h"
+#include "win32/process_rights.h"
 
 namespace regkit::changes
 {
-KeySnapshot CaptureKey(const RegistryNode& node)
+namespace
+{
+
+constexpr SECURITY_INFORMATION kExactSecurity =
+    OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION | LABEL_SECURITY_INFORMATION;
+
+KeySnapshot Capture(const RegistryNode& node, SECURITY_INFORMATION parts)
 {
     KeySnapshot snapshot;
     snapshot.name = registry_path::Leaf(node.subkey);
-    if (!RegistryStore::ReadKeySecurity(node, &snapshot.security) && !RegistryStore::IsVirtualRoot(node.root))
+    snapshot.security_parts = parts;
+    if (parts && !RegistryStore::ReadKeySecurity(node, &snapshot.security_parts, &snapshot.security) && !RegistryStore::IsVirtualRoot(node.root))
     {
         snapshot.complete = false;
     }
@@ -20,6 +28,7 @@ KeySnapshot CaptureKey(const RegistryNode& node)
         return snapshot;
     }
     RegistryStore::KeyEnumResult result;
+    result.want_options = true;
     bool reserved = false;
     std::vector<std::wstring> children;
     snapshot.complete = RegistryStore::EnumKeyStreaming(
@@ -54,10 +63,16 @@ KeySnapshot CaptureKey(const RegistryNode& node)
                         ) &&
                         snapshot.complete;
 
+    snapshot.class_name = std::move(result.options.class_name);
+    snapshot.is_volatile = result.options.is_volatile;
+    if (parts)
+    {
+        snapshot.last_write = result.info.last_write;
+    }
     snapshot.children.reserve(children.size());
     for (const std::wstring& name : children)
     {
-        snapshot.children.push_back(CaptureKey(registry_path::ChildNode(node, name)));
+        snapshot.children.push_back(Capture(registry_path::ChildNode(node, name), parts));
         if (!snapshot.children.back().complete)
         {
             snapshot.complete = false;
@@ -70,33 +85,10 @@ KeySnapshot CaptureKey(const RegistryNode& node)
     return snapshot;
 }
 
-bool RestoreKey(const RegistryNode& parent, const KeySnapshot& snapshot)
+bool Restore(const RegistryNode& parent, const KeySnapshot& snapshot, bool* created);
+
+bool Fill(const RegistryNode& node, const KeySnapshot& snapshot)
 {
-    if (snapshot.name.empty())
-    {
-        return false;
-    }
-    if (!snapshot.link_target.empty())
-    {
-        if (!RegistryStore::CreateKeyLink(parent, snapshot.name, snapshot.link_target))
-        {
-            return false;
-        }
-        if (!snapshot.security.empty())
-        {
-            RegistryStore::WriteKeySecurity(registry_path::ChildNode(parent, snapshot.name), snapshot.security);
-        }
-        return true;
-    }
-    if (!RegistryStore::CreateKey(parent, snapshot.name))
-    {
-        return false;
-    }
-    const RegistryNode node = registry_path::ChildNode(parent, snapshot.name);
-    if (!snapshot.security.empty())
-    {
-        RegistryStore::WriteKeySecurity(node, snapshot.security);
-    }
     for (const RegistryValue& value : snapshot.values)
     {
         if (!RegistryStore::SetValue(node, value.name, value.type, value.data))
@@ -106,12 +98,122 @@ bool RestoreKey(const RegistryNode& parent, const KeySnapshot& snapshot)
     }
     for (const KeySnapshot& child : snapshot.children)
     {
-        if (!RestoreKey(node, child))
+        if (!Restore(node, child, nullptr))
         {
             return false;
         }
     }
     return true;
+}
+
+void WriteAttributes(const RegistryNode& node, const KeySnapshot& snapshot)
+{
+    // security goes last so a restrictive dacl can't block the rest of the restore
+    const bool timed = snapshot.last_write.dwLowDateTime || snapshot.last_write.dwHighDateTime;
+    if (!snapshot.security.empty() || timed)
+    {
+        RegistryStore::WriteKeySecurity(node, snapshot.security_parts, snapshot.security, timed ? &snapshot.last_write : nullptr);
+    }
+}
+
+bool Restore(const RegistryNode& parent, const KeySnapshot& snapshot, bool* created)
+{
+    if (snapshot.name.empty())
+    {
+        return false;
+    }
+    const RegistryNode node = registry_path::ChildNode(parent, snapshot.name);
+    if (!snapshot.link_target.empty())
+    {
+        if (!RegistryStore::CreateKeyLink(parent, snapshot.name, snapshot.link_target))
+        {
+            return false;
+        }
+    }
+    else
+    {
+        if (!RegistryStore::CreateKey(parent, snapshot.name, {snapshot.class_name, snapshot.is_volatile}))
+        {
+            return false;
+        }
+        if (created)
+        {
+            *created = true;
+        }
+        if (!Fill(node, snapshot))
+        {
+            return false;
+        }
+    }
+    WriteAttributes(node, snapshot);
+    return true;
+}
+
+} // namespace
+
+bool ReplaceKey(const RegistryNode& node, const KeySnapshot& snapshot)
+{
+    const util::PrivilegeScope owner({SE_RESTORE_NAME});
+    const util::PrivilegeScope audit({SE_SECURITY_NAME});
+    std::vector<std::wstring> values;
+    std::vector<std::wstring> children;
+    RegistryStore::EnumKeyStreaming(
+        node,
+        true,
+        false,
+        true,
+        nullptr,
+        [&](const ValueInfo& info, const BYTE*, DWORD) {
+            values.push_back(info.name);
+            return true;
+        },
+        [&](const std::wstring& name) {
+            children.push_back(name);
+            return true;
+        }
+    );
+    for (const std::wstring& name : values)
+    {
+        if (!RegistryStore::DeleteValue(node, name))
+        {
+            return false;
+        }
+    }
+    for (const std::wstring& name : children)
+    {
+        if (!RegistryStore::DeleteKey(registry_path::ChildNode(node, name)))
+        {
+            return false;
+        }
+    }
+    if (!Fill(node, snapshot))
+    {
+        return false;
+    }
+    WriteAttributes(node, snapshot);
+    return true;
+}
+
+KeySnapshot CaptureKey(const RegistryNode& node, bool exact)
+{
+    const util::PrivilegeScope audit({SE_SECURITY_NAME});
+    return Capture(node, exact ? kExactSecurity | (audit.held() ? SACL_SECURITY_INFORMATION : 0) : 0);
+}
+
+bool RestoreKey(const RegistryNode& parent, const KeySnapshot& snapshot)
+{
+    const util::PrivilegeScope owner({SE_RESTORE_NAME});
+    const util::PrivilegeScope audit({SE_SECURITY_NAME});
+    bool created = false;
+    if (Restore(parent, snapshot, &created))
+    {
+        return true;
+    }
+    if (created)
+    {
+        RegistryStore::DeleteKey(registry_path::ChildNode(parent, snapshot.name));
+    }
+    return false;
 }
 
 } // namespace regkit::changes

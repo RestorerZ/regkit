@@ -3,6 +3,7 @@ regkit_add_library(regkit_registry
     offline_registry.cpp
     registry_path.cpp
     registry_store.cpp
+    resource_list.cpp
     value_decoder.cpp
     value_format.cpp
     virtual_registry.cpp
@@ -20,10 +21,13 @@ target_link_libraries(regkit_registry PRIVATE
 )
 
 regkit_add_library(regkit_security
+    key_access.cpp
     security_dialog.cpp
 )
 target_link_libraries(regkit_security PRIVATE
     regkit_registry
+    regkit_win32
     aclui
     advapi32
+    authz
 )

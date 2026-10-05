@@ -6,6 +6,7 @@ regkit_add_library(regkit_editors
     bitfield_editor.cpp
     comment_editor.cpp
     decoder_dialog.cpp
+    fields_dialog.cpp
     dialog_support.cpp
     export_dialog.cpp
     hive_dialog.cpp

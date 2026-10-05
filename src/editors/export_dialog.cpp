@@ -20,6 +20,29 @@ namespace regkit::editors
 namespace
 {
 
+void ApplyFormat(HWND dialog, bool hive)
+{
+    // hive files always hold the whole branch and have no viewer to open them in
+    EnableWindow(GetDlgItem(dialog, IDC_EXPORT_RANGE_KEY), !hive);
+    EnableWindow(GetDlgItem(dialog, IDC_EXPORT_OPEN_AFTER), !hive);
+    if (hive)
+    {
+        CheckRadioButton(dialog, IDC_EXPORT_RANGE_BRANCH, IDC_EXPORT_RANGE_KEY, IDC_EXPORT_RANGE_BRANCH);
+    }
+    std::wstring path = dialog_support::ReadText(dialog, IDC_EXPORT_PATH);
+    const std::wstring_view from = hive ? L".reg" : L".hiv";
+    if (path.size() > from.size() && util::EqualsInsensitive(std::wstring_view(path).substr(path.size() - from.size()), from))
+    {
+        path.replace(path.size() - from.size(), from.size(), hive ? L".hiv" : L".reg");
+        SetDlgItemTextW(dialog, IDC_EXPORT_PATH, path.c_str());
+    }
+}
+
+bool HiveSelected(HWND dialog)
+{
+    return SendDlgItemMessageW(dialog, IDC_EXPORT_FORMAT, CB_GETCURSEL, 0, 0) == 1;
+}
+
 struct State
 {
     ExportResult value;
@@ -44,6 +67,13 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             SendDlgItemMessageW(dialog, IDC_EXPORT_OPEN_AFTER, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item));
         }
         SendDlgItemMessageW(dialog, IDC_EXPORT_OPEN_AFTER, CB_SETCURSEL, static_cast<WPARAM>(state->value.open_after), 0);
+        SendDlgItemMessageW(dialog, IDC_EXPORT_FORMAT, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(util::Tr(L"Registry File (.reg)")));
+        if (state->value.allow_hive)
+        {
+            SendDlgItemMessageW(dialog, IDC_EXPORT_FORMAT, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(util::Tr(L"Registry Hive File")));
+        }
+        SendDlgItemMessageW(dialog, IDC_EXPORT_FORMAT, CB_SETCURSEL, 0, 0);
+        EnableWindow(GetDlgItem(dialog, IDC_EXPORT_FORMAT), state->value.allow_hive);
         dialog_support::Initialize(dialog, &state->font, {IDC_EXPORT_PATH});
         return TRUE;
     }
@@ -65,10 +95,15 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         return FALSE;
     }
     const int id = LOWORD(wparam);
+    if (id == IDC_EXPORT_FORMAT && HIWORD(wparam) == CBN_SELCHANGE)
+    {
+        ApplyFormat(dialog, HiveSelected(dialog));
+        return TRUE;
+    }
     if (id == IDC_EXPORT_BROWSE && HIWORD(wparam) == BN_CLICKED)
     {
         std::wstring path = dialog_support::ReadText(dialog, IDC_EXPORT_PATH);
-        if (ui::ReportFileDialogResult(dialog, win32::ChooseFileToSave(dialog, ui::kRegFileFilter, path.empty() ? nullptr : path.c_str(), &path)))
+        if (ui::ReportFileDialogResult(dialog, win32::ChooseFileToSave(dialog, HiveSelected(dialog) ? ui::kHiveFileFilter : ui::kRegFileFilter, path.empty() ? nullptr : path.c_str(), &path)))
         {
             state->confirmed_path = path;
             SetDlgItemTextW(dialog, IDC_EXPORT_PATH, path.c_str());
@@ -77,7 +112,12 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     }
     if (id == IDOK)
     {
-        state->value.path = util::EnsureFileExtension(dialog_support::ReadText(dialog, IDC_EXPORT_PATH), L".reg");
+        state->value.hive = HiveSelected(dialog);
+        state->value.path = dialog_support::ReadText(dialog, IDC_EXPORT_PATH);
+        if (!state->value.hive)
+        {
+            state->value.path = util::EnsureFileExtension(state->value.path, L".reg");
+        }
         if (state->value.path.empty())
         {
             ui::ShowError(dialog, util::Tr(L"Select a destination file."));

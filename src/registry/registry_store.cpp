@@ -211,8 +211,25 @@ bool RegistryStore::QueryValue(const RegistryNode& node, const std::wstring& val
     );
 }
 
-bool RegistryStore::CreateKey(const RegistryNode& node, const std::wstring& name)
+bool RegistryStore::QueryKeyDetails(const RegistryNode& node, KeyDetails* details)
 {
+    *details = {};
+    return Dispatch(
+        node,
+        [&](const VirtualRegistryData& data) {
+            return registry_backend::virtual_store::QueryKeyInfo(data, node, &details->info);
+        },
+        [&] { return registry_backend::offline::QueryKeyDetails(node, details); },
+        [&] { return registry_backend::live::QueryKeyDetails(node, details); }
+    );
+}
+
+bool RegistryStore::CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCreateOptions& options, bool* created_volatile)
+{
+    if (created_volatile)
+    {
+        *created_volatile = false;
+    }
     if (name.empty())
     {
         return false;
@@ -220,8 +237,8 @@ bool RegistryStore::CreateKey(const RegistryNode& node, const std::wstring& name
     return Dispatch(
         node,
         [&](VirtualRegistryData& data) { return registry_backend::virtual_store::CreateKey(data, node, name); },
-        [&] { return registry_backend::offline::CreateKey(node, name); },
-        [&] { return registry_backend::live::CreateKey(node, name); }
+        [&] { return registry_backend::offline::CreateKey(node, name, options.class_name); },
+        [&] { return registry_backend::live::CreateKey(node, name, options, created_volatile); }
     );
 }
 
@@ -249,23 +266,23 @@ bool RegistryStore::ReadKeyLink(const RegistryNode& node, std::wstring* target)
     );
 }
 
-bool RegistryStore::ReadKeySecurity(const RegistryNode& node, std::vector<BYTE>* descriptor)
+bool RegistryStore::ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor)
 {
     return Dispatch(
         node,
         [&](VirtualRegistryData&) { return false; },
-        [&] { return registry_backend::offline::ReadKeySecurity(node, descriptor); },
-        [&] { return registry_backend::live::ReadKeySecurity(node, descriptor); }
+        [&] { return registry_backend::offline::ReadKeySecurity(node, parts, descriptor); },
+        [&] { return registry_backend::live::ReadKeySecurity(node, parts, descriptor); }
     );
 }
 
-bool RegistryStore::WriteKeySecurity(const RegistryNode& node, const std::vector<BYTE>& descriptor)
+bool RegistryStore::WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor, const FILETIME* last_write)
 {
     return Dispatch(
         node,
         [&](VirtualRegistryData&) { return false; },
-        [&] { return registry_backend::offline::WriteKeySecurity(node, descriptor); },
-        [&] { return registry_backend::live::WriteKeySecurity(node, descriptor); }
+        [&] { return registry_backend::offline::WriteKeySecurity(node, parts, descriptor); },
+        [&] { return registry_backend::live::WriteKeySecurity(node, parts, descriptor, last_write); }
     );
 }
 

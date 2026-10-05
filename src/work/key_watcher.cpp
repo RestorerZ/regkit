@@ -1,0 +1,108 @@
+// Copyright (C) 2026 nohuto
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+#include "work/key_watcher.h"
+
+#include "win32/registry_native.h"
+#include "win32/registry_view.h"
+#include "work/session.h"
+
+namespace regkit::work
+{
+
+KeyWatcher::~KeyWatcher()
+{
+    if (thread_.joinable())
+    {
+        SetEvent(stop_.get());
+        thread_.join();
+    }
+}
+
+void KeyWatcher::Watch(HWND window, UINT message, HKEY root, const std::wstring& subkey)
+{
+    {
+        std::lock_guard lock(mutex_);
+        if (thread_.joinable() && root_ == root && subkey_ == subkey)
+        {
+            return;
+        }
+        window_ = window;
+        message_ = message;
+        root_ = root;
+        subkey_ = subkey;
+        generation_.fetch_add(1);
+    }
+    if (!thread_.joinable())
+    {
+        stop_.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        retarget_.reset(CreateEventW(nullptr, FALSE, TRUE, nullptr));
+        if (!stop_ || !retarget_)
+        {
+            return;
+        }
+        thread_ = std::thread([this] { Run(); });
+        NameThread(thread_, L"KeyWatcherThread");
+        return;
+    }
+    SetEvent(retarget_.get());
+}
+
+void KeyWatcher::Stop()
+{
+    if (thread_.joinable())
+    {
+        Watch(nullptr, 0, nullptr, {});
+    }
+}
+
+void KeyWatcher::Run()
+{
+    // registrations belong to this thread, so it stays alive while the window lives
+    util::UniqueHandle change(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    util::UniqueHKey key;
+    HWND window = nullptr;
+    UINT message = 0;
+    uint64_t generation = 0;
+    const HANDLE events[] = {stop_.get(), retarget_.get(), change.get()};
+    constexpr DWORD kFilter = REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_ATTRIBUTES | REG_NOTIFY_CHANGE_LAST_SET | REG_NOTIFY_CHANGE_SECURITY;
+    while (change)
+    {
+        const DWORD signaled = WaitForMultipleObjects(3, events, FALSE, INFINITE);
+        if (signaled == WAIT_OBJECT_0 + 1)
+        {
+            HKEY root = nullptr;
+            std::wstring subkey;
+            {
+                std::lock_guard lock(mutex_);
+                window = window_;
+                message = message_;
+                root = root_;
+                subkey = subkey_;
+                generation = generation_.load();
+            }
+            // closing the old key signals its registration
+            key.reset();
+            ResetEvent(change.get());
+            if (root)
+            {
+                util::OpenRegistryPath(root, subkey, KEY_NOTIFY | win32::kDefaultRegistryView, false, &key);
+            }
+        }
+        else if (signaled == WAIT_OBJECT_0 + 2)
+        {
+            ResetEvent(change.get());
+            PostMessageW(window, message, static_cast<WPARAM>(generation), 0);
+        }
+        else
+        {
+            break;
+        }
+        if (key && RegNotifyChangeKeyValue(key.get(), FALSE, kFilter, change.get(), TRUE) != ERROR_SUCCESS)
+        {
+            key.reset();
+        }
+    }
+}
+
+} // namespace regkit::work

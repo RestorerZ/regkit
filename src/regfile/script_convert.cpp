@@ -83,7 +83,7 @@ bool ReadOperations(const std::wstring& path, Format format, std::vector<Operati
     return parsed;
 }
 
-bool ReadRegistry(const std::wstring& key_path, bool recursive, std::vector<Operation>* operations, std::wstring* error)
+bool ReadRegistry(const std::wstring& key_path, bool recursive, std::vector<Operation>* operations, std::wstring* error, std::vector<std::wstring>* skipped)
 {
     std::wstring path;
     if (!NormalizeKeyPath(registry_path::Normalize(key_path), &path))
@@ -93,7 +93,7 @@ bool ReadRegistry(const std::wstring& key_path, bool recursive, std::vector<Oper
     }
     const size_t split = path.find(L'\\');
     const std::wstring subkey = split == std::wstring::npos ? std::wstring() : path.substr(split + 1);
-    const LONG status = ReadRegistryOperations(registry_path::RootFromName(path.substr(0, split)), subkey, path, win32::kDefaultRegistryView, recursive, operations);
+    const LONG status = ReadRegistryOperations(registry_path::RootFromName(path.substr(0, split)), subkey, path, win32::kDefaultRegistryView, recursive, operations, skipped);
     if (status != ERROR_SUCCESS)
     {
         *error = util::FormatWin32Error(static_cast<DWORD>(status)) + L"\n" + path;
@@ -188,7 +188,7 @@ std::wstring Describe(const Operation& operation, std::wstring_view reason)
     {
         text += L" : " + (operation.value.name.empty() ? std::wstring(util::Tr(L"(Default)")) : operation.value.name);
     }
-    return text + L" (" + std::wstring(reason) + L")";
+    return registry_path::DisplayName(text) + L" (" + std::wstring(reason) + L")";
 }
 
 } // namespace regkit::regfile

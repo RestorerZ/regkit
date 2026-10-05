@@ -75,6 +75,8 @@ inline HMENU BuildCopyKeyPathMenu()
     AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathPowerShell, util::Tr(L"PowerShell Drive"));
     AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathPowerShellProvider, util::Tr(L"PowerShell Provider"));
     AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathEscaped, util::Tr(L"Escaped Backslashes"));
+    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathNative, util::Tr(L"Native"));
+    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathNativeResolved, util::Tr(L"Native (Resolved)"));
     return menu;
 }
 inline void AppendNewValueItems(HMENU menu)

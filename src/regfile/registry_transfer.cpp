@@ -15,6 +15,7 @@
 #include "win32/file_text.h"
 #include "win32/handle_owner.h"
 #include "win32/process_rights.h"
+#include "win32/registry_native.h"
 #include "win32/registry_view.h"
 #include "win32/shell_paths.h"
 #include "win32/system_error.h"
@@ -22,6 +23,7 @@
 #include "win32/translation.h"
 
 #include <algorithm>
+#include <cstring>
 #include <cwchar>
 #include <vector>
 
@@ -174,14 +176,8 @@ std::wstring SanitizeFileName(const std::wstring& name)
 std::wstring DefaultExportPath(const std::wstring& key_path, const wchar_t* extension)
 {
     const std::wstring file_name = util::EnsureFileExtension(SanitizeFileName(registry_path::Leaf(key_path)), extension);
-    PWSTR desktop = nullptr;
-    std::wstring path = file_name;
-    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, 0, util::OpenShellToken(TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE).get(), &desktop)))
-    {
-        path = util::JoinPath(desktop, file_name);
-    }
-    CoTaskMemFree(desktop);
-    return path;
+    const std::wstring desktop = util::GetShellUserDesktop();
+    return desktop.empty() ? file_name : util::JoinPath(desktop, file_name);
 }
 
 bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error)
@@ -190,32 +186,45 @@ bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error)
            RunRegCommand(L"import \"" + path + L"\" " + win32::RegExeViewSwitch(win32::kDefaultRegistryView), error);
 }
 
-bool ExportRegFile(HWND owner, const std::wstring& key_path, std::wstring* error, std::wstring* saved_path, win32::OpenAfter* open_after)
+bool ExportRegFile(HWND owner, const std::wstring& key_path, bool allow_hive, std::wstring* error, std::wstring* saved_path, win32::OpenAfter* open_after)
 {
     static win32::OpenAfter last_open_after = win32::OpenAfter::kNone;
     editors::ExportRequest request;
     request.path = DefaultExportPath(key_path, L".reg");
     request.open_after = last_open_after;
+    request.allow_hive = allow_hive;
     editors::ExportResult options;
     if (!editors::ChooseExport(owner, request, &options))
     {
         return false;
     }
-    last_open_after = options.open_after;
-    options.path = util::EnsureFileExtension(options.path, L".reg");
     RegistryNode node;
     std::wstring display;
     if (!ResolveExportKey(key_path, &node, &display, error))
     {
         return false;
     }
+    if (options.hive)
+    {
+        const LONG saved = SaveKeyToHive(node.root, node.subkey, win32::kDefaultRegistryView, options.path);
+        if (saved != ERROR_SUCCESS)
+        {
+            *error = HiveTransferError(saved, options.path);
+            return false;
+        }
+        *saved_path = options.path;
+        *open_after = win32::OpenAfter::kNone;
+        return true;
+    }
+    last_open_after = options.open_after;
     regfile::Writer writer;
-    const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, win32::kDefaultRegistryView, options.include_subkeys);
+    std::vector<std::wstring> skipped;
+    const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, win32::kDefaultRegistryView, options.include_subkeys, &skipped);
     if (status != ERROR_SUCCESS)
     {
         return ReportUnreadableKey(status, display, error);
     }
-    if (!WriteRegFile(options.path, std::move(writer), error))
+    if ((!skipped.empty() && !ui::ConfirmConversionSkips(owner, skipped, util::Tr(L"Export"))) || !WriteRegFile(options.path, std::move(writer), error))
     {
         return false;
     }
@@ -247,6 +256,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
     path = util::EnsureFileExtension(path, L".reg");
 
     regfile::Writer writer;
+    std::vector<std::wstring> skipped;
     if (!value_names.empty())
     {
         RegistryNode base;
@@ -261,15 +271,17 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
         {
             return ReportUnreadableKey(status, display, error);
         }
+        std::erase_if(contents.values, [&](const RegistryValue& value) {
+            return std::none_of(value_names.begin(), value_names.end(), [&](const std::wstring& name) { return util::EqualsInsensitive(name, value.name); });
+        });
+        const bool found = !contents.values.empty();
+        regfile::SkipNullNames(display, &contents.values, nullptr, &skipped);
         std::vector<const regfile::Value*> selected;
         for (const RegistryValue& value : contents.values)
         {
-            if (std::any_of(value_names.begin(), value_names.end(), [&](const std::wstring& name) { return util::EqualsInsensitive(name, value.name); }))
-            {
-                selected.push_back(&value);
-            }
+            selected.push_back(&value);
         }
-        if (selected.empty())
+        if (!found)
         {
             if (error)
             {
@@ -291,14 +303,89 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
         {
             return false;
         }
-        const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, win32::kDefaultRegistryView, true);
+        const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, win32::kDefaultRegistryView, true, &skipped);
         if (status != ERROR_SUCCESS)
         {
             return ReportUnreadableKey(status, display, error);
         }
     }
+    if (!skipped.empty() && !ui::ConfirmConversionSkips(owner, skipped, util::Tr(L"Export")))
+    {
+        return false;
+    }
     *saved_path = path;
     return WriteRegFile(path, std::move(writer), error);
+}
+
+bool IsHiveFile(const std::wstring& path)
+{
+    util::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+    char signature[4] = {};
+    DWORD read = 0;
+    return file.get() != INVALID_HANDLE_VALUE && ReadFile(file.get(), signature, sizeof(signature), &read, nullptr) && read == sizeof(signature) &&
+           std::memcmp(signature, "regf", sizeof(signature)) == 0;
+}
+
+LONG SaveKeyToHive(HKEY root, const std::wstring& subkey, REGSAM view, const std::wstring& path)
+{
+    const util::PrivilegeScope privileges({SE_BACKUP_NAME});
+    util::UniqueHKey handle;
+    LONG status = util::OpenRegistryPath(root, subkey, KEY_READ | view, false, &handle);
+    if (status != ERROR_SUCCESS)
+    {
+        return status;
+    }
+    // RegSaveKeyEx can't overwrite a file, so stage the save before replacing it
+    std::wstring staged = path;
+    const bool existed = GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
+    for (int attempt = 0; attempt < 16; ++attempt)
+    {
+        if (existed)
+        {
+            staged = path + util::RandomFileSuffix(L".part");
+        }
+        status = RegSaveKeyExW(handle.get(), staged.c_str(), nullptr, REG_LATEST_FORMAT);
+        if (!existed || status != ERROR_ALREADY_EXISTS)
+        {
+            break;
+        }
+    }
+    handle.reset();
+    if (status != ERROR_SUCCESS)
+    {
+        if (existed && status != ERROR_ALREADY_EXISTS)
+        {
+            DeleteFileW(staged.c_str());
+        }
+        return status;
+    }
+    if (existed && !MoveFileExW(staged.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING))
+    {
+        status = static_cast<LONG>(GetLastError());
+        DeleteFileW(staged.c_str());
+    }
+    return status;
+}
+
+LONG RestoreKeyFromHive(HKEY root, const std::wstring& subkey, REGSAM view, const std::wstring& path)
+{
+    const util::PrivilegeScope privileges({SE_RESTORE_NAME, SE_BACKUP_NAME});
+    if (!privileges.held())
+    {
+        return ERROR_PRIVILEGE_NOT_HELD;
+    }
+    util::UniqueHKey handle;
+    const LONG status = util::OpenRegistryPath(root, subkey, KEY_WRITE | view, false, &handle);
+    return status == ERROR_SUCCESS ? RegRestoreKeyW(handle.get(), path.c_str(), REG_FORCE_RESTORE) : status;
+}
+
+std::wstring HiveTransferError(LONG status, const std::wstring& path)
+{
+    if (status == ERROR_PRIVILEGE_NOT_HELD)
+    {
+        return util::Tr(L"Hive files need the backup and restore privileges. Run RegKit elevated.");
+    }
+    return util::FormatWin32Error(static_cast<DWORD>(status)) + L"\n" + path;
 }
 
 bool IsMountedHive(HKEY root, const std::wstring& subkey)

@@ -16,6 +16,7 @@ namespace regkit
 {
 
 struct RegistryNode;
+enum class ClassSource : unsigned char;
 
 namespace registry_path
 {
@@ -39,8 +40,12 @@ HKEY RootFromName(std::wstring_view name);
 std::wstring RootName(HKEY root);
 std::wstring Build(const RegistryNode& node);
 std::wstring BuildNative(const RegistryNode& node);
+bool InVolatileHive(std::wstring_view native_path);
+ClassSource ClassesSource(std::wstring_view native_path);
+std::wstring ClassesSourcePath(std::wstring_view native_path, std::wstring_view current_user_sid);
 
 std::wstring Clean(std::wstring_view path);
+bool HasComponentPrefix(std::wstring_view path, std::wstring_view prefix);
 std::wstring Normalize(std::wstring_view path, std::wstring_view current_user_sid = {});
 std::wstring Format(std::wstring_view normalized_path, Style style, std::wstring_view tree_root = L"Computer");
 bool ParseRoot(std::wstring_view path, RegistryNode* node);

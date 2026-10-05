@@ -44,6 +44,7 @@
 #include "win32/handle_owner.h"
 #include "win32/file_dialog.h"
 #include "win32/translation.h"
+#include "work/key_watcher.h"
 #include "work/session.h"
 #include "workspace/favorites.h"
 #include "workspace/recent_items.h"
@@ -395,6 +396,12 @@ class MainWindow::Impl
     void DrawFilterClearButton(const DRAWITEMSTRUCT* info);
     void ClearValueFilter(bool focus_values);
     void ShowPermissionsDialog(const RegistryNode& node);
+    void ShowKeyInfoDialog(const RegistryNode& node);
+    bool ShowResourceList(const RegistryValue& value);
+    RegistryNode SelectedKeyNode() const;
+    void WatchCurrentKey();
+    void ApplyAutoRefresh();
+    void RestoreHiveFile(const std::wstring& path);
     void ReplaceRegEdit(bool enable);
     void SyncReplaceRegEditState();
     void SetEditContextMenu(bool enable);
@@ -415,6 +422,7 @@ class MainWindow::Impl
     void ResetHiveListCache();
     void EnsureHiveListLoaded();
     std::wstring LookupHivePath(const RegistryNode& node, bool* is_root);
+    std::wstring LookupNativeHivePath(const std::wstring& nt_path, bool* is_root);
     int KeyIconIndex(const RegistryNode& node, bool* is_link, bool* is_hive_root);
     void AppendRealRegistryRoot(std::vector<RegistryRootEntry>* roots);
     void HandleTypeToSelectTree(wchar_t ch);
@@ -642,6 +650,12 @@ class MainWindow::Impl
     int value_tip_subitem_ = -1;
     std::wstring value_tooltip_text_;
     bool show_value_grid_ = false;
+    bool auto_refresh_ = false;
+    bool hkcu_follows_shell_user_ = true;
+    std::unique_ptr<util::PrivilegeScope> backup_privileges_;
+    std::wstring status_account_sid_;
+    std::wstring status_account_;
+    work::KeyWatcher key_watcher_;
     bool auto_check_updates_ = false;
     bool default_reset_enabled_ = false;
     HMENU reset_default_menu_ = nullptr;

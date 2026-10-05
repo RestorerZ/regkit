@@ -98,11 +98,6 @@ std::wstring_view TrimLeadingSeparators(std::wstring_view text)
     return text;
 }
 
-bool HasComponentPrefix(std::wstring_view path, std::wstring_view prefix)
-{
-    return util::StartsWithInsensitive(path, prefix) && (path.size() == prefix.size() || path[prefix.size()] == L'\\');
-}
-
 std::wstring JoinRange(const std::vector<std::wstring>& parts, size_t first, size_t last)
 {
     size_t characters = 0;
@@ -128,6 +123,11 @@ std::wstring JoinRange(const std::vector<std::wstring>& parts, size_t first, siz
 }
 
 } // namespace
+
+bool HasComponentPrefix(std::wstring_view path, std::wstring_view prefix)
+{
+    return util::StartsWithInsensitive(path, prefix) && (path.size() == prefix.size() || path[prefix.size()] == L'\\');
+}
 
 std::wstring DisplayName(std::wstring_view name)
 {
@@ -171,6 +171,36 @@ std::wstring Build(const RegistryNode& node)
 {
     const std::wstring root = node.root_name.empty() ? RootName(node.root) : node.root_name;
     return DisplayName(Join(root, node.subkey));
+}
+
+bool InVolatileHive(std::wstring_view native_path)
+{
+    // ponytail: HARDWARE is the only volatile hive windows mounts, keys in it carry no volatile flag
+    return HasComponentPrefix(native_path, L"\\REGISTRY\\MACHINE\\HARDWARE");
+}
+
+ClassSource ClassesSource(std::wstring_view native_path)
+{
+    if (HasComponentPrefix(native_path, L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes"))
+    {
+        return ClassSource::kMachine;
+    }
+    return util::ContainsInsensitive(native_path, L"_Classes") ? ClassSource::kUser : ClassSource::kNone;
+}
+
+std::wstring ClassesSourcePath(std::wstring_view native_path, std::wstring_view current_user_sid)
+{
+    constexpr std::wstring_view kMachine = L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes";
+    const std::wstring user = L"\\REGISTRY\\USER\\" + std::wstring(current_user_sid) + L"_Classes";
+    if (HasComponentPrefix(native_path, kMachine))
+    {
+        return Join(L"HKEY_LOCAL_MACHINE\\SOFTWARE\\Classes", TrimLeadingSeparators(native_path.substr(kMachine.size())));
+    }
+    if (!current_user_sid.empty() && HasComponentPrefix(native_path, user))
+    {
+        return Join(L"HKEY_CURRENT_USER\\Software\\Classes", TrimLeadingSeparators(native_path.substr(user.size())));
+    }
+    return {};
 }
 
 std::wstring BuildNative(const RegistryNode& node)
@@ -345,11 +375,6 @@ std::wstring Normalize(std::wstring_view input, std::wstring_view current_user_s
     {
         const std::wstring native = path.substr(9);
         const auto native_rest = [&](std::wstring_view prefix) { return TrimLeadingSeparators(std::wstring_view(native).substr(prefix.size())); };
-        constexpr std::wstring_view classes = L"MACHINE\\SOFTWARE\\Classes";
-        if (HasComponentPrefix(native, classes))
-        {
-            return Join(L"HKEY_CLASSES_ROOT", native_rest(classes));
-        }
         constexpr std::wstring_view current_config = L"MACHINE\\SYSTEM\\CurrentControlSet\\Hardware Profiles\\Current";
         if (HasComponentPrefix(native, current_config))
         {

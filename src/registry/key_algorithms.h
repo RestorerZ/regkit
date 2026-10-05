@@ -6,6 +6,7 @@
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
 #include "win32/handle_owner.h"
+#include "win32/registry_native.h"
 #include "win32/text_transform.h"
 
 #include <algorithm>
@@ -19,6 +20,16 @@ namespace regkit::registry_backend
 inline constexpr REGSAM kKeyReadAccess = KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS;
 inline constexpr SECURITY_INFORMATION kKeySecurityInformation =
     OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
+
+inline const wchar_t* ValueNameArg(const std::wstring& name)
+{
+    return name.empty() ? nullptr : name.c_str();
+}
+
+inline bool HasNull(const std::wstring& name)
+{
+    return name.find(L'\0') != std::wstring::npos;
+}
 
 class RegistryKeyHandle
 {
@@ -38,9 +49,9 @@ class RegistryKeyHandle
         return key_.get();
     }
 
-    LONG QueryInfo(DWORD* subkeys, DWORD* max_subkey_length, DWORD* values, DWORD* max_value_name_length, DWORD* max_value_data_length, FILETIME* last_write) const
+    LONG QueryInfo(DWORD* subkeys, DWORD* max_subkey_length, DWORD* values, DWORD* max_value_name_length, DWORD* max_value_data_length, FILETIME* last_write, wchar_t* class_name = nullptr, DWORD* class_length = nullptr, DWORD* max_class_length = nullptr) const
     {
-        return RegQueryInfoKeyW(key_.get(), nullptr, nullptr, nullptr, subkeys, max_subkey_length, nullptr, values, max_value_name_length, max_value_data_length, nullptr, last_write);
+        return RegQueryInfoKeyW(key_.get(), class_name, class_length, nullptr, subkeys, max_subkey_length, max_class_length, values, max_value_name_length, max_value_data_length, nullptr, last_write);
     }
     LONG EnumKey(DWORD index, wchar_t* name, DWORD* length) const
     {
@@ -50,17 +61,19 @@ class RegistryKeyHandle
     {
         return RegEnumValueW(key_.get(), index, name, name_length, nullptr, type, data, data_length);
     }
-    LONG GetValue(const wchar_t* name, DWORD* type, BYTE* data, DWORD* size) const
+    LONG GetValue(const std::wstring& name, DWORD* type, BYTE* data, DWORD* size) const
     {
-        return RegQueryValueExW(key_.get(), name, nullptr, type, data, size);
+        return HasNull(name) ? util::QueryValueCounted(key_.get(), name, type, data, size)
+                             : RegQueryValueExW(key_.get(), ValueNameArg(name), nullptr, type, data, size);
     }
-    LONG SetValue(const wchar_t* name, DWORD type, const BYTE* data, DWORD size) const
+    LONG SetValue(const std::wstring& name, DWORD type, const BYTE* data, DWORD size) const
     {
-        return RegSetValueExW(key_.get(), name, 0, type, data, size);
+        return HasNull(name) ? util::SetValueCounted(key_.get(), name, type, data, size)
+                             : RegSetValueExW(key_.get(), ValueNameArg(name), 0, type, data, size);
     }
-    LONG DeleteValue(const wchar_t* name) const
+    LONG DeleteValue(const std::wstring& name) const
     {
-        return RegDeleteValueW(key_.get(), name);
+        return HasNull(name) ? util::DeleteValueCounted(key_.get(), name) : RegDeleteValueW(key_.get(), ValueNameArg(name));
     }
     LONG GetSecurity(SECURITY_INFORMATION information, PSECURITY_DESCRIPTOR descriptor, DWORD* size) const
     {
@@ -74,11 +87,6 @@ class RegistryKeyHandle
   protected:
     util::UniqueHKey key_;
 };
-
-inline const wchar_t* ValueNameArg(const std::wstring& name)
-{
-    return name.empty() ? nullptr : name.c_str();
-}
 
 inline bool SplitNode(const RegistryNode& node, RegistryNode* parent, std::wstring* name)
 {
@@ -107,6 +115,25 @@ bool QueryKeyInfo(const Key& key, KeyInfo* info)
 {
     return key.QueryInfo(&info->subkey_count, nullptr, &info->value_count, nullptr, nullptr, &info->last_write) ==
            ERROR_SUCCESS;
+}
+
+template <typename Key>
+bool QueryKeyDetails(const Key& key, KeyDetails* details)
+{
+    std::wstring& name = details->class_name;
+    LONG result = ERROR_MORE_DATA;
+    for (DWORD capacity : {DWORD(MAX_PATH), DWORD(32767)})
+    {
+        if (result != ERROR_MORE_DATA)
+        {
+            break;
+        }
+        name.resize(capacity);
+        DWORD length = capacity;
+        result = key.QueryInfo(&details->info.subkey_count, &details->max_subkey_name, &details->info.value_count, &details->max_value_name, &details->max_value_data, &details->info.last_write, name.data(), &length, &details->max_class);
+        name.resize(result == ERROR_SUCCESS ? length : 0);
+    }
+    return result == ERROR_SUCCESS;
 }
 
 template <typename Key>
@@ -141,18 +168,25 @@ bool EnumerateKey(const Key& key, bool include_values, bool include_data, bool i
 {
     EnumerationScratch local;
     EnumerationScratch& buffers = scratch ? *scratch : local;
-    KeyInfo info;
-    DWORD max_subkey_length = 0;
-    DWORD max_value_name_length = 0;
-    DWORD max_value_data_length = 0;
-    if (key.QueryInfo(&info.subkey_count, &max_subkey_length, &info.value_count, &max_value_name_length, &max_value_data_length, &info.last_write) != ERROR_SUCCESS)
+    KeyDetails details;
+    const bool want_options = out_info && out_info->want_options;
+    if (want_options ? !QueryKeyDetails(key, &details)
+                     : key.QueryInfo(&details.info.subkey_count, &details.max_subkey_name, &details.info.value_count, &details.max_value_name, &details.max_value_data, &details.info.last_write) != ERROR_SUCCESS)
     {
         return false;
     }
+    const KeyInfo& info = details.info;
+    const DWORD max_subkey_length = details.max_subkey_name;
+    const DWORD max_value_name_length = details.max_value_name;
+    const DWORD max_value_data_length = details.max_value_data;
     if (out_info)
     {
         out_info->info = info;
         out_info->info_valid = true;
+        if (want_options)
+        {
+            out_info->options.class_name = std::move(details.class_name);
+        }
     }
 
     if (include_values && value_callback)
@@ -225,7 +259,7 @@ struct KeyContents
 inline LONG ReadKeyContents(HKEY root, const std::wstring& subkey, REGSAM view, bool include_data, KeyContents* contents)
 {
     util::UniqueHKey handle;
-    const LONG status = RegOpenKeyExW(root, subkey.c_str(), 0, kKeyReadAccess | view, handle.put());
+    const LONG status = util::OpenRegistryPath(root, subkey, kKeyReadAccess | view, false, &handle);
     if (status != ERROR_SUCCESS)
     {
         return status;
@@ -251,7 +285,7 @@ inline LONG ReadKeyContents(HKEY root, const std::wstring& subkey, REGSAM view, 
 }
 
 template <typename Key>
-LONG ReadValue(const Key& key, const wchar_t* name, DWORD* type, std::vector<BYTE>* data)
+LONG ReadValue(const Key& key, const std::wstring& name, DWORD* type, std::vector<BYTE>* data)
 {
     DWORD size = 0;
     LONG result = key.GetValue(name, type, nullptr, &size);
@@ -274,7 +308,7 @@ bool QueryValue(const Key& key, const std::wstring& value_name, RegistryValue* o
 {
     DWORD type = 0;
     std::vector<BYTE> data;
-    if (ReadValue(key, ValueNameArg(value_name), &type, &data) != ERROR_SUCCESS)
+    if (ReadValue(key, value_name, &type, &data) != ERROR_SUCCESS)
     {
         return false;
     }
@@ -289,7 +323,8 @@ bool ReadLinkTarget(const Key& key, std::wstring* target)
 {
     DWORD type = 0;
     std::vector<BYTE> data;
-    if (ReadValue(key, L"SymbolicLinkValue", &type, &data) != ERROR_SUCCESS || type != REG_LINK)
+    static const std::wstring kLinkValue = L"SymbolicLinkValue";
+    if (ReadValue(key, kLinkValue, &type, &data) != ERROR_SUCCESS || type != REG_LINK)
     {
         return false;
     }
@@ -307,16 +342,15 @@ bool RenameValue(const Key& key, const std::wstring& old_name, const std::wstrin
     DWORD type = 0;
     DWORD existing_size = 0;
     std::vector<BYTE> data;
-    if (ReadValue(key, ValueNameArg(old_name), &type, &data) != ERROR_SUCCESS ||
-        key.GetValue(new_name.c_str(), nullptr, nullptr, &existing_size) != ERROR_FILE_NOT_FOUND ||
-        key.SetValue(new_name.c_str(), type, data.empty() ? nullptr : data.data(), static_cast<DWORD>(data.size())) !=
-            ERROR_SUCCESS)
+    if (ReadValue(key, old_name, &type, &data) != ERROR_SUCCESS ||
+        key.GetValue(new_name, nullptr, nullptr, &existing_size) != ERROR_FILE_NOT_FOUND ||
+        key.SetValue(new_name, type, data.empty() ? nullptr : data.data(), static_cast<DWORD>(data.size())) != ERROR_SUCCESS)
     {
         return false;
     }
-    if (key.DeleteValue(ValueNameArg(old_name)) != ERROR_SUCCESS)
+    if (key.DeleteValue(old_name) != ERROR_SUCCESS)
     {
-        if (key.DeleteValue(new_name.c_str()) != ERROR_SUCCESS && both_names_left)
+        if (key.DeleteValue(new_name) != ERROR_SUCCESS && both_names_left)
         {
             *both_names_left = true;
         }
@@ -326,25 +360,45 @@ bool RenameValue(const Key& key, const std::wstring& old_name, const std::wstrin
 }
 
 template <typename Key>
-bool ReadSecurity(const Key& key, std::vector<BYTE>* descriptor)
+bool ReadSecurity(const Key& key, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor)
 {
-    DWORD size = 0;
-    LONG result = key.GetSecurity(kKeySecurityInformation, nullptr, &size);
-    if ((result != ERROR_INSUFFICIENT_BUFFER && result != ERROR_MORE_DATA) || size == 0)
+    // fall back to owner, group and dacl when the label or sacl can't be read
+    for (const SECURITY_INFORMATION request : {*parts, kKeySecurityInformation})
     {
-        return false;
+        DWORD size = 0;
+        LONG result = key.GetSecurity(request, nullptr, &size);
+        if ((result == ERROR_INSUFFICIENT_BUFFER || result == ERROR_MORE_DATA) && size > 0)
+        {
+            descriptor->resize(size);
+            result = key.GetSecurity(request, descriptor->data(), &size);
+        }
+        if (result == ERROR_SUCCESS && size > 0)
+        {
+            descriptor->resize(size);
+            *parts = request;
+            return true;
+        }
     }
-    descriptor->resize(size);
-    result = key.GetSecurity(kKeySecurityInformation, descriptor->data(), &size);
-    descriptor->resize(result == ERROR_SUCCESS ? size : 0);
-    return result == ERROR_SUCCESS;
+    descriptor->clear();
+    return false;
 }
 
 template <typename Key>
-bool WriteSecurity(const Key& key, const std::vector<BYTE>& descriptor)
+bool WriteSecurity(const Key& key, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor)
 {
-    return !descriptor.empty() &&
-           key.SetSecurity(kKeySecurityInformation, const_cast<BYTE*>(descriptor.data())) == ERROR_SUCCESS;
+    // keep the dacl when this token can't set the owner, label or sacl
+    if (descriptor.empty())
+    {
+        return false;
+    }
+    for (const SECURITY_INFORMATION request : {parts, parts & kKeySecurityInformation, parts & DACL_SECURITY_INFORMATION})
+    {
+        if (request && key.SetSecurity(request, const_cast<BYTE*>(descriptor.data())) == ERROR_SUCCESS)
+        {
+            return request == parts;
+        }
+    }
+    return false;
 }
 
 } // namespace regkit::registry_backend

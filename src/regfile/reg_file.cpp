@@ -7,6 +7,7 @@
 #include "registry/key_algorithms.h"
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
+#include "regfile/script_convert.h"
 #include "win32/file_text.h"
 #include "win32/translation.h"
 
@@ -232,8 +233,12 @@ namespace
 
 // depth first in export order, visit gets each readable key's display path and contents
 template <typename Visit>
-LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, Visit visit)
+LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<std::wstring>* skipped, Visit visit)
 {
+    if (subkey.find(L'\0') != std::wstring::npos)
+    {
+        return ERROR_INVALID_NAME;
+    }
     struct Pending
     {
         std::wstring subkey;
@@ -255,6 +260,7 @@ LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring
         {
             continue;
         }
+        SkipNullNames(current.display, &contents.values, &contents.subkeys, skipped);
         visit(current.display, contents);
         for (auto child = contents.subkeys.rbegin(); recurse && child != contents.subkeys.rend(); ++child)
         {
@@ -266,9 +272,30 @@ LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring
 
 } // namespace
 
-LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse)
+void SkipNullNames(const std::wstring& display_path, std::vector<Value>* values, std::vector<std::wstring>* subkeys, std::vector<std::wstring>* skipped)
 {
-    return VisitRegistryTree(root, subkey, display_path, view, recurse, [&](const std::wstring& display, const registry_backend::KeyContents& contents) {
+    // reg files and reg.exe can only address names without embedded nulls
+    const auto unaddressable = [&](const Operation& operation, const std::wstring& name) {
+        if (name.find(L'\0') == std::wstring::npos)
+        {
+            return false;
+        }
+        if (skipped)
+        {
+            skipped->push_back(Describe(operation, util::Tr(L"the name contains a null character")));
+        }
+        return true;
+    };
+    std::erase_if(*values, [&](const Value& value) { return unaddressable({Operation::Kind::kValue, display_path, value}, value.name); });
+    if (subkeys)
+    {
+        std::erase_if(*subkeys, [&](const std::wstring& name) { return unaddressable({Operation::Kind::kKey, display_path + L"\\" + name}, name); });
+    }
+}
+
+LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<std::wstring>* skipped)
+{
+    return VisitRegistryTree(root, subkey, display_path, view, recurse, skipped, [&](const std::wstring& display, const registry_backend::KeyContents& contents) {
         std::vector<const Value*> values;
         values.reserve(contents.values.size());
         for (const Value& value : contents.values)
@@ -279,9 +306,9 @@ LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, c
     });
 }
 
-LONG ReadRegistryOperations(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<Operation>* output)
+LONG ReadRegistryOperations(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<Operation>* output, std::vector<std::wstring>* skipped)
 {
-    return VisitRegistryTree(root, subkey, display_path, view, recurse, [&](const std::wstring& display, registry_backend::KeyContents& contents) {
+    return VisitRegistryTree(root, subkey, display_path, view, recurse, skipped, [&](const std::wstring& display, registry_backend::KeyContents& contents) {
         output->push_back({Operation::Kind::kKey, display});
         for (Value& value : contents.values)
         {

@@ -48,6 +48,8 @@ constexpr BoolField kBoolFields[] = {
     {L"view_simulated_keys", &Settings::show_simulated_keys},     // View > Simulated Keys
     {L"view_extra_hives", &Settings::show_extra_hives},           // View > Show Extra Root Keys
     {L"view_value_grid", &Settings::show_value_grid},             // View > Grid Lines
+    {L"view_auto_refresh", &Settings::auto_refresh},              // View > Auto Refresh
+    {L"hkcu_follows_shell_user", &Settings::hkcu_follows_shell_user}, // Options > Run As > HKCU Follows Signed-In User
     {L"save_tree_state", &Settings::save_tree_state},             // Options > Save Previous Tree State
     {L"auto_check_updates", &Settings::auto_check_updates},       // Help > Check for Updates Automatically
     {L"default_reset_enabled", &Settings::default_reset_enabled}, // Default > Enable Context Menu (risky)

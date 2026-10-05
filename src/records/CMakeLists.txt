@@ -5,3 +5,6 @@ regkit_add_library(regkit_records
 target_include_directories(regkit_records PUBLIC
     "${PROJECT_SOURCE_DIR}/src"
 )
+target_link_libraries(regkit_records PRIVATE
+    regkit_win32
+)

@@ -16,6 +16,8 @@ struct ExportRequest
 {
     std::wstring path;
     bool include_subkeys = true;
+    bool allow_hive = false;
+    bool hive = false;
     win32::OpenAfter open_after = win32::OpenAfter::kNone;
 };
 

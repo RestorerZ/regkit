@@ -28,8 +28,8 @@ void MainWindow::Impl::BuildImageLists()
 
     const int base_icon_size = kToolbarIconSize;
     const int icon_size = appearance::ScaleForDpi(base_icon_size, dpi);
-    tree_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 11, 2);
-    list_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 9, 2);
+    tree_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 12, 2);
+    list_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 10, 2);
     ImageList_SetBkColor(tree_images_, CLR_NONE);
     ImageList_SetBkColor(list_images_, CLR_NONE);
 
@@ -47,7 +47,7 @@ void MainWindow::Impl::BuildImageLists()
             }
         }
     };
-    add_icons({tree_images_, list_images_}, {IDI_ICON_FOLDER, IDI_ICON_SYMLINK, IDI_ICON_DATABASE, IDI_ICON_FOLDER_SIM, IDI_ICON_FOLDER_DENIED, IDI_ICON_DATABASE_DENIED});
+    add_icons({tree_images_, list_images_}, {IDI_ICON_FOLDER, IDI_ICON_SYMLINK, IDI_ICON_DATABASE, IDI_ICON_FOLDER_SIM, IDI_ICON_FOLDER_DENIED, IDI_ICON_DATABASE_DENIED, IDI_ICON_FOLDER_VOLATILE});
     add_icons({tree_images_}, {IDI_ICON_ROOT_KEYS, IDI_APPICON, IDI_ICON_TREE_LOCAL_REGISTRY, IDI_ICON_TREE_REMOTE_REGISTRY, IDI_ICON_TREE_OFFLINE_REGISTRY});
     add_icons({list_images_}, {IDI_ICON_TEXT, IDI_ICON_BINARY, IDI_ICON_TRACE});
 }
@@ -359,12 +359,68 @@ void MainWindow::Impl::ApplySearchColumns(bool compare)
     compare_result_column_active_ = result_available;
 }
 
+void MainWindow::Impl::WatchCurrentKey()
+{
+    const RegistryNode* node = browse_.current_node();
+    const bool live = node && registry_mode_ == RegistryMode::kLocal && !node->simulated && !RegistryStore::IsVirtualRoot(node->root) &&
+                      !RegistryStore::IsOfflineRoot(node->root) && node->root != HKEY_PERFORMANCE_DATA && node->root != HKEY_PERFORMANCE_TEXT &&
+                      node->root != HKEY_PERFORMANCE_NLSTEXT;
+    if (auto_refresh_ && live)
+    {
+        key_watcher_.Watch(hwnd_, frame::message_id::kRegistryChanged, node->root, node->subkey);
+    }
+    else
+    {
+        key_watcher_.Stop();
+    }
+}
+
+void MainWindow::Impl::ApplyAutoRefresh()
+{
+    KillTimer(hwnd_, kAutoRefreshTimerId);
+    RegistryNode* node = browse_.current_node();
+    if (!node)
+    {
+        return;
+    }
+    HWND tree = browse_.tree().hwnd();
+    if (TreeView_GetEditControl(tree) || ListView_GetEditControl(browse_.values().hwnd()) || !pending_value_list_name_.empty())
+    {
+        SetTimer(hwnd_, kAutoRefreshTimerId, 250, nullptr);
+        return;
+    }
+    // rebuilding the tree item collapses its children, so only do it when subkey names changed
+    HTREEITEM item = TreeView_GetSelection(tree);
+    if (item && (TreeView_GetItemState(tree, item, TVIS_EXPANDED) & TVIS_EXPANDED))
+    {
+        std::vector<std::wstring> shown;
+        for (HTREEITEM child = TreeView_GetChild(tree, item); child; child = TreeView_GetNextSibling(tree, child))
+        {
+            const RegistryNode* entry = browse_.tree().NodeFromItem(child);
+            if (entry && !entry->simulated)
+            {
+                shown.push_back(registry_path::Leaf(entry->subkey));
+            }
+        }
+        std::vector<std::wstring> current = RegistryStore::EnumSubKeyNames(*node, false);
+        const auto order = [](const std::wstring& left, const std::wstring& right) { return util::CompareInsensitive(left, right) < 0; };
+        std::sort(shown.begin(), shown.end(), order);
+        std::sort(current.begin(), current.end(), order);
+        if (shown != current)
+        {
+            RefreshTreeSelection();
+        }
+    }
+    UpdateValueListForNode(browse_.current_node());
+}
+
 void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
 {
     if (updating_value_list_)
     {
         return;
     }
+    WatchCurrentKey();
     updating_value_list_ = true;
     appended_value_name_.clear();
     retained_value_name_.clear();

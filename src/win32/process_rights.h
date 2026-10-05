@@ -37,7 +37,14 @@ class PrivilegeScope
     bool held_ = false;
 };
 
+// the user HKEY_CURRENT_USER belongs to, the signed in user while following it
 std::wstring GetCurrentUserSidString();
+bool ShellUserDiffers();
+void SetCurrentUserFollowsShell(bool enable);
+bool CurrentUserFollowsShell();
+HKEY MapCurrentUserRoot(HKEY root);
+std::wstring AccountName(const std::wstring& sid);
+std::wstring GetShellUserDesktop();
 std::wstring GetProcessImagePath(DWORD process_id);
 bool IsProcessElevated();
 bool IsProcessPrivileged();

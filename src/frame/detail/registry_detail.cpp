@@ -302,6 +302,12 @@ std::wstring NormalizeTraceKeyPathBasic(const std::wstring& text)
     {
         return L"";
     }
+    // traces keep showing native machine class reads under the merged HKCR view
+    constexpr std::wstring_view kMachineClasses = L"REGISTRY\\MACHINE\\SOFTWARE\\Classes";
+    if (registry_path::HasComponentPrefix(path, kMachineClasses))
+    {
+        path.replace(0, kMachineClasses.size(), L"HKEY_CLASSES_ROOT");
+    }
     path = registry_path::Normalize(path, sid);
     const std::wstring current_user = L"HKEY_USERS\\" + sid;
     if (!sid.empty() &&

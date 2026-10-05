@@ -148,6 +148,15 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(const change
             ok = RegistryStore::SetValue(operation.node, value.name, value.type, value.data);
             break;
         }
+    case changes::UndoOperation::Type::kReplaceKey:
+        {
+            ok = changes::ReplaceKey(operation.node, redo ? operation.new_key_snapshot : operation.key_snapshot);
+            if (ok)
+            {
+                RefreshTreeSelection();
+            }
+            break;
+        }
     case changes::UndoOperation::Type::kRenameValue:
         {
             std::wstring from = redo ? operation.name : operation.new_name;

@@ -805,7 +805,7 @@ bool ConfirmOverwrite(HWND owner, const std::wstring& path, const std::wstring& 
            PromptKeyChoice(owner, util::Tr(L"The file already exists. Replace it?"), path, kAppTitle, util::Tr(L"Replace"), L"", util::Tr(L"Cancel")) == IDYES;
 }
 
-bool ConfirmConversionSkips(HWND owner, const std::vector<std::wstring>& skipped)
+bool ConfirmConversionSkips(HWND owner, const std::vector<std::wstring>& skipped, const wchar_t* action)
 {
     std::wstring detail;
     for (const std::wstring& entry : skipped)
@@ -815,7 +815,7 @@ bool ConfirmConversionSkips(HWND owner, const std::vector<std::wstring>& skipped
     const std::wstring message = util::Tr(L"These entries can't be written in this format and will be left out.");
     const int lines = std::min(static_cast<int>(skipped.size()), kMaxDetailLines);
     int result = IDCANCEL;
-    return ShowChoiceDialog(owner, kAppTitle, message, util::Tr(L"Convert"), L"", util::Tr(L"Cancel"), &result, IDI_WARNING, 800, 150 + (lines - 1) * 16, {}, detail) &&
+    return ShowChoiceDialog(owner, kAppTitle, message, action ? action : util::Tr(L"Convert"), L"", util::Tr(L"Cancel"), &result, IDI_WARNING, 800, 150 + (lines - 1) * 16, {}, detail) &&
            result == IDYES;
 }
 

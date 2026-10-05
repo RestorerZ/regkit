@@ -3,6 +3,7 @@
 
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
+#include "registry/resource_list.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
 
@@ -116,6 +117,7 @@ bool MainWindow::Impl::HandleMutationCommand(int command_id)
         }
     case cmd::kCreateSimulatedKey:
     case cmd::kNewKey:
+    case cmd::kNewVolatileKey:
     case cmd::kNewString:
     case cmd::kNewExpandString:
     case cmd::kNewBinary:
@@ -183,6 +185,7 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
             return true;
         }
     case cmd::kNewKey:
+    case cmd::kNewVolatileKey:
         {
             if (!EnsureWritable())
             {
@@ -197,13 +200,18 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
             {
                 return true;
             }
-            if (!RegistryStore::CreateKey(*browse_.current_node(), name))
+            bool made_volatile = false;
+            if (!RegistryStore::CreateKey(*browse_.current_node(), name, {.is_volatile = command_id == cmd::kNewVolatileKey}, &made_volatile))
             {
                 ui::ShowError(hwnd_, util::Tr(L"Failed to create the key."));
             }
             else
             {
-                AppendHistoryEntry(L"Create key " + name, L"", L"");
+                AppendHistoryEntry((made_volatile ? L"Create volatile key " : L"Create key ") + name, L"", L"");
+                if (made_volatile && command_id == cmd::kNewKey)
+                {
+                    SetStatusMessage(util::Tr(L"Created a volatile key, because its parent key is volatile."));
+                }
                 MarkOfflineDirty();
                 changes::UndoOperation op;
                 op.type = changes::UndoOperation::Type::kCreateKey;
@@ -510,6 +518,13 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                 base_type == REG_SZ || base_type == REG_EXPAND_SZ || base_type == REG_MULTI_SZ || base_type == REG_DWORD ||
                 base_type == REG_DWORD_BIG_ENDIAN || base_type == REG_QWORD || base_type == REG_LINK;
             std::vector<BYTE> new_data;
+            // resource lists are kernel written hardware assignments, modify shows them decoded with hex as a fallback
+            const bool resource = command_id == cmd::kEditModify && resource_list::IsResourceType(base_type);
+            const bool edit_binary = command_id == cmd::kEditModifyBinary || base_type == REG_BINARY || base_type == REG_NONE || (resource && ShowResourceList(entry));
+            if (resource && !edit_binary)
+            {
+                return true;
+            }
             if (command_id == cmd::kEditBits)
             {
                 editors::BitsRequest request;
@@ -523,9 +538,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                     return true;
                 }
             }
-            else if (command_id == cmd::kEditModifyBinary || base_type == REG_BINARY || base_type == REG_NONE ||
-                     base_type == REG_RESOURCE_LIST || base_type == REG_FULL_RESOURCE_DESCRIPTOR ||
-                     base_type == REG_RESOURCE_REQUIREMENTS_LIST)
+            else if (edit_binary)
             {
                 editors::BinaryRequest request;
                 request.value_name = entry.name;
@@ -757,7 +770,7 @@ bool MainWindow::Impl::HandleResetDefaultCommand(int command_id)
         {
             return true;
         }
-        if (!ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Value"), name))
+        if (!ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Value"), registry_path::DisplayName(name)))
         {
             return true;
         }
@@ -994,7 +1007,7 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                     return true;
                 }
                 std::wstring display_name = row->extra.empty() ? L"(Default)" : row->extra;
-                if (!ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Value"), row->extra))
+                if (!ui::ConfirmDelete(hwnd_, util::Tr(L"Delete Value"), registry_path::DisplayName(row->extra)))
                 {
                     return true;
                 }

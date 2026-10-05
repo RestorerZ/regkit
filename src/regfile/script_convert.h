@@ -26,7 +26,7 @@ bool FormatFromPath(std::wstring_view path, Format* format);
 const wchar_t* FormatExtension(Format format);
 bool ReadOperations(const std::wstring& path, std::vector<Operation>* operations, std::wstring* error);
 bool ReadOperations(const std::wstring& path, Format format, std::vector<Operation>* operations, std::wstring* error);
-bool ReadRegistry(const std::wstring& key_path, bool recursive, std::vector<Operation>* operations, std::wstring* error);
+bool ReadRegistry(const std::wstring& key_path, bool recursive, std::vector<Operation>* operations, std::wstring* error, std::vector<std::wstring>* skipped = nullptr);
 bool SelectKey(const std::wstring& key_path, bool recursive, std::vector<Operation>* operations, std::wstring* error);
 std::wstring RenderOperations(Format format, const std::vector<Operation>& operations, bool admin_check, std::vector<std::wstring>* skipped);
 bool SaveRendered(const std::wstring& path, Format format, const std::wstring& text);

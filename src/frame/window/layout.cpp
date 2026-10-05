@@ -598,15 +598,6 @@ void MainWindow::Impl::EnsureHiveListLoaded()
 
 std::wstring MainWindow::Impl::LookupHivePath(const RegistryNode& node, bool* is_root)
 {
-    if (is_root)
-    {
-        *is_root = false;
-    }
-    EnsureHiveListLoaded();
-    if (hive_list_.empty())
-    {
-        return L"";
-    }
     std::wstring nt_path = registry_path::BuildNative(node);
     if (nt_path.empty() && !node.root_name.empty())
     {
@@ -644,7 +635,17 @@ std::wstring MainWindow::Impl::LookupHivePath(const RegistryNode& node, bool* is
             nt_path += L"\\" + node.subkey;
         }
     }
-    if (nt_path.empty())
+    return LookupNativeHivePath(nt_path, is_root);
+}
+
+std::wstring MainWindow::Impl::LookupNativeHivePath(const std::wstring& nt_path, bool* is_root)
+{
+    if (is_root)
+    {
+        *is_root = false;
+    }
+    EnsureHiveListLoaded();
+    if (hive_list_.empty() || nt_path.empty())
     {
         return L"";
     }
@@ -693,9 +694,9 @@ int MainWindow::Impl::KeyIconIndex(const RegistryNode& node, bool* is_link, bool
     {
         return kFolderSimIconIndex;
     }
-    std::wstring link_target;
-    bool denied = false;
-    if (RegistryStore::QuerySymbolicLinkTarget(node, &link_target, &denied))
+    const KeyInspection inspection = RegistryStore::InspectKey(node, false);
+    const bool denied = inspection.denied;
+    if (inspection.link)
     {
         if (is_link)
         {
@@ -721,7 +722,7 @@ int MainWindow::Impl::KeyIconIndex(const RegistryNode& node, bool* is_link, bool
         }
         return denied ? kDatabaseDeniedIconIndex : kDatabaseIconIndex;
     }
-    return denied ? kFolderDeniedIconIndex : kFolderIconIndex;
+    return denied ? kFolderDeniedIconIndex : inspection.is_volatile ? kFolderVolatileIconIndex : kFolderIconIndex;
 }
 
 std::wstring MainWindow::Impl::ResolveIconDir(bool use_light) const

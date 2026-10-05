@@ -160,7 +160,7 @@ bool UseBinaryValueIcon(DWORD type)
 ListRow MakeValueListRow(const std::wstring& name, DWORD type, const BYTE* data, DWORD data_size)
 {
     ListRow row;
-    row.name = name.empty() ? util::Tr(L"(Default)") : name;
+    row.name = name.empty() ? util::Tr(L"(Default)") : registry_path::DisplayName(name);
     row.type = value_format::TypeName(type);
     row.data_ready = data_size == 0 || data != nullptr;
     if (row.data_ready && data_size > 0)

@@ -1073,6 +1073,8 @@ void MainWindow::Impl::LoadSettings()
     settings.show_simulated_keys = show_simulated_keys_;
     settings.show_extra_hives = show_extra_hives_;
     settings.show_value_grid = show_value_grid_;
+    settings.auto_refresh = auto_refresh_;
+    settings.hkcu_follows_shell_user = hkcu_follows_shell_user_;
     settings.save_tree_state = save_tree_state_;
     settings.save_tab_kinds = save_tab_kinds_;
     settings.save_tabs = save_tab_kinds_ != 0;
@@ -1121,6 +1123,9 @@ void MainWindow::Impl::LoadSettings()
     show_simulated_keys_ = settings.show_simulated_keys;
     show_extra_hives_ = settings.show_extra_hives;
     show_value_grid_ = settings.show_value_grid;
+    auto_refresh_ = settings.auto_refresh;
+    hkcu_follows_shell_user_ = settings.hkcu_follows_shell_user;
+    util::SetCurrentUserFollowsShell(hkcu_follows_shell_user_);
     save_tree_state_ = settings.save_tree_state;
     save_tab_kinds_ = settings.save_tab_kinds;
     always_run_as_admin_ = settings.always_run_as_admin;
@@ -1182,6 +1187,8 @@ workspace::Settings MainWindow::Impl::CurrentSettings() const
     settings.show_simulated_keys = show_simulated_keys_;
     settings.show_extra_hives = show_extra_hives_;
     settings.show_value_grid = show_value_grid_;
+    settings.auto_refresh = auto_refresh_;
+    settings.hkcu_follows_shell_user = hkcu_follows_shell_user_;
     settings.save_tree_state = save_tree_state_;
     settings.save_tab_kinds = save_tab_kinds_;
     settings.save_tabs = save_tab_kinds_ != 0;

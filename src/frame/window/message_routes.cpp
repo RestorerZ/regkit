@@ -1179,7 +1179,18 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
             }
             return 0;
         }
+    case frame::message_id::kRegistryChanged:
+        if (wparam == key_watcher_.generation())
+        {
+            SetTimer(hwnd_, kAutoRefreshTimerId, 250, nullptr);
+        }
+        return 0;
     case WM_TIMER:
+        if (wparam == kAutoRefreshTimerId)
+        {
+            ApplyAutoRefresh();
+            return 0;
+        }
         if (wparam == kStatusMessageTimerId)
         {
             KillTimer(hwnd_, kStatusMessageTimerId);
@@ -1359,6 +1370,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
             CheckMenuItem(menu, cmd::kViewGridLines, MF_BYCOMMAND | (show_value_grid_ ? MF_CHECKED : MF_UNCHECKED));
             UINT state = browse_.current_node() ? MF_ENABLED : MF_GRAYED;
             EnableMenuItem(menu, cmd::kEditPermissions, MF_BYCOMMAND | state);
+            EnableMenuItem(menu, cmd::kEditKeyInfo, MF_BYCOMMAND | state);
             const int selected_count = browse_.values().hwnd() ? ListView_GetSelectedCount(browse_.values().hwnd()) : 0;
             const int selected_index =
                 selected_count == 1 ? ListView_GetNextItem(browse_.values().hwnd(), -1, LVNI_SELECTED) : -1;

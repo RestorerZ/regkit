@@ -95,7 +95,7 @@ std::wstring MainWindow::Impl::SearchCellFieldText(const search::Result& result,
     case 0:
         return result.key_path;
     case 1:
-        return std::wstring(search::DisplayName(result));
+        return registry_path::DisplayName(search::DisplayName(result));
     case 2:
         return search::TypeText(result);
     case 3:
@@ -787,12 +787,8 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
         {
             return FALSE;
         }
-        std::wstring new_name = TrimWhitespace(disp->item.pszText);
+        std::wstring new_name = registry_path::RawName(TrimWhitespace(disp->item.pszText));
         std::wstring old_name = row->extra;
-        if (row->kind == rowkind::kKey)
-        {
-            new_name = registry_path::RawName(new_name);
-        }
         if (new_name.empty() || EqualsInsensitive(new_name, old_name))
         {
             return FALSE;
@@ -1075,13 +1071,15 @@ LRESULT MainWindow::Impl::HandleSearchListCustomDraw(NMLVCUSTOMDRAW* draw)
                 return CDRF_DODEFAULT;
             }
             std::wstring_view cell_text;
+            std::wstring name_text;
             switch (subitem)
             {
             case 0:
                 cell_text = result->key_path;
                 break;
             case 1:
-                cell_text = search::DisplayName(*result);
+                name_text = registry_path::DisplayName(search::DisplayName(*result));
+                cell_text = name_text;
                 break;
             case 3:
                 cell_text = result->data_text;

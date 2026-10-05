@@ -159,11 +159,15 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
             CreateDirectoryW(own_desktop.Get(), nullptr);
         }
         IShellItem* desktop = nullptr;
-        if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Desktop, KF_FLAG_NO_ALIAS, util::OpenShellToken(TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE).get(), IID_PPV_ARGS(&desktop))))
+        PIDLIST_ABSOLUTE desktop_id = nullptr;
+        const std::wstring desktop_path = util::GetShellUserDesktop();
+        if (!desktop_path.empty() && SUCCEEDED(SHParseDisplayName(desktop_path.c_str(), nullptr, &desktop_id, 0, nullptr)) &&
+            SUCCEEDED(SHCreateShellItem(nullptr, nullptr, desktop_id, &desktop)))
         {
             dialog->SetFolder(desktop);
             desktop->Release();
         }
+        CoTaskMemFree(desktop_id);
     }
 
     constexpr DWORD kOpenAfterCombo = 2;

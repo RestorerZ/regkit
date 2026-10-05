@@ -136,11 +136,11 @@ bool Convert(HWND dialog, State* state)
 
     std::vector<regfile::Operation> operations;
     std::wstring error;
+    std::vector<std::wstring> skipped;
     HCURSOR cursor = SetCursor(LoadCursorW(nullptr, IDC_WAIT));
-    const bool read = registry ? regfile::ReadRegistry(settings.key_path, settings.recursive, &operations, &error)
+    const bool read = registry ? regfile::ReadRegistry(settings.key_path, settings.recursive, &operations, &error, &skipped)
                                : regfile::ReadOperations(settings.input_path, SourceFormat(settings.source), &operations, &error) &&
                                      (settings.key_path.empty() || regfile::SelectKey(settings.key_path, settings.recursive, &operations, &error));
-    std::vector<std::wstring> skipped;
     const std::wstring text = read ? regfile::RenderOperations(settings.format, operations, settings.admin_check, &skipped) : std::wstring();
     SetCursor(cursor);
     if (!read)

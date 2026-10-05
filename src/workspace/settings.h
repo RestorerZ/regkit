@@ -36,6 +36,8 @@ struct Settings
     bool show_simulated_keys = true;
     bool show_extra_hives = false;
     bool show_value_grid = false;
+    bool auto_refresh = false;
+    bool hkcu_follows_shell_user = true;
     bool save_tree_state = true;
     bool save_tabs = true;
     int save_tab_kinds = kSaveTabsAll;

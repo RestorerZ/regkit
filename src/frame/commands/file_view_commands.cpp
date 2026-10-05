@@ -3,11 +3,74 @@
 
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
+#include "win32/registry_view.h"
 #include "win32/translation.h"
 
 namespace regkit
 {
 using namespace command_detail;
+
+namespace
+{
+
+constexpr size_t kRestoreUndoLimit = 10000;
+
+size_t CountKeys(const RegistryNode& node, size_t limit)
+{
+    size_t count = 1;
+    for (const std::wstring& name : RegistryStore::EnumSubKeyNames(node, false))
+    {
+        if (count > limit)
+        {
+            break;
+        }
+        count += CountKeys(registry_path::ChildNode(node, name), limit - count);
+    }
+    return count;
+}
+
+} // namespace
+
+void MainWindow::Impl::RestoreHiveFile(const std::wstring& path)
+{
+    if (!browse_.current_node())
+    {
+        return;
+    }
+    const RegistryNode node = SelectedKeyNode();
+    if (registry_mode_ != RegistryMode::kLocal || node.root == HKEY_CLASSES_ROOT || RegistryStore::IsVirtualRoot(node.root))
+    {
+        ui::ShowError(hwnd_, util::Tr(L"Hive files can only be restored into the local registry, outside HKEY_CLASSES_ROOT."));
+        return;
+    }
+    // ponytail: fixed key limit for the undo snapshot, size it by memory if large restores need undo
+    changes::KeySnapshot before;
+    const bool can_undo = CountKeys(node, kRestoreUndoLimit) <= kRestoreUndoLimit && (before = changes::CaptureKey(node)).complete;
+    const std::wstring message = can_undo ? util::Tr(L"Replace all contents of this key with the hive file?")
+                                          : util::Tr(L"Replace all contents of this key with the hive file? This key is too large to undo the restore.");
+    if (ui::PromptKeyChoice(hwnd_, message, registry_path::Build(node) + L"\r\n" + path, util::Tr(L"Restore Key"), util::Tr(L"Restore"), L"", util::Tr(L"Cancel")) != IDYES)
+    {
+        return;
+    }
+    const LONG status = RestoreKeyFromHive(node.root, node.subkey, win32::kDefaultRegistryView, path);
+    if (status != ERROR_SUCCESS)
+    {
+        ui::ShowError(hwnd_, HiveTransferError(status, path));
+        return;
+    }
+    AppendHistoryEntry(L"Restore key from hive file " + util::FileName(path), L"", path);
+    if (can_undo)
+    {
+        changes::UndoOperation op;
+        op.type = changes::UndoOperation::Type::kReplaceKey;
+        op.node = node;
+        op.key_snapshot = std::move(before);
+        op.new_key_snapshot = changes::CaptureKey(node);
+        PushUndo(std::move(op));
+    }
+    RefreshTreeSelection();
+    UpdateValueListForNode(browse_.current_node());
+}
 
 bool MainWindow::Impl::HandleDynamicCommand(int command_id)
 {
@@ -114,8 +177,13 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
                 return true;
             }
             std::wstring path;
-            if (!ui::PromptOpenFile(hwnd_, ui::kRegFileFilter, &path))
+            if (!ui::PromptOpenFile(hwnd_, ui::kImportFileFilter, &path))
             {
+                return true;
+            }
+            if (IsHiveFile(path))
+            {
+                RestoreHiveFile(path);
                 return true;
             }
             std::wstring error;
@@ -261,7 +329,8 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             std::wstring path = registry_path::Build(*browse_.current_node());
             std::wstring saved_path;
             win32::OpenAfter open_after = win32::OpenAfter::kNone;
-            if (ExportRegFile(hwnd_, path, &error, &saved_path, &open_after))
+            const bool allow_hive = registry_mode_ == RegistryMode::kLocal && browse_.current_node()->root != HKEY_CLASSES_ROOT;
+            if (ExportRegFile(hwnd_, path, allow_hive, &error, &saved_path, &open_after))
             {
                 HistoryEntry entry;
                 entry.action = L"Export registry key";
@@ -568,6 +637,12 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         return true;
     case cmd::kViewGridLines:
         SetValueGridEnabled(!show_value_grid_, true);
+        return true;
+    case cmd::kViewAutoRefresh:
+        auto_refresh_ = !auto_refresh_;
+        SaveSettings();
+        BuildMenus();
+        WatchCurrentKey();
         return true;
     case cmd::kViewKeysInList:
         show_keys_in_list_ = !show_keys_in_list_;

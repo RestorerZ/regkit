@@ -167,6 +167,23 @@ struct CloseOfflineKey
     }
 };
 
+// currentcontrolset is a volatile link windows builds at boot, offline it maps through Select\Current
+std::wstring ResolveControlSet(OffregApi* api, ORHKEY root, const std::wstring& subkey)
+{
+    constexpr std::wstring_view kLink = L"CurrentControlSet";
+    DWORD current = 0;
+    DWORD size = sizeof(current);
+    DWORD type = 0;
+    if (!registry_path::HasComponentPrefix(subkey, kLink) ||
+        api->get_value(root, L"Select", L"Current", &type, &current, &size) != ERROR_SUCCESS || type != REG_DWORD || current > 999)
+    {
+        return subkey;
+    }
+    wchar_t control_set[16] = {};
+    swprintf_s(control_set, L"ControlSet%03lu", current);
+    return control_set + subkey.substr(kLink.size());
+}
+
 class OfflineKey
 {
   public:
@@ -174,7 +191,8 @@ class OfflineKey
         : api_(Api())
     {
         ORHKEY root = reinterpret_cast<ORHKEY>(node.root);
-        if (!api_ || !root)
+        // offreg cuts names at embedded nulls, which would address another key
+        if (!api_ || !root || HasNull(node.subkey))
         {
             return;
         }
@@ -183,7 +201,7 @@ class OfflineKey
             // hive roots stay owned by the caller while opened subkeys are owned here
             key_ = root;
         }
-        else if (api_->open_key(root, node.subkey.c_str(), owner_.put()) == ERROR_SUCCESS)
+        else if (api_->open_key(root, ResolveControlSet(api_, root, node.subkey).c_str(), owner_.put()) == ERROR_SUCCESS)
         {
             key_ = owner_.get();
         }
@@ -191,7 +209,7 @@ class OfflineKey
     OfflineKey(OffregApi* api, ORHKEY parent, const std::wstring& name)
         : api_(api)
     {
-        if (api_->open_key(parent, name.c_str(), owner_.put()) == ERROR_SUCCESS)
+        if (!HasNull(name) && api_->open_key(parent, name.c_str(), owner_.put()) == ERROR_SUCCESS)
         {
             key_ = owner_.get();
         }
@@ -210,9 +228,9 @@ class OfflineKey
         return *api_;
     }
 
-    LONG QueryInfo(DWORD* subkeys, DWORD* max_subkey_length, DWORD* values, DWORD* max_value_name_length, DWORD* max_value_data_length, FILETIME* last_write) const
+    LONG QueryInfo(DWORD* subkeys, DWORD* max_subkey_length, DWORD* values, DWORD* max_value_name_length, DWORD* max_value_data_length, FILETIME* last_write, wchar_t* class_name = nullptr, DWORD* class_length = nullptr, DWORD* max_class_length = nullptr) const
     {
-        return static_cast<LONG>(api_->query_info(key_, nullptr, nullptr, subkeys, max_subkey_length, nullptr, values, max_value_name_length, max_value_data_length, nullptr, last_write));
+        return static_cast<LONG>(api_->query_info(key_, class_name, class_length, subkeys, max_subkey_length, max_class_length, values, max_value_name_length, max_value_data_length, nullptr, last_write));
     }
     LONG EnumKey(DWORD index, wchar_t* name, DWORD* length) const
     {
@@ -222,17 +240,17 @@ class OfflineKey
     {
         return static_cast<LONG>(api_->enum_value(key_, index, name, name_length, type, data, data_length));
     }
-    LONG GetValue(const wchar_t* name, DWORD* type, BYTE* data, DWORD* size) const
+    LONG GetValue(const std::wstring& name, DWORD* type, BYTE* data, DWORD* size) const
     {
-        return static_cast<LONG>(api_->get_value(key_, nullptr, name, type, data, size));
+        return HasNull(name) ? ERROR_INVALID_PARAMETER : static_cast<LONG>(api_->get_value(key_, nullptr, ValueNameArg(name), type, data, size));
     }
-    LONG SetValue(const wchar_t* name, DWORD type, const BYTE* data, DWORD size) const
+    LONG SetValue(const std::wstring& name, DWORD type, const BYTE* data, DWORD size) const
     {
-        return static_cast<LONG>(api_->set_value(key_, name, type, data, size));
+        return HasNull(name) ? ERROR_INVALID_PARAMETER : static_cast<LONG>(api_->set_value(key_, ValueNameArg(name), type, data, size));
     }
-    LONG DeleteValue(const wchar_t* name) const
+    LONG DeleteValue(const std::wstring& name) const
     {
-        return static_cast<LONG>(api_->delete_value(key_, name));
+        return HasNull(name) ? ERROR_INVALID_PARAMETER : static_cast<LONG>(api_->delete_value(key_, ValueNameArg(name)));
     }
     LONG GetSecurity(SECURITY_INFORMATION information, PSECURITY_DESCRIPTOR descriptor, DWORD* size) const
     {
@@ -395,32 +413,38 @@ bool QueryValue(const RegistryNode& node, const std::wstring& value_name, Regist
     return key && registry_backend::QueryValue(key, value_name, out);
 }
 
-bool CreateKey(const RegistryNode& node, const std::wstring& name)
+bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details)
+{
+    const OfflineKey key(node);
+    return key && registry_backend::QueryKeyDetails(key, details);
+}
+
+bool CreateKey(const RegistryNode& node, const std::wstring& name, const std::wstring& class_name)
 {
     const OfflineKey parent(node);
-    if (!parent)
+    if (!parent || HasNull(name))
     {
         return false;
     }
     util::UniqueResource<ORHKEY, CloseOfflineKey> created;
     DWORD disposition = 0;
     // dont report an existing key as newly created
-    return parent.api().create_key(parent.get(), name.c_str(), nullptr, 0, nullptr, created.put(), &disposition) ==
+    return parent.api().create_key(parent.get(), name.c_str(), class_name.empty() ? nullptr : const_cast<PWSTR>(class_name.c_str()), 0, nullptr, created.put(), &disposition) ==
                ERROR_SUCCESS &&
            disposition == REG_CREATED_NEW_KEY;
 }
 
-bool ReadKeySecurity(const RegistryNode& node, std::vector<BYTE>* descriptor)
+bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor)
 {
     descriptor->clear();
     const OfflineKey key(node);
-    return key && ReadSecurity(key, descriptor);
+    return key && ReadSecurity(key, parts, descriptor);
 }
 
-bool WriteKeySecurity(const RegistryNode& node, const std::vector<BYTE>& descriptor)
+bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor)
 {
     const OfflineKey key(node);
-    return key && WriteSecurity(key, descriptor);
+    return key && WriteSecurity(key, parts, descriptor);
 }
 
 bool DeleteKey(const RegistryNode& node)
@@ -438,19 +462,19 @@ bool DeleteKey(const RegistryNode& node)
 bool RenameKey(const RegistryNode& node, const std::wstring& new_name)
 {
     const OfflineKey key(node);
-    return key && key.api().rename_key(key.get(), new_name.c_str()) == ERROR_SUCCESS;
+    return key && !HasNull(new_name) && key.api().rename_key(key.get(), new_name.c_str()) == ERROR_SUCCESS;
 }
 
 bool DeleteValue(const RegistryNode& node, const std::wstring& value_name)
 {
     const OfflineKey key(node);
-    return key && key.DeleteValue(ValueNameArg(value_name)) == ERROR_SUCCESS;
+    return key && key.DeleteValue(value_name) == ERROR_SUCCESS;
 }
 
 bool SetValue(const RegistryNode& node, const std::wstring& value_name, DWORD type, const std::vector<BYTE>& data)
 {
     const OfflineKey key(node);
-    return key && key.SetValue(ValueNameArg(value_name), type, data.empty() ? nullptr : data.data(), static_cast<DWORD>(data.size())) == ERROR_SUCCESS;
+    return key && key.SetValue(value_name, type, data.empty() ? nullptr : data.data(), static_cast<DWORD>(data.size())) == ERROR_SUCCESS;
 }
 
 bool RenameValue(const RegistryNode& node, const std::wstring& old_name, const std::wstring& new_name, bool* both_names_left)

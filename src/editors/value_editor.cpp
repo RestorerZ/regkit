@@ -19,6 +19,7 @@
 #include <limits>
 
 #include "appearance/feedback.h"
+#include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "win32/translation.h"
 #include "resource.h"
@@ -91,7 +92,7 @@ void ConfigureReadOnlyNameField(HWND dlg, const std::wstring& name)
     {
         return;
     }
-    SetWindowTextW(name_value, name.c_str());
+    SetWindowTextW(name_value, registry_path::DisplayName(name).c_str());
     ShowWindow(name_value, SW_SHOW);
     SendMessageW(name_value, EM_SETREADONLY, TRUE, 0);
     LONG_PTR style = GetWindowLongPtrW(name_value, GWL_STYLE);

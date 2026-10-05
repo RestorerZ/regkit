@@ -125,6 +125,13 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
     }
 }
 
+RegistryNode MainWindow::Impl::SelectedKeyNode() const
+{
+    int index = -1;
+    const ListRow* row = SelectedValueRow(browse_.values(), &index);
+    return row && row->kind == rowkind::kKey && !row->extra.empty() ? ChildNode(*browse_.current_node(), row->extra) : *browse_.current_node();
+}
+
 bool MainWindow::Impl::HandleNavigateClipboardCommand(int command_id)
 {
     switch (command_id)
@@ -139,10 +146,14 @@ bool MainWindow::Impl::HandleNavigateClipboardCommand(int command_id)
     case cmd::kEditCopyKeyPathPowerShell:
     case cmd::kEditCopyKeyPathPowerShellProvider:
     case cmd::kEditCopyKeyPathEscaped:
+    case cmd::kEditCopyKeyPathNative:
+    case cmd::kEditCopyKeyPathNativeResolved:
     case cmd::kEditCopy:
         return HandleClipboardCommand(command_id);
     case cmd::kEditGoTo:
     case cmd::kEditPermissions:
+    case cmd::kEditKeyInfo:
+    case cmd::kEditOpenSourceHive:
     case cmd::kEditFind:
         return HandleEditToolsCommand(command_id);
     case cmd::kEditPaste:
@@ -230,7 +241,33 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
     case cmd::kEditCopyKeyPathPowerShell:
     case cmd::kEditCopyKeyPathPowerShellProvider:
     case cmd::kEditCopyKeyPathEscaped:
+    case cmd::kEditCopyKeyPathNative:
+    case cmd::kEditCopyKeyPathNativeResolved:
         {
+            if (command_id == cmd::kEditCopyKeyPathNative || command_id == cmd::kEditCopyKeyPathNativeResolved)
+            {
+                if (!browse_.current_node())
+                {
+                    return true;
+                }
+                const RegistryNode node = SelectedKeyNode();
+                // hkcr is a merged view, so only the opened key knows which hive it lives in
+                std::wstring native = command_id == cmd::kEditCopyKeyPathNative ? registry_path::BuildNative(node) : std::wstring();
+                KeyDetails details;
+                if (native.empty() && RegistryStore::QueryKeyDetails(node, &details))
+                {
+                    native = std::move(details.native.native_name);
+                }
+                if (native.empty())
+                {
+                    native = registry_path::BuildNative(node);
+                }
+                if (!native.empty())
+                {
+                    ui::CopyTextToClipboard(hwnd_, registry_path::DisplayName(native));
+                }
+                return true;
+            }
             auto build_path = [&]() -> std::wstring {
                 std::wstring path;
                 int index = -1;
@@ -293,7 +330,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                 clipboard_.kind = ClipboardItem::Kind::kKey;
                 clipboard_.source_parent = parent;
                 clipboard_.name = LeafName(node);
-                clipboard_.key_snapshot = changes::CaptureKey(node);
+                clipboard_.key_snapshot = changes::CaptureKey(node, false);
                 ui::CopyTextToClipboard(hwnd_, registry_path::Build(node));
                 return true;
             }
@@ -329,7 +366,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                             clipboard_.kind = ClipboardItem::Kind::kKey;
                             clipboard_.source_parent = *browse_.current_node();
                             clipboard_.name = row->extra;
-                            clipboard_.key_snapshot = changes::CaptureKey(child);
+                            clipboard_.key_snapshot = changes::CaptureKey(child, false);
                         }
                     }
                     else if (list == browse_.values().hwnd())
@@ -368,7 +405,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                 clipboard_.kind = ClipboardItem::Kind::kKey;
                 clipboard_.source_parent = *browse_.current_node();
                 clipboard_.name = row->extra;
-                clipboard_.key_snapshot = changes::CaptureKey(child);
+                clipboard_.key_snapshot = changes::CaptureKey(child, false);
                 ui::CopyTextToClipboard(hwnd_, registry_path::Build(child));
                 return true;
             }
@@ -393,22 +430,31 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id)
         }
         return true;
     case cmd::kEditPermissions:
-        if (!EnsureWritable())
+    case cmd::kEditKeyInfo:
+    case cmd::kEditOpenSourceHive:
+        if (command_id == cmd::kEditPermissions && !EnsureWritable())
         {
             return true;
         }
         if (browse_.current_node())
         {
-            int index = -1;
-            const ListRow* row = SelectedValueRow(browse_.values(), &index);
-            if (row && row->kind == rowkind::kKey && !row->extra.empty())
+            const RegistryNode node = SelectedKeyNode();
+            if (command_id == cmd::kEditPermissions)
             {
-                RegistryNode child = ChildNode(*browse_.current_node(), row->extra);
-                ShowPermissionsDialog(child);
+                ShowPermissionsDialog(node);
+            }
+            else if (command_id == cmd::kEditKeyInfo)
+            {
+                ShowKeyInfoDialog(node);
             }
             else
             {
-                ShowPermissionsDialog(*browse_.current_node());
+                KeyDetails details;
+                const std::wstring source = RegistryStore::QueryKeyDetails(node, &details) ? registry_path::ClassesSourcePath(details.native.native_name, util::GetCurrentUserSidString()) : std::wstring();
+                if (source.empty() || !SelectTreePath(source))
+                {
+                    ui::ShowError(hwnd_, util::Tr(L"The source key couldn't be opened.") + std::wstring(L"\n") + registry_path::Build(node));
+                }
             }
         }
         return true;
@@ -558,6 +604,7 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                 break;
             case ReplayResult::kUnchanged:
                 undo_stack_.CompleteRedo(std::move(*operation));
+                ui::ShowError(hwnd_, util::Tr(L"The change couldn't be undone."));
                 break;
             case ReplayResult::kPartial:
                 break;
@@ -587,6 +634,7 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                 break;
             case ReplayResult::kUnchanged:
                 undo_stack_.CompleteUndo(std::move(*operation));
+                ui::ShowError(hwnd_, util::Tr(L"The change couldn't be redone."));
                 break;
             case ReplayResult::kPartial:
                 break;

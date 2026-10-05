@@ -6,10 +6,12 @@
 #include "win32/text_transform.h"
 
 #include <algorithm>
+#include <atomic>
 #include <vector>
 
 #include <aclapi.h>
 #include <sddl.h>
+#include <shlobj.h>
 #include <userenv.h>
 #include <winsvc.h>
 #include <wtsapi32.h>
@@ -63,6 +65,52 @@ PSID CurrentUserSid(const std::vector<BYTE>& buffer)
 {
     return buffer.empty() ? nullptr : reinterpret_cast<const TOKEN_USER*>(buffer.data())->User.Sid;
 }
+
+std::wstring UserSidString(const std::vector<BYTE>& user)
+{
+    std::wstring text;
+    LPWSTR sid = nullptr;
+    if (!user.empty() && ConvertSidToStringSidW(CurrentUserSid(user), &sid))
+    {
+        text.assign(sid);
+        LocalFree(sid);
+    }
+    return text;
+}
+
+const std::wstring& ProcessUserSid()
+{
+    static const std::wstring cached = UserSidString(CurrentTokenInformation(TokenUser));
+    return cached;
+}
+
+// the signed in desktop user's hives, only set when that user differs from the process user
+struct ShellUserRoots
+{
+    std::wstring sid;
+    UniqueHKey user;
+    UniqueHKey classes;
+};
+
+const ShellUserRoots& ShellRoots()
+{
+    static const ShellUserRoots roots = [] {
+        ShellUserRoots result;
+        const UniqueHandle token = OpenShellToken(TOKEN_QUERY);
+        result.sid = token ? UserSidString(TokenInformation(token.get(), TokenUser)) : std::wstring();
+        if (result.sid.empty() || EqualsInsensitive(result.sid, ProcessUserSid()) ||
+            RegOpenKeyExW(HKEY_USERS, result.sid.c_str(), 0, MAXIMUM_ALLOWED, result.user.put()) != ERROR_SUCCESS)
+        {
+            result.sid.clear();
+            return result;
+        }
+        RegOpenUserClassesRoot(token.get(), 0, MAXIMUM_ALLOWED, result.classes.put());
+        return result;
+    }();
+    return roots;
+}
+
+std::atomic_bool g_follow_shell_user{false};
 
 DWORD GetActiveSessionId()
 {
@@ -441,18 +489,62 @@ std::wstring GetProcessImagePath(DWORD process_id)
 
 std::wstring GetCurrentUserSidString()
 {
-    static const std::wstring cached = [] {
-        std::wstring sid_string;
-        LPWSTR sid = nullptr;
-        const std::vector<BYTE> user = CurrentTokenInformation(TokenUser);
-        if (!user.empty() && ConvertSidToStringSidW(CurrentUserSid(user), &sid))
-        {
-            sid_string.assign(sid);
-            LocalFree(sid);
-        }
-        return sid_string;
-    }();
-    return cached;
+    return CurrentUserFollowsShell() ? ShellRoots().sid : ProcessUserSid();
+}
+
+bool ShellUserDiffers()
+{
+    return !ShellRoots().sid.empty();
+}
+
+void SetCurrentUserFollowsShell(bool enable)
+{
+    g_follow_shell_user = enable;
+}
+
+bool CurrentUserFollowsShell()
+{
+    return g_follow_shell_user && ShellUserDiffers();
+}
+
+HKEY MapCurrentUserRoot(HKEY root)
+{
+    if (!CurrentUserFollowsShell())
+    {
+        return root;
+    }
+    const ShellUserRoots& roots = ShellRoots();
+    return root == HKEY_CURRENT_USER ? roots.user.get() : root == HKEY_CLASSES_ROOT && roots.classes ? roots.classes.get() : root;
+}
+
+std::wstring AccountName(const std::wstring& sid_text)
+{
+    PSID sid = nullptr;
+    if (!ConvertStringSidToSidW(sid_text.c_str(), &sid))
+    {
+        return sid_text;
+    }
+    wchar_t name[256] = {};
+    wchar_t domain[256] = {};
+    DWORD name_size = _countof(name);
+    DWORD domain_size = _countof(domain);
+    SID_NAME_USE use = SidTypeUnknown;
+    const bool found = LookupAccountSidW(nullptr, sid, name, &name_size, domain, &domain_size, &use) != FALSE;
+    LocalFree(sid);
+    return !found ? sid_text : domain[0] ? std::wstring(domain) + L"\\" + name : std::wstring(name);
+}
+
+std::wstring GetShellUserDesktop()
+{
+    // the desktop of the signed in user, also after restarting as SYSTEM or TrustedInstaller
+    PWSTR desktop = nullptr;
+    std::wstring path;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, 0, OpenShellToken(TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE).get(), &desktop)))
+    {
+        path = desktop;
+    }
+    CoTaskMemFree(desktop);
+    return path;
 }
 
 bool IsProcessElevated()
@@ -473,7 +565,7 @@ bool IsUacEnabled()
 bool IsWritableByNonAdmins(const std::wstring& file_path)
 {
     std::vector<std::vector<BYTE>> trusted_sids;
-    const std::wstring user_sid = !IsUacEnabled() && IsProcessElevated() ? GetCurrentUserSidString() : std::wstring();
+    const std::wstring user_sid = !IsUacEnabled() && IsProcessElevated() ? ProcessUserSid() : std::wstring();
     for (const wchar_t* text : {L"S-1-5-18", L"S-1-5-32-544", L"S-1-3-4", L"S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464", user_sid.c_str()})
     {
         PSID sid = nullptr;

@@ -3,6 +3,7 @@
 
 #include "registry/security_dialog.h"
 
+#include "registry/key_access.h"
 #include "registry/registry_path.h"
 #include "win32/process_rights.h"
 #include "win32/registry_native.h"
@@ -21,11 +22,11 @@ namespace regkit
 namespace
 {
 
-class RegistrySecurityInformation : public ISecurityInformation
+class RegistrySecurityInformation : public ISecurityInformation, public IEffectivePermission
 {
   public:
-    RegistrySecurityInformation(HKEY key, std::wstring object_name, bool read_only)
-        : key_(key), object_name_(std::move(object_name)), read_only_(read_only)
+    RegistrySecurityInformation(HKEY key, std::wstring object_name, bool read_only, bool audits)
+        : key_(key), object_name_(std::move(object_name)), read_only_(read_only), audits_(audits)
     {
     }
 
@@ -39,6 +40,12 @@ class RegistrySecurityInformation : public ISecurityInformation
         if (riid == IID_IUnknown || riid == IID_ISecurityInformation)
         {
             *ppv = static_cast<ISecurityInformation*>(this);
+            AddRef();
+            return S_OK;
+        }
+        if (riid == IID_IEffectivePermission)
+        {
+            *ppv = static_cast<IEffectivePermission*>(this);
             AddRef();
             return S_OK;
         }
@@ -62,7 +69,7 @@ class RegistrySecurityInformation : public ISecurityInformation
         {
             return E_POINTER;
         }
-        DWORD flags = SI_ADVANCED | SI_EDIT_OWNER | SI_EDIT_PERMS | SI_CONTAINER;
+        DWORD flags = SI_ADVANCED | SI_EDIT_OWNER | SI_EDIT_PERMS | SI_CONTAINER | SI_EDIT_EFFECTIVE | (audits_ ? SI_EDIT_AUDITS : 0);
         if (read_only_)
         {
             flags |= SI_READONLY | SI_OWNER_READONLY;
@@ -175,10 +182,27 @@ class RegistrySecurityInformation : public ISecurityInformation
         return S_OK;
     }
 
+    HRESULT STDMETHODCALLTYPE GetEffectivePermission(const GUID*, PSID user, LPCWSTR, PSECURITY_DESCRIPTOR descriptor, POBJECT_TYPE_LIST* object_types, ULONG* object_type_count, PACCESS_MASK* granted_list, ULONG* granted_count) override
+    {
+        static OBJECT_TYPE_LIST default_types[] = {{ACCESS_OBJECT_GUID, 0, const_cast<GUID*>(&GUID_NULL)}};
+        auto* granted = static_cast<ACCESS_MASK*>(LocalAlloc(LPTR, sizeof(ACCESS_MASK)));
+        if (!granted)
+        {
+            return E_OUTOFMEMORY;
+        }
+        *granted = key_access::ForSid(descriptor, user);
+        *object_types = default_types;
+        *object_type_count = 1;
+        *granted_list = granted;
+        *granted_count = 1;
+        return S_OK;
+    }
+
   private:
     HKEY key_ = nullptr;
     std::wstring object_name_;
     bool read_only_ = false;
+    bool audits_ = false;
     LONG references_ = 1;
 };
 
@@ -193,30 +217,27 @@ bool ShowRegistryPermissions(HWND owner, const RegistryNode& node)
     }
 
     const util::PrivilegeScope privilege({SE_TAKE_OWNERSHIP_NAME});
-    bool read_only = false;
+    const util::PrivilegeScope restore({SE_RESTORE_NAME});
+    // the auditing page needs a handle with sacl access, which only the security privilege grants
+    const util::PrivilegeScope audit({SE_SECURITY_NAME});
+    const REGSAM audits = audit.held() ? ACCESS_SYSTEM_SECURITY : 0;
     util::UniqueHKey key;
-    LONG result = util::OpenRegistryPath(
-        node.root,
-        node.subkey,
-        READ_CONTROL | WRITE_DAC | WRITE_OWNER | win32::kDefaultRegistryView,
-        true,
-        &key
-    );
-    if (result == ERROR_ACCESS_DENIED)
+    LONG result = ERROR_ACCESS_DENIED;
+    REGSAM granted = 0;
+    for (const REGSAM access : {READ_CONTROL | WRITE_DAC | WRITE_OWNER | audits, REGSAM(READ_CONTROL | WRITE_DAC | WRITE_OWNER), READ_CONTROL | audits, REGSAM(READ_CONTROL), REGSAM(MAXIMUM_ALLOWED)})
     {
-        read_only = true;
-        result = util::OpenRegistryPath(node.root, node.subkey, READ_CONTROL | win32::kDefaultRegistryView, true, &key);
-    }
-    if (result == ERROR_ACCESS_DENIED)
-    {
-        result =
-            util::OpenRegistryPath(node.root, node.subkey, MAXIMUM_ALLOWED | win32::kDefaultRegistryView, true, &key);
+        result = util::OpenRegistryPath(node.root, node.subkey, access | win32::kDefaultRegistryView, true, &key);
+        if (result != ERROR_ACCESS_DENIED && result != ERROR_PRIVILEGE_NOT_HELD)
+        {
+            granted = access;
+            break;
+        }
     }
 
     bool ok = false;
     if (result == ERROR_SUCCESS && key.get())
     {
-        RegistrySecurityInformation info(key.get(), path, read_only);
+        RegistrySecurityInformation info(key.get(), path, !(granted & WRITE_DAC), audits && (granted & ACCESS_SYSTEM_SECURITY));
         ok = SUCCEEDED(EditSecurity(owner, &info));
     }
     return ok;

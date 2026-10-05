@@ -23,6 +23,7 @@ struct UndoOperation
         kDeleteValue,
         kModifyValue,
         kRenameValue,
+        kReplaceKey,
     };
 
     Type type = Type::kCreateKey;
@@ -32,6 +33,7 @@ struct UndoOperation
     RegistryValue old_value;
     RegistryValue new_value;
     KeySnapshot key_snapshot;
+    KeySnapshot new_key_snapshot;
 };
 
 class UndoStack

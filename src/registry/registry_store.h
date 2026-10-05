@@ -5,6 +5,7 @@
 
 #include "registry/registry_value.h"
 #include "registry/virtual_registry.h"
+#include "win32/registry_native.h"
 #include "win32/windows_config.h"
 
 #include <windows.h>
@@ -64,12 +65,38 @@ struct KeyInfo
     FILETIME last_write = {};
 };
 
+enum class ClassSource : unsigned char
+{
+    kNone,
+    kUser,
+    kMachine,
+};
+
 struct KeyInspection
 {
     bool link = false;
     bool denied = false;
+    bool is_volatile = false;
+    ClassSource class_source = ClassSource::kNone;
     bool info_valid = false;
     KeyInfo info;
+};
+
+struct KeyDetails
+{
+    KeyInfo info;
+    DWORD max_subkey_name = 0;
+    DWORD max_class = 0;
+    DWORD max_value_name = 0;
+    DWORD max_value_data = 0;
+    std::wstring class_name;
+    util::NativeKeyInfo native;
+};
+
+struct KeyCreateOptions
+{
+    std::wstring class_name;
+    bool is_volatile = false;
 };
 
 class RegistryStore
@@ -84,6 +111,8 @@ class RegistryStore
     {
         KeyInfo info;
         bool info_valid = false;
+        bool want_options = false;
+        KeyCreateOptions options;
     };
     static bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, KeyEnumResult* out_info, const ValueStreamCallback& value_callback, const SubkeyStreamCallback& subkey_callback, DWORD max_data_size = MAXDWORD, EnumerationScratch* scratch = nullptr, bool ordered = true, bool open_link = false);
     static bool IsOfflineRoot(HKEY root);
@@ -101,11 +130,12 @@ class RegistryStore
     static void UnregisterVirtualRoot(HKEY root);
     static bool IsVirtualRoot(HKEY root);
     static bool GetVirtualRootName(HKEY root, std::wstring* root_name);
-    static bool CreateKey(const RegistryNode& node, const std::wstring& name);
+    static bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details);
+    static bool CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCreateOptions& options = {}, bool* created_volatile = nullptr);
     static bool CreateKeyLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target);
     static bool ReadKeyLink(const RegistryNode& node, std::wstring* target);
-    static bool ReadKeySecurity(const RegistryNode& node, std::vector<BYTE>* descriptor);
-    static bool WriteKeySecurity(const RegistryNode& node, const std::vector<BYTE>& descriptor);
+    static bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor);
+    static bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor, const FILETIME* last_write = nullptr);
     static bool DeleteKey(const RegistryNode& node);
     static bool RenameKey(const RegistryNode& node, const std::wstring& new_name);
     static bool DeleteValue(const RegistryNode& node, const std::wstring& value_name);

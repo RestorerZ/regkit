@@ -8,6 +8,7 @@
 #include "editors/binary_text.h"
 #include "editors/bitfield_editor.h"
 #include "editors/dialog_support.h"
+#include "registry/registry_path.h"
 #include "registry/value_format.h"
 
 #include "resource.h"
@@ -73,7 +74,7 @@ void UpdatePreview(HWND dialog, State* state)
 
 void ConfigureIdentity(HWND dialog, const BinaryRequest& request)
 {
-    const std::wstring name = request.value_name.empty() ? util::Tr(L"(Default)") : request.value_name;
+    const std::wstring name = request.value_name.empty() ? util::Tr(L"(Default)") : registry_path::DisplayName(request.value_name);
     SetDlgItemTextW(dialog, IDC_VALUE_NAME, name.c_str());
     SendDlgItemMessageW(dialog, IDC_VALUE_NAME, EM_SETREADONLY, TRUE, 0);
     const HWND name_control = GetDlgItem(dialog, IDC_VALUE_NAME);

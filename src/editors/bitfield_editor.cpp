@@ -3,6 +3,7 @@
 
 #include "editors/bitfield_editor.h"
 
+#include "registry/registry_path.h"
 #include "registry/value_format.h"
 
 #include "appearance/dialog_layout.h"
@@ -784,7 +785,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         editor = reinterpret_cast<Editor*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(editor));
         SetWindowTextW(dialog, util::Tr(L"Edit Bits"));
-        SetDlgItemTextW(dialog, IDC_VALUE_NAME, editor->value_name.empty() ? util::Tr(L"(Default)") : editor->value_name.c_str());
+        SetDlgItemTextW(dialog, IDC_VALUE_NAME, editor->value_name.empty() ? util::Tr(L"(Default)") : registry_path::DisplayName(editor->value_name).c_str());
         SendDlgItemMessageW(dialog, IDC_VALUE_NAME, EM_SETREADONLY, TRUE, 0);
         SendDlgItemMessageW(dialog, IDC_BITFIELD_COMMENT, EM_SETREADONLY, TRUE, 0);
         const HWND name = GetDlgItem(dialog, IDC_VALUE_NAME);
