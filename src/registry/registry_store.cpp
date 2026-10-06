@@ -133,6 +133,17 @@ bool RegistryStore::QuerySymbolicLinkTarget(const RegistryNode& node, std::wstri
                : registry_backend::live::QuerySymbolicLinkTarget(node, target, denied);
 }
 
+bool RegistryStore::IsBrokenLink(const RegistryNode& node, std::wstring* target)
+{
+    std::wstring ignored;
+    return Dispatch(
+        node,
+        [&](VirtualRegistryData&) { return false; },
+        [&] { return false; },
+        [&] { return registry_backend::live::IsBrokenLink(node, target ? target : &ignored); }
+    );
+}
+
 KeyInspection RegistryStore::InspectKey(const RegistryNode& node, bool want_info, bool want_source)
 {
     KeyInspection result;

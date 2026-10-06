@@ -446,8 +446,13 @@ bool MainWindow::Impl::ConfirmCloseTab(int tab_index)
     {
         return true;
     }
-    return ConfirmOfflineChanges(*entry.session, util::Tr(L"The offline registry has unsaved changes.\n"
-                                                          L"Save before closing the tab?"));
+    if (!ConfirmOfflineChanges(*entry.session, util::Tr(L"The offline registry has unsaved changes.\n"
+                                                        L"Save before closing the tab?")))
+    {
+        return false;
+    }
+    OfferRemoteServiceRestore(*entry.session);
+    return true;
 }
 
 bool MainWindow::Impl::ConfirmOfflineChanges(RegistrySession& session, const wchar_t* message)

@@ -22,6 +22,7 @@ struct TextOptions
     bool match_case = false;
     bool match_whole = false;
     bool use_regex = false;
+    bool match_all = false;
 };
 
 struct Match
@@ -52,8 +53,24 @@ class Matcher
     bool use_regex_ = false;
     bool match_case_ = false;
     bool match_whole_ = false;
+    bool match_all_ = false;
     bool valid_ = true;
 };
+
+enum Anomaly : uint32_t
+{
+    kAnomalyNulName = 1u << 0,
+    kAnomalyOddName = 1u << 1,
+    kAnomalyIntegerSize = 1u << 2,
+    kAnomalyStringEnd = 1u << 3,
+    kAnomalyMultiString = 1u << 4,
+    kAnomalyUnknownType = 1u << 5,
+    kAnomalyBrokenLink = 1u << 6,
+    kAnomalyVirtualStore = 1u << 7,
+};
+inline constexpr uint32_t kValueAnomalies = kAnomalyNulName | kAnomalyOddName | kAnomalyIntegerSize | kAnomalyStringEnd | kAnomalyMultiString | kAnomalyUnknownType;
+inline constexpr uint32_t kKeyAnomalies = kAnomalyNulName | kAnomalyOddName | kAnomalyBrokenLink | kAnomalyVirtualStore;
+inline constexpr uint32_t kDataAnomalies = kAnomalyStringEnd | kAnomalyMultiString;
 
 enum class Provider : uint8_t
 {
@@ -106,6 +123,7 @@ struct Criteria
     bool use_modified_to = false;
     FILETIME modified_to = {};
     std::vector<DWORD> allowed_types;
+    uint32_t anomalies = 0;
     std::vector<StartNode> start_nodes;
     std::vector<std::wstring> exclude_paths;
     uint64_t max_results = 1000;

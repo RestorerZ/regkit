@@ -90,6 +90,8 @@ class MainWindow::Impl
         std::wstring remote_machine;
         HKEY remote_hklm = nullptr;
         HKEY remote_hku = nullptr;
+        bool remote_service_started = false;
+        DWORD remote_service_start_type = 0;
         HKEY offline_root = nullptr;
         std::vector<HKEY> offline_roots;
         std::wstring offline_mount;
@@ -283,6 +285,8 @@ class MainWindow::Impl
     bool SwitchToLocalRegistry();
     bool SwitchToRemoteRegistry();
     bool ConnectRemoteRegistry(const std::wstring& machine, bool open_new_tab = false);
+    bool OfferRemoteServiceStart(const std::wstring& machine, RegistrySession* session);
+    void OfferRemoteServiceRestore(RegistrySession& session);
     bool SwitchToOfflineRegistry();
     bool SaveOfflineRegistry(RegistrySession& session);
     bool LoadOfflineRegistryFromPath(const std::wstring& path, bool open_new_tab);
@@ -294,6 +298,7 @@ class MainWindow::Impl
     void CaptureRegistryTabState(int index);
     void ResetRegistryTreeState();
     void SuspendTreeRedraw();
+    void FlushTreeRedraw();
     void RestoreRegistryTabState(int index);
     std::wstring LocalRegistryTabLabel(int index) const;
     void RefreshRegistryTabLabels();
@@ -666,6 +671,8 @@ class MainWindow::Impl
     bool flushing_external_navigation_ = false;
     bool jump_ui_batch_active_ = false;
     bool tree_redraw_pending_ = false;
+    bool tree_painted_ = false;
+    int pending_show_cmd_ = SW_SHOWNORMAL;
     std::wstring pending_compare_key_path_;
     std::wstring pending_compare_value_name_;
     std::wstring pending_external_value_key_path_;

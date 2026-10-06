@@ -8,6 +8,7 @@
 #include "ui/dialog_support.h"
 #include "ui/feedback.h"
 #include "ui/list_view_support.h"
+#include "win32/text_transform.h"
 #include "win32/window_metrics.h"
 
 #include "resource.h"
@@ -22,6 +23,8 @@ namespace regkit::editors
 namespace
 {
 
+constexpr size_t kInitialRows = 10;
+
 struct State
 {
     const TablesRequest* request = nullptr;
@@ -30,9 +33,36 @@ struct State
     std::vector<HWND> titles;
     std::vector<HWND> lists;
     std::vector<int> heights;
+    std::vector<int> sort_columns;
+    std::vector<bool> sort_ascending;
     int title_height = 0;
     bool ready = false;
 };
+
+int CALLBACK CompareRows(LPARAM left, LPARAM right, int column, void* context)
+{
+    const auto& rows = static_cast<const records::Table*>(context)->rows;
+    const auto cell = [&](LPARAM row) {
+        const auto& cells = rows[static_cast<size_t>(row)];
+        return static_cast<size_t>(column) < cells.size() ? cells[static_cast<size_t>(column)].c_str() : L"";
+    };
+    const wchar_t* a = cell(left);
+    const wchar_t* b = cell(right);
+    if (wcsncmp(a, L"0x", 2) == 0 && wcsncmp(b, L"0x", 2) == 0)
+    {
+        const unsigned long long x = wcstoull(a, nullptr, 16);
+        const unsigned long long y = wcstoull(b, nullptr, 16);
+        return x < y ? -1 : x > y ? 1 : 0;
+    }
+    return util::CompareListText(a, b);
+}
+
+size_t RowOf(HWND list, int item)
+{
+    LPARAM row = 0;
+    appearance::ListViewItemData(list, item, &row);
+    return static_cast<size_t>(row);
+}
 
 std::wstring Line(const std::vector<std::wstring>& cells)
 {
@@ -63,7 +93,7 @@ void CopySelectedRows(HWND dialog, HWND list, const records::Table& table)
     std::wstring text;
     for (int item = ListView_GetNextItem(list, -1, LVNI_SELECTED); item >= 0; item = ListView_GetNextItem(list, item, LVNI_SELECTED))
     {
-        text.append(Line(table.rows[static_cast<size_t>(item)]));
+        text.append(Line(table.rows[RowOf(list, item)]));
     }
     if (!text.empty())
     {
@@ -127,8 +157,9 @@ int FillList(HWND list, const records::Table& table)
     for (size_t row = 0; row < table.rows.size(); ++row)
     {
         LVITEMW item = {};
-        item.mask = LVIF_TEXT;
+        item.mask = LVIF_TEXT | LVIF_PARAM;
         item.iItem = static_cast<int>(row);
+        item.lParam = static_cast<LPARAM>(row);
         item.pszText = const_cast<wchar_t*>(table.rows[row].empty() ? L"" : table.rows[row][0].c_str());
         const int index = ListView_InsertItem(list, &item);
         for (size_t column = 1; column < table.rows[row].size(); ++column)
@@ -158,7 +189,7 @@ void CreateLists(HWND dialog, State* state)
     for (const records::Table& table : state->request->tables)
     {
         HWND title = appearance::CreateControl(dialog, WC_STATICW, table.title.c_str(), SS_LEFT | SS_NOPREFIX, IDC_STATIC);
-        HWND list = appearance::CreateControl(dialog, WC_LISTVIEWW, L"", WS_TABSTOP | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_NOSORTHEADER, 0);
+        HWND list = appearance::CreateControl(dialog, WC_LISTVIEWW, L"", WS_TABSTOP | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SHOWSELALWAYS, 0);
         for (HWND control : {title, list})
         {
             SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(state->font), FALSE);
@@ -179,11 +210,14 @@ void CreateLists(HWND dialog, State* state)
         GetClientRect(list, &client);
         GetWindowRect(ListView_GetHeader(list), &header);
         ListView_GetItemRect(list, 0, &item, LVIR_BOUNDS);
-        const int height = (window.bottom - window.top - client.bottom) + (header.bottom - header.top) + static_cast<int>(table.rows.size()) * (item.bottom - item.top);
-        state->heights.push_back(height);
-        content_height += height + state->title_height;
+        const int chrome = (window.bottom - window.top - client.bottom) + (header.bottom - header.top);
+        const int row = item.bottom - item.top;
+        state->heights.push_back(chrome + static_cast<int>(table.rows.size()) * row);
+        content_height += chrome + static_cast<int>(std::min(table.rows.size(), kInitialRows)) * row + state->title_height;
         state->titles.push_back(title);
         state->lists.push_back(list);
+        state->sort_columns.push_back(-1);
+        state->sort_ascending.push_back(true);
     }
     const RECT bottom = ControlRect(dialog, IDOK);
     RECT window = {};
@@ -209,6 +243,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         SetDlgItemTextW(dialog, IDC_TABLES_ACTION, state->request->action_label.c_str());
         ShowWindow(GetDlgItem(dialog, IDC_TABLES_ACTION), state->request->action_label.empty() ? SW_HIDE : SW_SHOW);
         EnableWindow(GetDlgItem(dialog, IDC_TABLES_ACTION), static_cast<bool>(state->request->action));
+        SendMessageW(dialog, DM_SETDEFID, IDCANCEL, 0);
         dialog_support::Initialize(dialog, &state->font, {IDC_TABLES_IDENTIFIER});
         using namespace appearance;
         state->resizer.Attach(dialog, {
@@ -253,11 +288,19 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             }
             const auto list = std::find(state->lists.begin(), state->lists.end(), header->hwndFrom);
             const auto* change = reinterpret_cast<const NMLISTVIEW*>(lparam);
-            if (list != state->lists.end() && header->code == LVN_ITEMCHANGED && state->ready && list - state->lists.begin() == state->request->check_table &&
+            const size_t index = static_cast<size_t>(list - state->lists.begin());
+            if (list != state->lists.end() && header->code == LVN_COLUMNCLICK)
+            {
+                bool ascending = state->sort_ascending[index];
+                appearance::SortListViewItems(*list, change->iSubItem, true, &state->sort_columns[index], &ascending, CompareRows, const_cast<records::Table*>(&state->request->tables[index]));
+                state->sort_ascending[index] = ascending;
+                return TRUE;
+            }
+            if (list != state->lists.end() && header->code == LVN_ITEMCHANGED && state->ready && static_cast<int>(index) == state->request->check_table &&
                 ((change->uNewState ^ change->uOldState) & LVIS_STATEIMAGEMASK) && change->iItem >= 0)
             {
                 const bool checked = ListView_GetCheckState(*list, change->iItem) != FALSE;
-                if (!state->request->on_check(dialog, static_cast<size_t>(change->iItem), checked))
+                if (!state->request->on_check(dialog, static_cast<size_t>(change->lParam), checked))
                 {
                     state->ready = false;
                     ListView_SetCheckState(*list, change->iItem, !checked);
@@ -266,7 +309,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             }
             if (list != state->lists.end() && header->code == LVN_KEYDOWN && reinterpret_cast<const NMLVKEYDOWN*>(lparam)->wVKey == 'C' && GetKeyState(VK_CONTROL) < 0)
             {
-                CopySelectedRows(dialog, *list, state->request->tables[static_cast<size_t>(list - state->lists.begin())]);
+                CopySelectedRows(dialog, *list, state->request->tables[index]);
             }
             return FALSE;
         }

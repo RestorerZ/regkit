@@ -230,7 +230,7 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
 bool MainWindow::Impl::ShowResourceList(const RegistryValue& value)
 {
     editors::TablesRequest request;
-    request.title = value_format::TypeName(value.type);
+    request.title = util::Tr(L"Edit Value");
     request.identifier = value.name.empty() ? std::wstring(util::Tr(L"(Default)")) : registry_path::DisplayName(value.name);
     auto tables = resource_list::Decode(value_format::NormalizeType(value.type), value.data.data(), value.data.size(), util::EndsWithInsensitive(value.name, L".Translated"));
     request.tables = tables ? std::move(*tables) : std::vector<records::Table>{{util::Tr(L"Error"), {util::Tr(L"Error")}, {{util::Tr(L"The resource data is malformed.")}}}};

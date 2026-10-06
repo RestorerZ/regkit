@@ -348,6 +348,15 @@ void MainWindow::Impl::ResetRegistryTreeState()
 }
 
 // tree repaints once when the current message is done
+void MainWindow::Impl::FlushTreeRedraw()
+{
+    if (tree_redraw_pending_)
+    {
+        tree_redraw_pending_ = false;
+        browse_.tree().ResumeRedraw();
+    }
+}
+
 void MainWindow::Impl::SuspendTreeRedraw()
 {
     if (!tree_redraw_pending_ && PostMessageW(hwnd_, frame::message_id::kTreeRedraw, 0, 0))
@@ -563,6 +572,10 @@ bool MainWindow::Impl::SwitchToLocalRegistry()
     {
         return false;
     }
+    if (current)
+    {
+        OfferRemoteServiceRestore(*current);
+    }
     UpdateRegistryTabEntry(RegistryMode::kLocal, L"", L"");
     ShowSession(local_session_);
     return true;
@@ -602,7 +615,11 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
     auto session = std::make_shared<RegistrySession>();
     session->mode = RegistryMode::kRemote;
     session->remote_machine = machine;
-    const LONG result = RegConnectRegistryW(machine.c_str(), HKEY_LOCAL_MACHINE, &session->remote_hklm);
+    LONG result = RegConnectRegistryW(machine.c_str(), HKEY_LOCAL_MACHINE, &session->remote_hklm);
+    if (result != ERROR_SUCCESS && OfferRemoteServiceStart(machine, session.get()))
+    {
+        result = RegConnectRegistryW(machine.c_str(), HKEY_LOCAL_MACHINE, &session->remote_hklm);
+    }
     if (result != ERROR_SUCCESS)
     {
         ui::ShowError(hwnd_, FormatWin32Error(result));
@@ -614,6 +631,10 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
                                                                              L"Save before switching?")))
     {
         return false;
+    }
+    if (!open_new_tab && current)
+    {
+        OfferRemoteServiceRestore(*current);
     }
     const std::wstring prefix = machine + L"\\";
     session->roots.push_back({session->remote_hklm, L"HKEY_LOCAL_MACHINE", prefix + L"HKEY_LOCAL_MACHINE", L""});
@@ -633,6 +654,54 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
         ui::ShowError(hwnd_, util::TrDetail(L"Connected to HKEY_LOCAL_MACHINE, but HKEY_USERS was unavailable.", FormatWin32Error(hku_result)));
     }
     return true;
+}
+
+bool MainWindow::Impl::OfferRemoteServiceStart(const std::wstring& machine, RegistrySession* session)
+{
+    util::ServiceState service;
+    if (util::QueryRemoteRegistryService(machine, &service) != ERROR_SUCCESS || service.state != SERVICE_STOPPED)
+    {
+        return false;
+    }
+    const bool disabled = service.start_type == SERVICE_DISABLED;
+    const wchar_t* message = disabled ? util::Tr(L"The Remote Registry service on this computer is disabled. Set it to start manually and start it?")
+                                      : util::Tr(L"The Remote Registry service on this computer is stopped. Start it?");
+    if (ui::PromptKeyChoice(hwnd_, message, machine, util::Tr(L"Remote Registry"), util::Tr(L"Start"), L"", util::Tr(L"Cancel")) != IDYES)
+    {
+        return false;
+    }
+    HCURSOR previous = SetCursor(LoadCursorW(nullptr, IDC_WAIT));
+    const LONG started = util::StartRemoteRegistryService(machine, disabled);
+    SetCursor(previous);
+    if (started != ERROR_SUCCESS)
+    {
+        ui::ShowError(hwnd_, util::TrDetail(L"The Remote Registry service couldn't be started.", FormatWin32Error(started)));
+        return false;
+    }
+    session->remote_service_started = true;
+    session->remote_service_start_type = service.start_type;
+    return true;
+}
+
+void MainWindow::Impl::OfferRemoteServiceRestore(RegistrySession& session)
+{
+    if (session.mode != RegistryMode::kRemote || !session.remote_service_started)
+    {
+        return;
+    }
+    session.remote_service_started = false;
+    const wchar_t* message = session.remote_service_start_type == SERVICE_DISABLED
+                                 ? util::Tr(L"RegKit started the Remote Registry service on this computer. Stop it and disable it again?")
+                                 : util::Tr(L"RegKit started the Remote Registry service on this computer. Stop it again?");
+    if (ui::PromptKeyChoice(hwnd_, message, session.remote_machine, util::Tr(L"Remote Registry"), util::Tr(L"Stop"), L"", util::Tr(L"Keep Running")) != IDYES)
+    {
+        return;
+    }
+    const LONG stopped = util::StopRemoteRegistryService(session.remote_machine, session.remote_service_start_type);
+    if (stopped != ERROR_SUCCESS)
+    {
+        ui::ShowError(hwnd_, util::TrDetail(L"The Remote Registry service couldn't be stopped.", FormatWin32Error(stopped)));
+    }
 }
 bool MainWindow::Impl::SwitchToOfflineRegistry()
 {
@@ -666,6 +735,10 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
                                                                              L"Save before switching?")))
     {
         return false;
+    }
+    if (!open_new_tab && current)
+    {
+        OfferRemoteServiceRestore(*current);
     }
 
     std::wstring selection_path = util::TrimTrailingSeparators(path);

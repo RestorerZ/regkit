@@ -73,9 +73,9 @@ const wchar_t* MatchFieldLabel(MatchField field) noexcept
 
 Matcher::Matcher(const TextOptions& options)
     : query_(options.query), use_regex_(options.use_regex), match_case_(options.match_case),
-      match_whole_(options.match_whole), valid_(!query_.empty())
+      match_whole_(options.match_whole), match_all_(options.match_all), valid_(match_all_ || !query_.empty())
 {
-    if (!valid_ || !use_regex_)
+    if (match_all_ || !valid_ || !use_regex_)
     {
         return;
     }
@@ -91,7 +91,7 @@ Matcher::Matcher(const TextOptions& options)
 Matcher::Matcher(const Matcher& other)
     : query_(other.query_), pattern_(other.pattern_), session_(other.pattern_), error_(other.error_),
       use_regex_(other.use_regex_), match_case_(other.match_case_), match_whole_(other.match_whole_),
-      valid_(other.valid_)
+      match_all_(other.match_all_), valid_(other.valid_)
 {
 }
 
@@ -111,6 +111,13 @@ Match Matcher::Find(std::wstring_view text) const
     if (!valid_)
     {
         location.status = regex::Status::kFailed;
+        return location;
+    }
+    if (match_all_)
+    {
+        location.matched = true;
+        location.start = 0;
+        location.status = regex::Status::kMatch;
         return location;
     }
     if (use_regex_)
@@ -334,6 +341,7 @@ struct NodeTask
 {
     const RootContext* context = nullptr;
     std::wstring subkey;
+    bool no_store_copy = false;
 };
 
 std::wstring BuildDisplayPath(const NodeTask& task)
@@ -694,6 +702,80 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
     return result;
 }
 
+std::wstring NameAnomaly(uint32_t kinds, std::wstring_view name)
+{
+    if ((kinds & kAnomalyNulName) && name.find(L'\0') != std::wstring_view::npos)
+    {
+        return util::Tr(L"Null character in the name");
+    }
+    const auto control = [](wchar_t c) { return (c > 0 && c < 0x20) || c == 0x7F; };
+    if ((kinds & kAnomalyOddName) && !name.empty() && (name.front() == L' ' || name.back() == L' ' || std::any_of(name.begin(), name.end(), control)))
+    {
+        return util::Tr(L"Edge spaces or control characters in the name");
+    }
+    return {};
+}
+
+std::wstring ValueAnomaly(uint32_t kinds, const ValueInfo& value, const BYTE* data, DWORD size)
+{
+    std::wstring reason = NameAnomaly(kinds, value.name);
+    const DWORD type = value.type;
+    if (!reason.empty())
+    {
+        return reason;
+    }
+    if ((kinds & kAnomalyUnknownType) && type > REG_QWORD)
+    {
+        return util::Tr(L"Unknown type");
+    }
+    if ((kinds & kAnomalyIntegerSize) && (((type == REG_DWORD || type == REG_DWORD_BIG_ENDIAN) && size != sizeof(DWORD)) || (type == REG_QWORD && size != sizeof(ULONGLONG))))
+    {
+        return util::TrLabel(L"Unexpected size", value_format::ByteCount(size));
+    }
+    const bool string = type == REG_SZ || type == REG_EXPAND_SZ;
+    const bool multi = type == REG_MULTI_SZ;
+    if (!(kinds & (string ? kAnomalyStringEnd : multi ? kAnomalyMultiString : 0)) || size == 0)
+    {
+        return {};
+    }
+    if (size % sizeof(wchar_t))
+    {
+        return util::TrLabel(L"Odd size", value_format::ByteCount(size));
+    }
+    if (!data)
+    {
+        return {};
+    }
+    const std::wstring_view text(reinterpret_cast<const wchar_t*>(data), size / sizeof(wchar_t));
+    if (string)
+    {
+        return text.back() ? util::Tr(L"No terminating null") : std::wstring();
+    }
+    if (text.back() || (text.size() >= 2 && text[text.size() - 2]))
+    {
+        return util::Tr(L"No final double null");
+    }
+    if (text.size() > 2 && text.substr(0, text.size() - 1).find(std::wstring_view(L"\0\0", 2)) != std::wstring_view::npos)
+    {
+        return util::Tr(L"Empty item");
+    }
+    return {};
+}
+
+bool VirtualStoreCopy(const RegistryNode& node, std::wstring* store)
+{
+    std::wstring native = node.view ? std::wstring() : registry_path::BuildNative(node);
+    KeyDetails details;
+    if (native.empty() && RegistryStore::QueryKeyDetails(node, &details, true))
+    {
+        native = std::move(details.native.native_name);
+    }
+    *store = registry_path::VirtualStorePath(native);
+    RegistryNode copy;
+    KeyInfo info = {};
+    return !store->empty() && registry_path::ParseRoot(*store, &copy) && RegistryStore::QueryKeyInfo(copy, &info);
+}
+
 bool IsTypeAllowed(const Criteria& criteria, DWORD type)
 {
     if (criteria.allowed_types.empty())
@@ -798,7 +880,7 @@ unsigned int WorkerPolicy(const Criteria& criteria)
 
 bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCallback& publish, const ProgressCallback& progress, regex::Status* status)
 {
-    if (criteria.query.empty() || criteria.start_nodes.empty())
+    if ((criteria.query.empty() && !criteria.anomalies) || criteria.start_nodes.empty())
     {
         return false;
     }
@@ -808,16 +890,22 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
     match_options.match_case = criteria.match_case;
     match_options.match_whole = criteria.match_whole;
     match_options.use_regex = criteria.use_regex;
+    const bool match_all = criteria.query.empty();
+    match_options.match_all = match_all;
     const Matcher base_matcher = criteria.matcher ? Matcher(*criteria.matcher) : Matcher(match_options);
     if (!base_matcher.valid())
     {
         return false;
     }
     std::atomic<int> worst_status(static_cast<int>(regex::Status::kNoMatch));
-    const HexQuery hex_query = criteria.use_regex ? HexQuery() : ParseHexQuery(criteria.query);
+    const HexQuery hex_query = criteria.use_regex || criteria.query.empty() ? HexQuery() : ParseHexQuery(criteria.query);
     const bool has_excludes = !criteria.exclude_paths.empty();
+    const uint32_t value_anomalies = criteria.anomalies & kValueAnomalies;
+    const uint32_t key_anomalies = criteria.anomalies & kKeyAnomalies;
+    const bool watch_links = (key_anomalies & kAnomalyBrokenLink) && criteria.skip_links;
     // skip values/child keys when the selected search fields dont need them
-    const bool want_values = criteria.search_values || criteria.search_data || criteria.comment_text || criteria.default_text;
+    const bool want_values = criteria.search_values || criteria.search_data || criteria.comment_text || criteria.default_text || value_anomalies || watch_links;
+    const bool want_data = criteria.search_data || (criteria.anomalies & kDataAnomalies);
     const bool want_subkeys = criteria.recursive;
     // values above the size limit need metadata only
     const DWORD enum_max_data =
@@ -1130,20 +1218,31 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                 };
 
                 children.clear();
+                bool saw_link = false;
                 auto value_cb = [&](const ValueInfo& value, const BYTE* data, DWORD data_size) -> bool {
                     if (should_stop())
                     {
                         return false;
                     }
+                    saw_link = saw_link || (value.type == REG_LINK && util::EqualsInsensitive(value.name, L"SymbolicLinkValue"));
                     // reject by metadata before searching value names/data
                     if ((criteria.skip_links && value.type == REG_LINK) || !IsTypeAllowed(criteria, value.type) ||
                         !IsSizeAllowed(criteria, data_size) || !is_key_in_range())
                     {
                         return true;
                     }
+                    std::wstring anomaly;
+                    if (criteria.anomalies)
+                    {
+                        anomaly = value_anomalies ? ValueAnomaly(value_anomalies, value, data, data_size) : std::wstring();
+                        if (anomaly.empty())
+                        {
+                            return true;
+                        }
+                    }
                     const std::wstring display_name = value.name.empty() ? std::wstring(util::Tr(L"(Default)")) : value.name;
                     Match name_match;
-                    if (criteria.search_values)
+                    if (criteria.search_values && !match_all)
                     {
                         name_match = matcher.Find(display_name);
                         record_status(name_match.status);
@@ -1151,13 +1250,13 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
 
                     DataMatch data_match;
                     // skip data matching when value name already matches
-                    if (!name_match.matched && criteria.search_data)
+                    if (!name_match.matched && criteria.search_data && !match_all)
                     {
                         data_match = MatchValueData(matcher, hex_query, value.type, data, data_size, &widen_scratch);
                         record_status(data_match.match.status);
                     }
                     MatchField extra_field = MatchField::kNone;
-                    if (!name_match.matched && !data_match.matched)
+                    if (!name_match.matched && !data_match.matched && !match_all)
                     {
                         const auto extra = [&](const std::wstring& text, MatchField field) {
                             const Match match = matcher.Find(text);
@@ -1212,6 +1311,17 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                         result.match_start = static_cast<uint32_t>(name_match.start);
                         result.match_length = static_cast<uint32_t>(name_match.length);
                     }
+                    else if (!anomaly.empty())
+                    {
+                        result.match_field = MatchField::kData;
+                        result.match_start = 0;
+                        result.match_length = 0;
+                    }
+                    if (!anomaly.empty())
+                    {
+                        result.data_text = std::move(anomaly);
+                        result.data_state = DataState::kLoaded;
+                    }
 
                     const bool shadowed = (classes_direct || !mirror_text().empty()) && classes_shadowed(&value.name);
                     if (shadowed && classes_direct)
@@ -1254,7 +1364,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                 const bool enumerated = RegistryStore::EnumKeyStreaming(
                     node,
                     want_values,
-                    criteria.search_data,
+                    want_data,
                     want_subkeys,
                     &enum_result,
                     want_values ? RegistryStore::ValueStreamCallback(value_cb) : RegistryStore::ValueStreamCallback(),
@@ -1266,32 +1376,64 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                     criteria.skip_links
                 );
 
-                if (enumerated && enum_result.info_valid && (criteria.search_keys || criteria.comment_text) && is_key_in_range())
+                std::wstring key_anomaly;
+                if (key_anomalies)
+                {
+                    std::wstring store;
+                    if (key_anomalies & kAnomalyVirtualStore)
+                    {
+                        const bool machine = node.root == HKEY_LOCAL_MACHINE;
+                        const bool in_scope = machine && registry_path::HasComponentPrefix(node.subkey, L"SOFTWARE");
+                        const bool copy = in_scope && !entry.no_store_copy && VirtualStoreCopy(node, &store);
+                        const bool prune = !machine || (!node.subkey.empty() && !copy);
+                        for (NodeTask& child : children)
+                        {
+                            child.no_store_copy = prune;
+                        }
+                        if (copy)
+                        {
+                            key_anomaly = util::TrLabel(L"Virtual store copy", store);
+                        }
+                    }
+                    const std::wstring name_anomaly = NameAnomaly(key_anomalies, TaskLeaf(entry));
+                    std::wstring target;
+                    if (!name_anomaly.empty())
+                    {
+                        key_anomaly = name_anomaly;
+                    }
+                    else if ((key_anomalies & kAnomalyBrokenLink) && (!enumerated || saw_link) && RegistryStore::IsBrokenLink(node, &target))
+                    {
+                        key_anomaly = util::TrLabel(L"Link target missing", registry_path::DisplayName(target));
+                    }
+                }
+                const bool key_wanted = criteria.anomalies ? !key_anomaly.empty() : enumerated && enum_result.info_valid;
+                if (key_wanted && (criteria.search_keys || criteria.comment_text || match_all) && is_key_in_range())
                 {
                     const std::wstring leaf = registry_path::DisplayName(TaskLeaf(entry));
                     Match key_match;
-                    if (criteria.search_keys)
+                    if (criteria.search_keys && !match_all)
                     {
                         key_match = matcher.Find(leaf);
                         record_status(key_match.status);
                     }
                     Match comment_match;
-                    if (!key_match.matched && criteria.comment_text)
+                    if (!key_match.matched && criteria.comment_text && !match_all)
                     {
                         comment_match = matcher.Find(criteria.comment_text(path_text(), nullptr, 0, 0));
                         record_status(comment_match.status);
                     }
-                    if (key_match.matched || comment_match.matched)
+                    if (key_match.matched || comment_match.matched || match_all)
                     {
                         Result result;
                         result.source = entry.context ? entry.context->source : 0;
                         result.key_path = path_text();
                         result.kind = ResultKind::kKey;
                         result.data_state = DataState::kNotApplicable;
-                        result.modified = enum_result.info.last_write;
+                        result.data_text = std::move(key_anomaly);
+                        result.modified = enum_result.info_valid ? enum_result.info.last_write : FILETIME{};
                         const size_t path_start =
                             result.key_path.size() >= leaf.size() ? result.key_path.size() - leaf.size() : 0;
-                        result.match_field = key_match.matched ? MatchField::kPath : MatchField::kComment;
+                        result.match_field = key_match.matched ? MatchField::kPath : comment_match.matched ? MatchField::kComment : MatchField::kData;
                         result.match_start = key_match.matched ? static_cast<uint32_t>(path_start + key_match.start) : 0u;
                         result.match_length = static_cast<uint32_t>(key_match.length);
 

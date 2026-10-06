@@ -51,6 +51,13 @@ HWND Item(const SearchDialogState* state, int id)
     return GetDlgItem(state->dialog, id);
 }
 
+constexpr std::pair<int, uint32_t> kAnomalyBoxes[] = {
+    {IDC_FIND_NUL_NAMES, search::kAnomalyNulName},          {IDC_FIND_ODD_NAMES, search::kAnomalyOddName},
+    {IDC_FIND_INTEGER_SIZE, search::kAnomalyIntegerSize},   {IDC_FIND_STRING_END, search::kAnomalyStringEnd},
+    {IDC_FIND_MULTI_STRING, search::kAnomalyMultiString},   {IDC_FIND_UNKNOWN_TYPE, search::kAnomalyUnknownType},
+    {IDC_FIND_BROKEN_LINKS, search::kAnomalyBrokenLink},    {IDC_FIND_VIRTUAL_STORE, search::kAnomalyVirtualStore},
+};
+
 std::wstring SearchHistoryPath()
 {
     std::wstring folder = util::GetCacheFolder();
@@ -335,7 +342,7 @@ void LoadInitialState(SearchDialogState* state)
 {
     state->history = LoadSearchHistory();
     dialog_support::SetComboItems(Item(state, IDC_FIND_WHAT), state->history);
-    if (state->out && !state->out->criteria.query.empty())
+    if (state->out && (!state->out->criteria.query.empty() || state->out->criteria.anomalies))
     {
         SetWindowTextW(Item(state, IDC_FIND_WHAT), state->out->criteria.query.c_str());
     }
@@ -386,6 +393,10 @@ void LoadInitialState(SearchDialogState* state)
         SetChecked(Item(state, IDC_FIND_WHOLE), initial->criteria.match_whole);
         SetChecked(Item(state, IDC_FIND_REGEX), initial->criteria.use_regex);
         SetChecked(Item(state, IDC_FIND_SKIP_LINKS), initial->criteria.skip_links);
+        for (const auto& [id, kind] : kAnomalyBoxes)
+        {
+            SetChecked(Item(state, id), (initial->criteria.anomalies & kind) != 0);
+        }
         if (initial->criteria.use_min_size)
         {
             SetChecked(Item(state, IDC_FIND_MIN_SIZE), true);
@@ -457,7 +468,12 @@ void LoadInitialState(SearchDialogState* state)
 bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* out)
 {
     std::wstring query_text = util::WindowText(Item(state, IDC_FIND_WHAT));
-    if (query_text.empty())
+    uint32_t anomalies = 0;
+    for (const auto& [id, kind] : kAnomalyBoxes)
+    {
+        anomalies |= IsChecked(Item(state, id)) ? kind : 0u;
+    }
+    if (query_text.empty() && !anomalies)
     {
         ui::ShowWarning(hwnd, util::Tr(L"Enter a search term."));
         return false;
@@ -472,7 +488,7 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     bool data = IsChecked(Item(state, IDC_FIND_DATA));
     bool comments = IsChecked(Item(state, IDC_FIND_COMMENTS));
     bool default_data = state->sources.defaults && IsChecked(Item(state, IDC_FIND_DEFAULTS));
-    if (!keys && !values && !data && !comments && !default_data)
+    if (!keys && !values && !data && !comments && !default_data && !anomalies)
     {
         ui::ShowWarning(hwnd, util::Tr(L"Select at least one search option."));
         return false;
@@ -507,6 +523,7 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     result.criteria.match_whole = IsChecked(Item(state, IDC_FIND_WHOLE));
     result.criteria.use_regex = IsChecked(Item(state, IDC_FIND_REGEX));
     result.criteria.skip_links = IsChecked(Item(state, IDC_FIND_SKIP_LINKS));
+    result.criteria.anomalies = anomalies;
     if (data)
     {
         result.criteria.allowed_types = state->data_types;

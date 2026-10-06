@@ -76,8 +76,7 @@ void MainWindow::Impl::Show(int cmd_show)
             }
         }
     }
-    ShowWindow(hwnd_, show_cmd);
-    UpdateWindow(hwnd_);
+    pending_show_cmd_ = show_cmd;
     PostMessageW(hwnd_, frame::message_id::kDeferredStartup, 0, 0);
     PostMessageW(hwnd_, frame::message_id::kLoadTraces, 0, 0);
     PostMessageW(hwnd_, frame::message_id::kLoadDefaults, 0, 0);
@@ -558,10 +557,17 @@ LRESULT CALLBACK MainWindow::Impl::TreeViewProc(HWND hwnd, UINT message, WPARAM 
         }
         return result;
     }
-    if ((message == WM_PAINT || message == WM_ERASEBKGND) && self && hwnd == self->browse_.tree().hwnd() && self->browse_.tree().IsRedrawSuspended())
+    if (self && hwnd == self->browse_.tree().hwnd())
     {
-        ValidateRect(hwnd, nullptr);
-        return message == WM_ERASEBKGND;
+        if ((message == WM_PAINT || message == WM_ERASEBKGND) && self->tree_painted_ && self->browse_.tree().IsRedrawSuspended())
+        {
+            ValidateRect(hwnd, nullptr);
+            return message == WM_ERASEBKGND;
+        }
+        if (message == WM_PAINT || message == WM_SHOWWINDOW)
+        {
+            self->tree_painted_ = message == WM_PAINT;
+        }
     }
     if (message == WM_SETFOCUS && self)
     {

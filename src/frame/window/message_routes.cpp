@@ -1129,8 +1129,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
             return 0;
         }
     case frame::message_id::kTreeRedraw:
-        tree_redraw_pending_ = false;
-        browse_.tree().ResumeRedraw();
+        FlushTreeRedraw();
         return 0;
     case frame::message_id::kRegistryChanged:
         if (wparam == key_watcher_.generation())
@@ -1458,59 +1457,49 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message, WPARA
     case WM_CONTEXTMENU:
         {
             HWND source = reinterpret_cast<HWND>(wparam);
+            if (source != browse_.tree().hwnd() && source != browse_.values().hwnd() && source != history_list_ && source != search_results_list_)
+            {
+                break;
+            }
+            POINT screen_pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+            if (screen_pt.x == -1 && screen_pt.y == -1)
+            {
+                RECT rect = {};
+                const HTREEITEM selected = source == browse_.tree().hwnd() ? TreeView_GetSelection(source) : nullptr;
+                const int row = selected ? -1 : ListView_GetNextItem(source, -1, LVNI_FOCUSED | LVNI_SELECTED);
+                if (selected)
+                {
+                    TreeView_EnsureVisible(source, selected);
+                }
+                else if (row >= 0)
+                {
+                    ListView_EnsureVisible(source, row, FALSE);
+                }
+                if (!(selected ? TreeView_GetItemRect(source, selected, &rect, TRUE) : row >= 0 && ListView_GetItemRect(source, row, &rect, LVIR_LABEL)))
+                {
+                    GetClientRect(source, &rect);
+                    rect.bottom = rect.top + 32;
+                }
+                screen_pt = {rect.left + 8, (rect.top + rect.bottom) / 2};
+                ClientToScreen(source, &screen_pt);
+            }
             if (source == browse_.tree().hwnd())
             {
-                POINT screen_pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-                if (screen_pt.x == -1 && screen_pt.y == -1)
-                {
-                    RECT rect = {};
-                    GetWindowRect(browse_.tree().hwnd(), &rect);
-                    screen_pt.x = rect.left + 16;
-                    screen_pt.y = rect.top + 16;
-                }
                 ShowTreeContextMenu(screen_pt);
                 return 0;
             }
             if (source == browse_.values().hwnd())
             {
-                POINT screen_pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-                if (screen_pt.x == -1 && screen_pt.y == -1)
-                {
-                    RECT rect = {};
-                    GetWindowRect(browse_.values().hwnd(), &rect);
-                    screen_pt.x = rect.left + 24;
-                    screen_pt.y = rect.top + 24;
-                }
                 ShowValueContextMenu(screen_pt);
                 return 0;
             }
             if (source == history_list_)
             {
-                POINT screen_pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-                if (screen_pt.x == -1 && screen_pt.y == -1)
-                {
-                    RECT rect = {};
-                    GetWindowRect(history_list_, &rect);
-                    screen_pt.x = rect.left + 24;
-                    screen_pt.y = rect.top + 24;
-                }
                 ShowHistoryContextMenu(screen_pt);
                 return 0;
             }
-            if (source == search_results_list_)
-            {
-                POINT screen_pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-                if (screen_pt.x == -1 && screen_pt.y == -1)
-                {
-                    RECT rect = {};
-                    GetWindowRect(search_results_list_, &rect);
-                    screen_pt.x = rect.left + 24;
-                    screen_pt.y = rect.top + 24;
-                }
-                ShowSearchResultContextMenu(screen_pt);
-                return 0;
-            }
-            break;
+            ShowSearchResultContextMenu(screen_pt);
+            return 0;
         }
     case WM_NOTIFY:
         return HandleNotification(lparam);

@@ -307,6 +307,9 @@ void MainWindow::Impl::RunDeferredStartup()
 
     EnableAddressAutoComplete();
     ReloadThemeIcons();
+    FlushTreeRedraw();
+    ShowWindow(hwnd_, pending_show_cmd_);
+    UpdateWindow(hwnd_);
 
     UpdateSearchResultsView();
     if (has_external_jump)

@@ -240,6 +240,14 @@ bool WaitWhileServicePending(SC_HANDLE service, DWORD pending_state, SERVICE_STA
     return true;
 }
 
+UniqueService OpenRemoteRegistry(const std::wstring& machine, DWORD access, LONG* error)
+{
+    UniqueService scm(OpenSCManagerW(machine.c_str(), nullptr, SC_MANAGER_CONNECT));
+    UniqueService service(scm ? OpenServiceW(scm.get(), L"RemoteRegistry", access) : nullptr);
+    *error = service ? ERROR_SUCCESS : static_cast<LONG>(GetLastError());
+    return service;
+}
+
 bool OpenServiceProcessToken(const wchar_t* service_name, HANDLE* token)
 {
     UniqueService scm(OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT));
@@ -681,6 +689,52 @@ UniqueHandle OpenShellToken(DWORD access)
         OpenProcessToken(shell_process.get(), access, token.put());
     }
     return token;
+}
+
+LONG QueryRemoteRegistryService(const std::wstring& machine, ServiceState* state)
+{
+    LONG error = ERROR_SUCCESS;
+    const UniqueService service = OpenRemoteRegistry(machine, SERVICE_QUERY_STATUS | SERVICE_QUERY_CONFIG, &error);
+    SERVICE_STATUS_PROCESS status = {};
+    DWORD size = 0;
+    QueryServiceConfigW(service.get(), nullptr, 0, &size);
+    std::vector<BYTE> config(size);
+    if (!service || !QueryServiceProcess(service.get(), &status) || config.empty() ||
+        !QueryServiceConfigW(service.get(), reinterpret_cast<QUERY_SERVICE_CONFIGW*>(config.data()), size, &size))
+    {
+        return service ? static_cast<LONG>(GetLastError()) : error;
+    }
+    state->state = status.dwCurrentState;
+    state->start_type = reinterpret_cast<const QUERY_SERVICE_CONFIGW*>(config.data())->dwStartType;
+    return ERROR_SUCCESS;
+}
+
+LONG StartRemoteRegistryService(const std::wstring& machine, bool enable)
+{
+    LONG error = ERROR_SUCCESS;
+    const UniqueService service = OpenRemoteRegistry(machine, SERVICE_QUERY_STATUS | SERVICE_START | SERVICE_CHANGE_CONFIG, &error);
+    SERVICE_STATUS_PROCESS status = {};
+    if (!service ||
+        (enable && !ChangeServiceConfigW(service.get(), SERVICE_NO_CHANGE, SERVICE_DEMAND_START, SERVICE_NO_CHANGE, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
+        (!StartServiceW(service.get(), 0, nullptr) && GetLastError() != ERROR_SERVICE_ALREADY_RUNNING) || !QueryServiceProcess(service.get(), &status) ||
+        !WaitWhileServicePending(service.get(), SERVICE_START_PENDING, &status))
+    {
+        return service ? static_cast<LONG>(GetLastError()) : error;
+    }
+    return status.dwCurrentState == SERVICE_RUNNING ? ERROR_SUCCESS : ERROR_SERVICE_NOT_ACTIVE;
+}
+
+LONG StopRemoteRegistryService(const std::wstring& machine, DWORD start_type)
+{
+    LONG error = ERROR_SUCCESS;
+    const UniqueService service = OpenRemoteRegistry(machine, SERVICE_QUERY_STATUS | SERVICE_STOP | SERVICE_CHANGE_CONFIG, &error);
+    SERVICE_STATUS stopped = {};
+    if (!service || (!ControlService(service.get(), SERVICE_CONTROL_STOP, &stopped) && GetLastError() != ERROR_SERVICE_NOT_ACTIVE) ||
+        !ChangeServiceConfigW(service.get(), SERVICE_NO_CHANGE, start_type, SERVICE_NO_CHANGE, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr))
+    {
+        return service ? static_cast<LONG>(GetLastError()) : error;
+    }
+    return ERROR_SUCCESS;
 }
 
 bool LaunchProcessAsShellUser(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code, bool* impersonation_lost)

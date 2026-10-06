@@ -103,6 +103,17 @@ bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, boo
     return key && ReadLinkTarget(key, target) && !target->empty();
 }
 
+bool IsBrokenLink(const RegistryNode& node, std::wstring* target)
+{
+    if (!QuerySymbolicLinkTarget(node, target, nullptr))
+    {
+        return false;
+    }
+    LONG error = ERROR_SUCCESS;
+    util::OpenNativeRegistryKey(*target, KEY_QUERY_VALUE, false, &error);
+    return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+}
+
 KeyInspection InspectKey(const RegistryNode& node, bool want_info, bool want_source)
 {
     KeyInspection result;

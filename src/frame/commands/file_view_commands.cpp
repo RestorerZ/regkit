@@ -185,6 +185,10 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
                 RestoreHiveFile(path);
                 return true;
             }
+            if (!ui::ConfirmRegFileMerge(hwnd_, path))
+            {
+                return true;
+            }
             std::wstring error;
             if (ImportRegFileFromPath(path, &error))
             {

@@ -129,6 +129,7 @@ class RegistryStore
     static bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);
     static KeyInspection InspectKey(const RegistryNode& node, bool want_info, bool want_source = false);
     static bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, bool* denied = nullptr);
+    static bool IsBrokenLink(const RegistryNode& node, std::wstring* target = nullptr);
     static bool OpenOfflineHive(const std::wstring& path, HKEY* root, std::wstring* error);
     static bool SaveOfflineHive(HKEY root, const std::wstring& path, std::wstring* error);
     static bool CloseOfflineHive(HKEY root, std::wstring* error);

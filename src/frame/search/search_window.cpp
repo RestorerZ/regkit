@@ -742,7 +742,8 @@ std::function<std::wstring(const std::wstring&, const std::wstring&)> MainWindow
 
 void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
 {
-    if (options.criteria.query.empty())
+    const bool anomalies = options.criteria.anomalies != 0;
+    if (options.criteria.query.empty() && !anomalies)
     {
         ui::ShowWarning(hwnd_, util::Tr(L"Enter text to find."));
         return;
@@ -753,6 +754,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
     match_options.match_case = options.criteria.match_case;
     match_options.match_whole = options.criteria.match_whole;
     match_options.use_regex = options.criteria.use_regex;
+    match_options.match_all = options.criteria.query.empty();
     auto matcher = std::make_shared<const search::Matcher>(match_options);
     if (!matcher->valid())
     {
@@ -762,7 +764,7 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
 
     bool want_registry = options.search_standard_hives || options.search_registry_root ||
                          options.search_offline_hives || options.search_reg_files || options.search_remote_registry;
-    bool want_trace = options.search_trace_values && !active_traces_.empty();
+    bool want_trace = options.search_trace_values && !active_traces_.empty() && !anomalies;
     std::wstring registry_scope_path;
     std::wstring scope_path;
     if (options.scope == SearchScope::kCurrentKey)
@@ -818,12 +820,12 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
             return changes::ResolveComment(comments->first, comments->second, {path, name ? *name : std::wstring(), type, size, !name}).text;
         };
     }
-    if (options.search_default_data && !active_defaults_.empty())
+    if (options.search_default_data && !active_defaults_.empty() && !anomalies)
     {
         criteria.default_text = DefaultDataLookup(active_defaults_);
     }
 
-    std::wstring label = util::Tr(L"Find");
+    std::wstring label = anomalies && criteria.query.empty() ? util::Tr(L"Anomalies") : util::Tr(L"Find");
     if (!criteria.query.empty())
     {
         label = util::TrLabel(L"Find", criteria.query);

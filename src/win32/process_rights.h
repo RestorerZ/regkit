@@ -55,6 +55,14 @@ bool IsProcessSystem();
 bool IsUacEnabled();
 bool IsProcessTrustedInstaller();
 UniqueHandle OpenShellToken(DWORD access);
+struct ServiceState
+{
+    DWORD state = 0;
+    DWORD start_type = 0;
+};
+LONG QueryRemoteRegistryService(const std::wstring& machine, ServiceState* state);
+LONG StartRemoteRegistryService(const std::wstring& machine, bool enable);
+LONG StopRemoteRegistryService(const std::wstring& machine, DWORD start_type);
 bool LaunchProcessAsSystem(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code = nullptr, bool* impersonation_lost = nullptr);
 bool LaunchProcessAsShellUser(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code = nullptr, bool* impersonation_lost = nullptr);
 bool LaunchProcessAsTrustedInstaller(const std::wstring& command_line, const std::wstring& work_dir, DWORD* error_code = nullptr, bool* impersonation_lost = nullptr);
