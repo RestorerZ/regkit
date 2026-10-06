@@ -50,9 +50,21 @@ bool MainWindow::Impl::AllowTraceSimulation(const RegistryNode& node) const
     return true;
 }
 
+std::wstring MainWindow::Impl::SourceLookupPath(const RegistryNode& node)
+{
+    const std::wstring current = RegistryStore::OfflineControlSet(node);
+    if (current.empty() || !registry_path::HasComponentPrefix(node.subkey, current))
+    {
+        return registry_path::Build(node);
+    }
+    RegistryNode lookup = node;
+    lookup.subkey = L"CurrentControlSet" + node.subkey.substr(current.size());
+    return registry_path::Build(lookup);
+}
+
 std::wstring MainWindow::Impl::TracePathLowerForNode(const RegistryNode& node)
 {
-    std::wstring path = registry_path::Build(node);
+    std::wstring path = SourceLookupPath(node);
     std::wstring trace_path = trace::NormalizeKeyPath(path);
     if (trace_path.empty())
     {

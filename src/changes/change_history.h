@@ -31,6 +31,7 @@ struct HistoryEntry
     std::wstring value_name;
     RevertKind revert_kind = RevertKind::kNone;
     RegistryValue revert_value;
+    bool backup_mode = false;
 };
 
 namespace changes

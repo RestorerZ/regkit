@@ -568,7 +568,7 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
                 return true;
             }
             HCURSOR previous = SetCursor(LoadCursorW(nullptr, IDC_WAIT));
-            SendMessageW(tree, WM_SETREDRAW, FALSE, 0);
+            browse_.tree().SuspendRedraw();
             constexpr int kExpandAllKeyLimit = 5000;
             std::vector<HTREEITEM> pending{root};
             int expanded_keys = 0;
@@ -584,8 +584,7 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
                 }
             }
             const bool truncated = !pending.empty();
-            SendMessageW(tree, WM_SETREDRAW, TRUE, 0);
-            InvalidateRect(tree, nullptr, TRUE);
+            browse_.tree().ResumeRedraw();
             TreeView_EnsureVisible(tree, root);
             SetCursor(previous);
             MarkTreeStateDirty();

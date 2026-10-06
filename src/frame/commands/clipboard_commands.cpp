@@ -255,10 +255,11 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                     return true;
                 }
                 const RegistryNode node = SelectedKeyNode();
-                // hkcr is a merged view, so only the opened key knows which hive it lives in
-                std::wstring native = command_id == cmd::kEditCopyKeyPathNative ? registry_path::BuildNative(node) : std::wstring();
+                // hkcr is merged and a 32-bit view is redirected, so only the opened key knows where it lives
+                const bool unresolved = command_id == cmd::kEditCopyKeyPathNative;
+                std::wstring native = unresolved && !node.view ? registry_path::BuildNative(node) : std::wstring();
                 KeyDetails details;
-                if (native.empty() && RegistryStore::QueryKeyDetails(node, &details))
+                if (native.empty() && RegistryStore::QueryKeyDetails(node, &details, unresolved))
                 {
                     native = std::move(details.native.native_name);
                 }

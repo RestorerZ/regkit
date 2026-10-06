@@ -326,7 +326,7 @@ void MainWindow::Impl::ResetRegistryTreeState()
         return;
     }
 
-    SendMessageW(browse_.tree().hwnd(), WM_SETREDRAW, FALSE, 0);
+    SuspendTreeRedraw();
     std::function<void(HTREEITEM)> collapse = [&](HTREEITEM item) {
         while (item)
         {
@@ -345,8 +345,16 @@ void MainWindow::Impl::ResetRegistryTreeState()
         collapse(child);
     }
     TreeView_SelectItem(browse_.tree().hwnd(), root);
-    SendMessageW(browse_.tree().hwnd(), WM_SETREDRAW, TRUE, 0);
-    RedrawWindow(browse_.tree().hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+}
+
+// tree repaints once when the current message is done
+void MainWindow::Impl::SuspendTreeRedraw()
+{
+    if (!tree_redraw_pending_ && PostMessageW(hwnd_, frame::message_id::kTreeRedraw, 0, 0))
+    {
+        tree_redraw_pending_ = true;
+        browse_.tree().SuspendRedraw();
+    }
 }
 
 void MainWindow::Impl::RestoreRegistryTabState(int index)

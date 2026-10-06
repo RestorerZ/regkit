@@ -138,11 +138,12 @@ class RegistryStore
     static void UnregisterVirtualRoot(HKEY root);
     static bool IsVirtualRoot(HKEY root);
     static bool GetVirtualRootName(HKEY root, std::wstring* root_name);
-    static bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details);
+    static bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details, bool open_link = false);
+    static std::wstring OfflineControlSet(const RegistryNode& node);
     // live keys only, the uac virtualization flags reg flags sets
     static LONG SetKeyControlFlags(const RegistryNode& node, ULONG flags);
     static bool CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCreateOptions& options = {}, bool* created_volatile = nullptr);
-    static bool CreateKeyLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target);
+    static bool CreateKeyLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target, const KeyCreateOptions& options = {});
     static bool ReadKeyLink(const RegistryNode& node, std::wstring* target);
     static bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor);
     static bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor, const FILETIME* last_write = nullptr);

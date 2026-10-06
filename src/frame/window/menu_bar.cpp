@@ -611,7 +611,7 @@ void MainWindow::Impl::UpdateMenuState(HMENU menu)
     const int selected_index = values && ListView_GetSelectedCount(values) == 1 ? ListView_GetNextItem(values, -1, LVNI_SELECTED) : -1;
     const ListRow* selected_row = selected_index >= 0 ? browse_.values().RowAt(selected_index) : nullptr;
     const bool can_open_value = selected_row && selected_row->kind == rowkind::kValue && !selected_row->simulated;
-    const bool can_edit_data = can_open_value && !selected_row->trace_only;
+    const bool can_edit_data = can_open_value && !selected_row->missing;
     enable(cmd::kEditModify, can_open_value);
     enable(cmd::kEditModifyBinary, can_open_value);
     enable(cmd::kEditCopyValueName, can_open_value);
@@ -633,10 +633,13 @@ void MainWindow::Impl::UpdateMenuState(HMENU menu)
 
     const bool can_modify = !settings_.read_only;
     const RegistryMode mode = session_->mode;
-    for (int id : {cmd::kFileImport, cmd::kEditUndo, cmd::kEditRedo, cmd::kEditPaste, cmd::kEditRename, cmd::kEditDelete, cmd::kEditReplace})
+    for (int id : {cmd::kFileImport, cmd::kEditUndo, cmd::kEditRedo, cmd::kEditPaste, cmd::kEditReplace})
     {
         enable(id, can_modify);
     }
+    const bool value_focused = can_open_value && GetFocus() == values;
+    enable(cmd::kEditRename, can_modify && !(value_focused && (selected_row->extra.empty() || selected_row->missing)));
+    enable(cmd::kEditDelete, can_modify && !(value_focused && selected_row->missing));
     const int tab_index = tab_ ? TabCtrl_GetCurSel(tab_) : -1;
     const TabEntry* tab = tab_index >= 0 && static_cast<size_t>(tab_index) < tabs_.size() ? &tabs_[static_cast<size_t>(tab_index)] : nullptr;
     const bool dirty = tab && (tab->kind == TabEntry::Kind::kRegFile ? tab->reg_file_dirty : tab->kind == TabEntry::Kind::kRegistry && tab->session && tab->session->offline_dirty);

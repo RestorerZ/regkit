@@ -153,22 +153,22 @@ void LayoutRegistration(ListRegistration* entry)
         }
         return;
     }
-    RECT header_rect = {};
     RECT client = {};
-    if (!GetWindowRect(header, &header_rect) || !GetClientRect(header, &client))
+    RECT header_client = {};
+    if (!GetClientRect(entry->list, &client) || !GetClientRect(header, &header_client))
     {
         return;
     }
-    MapWindowPoints(nullptr, entry->owner, reinterpret_cast<POINT*>(&header_rect), 2);
+    MapWindowPoints(entry->list, entry->owner, reinterpret_cast<POINT*>(&client), 2);
     const int width =
         std::min<int>(client.right - client.left, appearance::ScaleForDpi(kGridButtonWidth, win32::DpiForWindow(header)));
-    const int height = header_rect.bottom - header_rect.top;
+    const int height = header_client.bottom;
     if (width <= 0 || height <= 0)
     {
         return;
     }
     SendMessageW(entry->toolbar, TB_SETBUTTONSIZE, 0, MAKELPARAM(width, height));
-    SetWindowPos(entry->toolbar, HWND_TOP, header_rect.right - width, header_rect.top, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    SetWindowPos(entry->toolbar, HWND_TOP, client.right - width, client.top, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
 }
 
 HWND CreateGridToolbar(HWND owner, int command)

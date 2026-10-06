@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "win32/restart.h"
+#include "win32/process_rights.h"
 #include "win32/text_transform.h"
 
 #include "win32/shell_paths.h"
@@ -15,7 +16,7 @@ namespace regkit::win32
 
 bool ArgTakesValue(const std::wstring& arg)
 {
-    return util::EqualsInsensitive(arg, kRestartParentArg) || util::EqualsInsensitive(arg, kRestartDataDirArg);
+    return util::EqualsInsensitive(arg, kRestartParentArg) || util::EqualsInsensitive(arg, kRestartDataDirArg) || util::EqualsInsensitive(arg, kRestartUserSidArg);
 }
 
 std::wstring RestartDataDir(const std::vector<std::wstring>& args)
@@ -45,6 +46,26 @@ bool RestoreSessionRequested()
     }
     LocalFree(argv);
     return requested;
+}
+
+std::wstring RestartUserSid()
+{
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (!argv)
+    {
+        return {};
+    }
+    std::wstring sid;
+    for (int i = 1; i + 1 < argc && sid.empty(); ++i)
+    {
+        if (util::EqualsInsensitive(argv[i], kRestartUserSidArg) && util::StartsWithInsensitive(argv[i + 1], L"S-") && !wcschr(argv[i + 1], L'\\'))
+        {
+            sid = argv[i + 1];
+        }
+    }
+    LocalFree(argv);
+    return sid;
 }
 
 namespace
@@ -113,6 +134,12 @@ std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid, bool 
         {
             AppendArgument(&arguments, kRestartSessionArg);
         }
+    }
+    const std::wstring user_sid = util::GetShellUserSidString();
+    if (!user_sid.empty())
+    {
+        AppendArgument(&arguments, kRestartUserSidArg);
+        AppendArgument(&arguments, user_sid);
     }
     return arguments;
 }

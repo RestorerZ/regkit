@@ -47,9 +47,20 @@ LiveKey OpenChild(const RegistryNode& node, REGSAM parent_access, REGSAM child_a
 
 bool KernelHandle(const RegistryNode& node)
 {
-    // remote roots are rpc handles that native calls must never see
-    return node.root == HKEY_CLASSES_ROOT || node.root == HKEY_CURRENT_USER || node.root == HKEY_LOCAL_MACHINE ||
-           node.root == HKEY_USERS || node.root == HKEY_CURRENT_CONFIG || util::EqualsInsensitive(node.root_name, L"REGISTRY");
+    return util::IsLocalRoot(node.root) || util::EqualsInsensitive(node.root_name, L"REGISTRY");
+}
+
+// opens the key itself
+LiveKey OpenInspected(const RegistryNode& node, const std::wstring& native, LONG* error)
+{
+    if (node.view || (native.empty() && node.root == HKEY_CLASSES_ROOT && !node.subkey.empty()))
+    {
+        // hkcr has no native path and a 32-bit view is redirected, so these open through win32
+        util::UniqueHKey handle;
+        *error = util::OpenRegistryPath(node.root, node.subkey, KEY_QUERY_VALUE | ViewOf(node), true, &handle);
+        return LiveKey(std::move(handle));
+    }
+    return LiveKey(util::OpenNativeRegistryKey(native, KEY_QUERY_VALUE, true, error));
 }
 
 LiveKey OpenSecurity(const RegistryNode& node, REGSAM access, SECURITY_INFORMATION* parts)
@@ -84,16 +95,7 @@ bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, boo
 {
     target->clear();
     LONG error = ERROR_SUCCESS;
-    util::UniqueHKey handle;
-    if (node.view)
-    {
-        error = util::OpenRegistryPath(node.root, node.subkey, KEY_QUERY_VALUE | node.view, true, &handle);
-    }
-    else
-    {
-        handle = util::OpenNativeRegistryKey(registry_path::BuildNative(node), KEY_QUERY_VALUE, true, &error);
-    }
-    const LiveKey key(std::move(handle));
+    const LiveKey key = OpenInspected(node, registry_path::BuildNative(node), &error);
     if (denied)
     {
         *denied = error == ERROR_ACCESS_DENIED;
@@ -107,22 +109,11 @@ KeyInspection InspectKey(const RegistryNode& node, bool want_info, bool want_sou
     LONG error = ERROR_SUCCESS;
     // HARDWARE is never redirected, so the plain native path also answers the volatile hive check for 32-bit nodes
     const std::wstring native = registry_path::BuildNative(node);
-    LiveKey key;
-    if (node.view || (native.empty() && node.root == HKEY_CLASSES_ROOT && !node.subkey.empty()))
+    const LiveKey key = OpenInspected(node, native, &error);
+    // the merged key tells which hive backs it
+    if (want_source && key && node.root == HKEY_CLASSES_ROOT)
     {
-        // hkcr has no native path and a 32-bit view is redirected, so these open through win32
-        util::UniqueHKey handle;
-        error = util::OpenRegistryPath(node.root, node.subkey, KEY_QUERY_VALUE | ViewOf(node), true, &handle);
-        key = LiveKey(std::move(handle));
-        // the merged key tells which hive backs it; asked only when the Details column shows it
-        if (want_source && key && node.root == HKEY_CLASSES_ROOT)
-        {
-            result.class_source = registry_path::ClassesSource(util::QueryKeyName(key.get()));
-        }
-    }
-    else
-    {
-        key = LiveKey(util::OpenNativeRegistryKey(native, KEY_QUERY_VALUE, true, &error));
+        result.class_source = registry_path::ClassesSource(util::QueryKeyName(key.get()));
     }
     result.denied = error == ERROR_ACCESS_DENIED;
     std::wstring target;
@@ -159,9 +150,9 @@ bool QueryValue(const RegistryNode& node, const std::wstring& value_name, Regist
     return key && registry_backend::QueryValue(key, value_name, out);
 }
 
-bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details)
+bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details, bool open_link)
 {
-    LiveKey key(node, kKeyReadAccess);
+    LiveKey key(node, kKeyReadAccess, open_link);
     if (!key || !registry_backend::QueryKeyDetails(key, details))
     {
         return false;
@@ -196,7 +187,7 @@ bool CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCrea
     return result == ERROR_SUCCESS && disposition == REG_CREATED_NEW_KEY;
 }
 
-bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target, DWORD* error)
+bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target, DWORD* error, const KeyCreateOptions& options)
 {
     LONG result = ERROR_ACCESS_DENIED;
     LiveKey parent(node, KEY_WRITE);
@@ -204,7 +195,8 @@ bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, cons
     DWORD disposition = 0;
     if (parent)
     {
-        result = util::CreateRegistryKey(parent.get(), name, KEY_SET_VALUE | KEY_CREATE_LINK | DELETE, REG_OPTION_NON_VOLATILE | REG_OPTION_CREATE_LINK, &created, &disposition);
+        const DWORD flags = (options.is_volatile ? REG_OPTION_VOLATILE : REG_OPTION_NON_VOLATILE) | REG_OPTION_CREATE_LINK;
+        result = util::CreateRegistryKey(parent.get(), name, KEY_SET_VALUE | KEY_CREATE_LINK | DELETE, flags, &created, &disposition, options.class_name);
     }
     if (result == ERROR_SUCCESS)
     {
@@ -253,12 +245,8 @@ bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, cons
         parts = requested;
         key = OpenSecurity(node, WRITE_DAC | WRITE_OWNER, &parts);
     }
-    const bool written = key && WriteSecurity(key, parts, descriptor) && parts == requested;
-    if (key && last_write && KernelHandle(node))
-    {
-        util::SetKeyLastWriteTime(key.get(), *last_write);
-    }
-    return written;
+    const bool written = key && (descriptor.empty() || (WriteSecurity(key, parts, descriptor) && parts == requested));
+    return written && (!last_write || !KernelHandle(node) || util::SetKeyLastWriteTime(key.get(), *last_write) == ERROR_SUCCESS);
 }
 
 bool DeleteKey(const RegistryNode& node)

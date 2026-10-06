@@ -23,19 +23,16 @@ KeySnapshot Capture(const RegistryNode& node, SECURITY_INFORMATION parts)
     {
         snapshot.complete = false;
     }
-    if (RegistryStore::ReadKeyLink(node, &snapshot.link_target))
-    {
-        return snapshot;
-    }
+    const bool link = RegistryStore::ReadKeyLink(node, &snapshot.link_target);
     RegistryStore::KeyEnumResult result;
     result.want_options = true;
     bool reserved = false;
     std::vector<std::wstring> children;
     snapshot.complete = RegistryStore::EnumKeyStreaming(
                             node,
+                            !link,
                             true,
-                            true,
-                            true,
+                            !link,
                             &result,
                             [&](const ValueInfo& info, const BYTE* data, DWORD size) {
                                 if (!reserved)
@@ -59,7 +56,11 @@ KeySnapshot Capture(const RegistryNode& node, SECURITY_INFORMATION parts)
                             [&](const std::wstring& name) {
                                 children.push_back(name);
                                 return true;
-                            }
+                            },
+                            MAXDWORD,
+                            nullptr,
+                            true,
+                            link
                         ) &&
                         snapshot.complete;
 
@@ -78,7 +79,7 @@ KeySnapshot Capture(const RegistryNode& node, SECURITY_INFORMATION parts)
             snapshot.complete = false;
         }
     }
-    if (result.info_valid && result.info.subkey_count != children.size())
+    if (!link && result.info_valid && result.info.subkey_count != children.size())
     {
         snapshot.complete = false;
     }
@@ -106,14 +107,12 @@ bool Fill(const RegistryNode& node, const KeySnapshot& snapshot)
     return true;
 }
 
-void WriteAttributes(const RegistryNode& node, const KeySnapshot& snapshot)
+bool WriteAttributes(const RegistryNode& node, const KeySnapshot& snapshot)
 {
     // security goes last so a restrictive dacl can't block the rest of the restore
     const bool timed = snapshot.last_write.dwLowDateTime || snapshot.last_write.dwHighDateTime;
-    if (!snapshot.security.empty() || timed)
-    {
-        RegistryStore::WriteKeySecurity(node, snapshot.security_parts, snapshot.security, timed ? &snapshot.last_write : nullptr);
-    }
+    return (snapshot.security.empty() && !timed) ||
+           RegistryStore::WriteKeySecurity(node, snapshot.security_parts, snapshot.security, timed ? &snapshot.last_write : nullptr);
 }
 
 bool Restore(const RegistryNode& parent, const KeySnapshot& snapshot, bool* created)
@@ -123,30 +122,17 @@ bool Restore(const RegistryNode& parent, const KeySnapshot& snapshot, bool* crea
         return false;
     }
     const RegistryNode node = registry_path::ChildNode(parent, snapshot.name);
-    if (!snapshot.link_target.empty())
+    const KeyCreateOptions options = {snapshot.class_name, snapshot.is_volatile};
+    const bool link = !snapshot.link_target.empty();
+    if (!(link ? RegistryStore::CreateKeyLink(parent, snapshot.name, snapshot.link_target, options) : RegistryStore::CreateKey(parent, snapshot.name, options)))
     {
-        if (!RegistryStore::CreateKeyLink(parent, snapshot.name, snapshot.link_target))
-        {
-            return false;
-        }
+        return false;
     }
-    else
+    if (created)
     {
-        if (!RegistryStore::CreateKey(parent, snapshot.name, {snapshot.class_name, snapshot.is_volatile}))
-        {
-            return false;
-        }
-        if (created)
-        {
-            *created = true;
-        }
-        if (!Fill(node, snapshot))
-        {
-            return false;
-        }
+        *created = true;
     }
-    WriteAttributes(node, snapshot);
-    return true;
+    return (link || Fill(node, snapshot)) && WriteAttributes(node, snapshot);
 }
 
 } // namespace
@@ -186,12 +172,7 @@ bool ReplaceKey(const RegistryNode& node, const KeySnapshot& snapshot)
             return false;
         }
     }
-    if (!Fill(node, snapshot))
-    {
-        return false;
-    }
-    WriteAttributes(node, snapshot);
-    return true;
+    return Fill(node, snapshot) && WriteAttributes(node, snapshot);
 }
 
 KeySnapshot CaptureKey(const RegistryNode& node, bool exact)

@@ -256,13 +256,17 @@ struct KeyContents
     std::vector<std::wstring> subkeys;
 };
 
-inline LONG ReadKeyContents(HKEY root, const std::wstring& subkey, REGSAM view, bool include_data, KeyContents* contents)
+inline LONG ReadKeyContents(HKEY root, const std::wstring& subkey, REGSAM view, bool include_data, KeyContents* contents, bool* is_volatile = nullptr)
 {
     util::UniqueHKey handle;
     const LONG status = util::OpenRegistryPath(root, subkey, kKeyReadAccess | view, false, &handle);
     if (status != ERROR_SUCCESS)
     {
         return status;
+    }
+    if (is_volatile)
+    {
+        *is_volatile = util::IsLocalRoot(root) && (util::QueryKeyFlags(handle.get()).value_or(0) & util::kKeyFlagVolatile);
     }
     EnumerateKey(
         RegistryKeyHandle(std::move(handle)),

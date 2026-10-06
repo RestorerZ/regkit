@@ -234,7 +234,6 @@ void Trace()
 
 void ResourceList()
 {
-    // Physical Memory\.Translated from an x64 machine: one descriptor, seven memory ranges and one large range
     const std::string hex = "0100000000000000000000000000000008000000030100000010000000000000"
                             "00F009000000000003010000000010000000000000F0C1090000000003010000"
                             "0000000A0000000000002000000000000301000000E0200A000000000020DF00"

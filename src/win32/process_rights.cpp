@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "win32/process_rights.h"
+#include "win32/restart.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 
@@ -97,14 +98,17 @@ const ShellUserRoots& ShellRoots()
     static const ShellUserRoots roots = [] {
         ShellUserRoots result;
         const UniqueHandle token = OpenShellToken(TOKEN_QUERY);
-        result.sid = token ? UserSidString(TokenInformation(token.get(), TokenUser)) : std::wstring();
+        result.sid = token ? UserSidString(TokenInformation(token.get(), TokenUser)) : win32::RestartUserSid();
         if (result.sid.empty() || EqualsInsensitive(result.sid, ProcessUserSid()) ||
             RegOpenKeyExW(HKEY_USERS, result.sid.c_str(), 0, MAXIMUM_ALLOWED, result.user.put()) != ERROR_SUCCESS)
         {
             result.sid.clear();
             return result;
         }
-        RegOpenUserClassesRoot(token.get(), 0, MAXIMUM_ALLOWED, result.classes.put());
+        if (token)
+        {
+            RegOpenUserClassesRoot(token.get(), 0, MAXIMUM_ALLOWED, result.classes.put());
+        }
         return result;
     }();
     return roots;
@@ -490,6 +494,16 @@ std::wstring GetProcessImagePath(DWORD process_id)
 std::wstring GetCurrentUserSidString()
 {
     return CurrentUserFollowsShell() ? ShellRoots().sid : ProcessUserSid();
+}
+
+std::wstring GetClassesUserSidString()
+{
+    return CurrentUserFollowsShell() && ShellRoots().classes ? ShellRoots().sid : ProcessUserSid();
+}
+
+std::wstring GetShellUserSidString()
+{
+    return ShellUserDiffers() ? ShellRoots().sid : ProcessUserSid();
 }
 
 bool ShellUserDiffers()

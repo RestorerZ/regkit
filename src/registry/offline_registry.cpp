@@ -167,21 +167,26 @@ struct CloseOfflineKey
     }
 };
 
+std::wstring SelectedControlSet(OffregApi* api, ORHKEY root)
+{
+    DWORD current = 0;
+    DWORD size = sizeof(current);
+    DWORD type = 0;
+    if (api->get_value(root, L"Select", L"Current", &type, &current, &size) != ERROR_SUCCESS || type != REG_DWORD || current > 999)
+    {
+        return {};
+    }
+    wchar_t control_set[16] = {};
+    swprintf_s(control_set, L"ControlSet%03lu", current);
+    return control_set;
+}
+
 // currentcontrolset is a volatile link windows builds at boot, offline it maps through Select\Current
 std::wstring ResolveControlSet(OffregApi* api, ORHKEY root, const std::wstring& subkey)
 {
     constexpr std::wstring_view kLink = L"CurrentControlSet";
-    DWORD current = 0;
-    DWORD size = sizeof(current);
-    DWORD type = 0;
-    if (!registry_path::HasComponentPrefix(subkey, kLink) ||
-        api->get_value(root, L"Select", L"Current", &type, &current, &size) != ERROR_SUCCESS || type != REG_DWORD || current > 999)
-    {
-        return subkey;
-    }
-    wchar_t control_set[16] = {};
-    swprintf_s(control_set, L"ControlSet%03lu", current);
-    return control_set + subkey.substr(kLink.size());
+    const std::wstring current = registry_path::HasComponentPrefix(subkey, kLink) ? SelectedControlSet(api, root) : std::wstring();
+    return current.empty() ? subkey : current + subkey.substr(kLink.size());
 }
 
 class OfflineKey
@@ -412,6 +417,12 @@ bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details)
     return key && registry_backend::QueryKeyDetails(key, details);
 }
 
+std::wstring SelectedControlSet(const RegistryNode& node)
+{
+    OffregApi* api = Api();
+    return api && node.root ? SelectedControlSet(api, reinterpret_cast<ORHKEY>(node.root)) : std::wstring();
+}
+
 bool CreateKey(const RegistryNode& node, const std::wstring& name, const std::wstring& class_name)
 {
     const OfflineKey parent(node);
@@ -437,7 +448,7 @@ bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std:
 bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor)
 {
     const OfflineKey key(node);
-    return key && WriteSecurity(key, parts, descriptor);
+    return key && (descriptor.empty() || WriteSecurity(key, parts, descriptor));
 }
 
 bool DeleteKey(const RegistryNode& node)

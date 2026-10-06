@@ -190,7 +190,7 @@ std::vector<MainWindow::Impl::DefaultValueChoice> MainWindow::Impl::CollectDefau
     {
         return choices;
     }
-    std::wstring path = registry_path::Build(*node);
+    std::wstring path = SourceLookupPath(*node);
     std::wstring default_path = trace::NormalizeKeyPathBasic(path);
     if (default_path.empty())
     {

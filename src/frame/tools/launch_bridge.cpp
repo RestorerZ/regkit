@@ -232,7 +232,7 @@ bool MainWindow::Impl::ShowResourceList(const RegistryValue& value)
     editors::TablesRequest request;
     request.title = value_format::TypeName(value.type);
     request.identifier = value.name.empty() ? std::wstring(util::Tr(L"(Default)")) : registry_path::DisplayName(value.name);
-    auto tables = resource_list::Decode(value_format::NormalizeType(value.type), value.data.data(), value.data.size());
+    auto tables = resource_list::Decode(value_format::NormalizeType(value.type), value.data.data(), value.data.size(), util::EndsWithInsensitive(value.name, L".Translated"));
     request.tables = tables ? std::move(*tables) : std::vector<records::Table>{{util::Tr(L"Error"), {util::Tr(L"Error")}, {{util::Tr(L"The resource data is malformed.")}}}};
     bool edit_binary = false;
     request.action_label = util::Tr(L"Edit Binary...");

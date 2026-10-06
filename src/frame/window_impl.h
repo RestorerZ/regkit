@@ -293,6 +293,7 @@ class MainWindow::Impl
     void SelectDefaultTreeItem();
     void CaptureRegistryTabState(int index);
     void ResetRegistryTreeState();
+    void SuspendTreeRedraw();
     void RestoreRegistryTabState(int index);
     std::wstring LocalRegistryTabLabel(int index) const;
     void RefreshRegistryTabLabels();
@@ -542,6 +543,7 @@ class MainWindow::Impl
     void NormalizeRecentDefaultList();
     void AppendTraceChildren(const RegistryNode& node, const std::unordered_set<std::wstring>& existing_lower, std::vector<std::wstring>* out) const;
     static std::wstring TracePathLowerForNode(const RegistryNode& node);
+    static std::wstring SourceLookupPath(const RegistryNode& node);
     bool AllowTraceSimulation(const RegistryNode& node) const;
 
     struct ClipboardItem
@@ -580,7 +582,6 @@ class MainWindow::Impl
     HFONT icon_font_ = nullptr;
     bool ui_font_owned_ = false;
     LOGFONTW custom_font_ = {};
-    // the saved settings, and the live value of every setting that has no richer form below
     workspace::Settings settings_;
     HACCEL accelerators_ = nullptr;
     Toolbar toolbar_;
@@ -611,13 +612,11 @@ class MainWindow::Impl
     int history_max_rows_ = 500;
     changes::ChangeHistory change_history_;
     std::shared_ptr<RegistrySession> local_session_ = std::make_shared<RegistrySession>();
-    // the session of the registry tab shown last, search and .reg tabs keep it
     std::shared_ptr<RegistrySession> session_ = local_session_;
     int current_key_count_ = 0;
     int current_value_count_ = 0;
     int tab_height_ = 22;
     bool suppress_tab_change_ = false;
-    // the area below the tab row and above the status bar that the panes share
     RECT content_rect_ = {};
     ui::Splitter tree_splitter_{true, false};
     ui::Splitter history_splitter_{false, true};
@@ -629,6 +628,7 @@ class MainWindow::Impl
     std::wstring value_tooltip_text_;
     std::unique_ptr<util::PrivilegeScope> backup_privileges_;
     std::wstring status_account_sid_;
+    std::wstring status_classes_sid_;
     std::wstring status_account_;
     work::KeyWatcher key_watcher_;
     bool show_value_ = true;
@@ -665,6 +665,7 @@ class MainWindow::Impl
     std::wstring pending_compat_jump_;
     bool flushing_external_navigation_ = false;
     bool jump_ui_batch_active_ = false;
+    bool tree_redraw_pending_ = false;
     std::wstring pending_compare_key_path_;
     std::wstring pending_compare_value_name_;
     std::wstring pending_external_value_key_path_;

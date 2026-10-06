@@ -95,10 +95,7 @@ void MainWindow::Impl::BeginJumpUiBatch()
         return;
     }
     jump_ui_batch_active_ = true;
-    if (browse_.tree().hwnd())
-    {
-        SendMessageW(browse_.tree().hwnd(), WM_SETREDRAW, FALSE, 0);
-    }
+    browse_.tree().SuspendRedraw();
     if (browse_.values().hwnd())
     {
         SendMessageW(browse_.values().hwnd(), WM_SETREDRAW, FALSE, 0);
@@ -112,11 +109,7 @@ void MainWindow::Impl::EndJumpUiBatch()
         return;
     }
     jump_ui_batch_active_ = false;
-    if (browse_.tree().hwnd())
-    {
-        SendMessageW(browse_.tree().hwnd(), WM_SETREDRAW, TRUE, 0);
-        InvalidateRect(browse_.tree().hwnd(), nullptr, TRUE);
-    }
+    browse_.tree().ResumeRedraw();
     if (browse_.values().hwnd())
     {
         SendMessageW(browse_.values().hwnd(), WM_SETREDRAW, TRUE, 0);
@@ -564,6 +557,11 @@ LRESULT CALLBACK MainWindow::Impl::TreeViewProc(HWND hwnd, UINT message, WPARAM 
             }
         }
         return result;
+    }
+    if ((message == WM_PAINT || message == WM_ERASEBKGND) && self && hwnd == self->browse_.tree().hwnd() && self->browse_.tree().IsRedrawSuspended())
+    {
+        ValidateRect(hwnd, nullptr);
+        return message == WM_ERASEBKGND;
     }
     if (message == WM_SETFOCUS && self)
     {

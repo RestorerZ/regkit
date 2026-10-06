@@ -33,6 +33,12 @@ class RegistryTree
     );
     void SetRootLabel(const std::wstring& label, int icon = 0);
     void SetRegEditLayout(bool enabled);
+    void SuspendRedraw();
+    void ResumeRedraw();
+    bool IsRedrawSuspended() const noexcept
+    {
+        return redraw_suspended_ > 0;
+    }
 
     void PopulateRoots(const std::vector<RegistryRootEntry>& roots);
     RegistryNode* NodeFromItem(HTREEITEM item);
@@ -62,6 +68,7 @@ class RegistryTree
         virtual_child_provider_;
     std::wstring root_label_ = L"Computer";
     int root_icon_ = 0;
+    int redraw_suspended_ = 0;
     bool regedit_layout_ = false;
 };
 

@@ -93,7 +93,7 @@ bool ReadRegistry(const std::wstring& key_path, bool recursive, std::vector<Oper
     }
     const size_t split = path.find(L'\\');
     const std::wstring subkey = split == std::wstring::npos ? std::wstring() : path.substr(split + 1);
-    const LONG status = ReadRegistryOperations(registry_path::RootFromName(path.substr(0, split)), subkey, path, win32::kDefaultRegistryView, recursive, operations, skipped);
+    const LONG status = ReadRegistryOperations(registry_path::RootFromName(path.substr(0, split)), subkey, path, win32::kDefaultRegistryView, recursive, operations, skipped, skipped);
     if (status != ERROR_SUCCESS)
     {
         *error = util::FormatWin32Error(static_cast<DWORD>(status)) + L"\n" + path;

@@ -24,17 +24,6 @@ constexpr wchar_t kRealGroupLabel[] = L"REGISTRY";
 
 using util::ToLower;
 
-void SuspendRedraw(HWND tree)
-{
-    SendMessageW(tree, WM_SETREDRAW, FALSE, 0);
-}
-
-void ResumeRedraw(HWND tree)
-{
-    SendMessageW(tree, WM_SETREDRAW, TRUE, 0);
-    RedrawWindow(tree, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
-}
-
 HTREEITEM InsertFolderItem(HWND tree, HTREEITEM parent, const wchar_t* label, int icon = kFolderIconIndex)
 {
     TVINSERTSTRUCTW insert = {};
@@ -132,6 +121,23 @@ void RegistryTree::SetRootLabel(const std::wstring& label, int icon)
 void RegistryTree::SetRegEditLayout(bool enabled)
 {
     regedit_layout_ = enabled;
+}
+
+void RegistryTree::SuspendRedraw()
+{
+    if (redraw_suspended_++ == 0)
+    {
+        SendMessageW(hwnd_, WM_SETREDRAW, FALSE, 0);
+    }
+}
+
+void RegistryTree::ResumeRedraw()
+{
+    if (redraw_suspended_ > 0 && --redraw_suspended_ == 0)
+    {
+        SendMessageW(hwnd_, WM_SETREDRAW, TRUE, 0);
+        RedrawWindow(hwnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+    }
 }
 
 void RegistryTree::PopulateRoots(const std::vector<RegistryRootEntry>& roots)
@@ -297,7 +303,7 @@ void RegistryTree::DeleteChildren(HTREEITEM parent)
         node->icon = -1;
     }
     std::vector<RegistryNode*> released;
-    SuspendRedraw(hwnd_);
+    SuspendRedraw();
     while (child)
     {
         HTREEITEM next = TreeView_GetNextSibling(hwnd_, child);
@@ -306,7 +312,7 @@ void RegistryTree::DeleteChildren(HTREEITEM parent)
         TreeView_DeleteItem(hwnd_, child);
         child = next;
     }
-    ResumeRedraw(hwnd_);
+    ResumeRedraw();
     for (RegistryNode* node : released)
     {
         nodes_.erase(node);

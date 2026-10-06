@@ -171,6 +171,7 @@ void MainWindow::Impl::ApplyTabSelection(int index)
     const TabEntry& entry = tabs_[static_cast<size_t>(index)];
     if (entry.kind == TabEntry::Kind::kRegistry)
     {
+        SuspendTreeRedraw();
         // a tab restored at startup connects the first time it is shown
         bool shown = false;
         if (entry.session)

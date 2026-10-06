@@ -395,6 +395,7 @@ void MainWindow::Impl::StartValueListWorker()
             row.size_value = 0;
             row.has_size = true;
             row.value_type = REG_SZ;
+            row.missing = true;
             if (!have_traces)
             {
                 row.read_on_boot.clear();
@@ -431,7 +432,7 @@ void MainWindow::Impl::StartValueListWorker()
                     ListRow row;
                     row.name = value_name.empty() ? util::Tr(L"(Default)") : value_name;
                     row.type = L"TRACE";
-                    row.trace_only = true;
+                    row.missing = true;
                     row.data = util::Tr(L"(value not set)");
                     row.read_on_boot = format_read_on_boot(gather_labels(value_lower));
                     row.image_index = kTraceIconIndex;

@@ -37,6 +37,11 @@ void FormatCellFileTime(const FILETIME& filetime, wchar_t* buffer, int capacity)
     lstrcpynW(buffer, FormatFileTime(filetime).c_str(), capacity);
 }
 
+std::wstring HistoryActionText(const HistoryEntry& entry)
+{
+    return entry.backup_mode ? entry.action + L" (" + util::Tr(L"Backup/restore mode") + L")" : entry.action;
+}
+
 } // namespace
 
 LRESULT MainWindow::Impl::HandleNotification(LPARAM lparam)
@@ -163,7 +168,7 @@ std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item, int displa
         case 0:
             return entry.time_text;
         case 1:
-            return entry.action;
+            return HistoryActionText(entry);
         case 2:
             return entry.old_data;
         case 3:
@@ -473,6 +478,8 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
     {
         if (header->code == TVN_ITEMEXPANDINGW)
         {
+            // explorer themed trees slide the rows below an expanding key
+            SuspendTreeRedraw();
             browse_.tree().OnItemExpanding(reinterpret_cast<NMTREEVIEWW*>(lparam));
             return 0;
         }
@@ -1082,10 +1089,19 @@ LRESULT MainWindow::Impl::HandleHistoryNotification(NMHDR* header, LPARAM lparam
         {
             const auto& entry = entries[static_cast<size_t>(disp->item.iItem)];
             const std::wstring* text = &entry.time_text;
+            std::wstring marked;
             switch (disp->item.iSubItem)
             {
             case 1:
-                text = &entry.action;
+                if (entry.backup_mode)
+                {
+                    marked = HistoryActionText(entry);
+                    text = &marked;
+                }
+                else
+                {
+                    text = &entry.action;
+                }
                 break;
             case 2:
                 text = &entry.old_data;
@@ -1096,11 +1112,12 @@ LRESULT MainWindow::Impl::HandleHistoryNotification(NMHDR* header, LPARAM lparam
             default:
                 break;
             }
-            if (text->size() > kCellTextDrawLimit && disp->item.pszText && disp->item.cchTextMax > 0)
+            const bool has_buffer = disp->item.pszText && disp->item.cchTextMax > 0;
+            if (has_buffer && (text == &marked || text->size() > kCellTextDrawLimit))
             {
                 lstrcpynW(disp->item.pszText, text->c_str(), disp->item.cchTextMax);
             }
-            else
+            else if (text != &marked)
             {
                 disp->item.pszText = const_cast<wchar_t*>(text->c_str());
             }

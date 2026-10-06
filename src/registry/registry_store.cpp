@@ -213,7 +213,7 @@ LONG RegistryStore::SetKeyControlFlags(const RegistryNode& node, ULONG flags)
     return status == ERROR_SUCCESS ? util::SetKeyControlFlags(key.get(), flags) : status;
 }
 
-bool RegistryStore::QueryKeyDetails(const RegistryNode& node, KeyDetails* details)
+bool RegistryStore::QueryKeyDetails(const RegistryNode& node, KeyDetails* details, bool open_link)
 {
     *details = {};
     return Dispatch(
@@ -222,7 +222,17 @@ bool RegistryStore::QueryKeyDetails(const RegistryNode& node, KeyDetails* detail
             return registry_backend::virtual_store::QueryKeyInfo(data, node, &details->info);
         },
         [&] { return registry_backend::offline::QueryKeyDetails(node, details); },
-        [&] { return registry_backend::live::QueryKeyDetails(node, details); }
+        [&] { return registry_backend::live::QueryKeyDetails(node, details, open_link); }
+    );
+}
+
+std::wstring RegistryStore::OfflineControlSet(const RegistryNode& node)
+{
+    return Dispatch(
+        node,
+        [&](VirtualRegistryData&) { return std::wstring(); },
+        [&] { return registry_backend::offline::SelectedControlSet(node); },
+        [&] { return std::wstring(); }
     );
 }
 
@@ -244,13 +254,13 @@ bool RegistryStore::CreateKey(const RegistryNode& node, const std::wstring& name
     );
 }
 
-bool RegistryStore::CreateKeyLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target)
+bool RegistryStore::CreateKeyLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target, const KeyCreateOptions& options)
 {
     return Dispatch(
         node,
         [&](VirtualRegistryData&) { return false; },
         [&] { return false; },
-        [&] { return registry_backend::live::CreateRegistryLink(node, name, nt_target, nullptr); }
+        [&] { return registry_backend::live::CreateRegistryLink(node, name, nt_target, nullptr, options); }
     );
 }
 
@@ -282,7 +292,7 @@ bool RegistryStore::WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMAT
 {
     return Dispatch(
         node,
-        [&](VirtualRegistryData&) { return false; },
+        [&](VirtualRegistryData&) { return descriptor.empty(); },
         [&] { return registry_backend::offline::WriteKeySecurity(node, parts, descriptor); },
         [&] { return registry_backend::live::WriteKeySecurity(node, parts, descriptor, last_write); }
     );

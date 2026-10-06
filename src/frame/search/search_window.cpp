@@ -234,15 +234,21 @@ void MainWindow::Impl::UpdateStatus()
         path_text = registry_path::Build(*browse_.current_node());
     }
     std::wstring mode_text;
-    if (session_->mode == RegistryMode::kLocal && util::ShellUserDiffers())
+    if (session_->mode == RegistryMode::kLocal && (util::ShellUserDiffers() || util::IsProcessSystem()))
     {
         const std::wstring sid = util::GetCurrentUserSidString();
-        if (sid != status_account_sid_)
+        const std::wstring classes_sid = util::GetClassesUserSidString();
+        if (sid != status_account_sid_ || classes_sid != status_classes_sid_)
         {
             status_account_sid_ = sid;
-            status_account_ = util::AccountName(sid);
+            status_classes_sid_ = classes_sid;
+            status_account_ = util::TrLabel(L"HKCU", util::AccountName(sid));
+            if (classes_sid != sid)
+            {
+                status_account_.append(L", ").append(util::TrLabel(L"HKCR", util::AccountName(classes_sid)));
+            }
         }
-        mode_text = util::TrLabel(L"HKCU", status_account_);
+        mode_text = status_account_;
     }
     if (backup_privileges_)
     {

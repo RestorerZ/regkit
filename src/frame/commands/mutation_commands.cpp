@@ -218,6 +218,7 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
                 op.node = *browse_.current_node();
                 op.name = name;
                 op.key_snapshot.name = name;
+                op.key_snapshot.is_volatile = made_volatile;
                 PushUndo(std::move(op));
                 std::wstring path = registry_path::Build(*browse_.current_node());
                 if (!path.empty())
@@ -463,7 +464,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                 {
                     return true;
                 }
-                if (HasActiveTraces() && (row->type.empty() || row->trace_only))
+                if (HasActiveTraces() && (row->type.empty() || row->type == L"TRACE"))
                 {
                     bool needs_create = browse_.current_node()->simulated;
                     editors::CustomValueRequest request;
@@ -1002,7 +1003,7 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
             }
             if (row && row->kind == rowkind::kValue)
             {
-                if (row->simulated)
+                if (row->simulated || row->missing)
                 {
                     return true;
                 }

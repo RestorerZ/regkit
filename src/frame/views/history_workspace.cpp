@@ -111,6 +111,7 @@ void MainWindow::Impl::AppendHistoryEntry(HistoryEntry entry)
     entry.action = registry_path::DisplayName(entry.action);
     entry.old_data = registry_path::DisplayName(entry.old_data);
     entry.new_data = registry_path::DisplayName(entry.new_data);
+    entry.backup_mode = backup_privileges_ != nullptr;
 
     const HistoryEntry appended = change_history_.Append(std::move(entry), static_cast<size_t>(history_max_rows_));
     if (history_loaded_)

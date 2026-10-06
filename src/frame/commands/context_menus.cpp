@@ -409,9 +409,9 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
                                 });
         const bool single_value = all_values && selected_rows.size() == 1;
         const bool has_data = std::any_of(selected_rows.begin(), selected_rows.end(), [](const ListRow& selected) {
-            return !selected.trace_only;
+            return !selected.missing;
         });
-        bool can_rename = !settings_.read_only && single_value && has_data;
+        bool can_rename = !settings_.read_only && single_value && has_data && !selected_rows.front().extra.empty();
         bool can_delete = !settings_.read_only && all_values && has_data;
         bool can_comment = all_values;
         bool can_export = !row->simulated && browse_.current_node() && !browse_.current_node()->simulated && has_data;
@@ -675,7 +675,7 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
     KeyInfo info = {};
     bool key_exists = node_ok && RegistryStore::QueryKeyInfo(node, &info);
     bool can_modify = !settings_.read_only;
-    bool can_rename = key_exists && can_modify && (!is_key_row || !node.subkey.empty());
+    bool can_rename = key_exists && can_modify && (is_key_row ? !node.subkey.empty() : !row_value_name.empty());
     bool can_delete = key_exists && can_modify && (!is_key_row || !node.subkey.empty());
     bool can_export = key_exists;
     bool can_permissions = key_exists && can_modify;

@@ -24,6 +24,12 @@ struct NativeKeyInfo
     std::optional<ULONG> layer;
 };
 
+// remote roots are rpc handles that native calls must never see
+inline bool IsLocalRoot(HKEY root) noexcept
+{
+    return root == HKEY_CLASSES_ROOT || root == HKEY_CURRENT_USER || root == HKEY_LOCAL_MACHINE || root == HKEY_USERS || root == HKEY_CURRENT_CONFIG;
+}
+
 UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access, bool open_link = false, LONG* error = nullptr);
 UniqueHKey OpenNativeRegistryRoot();
 LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool open_link, UniqueHKey* key);

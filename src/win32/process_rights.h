@@ -37,8 +37,10 @@ class PrivilegeScope
     bool held_ = false;
 };
 
-// the user HKEY_CURRENT_USER belongs to, the signed in user while following it
+// the user HKEY_CURRENT_USER belongs to the signed in user while following it
 std::wstring GetCurrentUserSidString();
+std::wstring GetClassesUserSidString();
+std::wstring GetShellUserSidString();
 bool ShellUserDiffers();
 void SetCurrentUserFollowsShell(bool enable);
 bool CurrentUserFollowsShell();

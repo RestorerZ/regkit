@@ -66,8 +66,8 @@ class Writer
 };
 
 void SkipNullNames(const std::wstring& display_path, std::vector<Value>* values, std::vector<std::wstring>* subkeys, std::vector<std::wstring>* skipped);
-LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<std::wstring>* skipped = nullptr);
-LONG ReadRegistryOperations(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<Operation>* output, std::vector<std::wstring>* skipped = nullptr);
+LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<std::wstring>* skipped = nullptr, std::vector<std::wstring>* lost_volatility = nullptr);
+LONG ReadRegistryOperations(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<Operation>* output, std::vector<std::wstring>* skipped = nullptr, std::vector<std::wstring>* lost_volatility = nullptr);
 bool ParseOperations(std::wstring_view content, std::vector<Operation>* output, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr, std::wstring* error = nullptr);
 bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr, std::wstring* error = nullptr);
 bool Load(const std::wstring& path, Document* output, std::wstring* error, const std::atomic_bool* cancel = nullptr, bool* cancelled = nullptr);

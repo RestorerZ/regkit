@@ -87,22 +87,16 @@ void MainWindow::Impl::RefreshMatchingTreeNodes()
         return left.first > right.first;
     });
     HTREEITEM first_visible = TreeView_GetFirstVisible(tree);
-    SendMessageW(tree, WM_SETREDRAW, FALSE, 0);
+    browse_.tree().SuspendRedraw();
     for (const auto& match : matches)
     {
-        const bool was_expanded = (TreeView_GetItemState(tree, match.second, TVIS_EXPANDED) & TVIS_EXPANDED) != 0;
         RefreshTreeItem(match.second);
-        if (!was_expanded)
-        {
-            TreeView_Expand(tree, match.second, TVE_COLLAPSE);
-        }
     }
     if (first_visible)
     {
         TreeView_SelectSetFirstVisible(tree, first_visible);
     }
-    SendMessageW(tree, WM_SETREDRAW, TRUE, 0);
-    RedrawWindow(tree, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
+    browse_.tree().ResumeRedraw();
 }
 
 void MainWindow::Impl::RefreshTreeSelection()
@@ -131,7 +125,6 @@ void MainWindow::Impl::RefreshTreeItem(HTREEITEM item)
     info.action = TVE_EXPAND;
     info.itemNew.hItem = item;
     browse_.tree().OnItemExpanding(&info);
-    TreeView_Expand(browse_.tree().hwnd(), item, TVE_EXPAND);
     MarkTreeStateDirty();
 }
 

@@ -428,18 +428,18 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
     }
 
     RegistryNode snapshot = *node;
-    std::wstring path = registry_path::Build(snapshot);
-    RecordNavigation(path);
-    std::wstring trace_path = trace::NormalizeKeyPath(path);
+    RecordNavigation(registry_path::Build(snapshot));
+    const std::wstring lookup_path = SourceLookupPath(snapshot);
+    std::wstring trace_path = trace::NormalizeKeyPath(lookup_path);
     if (trace_path.empty())
     {
-        trace_path = path;
+        trace_path = lookup_path;
     }
     std::wstring trace_path_lower = ToLower(trace_path);
-    std::wstring default_path = trace::NormalizeKeyPathBasic(path);
+    std::wstring default_path = trace::NormalizeKeyPathBasic(lookup_path);
     if (default_path.empty())
     {
-        default_path = path;
+        default_path = lookup_path;
     }
     std::wstring default_path_lower = ToLower(default_path);
     bool is_reg_file = IsRegFileTabSelected();

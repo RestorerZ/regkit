@@ -862,7 +862,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleDefaultWorkerMessage(UINT message
             bool touches_current = false;
             if (browse_.current_node())
             {
-                std::wstring path = registry_path::Build(*browse_.current_node());
+                std::wstring path = SourceLookupPath(*browse_.current_node());
                 std::wstring normalized = trace::NormalizeKeyPathBasic(path);
                 if (normalized.empty())
                 {
@@ -1128,6 +1128,10 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
             }
             return 0;
         }
+    case frame::message_id::kTreeRedraw:
+        tree_redraw_pending_ = false;
+        browse_.tree().ResumeRedraw();
+        return 0;
     case frame::message_id::kRegistryChanged:
         if (wparam == key_watcher_.generation())
         {

@@ -261,8 +261,18 @@ LRESULT PaintGridToolbar(HWND toolbar, NMTBCUSTOMDRAW* draw, HBRUSH surface)
         FillRect(draw->nmcd.hdc, &draw->nmcd.rc, surface);
         return CDRF_NOTIFYITEMDRAW;
     case CDDS_ITEMPREPAINT:
-        draw->nmcd.uItemState &= ~(CDIS_HOT | CDIS_CHECKED | CDIS_SELECTED);
-        return TBCDRF_NOBACKGROUND | TBCDRF_NOEDGES | TBCDRF_NOOFFSET;
+        {
+            // toolbar would place the glyph by its own padding
+            HIMAGELIST images = reinterpret_cast<HIMAGELIST>(SendMessageW(toolbar, TB_GETIMAGELIST, 0, 0));
+            int width = 0;
+            int height = 0;
+            if (images && ImageList_GetIconSize(images, &width, &height))
+            {
+                const RECT& rect = draw->nmcd.rc;
+                ImageList_Draw(images, 0, draw->nmcd.hdc, rect.left + (rect.right - rect.left - width) / 2, rect.top + (rect.bottom - rect.top - height) / 2, ILD_TRANSPARENT);
+            }
+            return CDRF_SKIPDEFAULT;
+        }
     default:
         break;
     }

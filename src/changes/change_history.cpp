@@ -186,6 +186,7 @@ HistoryDocument ParseHistory(const std::wstring& content)
             document.source_version = HistoryDocument::kCurrentVersion;
             DecodeRevert(fields, &entry);
         }
+        entry.backup_mode = fields.size() >= 12 && fields[11] == L"1";
         document.entries.push_back(std::move(entry));
     }
     return document;
@@ -194,7 +195,7 @@ HistoryDocument ParseHistory(const std::wstring& content)
 std::wstring SerializeHistoryEntry(const HistoryEntry& entry)
 {
     std::wstring line;
-    record_fields::AppendRecord(&line, {std::to_wstring(entry.timestamp), entry.time_text, entry.action, entry.old_data, entry.new_data, entry.key_path, entry.value_name, std::to_wstring(static_cast<int>(entry.revert_kind)), entry.revert_value.name, std::to_wstring(entry.revert_value.type), util::ToHex(entry.revert_value.data)});
+    record_fields::AppendRecord(&line, {std::to_wstring(entry.timestamp), entry.time_text, entry.action, entry.old_data, entry.new_data, entry.key_path, entry.value_name, std::to_wstring(static_cast<int>(entry.revert_kind)), entry.revert_value.name, std::to_wstring(entry.revert_value.type), util::ToHex(entry.revert_value.data), entry.backup_mode ? L"1" : L"0"});
     return line;
 }
 

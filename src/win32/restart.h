@@ -20,10 +20,12 @@ inline constexpr wchar_t kRestartUserArg[] = L"--restart-user";
 inline constexpr wchar_t kRestartAdminArg[] = L"--restart-admin";
 inline constexpr wchar_t kRestartDataDirArg[] = L"--data-dir";
 inline constexpr wchar_t kRestartSessionArg[] = L"--restore-session";
+inline constexpr wchar_t kRestartUserSidArg[] = L"--user-sid";
 
 bool ArgTakesValue(const std::wstring& arg);
 std::wstring RestartDataDir(const std::vector<std::wstring>& args);
 bool RestoreSessionRequested();
+std::wstring RestartUserSid();
 
 std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid, bool restore_session = true);
 std::wstring RestartArguments(const wchar_t* target_arg, DWORD parent_pid, const std::vector<std::wstring>& original_args);

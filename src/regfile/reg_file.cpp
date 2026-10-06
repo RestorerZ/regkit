@@ -233,7 +233,7 @@ namespace
 
 // depth first in export order, visit gets each readable key's display path and contents
 template <typename Visit>
-LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<std::wstring>* skipped, Visit visit)
+LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<std::wstring>* skipped, std::vector<std::wstring>* lost_volatility, Visit visit)
 {
     if (subkey.find(L'\0') != std::wstring::npos)
     {
@@ -243,6 +243,7 @@ LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring
     {
         std::wstring subkey;
         std::wstring display;
+        bool volatile_parent = false;
     };
     std::vector<Pending> pending{{subkey, display_path}};
     LONG top_status = ERROR_SUCCESS;
@@ -251,7 +252,8 @@ LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring
         const Pending current = std::move(pending.back());
         pending.pop_back();
         registry_backend::KeyContents contents;
-        const LONG status = registry_backend::ReadKeyContents(root, current.subkey, view, true, &contents);
+        bool is_volatile = current.volatile_parent;
+        const LONG status = registry_backend::ReadKeyContents(root, current.subkey, view, true, &contents, lost_volatility && !is_volatile ? &is_volatile : nullptr);
         if (top)
         {
             top_status = status;
@@ -260,11 +262,15 @@ LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring
         {
             continue;
         }
+        if (is_volatile && !current.volatile_parent)
+        {
+            lost_volatility->push_back(Describe({Operation::Kind::kKey, current.display}, util::Tr(L"only the volatile flag of it and its subkeys")));
+        }
         SkipNullNames(current.display, &contents.values, &contents.subkeys, skipped);
         visit(current.display, contents);
         for (auto child = contents.subkeys.rbegin(); recurse && child != contents.subkeys.rend(); ++child)
         {
-            pending.push_back({registry_path::JoinSubkey(current.subkey, *child), current.display + L"\\" + *child});
+            pending.push_back({registry_path::JoinSubkey(current.subkey, *child), current.display + L"\\" + *child, is_volatile});
         }
     }
     return top_status;
@@ -293,9 +299,9 @@ void SkipNullNames(const std::wstring& display_path, std::vector<Value>* values,
     }
 }
 
-LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<std::wstring>* skipped)
+LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<std::wstring>* skipped, std::vector<std::wstring>* lost_volatility)
 {
-    return VisitRegistryTree(root, subkey, display_path, view, recurse, skipped, [&](const std::wstring& display, const registry_backend::KeyContents& contents) {
+    return VisitRegistryTree(root, subkey, display_path, view, recurse, skipped, lost_volatility, [&](const std::wstring& display, const registry_backend::KeyContents& contents) {
         std::vector<const Value*> values;
         values.reserve(contents.values.size());
         for (const Value& value : contents.values)
@@ -306,9 +312,9 @@ LONG AppendRegistryTree(Writer* writer, HKEY root, const std::wstring& subkey, c
     });
 }
 
-LONG ReadRegistryOperations(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<Operation>* output, std::vector<std::wstring>* skipped)
+LONG ReadRegistryOperations(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<Operation>* output, std::vector<std::wstring>* skipped, std::vector<std::wstring>* lost_volatility)
 {
-    return VisitRegistryTree(root, subkey, display_path, view, recurse, skipped, [&](const std::wstring& display, registry_backend::KeyContents& contents) {
+    return VisitRegistryTree(root, subkey, display_path, view, recurse, skipped, lost_volatility, [&](const std::wstring& display, registry_backend::KeyContents& contents) {
         output->push_back({Operation::Kind::kKey, display});
         for (Value& value : contents.values)
         {

@@ -52,8 +52,8 @@ struct ListRow
     DWORD value_data_size = 0;
     bool data_ready = false;
     bool simulated = false;
-    // a value a trace lists that the registry doesn't have
-    bool trace_only = false;
+    // a value the registry doesn't have (trace, or unset default)
+    bool missing = false;
     int image_index = 0;
     LPARAM kind = 0;
 };

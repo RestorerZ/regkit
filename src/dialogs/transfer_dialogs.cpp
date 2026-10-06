@@ -104,7 +104,7 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, bool allow_hive, st
     last_open_after = options.open_after;
     regfile::Writer writer;
     std::vector<std::wstring> skipped;
-    const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, ViewOf(node), options.include_subkeys, &skipped);
+    const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, ViewOf(node), options.include_subkeys, &skipped, &skipped);
     if (status != ERROR_SUCCESS)
     {
         return ReportUnreadableKey(status, display, error);
@@ -188,7 +188,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
         {
             return false;
         }
-        const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, ViewOf(node), true, &skipped);
+        const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, ViewOf(node), true, &skipped, &skipped);
         if (status != ERROR_SUCCESS)
         {
             return ReportUnreadableKey(status, display, error);

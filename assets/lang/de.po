@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-06 11:42+0200\n"
+"POT-Creation-Date: 2026-10-06 15:51+0200\n"
 "PO-Revision-Date: 2026-10-04 12:13+0200\n"
 "Last-Translator: nohuto contact@noverse.dev\n"
 "Language-Team: none\n"
@@ -69,11 +69,11 @@ msgstr "Ungültig"
 #: dialogs/bitfield_editor.cpp:788 dialogs/decoder_dialog.cpp:184
 #: dialogs/trace_dialog.cpp:205 dialogs/trace_dialog.cpp:245
 #: dialogs/trace_dialog.cpp:268 dialogs/value_editor.cpp:731
-#: frame/detail/control_detail.cpp:162 frame/search/search_window.cpp:1084
-#: frame/tools/launch_bridge.cpp:234 frame/views/history_workspace.cpp:1004
-#: frame/views/value_loading.cpp:386 frame/views/value_loading.cpp:432
-#: frame/window/notifications.cpp:139 frame/window/notifications.cpp:1212
-#: frame/window/notifications.cpp:1284 regfile/script_convert.cpp:189
+#: frame/detail/control_detail.cpp:162 frame/search/search_window.cpp:1091
+#: frame/tools/launch_bridge.cpp:234 frame/views/history_workspace.cpp:1005
+#: frame/views/value_loading.cpp:386 frame/views/value_loading.cpp:433
+#: frame/window/notifications.cpp:144 frame/window/notifications.cpp:1229
+#: frame/window/notifications.cpp:1301 regfile/script_convert.cpp:189
 #: search/search.cpp:227 search/search.cpp:1144 ui/feedback.cpp:790
 msgid "(Default)"
 msgstr "(Standard)"
@@ -288,9 +288,9 @@ msgstr "Verwerfen"
 #: frame/commands/file_view_commands.cpp:426
 #: frame/commands/workspace_commands.cpp:261
 #: frame/tools/key_handles_window.cpp:358 frame/tools/launch_bridge.cpp:481
-#: frame/tools/launch_bridge.cpp:498 frame/views/history_workspace.cpp:195
-#: frame/views/registry_sessions.cpp:632 frame/views/registry_sessions.cpp:846
-#: frame/views/registry_sessions.cpp:853 frame/views/tab_lists.cpp:429
+#: frame/tools/launch_bridge.cpp:498 frame/views/history_workspace.cpp:196
+#: frame/views/registry_sessions.cpp:640 frame/views/registry_sessions.cpp:854
+#: frame/views/registry_sessions.cpp:861 frame/views/tab_lists.cpp:429
 #: frame/views/tab_lists.cpp:459 frame/window/lifetime.cpp:23
 #: frame/window/message_routes.cpp:54 ui/feedback.cpp:795 ui/feedback.cpp:805
 #: ui/feedback.cpp:818
@@ -569,7 +569,7 @@ msgid "Clear All"
 msgstr "Alles löschen"
 
 #: dialogs/query_prompts.cpp:125 dialogs/query_prompts.cpp:209
-#: frame/views/registry_sessions.cpp:824 frame/window/lifetime.cpp:444
+#: frame/views/registry_sessions.cpp:832 frame/window/lifetime.cpp:444
 #: frame/window/notifications.cpp:32 ui/feedback.cpp:405 ui/feedback.cpp:447
 #: ui/feedback.cpp:728 ui/feedback.cpp:748 ui/feedback.cpp:825
 msgid "OK"
@@ -591,7 +591,7 @@ msgstr "Wählen Sie einen Schlüssel aus."
 msgid "Browse Key"
 msgstr "Schlüssel auswählen"
 
-#: dialogs/replace_dialog.cpp:58 frame/search/search_window.cpp:741
+#: dialogs/replace_dialog.cpp:58 frame/search/search_window.cpp:748
 msgid "Enter text to find."
 msgstr "Geben Sie den Suchtext ein."
 
@@ -756,33 +756,33 @@ msgid "Failed to export favorites."
 msgstr "Die Favoriten konnten nicht exportiert werden."
 
 #: frame/commands/clipboard_commands.cpp:233
-#: frame/commands/clipboard_commands.cpp:402
-#: frame/commands/mutation_commands.cpp:402
-#: frame/commands/mutation_commands.cpp:511
-#: frame/commands/mutation_commands.cpp:1017
+#: frame/commands/clipboard_commands.cpp:404
+#: frame/commands/mutation_commands.cpp:403
+#: frame/commands/mutation_commands.cpp:512
+#: frame/commands/mutation_commands.cpp:1018
 #: frame/commands/tools_commands.cpp:92
 msgid "Failed to read value."
 msgstr "Der Wert konnte nicht gelesen werden."
 
-#: frame/commands/clipboard_commands.cpp:460
+#: frame/commands/clipboard_commands.cpp:462
 #, fuzzy
 msgid "The source key couldn't be opened."
 msgstr "Der Schlüssel konnte nicht gefunden werden."
 
-#: frame/commands/clipboard_commands.cpp:524
+#: frame/commands/clipboard_commands.cpp:526
 msgid "Failed to paste value."
 msgstr "Der Wert konnte nicht eingefügt werden."
 
-#: frame/commands/clipboard_commands.cpp:556
+#: frame/commands/clipboard_commands.cpp:558
 msgid "Failed to paste key."
 msgstr "Der Schlüssel konnte nicht eingefügt werden."
 
-#: frame/commands/clipboard_commands.cpp:611
+#: frame/commands/clipboard_commands.cpp:613
 #, fuzzy
 msgid "The change couldn't be undone."
 msgstr "Der Schlüssel konnte nicht gefunden werden."
 
-#: frame/commands/clipboard_commands.cpp:637
+#: frame/commands/clipboard_commands.cpp:639
 #, fuzzy
 msgid "The change couldn't be redone."
 msgstr "Das Update konnte nicht heruntergeladen werden."
@@ -934,7 +934,7 @@ msgid "Expand All Subkeys"
 msgstr "Alle Unterschlüssel erweitern"
 
 #: frame/commands/context_menus.cpp:272 frame/commands/context_menus.cpp:381
-#: frame/commands/context_menus.cpp:478 frame/views/registry_sessions.cpp:853
+#: frame/commands/context_menus.cpp:478 frame/views/registry_sessions.cpp:861
 msgid "Create Key"
 msgstr "Schlüssel erstellen"
 
@@ -1010,7 +1010,7 @@ msgstr "Verknüpfung öffnen"
 msgid "Open Entry"
 msgstr "Eintrag öffnen"
 
-#: frame/commands/context_menus.cpp:544 frame/views/history_workspace.cpp:195
+#: frame/commands/context_menus.cpp:544 frame/views/history_workspace.cpp:196
 msgid "Revert"
 msgstr "Rückgängig machen"
 
@@ -1101,37 +1101,37 @@ msgstr "Diesen Schlüssel mit allen Unterschlüsseln entfernen?"
 msgid "Unload"
 msgstr "Entfernen"
 
-#: frame/commands/file_view_commands.cpp:594
+#: frame/commands/file_view_commands.cpp:593
 msgid "Expanded keys"
 msgstr "Erweiterte Schlüssel"
 
-#: frame/commands/file_view_commands.cpp:594
+#: frame/commands/file_view_commands.cpp:593
 msgid "This key has too many subkeys to expand at once."
 msgstr "Dieser Schlüssel enthält zu viele Unterschlüssel, um sie gleichzeitig zu erweitern."
 
-#: frame/commands/file_view_commands.cpp:798
+#: frame/commands/file_view_commands.cpp:797
 msgid "Edit Active Defaults"
 msgstr "Aktive Standardwerte bearbeiten"
 
-#: frame/commands/file_view_commands.cpp:799
-#: frame/commands/file_view_commands.cpp:859
+#: frame/commands/file_view_commands.cpp:798
+#: frame/commands/file_view_commands.cpp:858
 msgid "One default path per line."
 msgstr "Ein Pfad zu einer Standardwertdatei pro Zeile."
 
-#: frame/commands/file_view_commands.cpp:828
+#: frame/commands/file_view_commands.cpp:827
 msgid "Edit Active Traces"
 msgstr "Aktive Traces bearbeiten"
 
-#: frame/commands/file_view_commands.cpp:829
-#: frame/commands/file_view_commands.cpp:879
+#: frame/commands/file_view_commands.cpp:828
+#: frame/commands/file_view_commands.cpp:878
 msgid "One trace path per line."
 msgstr "Ein Pfad zu einer Trace-Datei pro Zeile."
 
-#: frame/commands/file_view_commands.cpp:858
+#: frame/commands/file_view_commands.cpp:857
 msgid "Edit Recent Defaults"
 msgstr "Zuletzt verwendete Standardwerte bearbeiten"
 
-#: frame/commands/file_view_commands.cpp:878
+#: frame/commands/file_view_commands.cpp:877
 msgid "Edit Recent Traces"
 msgstr "Zuletzt verwendete Traces bearbeiten"
 
@@ -1149,7 +1149,7 @@ msgstr "Die symbolische Verknüpfung konnte nicht erstellt werden."
 
 #: frame/commands/mutation_commands.cpp:178
 #: frame/commands/mutation_commands.cpp:206
-#: frame/commands/mutation_commands.cpp:484
+#: frame/commands/mutation_commands.cpp:485
 msgid "Failed to create the key."
 msgstr "Der Schlüssel konnte nicht erstellt werden."
 
@@ -1157,57 +1157,57 @@ msgstr "Der Schlüssel konnte nicht erstellt werden."
 msgid "Created a volatile key, because its parent key is volatile."
 msgstr ""
 
-#: frame/commands/mutation_commands.cpp:348
-#: frame/commands/mutation_commands.cpp:491
+#: frame/commands/mutation_commands.cpp:349
+#: frame/commands/mutation_commands.cpp:492
 msgid "Failed to set value."
 msgstr "Der Wert konnte nicht festgelegt werden."
 
-#: frame/commands/mutation_commands.cpp:425
-#: frame/commands/mutation_commands.cpp:591
-#: frame/commands/mutation_commands.cpp:799
+#: frame/commands/mutation_commands.cpp:426
+#: frame/commands/mutation_commands.cpp:592
+#: frame/commands/mutation_commands.cpp:800
 msgid "Failed to update value."
 msgstr "Der Wert konnte nicht aktualisiert werden."
 
-#: frame/commands/mutation_commands.cpp:773
-#: frame/commands/mutation_commands.cpp:1010 ui/feedback.cpp:774
+#: frame/commands/mutation_commands.cpp:774
+#: frame/commands/mutation_commands.cpp:1011 ui/feedback.cpp:774
 msgid "Delete Value"
 msgstr "Wert löschen"
 
-#: frame/commands/mutation_commands.cpp:779
-#: frame/commands/mutation_commands.cpp:1022
+#: frame/commands/mutation_commands.cpp:780
+#: frame/commands/mutation_commands.cpp:1023
 msgid "Failed to delete value."
 msgstr "Der Wert konnte nicht gelöscht werden."
 
-#: frame/commands/mutation_commands.cpp:851
-#: frame/commands/mutation_commands.cpp:862
-#: frame/commands/mutation_commands.cpp:968
-#: frame/commands/mutation_commands.cpp:975 ui/feedback.cpp:770
+#: frame/commands/mutation_commands.cpp:852
+#: frame/commands/mutation_commands.cpp:863
+#: frame/commands/mutation_commands.cpp:969
+#: frame/commands/mutation_commands.cpp:976 ui/feedback.cpp:770
 msgid "Delete Key"
 msgstr "Schlüssel löschen"
 
-#: frame/commands/mutation_commands.cpp:862
-#: frame/commands/mutation_commands.cpp:975
+#: frame/commands/mutation_commands.cpp:863
+#: frame/commands/mutation_commands.cpp:976
 msgid "Part of this key couldn't be read, so this delete can't be undone. Delete anyway?"
 msgstr "Ein Teil dieses Schlüssels konnte nicht gelesen werden, daher kann das Löschen nicht rückgängig gemacht werden. Trotzdem löschen?"
 
-#: frame/commands/mutation_commands.cpp:869
-#: frame/commands/mutation_commands.cpp:982
+#: frame/commands/mutation_commands.cpp:870
+#: frame/commands/mutation_commands.cpp:983
 msgid "Failed to delete key."
 msgstr "Der Schlüssel konnte nicht gelöscht werden."
 
-#: frame/commands/mutation_commands.cpp:908
+#: frame/commands/mutation_commands.cpp:909
 msgid "Bulk deletion only supports registry values."
 msgstr "Es können nur Registrierungswerte gesammelt gelöscht werden."
 
-#: frame/commands/mutation_commands.cpp:919
+#: frame/commands/mutation_commands.cpp:920
 msgid "Failed to read all selected values."
 msgstr "Nicht alle ausgewählten Werte konnten gelesen werden."
 
-#: frame/commands/mutation_commands.cpp:931 ui/feedback.cpp:774
+#: frame/commands/mutation_commands.cpp:932 ui/feedback.cpp:774
 msgid "Delete Values"
 msgstr "Werte löschen"
 
-#: frame/commands/mutation_commands.cpp:960
+#: frame/commands/mutation_commands.cpp:961
 msgid "Some of the selected values couldn't be deleted."
 msgstr "Einige der ausgewählten Werte konnten nicht gelöscht werden."
 
@@ -1215,7 +1215,7 @@ msgstr "Einige der ausgewählten Werte konnten nicht gelöscht werden."
 msgid "The key couldn't be found."
 msgstr "Der Schlüssel konnte nicht gefunden werden."
 
-#: frame/commands/undo.cpp:187 frame/window/notifications.cpp:796
+#: frame/commands/undo.cpp:187 frame/window/notifications.cpp:803
 msgid "The value was copied to the new name but the old name couldn't be removed. Both names now exist."
 msgstr "Der Wert wurde unter dem neuen Namen gespeichert, aber der alte Name konnte nicht entfernt werden. Beide Namen sind jetzt vorhanden."
 
@@ -1268,8 +1268,8 @@ msgstr "Wählen Sie einen Computer für den Vergleich aus."
 msgid "Network registry path not found."
 msgstr "Der Pfad in der Remoteregistrierung wurde nicht gefunden."
 
-#: frame/search/compare_command.cpp:185 frame/views/registry_sessions.cpp:839
-#: frame/views/registry_sessions.cpp:881 frame/window/message_routes.cpp:1213
+#: frame/search/compare_command.cpp:185 frame/views/registry_sessions.cpp:847
+#: frame/views/registry_sessions.cpp:889 frame/window/message_routes.cpp:1217
 msgid "Registry path not found."
 msgstr "Der Registrierungspfad wurde nicht gefunden."
 
@@ -1311,7 +1311,7 @@ msgstr "Die .reg-Datei enthält keine Registrierungsschlüssel."
 msgid "Registry key is required."
 msgstr "Ein Registrierungsschlüssel ist erforderlich."
 
-#: frame/search/compare_dialog.cpp:315 frame/views/registry_sessions.cpp:591
+#: frame/search/compare_dialog.cpp:315 frame/views/registry_sessions.cpp:599
 msgid "Computer name is required."
 msgstr "Ein Computername ist erforderlich."
 
@@ -1324,7 +1324,7 @@ msgid "Registry file path is required."
 msgstr "Ein Pfad zu einer Registrierungsdatei ist erforderlich."
 
 #: frame/search/compare_dialog.cpp:336 frame/sources/regfile_commands.cpp:181
-#: regfile/reg_file.cpp:607
+#: regfile/reg_file.cpp:614
 msgid "Failed to read registry file."
 msgstr "Die Registrierungsdatei konnte nicht gelesen werden."
 
@@ -1356,80 +1356,84 @@ msgstr "Ergebnisse: %llu (%.2fs)"
 msgid "Loading"
 msgstr "Wird geladen"
 
-#: frame/search/search_window.cpp:245
+#: frame/search/search_window.cpp:246
 msgid "HKCU"
 msgstr ""
 
 #: frame/search/search_window.cpp:249
+msgid "HKCR"
+msgstr ""
+
+#: frame/search/search_window.cpp:256 frame/window/notifications.cpp:42
 msgid "Backup/restore mode"
 msgstr ""
 
-#: frame/search/search_window.cpp:251
+#: frame/search/search_window.cpp:258
 #, c-format
 msgid "Keys: %d"
 msgstr "Schlüssel: %d"
 
-#: frame/search/search_window.cpp:253
+#: frame/search/search_window.cpp:260
 #, c-format
 msgid "Values: %d"
 msgstr "Werte: %d"
 
-#: frame/search/search_window.cpp:255
+#: frame/search/search_window.cpp:262
 #, c-format
 msgid "Selected: %d"
 msgstr "Ausgewählt: %d"
 
-#: frame/search/search_window.cpp:568 frame/search/search_window.cpp:1373
+#: frame/search/search_window.cpp:575 frame/search/search_window.cpp:1380
 msgid "Starting key path wasn't found."
 msgstr "Der Startschlüsselpfad wurde nicht gefunden."
 
-#: frame/search/search_window.cpp:579 frame/search/search_window.cpp:776
-#: frame/search/search_window.cpp:1383
+#: frame/search/search_window.cpp:586 frame/search/search_window.cpp:783
+#: frame/search/search_window.cpp:1390
 msgid "Select a starting key first."
 msgstr "Wählen Sie zuerst einen Startschlüssel aus."
 
-#: frame/search/search_window.cpp:791
+#: frame/search/search_window.cpp:798
 msgid "No keys to search in the selected sources."
 msgstr "Die ausgewählten Quellen enthalten keine Schlüssel für die Suche."
 
-#: frame/search/search_window.cpp:820 frame/search/search_window.cpp:823
-#: frame/views/history_workspace.cpp:519 frame/window/menu_bar.cpp:143
+#: frame/search/search_window.cpp:827 frame/search/search_window.cpp:830
+#: frame/views/history_workspace.cpp:520 frame/window/menu_bar.cpp:143
 msgid "Find"
 msgstr "Suchen"
 
-#: frame/search/search_window.cpp:1360 frame/window/menu_bar.cpp:179
+#: frame/search/search_window.cpp:1367 frame/window/menu_bar.cpp:179
 msgid "Read only mode is enabled."
 msgstr "Der schreibgeschützte Modus ist aktiviert."
 
-#: frame/search/search_window.cpp:1396
+#: frame/search/search_window.cpp:1403
 msgid "Replace is already running."
 msgstr "Ein Ersetzungsvorgang läuft bereits."
 
-#: frame/search/search_window.cpp:1624 frame/search/search_window.cpp:1641
+#: frame/search/search_window.cpp:1631 frame/search/search_window.cpp:1648
 msgid "Replaced"
 msgstr "Ersetzt"
 
-#: frame/search/search_window.cpp:1627 frame/search/search_window.cpp:1642
+#: frame/search/search_window.cpp:1634 frame/search/search_window.cpp:1649
 msgid "Failed"
 msgstr "Fehlgeschlagen"
 
-#: frame/search/search_window.cpp:1631
+#: frame/search/search_window.cpp:1638
 msgid "Skipped"
 msgstr "Übersprungen"
 
-#: frame/search/search_window.cpp:1635
+#: frame/search/search_window.cpp:1642
 msgid "cancelled"
 msgstr "abgebrochen"
 
-#: frame/search/search_window.cpp:1641
+#: frame/search/search_window.cpp:1648
 msgid "Replace finished with some failures."
 msgstr "Beim Ersetzen sind Fehler aufgetreten."
 
-#: frame/search/search_window.cpp:1645
+#: frame/search/search_window.cpp:1652
 msgid "Skipped, the replacement isn't valid for the value type"
 msgstr "Übersprungen, da die Ersetzung für den Werttyp ungültig ist"
 
-#: frame/search/search_window.cpp:1649
+#: frame/search/search_window.cpp:1656
 msgid "Copied to the new name, the old name couldn't be removed"
 msgstr "Unter neuem Namen gespeichert, alter Name konnte nicht entfernt werden"
 
@@ -1457,11 +1461,11 @@ msgstr "Die Registrierungsdatei wurde nicht gefunden."
 msgid "Registry File"
 msgstr "Registrierungsdatei"
 
-#: frame/sources/trace_commands.cpp:237
+#: frame/sources/trace_commands.cpp:250
 msgid "Trace file not found."
 msgstr "Die Trace-Datei wurde nicht gefunden."
 
-#: frame/sources/trace_commands.cpp:295
+#: frame/sources/trace_commands.cpp:308
 msgid "Trace entries"
 msgstr "Trace-Einträge"
 
@@ -1589,7 +1593,7 @@ msgstr "Objektadresse"
 
 #: frame/tools/key_handles_window.cpp:494 frame/views/value_loading.cpp:229
 #: frame/views/value_loading.cpp:262 frame/window/menu_bar.cpp:294
-#: frame/window/notifications.cpp:1294 search/search.cpp:59
+#: frame/window/notifications.cpp:1311 search/search.cpp:59
 #: search/search.cpp:234
 msgid "Key"
 msgstr "Schlüssel"
@@ -1668,9 +1672,11 @@ msgstr ""
 msgid "Contents"
 msgstr "Kommentare"
 
-#: frame/tools/launch_bridge.cpp:88 registry/resource_list.cpp:212
-#: registry/resource_list.cpp:243 registry/resource_list.cpp:288
-#: registry/resource_list.cpp:304
+#: frame/tools/launch_bridge.cpp:88 registry/resource_list.cpp:241
+#: registry/resource_list.cpp:254 registry/resource_list.cpp:260
+#: registry/resource_list.cpp:278 registry/resource_list.cpp:323
+#: registry/resource_list.cpp:328 registry/resource_list.cpp:332
+#: registry/resource_list.cpp:340
 msgid "Flags"
 msgstr ""
 
@@ -2029,18 +2035,18 @@ msgid "Install"
 msgstr "Installieren"
 
 #: frame/views/browse_view.cpp:60 frame/views/browse_view.cpp:250
-#: registry/resource_list.cpp:243 registry/resource_list.cpp:304
+#: registry/resource_list.cpp:278 registry/resource_list.cpp:340
 msgid "Type"
 msgstr "Typ"
 
 #: frame/views/browse_view.cpp:61 frame/views/browse_view.cpp:251
-#: registry/resource_list.cpp:239 registry/resource_list.cpp:243
-#: registry/resource_list.cpp:304 search/search.cpp:63
+#: registry/resource_list.cpp:274 registry/resource_list.cpp:278
+#: registry/resource_list.cpp:340 search/search.cpp:63
 msgid "Data"
 msgstr "Daten"
 
 #: frame/views/browse_view.cpp:62 frame/window/menu_bar.cpp:548
-#: frame/window/menu_bar.cpp:861 registry/resource_list.cpp:274
+#: frame/window/menu_bar.cpp:864 registry/resource_list.cpp:309
 #: search/search.cpp:67
 msgid "Default"
 msgstr "Standard"
@@ -2050,7 +2056,7 @@ msgid "Read on boot"
 msgstr "Beim Start gelesen"
 
 #: frame/views/browse_view.cpp:64 frame/views/browse_view.cpp:252
-#: registry/resource_list.cpp:239
+#: registry/resource_list.cpp:274
 msgid "Size"
 msgstr "Größe"
 
@@ -2106,53 +2112,53 @@ msgstr "Spaltenbreite an Inhalt anpassen"
 msgid "Size all columns to fit"
 msgstr "Alle Spaltenbreiten an Inhalt anpassen"
 
-#: frame/views/history_workspace.cpp:195
+#: frame/views/history_workspace.cpp:196
 msgid "Revert this change with elevated rights?"
 msgstr "Diese Änderung mit erhöhten Rechten rückgängig machen?"
 
-#: frame/views/history_workspace.cpp:228
+#: frame/views/history_workspace.cpp:229
 msgid "Revert Key Creation"
 msgstr "Schlüsselerstellung rückgängig machen"
 
-#: frame/views/history_workspace.cpp:242
+#: frame/views/history_workspace.cpp:243
 msgid "Failed to revert history entry."
 msgstr "Die Änderung aus dem Verlaufseintrag konnte nicht rückgängig gemacht werden."
 
-#: frame/views/history_workspace.cpp:279
+#: frame/views/history_workspace.cpp:280
 msgid "The history couldn't be written to disk. It is kept for this session only."
 msgstr "Der Verlauf konnte nicht auf dem Datenträger gespeichert werden. Er bleibt nur für diese Sitzung erhalten."
 
-#: frame/views/history_workspace.cpp:580 frame/views/history_workspace.cpp:606
-#: frame/views/history_workspace.cpp:798 frame/views/registry_sessions.cpp:389
-#: frame/views/registry_sessions.cpp:392 frame/views/tab_lists.cpp:587
+#: frame/views/history_workspace.cpp:581 frame/views/history_workspace.cpp:607
+#: frame/views/history_workspace.cpp:799 frame/views/registry_sessions.cpp:397
+#: frame/views/registry_sessions.cpp:400 frame/views/tab_lists.cpp:587
 #: frame/window/menu_bar.cpp:137 frame/window/menu_bar.cpp:274
 #: search/search.cpp:51
 msgid "Local Registry"
 msgstr "Lokale Registrierung"
 
-#: frame/views/history_workspace.cpp:900
+#: frame/views/history_workspace.cpp:901
 msgid "Comments were imported but couldn't be saved."
 msgstr "Die Kommentare wurden importiert, konnten aber nicht gespeichert werden."
 
-#: frame/views/history_workspace.cpp:1005
+#: frame/views/history_workspace.cpp:1006
 msgid "Different types"
 msgstr "Unterschiedliche Typen"
 
-#: frame/views/history_workspace.cpp:1007
+#: frame/views/history_workspace.cpp:1008
 msgid "Different lengths"
 msgstr "Unterschiedliche Längen"
 
-#: frame/views/history_workspace.cpp:1055
+#: frame/views/history_workspace.cpp:1056
 msgid "The comment couldn't be saved."
 msgstr "Der Kommentar konnte nicht gespeichert werden."
 
-#: frame/views/registry_sessions.cpp:392 frame/window/menu_bar.cpp:277
+#: frame/views/registry_sessions.cpp:400 frame/window/menu_bar.cpp:277
 #, fuzzy
 msgid "Local Registry (32-bit)"
 msgstr "Registerkarten der lokalen Registrierung"
 
-#: frame/views/registry_sessions.cpp:553 frame/views/registry_sessions.cpp:605
-#: frame/views/registry_sessions.cpp:657
+#: frame/views/registry_sessions.cpp:561 frame/views/registry_sessions.cpp:613
+#: frame/views/registry_sessions.cpp:665
 msgid ""
 "The offline registry has unsaved changes.\n"
 "Save before switching?"
@@ -2160,81 +2166,81 @@ msgstr ""
 "Die Offline-Registrierung enthält nicht gespeicherte Änderungen.\n"
 "Vor dem Wechsel speichern?"
 
-#: frame/views/registry_sessions.cpp:573
+#: frame/views/registry_sessions.cpp:581
 msgid "Connect to Remote Registry"
 msgstr "Mit Remoteregistrierung verbinden"
 
-#: frame/views/registry_sessions.cpp:574
+#: frame/views/registry_sessions.cpp:582
 msgid "Computer name (e.g. \\\\MACHINE):"
 msgstr "Computername (z. B. \\\\MACHINE):"
 
-#: frame/views/registry_sessions.cpp:618 frame/views/registry_sessions.cpp:621
+#: frame/views/registry_sessions.cpp:626 frame/views/registry_sessions.cpp:629
 #: frame/window/menu_bar.cpp:139
 msgid "Remote Registry"
 msgstr "Remoteregistrierung"
 
-#: frame/views/registry_sessions.cpp:625
+#: frame/views/registry_sessions.cpp:633
 msgid "Connected to HKEY_LOCAL_MACHINE, but HKEY_USERS was unavailable."
 msgstr "Die Verbindung mit HKEY_LOCAL_MACHINE wurde hergestellt, aber HKEY_USERS war nicht verfügbar."
 
-#: frame/views/registry_sessions.cpp:632
+#: frame/views/registry_sessions.cpp:640
 msgid "Load the offline registry from a single hive file, or from a folder of hives?"
 msgstr "Die Offline-Registrierung aus einer einzelnen Strukturdatei oder aus einem Ordner mit Strukturen laden?"
 
-#: frame/views/registry_sessions.cpp:632 frame/views/registry_sessions.cpp:729
-#: frame/views/registry_sessions.cpp:732 frame/window/menu_bar.cpp:141
+#: frame/views/registry_sessions.cpp:640 frame/views/registry_sessions.cpp:737
+#: frame/views/registry_sessions.cpp:740 frame/window/menu_bar.cpp:141
 msgid "Offline Registry"
 msgstr "Offline-Registrierung"
 
-#: frame/views/registry_sessions.cpp:632
+#: frame/views/registry_sessions.cpp:640
 msgid "Hive File"
 msgstr "Strukturdatei"
 
-#: frame/views/registry_sessions.cpp:632
+#: frame/views/registry_sessions.cpp:640
 msgid "Folder"
 msgstr "Ordner"
 
-#: frame/views/registry_sessions.cpp:676
+#: frame/views/registry_sessions.cpp:684
 msgid "The selected folder doesn't contain a registry hive file."
 msgstr "Der ausgewählte Ordner enthält keine Registrierungsstrukturdatei."
 
-#: frame/views/registry_sessions.cpp:748 frame/views/registry_sessions.cpp:782
+#: frame/views/registry_sessions.cpp:756 frame/views/registry_sessions.cpp:790
 msgid "No offline registry is loaded."
 msgstr "Es ist keine Offline-Registrierung geladen."
 
-#: frame/views/registry_sessions.cpp:755
+#: frame/views/registry_sessions.cpp:763
 msgid "Failed to resolve offline hive paths for saving."
 msgstr "Die Pfade zu den Offlinestrukturen konnten zum Speichern nicht ermittelt werden."
 
-#: frame/views/registry_sessions.cpp:763
+#: frame/views/registry_sessions.cpp:771
 msgid "Failed to resolve offline hive path for saving."
 msgstr "Der Pfad zur Offlinestruktur konnte zum Speichern nicht ermittelt werden."
 
-#: frame/views/registry_sessions.cpp:769 frame/views/registry_sessions.cpp:795
+#: frame/views/registry_sessions.cpp:777 frame/views/registry_sessions.cpp:803
 msgid "Failed to save offline hive."
 msgstr "Die Offlinestruktur konnte nicht gespeichert werden."
 
-#: frame/views/registry_sessions.cpp:824
+#: frame/views/registry_sessions.cpp:832
 msgid "The key was opened, but it doesn't contain this value:"
 msgstr "Der Schlüssel wurde geöffnet, enthält aber diesen Wert nicht:"
 
-#: frame/views/registry_sessions.cpp:824
+#: frame/views/registry_sessions.cpp:832
 msgid "Value Not Found"
 msgstr "Wert nicht gefunden"
 
-#: frame/views/registry_sessions.cpp:842
+#: frame/views/registry_sessions.cpp:850
 msgid "The registry key doesn't exist:"
 msgstr "Der Registrierungsschlüssel ist nicht vorhanden:"
 
-#: frame/views/registry_sessions.cpp:846 frame/views/registry_sessions.cpp:853
+#: frame/views/registry_sessions.cpp:854 frame/views/registry_sessions.cpp:861
 msgid "Registry Path Not Found"
 msgstr "Registrierungspfad nicht gefunden"
 
-#: frame/views/registry_sessions.cpp:846 frame/views/registry_sessions.cpp:853
+#: frame/views/registry_sessions.cpp:854 frame/views/registry_sessions.cpp:861
 msgid "Go to Nearest Key"
 msgstr "Zum nächstgelegenen Schlüssel wechseln"
 
-#: frame/views/registry_sessions.cpp:863
+#: frame/views/registry_sessions.cpp:871
 msgid "Failed to create registry key."
 msgstr "Der Registrierungsschlüssel konnte nicht erstellt werden."
 
@@ -2266,7 +2272,7 @@ msgstr ""
 msgid "Trace"
 msgstr "Trace"
 
-#: frame/views/value_loading.cpp:180 frame/window/menu_bar.cpp:864
+#: frame/views/value_loading.cpp:180 frame/window/menu_bar.cpp:867
 #: search/compare.cpp:55 search/compare.cpp:315 search/compare.cpp:316
 msgid "(Missing)"
 msgstr "(Fehlt)"
@@ -2280,7 +2286,7 @@ msgstr "Verknüpfung"
 msgid "Volatile Key"
 msgstr "Schlüssel reduzieren"
 
-#: frame/views/value_loading.cpp:388 frame/views/value_loading.cpp:435
+#: frame/views/value_loading.cpp:388 frame/views/value_loading.cpp:436
 msgid "(value not set)"
 msgstr "(Wert nicht festgelegt)"
 
@@ -2851,39 +2857,39 @@ msgstr ".reg-Datei öffnen"
 msgid "The find text isn't a valid regular expression."
 msgstr "Der Suchtext ist kein gültiger regulärer Ausdruck."
 
-#: frame/window/notifications.cpp:138 frame/window/notifications.cpp:1208
+#: frame/window/notifications.cpp:143 frame/window/notifications.cpp:1225
 msgid "(Key)"
 msgstr "(Schlüssel)"
 
-#: frame/window/notifications.cpp:145 frame/window/notifications.cpp:1226
+#: frame/window/notifications.cpp:150 frame/window/notifications.cpp:1243
 msgid "Same"
 msgstr "Gleich"
 
-#: frame/window/notifications.cpp:145 frame/window/notifications.cpp:1226
+#: frame/window/notifications.cpp:150 frame/window/notifications.cpp:1243
 msgid "Different"
 msgstr "Unterschiedlich"
 
-#: frame/window/notifications.cpp:542 frame/window/notifications.cpp:763
+#: frame/window/notifications.cpp:549 frame/window/notifications.cpp:770
 msgid "A key with this name already exists:"
 msgstr "Ein Schlüssel mit diesem Namen ist bereits vorhanden:"
 
-#: frame/window/notifications.cpp:542 frame/window/notifications.cpp:763
+#: frame/window/notifications.cpp:549 frame/window/notifications.cpp:770
 msgid "Rename Key"
 msgstr "Schlüssel umbenennen"
 
-#: frame/window/notifications.cpp:547 frame/window/notifications.cpp:768
+#: frame/window/notifications.cpp:554 frame/window/notifications.cpp:775
 msgid "Failed to rename key."
 msgstr "Der Schlüssel konnte nicht umbenannt werden."
 
-#: frame/window/notifications.cpp:785
+#: frame/window/notifications.cpp:792
 msgid "A value with this name already exists:"
 msgstr "Ein Wert mit diesem Namen ist bereits vorhanden:"
 
-#: frame/window/notifications.cpp:785
+#: frame/window/notifications.cpp:792
 msgid "Rename Value"
 msgstr "Wert umbenennen"
 
-#: frame/window/notifications.cpp:801
+#: frame/window/notifications.cpp:808
 msgid "Failed to rename value."
 msgstr "Der Wert konnte nicht umbenannt werden."
 
@@ -3199,12 +3205,17 @@ msgstr "Numerische Daten außerhalb des Wertebereichs eines DWORD"
 msgid "Invalid binary data"
 msgstr "Ungültige Binärdaten"
 
-#: regfile/reg_file.cpp:285
+#: regfile/reg_file.cpp:268
+#, fuzzy
+msgid "only the volatile flag of it and its subkeys"
+msgstr "Diesen Schlüssel mit allen Unterschlüsseln entfernen?"
+
+#: regfile/reg_file.cpp:292
 #, fuzzy
 msgid "the name contains a null character"
 msgstr "enthält Steuerzeichen"
 
-#: regfile/reg_file.cpp:416
+#: regfile/reg_file.cpp:423
 msgid "The file contains an entry RegKit can't parse."
 msgstr "Die Datei enthält einen Eintrag, den RegKit nicht verarbeiten kann."
 
@@ -3316,197 +3327,185 @@ msgstr ""
 msgid "Shared"
 msgstr ""
 
-#: registry/resource_list.cpp:113
-msgid "Latched"
-msgstr ""
-
-#: registry/resource_list.cpp:113
-msgid "Level sensitive"
-msgstr ""
-
-#: registry/resource_list.cpp:129
+#: registry/resource_list.cpp:157
 msgid "Ports"
 msgstr ""
 
-#: registry/resource_list.cpp:129
+#: registry/resource_list.cpp:157
 #, fuzzy
 msgid "Interrupts"
 msgstr "Interpretieren als:"
 
-#: registry/resource_list.cpp:129
+#: registry/resource_list.cpp:157
 msgid "Memory"
 msgstr ""
 
-#: registry/resource_list.cpp:129
+#: registry/resource_list.cpp:157
 msgid "DMA"
 msgstr ""
 
-#: registry/resource_list.cpp:130
+#: registry/resource_list.cpp:158
 #, fuzzy
 msgid "Bus numbers"
 msgstr "Ungültige Zahl"
 
-#: registry/resource_list.cpp:130
+#: registry/resource_list.cpp:158
 msgid "Device specific data"
 msgstr ""
 
-#: registry/resource_list.cpp:130
+#: registry/resource_list.cpp:158
 #, fuzzy
 msgid "Other resources"
 msgstr "Quelle"
 
-#: registry/resource_list.cpp:212 registry/resource_list.cpp:229
+#: registry/resource_list.cpp:241 registry/resource_list.cpp:264
 #, fuzzy
 msgid "Start"
 msgstr "Neu starten"
 
-#: registry/resource_list.cpp:212 registry/resource_list.cpp:229
-#: registry/resource_list.cpp:288 registry/resource_list.cpp:300
+#: registry/resource_list.cpp:241 registry/resource_list.cpp:264
+#: registry/resource_list.cpp:323 registry/resource_list.cpp:336
 #: registry/value_decoder.cpp:605
 msgid "Length"
 msgstr "Länge"
 
-#: registry/resource_list.cpp:212 registry/resource_list.cpp:219
-#: registry/resource_list.cpp:226 registry/resource_list.cpp:229
-#: registry/resource_list.cpp:243 registry/resource_list.cpp:288
-#: registry/resource_list.cpp:293 registry/resource_list.cpp:297
-#: registry/resource_list.cpp:300 registry/resource_list.cpp:304
+#: registry/resource_list.cpp:241 registry/resource_list.cpp:254
+#: registry/resource_list.cpp:260 registry/resource_list.cpp:264
+#: registry/resource_list.cpp:278 registry/resource_list.cpp:323
+#: registry/resource_list.cpp:328 registry/resource_list.cpp:332
+#: registry/resource_list.cpp:336 registry/resource_list.cpp:340
 msgid "Share"
 msgstr ""
 
-#: registry/resource_list.cpp:219
+#: registry/resource_list.cpp:252
+msgid "Messages"
+msgstr ""
+
+#: registry/resource_list.cpp:254
 msgid "Vector"
 msgstr ""
 
-#: registry/resource_list.cpp:219
+#: registry/resource_list.cpp:254
 msgid "Level"
 msgstr ""
 
-#: registry/resource_list.cpp:219 registry/resource_list.cpp:293
+#: registry/resource_list.cpp:254 registry/resource_list.cpp:328
 #: registry/value_decoder.cpp:701
 msgid "Group"
 msgstr "Gruppe"
 
-#: registry/resource_list.cpp:219
+#: registry/resource_list.cpp:254
 msgid "Affinity"
 msgstr ""
 
-#: registry/resource_list.cpp:219 registry/resource_list.cpp:293
-msgid "Mode"
-msgstr ""
-
-#: registry/resource_list.cpp:222
-msgid "Message"
-msgstr ""
-
-#: registry/resource_list.cpp:226
+#: registry/resource_list.cpp:260
 msgid "Channel"
 msgstr ""
 
-#: registry/resource_list.cpp:226
+#: registry/resource_list.cpp:260
 msgid "Port / request line"
 msgstr ""
 
-#: registry/resource_list.cpp:274
+#: registry/resource_list.cpp:309
 msgid "Required"
 msgstr ""
 
-#: registry/resource_list.cpp:274
+#: registry/resource_list.cpp:309
 msgid "Preferred"
 msgstr ""
 
-#: registry/resource_list.cpp:274
+#: registry/resource_list.cpp:309
 msgid "Alternative"
 msgstr ""
 
-#: registry/resource_list.cpp:288 registry/resource_list.cpp:293
-#: registry/resource_list.cpp:297 registry/resource_list.cpp:300
-#: registry/resource_list.cpp:304
+#: registry/resource_list.cpp:323 registry/resource_list.cpp:328
+#: registry/resource_list.cpp:332 registry/resource_list.cpp:336
+#: registry/resource_list.cpp:340
 #, fuzzy
 msgid "Option"
 msgstr "Optionen"
 
-#: registry/resource_list.cpp:288
+#: registry/resource_list.cpp:323
 msgid "Alignment"
 msgstr ""
 
-#: registry/resource_list.cpp:288
+#: registry/resource_list.cpp:323
 msgid "Minimum address"
 msgstr ""
 
-#: registry/resource_list.cpp:288
+#: registry/resource_list.cpp:323
 msgid "Maximum address"
 msgstr ""
 
-#: registry/resource_list.cpp:293
+#: registry/resource_list.cpp:328
 msgid "Minimum vector"
 msgstr ""
 
-#: registry/resource_list.cpp:293
+#: registry/resource_list.cpp:328
 msgid "Maximum vector"
 msgstr ""
 
-#: registry/resource_list.cpp:293
+#: registry/resource_list.cpp:328
 msgid "Targeted processors"
 msgstr ""
 
-#: registry/resource_list.cpp:297
+#: registry/resource_list.cpp:332
 msgid "Minimum channel"
 msgstr ""
 
-#: registry/resource_list.cpp:297
+#: registry/resource_list.cpp:332
 msgid "Maximum channel"
 msgstr ""
 
-#: registry/resource_list.cpp:300
+#: registry/resource_list.cpp:336
 msgid "Minimum bus number"
 msgstr ""
 
-#: registry/resource_list.cpp:300
+#: registry/resource_list.cpp:336
 msgid "Maximum bus number"
 msgstr ""
 
-#: registry/resource_list.cpp:319
+#: registry/resource_list.cpp:356
 msgid "Requirements"
 msgstr ""
 
-#: registry/resource_list.cpp:320 registry/resource_list.cpp:341
+#: registry/resource_list.cpp:357 registry/resource_list.cpp:378
 #, fuzzy
 msgid "Interface"
 msgstr "Oberfläche"
 
-#: registry/resource_list.cpp:320 registry/resource_list.cpp:341
+#: registry/resource_list.cpp:357 registry/resource_list.cpp:378
 msgid "Bus number"
 msgstr ""
 
-#: registry/resource_list.cpp:320
+#: registry/resource_list.cpp:357
 #, fuzzy
 msgid "Slot number"
 msgstr "Ungültige Zahl"
 
-#: registry/resource_list.cpp:320
+#: registry/resource_list.cpp:357
 msgid "Alternative lists"
 msgstr ""
 
-#: registry/resource_list.cpp:322
+#: registry/resource_list.cpp:359
 msgid "List"
 msgstr ""
 
-#: registry/resource_list.cpp:340
+#: registry/resource_list.cpp:377
 #, fuzzy
 msgid "Descriptor"
 msgstr "Sicherheitsdeskriptor"
 
-#: registry/resource_list.cpp:341
+#: registry/resource_list.cpp:378
 #, fuzzy
 msgid "Descriptors"
 msgstr "Sicherheitsdeskriptor"
 
-#: registry/resource_list.cpp:341
+#: registry/resource_list.cpp:378
 msgid "Version"
 msgstr ""
 
-#: registry/resource_list.cpp:341
+#: registry/resource_list.cpp:378
 #, fuzzy
 msgid "Resources"
 msgstr "Quelle"
@@ -4623,7 +4622,7 @@ msgstr "Registrierungsdateien (*.reg)"
 #: frame/commands/clipboard_commands.cpp:108
 #: frame/commands/file_view_commands.cpp:342
 #: frame/commands/file_view_commands.cpp:360 frame/detail/file_detail.h:77
-#: frame/sources/trace_commands.cpp:353 regfile/script_convert.h:23
+#: frame/sources/trace_commands.cpp:366 regfile/script_convert.h:23
 #: ui/feedback.h:50 ui/feedback.h:52 ui/preset_editor.cpp:141
 msgid "All Files (*.*)"
 msgstr "Alle Dateien (*.*)"
@@ -4643,7 +4642,7 @@ msgstr "RegKit-Kommentardateien (*.jsonc)"
 msgid "Registry Hive Files"
 msgstr "Registrierungsstrukturdateien"
 
-#: frame/sources/trace_commands.cpp:353
+#: frame/sources/trace_commands.cpp:366
 msgid "Trace Files (*.txt)"
 msgstr "Trace-Dateien (*.txt)"
 
