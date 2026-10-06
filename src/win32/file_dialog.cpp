@@ -146,10 +146,6 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
             dialog->SetDefaultExtension(std::wstring(spec.substr(2, spec.find(L';') - 2)).c_str());
         }
     }
-    if (suggested_name && *suggested_name)
-    {
-        dialog->SetFileName(suggested_name);
-    }
     if (util::IsProcessSystem())
     {
         CoTaskString own_desktop;
@@ -158,16 +154,31 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
         {
             CreateDirectoryW(own_desktop.Get(), nullptr);
         }
-        IShellItem* desktop = nullptr;
-        PIDLIST_ABSOLUTE desktop_id = nullptr;
-        const std::wstring desktop_path = util::GetShellUserDesktop();
-        if (!desktop_path.empty() && SUCCEEDED(SHParseDisplayName(desktop_path.c_str(), nullptr, &desktop_id, 0, nullptr)) &&
-            SUCCEEDED(SHCreateShellItem(nullptr, nullptr, desktop_id, &desktop)))
+        IShellItem* documents = nullptr;
+        PIDLIST_ABSOLUTE documents_id = nullptr;
+        const std::wstring documents_path = util::GetShellUserDocuments();
+        if (!documents_path.empty() && SUCCEEDED(SHParseDisplayName(documents_path.c_str(), nullptr, &documents_id, 0, nullptr)) &&
+            SUCCEEDED(SHCreateShellItem(nullptr, nullptr, documents_id, &documents)))
         {
-            dialog->SetFolder(desktop);
-            desktop->Release();
+            dialog->SetDefaultFolder(documents);
+            documents->Release();
         }
-        CoTaskMemFree(desktop_id);
+        CoTaskMemFree(documents_id);
+    }
+    if (suggested_name && *suggested_name)
+    {
+        const std::wstring_view name = suggested_name;
+        const size_t slash = name.find_last_of(L"\\/");
+        IShellItem* folder = nullptr;
+        PIDLIST_ABSOLUTE folder_id = nullptr;
+        if (slash != std::wstring_view::npos && SUCCEEDED(SHParseDisplayName(std::wstring(name.substr(0, slash + 1)).c_str(), nullptr, &folder_id, 0, nullptr)) &&
+            SUCCEEDED(SHCreateShellItem(nullptr, nullptr, folder_id, &folder)))
+        {
+            dialog->SetFolder(folder);
+            folder->Release();
+        }
+        CoTaskMemFree(folder_id);
+        dialog->SetFileName(std::wstring(name.substr(slash == std::wstring_view::npos ? 0 : slash + 1)).c_str());
     }
 
     constexpr DWORD kOpenAfterCombo = 2;

@@ -447,7 +447,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             return true;
         }
     case cmd::kFileSaveOfflineHive:
-        SaveOfflineRegistry(*session_);
+        SaveOfflineRegistry(*session_, true);
         return true;
     case cmd::kFileClearHistoryOnExit:
         settings_.clear_history_on_exit = !settings_.clear_history_on_exit;

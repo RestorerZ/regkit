@@ -12,9 +12,9 @@
 namespace regkit::win32
 {
 
-bool IsRegFileEditMenuRegistered(const std::wstring& exe_path);
-LONG SetRegFileEditMenu(const std::wstring& exe_path, bool enable, LONG* cleanup_error = nullptr);
-LONG RemoveRegFileEditMenuIfOwned(const std::wstring& exe_path);
+bool IsEditMenuRegistered(const std::wstring& exe_path);
+LONG SetEditMenu(const std::wstring& exe_path, bool enable, LONG* cleanup_error = nullptr);
+LONG RemoveEditMenuIfOwned(const std::wstring& exe_path);
 bool IsRegEditReplacementRegistered(const std::wstring& exe_path);
 LONG SetRegEditReplacement(const std::wstring& exe_path, bool enable, bool* conflict = nullptr, bool overwrite_existing = false, bool allow_writable_location = false);
 

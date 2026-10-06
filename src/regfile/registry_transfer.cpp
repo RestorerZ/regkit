@@ -132,8 +132,8 @@ std::wstring ExportFileName(const std::wstring& name, const wchar_t* extension)
 std::wstring DefaultExportPath(const std::wstring& key_path, const wchar_t* extension)
 {
     const std::wstring file_name = ExportFileName(registry_path::Leaf(key_path), extension);
-    const std::wstring desktop = util::GetShellUserDesktop();
-    return desktop.empty() ? file_name : util::JoinPath(desktop, file_name);
+    const std::wstring documents = util::GetShellUserDocuments();
+    return documents.empty() ? file_name : util::JoinPath(documents, file_name);
 }
 
 bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error)
@@ -154,6 +154,10 @@ bool IsHiveFile(const std::wstring& path)
 LONG SaveKeyToHive(HKEY root, const std::wstring& subkey, REGSAM view, const std::wstring& path)
 {
     const util::PrivilegeScope privileges({SE_BACKUP_NAME});
+    if (!privileges.held())
+    {
+        return ERROR_PRIVILEGE_NOT_HELD;
+    }
     util::UniqueHKey handle;
     LONG status = util::OpenRegistryPath(root, subkey, KEY_READ | view, false, &handle);
     if (status != ERROR_SUCCESS)
@@ -178,7 +182,7 @@ LONG SaveKeyToHive(HKEY root, const std::wstring& subkey, REGSAM view, const std
     handle.reset();
     if (status != ERROR_SUCCESS)
     {
-        if (existed && status != ERROR_ALREADY_EXISTS)
+        if (status != ERROR_ALREADY_EXISTS)
         {
             DeleteFileW(staged.c_str());
         }

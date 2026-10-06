@@ -24,7 +24,7 @@ class MainWindow
 
     bool Create(HINSTANCE instance);
     void Show(int command);
-    bool OpenRegFileTab(const std::wstring& path);
+    bool OpenFile(const std::wstring& path);
     bool TranslateAccelerator(const MSG& message);
     void QueueExternalJump(const std::wstring& target);
 

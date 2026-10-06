@@ -556,16 +556,16 @@ std::wstring AccountName(const std::wstring& sid_text)
     return !found ? sid_text : domain[0] ? std::wstring(domain) + L"\\" + name : std::wstring(name);
 }
 
-std::wstring GetShellUserDesktop()
+std::wstring GetShellUserDocuments()
 {
-    // the desktop of the signed in user, also after restarting as SYSTEM or TrustedInstaller
-    PWSTR desktop = nullptr;
+    // the documents folder of the signed in user, also after restarting as SYSTEM or TrustedInstaller
+    PWSTR documents = nullptr;
     std::wstring path;
-    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, 0, OpenShellToken(TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE).get(), &desktop)))
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, OpenShellToken(TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE).get(), &documents)))
     {
-        path = desktop;
+        path = documents;
     }
-    CoTaskMemFree(desktop);
+    CoTaskMemFree(documents);
     return path;
 }
 

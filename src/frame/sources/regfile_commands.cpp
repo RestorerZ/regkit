@@ -3,6 +3,7 @@
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
+#include "regfile/registry_transfer.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
@@ -203,6 +204,11 @@ void MainWindow::Impl::OpenSavedFile(const std::wstring& path, win32::OpenAfter 
     {
         ui::ReportFileDialogResult(hwnd_, win32::OpenInTextEditor(hwnd_, path));
     }
+}
+
+bool MainWindow::Impl::OpenFile(const std::wstring& path)
+{
+    return IsHiveFile(path) ? LoadOfflineRegistryFromPath(path, true) : OpenRegFileTab(path);
 }
 
 bool MainWindow::Impl::OpenRegFileTab(const std::wstring& path, bool force_new_tab)

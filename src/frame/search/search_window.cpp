@@ -45,14 +45,35 @@ std::wstring MainWindow::Impl::FormatRegistryPath(const std::wstring& path, regi
     std::wstring tree_root = session_->mode == RegistryMode::kLocal ? L"Computer" : TreeRootLabel();
     return registry_path::Format(normalized, style, tree_root);
 }
+bool MainWindow::Impl::KeyPathExists(const std::wstring& path, RegistryNode* node) const
+{
+    KeyInfo info = {};
+    if (path.empty() || !ResolvePathToNode(path, node))
+    {
+        return false;
+    }
+    if (RegistryStore::QueryKeyInfo(*node, &info))
+    {
+        return true;
+    }
+    if (node->subkey.empty())
+    {
+        return false;
+    }
+    RegistryNode parent = *node;
+    parent.subkey = registry_path::Parent(node->subkey);
+    const std::wstring leaf = registry_path::Leaf(node->subkey);
+    const std::vector<std::wstring> names = RegistryStore::EnumSubKeyNames(parent, false);
+    return std::any_of(names.begin(), names.end(), [&](const std::wstring& name) { return util::EqualsInsensitive(name, leaf); });
+}
+
 bool MainWindow::Impl::FindNearestExistingPath(const std::wstring& path, std::wstring* nearest_path) const
 {
     return changes::FindNearestExistingPath(
         path,
         [this](const std::wstring& candidate) {
             RegistryNode node;
-            KeyInfo info = {};
-            return ResolvePathToNode(candidate, &node) && RegistryStore::QueryKeyInfo(node, &info);
+            return KeyPathExists(candidate, &node);
         },
         nearest_path
     );

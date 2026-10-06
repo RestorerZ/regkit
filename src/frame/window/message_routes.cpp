@@ -1199,7 +1199,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
             {
                 target->pop_back();
             }
-            if (target->empty() || (data->dwData == kEditRegFileCopyDataId && !util::HasFileExtension(*target, L".reg")))
+            if (target->empty() || (data->dwData == kEditRegFileCopyDataId && !util::HasFileExtension(*target, L".reg") && !IsHiveFile(*target)))
             {
                 return 0;
             }
@@ -1219,7 +1219,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
             {
                 if (AcceptHandoffFile(hwnd_, *target))
                 {
-                    OpenRegFileTab(*target);
+                    OpenFile(*target);
                 }
                 return 0;
             }

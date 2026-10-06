@@ -19,6 +19,7 @@ inline constexpr uint64_t kMaxStateFileBytes = 4ull * 1024ull * 1024ull;
 inline constexpr uint64_t kMaxCommentFileBytes = 16ull * 1024ull * 1024ull;
 
 std::wstring RandomFileSuffix(const wchar_t* extension);
+std::string WideToNarrow(const std::wstring& text, UINT code_page);
 std::string WideToUtf8(const std::wstring& text);
 std::wstring NarrowToWide(std::string_view text, UINT code_page, DWORD flags = 0);
 std::wstring Utf8ToWide(std::string_view text);

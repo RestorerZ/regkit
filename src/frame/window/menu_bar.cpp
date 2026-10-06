@@ -290,11 +290,7 @@ void MainWindow::Impl::BuildMenus()
     append_menu(edit_menu, MF_STRING, cmd::kEditUndo, util::Tr(L"Undo"));
     append_menu(edit_menu, MF_STRING, cmd::kEditRedo, util::Tr(L"Redo"));
     separator(edit_menu);
-    HMENU edit_new = CreatePopupMenu();
-    append_menu(edit_new, MF_STRING, cmd::kNewKey, util::Tr(L"Key"));
-    append_menu(edit_new, MF_STRING, cmd::kNewVolatileKey, util::Tr(L"Volatile Key"));
-    AppendNewValueItems(edit_new);
-    append_popup(edit_menu, edit_new, util::Tr(L"New"));
+    append_popup(edit_menu, BuildNewMenu(), util::Tr(L"New"));
     separator(edit_menu);
     append_menu(edit_menu, MF_STRING, cmd::kEditModify, util::Tr(L"Modify..."));
     append_menu(edit_menu, MF_STRING, cmd::kEditModifyBinary, util::Tr(L"Modify Binary Data..."));
@@ -697,7 +693,7 @@ void MainWindow::Impl::UpdateMenuState(HMENU menu)
     {
         const std::wstring exe_path = util::GetModulePath();
         check(cmd::kOptionsReplaceRegEdit, win32::IsRegEditReplacementRegistered(exe_path));
-        check(cmd::kOptionsEditContextMenu, win32::IsRegFileEditMenuRegistered(exe_path));
+        check(cmd::kOptionsEditContextMenu, win32::IsEditMenuRegistered(exe_path));
     }
     check(cmd::kOptionsSingleInstance, settings_.single_instance);
     check(cmd::kOptionsAutoComplete, settings_.autocomplete);

@@ -73,8 +73,9 @@ void WriteTo(HANDLE handle, const std::wstring& text)
         WriteConsoleW(handle, text.c_str(), static_cast<DWORD>(text.size()), &written, nullptr);
         return;
     }
-    const std::string utf8 = util::WideToUtf8(text);
-    WriteFile(handle, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
+    const UINT code_page = GetConsoleOutputCP();
+    const std::string narrow = util::WideToNarrow(text, code_page ? code_page : CP_OEMCP);
+    WriteFile(handle, narrow.data(), static_cast<DWORD>(narrow.size()), &written, nullptr);
 }
 
 void Print(const std::wstring& text)
@@ -312,6 +313,7 @@ struct Query
     bool search_data = false;
     size_t matches = 0;
     bool found_value = false;
+    bool search = false;
 
     bool Matches(const std::wstring& text) const
     {
@@ -362,9 +364,7 @@ int QueryKey(const KeyRef& key, Query& query, bool name_matched)
         return (!query.types.empty() && std::find(query.types.begin(), query.types.end(), value.type) == query.types.end()) ||
                (options.has_find && !query.Matches(value));
     });
-    // keep unnamed default value at the top of the output
-    std::stable_partition(contents.values.begin(), contents.values.end(), [](const RegistryValue& value) { return value.name.empty(); });
-    const bool listing = !options.has_find && !options.has_value;
+    const bool listing = !query.search && !options.has_value;
     if (listing || name_matched || !contents.values.empty())
     {
         Print(key.display);
@@ -441,13 +441,14 @@ int CmdQuery(const std::vector<std::wstring>& args)
     query.search_keys = !scoped || options.keys_only;
     query.search_names = !scoped || options.value_names;
     query.search_data = !scoped || options.data_only;
+    query.search = options.has_find || !query.types.empty();
     Print(L"");
     const int result = QueryKey(key, query, false);
     if (result != kOk)
     {
         return result;
     }
-    if (options.has_find)
+    if (query.search)
     {
         Print(L"End of search: " + std::to_wstring(query.matches) + L" match(es) found.");
         return query.matches ? kOk : kFailed;

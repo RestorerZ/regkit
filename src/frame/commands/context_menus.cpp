@@ -101,18 +101,17 @@ void AppendKeyMenu(HMENU menu, const KeyMenu& key)
         AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
         return;
     }
-    AppendMenuW(menu, flags(writable), cmd::kNewKey, util::Tr(L"New Key"));
-    AppendMenuW(menu, MF_POPUP | (writable ? 0u : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildNewValueMenu()), util::Tr(L"New Value"));
+    AppendMenuW(menu, MF_POPUP | (writable ? 0u : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildNewMenu()), util::Tr(L"New"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, flags(key.has_node), cmd::kFileExport, util::Tr(L"Export..."));
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, flags(writable), cmd::kEditPermissions, util::Tr(L"Permissions..."));
-    AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, flags(key.can_rename && key.can_modify), cmd::kEditRename, util::Tr(L"Rename"));
     AppendMenuW(menu, flags(key.can_rename && key.can_modify), cmd::kEditDelete, util::Tr(L"Delete"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, flags(writable), cmd::kEditPermissions, util::Tr(L"Permissions..."));
+    AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
 }
 
 } // namespace
@@ -427,20 +426,21 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
         }
         else
         {
-            HMENU new_value = BuildNewValueMenu();
-            AppendMenuW(menu, modify_flags, cmd::kNewKey, util::Tr(L"New Key"));
-            AppendMenuW(menu, MF_POPUP | ((browse_.current_node() && can_modify) ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(new_value), util::Tr(L"New Value"));
+            AppendMenuW(menu, MF_POPUP | ((browse_.current_node() && can_modify) ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildNewMenu()), util::Tr(L"New"));
         }
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         if (!is_simulated)
         {
             AppendMenuW(menu, edit_flags, cmd::kFileExport, util::Tr(L"Export..."));
             AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-            AppendMenuW(menu, modify_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
-            AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
-            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         }
         AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
+        if (!is_simulated)
+        {
+            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+            AppendMenuW(menu, modify_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
+            AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
+        }
     }
 
     int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
@@ -669,13 +669,13 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
     UINT export_flags = MF_STRING | (can_export ? 0 : MF_GRAYED);
     AppendMenuW(menu, export_flags, kSearchExport, util::Tr(L"Export..."));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    UINT permissions_flags = MF_STRING | (can_permissions ? 0 : MF_GRAYED);
-    AppendMenuW(menu, permissions_flags, kSearchPermissions, util::Tr(L"Permissions..."));
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     UINT rename_flags = MF_STRING | (can_rename ? 0 : MF_GRAYED);
     UINT delete_flags = MF_STRING | (can_delete ? 0 : MF_GRAYED);
     AppendMenuW(menu, rename_flags, kSearchRename, util::Tr(L"Rename"));
     AppendMenuW(menu, delete_flags, kSearchDelete, util::Tr(L"Delete"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    UINT permissions_flags = MF_STRING | (can_permissions ? 0 : MF_GRAYED);
+    AppendMenuW(menu, permissions_flags, kSearchPermissions, util::Tr(L"Permissions..."));
 
     int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
     DestroyMenu(menu);

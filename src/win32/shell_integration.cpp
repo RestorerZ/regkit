@@ -16,9 +16,22 @@ namespace regkit::win32
 namespace
 {
 
+struct EditMenu
+{
+    const wchar_t* key;
+    const wchar_t* applies_to;
+};
+
 // use regfile ProgID instead of SystemFileAssociations for W7 support
-constexpr wchar_t kEditMenuKey[] = L"Software\\Classes\\regfile\\shell\\RegKit.Edit";
-constexpr wchar_t kEditMenuCommandKey[] = L"Software\\Classes\\regfile\\shell\\RegKit.Edit\\command";
+constexpr EditMenu kEditMenus[] = {
+    {L"Software\\Classes\\regfile\\shell\\RegKit.Edit", nullptr},
+    {L"Software\\Classes\\SystemFileAssociations\\.hiv\\shell\\RegKit.Edit", nullptr},
+    {L"Software\\Classes\\SystemFileAssociations\\.hve\\shell\\RegKit.Edit", nullptr},
+    {L"Software\\Classes\\*\\shell\\RegKit.Edit",
+     L"System.FileName:=\"NTUSER.DAT\" OR System.FileName:=\"UsrClass.dat\" OR System.FileName:=\"SYSTEM\" OR System.FileName:=\"SOFTWARE\" OR "
+     L"System.FileName:=\"SAM\" OR System.FileName:=\"SECURITY\" OR System.FileName:=\"DEFAULT\" OR System.FileName:=\"COMPONENTS\" OR "
+     L"System.FileName:=\"DRIVERS\" OR System.FileName:=\"BCD\""},
+};
 constexpr wchar_t kEditMenuLabel[] = L"Edit with RegKit";
 constexpr wchar_t kRegEditImageOptionsKey[] =
     L"Software\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\regedit.exe";
@@ -33,6 +46,11 @@ std::wstring EditMenuCommand(const std::wstring& exe_path)
     return L"\"" + exe_path + L"\" --edit-reg \"%1\"";
 }
 
+std::wstring CommandKey(const EditMenu& menu)
+{
+    return std::wstring(menu.key) + L"\\command";
+}
+
 bool RegistryStringEquals(const wchar_t* subkey, const wchar_t* value_name, const std::wstring& expected)
 {
     std::wstring value;
@@ -42,17 +60,25 @@ bool RegistryStringEquals(const wchar_t* subkey, const wchar_t* value_name, cons
 
 LONG DeleteEditMenu()
 {
-    LONG result = RegDeleteTreeW(HKEY_CURRENT_USER, kEditMenuKey);
-    if (result == ERROR_SUCCESS)
+    LONG first_error = ERROR_SUCCESS;
+    for (const EditMenu& menu : kEditMenus)
     {
-        result = RegDeleteKeyW(HKEY_CURRENT_USER, kEditMenuKey);
+        LONG result = RegDeleteTreeW(HKEY_CURRENT_USER, menu.key);
+        if (result == ERROR_SUCCESS)
+        {
+            result = RegDeleteKeyW(HKEY_CURRENT_USER, menu.key);
+        }
+        if (result != ERROR_SUCCESS && !Missing(result) && first_error == ERROR_SUCCESS)
+        {
+            first_error = result;
+        }
     }
-    return Missing(result) ? ERROR_SUCCESS : result;
+    return first_error;
 }
 
 bool IsEditMenuCommandOwned(const std::wstring& exe_path)
 {
-    return !exe_path.empty() && RegistryStringEquals(kEditMenuCommandKey, nullptr, EditMenuCommand(exe_path));
+    return !exe_path.empty() && RegistryStringEquals(CommandKey(kEditMenus[0]).c_str(), nullptr, EditMenuCommand(exe_path));
 }
 
 bool OwnsRegEditDebugger(const std::wstring& debugger, const std::wstring& exe_path)
@@ -108,15 +134,22 @@ LONG DeleteOwnedRegEditDebugger(const std::wstring& exe_path)
 
 } // namespace
 
-bool IsRegFileEditMenuRegistered(const std::wstring& exe_path)
+bool IsEditMenuRegistered(const std::wstring& exe_path)
 {
-    std::wstring label;
-    return IsEditMenuCommandOwned(exe_path) &&
-           util::ReadRegistryString(HKEY_CURRENT_USER, kEditMenuKey, nullptr, &label) == ERROR_SUCCESS &&
-           label == kEditMenuLabel && RegistryStringEquals(kEditMenuKey, L"Icon", exe_path + L",0");
+    for (const EditMenu& menu : kEditMenus)
+    {
+        std::wstring label;
+        if (exe_path.empty() || !RegistryStringEquals(CommandKey(menu).c_str(), nullptr, EditMenuCommand(exe_path)) ||
+            util::ReadRegistryString(HKEY_CURRENT_USER, menu.key, nullptr, &label) != ERROR_SUCCESS || label != kEditMenuLabel ||
+            !RegistryStringEquals(menu.key, L"Icon", exe_path + L",0"))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
-LONG SetRegFileEditMenu(const std::wstring& exe_path, bool enable, LONG* cleanup_error)
+LONG SetEditMenu(const std::wstring& exe_path, bool enable, LONG* cleanup_error)
 {
     if (cleanup_error)
     {
@@ -129,15 +162,25 @@ LONG SetRegFileEditMenu(const std::wstring& exe_path, bool enable, LONG* cleanup
     LONG result = ERROR_SUCCESS;
     if (enable)
     {
-        result = util::WriteRegistryString(HKEY_CURRENT_USER, kEditMenuKey, nullptr, kEditMenuLabel);
-        if (result == ERROR_SUCCESS)
+        for (const EditMenu& menu : kEditMenus)
         {
-            result = util::WriteRegistryString(HKEY_CURRENT_USER, kEditMenuKey, L"Icon", exe_path + L",0");
-        }
-        if (result == ERROR_SUCCESS)
-        {
-            result =
-                util::WriteRegistryString(HKEY_CURRENT_USER, kEditMenuCommandKey, nullptr, EditMenuCommand(exe_path));
+            result = util::WriteRegistryString(HKEY_CURRENT_USER, menu.key, nullptr, kEditMenuLabel);
+            if (result == ERROR_SUCCESS)
+            {
+                result = util::WriteRegistryString(HKEY_CURRENT_USER, menu.key, L"Icon", exe_path + L",0");
+            }
+            if (result == ERROR_SUCCESS && menu.applies_to)
+            {
+                result = util::WriteRegistryString(HKEY_CURRENT_USER, menu.key, L"AppliesTo", menu.applies_to);
+            }
+            if (result == ERROR_SUCCESS)
+            {
+                result = util::WriteRegistryString(HKEY_CURRENT_USER, CommandKey(menu).c_str(), nullptr, EditMenuCommand(exe_path));
+            }
+            if (result != ERROR_SUCCESS)
+            {
+                break;
+            }
         }
         if (result != ERROR_SUCCESS)
         {
@@ -158,10 +201,10 @@ LONG SetRegFileEditMenu(const std::wstring& exe_path, bool enable, LONG* cleanup
     return result;
 }
 
-LONG RemoveRegFileEditMenuIfOwned(const std::wstring& exe_path)
+LONG RemoveEditMenuIfOwned(const std::wstring& exe_path)
 {
     // uninstall only the command that still points to this executable
-    return IsEditMenuCommandOwned(exe_path) ? SetRegFileEditMenu(exe_path, false) : ERROR_SUCCESS;
+    return IsEditMenuCommandOwned(exe_path) ? SetEditMenu(exe_path, false) : ERROR_SUCCESS;
 }
 
 bool IsRegEditReplacementRegistered(const std::wstring& exe_path)

@@ -212,7 +212,7 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         ReplaceRegEdit(!win32::IsRegEditReplacementRegistered(util::GetModulePath()));
         return true;
     case cmd::kOptionsEditContextMenu:
-        SetEditContextMenu(!win32::IsRegFileEditMenuRegistered(util::GetModulePath()));
+        SetEditContextMenu(!win32::IsEditMenuRegistered(util::GetModulePath()));
         return true;
     case cmd::kOptionsSingleInstance:
         settings_.single_instance = !settings_.single_instance;

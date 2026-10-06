@@ -144,6 +144,17 @@ UniqueHKey OpenNativeRegistryRoot()
 LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool open_link, UniqueHKey* key)
 {
     key->reset();
+    constexpr size_t kMaxLevelsPerOpen = 32;
+    size_t levels = 0;
+    for (size_t pos = subkey.find(L'\\'); pos != std::wstring::npos; pos = subkey.find(L'\\', pos + 1))
+    {
+        if (++levels == kMaxLevelsPerOpen)
+        {
+            UniqueHKey middle;
+            const LONG result = OpenRegistryPath(root, subkey.substr(0, pos), MAXIMUM_ALLOWED | (access & kViewFlags), false, &middle);
+            return result == ERROR_SUCCESS ? OpenRegistryPath(middle.get(), subkey.substr(pos + 1), access, open_link, key) : result;
+        }
+    }
     const bool merged = root == HKEY_CLASSES_ROOT;
     root = MapCurrentUserRoot(root);
     const size_t null_char = subkey.find(L'\0');

@@ -519,7 +519,7 @@ void MainWindow::Impl::ReplaceRegEdit(bool enable)
 void MainWindow::Impl::SetEditContextMenu(bool enable)
 {
     LONG cleanup_result = ERROR_SUCCESS;
-    const LONG result = win32::SetRegFileEditMenu(util::GetModulePath(), enable, &cleanup_result);
+    const LONG result = win32::SetEditMenu(util::GetModulePath(), enable, &cleanup_result);
     if (result != ERROR_SUCCESS)
     {
         std::wstring message = FormatWin32Error(result);

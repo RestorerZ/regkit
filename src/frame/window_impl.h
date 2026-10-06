@@ -63,6 +63,7 @@ class MainWindow::Impl
     bool Create(HINSTANCE instance);
     void Show(int cmd_show);
     bool OpenRegFileTab(const std::wstring& path, bool force_new_tab = false);
+    bool OpenFile(const std::wstring& path);
     void OpenSavedFile(const std::wstring& path, win32::OpenAfter open_after);
     void StartRegFileParse(const std::wstring& path, const std::wstring& session_key);
     bool TranslateAccelerator(const MSG& msg);
@@ -278,7 +279,7 @@ class MainWindow::Impl
     bool OfferRemoteServiceStart(const std::wstring& machine, RegistrySession* session);
     void OfferRemoteServiceRestore(RegistrySession& session);
     bool SwitchToOfflineRegistry();
-    bool SaveOfflineRegistry(RegistrySession& session);
+    bool SaveOfflineRegistry(RegistrySession& session, bool choose_path = false);
     bool LoadOfflineRegistryFromPath(const std::wstring& path, bool open_new_tab);
     void ApplyRegistryRoots(const std::vector<RegistryRootEntry>& roots);
     std::vector<std::wstring> BuildVisibleTreePathParts(const std::wstring& path) const;
@@ -572,6 +573,7 @@ class MainWindow::Impl
     std::wstring MakeUniqueValueName(const RegistryNode& node, const std::wstring& base) const;
     std::wstring MakeUniqueKeyName(const RegistryNode& node, const std::wstring& base) const;
     bool ResolvePathToNode(const std::wstring& path, RegistryNode* node) const;
+    bool KeyPathExists(const std::wstring& path, RegistryNode* node) const;
 
     HINSTANCE instance_ = nullptr;
     HWND hwnd_ = nullptr;

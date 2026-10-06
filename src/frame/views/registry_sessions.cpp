@@ -822,7 +822,7 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
     return true;
 }
 
-bool MainWindow::Impl::SaveOfflineRegistry(RegistrySession& session)
+bool MainWindow::Impl::SaveOfflineRegistry(RegistrySession& session, bool choose_path)
 {
     if (session.mode != RegistryMode::kOffline || session.offline_roots.empty())
     {
@@ -864,8 +864,9 @@ bool MainWindow::Impl::SaveOfflineRegistry(RegistrySession& session)
         return false;
     }
 
-    std::wstring path;
-    if (!ui::PromptSaveFile(hwnd_, ui::kHiveFileFilter, &path))
+    std::wstring path = session.offline_root_paths.empty() ? std::wstring() : session.offline_root_paths.front();
+    if ((choose_path || path.empty()) &&
+        !ui::ReportFileDialogResult(hwnd_, win32::ChooseFileToSave(hwnd_, ui::kHiveFileFilter, path.empty() ? nullptr : path.c_str(), &path)))
     {
         return false;
     }
@@ -875,6 +876,10 @@ bool MainWindow::Impl::SaveOfflineRegistry(RegistrySession& session)
     {
         ui::ShowError(hwnd_, error.empty() ? util::Tr(L"Failed to save offline hive.") : error);
         return false;
+    }
+    if (!session.offline_root_paths.empty())
+    {
+        session.offline_root_paths.front() = path;
     }
     session.offline_dirty = false;
     HistoryEntry history;
@@ -977,11 +982,8 @@ bool MainWindow::Impl::ResolveJumpTarget(const std::wstring& target, std::wstrin
         return text;
     };
     RegistryNode node;
-    KeyInfo info = {};
     RegistryValue value;
-    const auto key_exists = [&](const std::wstring& path) {
-        return !path.empty() && ResolvePathToNode(path, &node) && RegistryStore::QueryKeyInfo(node, &info);
-    };
+    const auto key_exists = [&](const std::wstring& path) { return KeyPathExists(path, &node); };
     value_name->clear();
     *value_missing = false;
     const std::wstring text = unwrap(target, L"\"\"''[]");

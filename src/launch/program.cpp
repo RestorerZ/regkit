@@ -127,7 +127,7 @@ std::vector<std::wstring> StripRegEditLaunchArg(const std::vector<std::wstring>&
     return stripped;
 }
 
-std::vector<std::wstring> RegFilesFromArgs(const std::vector<std::wstring>& args)
+std::vector<std::wstring> FileArgs(const std::vector<std::wstring>& args, bool hives)
 {
     std::vector<std::wstring> files;
     for (const auto& arg : args)
@@ -136,7 +136,7 @@ std::vector<std::wstring> RegFilesFromArgs(const std::vector<std::wstring>& args
         {
             continue;
         }
-        if (util::HasFileExtension(arg, L".reg"))
+        if (hives ? IsHiveFile(arg) : util::HasFileExtension(arg, L".reg"))
         {
             files.push_back(arg);
         }
@@ -373,11 +373,11 @@ std::optional<int> RunShellIntegrationCommand(const std::vector<std::wstring>& a
     LONG result = ERROR_SUCCESS;
     if (install_menu)
     {
-        result = win32::SetRegFileEditMenu(exe_path, true);
+        result = win32::SetEditMenu(exe_path, true);
     }
     else if (uninstall_menu)
     {
-        result = win32::RemoveRegFileEditMenuIfOwned(exe_path);
+        result = win32::RemoveEditMenuIfOwned(exe_path);
     }
     else
     {
@@ -508,7 +508,7 @@ int Run(HINSTANCE instance, int cmd_show)
     ApplyStartupTheme(startup_settings);
     const std::wstring jump_target = ExternalJumpTarget(args);
     const bool edit_reg_file_requested = HasCommandLineArg(args, kEditRegFileArg);
-    const std::vector<std::wstring> reg_files = RegFilesFromArgs(args);
+    const std::vector<std::wstring> reg_files = FileArgs(args, false);
     const bool stay_as_user = HasCommandLineArg(args, kRestartUserArg);
     const DWORD restart_parent_pid = win32::RestartParentPid(args);
     const DWORD handoff_pid = restart_parent_pid != 0 ? restart_parent_pid : GetCurrentProcessId();
@@ -545,7 +545,11 @@ int Run(HINSTANCE instance, int cmd_show)
 
     win32::WaitForParentExit(restart_parent_pid);
 
-    const std::vector<std::wstring> edit_files = edit_reg_file_requested ? reg_files : std::vector<std::wstring>();
+    std::vector<std::wstring> edit_files = FileArgs(args, true);
+    if (edit_reg_file_requested)
+    {
+        edit_files.insert(edit_files.begin(), reg_files.begin(), reg_files.end());
+    }
     util::UniqueHandle instance_mutex;
     if (startup_settings.single_instance)
     {
@@ -570,7 +574,7 @@ int Run(HINSTANCE instance, int cmd_show)
     }
     for (const auto& path : edit_files)
     {
-        window.OpenRegFileTab(path);
+        window.OpenFile(path);
     }
     window.Show(cmd_show);
     const int exit_code = RunMessageLoop(window);

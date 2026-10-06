@@ -25,9 +25,9 @@ void MainWindow::Show(int command)
     impl_->Show(command);
 }
 
-bool MainWindow::OpenRegFileTab(const std::wstring& path)
+bool MainWindow::OpenFile(const std::wstring& path)
 {
-    return impl_->OpenRegFileTab(path);
+    return impl_->OpenFile(path);
 }
 
 bool MainWindow::TranslateAccelerator(const MSG& message)

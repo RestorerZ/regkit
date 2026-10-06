@@ -77,8 +77,12 @@ inline HMENU BuildCopyKeyPathMenu()
     AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathNativeResolved, util::Tr(L"Native (Resolved)"));
     return menu;
 }
-inline void AppendNewValueItems(HMENU menu)
+inline HMENU BuildNewMenu()
 {
+    HMENU menu = CreatePopupMenu();
+    AppendMenuW(menu, MF_STRING, cmd::kNewKey, util::Tr(L"Key"));
+    AppendMenuW(menu, MF_STRING, cmd::kNewVolatileKey, util::Tr(L"Volatile Key"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, cmd::kNewString, util::Tr(L"String Value"));
     AppendMenuW(menu, MF_STRING, cmd::kNewBinary, util::Tr(L"Binary Value"));
     AppendMenuW(menu, MF_STRING, cmd::kNewDword, util::Tr(L"DWORD (32-bit) Value"));
@@ -87,12 +91,6 @@ inline void AppendNewValueItems(HMENU menu)
     AppendMenuW(menu, MF_STRING, cmd::kNewExpandString, util::Tr(L"Expandable String Value"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, cmd::kNewSymbolicLink, util::Tr(L"Symbolic Link"));
-}
-
-inline HMENU BuildNewValueMenu()
-{
-    HMENU menu = CreatePopupMenu();
-    AppendNewValueItems(menu);
     return menu;
 }
 

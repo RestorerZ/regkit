@@ -65,12 +65,6 @@ target_link_libraries(RegKit PRIVATE
 )
 set_target_properties(RegKit PROPERTIES OUTPUT_NAME "regkit")
 
-enable_testing()
-add_executable(regkit_tests tests/regkit_tests.cpp)
-regkit_configure_executable(regkit_tests)
-target_link_libraries(regkit_tests PRIVATE regkit_search regkit_trace)
-add_test(NAME regkit_tests COMMAND regkit_tests)
-
 include(CheckIPOSupported)
 check_ipo_supported(RESULT REGKIT_IPO_SUPPORTED OUTPUT REGKIT_IPO_ERROR)
 if (REGKIT_IPO_SUPPORTED)

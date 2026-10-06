@@ -27,21 +27,26 @@ std::wstring RandomFileSuffix(const wchar_t* extension)
     return std::wstring(suffix) + extension;
 }
 
-std::string WideToUtf8(const std::wstring& text)
+std::string WideToNarrow(const std::wstring& text, UINT code_page)
 {
     if (text.empty())
     {
         return {};
     }
     const int size =
-        WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
+        WideCharToMultiByte(code_page, 0, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
     if (size <= 0)
     {
         return {};
     }
     std::string output(static_cast<size_t>(size), '\0');
-    WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), output.data(), size, nullptr, nullptr);
+    WideCharToMultiByte(code_page, 0, text.data(), static_cast<int>(text.size()), output.data(), size, nullptr, nullptr);
     return output;
+}
+
+std::string WideToUtf8(const std::wstring& text)
+{
+    return WideToNarrow(text, CP_UTF8);
 }
 
 std::wstring NarrowToWide(std::string_view text, UINT code_page, DWORD flags)
