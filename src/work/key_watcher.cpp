@@ -38,7 +38,8 @@ void KeyWatcher::Watch(HWND window, UINT message, HKEY root, const std::wstring&
     {
         stop_.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
         retarget_.reset(CreateEventW(nullptr, FALSE, TRUE, nullptr));
-        if (!stop_ || !retarget_)
+        rearm_.reset(CreateEventW(nullptr, FALSE, FALSE, nullptr));
+        if (!stop_ || !retarget_ || !rearm_)
         {
             return;
         }
@@ -47,6 +48,14 @@ void KeyWatcher::Watch(HWND window, UINT message, HKEY root, const std::wstring&
         return;
     }
     SetEvent(retarget_.get());
+}
+
+void KeyWatcher::Rearm()
+{
+    if (rearm_)
+    {
+        SetEvent(rearm_.get());
+    }
 }
 
 void KeyWatcher::Stop()
@@ -65,11 +74,12 @@ void KeyWatcher::Run()
     HWND window = nullptr;
     UINT message = 0;
     uint64_t generation = 0;
-    const HANDLE events[] = {stop_.get(), retarget_.get(), change.get()};
+    bool armed = false;
+    const HANDLE events[] = {stop_.get(), retarget_.get(), change.get(), rearm_.get()};
     constexpr DWORD kFilter = REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_ATTRIBUTES | REG_NOTIFY_CHANGE_LAST_SET | REG_NOTIFY_CHANGE_SECURITY;
     while (change)
     {
-        const DWORD signaled = WaitForMultipleObjects(3, events, FALSE, INFINITE);
+        const DWORD signaled = WaitForMultipleObjects(4, events, FALSE, INFINITE);
         if (signaled == WAIT_OBJECT_0 + 1)
         {
             HKEY root = nullptr;
@@ -86,6 +96,7 @@ void KeyWatcher::Run()
             }
             // closing the old key signals its registration
             key.reset();
+            armed = false;
             ResetEvent(change.get());
             if (root)
             {
@@ -96,14 +107,20 @@ void KeyWatcher::Run()
         {
             ResetEvent(change.get());
             PostMessageW(window, message, static_cast<WPARAM>(generation), 0);
+            armed = false;
+            continue;
         }
-        else
+        else if (signaled != WAIT_OBJECT_0 + 3)
         {
             break;
         }
-        if (key && RegNotifyChangeKeyValue(key.get(), FALSE, kFilter, change.get(), TRUE) != ERROR_SUCCESS)
+        if (key && !armed)
         {
-            key.reset();
+            armed = RegNotifyChangeKeyValue(key.get(), FALSE, kFilter, change.get(), TRUE) == ERROR_SUCCESS;
+            if (!armed)
+            {
+                key.reset();
+            }
         }
     }
 }

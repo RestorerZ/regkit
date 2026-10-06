@@ -1023,15 +1023,28 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message, 
                 return 0;
             }
             HWND list_hwnd = browse_.values().hwnd();
-            if (list_hwnd)
+            const bool merge = owned->generation == merge_value_list_generation_ && browse_.current_node();
+            if (list_hwnd && !merge)
             {
                 SendMessageW(list_hwnd, WM_SETREDRAW, FALSE, 0);
             }
-            browse_.values().SetRows(std::move(owned->rows));
-            RefreshValueListComments();
+            bool merged = false;
+            if (merge)
+            {
+                ApplyValueComments(&owned->rows);
+                merged = browse_.values().MergeRows(std::move(owned->rows));
+            }
+            else
+            {
+                browse_.values().SetRows(std::move(owned->rows));
+            }
+            if (!merged)
+            {
+                RefreshValueListComments();
+            }
             current_key_count_ = owned->key_count;
             current_value_count_ = owned->value_count;
-            if (list_hwnd && !jump_ui_batch_active_)
+            if (!merged && list_hwnd && !jump_ui_batch_active_)
             {
                 SendMessageW(list_hwnd, WM_SETREDRAW, TRUE, 0);
                 RedrawWindow(list_hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
@@ -1039,7 +1052,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message, 
             value_list_loading_ = false;
             UpdateStatus();
             StartPendingValueListRename();
-            if (!retained_value_key_path_.empty() && browse_.current_node() &&
+            if (!merged && !retained_value_key_path_.empty() && browse_.current_node() &&
                 EqualsInsensitive(registry_path::Build(*browse_.current_node()), retained_value_key_path_) &&
                 !SelectValueByName(retained_value_name_))
             {
@@ -1134,7 +1147,8 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
     case frame::message_id::kRegistryChanged:
         if (wparam == key_watcher_.generation())
         {
-            SetTimer(hwnd_, kAutoRefreshTimerId, 250, nullptr);
+            const ULONGLONG elapsed = GetTickCount64() - auto_refresh_tick_;
+            SetTimer(hwnd_, kAutoRefreshTimerId, elapsed >= 750 ? 250 : static_cast<UINT>(1000 - elapsed), nullptr);
         }
         return 0;
     case WM_TIMER:

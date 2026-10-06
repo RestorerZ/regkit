@@ -351,6 +351,8 @@ void MainWindow::Impl::ApplyAutoRefresh()
         SetTimer(hwnd_, kAutoRefreshTimerId, 250, nullptr);
         return;
     }
+    key_watcher_.Rearm();
+    auto_refresh_tick_ = GetTickCount64();
     // rebuilding the tree item collapses its children, so only do it when subkey names changed
     HTREEITEM item = TreeView_GetSelection(tree);
     if (item && (TreeView_GetItemState(tree, item, TVIS_EXPANDED) & TVIS_EXPANDED))
@@ -373,6 +375,7 @@ void MainWindow::Impl::ApplyAutoRefresh()
             RefreshTreeSelection();
         }
     }
+    merge_value_list_ = true;
     UpdateValueListForNode(browse_.current_node());
 }
 
@@ -382,6 +385,8 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
     {
         return;
     }
+    const bool merge = merge_value_list_ && node;
+    merge_value_list_ = false;
     WatchCurrentKey();
     updating_value_list_ = true;
     appended_value_name_.clear();
@@ -405,15 +410,18 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
         }
     }
     uint64_t generation = value_list_generation_.fetch_add(1) + 1;
+    merge_value_list_generation_ = merge ? generation : 0;
     HWND list_hwnd = browse_.values().hwnd();
-    if (list_hwnd)
+    if (!merge)
     {
-        SendMessageW(list_hwnd, WM_SETREDRAW, FALSE, 0);
+        if (list_hwnd)
+        {
+            SendMessageW(list_hwnd, WM_SETREDRAW, FALSE, 0);
+        }
+        browse_.values().Clear();
+        current_key_count_ = 0;
+        current_value_count_ = 0;
     }
-
-    browse_.values().Clear();
-    current_key_count_ = 0;
-    current_value_count_ = 0;
     if (!node)
     {
         if (list_hwnd && !jump_ui_batch_active_)
@@ -459,12 +467,15 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
         include_details = true;
     }
 
-    if (list_hwnd && !jump_ui_batch_active_)
+    if (!merge)
     {
-        SendMessageW(list_hwnd, WM_SETREDRAW, TRUE, 0);
-        RedrawWindow(list_hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
+        if (list_hwnd && !jump_ui_batch_active_)
+        {
+            SendMessageW(list_hwnd, WM_SETREDRAW, TRUE, 0);
+            RedrawWindow(list_hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
+        }
+        UpdateStatus();
     }
-    UpdateStatus();
     updating_value_list_ = false;
     value_list_loading_ = true;
 

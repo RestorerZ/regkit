@@ -248,80 +248,17 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
     case cmd::kEditCopyKeyPathNative:
     case cmd::kEditCopyKeyPathNativeResolved:
         {
-            if (command_id == cmd::kEditCopyKeyPathNative || command_id == cmd::kEditCopyKeyPathNativeResolved)
-            {
-                if (!browse_.current_node())
-                {
-                    return true;
-                }
-                const RegistryNode node = SelectedKeyNode();
-                // hkcr is merged and a 32-bit view is redirected, so only the opened key knows where it lives
-                const bool unresolved = command_id == cmd::kEditCopyKeyPathNative;
-                std::wstring native = unresolved && !node.view ? registry_path::BuildNative(node) : std::wstring();
-                KeyDetails details;
-                if (native.empty() && RegistryStore::QueryKeyDetails(node, &details, unresolved))
-                {
-                    native = std::move(details.native.native_name);
-                }
-                if (native.empty())
-                {
-                    native = registry_path::BuildNative(node);
-                }
-                if (!native.empty())
-                {
-                    ui::CopyTextToClipboard(hwnd_, registry_path::DisplayName(native));
-                }
-                return true;
-            }
-            auto build_path = [&]() -> std::wstring {
-                std::wstring path;
-                int index = -1;
-                const ListRow* row = SelectedValueRow(browse_.values(), &index);
-                if (row && row->kind == rowkind::kKey && browse_.current_node())
-                {
-                    path = registry_path::Build(*browse_.current_node());
-                    if (!row->extra.empty())
-                    {
-                        path += L"\\" + row->name;
-                    }
-                }
-                else if (browse_.current_node())
-                {
-                    path = registry_path::Build(*browse_.current_node());
-                }
-                return path;
-            };
-            std::wstring path = build_path();
-            if (path.empty())
+            if (!browse_.current_node())
             {
                 return true;
             }
-            RegistryPathFormat format = RegistryPathFormat::kFull;
-            switch (command_id)
+            std::wstring path = registry_path::Build(*browse_.current_node());
+            const ListRow* row = SelectedValueRow(browse_.values(), nullptr);
+            if (row && row->kind == rowkind::kKey && !row->extra.empty())
             {
-            case cmd::kEditCopyKeyPathAbbrev:
-                format = RegistryPathFormat::kAbbrev;
-                break;
-            case cmd::kEditCopyKeyPathRegEdit:
-                format = RegistryPathFormat::kRegEdit;
-                break;
-            case cmd::kEditCopyKeyPathRegFile:
-                format = RegistryPathFormat::kRegFile;
-                break;
-            case cmd::kEditCopyKeyPathPowerShell:
-                format = RegistryPathFormat::kPowerShellDrive;
-                break;
-            case cmd::kEditCopyKeyPathPowerShellProvider:
-                format = RegistryPathFormat::kPowerShellProvider;
-                break;
-            case cmd::kEditCopyKeyPathEscaped:
-                format = RegistryPathFormat::kEscaped;
-                break;
-            default:
-                format = RegistryPathFormat::kFull;
-                break;
+                path += L"\\" + row->name;
             }
-            ui::CopyTextToClipboard(hwnd_, FormatRegistryPath(path, format));
+            CopyKeyPathAs(command_id, SelectedKeyNode(), path);
             return true;
         }
     case cmd::kEditCopy:
@@ -688,6 +625,59 @@ bool MainWindow::Impl::HandleRegistryNavigationCommand(int command_id)
         return true;
     default:
         return false;
+    }
+}
+
+void MainWindow::Impl::CopyKeyPathAs(int command_id, const RegistryNode& node, const std::wstring& path)
+{
+    std::wstring text;
+    if (command_id == cmd::kEditCopyKeyPathNative || command_id == cmd::kEditCopyKeyPathNativeResolved)
+    {
+        // hkcr is merged and a 32-bit view is redirected, so only the opened key knows where it lives
+        const bool unresolved = command_id == cmd::kEditCopyKeyPathNative;
+        text = unresolved && !node.view ? registry_path::BuildNative(node) : std::wstring();
+        KeyDetails details;
+        if (text.empty() && RegistryStore::QueryKeyDetails(node, &details, unresolved))
+        {
+            text = std::move(details.native.native_name);
+        }
+        if (text.empty())
+        {
+            text = registry_path::BuildNative(node);
+        }
+        text = registry_path::DisplayName(text);
+    }
+    else if (!path.empty())
+    {
+        registry_path::Style style = registry_path::Style::kFull;
+        switch (command_id)
+        {
+        case cmd::kEditCopyKeyPathAbbrev:
+            style = registry_path::Style::kAbbreviated;
+            break;
+        case cmd::kEditCopyKeyPathRegEdit:
+            style = registry_path::Style::kRegEditAddress;
+            break;
+        case cmd::kEditCopyKeyPathRegFile:
+            style = registry_path::Style::kRegFileHeader;
+            break;
+        case cmd::kEditCopyKeyPathPowerShell:
+            style = registry_path::Style::kPowerShellDrive;
+            break;
+        case cmd::kEditCopyKeyPathPowerShellProvider:
+            style = registry_path::Style::kPowerShellProvider;
+            break;
+        case cmd::kEditCopyKeyPathEscaped:
+            style = registry_path::Style::kEscaped;
+            break;
+        default:
+            break;
+        }
+        text = FormatRegistryPath(path, style);
+    }
+    if (!text.empty())
+    {
+        ui::CopyTextToClipboard(hwnd_, text);
     }
 }
 

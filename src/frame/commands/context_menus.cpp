@@ -60,6 +60,61 @@ std::wstring MenuLabel(std::wstring text)
     return text;
 }
 
+struct KeyMenu
+{
+    bool has_node = true;
+    bool simulated = false;
+    bool can_modify = true;
+    bool can_comment = true;
+    bool can_rename = false;
+    bool source_hive = false;
+    bool hive_file = false;
+    bool can_toggle = false;
+    bool has_children = false;
+    std::wstring expand_label;
+};
+
+void AppendKeyMenu(HMENU menu, const KeyMenu& key)
+{
+    const auto flags = [](bool enabled) { return MF_STRING | (enabled ? 0u : MF_GRAYED); };
+    const bool writable = key.has_node && key.can_modify;
+    AppendMenuW(menu, flags(key.has_node), cmd::kEditCopyKey, util::Tr(L"Copy Key Name"));
+    AppendMenuW(menu, flags(key.has_node), cmd::kEditCopyKeyPath, util::Tr(L"Copy Key Path"));
+    AppendMenuW(menu, MF_POPUP | (key.has_node ? 0u : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), util::Tr(L"Copy Key Path As"));
+    AppendMenuW(menu, flags(key.can_comment), cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
+    if (key.source_hive)
+    {
+        AppendMenuW(menu, MF_STRING, cmd::kEditOpenSourceHive, util::Tr(L"Open in Source Hive"));
+    }
+    if (key.hive_file)
+    {
+        AppendMenuW(menu, MF_STRING, cmd::kOptionsHiveFileDir, util::Tr(L"On-Disk Hive File"));
+    }
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, flags(key.can_toggle), cmd::kTreeToggleExpand, key.expand_label.c_str());
+    AppendMenuW(menu, flags(key.has_children), cmd::kTreeExpandAll, util::Tr(L"Expand All Subkeys"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    if (key.simulated)
+    {
+        AppendMenuW(menu, flags(writable), cmd::kCreateSimulatedKey, util::Tr(L"Create Key"));
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
+        return;
+    }
+    AppendMenuW(menu, flags(writable), cmd::kNewKey, util::Tr(L"New Key"));
+    AppendMenuW(menu, MF_POPUP | (writable ? 0u : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildNewValueMenu()), util::Tr(L"New Value"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, flags(key.has_node), cmd::kFileExport, util::Tr(L"Export..."));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, flags(writable), cmd::kEditPermissions, util::Tr(L"Permissions..."));
+    AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, flags(key.can_rename && key.can_modify), cmd::kEditRename, util::Tr(L"Rename"));
+    AppendMenuW(menu, flags(key.can_rename && key.can_modify), cmd::kEditDelete, util::Tr(L"Delete"));
+}
+
 } // namespace
 
 void MainWindow::Impl::RecordNavigation(const std::wstring& path)
@@ -215,19 +270,15 @@ void MainWindow::Impl::ShowTreeContextMenu(POINT screen_pt)
     HTREEITEM target = item ? item : TreeView_GetSelection(browse_.tree().hwnd());
     RegistryNode* node = browse_.tree().NodeFromItem(target);
 
-    HMENU menu = CreatePopupMenu();
-    bool has_node = node != nullptr;
-    bool can_rename = has_node && !node->subkey.empty();
-    bool is_simulated = has_node && node->simulated;
-    bool can_modify = !settings_.read_only;
-    UINT edit_flags = MF_STRING | (has_node ? 0 : MF_GRAYED);
-    UINT modify_flags = MF_STRING | ((has_node && can_modify) ? 0 : MF_GRAYED);
-    UINT rename_flags = MF_STRING | ((can_rename && can_modify) ? 0 : MF_GRAYED);
-    UINT delete_flags = MF_STRING | ((can_rename && can_modify) ? 0 : MF_GRAYED);
-
+    KeyMenu key;
+    key.has_node = node != nullptr;
+    key.simulated = key.has_node && node->simulated;
+    key.can_modify = !settings_.read_only;
+    key.can_comment = key.has_node;
+    key.can_rename = key.has_node && !node->subkey.empty();
+    key.source_hive = key.has_node && !key.simulated && node->root == HKEY_CLASSES_ROOT && !node->subkey.empty();
+    key.hive_file = key.has_node && !key.simulated && CanOpenHiveFile(*node);
     bool expanded = false;
-    bool can_toggle = false;
-    bool has_children = false;
     if (target)
     {
         TVITEMW tvi = {};
@@ -237,59 +288,13 @@ void MainWindow::Impl::ShowTreeContextMenu(POINT screen_pt)
         if (TreeView_GetItem(browse_.tree().hwnd(), &tvi))
         {
             expanded = (tvi.state & TVIS_EXPANDED) != 0;
-            has_children = TreeView_GetChild(browse_.tree().hwnd(), target) != nullptr || tvi.cChildren != 0;
-            can_toggle = expanded || has_children;
+            key.has_children = TreeView_GetChild(browse_.tree().hwnd(), target) != nullptr || tvi.cChildren != 0;
+            key.can_toggle = expanded || key.has_children;
         }
     }
-    std::wstring expand_label = expanded ? util::Tr(L"Collapse Key") : util::Tr(L"Expand Key");
-    UINT expand_flags = MF_STRING | (can_toggle ? 0 : MF_GRAYED);
-    UINT expand_all_flags = MF_STRING | (has_children ? 0 : MF_GRAYED);
-    const bool can_open_hive = has_node && CanOpenHiveFile(*node);
-
-    AppendMenuW(menu, edit_flags, cmd::kEditCopyKey, util::Tr(L"Copy Key Name"));
-    AppendMenuW(menu, edit_flags, cmd::kEditCopyKeyPath, util::Tr(L"Copy Key Path"));
-    AppendMenuW(menu, MF_POPUP | (has_node ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), util::Tr(L"Copy Key Path As"));
-    AppendMenuW(menu, edit_flags, cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
-    if (!is_simulated)
-    {
-        AppendMenuW(menu, modify_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
-        AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
-        if (has_node && node->root == HKEY_CLASSES_ROOT && !node->subkey.empty())
-        {
-            AppendMenuW(menu, MF_STRING, cmd::kEditOpenSourceHive, util::Tr(L"Open in Source Hive"));
-        }
-        if (can_open_hive)
-        {
-            AppendMenuW(menu, MF_STRING, cmd::kOptionsHiveFileDir, util::Tr(L"On-Disk Hive File"));
-        }
-    }
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, expand_flags, cmd::kTreeToggleExpand, expand_label.c_str());
-    AppendMenuW(menu, expand_all_flags, cmd::kTreeExpandAll, util::Tr(L"Expand All Subkeys"));
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    if (is_simulated)
-    {
-        AppendMenuW(menu, modify_flags, cmd::kCreateSimulatedKey, util::Tr(L"Create Key"));
-    }
-    else
-    {
-        HMENU new_value = BuildNewValueMenu();
-        AppendMenuW(menu, modify_flags, cmd::kNewKey, util::Tr(L"New Key"));
-        AppendMenuW(menu, MF_POPUP | ((has_node && can_modify) ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(new_value), util::Tr(L"New Value"));
-    }
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    if (!is_simulated)
-    {
-        AppendMenuW(menu, edit_flags, cmd::kFileExport, util::Tr(L"Export..."));
-        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    }
-    AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
-    if (!is_simulated)
-    {
-        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        AppendMenuW(menu, rename_flags, cmd::kEditRename, util::Tr(L"Rename"));
-        AppendMenuW(menu, delete_flags, cmd::kEditDelete, util::Tr(L"Delete"));
-    }
+    key.expand_label = expanded ? util::Tr(L"Collapse Key") : util::Tr(L"Expand Key");
+    HMENU menu = CreatePopupMenu();
+    AppendKeyMenu(menu, key);
 
     int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
     DestroyMenu(menu);
@@ -321,12 +326,6 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
     const ListRow* row = nullptr;
     if (index >= 0)
     {
-        const UINT state = ListView_GetItemState(browse_.values().hwnd(), index, LVIS_SELECTED);
-        if ((state & LVIS_SELECTED) == 0)
-        {
-            ListView_SetItemState(browse_.values().hwnd(), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-        }
-        ListView_SetItemState(browse_.values().hwnd(), index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
         row = browse_.values().RowAt(index);
     }
     SetFocus(browse_.values().hwnd());
@@ -335,70 +334,18 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
     std::vector<std::wstring> links;
     if (row && row->kind == rowkind::kKey)
     {
-        bool is_simulated = row->simulated;
-        bool can_rename = !row->extra.empty();
-        bool can_modify = !settings_.read_only;
-        UINT edit_flags = MF_STRING;
-        UINT modify_flags = MF_STRING | (can_modify ? 0 : MF_GRAYED);
-        UINT rename_flags = MF_STRING | ((can_rename && can_modify) ? 0 : MF_GRAYED);
-        UINT delete_flags = MF_STRING | ((can_rename && can_modify) ? 0 : MF_GRAYED);
-        UINT expand_flags = MF_STRING | MF_GRAYED;
-        std::wstring expand_label = util::Tr(L"Expand Key");
-        bool can_open_hive = false;
-        if (browse_.current_node())
+        KeyMenu key;
+        key.simulated = row->simulated;
+        key.can_modify = !settings_.read_only;
+        key.can_comment = !row->extra.empty();
+        key.can_rename = !row->extra.empty();
+        key.expand_label = util::Tr(L"Expand Key");
+        if (browse_.current_node() && !key.simulated)
         {
-            RegistryNode target = *browse_.current_node();
-            if (!row->extra.empty())
-            {
-                target = ChildNode(*browse_.current_node(), row->extra);
-            }
-            can_open_hive = CanOpenHiveFile(target);
+            key.source_hive = browse_.current_node()->root == HKEY_CLASSES_ROOT;
+            key.hive_file = CanOpenHiveFile(row->extra.empty() ? *browse_.current_node() : ChildNode(*browse_.current_node(), row->extra));
         }
-
-        AppendMenuW(menu, edit_flags, cmd::kEditCopyKey, util::Tr(L"Copy Key Name"));
-        AppendMenuW(menu, edit_flags, cmd::kEditCopyKeyPath, util::Tr(L"Copy Key Path"));
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), util::Tr(L"Copy Key Path As"));
-        AppendMenuW(menu, MF_STRING | (can_rename ? 0 : MF_GRAYED), cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
-        if (!is_simulated)
-        {
-            AppendMenuW(menu, modify_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
-            AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
-            if (browse_.current_node() && browse_.current_node()->root == HKEY_CLASSES_ROOT)
-            {
-                AppendMenuW(menu, MF_STRING, cmd::kEditOpenSourceHive, util::Tr(L"Open in Source Hive"));
-            }
-            if (can_open_hive)
-            {
-                AppendMenuW(menu, MF_STRING, cmd::kOptionsHiveFileDir, util::Tr(L"On-Disk Hive File"));
-            }
-        }
-        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        AppendMenuW(menu, expand_flags, cmd::kTreeToggleExpand, expand_label.c_str());
-        AppendMenuW(menu, expand_flags, cmd::kTreeExpandAll, util::Tr(L"Expand All Subkeys"));
-        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        if (is_simulated)
-        {
-            AppendMenuW(menu, modify_flags, cmd::kCreateSimulatedKey, util::Tr(L"Create Key"));
-        }
-        else
-        {
-            HMENU new_value = BuildNewValueMenu();
-            AppendMenuW(menu, modify_flags, cmd::kNewKey, util::Tr(L"New Key"));
-            AppendMenuW(menu, MF_POPUP | (can_modify ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(new_value), util::Tr(L"New Value"));
-        }
-        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        if (!is_simulated)
-        {
-            AppendMenuW(menu, edit_flags, cmd::kFileExport, util::Tr(L"Export..."));
-            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        }
-        AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
-        if (!is_simulated)
-        {
-            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-            AppendMenuW(menu, rename_flags, cmd::kEditRename, util::Tr(L"Rename"));
-            AppendMenuW(menu, delete_flags, cmd::kEditDelete, util::Tr(L"Delete"));
-        }
+        AppendKeyMenu(menu, key);
     }
     else if (row && row->kind == rowkind::kValue)
     {
@@ -425,10 +372,10 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
         AppendMenuW(menu, inspect_flags, cmd::kEditModify, util::Tr(L"Modify..."));
         AppendMenuW(menu, inspect_flags, cmd::kEditModifyBinary, util::Tr(L"Modify Binary Data..."));
         AppendMenuW(menu, data_flags, cmd::kEditChangeType, util::Tr(L"Change Data Type..."));
-        AppendMenuW(menu, MF_STRING, cmd::kEditResetDefault, util::Tr(L"Reset to Default"));
-        AppendMenuW(menu, comment_flags, cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
-        AppendMenuW(menu, data_flags, cmd::kEditDecodeValue, util::Tr(L"Decode Value..."));
         AppendMenuW(menu, data_flags, cmd::kEditBits, util::Tr(L"Edit Bits..."));
+        AppendMenuW(menu, data_flags, cmd::kEditDecodeValue, util::Tr(L"Decode Value..."));
+        AppendMenuW(menu, comment_flags, cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
+        AppendMenuW(menu, MF_STRING, cmd::kEditResetDefault, util::Tr(L"Reset to Default"));
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(menu, single_flags, cmd::kEditCopyValueName, util::Tr(L"Copy Value Name"));
         AppendMenuW(menu, data_flags, cmd::kEditCopyValueData, util::Tr(L"Copy Value Data"));
@@ -458,6 +405,7 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
             }
             AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(link_menu), util::Tr(L"Open Link"));
         }
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(menu, export_flags, cmd::kFileExport, util::Tr(L"Export..."));
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(menu, rename_flags, cmd::kEditRename, util::Tr(L"Rename"));
@@ -488,14 +436,11 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
         {
             AppendMenuW(menu, edit_flags, cmd::kFileExport, util::Tr(L"Export..."));
             AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        }
-        AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
-        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        if (!is_simulated)
-        {
             AppendMenuW(menu, modify_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
             AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
+            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         }
+        AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
     }
 
     int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
@@ -522,14 +467,6 @@ void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt)
     LVHITTESTINFO hit = {};
     hit.pt = client_pt;
     int index = ListView_HitTest(history_list_, &hit);
-    if (index >= 0)
-    {
-        if ((ListView_GetItemState(history_list_, index, LVIS_SELECTED) & LVIS_SELECTED) == 0)
-        {
-            ListView_SetItemState(history_list_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-        }
-        ListView_SetItemState(history_list_, index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-    }
     const HistoryEntry* entry = nullptr;
     if (index >= 0 && static_cast<size_t>(index) < change_history_.entries().size())
     {
@@ -615,11 +552,6 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
         return;
     }
 
-    if ((ListView_GetItemState(search_results_list_, index, LVIS_SELECTED) & LVIS_SELECTED) == 0)
-    {
-        ListView_SetItemState(search_results_list_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-    }
-    ListView_SetItemState(search_results_list_, index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
     std::wstring key_path = SearchRowKeyPath(search_index, index);
     std::wstring first_key_path;
     std::wstring second_key_path;
@@ -679,24 +611,7 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
     bool can_delete = key_exists && can_modify && (!is_key_row || !node.subkey.empty());
     bool can_export = key_exists;
     bool can_permissions = key_exists && can_modify;
-    bool can_open_hive = false;
-    if (key_exists)
-    {
-        bool is_root = false;
-        std::wstring hive_path = LookupHivePath(node, &is_root);
-        if (!hive_path.empty() && is_root)
-        {
-            if (node.subkey.empty() &&
-                (node.root == HKEY_CURRENT_USER || EqualsInsensitive(node.root_name, L"HKEY_CURRENT_USER")))
-            {
-                can_open_hive = false;
-            }
-            else
-            {
-                can_open_hive = true;
-            }
-        }
-    }
+    bool can_open_hive = key_exists && CanOpenHiveFile(node);
 
     enum
     {
@@ -710,28 +625,11 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
         kSearchDecodeValue = 51021,
         kSearchCopyKeyName = 51005,
         kSearchCopyKeyPath = 51006,
-        kSearchCopyKeyPathAbbrev = 51013,
-        kSearchCopyKeyPathRegEdit = 51014,
-        kSearchCopyKeyPathRegFile = 51015,
-        kSearchCopyKeyPathPowerShell = 51016,
-        kSearchCopyKeyPathPowerShellProvider = 51017,
-        kSearchCopyKeyPathEscaped = 51018,
         kSearchPermissions = 51007,
         kSearchOpenHive = 51008,
         kSearchExport = 51009,
         kSearchRename = 51010,
         kSearchDelete = 51011,
-    };
-
-    auto build_copy_path_menu = [&]() -> HMENU {
-        HMENU submenu = CreatePopupMenu();
-        AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathAbbrev, util::Tr(L"Abbreviated (HKLM)"));
-        AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathRegEdit, util::Tr(L"RegEdit Address Bar"));
-        AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathRegFile, util::Tr(L".reg File Header"));
-        AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathPowerShell, util::Tr(L"PowerShell Drive"));
-        AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathPowerShellProvider, util::Tr(L"PowerShell Provider"));
-        AppendMenuW(submenu, MF_STRING, kSearchCopyKeyPathEscaped, util::Tr(L"Escaped Backslashes"));
-        return submenu;
     };
 
     HMENU menu = CreatePopupMenu();
@@ -757,21 +655,22 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
     {
         AppendMenuW(menu, MF_STRING, kSearchModify, util::Tr(L"Modify..."));
         AppendMenuW(menu, MF_STRING, kSearchModifyBinary, util::Tr(L"Modify Binary Data..."));
-        AppendMenuW(menu, MF_STRING, kSearchModifyComment, util::Tr(L"Modify Comment..."));
         const bool trace_row = result && result->kind == search::ResultKind::kTraceValue;
         AppendMenuW(menu, MF_STRING | (trace_row ? MF_GRAYED : 0), kSearchDecodeValue, util::Tr(L"Decode Value..."));
+        AppendMenuW(menu, MF_STRING, kSearchModifyComment, util::Tr(L"Modify Comment..."));
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     }
     AppendMenuW(menu, MF_STRING, kSearchCopyKeyName, util::Tr(L"Copy Key Name"));
     AppendMenuW(menu, MF_STRING, kSearchCopyKeyPath, util::Tr(L"Copy Key Path"));
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(build_copy_path_menu()), util::Tr(L"Copy Key Path As"));
-    UINT permissions_flags = MF_STRING | (can_permissions ? 0 : MF_GRAYED);
-    AppendMenuW(menu, permissions_flags, kSearchPermissions, util::Tr(L"Permissions..."));
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), util::Tr(L"Copy Key Path As"));
     UINT open_hive_flags = MF_STRING | (can_open_hive ? 0 : MF_GRAYED);
     AppendMenuW(menu, open_hive_flags, kSearchOpenHive, util::Tr(L"On-Disk Hive File"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     UINT export_flags = MF_STRING | (can_export ? 0 : MF_GRAYED);
     AppendMenuW(menu, export_flags, kSearchExport, util::Tr(L"Export..."));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    UINT permissions_flags = MF_STRING | (can_permissions ? 0 : MF_GRAYED);
+    AppendMenuW(menu, permissions_flags, kSearchPermissions, util::Tr(L"Permissions..."));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     UINT rename_flags = MF_STRING | (can_rename ? 0 : MF_GRAYED);
     UINT delete_flags = MF_STRING | (can_delete ? 0 : MF_GRAYED);
@@ -884,41 +783,15 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
             ui::CopyTextToClipboard(hwnd_, key_path);
         }
         return;
-    case kSearchCopyKeyPathAbbrev:
-        if (!key_path.empty())
-        {
-            ui::CopyTextToClipboard(hwnd_, FormatRegistryPath(key_path, RegistryPathFormat::kAbbrev));
-        }
-        return;
-    case kSearchCopyKeyPathRegEdit:
-        if (!key_path.empty())
-        {
-            ui::CopyTextToClipboard(hwnd_, FormatRegistryPath(key_path, RegistryPathFormat::kRegEdit));
-        }
-        return;
-    case kSearchCopyKeyPathRegFile:
-        if (!key_path.empty())
-        {
-            ui::CopyTextToClipboard(hwnd_, FormatRegistryPath(key_path, RegistryPathFormat::kRegFile));
-        }
-        return;
-    case kSearchCopyKeyPathPowerShell:
-        if (!key_path.empty())
-        {
-            ui::CopyTextToClipboard(hwnd_, FormatRegistryPath(key_path, RegistryPathFormat::kPowerShellDrive));
-        }
-        return;
-    case kSearchCopyKeyPathPowerShellProvider:
-        if (!key_path.empty())
-        {
-            ui::CopyTextToClipboard(hwnd_, FormatRegistryPath(key_path, RegistryPathFormat::kPowerShellProvider));
-        }
-        return;
-    case kSearchCopyKeyPathEscaped:
-        if (!key_path.empty())
-        {
-            ui::CopyTextToClipboard(hwnd_, FormatRegistryPath(key_path, RegistryPathFormat::kEscaped));
-        }
+    case cmd::kEditCopyKeyPathAbbrev:
+    case cmd::kEditCopyKeyPathRegEdit:
+    case cmd::kEditCopyKeyPathRegFile:
+    case cmd::kEditCopyKeyPathPowerShell:
+    case cmd::kEditCopyKeyPathPowerShellProvider:
+    case cmd::kEditCopyKeyPathEscaped:
+    case cmd::kEditCopyKeyPathNative:
+    case cmd::kEditCopyKeyPathNativeResolved:
+        CopyKeyPathAs(command, node, key_path);
         return;
     case kSearchPermissions:
         if (node_ok && key_exists)

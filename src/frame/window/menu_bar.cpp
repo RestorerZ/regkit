@@ -305,10 +305,6 @@ void MainWindow::Impl::BuildMenus()
     append_menu(edit_menu, MF_STRING, cmd::kEditResetDefault, util::Tr(L"Reset to Default"));
     separator(edit_menu);
     append_menu(edit_menu, MF_STRING, cmd::kEditCopy, util::Tr(L"Copy"));
-    append_menu(edit_menu, MF_STRING, cmd::kEditPaste, util::Tr(L"Paste"));
-    append_menu(edit_menu, MF_STRING, cmd::kEditRename, util::Tr(L"Rename"));
-    append_menu(edit_menu, MF_STRING, cmd::kEditDelete, util::Tr(L"Delete"));
-    separator(edit_menu);
     HMENU copy_other_menu = CreatePopupMenu();
     append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyKey, util::Tr(L"Key Name"));
     append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyKeyPath, util::Tr(L"Key Path"));
@@ -317,6 +313,9 @@ void MainWindow::Impl::BuildMenus()
     append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyValueName, util::Tr(L"Value Name"));
     append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyValueData, util::Tr(L"Value Data"));
     append_popup(edit_menu, copy_other_menu, util::Tr(L"Copy Other"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditPaste, util::Tr(L"Paste"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditRename, util::Tr(L"Rename"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditDelete, util::Tr(L"Delete"));
     separator(edit_menu);
     append_menu(edit_menu, MF_STRING, cmd::kViewSelectAll, util::Tr(L"Select All"));
     append_menu(edit_menu, MF_STRING, cmd::kEditInvertSelection, util::Tr(L"Invert Selection"));

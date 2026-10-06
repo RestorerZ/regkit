@@ -35,7 +35,7 @@ std::wstring MainWindow::Impl::NormalizeRegistryPath(const std::wstring& input) 
     return registry_path::Normalize(path, sid);
 }
 
-std::wstring MainWindow::Impl::FormatRegistryPath(const std::wstring& path, RegistryPathFormat format) const
+std::wstring MainWindow::Impl::FormatRegistryPath(const std::wstring& path, registry_path::Style style) const
 {
     const std::wstring normalized = NormalizeRegistryPath(path);
     if (normalized.empty())
@@ -43,30 +43,6 @@ std::wstring MainWindow::Impl::FormatRegistryPath(const std::wstring& path, Regi
         return {};
     }
     std::wstring tree_root = session_->mode == RegistryMode::kLocal ? L"Computer" : TreeRootLabel();
-    registry_path::Style style = registry_path::Style::kFull;
-    switch (format)
-    {
-    case RegistryPathFormat::kAbbrev:
-        style = registry_path::Style::kAbbreviated;
-        break;
-    case RegistryPathFormat::kRegEdit:
-        style = registry_path::Style::kRegEditAddress;
-        break;
-    case RegistryPathFormat::kRegFile:
-        style = registry_path::Style::kRegFileHeader;
-        break;
-    case RegistryPathFormat::kPowerShellDrive:
-        style = registry_path::Style::kPowerShellDrive;
-        break;
-    case RegistryPathFormat::kPowerShellProvider:
-        style = registry_path::Style::kPowerShellProvider;
-        break;
-    case RegistryPathFormat::kEscaped:
-        style = registry_path::Style::kEscaped;
-        break;
-    case RegistryPathFormat::kFull:
-        break;
-    }
     return registry_path::Format(normalized, style, tree_root);
 }
 bool MainWindow::Impl::FindNearestExistingPath(const std::wstring& path, std::wstring* nearest_path) const

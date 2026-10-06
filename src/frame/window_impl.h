@@ -111,16 +111,6 @@ class MainWindow::Impl
         kTreeState,
         kTemporary,
     };
-    enum class RegistryPathFormat
-    {
-        kFull,
-        kAbbrev,
-        kRegEdit,
-        kRegFile,
-        kPowerShellDrive,
-        kPowerShellProvider,
-        kEscaped,
-    };
     struct TabEntry;
     struct SearchTab;
     struct SearchTabLoadPayload;
@@ -416,6 +406,7 @@ class MainWindow::Impl
     void ShowKeyInfoDialog(const RegistryNode& node);
     bool ShowResourceList(const RegistryValue& value);
     RegistryNode SelectedKeyNode() const;
+    void CopyKeyPathAs(int command_id, const RegistryNode& node, const std::wstring& path);
     void WatchCurrentKey();
     void ApplyAutoRefresh();
     void RestoreHiveFile(const std::wstring& path);
@@ -445,7 +436,7 @@ class MainWindow::Impl
     void HandleTypeToSelectTree(wchar_t ch);
     void HandleTypeToSelectList(wchar_t ch);
     std::wstring NormalizeRegistryPath(const std::wstring& path) const;
-    std::wstring FormatRegistryPath(const std::wstring& path, RegistryPathFormat format) const;
+    std::wstring FormatRegistryPath(const std::wstring& path, registry_path::Style style) const;
     bool FindNearestExistingPath(const std::wstring& path, std::wstring* nearest_path) const;
     bool CreateRegistryPath(const std::wstring& path);
     bool SelectAllInFocusedList();
@@ -478,6 +469,7 @@ class MainWindow::Impl
     bool ImportCommentsFromFile(const std::wstring& path);
     bool ExportCommentsToFile(const std::wstring& path) const;
     void RefreshValueListComments();
+    bool ApplyValueComments(std::vector<ListRow>* rows) const;
     std::wstring CommentsPath() const;
     std::wstring CommentKeyPath(const RegistryNode& node) const;
     bool EditComments(const std::vector<changes::CommentTarget>& targets);
@@ -643,6 +635,9 @@ class MainWindow::Impl
     std::wstring icon_dir_;
     bool updating_value_list_ = false;
     bool value_list_loading_ = false;
+    bool merge_value_list_ = false;
+    uint64_t merge_value_list_generation_ = 0;
+    ULONGLONG auto_refresh_tick_ = 0;
     std::atomic<uint64_t> value_list_generation_{0};
     bool applying_theme_ = false;
     bool restart_on_close_ = false;

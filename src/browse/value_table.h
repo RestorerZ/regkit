@@ -56,6 +56,8 @@ struct ListRow
     bool missing = false;
     int image_index = 0;
     LPARAM kind = 0;
+
+    bool operator==(const ListRow&) const = default;
 };
 
 class ValueList
@@ -64,6 +66,7 @@ class ValueList
     void Create(HWND parent, HINSTANCE instance, int control_id);
     HWND hwnd() const;
     void SetRows(std::vector<ListRow> rows);
+    bool MergeRows(std::vector<ListRow> rows);
     int AppendRow(ListRow row, bool force_visible = false);
     void SetImageList(HIMAGELIST image_list);
     void Clear();

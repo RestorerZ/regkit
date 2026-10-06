@@ -915,9 +915,26 @@ void MainWindow::Impl::RefreshValueListComments()
     {
         return;
     }
+    const bool changed = ApplyValueComments(&browse_.values().rows());
+    if (changed)
+    {
+        browse_.values().InvalidateFilterCache();
+    }
+    if (browse_.values().HasFilter())
+    {
+        browse_.values().RebuildFilter();
+    }
+    else if (changed && browse_.values().hwnd())
+    {
+        RedrawWindow(browse_.values().hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
+    }
+}
+
+bool MainWindow::Impl::ApplyValueComments(std::vector<ListRow>* rows) const
+{
     const std::wstring path = CommentKeyPath(*browse_.current_node());
     bool changed = false;
-    for (auto& row : browse_.values().rows())
+    for (auto& row : *rows)
     {
         std::wstring display;
         if (row.kind == rowkind::kValue)
@@ -941,21 +958,10 @@ void MainWindow::Impl::RefreshValueListComments()
     }
     if (browse_.columns().sort_column == kValueColComment)
     {
-        SortValueRows(&browse_.values().rows(), browse_.columns().sort_column, browse_.columns().sort_ascending);
+        SortValueRows(rows, browse_.columns().sort_column, browse_.columns().sort_ascending);
         changed = true;
     }
-    if (changed)
-    {
-        browse_.values().InvalidateFilterCache();
-    }
-    if (browse_.values().HasFilter())
-    {
-        browse_.values().RebuildFilter();
-    }
-    else if (changed && browse_.values().hwnd())
-    {
-        RedrawWindow(browse_.values().hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
-    }
+    return changed;
 }
 
 bool MainWindow::Impl::EditComments(const std::vector<changes::CommentTarget>& targets)

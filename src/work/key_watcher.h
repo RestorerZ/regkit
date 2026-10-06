@@ -14,7 +14,6 @@
 namespace regkit::work
 {
 
-// posts message(generation) to the window after each change of the watched key
 class KeyWatcher
 {
   public:
@@ -24,6 +23,7 @@ class KeyWatcher
     KeyWatcher& operator=(const KeyWatcher&) = delete;
 
     void Watch(HWND window, UINT message, HKEY root, const std::wstring& subkey, REGSAM view);
+    void Rearm();
     void Stop();
     uint64_t generation() const noexcept
     {
@@ -43,6 +43,7 @@ class KeyWatcher
     std::atomic<uint64_t> generation_{0};
     util::UniqueHandle stop_;
     util::UniqueHandle retarget_;
+    util::UniqueHandle rearm_;
 };
 
 } // namespace regkit::work

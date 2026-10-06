@@ -82,6 +82,25 @@ void ValueList::SetRows(std::vector<ListRow> rows)
     RebuildFilter();
 }
 
+bool ValueList::MergeRows(std::vector<ListRow> rows)
+{
+    if (rows.size() != rows_.size() || HasFilter())
+    {
+        SetRows(std::move(rows));
+        return false;
+    }
+    for (size_t i = 0; i < rows.size(); ++i)
+    {
+        if (!(rows[i] == rows_[i]))
+        {
+            rows_[i] = std::move(rows[i]);
+            filter_cache_valid_[i] = false;
+            ListView_RedrawItems(hwnd_, static_cast<int>(i), static_cast<int>(i));
+        }
+    }
+    return true;
+}
+
 int ValueList::AppendRow(ListRow row, bool force_visible)
 {
     const int row_index = static_cast<int>(rows_.size());
