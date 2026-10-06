@@ -95,7 +95,6 @@ void MainWindow::Impl::ShowSession(const std::shared_ptr<RegistrySession>& sessi
     }
     RefreshRegistryTabLabels();
     UpdateUndoButtons();
-    BuildMenus();
 }
 
 
@@ -690,7 +689,6 @@ bool MainWindow::Impl::SaveOfflineRegistry(RegistrySession& session)
             }
         }
         session.offline_dirty = false;
-        BuildMenus();
         HistoryEntry history;
         history.action = L"Save offline registry";
         history.new_data = std::to_wstring(session.offline_roots.size()) + L" hives";
@@ -716,7 +714,6 @@ bool MainWindow::Impl::SaveOfflineRegistry(RegistrySession& session)
         return false;
     }
     session.offline_dirty = false;
-        BuildMenus();
     HistoryEntry history;
     history.action = L"Save offline registry";
     history.new_data = path;

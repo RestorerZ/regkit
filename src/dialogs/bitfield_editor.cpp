@@ -803,7 +803,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         );
         PopulateChoices(dialog, editor);
         dialog_support::Initialize(dialog, &editor->ui_font, {IDC_VALUE_NAME, IDC_BITFIELD_COMMENT});
-        dialog_support::RefreshListViewTheme(GetDlgItem(dialog, IDC_BITFIELD_LIST));
+        appearance::RefreshListView(GetDlgItem(dialog, IDC_BITFIELD_LIST));
         using namespace appearance;
         editor->resizer.Attach(dialog, {
                                            {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
@@ -831,13 +831,13 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         {
             dialog_support::ReleaseFont(&editor->ui_font);
         }
-        dialog_support::ReleaseDialogLists(dialog);
+        appearance::ReleaseListViews(dialog);
         return TRUE;
     }
     if (message == WM_SIZE && editor)
     {
         editor->resizer.Apply(dialog);
-        dialog_support::LayoutGridToggles(dialog);
+        appearance::LayoutListViews(dialog);
         return TRUE;
     }
     if (message == WM_GETMINMAXINFO && editor)
@@ -903,7 +903,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     {
         if (message == WM_SETTINGCHANGE)
         {
-            dialog_support::RefreshListViewTheme(GetDlgItem(dialog, IDC_BITFIELD_LIST));
+            appearance::RefreshListView(GetDlgItem(dialog, IDC_BITFIELD_LIST));
         }
         return themed;
     }
@@ -912,7 +912,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         return FALSE;
     }
     const int id = LOWORD(wparam);
-    if (dialog_support::HandleGridToggle(dialog, id))
+    if (appearance::HandleListViewCommand(dialog, id))
     {
         return TRUE;
     }

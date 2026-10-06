@@ -458,7 +458,6 @@ bool MainWindow::Impl::RemoveTraceByPath(const std::wstring& path)
     trace_selection_cache_.erase(target_lower);
     SaveActiveTraces();
     SaveTraceSettings();
-    BuildMenus();
     RefreshTreeSelection();
     UpdateValueListForNode(browse_.current_node());
     SaveSettings();
@@ -508,7 +507,6 @@ bool MainWindow::Impl::RemoveTraceByLabel(const std::wstring& label)
     }
     SaveActiveTraces();
     SaveTraceSettings();
-    BuildMenus();
     RefreshTreeSelection();
     UpdateValueListForNode(browse_.current_node());
     SaveSettings();
@@ -551,7 +549,6 @@ bool MainWindow::Impl::RemoveDefaultByPath(const std::wstring& path)
         return false;
     }
     SaveActiveDefaults();
-    BuildMenus();
     UpdateValueListForNode(browse_.current_node());
     SaveSettings();
     return true;

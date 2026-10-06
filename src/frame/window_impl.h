@@ -234,7 +234,7 @@ class MainWindow::Impl
     void QueueSearchSort(SearchTab* tab);
     void StartSearchSortWorker();
     void StartSearchTabLoadWorker();
-    void ApplySearchTabLoad(SearchTabLoadPayload* payload);
+    void ApplySearchTabLoad(std::unique_ptr<SearchTabLoadPayload> owned);
     void FinishSearchSession(uint64_t generation);
     void StartSearchPreviewWorker();
     void StartValueListWorker();
@@ -270,7 +270,7 @@ class MainWindow::Impl
     bool CollectSearchStartNodes(const SearchDialogResult& options, const std::wstring& registry_scope_path, std::vector<search::StartNode>* out_nodes, std::vector<search::Source>* out_sources, bool* out_remote);
     void StartSearch(const SearchDialogResult& options);
     void StartReplace(const ReplaceDialogResult& options);
-    void ApplyReplacePayload(ReplacePayload* payload);
+    void ApplyReplacePayload(std::unique_ptr<ReplacePayload> owned);
     void CommitReplacePayload(std::unique_ptr<ReplacePayload> payload, bool show_failures);
     void StopReplace();
     void CancelSearch();
@@ -354,6 +354,7 @@ class MainWindow::Impl
     void RefreshRegEditFavoritesMenu();
     void RefreshBundledDefaultsCache();
     void BuildMenus();
+    void UpdateMenuState(HMENU menu);
     void RefreshStorageMenuState(HMENU menu);
     void FillBitfieldMenu(HMENU menu);
     void BuildAccelerators();
@@ -409,9 +410,7 @@ class MainWindow::Impl
     void ApplyAutoRefresh();
     void RestoreHiveFile(const std::wstring& path);
     void ReplaceRegEdit(bool enable);
-    void SyncReplaceRegEditState();
     void SetEditContextMenu(bool enable);
-    void SyncEditContextMenuState();
     void OpenHiveFileDir();
     std::wstring ResolveSelectedHiveFilePath();
     void RecordNavigation(const std::wstring& path);
@@ -462,7 +461,7 @@ class MainWindow::Impl
     bool EnsureSearchTabResultsLoaded(int search_index);
     void StartStartupCacheLoad(bool include_tree_state);
     void StopStartupCacheLoad();
-    void ApplyStartupCachePayload(StartupCachePayload* payload);
+    void ApplyStartupCachePayload(std::unique_ptr<StartupCachePayload> owned);
     bool SaveComments() const;
     bool ImportCommentsFromFile(const std::wstring& path);
     bool ExportCommentsToFile(const std::wstring& path) const;
@@ -512,7 +511,6 @@ class MainWindow::Impl
     bool HandleResetDefaultCommand(int command_id);
     std::vector<DefaultValueChoice> SelectedValueDefaultChoices() const;
     HMENU BuildResetDefaultMenu(const std::vector<DefaultValueChoice>& choices) const;
-    void AppendResetDefaultMenu(HMENU menu);
     void RefreshResetDefaultMenu(HMENU menu);
     std::wstring TreeStatePath() const;
     void LoadTreeState();
@@ -523,7 +521,6 @@ class MainWindow::Impl
     void SaveTreeStateFile(const std::wstring& selected, const std::vector<std::wstring>& expanded) const;
     void CaptureTreeState(std::wstring* selected_path, std::vector<std::wstring>* expanded_paths) const;
     void RestoreTreeState();
-    bool ExpandTreePath(const std::wstring& path);
     void ExpandTreePaths(const std::vector<std::wstring>& paths);
     HTREEITEM FindTreeItem(const std::wstring& path);
     void RefreshTreeItem(HTREEITEM item);
@@ -628,11 +625,8 @@ class MainWindow::Impl
     std::wstring status_account_sid_;
     std::wstring status_account_;
     work::KeyWatcher key_watcher_;
-    HMENU reset_default_menu_ = nullptr;
     bool show_value_ = true;
     work::DebouncedTask<workspace::TreeState> tree_state_saver_;
-    bool replace_regedit_ = false;
-    bool edit_context_menu_ = false;
     ThemeMode theme_mode_ = ThemeMode::kSystem;
     std::vector<util::LanguagePack> language_packs_;
     std::wstring icon_dir_;

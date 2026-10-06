@@ -90,7 +90,7 @@ HWND CreateControl(HWND parent, const wchar_t* class_name, const wchar_t* text, 
     return CreateWindowExW(0, class_name, text, WS_CHILD | WS_VISIBLE | style, 0, 0, 0, 0, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), nullptr, nullptr);
 }
 
-void SetControlFont(HWND control, HFONT font)
+static void SetControlFont(HWND control, HFONT font)
 {
     if (control && font)
     {
@@ -119,7 +119,7 @@ void Place(HWND control, int x, int y, int width, int height)
     }
 }
 
-void RestoreDialogOwner(HWND owner, bool* restored)
+static void RestoreDialogOwner(HWND owner, bool* restored)
 {
     if (!owner || !restored || *restored)
     {
@@ -148,7 +148,7 @@ void CenterWindow(HWND window, HWND owner)
     SetWindowPos(window, nullptr, target.left + std::max<LONG>(0, (target.right - target.left - width) / 2), target.top + std::max<LONG>(0, (target.bottom - target.top - height) / 2), 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
 }
 
-void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi)
+static void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi)
 {
     if (!window || !owned_font)
     {
@@ -167,7 +167,7 @@ void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi)
     *owned_font = font;
 }
 
-void ApplyDpiChange(HWND window, LPARAM suggested_rect)
+static void ApplyDpiChange(HWND window, LPARAM suggested_rect)
 {
     const RECT* rect = reinterpret_cast<const RECT*>(suggested_rect);
     if (!window || !rect)
@@ -177,7 +177,7 @@ void ApplyDpiChange(HWND window, LPARAM suggested_rect)
     SetWindowPos(window, nullptr, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-void RunModalLoop(HWND dialog)
+static void RunModalLoop(HWND dialog)
 {
     MSG msg = {};
     while (IsWindow(dialog))

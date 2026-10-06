@@ -29,7 +29,6 @@ UniqueHKey OpenNativeRegistryRoot();
 LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool open_link, UniqueHKey* key);
 // while on, opens denied by a dacl are retried with the backup and restore privileges
 void SetBackupRestoreMode(bool enable);
-bool BackupRestoreMode();
 LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWORD options, UniqueHKey* key, DWORD* disposition, const std::wstring& class_name = {});
 LONG RenameRegistryKey(HKEY parent, const std::wstring& old_name, const std::wstring& new_name);
 LONG DeleteRegistryTree(HKEY key);

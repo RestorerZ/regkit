@@ -1584,13 +1584,12 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
     );
 }
 
-void MainWindow::Impl::ApplyReplacePayload(ReplacePayload* payload)
+void MainWindow::Impl::ApplyReplacePayload(std::unique_ptr<ReplacePayload> owned)
 {
-    if (!payload)
+    if (!owned)
     {
         return;
     }
-    std::unique_ptr<ReplacePayload> owned(payload);
     if (!replace_session_.IsCurrent(owned->generation))
     {
         return;

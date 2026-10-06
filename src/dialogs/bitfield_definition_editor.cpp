@@ -212,7 +212,7 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
             SendDlgItemMessageW(dialog, IDC_FIELD_STATES, EM_SETREADONLY, TRUE, 0);
         }
         dialog_support::Initialize(dialog, &state->ui_font, {IDC_FIELD_NAME, IDC_FIELD_MEANING, IDC_FIELD_STATES});
-        dialog_support::RefreshListViewTheme(list);
+        appearance::RefreshListView(list);
         using namespace appearance;
         state->resizer.Attach(dialog, {
                                           {IDC_FIELD_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
@@ -230,13 +230,13 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
         {
             dialog_support::ReleaseFont(&state->ui_font);
         }
-        dialog_support::ReleaseDialogLists(dialog);
+        appearance::ReleaseListViews(dialog);
         return TRUE;
     }
     if (message == WM_SIZE && state)
     {
         state->resizer.Apply(dialog);
-        dialog_support::LayoutGridToggles(dialog);
+        appearance::LayoutListViews(dialog);
         return TRUE;
     }
     if (message == WM_GETMINMAXINFO && state)
@@ -264,7 +264,7 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
     {
         if (message == WM_SETTINGCHANGE)
         {
-            dialog_support::RefreshListViewTheme(GetDlgItem(dialog, IDC_FIELD_BITS));
+            appearance::RefreshListView(GetDlgItem(dialog, IDC_FIELD_BITS));
         }
         return themed;
     }
@@ -272,7 +272,7 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
     {
         return FALSE;
     }
-    if (dialog_support::HandleGridToggle(dialog, LOWORD(wparam)))
+    if (appearance::HandleListViewCommand(dialog, LOWORD(wparam)))
     {
         return TRUE;
     }
@@ -815,7 +815,7 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
         ShowDefinition(dialog, state);
         dialog_support::Initialize(dialog, &state->ui_font, {IDC_DEF_VALUE_NAME, IDC_DEF_KEY_PATHS, IDC_DEF_OFFSET, IDC_DEF_COMMENT});
         dialog_support::AllowNewlines(dialog, IDC_DEF_KEY_PATHS);
-        dialog_support::RefreshListViewTheme(GetDlgItem(dialog, IDC_DEF_LIST));
+        appearance::RefreshListView(GetDlgItem(dialog, IDC_DEF_LIST));
         using namespace appearance;
         state->resizer.Attach(dialog, {
                                           {IDC_DEF_SELECT, kAnchorLeft | kAnchorTop | kAnchorRight},
@@ -842,13 +842,13 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
         {
             dialog_support::ReleaseFont(&state->ui_font);
         }
-        dialog_support::ReleaseDialogLists(dialog);
+        appearance::ReleaseListViews(dialog);
         return TRUE;
     }
     if (message == WM_SIZE && state)
     {
         state->resizer.Apply(dialog);
-        dialog_support::LayoutGridToggles(dialog);
+        appearance::LayoutListViews(dialog);
         return TRUE;
     }
     if (message == WM_GETMINMAXINFO && state)
@@ -910,7 +910,7 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
     {
         if (message == WM_SETTINGCHANGE)
         {
-            dialog_support::RefreshListViewTheme(GetDlgItem(dialog, IDC_DEF_LIST));
+            appearance::RefreshListView(GetDlgItem(dialog, IDC_DEF_LIST));
         }
         return themed;
     }
@@ -920,7 +920,7 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
     }
     const int id = LOWORD(wparam);
     const int code = HIWORD(wparam);
-    if (dialog_support::HandleGridToggle(dialog, id))
+    if (appearance::HandleListViewCommand(dialog, id))
     {
         return TRUE;
     }

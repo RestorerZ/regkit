@@ -317,30 +317,6 @@ void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColu
     }
     EnsureSubclass(list, ListViewProc, kListViewSubclassId);
     appearance::RegisterListView(GetParent(list), list, kGridToggleId);
-    RefreshListViewTheme(list);
-}
-
-void LayoutGridToggles(HWND dialog)
-{
-    appearance::LayoutListViews(dialog);
-}
-
-bool HandleGridToggle(HWND dialog, int command_id)
-{
-    return appearance::HandleListViewCommand(dialog, command_id);
-}
-
-void ReleaseDialogLists(HWND dialog)
-{
-    appearance::ReleaseListViews(dialog);
-}
-
-void RefreshListViewTheme(HWND list)
-{
-    if (!list)
-    {
-        return;
-    }
     appearance::RefreshListView(list);
 }
 

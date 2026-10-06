@@ -20,7 +20,6 @@
 #include "dialogs/hive_dialog.h"
 #include "dialogs/transfer_dialogs.h"
 #include "dialogs/value_editor.h"
-#include "frame/commands/command_dispatch.h"
 #include "frame/commands/command_ids.h"
 #include "regfile/reg_file.h"
 #include "regfile/registry_transfer.h"

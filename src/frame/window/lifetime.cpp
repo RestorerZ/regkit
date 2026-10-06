@@ -411,13 +411,12 @@ void MainWindow::Impl::StopStartupCacheLoad()
     startup_cache_session_.CancelAndJoin();
 }
 
-void MainWindow::Impl::ApplyStartupCachePayload(StartupCachePayload* payload)
+void MainWindow::Impl::ApplyStartupCachePayload(std::unique_ptr<StartupCachePayload> owned)
 {
-    if (!payload)
+    if (!owned)
     {
         return;
     }
-    std::unique_ptr<StartupCachePayload> owned(payload);
     // ignore results from cancelled/replaced startup load
     if (!startup_cache_session_.IsCurrent(owned->generation))
     {
@@ -604,7 +603,7 @@ void MainWindow::Impl::DiscardWorkerMessages()
     {
         while (PeekMessageW(&message, hwnd_, id, id, PM_REMOVE))
         {
-            delete work::PayloadFrom<work::MoveOnly>(message.lParam);
+            work::TakePayload<work::MoveOnly>(message.lParam).reset();
         }
     }
     while (PeekMessageW(&message, hwnd_, frame::message_id::kExternalHandoff, frame::message_id::kExternalHandoff, PM_REMOVE))

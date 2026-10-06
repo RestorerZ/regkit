@@ -1,6 +1,5 @@
 regkit_add_library(regkit_frame
     commands/clipboard_commands.cpp
-    commands/command_dispatch.cpp
     commands/context_menus.cpp
     commands/file_view_commands.cpp
     commands/mutation_commands.cpp

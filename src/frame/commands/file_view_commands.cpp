@@ -448,12 +448,10 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
     case cmd::kFileClearHistoryOnExit:
         settings_.clear_history_on_exit = !settings_.clear_history_on_exit;
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kFileClearTabsOnExit:
         settings_.clear_tabs_on_exit = !settings_.clear_tabs_on_exit;
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kFileClearCacheAll:
     case cmd::kFileClearCacheTabs:
@@ -509,13 +507,11 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         settings_.show_address_bar = !settings_.show_address_bar;
         SaveSettings();
         ApplyViewVisibility();
-        BuildMenus();
         return true;
     case cmd::kViewFilterBar:
         settings_.show_filter_bar = !settings_.show_filter_bar;
         SaveSettings();
         ApplyViewVisibility();
-        BuildMenus();
         return true;
     case cmd::kViewFocusFilter:
         if (!settings_.show_filter_bar)
@@ -523,7 +519,6 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
             settings_.show_filter_bar = true;
             SaveSettings();
             ApplyViewVisibility();
-            BuildMenus();
         }
         if (browse_.filter())
         {
@@ -535,7 +530,6 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         settings_.show_tab_control = !settings_.show_tab_control;
         SaveSettings();
         ApplyViewVisibility();
-        BuildMenus();
         return true;
     case cmd::kTreeToggleExpand:
         {
@@ -618,13 +612,11 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         settings_.show_toolbar = !settings_.show_toolbar;
         ApplyViewVisibility();
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kViewKeyTree:
         settings_.show_tree = !settings_.show_tree;
         ApplyViewVisibility();
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kViewGridLines:
         SetValueGridEnabled(!settings_.show_value_grid, true);
@@ -632,18 +624,15 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
     case cmd::kViewAutoRefresh:
         settings_.auto_refresh = !settings_.auto_refresh;
         SaveSettings();
-        BuildMenus();
         WatchCurrentKey();
         return true;
     case cmd::kViewKeysInList:
         settings_.show_keys_in_list = !settings_.show_keys_in_list;
-        BuildMenus();
         UpdateValueListForNode(browse_.current_node());
         SaveSettings();
         return true;
     case cmd::kViewSimulatedKeys:
         settings_.show_simulated_keys = !settings_.show_simulated_keys;
-        BuildMenus();
         RefreshTreeSelection();
         UpdateValueListForNode(browse_.current_node());
         SaveSettings();
@@ -652,18 +641,15 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         settings_.show_history = !settings_.show_history;
         ApplyViewVisibility();
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kViewStatusBar:
         settings_.show_status_bar = !settings_.show_status_bar;
         ApplyViewVisibility();
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kViewExtraHives:
         settings_.show_extra_hives = !settings_.show_extra_hives;
         SaveSettings();
-        BuildMenus();
         if (session_->mode == RegistryMode::kLocal)
         {
             std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(settings_.show_extra_hives);
@@ -689,7 +675,6 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
             MarkTreeStateDirty();
         }
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kOptionsSaveTabs:
     case cmd::kOptionsSaveTabsLocal:
@@ -717,13 +702,11 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
                 SaveTabs();
             }
             SaveSettings();
-            BuildMenus();
             return true;
         }
     case cmd::kOptionsReadOnly:
         settings_.read_only = !settings_.read_only;
         SaveSettings();
-        BuildMenus();
         if (toolbar_.hwnd())
         {
             SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditPaste, settings_.read_only ? 0 : TBSTATE_ENABLED);
@@ -800,7 +783,6 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
         return true;
     case cmd::kDefaultResetEnable:
         settings_.default_reset_enabled = !settings_.default_reset_enabled;
-        BuildMenus();
         SaveSettings();
         return true;
     case cmd::kDefaultEditActive:
@@ -828,7 +810,6 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
                     AddDefaultFromFile(L"", line, false, false, false);
                 }
                 SaveActiveDefaults();
-                BuildMenus();
                 UpdateValueListForNode(browse_.current_node());
                 SaveSettings();
             }
@@ -861,7 +842,6 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
                 }
                 SaveActiveTraces();
                 SaveTraceSettings();
-                BuildMenus();
                 RefreshTreeSelection();
                 UpdateValueListForNode(browse_.current_node());
                 SaveSettings();

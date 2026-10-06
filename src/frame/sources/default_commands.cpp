@@ -110,7 +110,6 @@ bool MainWindow::Impl::AddDefaultFromFile(const std::wstring& label, const std::
     if (update_ui)
     {
         SaveActiveDefaults();
-        BuildMenus();
         UpdateValueListForNode(browse_.current_node());
         SaveSettings();
     }
@@ -157,7 +156,6 @@ void MainWindow::Impl::ClearDefaults()
     StopDefaultParseSessions();
     active_defaults_.clear();
     SaveActiveDefaults();
-    BuildMenus();
     UpdateValueListForNode(browse_.current_node());
     SaveSettings();
 }

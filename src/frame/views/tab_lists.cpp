@@ -404,19 +404,13 @@ void MainWindow::Impl::MarkOfflineDirty()
         int index = TabCtrl_GetCurSel(tab_);
         if (index >= 0 && static_cast<size_t>(index) < tabs_.size() && IsRegFileTabIndex(index))
         {
-            bool was_dirty = tabs_[static_cast<size_t>(index)].reg_file_dirty;
             tabs_[static_cast<size_t>(index)].reg_file_dirty = true;
-            if (!was_dirty)
-            {
-                BuildMenus();
-            }
         }
         return;
     }
-    if (session_->mode == RegistryMode::kOffline && !session_->offline_dirty)
+    if (session_->mode == RegistryMode::kOffline)
     {
         session_->offline_dirty = true;
-        BuildMenus();
     }
 }
 

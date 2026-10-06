@@ -348,13 +348,6 @@ bool CloseHive(HKEY root, std::wstring* error)
     return !root || WithApi(error, [&](OffregApi& api) { return api.close_hive(reinterpret_cast<ORHKEY>(root)); });
 }
 
-void SetRoots(const std::vector<HKEY>& roots)
-{
-    std::unique_lock lock(g_roots_mutex);
-    g_roots.clear();
-    std::copy_if(roots.begin(), roots.end(), std::back_inserter(g_roots), [](HKEY root) { return root != nullptr; });
-}
-
 void AddRoot(HKEY root)
 {
     std::unique_lock lock(g_roots_mutex);

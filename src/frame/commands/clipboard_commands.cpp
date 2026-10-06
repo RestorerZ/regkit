@@ -651,16 +651,10 @@ bool MainWindow::Impl::HandleRegistryNavigationCommand(int command_id)
         OpenLocalRegistryTab();
         return true;
     case cmd::kRegistryNetwork:
-        if (SwitchToRemoteRegistry())
-        {
-            BuildMenus();
-        }
+        SwitchToRemoteRegistry();
         return true;
     case cmd::kRegistryOffline:
-        if (SwitchToOfflineRegistry())
-        {
-            BuildMenus();
-        }
+        SwitchToOfflineRegistry();
         return true;
     case cmd::kNavBack:
         NavigateBack();

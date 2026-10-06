@@ -5,6 +5,7 @@
 #include "frame/window_impl.h"
 #include "frame/tools/research_links.h"
 #include "ui/autocomplete.h"
+#include "win32/shell_integration.h"
 #include "win32/translation.h"
 
 namespace regkit
@@ -104,7 +105,6 @@ bool MainWindow::Impl::HandleWindowAppearanceCommand(int command_id)
         settings_.always_on_top = !settings_.always_on_top;
         ApplyAlwaysOnTop();
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kOptionsThemeSystem:
         theme_mode_ = ThemeMode::kSystem;
@@ -137,19 +137,16 @@ bool MainWindow::Impl::HandleWindowAppearanceCommand(int command_id)
         settings_.icon_set = kIconSetPhosphor;
         ReloadThemeIcons();
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kOptionsIconSetClassic:
         settings_.icon_set = kIconSetClassic;
         ReloadThemeIcons();
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kOptionsIconSetCustom:
         settings_.icon_set = kIconSetCustom;
         ReloadThemeIcons();
         SaveSettings();
-        BuildMenus();
         return true;
     default:
         return false;
@@ -174,7 +171,6 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
             settings_.always_run_as_trustedinstaller = false;
         }
         SaveSettings();
-        BuildMenus();
         if (settings_.always_run_as_admin && !util::IsProcessElevated())
         {
             RestartAsAdmin();
@@ -191,7 +187,6 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
             settings_.always_run_as_trustedinstaller = false;
         }
         SaveSettings();
-        BuildMenus();
         if (settings_.always_run_as_system && !util::IsProcessSystem())
         {
             RestartAsSystem();
@@ -208,28 +203,25 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
             settings_.always_run_as_system = false;
         }
         SaveSettings();
-        BuildMenus();
         if (settings_.always_run_as_trustedinstaller && !util::IsProcessTrustedInstaller())
         {
             RestartAsTrustedInstaller();
         }
         return true;
     case cmd::kOptionsReplaceRegEdit:
-        ReplaceRegEdit(!replace_regedit_);
+        ReplaceRegEdit(!win32::IsRegEditReplacementRegistered(util::GetModulePath()));
         return true;
     case cmd::kOptionsEditContextMenu:
-        SetEditContextMenu(!edit_context_menu_);
+        SetEditContextMenu(!win32::IsRegFileEditMenuRegistered(util::GetModulePath()));
         return true;
     case cmd::kOptionsSingleInstance:
         settings_.single_instance = !settings_.single_instance;
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kOptionsHkcuFollowsUser:
         settings_.hkcu_follows_shell_user = !settings_.hkcu_follows_shell_user;
         util::SetCurrentUserFollowsShell(settings_.hkcu_follows_shell_user);
         SaveSettings();
-        BuildMenus();
         if (session_->mode == RegistryMode::kLocal)
         {
             std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(settings_.show_extra_hives);
@@ -254,7 +246,6 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
             }
         }
         util::SetBackupRestoreMode(backup_privileges_ != nullptr);
-        BuildMenus();
         UpdateValueListForNode(browse_.current_node());
         UpdateStatus();
         return true;
@@ -262,7 +253,6 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         settings_.autocomplete = !settings_.autocomplete;
         appearance::SetAutoCompleteEnabled(settings_.autocomplete);
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kOptionsHiveFileDir:
         OpenHiveFileDir();
@@ -286,7 +276,6 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
     case cmd::kHelpAutoCheckUpdates:
         settings_.auto_check_updates = !settings_.auto_check_updates;
         SaveSettings();
-        BuildMenus();
         return true;
     default:
         return false;

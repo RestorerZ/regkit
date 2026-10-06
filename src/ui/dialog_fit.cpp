@@ -289,29 +289,41 @@ void LocalizeDialog(HWND dialog)
                                                                                             : right_side.front();
         const LONG end = first_field != right_side.end() ? (*first_field)->rect.left - gap : right_limit(control);
         right_side.erase(first_field, right_side.end());
-        std::vector<LONG> spacing;
-        std::vector<LONG> slack;
-        LONG previous = control.rect.right;
-        int available = 0;
-        for (const Control* other : right_side)
+        const size_t count = right_side.size();
+        std::vector<int> chained(count, -1);
+        std::vector<LONG> spacing(count);
+        std::vector<LONG> slack(count);
+        std::vector<int> reach(count);
+        auto previous_right = [&](size_t i) { return chained[i] < 0 ? control.rect.right : right_side[static_cast<size_t>(chained[i])]->rect.right; };
+        for (size_t i = 0; i < count; ++i)
         {
+            const Control* other = right_side[i];
+            for (size_t j = 0; j < i; ++j)
+            {
+                chained[i] = other->rect.top < right_side[j]->rect.bottom && other->rect.bottom > right_side[j]->rect.top ? static_cast<int>(j) : chained[i];
+            }
+            const LONG previous = previous_right(i);
             const int fit = other->push ? 0 : needed(*other);
-            spacing.push_back(std::min(static_cast<LONG>(gap), other->rect.left - previous));
-            slack.push_back(fit > 0 ? std::max(0, width(other->rect) - fit) : 0);
-            available += other->rect.left - previous - spacing.back() + slack.back();
-            previous = other->rect.right;
+            spacing[i] = std::min(static_cast<LONG>(gap), other->rect.left - previous);
+            slack[i] = fit > 0 ? std::max(0, width(other->rect) - fit) : 0;
+            reach[i] = (chained[i] < 0 ? 0 : reach[static_cast<size_t>(chained[i])]) + other->rect.left - previous - spacing[i] + slack[i];
         }
-        available += std::max(0L, end - previous);
+        int available = count ? INT_MAX : std::max(0, static_cast<int>(end - control.rect.right));
+        for (size_t i = 0; i < count; ++i)
+        {
+            if (std::find(chained.begin() + static_cast<std::ptrdiff_t>(i) + 1, chained.end(), static_cast<int>(i)) == chained.end())
+            {
+                available = std::min(available, reach[i] + std::max(0, static_cast<int>(end - right_side[i]->rect.right)));
+            }
+        }
         const int grow = std::clamp(available, 0, missing);
         control.rect.right += grow;
         missing -= grow;
-        previous = control.rect.right;
-        for (size_t i = 0; i < right_side.size(); ++i)
+        for (size_t i = 0; i < count; ++i)
         {
-            const LONG move = std::max(0L, previous + spacing[i] - right_side[i]->rect.left);
+            const LONG move = std::max(0L, previous_right(i) + spacing[i] - right_side[i]->rect.left);
             shift(*right_side[i], move);
             right_side[i]->rect.right -= std::min(move, slack[i]);
-            previous = right_side[i]->rect.right;
         }
         if (missing > 0 && next && next->field)
         {
@@ -435,8 +447,13 @@ void LocalizeDialog(HWND dialog)
         content_right += grow;
     }
     GrowDialogWidth(dialog, client.right + content_right - designed_right);
-    for (const Control& control : controls)
+    for (Control& control : controls)
     {
+        const LONG margin = control.container ? control.container->initial.right - control.initial.right : 0;
+        if (control.field && control.container && margin >= 0 && margin <= 3 * gap)
+        {
+            control.rect.right = std::max(control.rect.right, control.container->rect.right - margin);
+        }
         if (!EqualRect(&control.rect, &control.initial))
         {
             SetWindowPos(control.hwnd, nullptr, control.rect.left, control.rect.top, width(control.rect), control.rect.bottom - control.rect.top, SWP_NOZORDER | SWP_NOACTIVATE);

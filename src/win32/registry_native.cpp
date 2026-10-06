@@ -185,11 +185,6 @@ void SetBackupRestoreMode(bool enable)
     g_backup_restore = enable;
 }
 
-bool BackupRestoreMode()
-{
-    return g_backup_restore;
-}
-
 LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWORD options, UniqueHKey* key, DWORD* disposition, const std::wstring& class_name)
 {
     key->reset();

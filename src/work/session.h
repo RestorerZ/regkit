@@ -48,9 +48,9 @@ bool PostPayload(HWND hwnd, UINT message, WPARAM wparam, std::unique_ptr<T>& pay
 }
 
 template <typename T>
-T* PayloadFrom(LPARAM lparam)
+std::unique_ptr<T> TakePayload(LPARAM lparam)
 {
-    return static_cast<T*>(reinterpret_cast<MoveOnly*>(lparam));
+    return std::unique_ptr<T>(static_cast<T*>(reinterpret_cast<MoveOnly*>(lparam)));
 }
 
 class Session

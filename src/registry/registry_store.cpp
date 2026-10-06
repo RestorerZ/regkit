@@ -71,11 +71,6 @@ bool RegistryStore::CloseOfflineHive(HKEY root, std::wstring* error)
     return registry_backend::offline::CloseHive(root, error);
 }
 
-void RegistryStore::SetOfflineRoots(const std::vector<HKEY>& roots)
-{
-    registry_backend::offline::SetRoots(roots);
-}
-
 HKEY RegistryStore::RegisterVirtualRoot(const std::wstring& root_name, const std::shared_ptr<VirtualRegistryData>& data)
 {
     return registry_backend::virtual_store::RegisterRoot(root_name, data);

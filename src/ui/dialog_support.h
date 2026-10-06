@@ -37,7 +37,6 @@ inline std::wstring ReadText(HWND dialog, int control_id)
 }
 
 void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColumn> columns);
-void RefreshListViewTheme(HWND list);
 bool HandleListViewNotify(HWND dialog, const NMHDR* header, INT_PTR* result);
 std::wstring ListViewText(HWND list, int item, int subitem);
 std::wstring ToDisplayText(const std::wstring& text);
@@ -46,8 +45,5 @@ std::wstring SingleLine(const std::wstring& text);
 bool Matches(const std::wstring& text, const std::wstring& filter);
 void FitDroppedWidth(HWND combo);
 void MatchComboHeights(HWND dialog, int edit_id, std::initializer_list<int> combos);
-void LayoutGridToggles(HWND dialog);
-bool HandleGridToggle(HWND dialog, int command_id);
-void ReleaseDialogLists(HWND dialog);
 
 } // namespace regkit::editors::dialog_support

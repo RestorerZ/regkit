@@ -462,12 +462,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
         }
     case frame::message_id::kSearchPreviewReady:
         {
-            auto* raw = work::PayloadFrom<SearchPreviewPayload>(lparam);
-            if (!raw)
+            auto owned = work::TakePayload<SearchPreviewPayload>(lparam);
+            if (!owned)
             {
                 return 0;
             }
-            std::unique_ptr<SearchPreviewPayload> owned(raw);
             if (owned->tab_index < 0 || static_cast<size_t>(owned->tab_index) >= search_tabs_.size())
             {
                 return 0;
@@ -518,12 +517,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
         }
     case frame::message_id::kSearchSortReady:
         {
-            auto* raw = work::PayloadFrom<SearchSortPayload>(lparam);
-            if (!raw)
+            auto owned = work::TakePayload<SearchSortPayload>(lparam);
+            if (!owned)
             {
                 return 0;
             }
-            std::unique_ptr<SearchSortPayload> owned(raw);
             if (owned->tab_index < 0 || static_cast<size_t>(owned->tab_index) >= search_tabs_.size())
             {
                 return 0;
@@ -541,7 +539,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
             return 0;
         }
     case frame::message_id::kSearchTabLoadReady:
-        ApplySearchTabLoad(work::PayloadFrom<SearchTabLoadPayload>(lparam));
+        ApplySearchTabLoad(work::TakePayload<SearchTabLoadPayload>(lparam));
         return 0;
     case frame::message_id::kSearchProgress:
         {
@@ -573,7 +571,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
             return 0;
         }
     case frame::message_id::kReplaceReady:
-        ApplyReplacePayload(work::PayloadFrom<ReplacePayload>(lparam));
+        ApplyReplacePayload(work::TakePayload<ReplacePayload>(lparam));
         return 0;
     default:
         return std::nullopt;
@@ -593,12 +591,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleLoadWorkerMessage(UINT message, W
         return 0;
     case frame::message_id::kTraceLoadReady:
         {
-            auto* payload = work::PayloadFrom<TraceLoadPayload>(lparam);
-            if (!payload)
+            auto owned = work::TakePayload<TraceLoadPayload>(lparam);
+            if (!owned)
             {
                 return 0;
             }
-            std::unique_ptr<TraceLoadPayload> owned(payload);
             if (!trace_load_session_.IsCurrent(owned->generation))
             {
                 return 0;
@@ -606,26 +603,23 @@ std::optional<LRESULT> MainWindow::Impl::HandleLoadWorkerMessage(UINT message, W
             trace_load_session_.Join();
             active_traces_ = std::move(owned->traces);
             trace_selection_cache_ = std::move(owned->selection_cache);
-            BuildMenus();
             RefreshTreeSelection();
             UpdateValueListForNode(browse_.current_node());
             return 0;
         }
     case frame::message_id::kDefaultLoadReady:
         {
-            auto* payload = work::PayloadFrom<DefaultLoadPayload>(lparam);
-            if (!payload)
+            auto owned = work::TakePayload<DefaultLoadPayload>(lparam);
+            if (!owned)
             {
                 return 0;
             }
-            std::unique_ptr<DefaultLoadPayload> owned(payload);
             if (!default_load_session_.IsCurrent(owned->generation))
             {
                 return 0;
             }
             default_load_session_.Join();
             active_defaults_ = std::move(owned->defaults);
-            BuildMenus();
             UpdateValueListForNode(browse_.current_node());
             return 0;
         }
@@ -633,12 +627,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleLoadWorkerMessage(UINT message, W
         RunDeferredStartup();
         return 0;
     case frame::message_id::kStartupCacheReady:
-        ApplyStartupCachePayload(work::PayloadFrom<StartupCachePayload>(lparam));
+        ApplyStartupCachePayload(work::TakePayload<StartupCachePayload>(lparam));
         return 0;
     case frame::message_id::kUpdateCheckReady:
         {
-            std::unique_ptr<frame::UpdateCheckPayload> payload(work::PayloadFrom<frame::UpdateCheckPayload>(lparam));
-            updates_.Apply(payload.get());
+            updates_.Apply(work::TakePayload<frame::UpdateCheckPayload>(lparam).get());
             return 0;
         }
     default:
@@ -653,12 +646,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleRegFileWorkerMessage(UINT message
     {
     case frame::message_id::kRegFileLoadReady:
         {
-            auto* payload = work::PayloadFrom<RegFileParsePayload>(lparam);
-            if (!payload)
+            auto owned = work::TakePayload<RegFileParsePayload>(lparam);
+            if (!owned)
             {
                 return 0;
             }
-            std::unique_ptr<RegFileParsePayload> owned(payload);
             auto session_it = reg_file_parse_sessions_.find(owned->source_lower);
             if (session_it == reg_file_parse_sessions_.end())
             {
@@ -747,12 +739,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleTraceWorkerMessage(UINT message, 
     {
     case frame::message_id::kTraceParseBatch:
         {
-            auto* payload = work::PayloadFrom<TraceParseBatch>(lparam);
-            if (!payload)
+            auto owned = work::TakePayload<TraceParseBatch>(lparam);
+            if (!owned)
             {
                 return 0;
             }
-            std::unique_ptr<TraceParseBatch> owned(payload);
             auto it = trace_parse_sessions_.find(owned->source_lower);
             if (it == trace_parse_sessions_.end())
             {
@@ -819,7 +810,6 @@ std::optional<LRESULT> MainWindow::Impl::HandleTraceWorkerMessage(UINT message, 
                         trace_selection_cache_.erase(session->source_lower);
                         SaveActiveTraces();
                         SaveTraceSettings();
-                        BuildMenus();
                         RefreshTreeSelection();
                         UpdateValueListForNode(browse_.current_node());
                         SaveSettings();
@@ -854,12 +844,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleDefaultWorkerMessage(UINT message
     {
     case frame::message_id::kDefaultParseBatch:
         {
-            auto* payload = work::PayloadFrom<DefaultParseBatch>(lparam);
-            if (!payload)
+            auto owned = work::TakePayload<DefaultParseBatch>(lparam);
+            if (!owned)
             {
                 return 0;
             }
-            std::unique_ptr<DefaultParseBatch> owned(payload);
             auto it = default_parse_sessions_.find(owned->source_lower);
             if (it == default_parse_sessions_.end())
             {
@@ -916,7 +905,6 @@ std::optional<LRESULT> MainWindow::Impl::HandleDefaultWorkerMessage(UINT message
                                                }),
                                                active_defaults_.end());
                         SaveActiveDefaults();
-                        BuildMenus();
                         UpdateValueListForNode(browse_.current_node());
                         SaveSettings();
                         session->added_to_active = false;
@@ -964,12 +952,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message, 
         }
     case frame::message_id::kValuePreviewReady:
         {
-            auto* raw = work::PayloadFrom<ValuePreviewPayload>(lparam);
-            if (!raw)
+            auto owned = work::TakePayload<ValuePreviewPayload>(lparam);
+            if (!owned)
             {
                 return 0;
             }
-            std::unique_ptr<ValuePreviewPayload> owned(raw);
             if (owned->generation != value_list_generation_.load())
             {
                 return 0;
@@ -1026,13 +1013,12 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message, 
         }
     case frame::message_id::kValueListReady:
         {
-            auto* payload = work::PayloadFrom<ValueListPayload>(lparam);
-            if (!payload)
+            auto owned = work::TakePayload<ValueListPayload>(lparam);
+            if (!owned)
             {
                 return 0;
             }
-            std::unique_ptr<ValueListPayload> owned(payload);
-            if (payload->generation != value_list_generation_.load())
+            if (owned->generation != value_list_generation_.load())
             {
                 return 0;
             }
@@ -1041,10 +1027,10 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message, 
             {
                 SendMessageW(list_hwnd, WM_SETREDRAW, FALSE, 0);
             }
-            browse_.values().SetRows(std::move(payload->rows));
+            browse_.values().SetRows(std::move(owned->rows));
             RefreshValueListComments();
-            current_key_count_ = payload->key_count;
-            current_value_count_ = payload->value_count;
+            current_key_count_ = owned->key_count;
+            current_value_count_ = owned->value_count;
             if (list_hwnd && !jump_ui_batch_active_)
             {
                 SendMessageW(list_hwnd, WM_SETREDRAW, TRUE, 0);
@@ -1204,7 +1190,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
             {
                 return 0;
             }
-            ReleasePostedPayload(target);
+            target.release();
             return TRUE;
         }
     case frame::message_id::kExternalHandoff:
@@ -1326,42 +1312,8 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
             return reinterpret_cast<LRESULT>(brush);
         }
     case WM_INITMENUPOPUP:
-        {
-            HMENU menu = reinterpret_cast<HMENU>(wparam);
-            RefreshStorageMenuState(menu);
-            FillBitfieldMenu(menu);
-            CheckMenuItem(menu, cmd::kViewGridLines, MF_BYCOMMAND | (settings_.show_value_grid ? MF_CHECKED : MF_UNCHECKED));
-            UINT state = browse_.current_node() ? MF_ENABLED : MF_GRAYED;
-            EnableMenuItem(menu, cmd::kEditPermissions, MF_BYCOMMAND | state);
-            EnableMenuItem(menu, cmd::kEditKeyInfo, MF_BYCOMMAND | state);
-            const int selected_count = browse_.values().hwnd() ? ListView_GetSelectedCount(browse_.values().hwnd()) : 0;
-            const int selected_index =
-                selected_count == 1 ? ListView_GetNextItem(browse_.values().hwnd(), -1, LVNI_SELECTED) : -1;
-            const ListRow* selected_row = selected_index >= 0 ? browse_.values().RowAt(selected_index) : nullptr;
-            const bool can_open_value = selected_row && selected_row->kind == rowkind::kValue && !selected_row->simulated;
-            const UINT open_state = can_open_value ? MF_ENABLED : MF_GRAYED;
-            const UINT data_state = can_open_value && !selected_row->trace_only ? MF_ENABLED : MF_GRAYED;
-            EnableMenuItem(menu, cmd::kEditModify, MF_BYCOMMAND | open_state);
-            EnableMenuItem(menu, cmd::kEditModifyBinary, MF_BYCOMMAND | open_state);
-            EnableMenuItem(menu, cmd::kEditChangeType, MF_BYCOMMAND | data_state);
-            EnableMenuItem(menu, cmd::kEditDecodeValue, MF_BYCOMMAND | data_state);
-            EnableMenuItem(menu, cmd::kEditBits, MF_BYCOMMAND | data_state);
-            EnableMenuItem(menu, cmd::kEditModifyComment, MF_BYCOMMAND | (browse_.current_node() ? MF_ENABLED : MF_GRAYED));
-            EnableMenuItem(menu, cmd::kEditCopyValueName, MF_BYCOMMAND | open_state);
-            EnableMenuItem(menu, cmd::kEditCopyValueData, MF_BYCOMMAND | data_state);
-            RefreshResetDefaultMenu(menu);
-            const bool hives_allowed = !settings_.read_only && session_->mode != RegistryMode::kRemote;
-            const RegistryNode* hive_node = browse_.current_node();
-            const bool hive_selected = hives_allowed && hive_node && IsMountedHive(hive_node->root, hive_node->subkey);
-            EnableMenuItem(menu, cmd::kFileLoadHive, MF_BYCOMMAND | (hives_allowed ? MF_ENABLED : MF_GRAYED));
-            EnableMenuItem(menu, cmd::kFileUnloadHive, MF_BYCOMMAND | (hive_selected ? MF_ENABLED : MF_GRAYED));
-            if (GetMenuState(menu, cmd::kOptionsHiveFileDir, MF_BYCOMMAND) != static_cast<UINT>(-1))
-            {
-                const UINT hive_state = ResolveSelectedHiveFilePath().empty() ? MF_GRAYED : MF_ENABLED;
-                EnableMenuItem(menu, cmd::kOptionsHiveFileDir, MF_BYCOMMAND | hive_state);
-            }
-            return 0;
-        }
+        UpdateMenuState(reinterpret_cast<HMENU>(wparam));
+        return 0;
     case WM_MENUSELECT:
         {
             HMENU menu = reinterpret_cast<HMENU>(lparam);
@@ -1448,7 +1400,6 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message, WPARA
             {
                 settings_.show_tree = false;
                 ApplyViewVisibility();
-                BuildMenus();
                 return 0;
             }
             if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == kHistoryHeaderCloseId)
@@ -1456,7 +1407,6 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message, WPARA
                 settings_.show_history = false;
                 SaveSettings();
                 ApplyViewVisibility();
-                BuildMenus();
                 return 0;
             }
             if (HIWORD(wparam) == 0 && appearance::HandleListViewCommand(hwnd_, LOWORD(wparam)))

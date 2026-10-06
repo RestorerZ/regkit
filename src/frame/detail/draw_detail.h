@@ -104,12 +104,6 @@ inline T ClampValue(T value, T low, T high)
     return value < low ? low : (high < value ? high : value);
 }
 
-template <typename T>
-inline void ReleasePostedPayload(std::unique_ptr<T>& payload)
-{
-    (void)payload.release();
-}
-
 constexpr wchar_t kRootKeysGroupLabel[] = L"Root Keys";
 constexpr wchar_t kRealGroupLabel[] = L"REGISTRY";
 
@@ -197,7 +191,6 @@ struct ValueListPayload : work::MoveOnly
     int value_count = 0;
 };
 
-std::wstring NormalizeTraceKeyPathBasic(const std::wstring& text);
 
 bool GetChildRectInParent(HWND parent, HWND child, RECT* rect);
 

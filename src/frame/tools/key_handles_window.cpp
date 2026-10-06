@@ -253,7 +253,7 @@ void Layout(HWND dialog, const State* state)
     MapWindowPoints(nullptr, dialog, reinterpret_cast<POINT*>(&bar), 2);
     MapWindowPoints(nullptr, dialog, reinterpret_cast<POINT*>(&list), 2);
     SetWindowPos(state->list, nullptr, -1, list.top, client.right + 2, bar.top - list.top + 1, SWP_NOZORDER | SWP_NOACTIVATE);
-    support::LayoutGridToggles(dialog);
+    appearance::LayoutListViews(dialog);
 }
 
 void RebuildView(HWND dialog, State* state)
@@ -559,7 +559,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             DestroyWindow(dialog);
             return TRUE;
         default:
-            return support::HandleGridToggle(dialog, LOWORD(wparam));
+            return appearance::HandleListViewCommand(dialog, LOWORD(wparam));
         }
     case WM_DESTROY:
         if (state)
@@ -570,7 +570,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             {
                 delete reinterpret_cast<Payload*>(pending.lParam);
             }
-            support::ReleaseDialogLists(dialog);
+            appearance::ReleaseListViews(dialog);
             support::ReleaseFont(&state->font);
         }
         return TRUE;

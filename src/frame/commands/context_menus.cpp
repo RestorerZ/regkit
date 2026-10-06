@@ -425,7 +425,7 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
         AppendMenuW(menu, inspect_flags, cmd::kEditModify, util::Tr(L"Modify..."));
         AppendMenuW(menu, inspect_flags, cmd::kEditModifyBinary, util::Tr(L"Modify Binary Data..."));
         AppendMenuW(menu, data_flags, cmd::kEditChangeType, util::Tr(L"Change Data Type..."));
-        AppendResetDefaultMenu(menu);
+        AppendMenuW(menu, MF_STRING, cmd::kEditResetDefault, util::Tr(L"Reset to Default"));
         AppendMenuW(menu, comment_flags, cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
         AppendMenuW(menu, data_flags, cmd::kEditDecodeValue, util::Tr(L"Decode Value..."));
         AppendMenuW(menu, data_flags, cmd::kEditBits, util::Tr(L"Edit Bits..."));

@@ -316,17 +316,6 @@ HTREEITEM MainWindow::Impl::FindTreeItem(const std::wstring& path)
     return current;
 }
 
-bool MainWindow::Impl::ExpandTreePath(const std::wstring& path)
-{
-    HTREEITEM item = FindTreeItem(path);
-    if (!item)
-    {
-        return false;
-    }
-    TreeView_Expand(browse_.tree().hwnd(), item, TVE_EXPAND);
-    return true;
-}
-
 void MainWindow::Impl::ExpandTreePaths(const std::vector<std::wstring>& paths)
 {
     HWND tree = browse_.tree().hwnd();

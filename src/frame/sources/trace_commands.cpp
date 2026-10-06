@@ -327,7 +327,6 @@ bool MainWindow::Impl::AddTraceFromFile(const std::wstring& label, const std::ws
     {
         SaveActiveTraces();
         SaveTraceSettings();
-        BuildMenus();
         RefreshTreeSelection();
         UpdateValueListForNode(browse_.current_node());
         SaveSettings();
@@ -377,7 +376,6 @@ void MainWindow::Impl::ClearTrace()
     trace_selection_cache_.clear();
     SaveActiveTraces();
     SaveTraceSettings();
-    BuildMenus();
     RefreshTreeSelection();
     UpdateValueListForNode(browse_.current_node());
     SaveSettings();

@@ -125,7 +125,6 @@ class RegistryStore
     static bool CloseOfflineHive(HKEY root, std::wstring* error);
     static void AddOfflineRoot(HKEY root);
     static void RemoveOfflineRoot(HKEY root);
-    static void SetOfflineRoots(const std::vector<HKEY>& roots);
     static HKEY RegisterVirtualRoot(const std::wstring& root_name, const std::shared_ptr<VirtualRegistryData>& data);
     static void UnregisterVirtualRoot(HKEY root);
     static bool IsVirtualRoot(HKEY root);

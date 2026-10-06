@@ -340,7 +340,6 @@ bool MainWindow::Impl::RestartAfterCacheClear(CacheKind kind)
         {
             StartTreeStateWorker();
         }
-        BuildMenus();
         ui::ShowError(hwnd_, util::Tr(L"One or more cache files couldn't be removed."));
         return false;
     }
@@ -350,7 +349,6 @@ bool MainWindow::Impl::RestartAfterCacheClear(CacheKind kind)
         {
             StartTreeStateWorker();
         }
-        BuildMenus();
         return false;
     }
     restart_on_close_ = true;
@@ -420,11 +418,6 @@ bool MainWindow::Impl::RestartAsTrustedInstaller()
     return BrokerRestart(hwnd_, kRestartTiArg, util::Tr(L"Failed to restart with TrustedInstaller rights."), util::LaunchProcessAsTrustedInstaller);
 }
 
-void MainWindow::Impl::SyncReplaceRegEditState()
-{
-    replace_regedit_ = win32::IsRegEditReplacementRegistered(util::GetModulePath());
-}
-
 void MainWindow::Impl::ReplaceRegEdit(bool enable)
 {
     std::wstring exe_path = util::GetModulePath();
@@ -451,8 +444,6 @@ void MainWindow::Impl::ReplaceRegEdit(bool enable)
             {110, 70, 70}
         ) != IDYES)
     {
-        SyncReplaceRegEditState();
-        BuildMenus();
         return;
     }
 
@@ -485,14 +476,6 @@ void MainWindow::Impl::ReplaceRegEdit(bool enable)
             ui::ShowError(hwnd_, FormatWin32Error(result));
         }
     }
-    SyncReplaceRegEditState();
-    BuildMenus();
-}
-
-void MainWindow::Impl::SyncEditContextMenuState()
-{
-    const std::wstring exe_path = util::GetModulePath();
-    edit_context_menu_ = win32::IsRegFileEditMenuRegistered(exe_path);
 }
 
 void MainWindow::Impl::SetEditContextMenu(bool enable)
@@ -509,7 +492,6 @@ void MainWindow::Impl::SetEditContextMenu(bool enable)
         }
         ui::ShowError(hwnd_, message);
     }
-    BuildMenus();
 }
 
 std::wstring MainWindow::Impl::ResolveSelectedHiveFilePath()

@@ -385,13 +385,12 @@ bool MainWindow::Impl::EnsureSearchTabResultsLoaded(int search_index)
     return false;
 }
 
-void MainWindow::Impl::ApplySearchTabLoad(SearchTabLoadPayload* payload)
+void MainWindow::Impl::ApplySearchTabLoad(std::unique_ptr<SearchTabLoadPayload> owned)
 {
-    if (!payload)
+    if (!owned)
     {
         return;
     }
-    std::unique_ptr<SearchTabLoadPayload> owned(payload);
     if (owned->tab_index < 0 || static_cast<size_t>(owned->tab_index) >= search_tabs_.size())
     {
         return;

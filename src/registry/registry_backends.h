@@ -39,7 +39,6 @@ namespace offline
 bool OpenHive(const std::wstring& path, HKEY* root, std::wstring* error);
 bool SaveHive(HKEY root, const std::wstring& path, std::wstring* error);
 bool CloseHive(HKEY root, std::wstring* error);
-void SetRoots(const std::vector<HKEY>& roots);
 bool Owns(HKEY root);
 void AddRoot(HKEY root);
 void RemoveRoot(HKEY root);

@@ -35,7 +35,6 @@ bool MainWindow::Impl::SaveRegFileTab(int tab_index)
     if (entry.reg_file_dirty)
     {
         entry.reg_file_dirty = false;
-        BuildMenus();
     }
     AppendHistoryEntry(L"Save .reg file " + util::FileName(entry.reg_file_path), L"", entry.reg_file_path);
     return true;
