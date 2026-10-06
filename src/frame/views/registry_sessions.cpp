@@ -84,10 +84,9 @@ void MainWindow::Impl::ShowSession(const std::shared_ptr<RegistrySession>& sessi
     }
     const bool shown = session_ == session && !browse_.roots().empty() && !RegistryStore::IsVirtualRoot(browse_.roots().front().root);
     session_ = session;
-    if (session_ == local_session_)
+    if (session_->mode == RegistryMode::kLocal)
     {
-        session_->roots = RegistryStore::DefaultRoots(settings_.show_extra_hives);
-        AppendRealRegistryRoot(&session_->roots);
+        session_->roots = LocalRoots(session_->view);
     }
     if (!shown)
     {
@@ -389,12 +388,14 @@ std::wstring MainWindow::Impl::LocalRegistryTabLabel(int index) const
     {
         return util::Tr(L"Local Registry");
     }
+    const REGSAM view = tabs_[static_cast<size_t>(index)].registry_view;
+    const std::wstring base = view ? util::Tr(L"Local Registry (32-bit)") : util::Tr(L"Local Registry");
     int local_count = 0;
     int local_index = 0;
     for (size_t i = 0; i < tabs_.size(); ++i)
     {
         const TabEntry& entry = tabs_[i];
-        if (entry.kind != TabEntry::Kind::kRegistry || entry.registry_mode != RegistryMode::kLocal)
+        if (entry.kind != TabEntry::Kind::kRegistry || entry.registry_mode != RegistryMode::kLocal || entry.registry_view != view)
         {
             continue;
         }
@@ -406,9 +407,9 @@ std::wstring MainWindow::Impl::LocalRegistryTabLabel(int index) const
     }
     if (local_count <= 1 || local_index <= 1)
     {
-        return util::Tr(L"Local Registry");
+        return base;
     }
-    return util::Tr(L"Local Registry") + std::wstring(L" (") + std::to_wstring(local_index) + L")";
+    return base + L" (" + std::to_wstring(local_index) + L")";
 }
 
 void MainWindow::Impl::RefreshRegistryTabLabels()
@@ -463,6 +464,87 @@ void MainWindow::Impl::AppendRealRegistryRoot(std::vector<RegistryRootEntry>* ro
     entry.subkey_prefix = L"";
     entry.group = RegistryRootGroup::kReal;
     roots->push_back(std::move(entry));
+}
+
+std::vector<RegistryRootEntry> MainWindow::Impl::LocalRoots(REGSAM view)
+{
+    std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(settings_.show_extra_hives);
+    for (RegistryRootEntry& root : roots)
+    {
+        root.view = view;
+    }
+    // native paths have no 32-bit view
+    if (!view)
+    {
+        AppendRealRegistryRoot(&roots);
+    }
+    return roots;
+}
+
+std::shared_ptr<MainWindow::Impl::RegistrySession> MainWindow::Impl::LocalViewSession(REGSAM view) const
+{
+    auto session = std::make_shared<RegistrySession>();
+    session->view = view;
+    return session;
+}
+
+void MainWindow::Impl::GoToOtherView()
+{
+    const RegistryNode* node = browse_.current_node();
+    if (!node || session_->mode != RegistryMode::kLocal || !win32::HasAlternateView())
+    {
+        return;
+    }
+    const std::wstring path = registry_path::Build(*node);
+    const REGSAM view = session_->view ? 0 : win32::kAlternateRegistryView;
+    const auto found = std::find_if(tabs_.begin(), tabs_.end(), [view](const TabEntry& entry) {
+        return entry.kind == TabEntry::Kind::kRegistry && entry.registry_mode == RegistryMode::kLocal && entry.registry_view == view;
+    });
+    if (found == tabs_.end())
+    {
+        OpenLocalRegistryTab(view);
+    }
+    else
+    {
+        const int index = static_cast<int>(found - tabs_.begin());
+        suppress_tab_change_ = true;
+        SelectTabIndex(index);
+        suppress_tab_change_ = false;
+        ApplyTabSelection(index);
+    }
+    BeginJumpUiBatch();
+    if (SelectTreePath(path))
+    {
+        ApplyTreeSelectionEffects(browse_.current_node());
+    }
+    EndJumpUiBatch();
+}
+
+std::wstring MainWindow::Impl::VirtualStoreTarget() const
+{
+    const RegistryNode* node = browse_.current_node();
+    KeyDetails details;
+    if (!node || session_->mode != RegistryMode::kLocal || !RegistryStore::QueryKeyDetails(*node, &details))
+    {
+        return {};
+    }
+    const std::wstring store = registry_path::VirtualStorePath(details.native.native_name);
+    RegistryNode store_node;
+    KeyInfo info;
+    return !store.empty() && registry_path::ParseRoot(store, &store_node) && RegistryStore::QueryKeyInfo(store_node, &info) ? store : std::wstring();
+}
+
+std::wstring MainWindow::Impl::GlobalKeyTarget() const
+{
+    const RegistryNode* node = browse_.current_node();
+    if (!node || session_->mode != RegistryMode::kLocal)
+    {
+        return {};
+    }
+    const std::wstring global = registry_path::GlobalKeyPath(registry_path::Build(*node));
+    RegistryNode global_node;
+    KeyInfo info;
+    return !global.empty() && registry_path::ParseRoot(global, &global_node) && RegistryStore::QueryKeyInfo(global_node, &info) ? global : std::wstring();
 }
 
 bool MainWindow::Impl::SwitchToLocalRegistry()

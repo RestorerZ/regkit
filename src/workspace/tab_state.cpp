@@ -145,6 +145,10 @@ void ParseTaggedFields(const std::vector<std::wstring>& fields, PersistedTab* ta
         {
             tab->registry_mode = Number(value);
         }
+        else if (key == L"view")
+        {
+            tab->registry_view = Number(value);
+        }
         else if (key == L"top")
         {
             tab->value_top_index = Number(value);
@@ -262,6 +266,7 @@ std::wstring SerializeTabs(const TabState& state)
         AppendField(&fields, L"src=", tab.source_path);
         AppendField(&fields, L"machine=", tab.remote_machine);
         AppendNumber(&fields, L"mode=", tab.registry_mode);
+        AppendNumber(&fields, L"view=", tab.registry_view);
         AppendNumber(&fields, L"top=", tab.value_top_index);
         AppendNumber(&fields, L"cmp=", tab.is_compare ? 1 : 0);
         AppendNumber(&fields, L"cmpf=", tab.compare_filter);

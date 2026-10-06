@@ -51,7 +51,7 @@ void MainWindow::Impl::RestoreHiveFile(const std::wstring& path)
     {
         return;
     }
-    const LONG status = RestoreKeyFromHive(node.root, node.subkey, win32::kDefaultRegistryView, path);
+    const LONG status = RestoreKeyFromHive(node.root, node.subkey, ViewOf(node), path);
     if (status != ERROR_SUCCESS)
     {
         ui::ShowError(hwnd_, HiveTransferError(status, path));

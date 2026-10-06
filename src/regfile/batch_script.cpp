@@ -171,7 +171,7 @@ bool ApplyReg(const std::vector<std::wstring>& args, std::vector<Operation>* out
     }
     reg_exe::Options options;
     std::vector<std::wstring> positional;
-    if (!reg_exe::ParseOptions(args, 1, &options, &positional, add, message))
+    if (!reg_exe::ParseOptions(args, 1, &options, &positional, add ? reg_exe::Verb::kAdd : reg_exe::Verb::kOther, message))
     {
         return false;
     }

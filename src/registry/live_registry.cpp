@@ -19,7 +19,7 @@ class LiveKey : public RegistryKeyHandle
     {
         if (node.root)
         {
-            util::OpenRegistryPath(node.root, node.subkey, access | win32::kDefaultRegistryView, open_link, &key_);
+            util::OpenRegistryPath(node.root, node.subkey, access | ViewOf(node), open_link, &key_);
         }
     }
     LiveKey() = default;
@@ -35,7 +35,7 @@ LiveKey OpenChild(const RegistryNode& node, REGSAM parent_access, REGSAM child_a
         LiveKey parent(parent_node, parent_access);
         if (parent)
         {
-            util::OpenRegistryPath(parent.get(), leaf, child_access, open_link, &child);
+            util::OpenRegistryPath(parent.get(), leaf, child_access | ViewOf(node), open_link, &child);
         }
     }
     if (name)
@@ -84,7 +84,16 @@ bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, boo
 {
     target->clear();
     LONG error = ERROR_SUCCESS;
-    LiveKey key(util::OpenNativeRegistryKey(registry_path::BuildNative(node), KEY_QUERY_VALUE, true, &error));
+    util::UniqueHKey handle;
+    if (node.view)
+    {
+        error = util::OpenRegistryPath(node.root, node.subkey, KEY_QUERY_VALUE | node.view, true, &handle);
+    }
+    else
+    {
+        handle = util::OpenNativeRegistryKey(registry_path::BuildNative(node), KEY_QUERY_VALUE, true, &error);
+    }
+    const LiveKey key(std::move(handle));
     if (denied)
     {
         *denied = error == ERROR_ACCESS_DENIED;
@@ -92,19 +101,24 @@ bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, boo
     return key && ReadLinkTarget(key, target) && !target->empty();
 }
 
-KeyInspection InspectKey(const RegistryNode& node, bool want_info)
+KeyInspection InspectKey(const RegistryNode& node, bool want_info, bool want_source)
 {
     KeyInspection result;
     LONG error = ERROR_SUCCESS;
+    // HARDWARE is never redirected, so the plain native path also answers the volatile hive check for 32-bit nodes
     const std::wstring native = registry_path::BuildNative(node);
     LiveKey key;
-    if (native.empty() && node.root == HKEY_CLASSES_ROOT && !node.subkey.empty())
+    if (node.view || (native.empty() && node.root == HKEY_CLASSES_ROOT && !node.subkey.empty()))
     {
-        // hkcr has no native path, the merged key itself tells which hive backs it
+        // hkcr has no native path and a 32-bit view is redirected, so these open through win32
         util::UniqueHKey handle;
-        error = util::OpenRegistryPath(node.root, node.subkey, KEY_QUERY_VALUE | win32::kDefaultRegistryView, true, &handle);
+        error = util::OpenRegistryPath(node.root, node.subkey, KEY_QUERY_VALUE | ViewOf(node), true, &handle);
         key = LiveKey(std::move(handle));
-        result.class_source = key ? registry_path::ClassesSource(util::QueryKeyName(key.get())) : ClassSource::kNone;
+        // the merged key tells which hive backs it; asked only when the Details column shows it
+        if (want_source && key && node.root == HKEY_CLASSES_ROOT)
+        {
+            result.class_source = registry_path::ClassesSource(util::QueryKeyName(key.get()));
+        }
     }
     else
     {

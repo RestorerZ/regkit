@@ -578,15 +578,23 @@ int MainWindow::Impl::AddRegistryTab(RegistryMode mode, const wchar_t* label)
     return index;
 }
 
-void MainWindow::Impl::OpenLocalRegistryTab()
+void MainWindow::Impl::OpenLocalRegistryTab(REGSAM view)
 {
     if (!tab_)
     {
         return;
     }
     const int index = AddRegistryTab(RegistryMode::kLocal, util::Tr(L"Local Registry"));
+    tabs_[static_cast<size_t>(index)].registry_view = view;
     RefreshRegistryTabLabels();
-    SwitchToLocalRegistry();
+    if (view)
+    {
+        ShowSession(LocalViewSession(view));
+    }
+    else
+    {
+        SwitchToLocalRegistry();
+    }
     RestoreRegistryTabState(index);
     ApplyViewVisibility();
     UpdateSearchResultsView();

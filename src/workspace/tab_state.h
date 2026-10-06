@@ -29,6 +29,7 @@ struct PersistedTab
     std::wstring source_path;
     std::wstring remote_machine;
     int registry_mode = 0;
+    int registry_view = 0;
     int value_top_index = 0;
     bool is_compare = false;
     int compare_filter = 0;

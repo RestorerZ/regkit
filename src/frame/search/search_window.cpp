@@ -386,7 +386,7 @@ bool MainWindow::Impl::IsLocalRegistryTabIndex(int index) const
         return false;
     }
     const TabEntry& entry = tabs_[static_cast<size_t>(index)];
-    return entry.kind == TabEntry::Kind::kRegistry && entry.registry_mode == RegistryMode::kLocal;
+    return entry.kind == TabEntry::Kind::kRegistry && entry.registry_mode == RegistryMode::kLocal && !entry.registry_view;
 }
 
 int MainWindow::Impl::FindLocalRegistryTabIndex() const
@@ -596,6 +596,7 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
             }
             RegistryNode node;
             node.root = entry.root;
+            node.view = entry.view;
             node.root_name = entry.path_name;
             node.subkey = entry.subkey_prefix;
             start_nodes.push_back({std::move(node), source});

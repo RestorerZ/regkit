@@ -162,6 +162,10 @@ bool MainWindow::Impl::HandleNavigateClipboardCommand(int command_id)
     case cmd::kEditRedo:
         return HandleChangeHistoryCommand(command_id);
     case cmd::kRegistryLocal:
+    case cmd::kRegistryLocal32:
+    case cmd::kRegistryOtherView:
+    case cmd::kEditGoToVirtualStore:
+    case cmd::kEditGoToGlobalKey:
     case cmd::kRegistryNetwork:
     case cmd::kRegistryOffline:
     case cmd::kNavBack:
@@ -650,6 +654,22 @@ bool MainWindow::Impl::HandleRegistryNavigationCommand(int command_id)
     case cmd::kRegistryLocal:
         OpenLocalRegistryTab();
         return true;
+    case cmd::kRegistryLocal32:
+        OpenLocalRegistryTab(win32::kAlternateRegistryView);
+        return true;
+    case cmd::kRegistryOtherView:
+        GoToOtherView();
+        return true;
+    case cmd::kEditGoToVirtualStore:
+    case cmd::kEditGoToGlobalKey:
+        {
+            const std::wstring target = command_id == cmd::kEditGoToVirtualStore ? VirtualStoreTarget() : GlobalKeyTarget();
+            if (!target.empty())
+            {
+                NavigateToResolvedExternalJump(target, L"");
+            }
+            return true;
+        }
     case cmd::kRegistryNetwork:
         SwitchToRemoteRegistry();
         return true;

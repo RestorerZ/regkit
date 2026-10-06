@@ -306,6 +306,7 @@ bool MainWindow::Impl::ResolvePathToNode(const std::wstring& path, RegistryNode*
         if (root_entry.subkey_prefix.empty())
         {
             node->root = root_entry.root;
+            node->view = root_entry.view;
             node->root_name = root_entry.path_name;
             node->subkey = rest;
             return true;
@@ -323,6 +324,7 @@ bool MainWindow::Impl::ResolvePathToNode(const std::wstring& path, RegistryNode*
             rest = prefix;
         }
         node->root = root_entry.root;
+        node->view = root_entry.view;
         node->root_name = root_entry.path_name;
         node->subkey = rest;
         return true;

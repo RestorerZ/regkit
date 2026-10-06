@@ -48,6 +48,7 @@ constexpr ULONG kKeyVirtualizationInformation = 6;
 constexpr ULONG kKeyTrustInformation = 8;
 constexpr ULONG kKeyLayerInformation = 9;
 constexpr ULONG kKeyWriteTimeInformation = 0;
+constexpr ULONG kKeyControlFlagsInformation = 2;
 constexpr ULONG kKeyValuePartialInformation = 2;
 constexpr ULONG kPartialHeader = 3 * sizeof(ULONG);
 
@@ -330,6 +331,12 @@ LONG SetKeyLastWriteTime(HKEY key, const FILETIME& time)
     value.LowPart = time.dwLowDateTime;
     value.HighPart = static_cast<LONG>(time.dwHighDateTime);
     return set_information ? DosError(set_information(RootHandle(key), kKeyWriteTimeInformation, &value, sizeof(value))) : ERROR_CALL_NOT_IMPLEMENTED;
+}
+
+LONG SetKeyControlFlags(HKEY key, ULONG flags)
+{
+    static const auto set_information = win32::ImportProc<NtSetInformationKeyFn>(L"ntdll.dll", "NtSetInformationKey");
+    return set_information ? DosError(set_information(RootHandle(key), kKeyControlFlagsInformation, &flags, sizeof(flags))) : ERROR_CALL_NOT_IMPLEMENTED;
 }
 
 LONG QueryValueCounted(HKEY key, const std::wstring& name, DWORD* type, BYTE* data, DWORD* size)

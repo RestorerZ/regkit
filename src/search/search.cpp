@@ -320,6 +320,7 @@ namespace
 struct RootContext
 {
     HKEY root = nullptr;
+    REGSAM view = 0;
     uint16_t source = 0;
     std::wstring root_name;
     std::wstring display_root;
@@ -418,6 +419,7 @@ RegistryNode TaskNode(const NodeTask& task)
     if (task.context)
     {
         node.root = task.context->root;
+        node.view = task.context->view;
         node.root_name = task.context->root_name;
         const std::wstring& base = task.context->base_subkey;
         if (!base.empty())
@@ -891,6 +893,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
         {
             auto context = std::make_unique<RootContext>();
             context->root = stores[i].root;
+            context->view = node.view;
             context->source = start.source;
             context->display_root = display_root;
             if (stores[i].base)

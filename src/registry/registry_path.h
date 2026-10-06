@@ -43,6 +43,9 @@ std::wstring BuildNative(const RegistryNode& node);
 bool InVolatileHive(std::wstring_view native_path);
 ClassSource ClassesSource(std::wstring_view native_path);
 std::wstring ClassesSourcePath(std::wstring_view native_path, std::wstring_view current_user_sid);
+// uac virtualization keeps per-user copies of HKLM\SOFTWARE keys in the virtual store, empty when the key has no such place
+std::wstring VirtualStorePath(std::wstring_view native_path);
+std::wstring GlobalKeyPath(std::wstring_view path);
 
 std::wstring Clean(std::wstring_view path);
 bool HasComponentPrefix(std::wstring_view path, std::wstring_view prefix);

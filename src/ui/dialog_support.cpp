@@ -411,6 +411,19 @@ bool Matches(const std::wstring& text, const std::wstring& filter)
     return filter.empty() || util::ContainsInsensitive(text, filter);
 }
 
+void SetComboItems(HWND combo, const std::vector<std::wstring>& items)
+{
+    if (!combo)
+    {
+        return;
+    }
+    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+    for (const auto& item : items)
+    {
+        SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item.c_str()));
+    }
+}
+
 void FitDroppedWidth(HWND combo)
 {
     if (!combo)

@@ -23,6 +23,8 @@ void RegisterListView(HWND owner, HWND list, int grid_command, ListHeaderMenuCal
 void ReleaseListViews(HWND owner);
 void LayoutListViews(HWND owner);
 void RefreshListView(HWND list);
+// widest of the cells and the header text, which LVSCW_AUTOSIZE_USEHEADER cuts short
+int FitListColumn(HWND list, int column);
 
 void SetListGridEnabled(bool enabled);
 void ReloadListGridIcons();

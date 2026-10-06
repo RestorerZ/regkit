@@ -188,6 +188,32 @@ ClassSource ClassesSource(std::wstring_view native_path)
     return util::ContainsInsensitive(native_path, L"_Classes") ? ClassSource::kUser : ClassSource::kNone;
 }
 
+namespace
+{
+
+constexpr std::wstring_view kVirtualStore = L"HKEY_CURRENT_USER\\Software\\Classes\\VirtualStore\\MACHINE\\";
+
+} // namespace
+
+std::wstring VirtualStorePath(std::wstring_view native_path)
+{
+    constexpr std::wstring_view kMachine = L"\\REGISTRY\\MACHINE\\";
+    if (!HasComponentPrefix(native_path, L"\\REGISTRY\\MACHINE\\SOFTWARE"))
+    {
+        return {};
+    }
+    return std::wstring(kVirtualStore) + std::wstring(native_path.substr(kMachine.size()));
+}
+
+std::wstring GlobalKeyPath(std::wstring_view path)
+{
+    if (path.size() <= kVirtualStore.size() || !util::StartsWithInsensitive(path, kVirtualStore))
+    {
+        return {};
+    }
+    return L"HKEY_LOCAL_MACHINE\\" + std::wstring(path.substr(kVirtualStore.size()));
+}
+
 std::wstring ClassesSourcePath(std::wstring_view native_path, std::wstring_view current_user_sid)
 {
     constexpr std::wstring_view kMachine = L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes";
@@ -290,6 +316,7 @@ RegistryNode ChildNode(const RegistryNode& parent, std::wstring_view name)
     RegistryNode child;
     child.root = parent.root;
     child.root_name = parent.root_name;
+    child.view = parent.view;
     child.subkey = JoinSubkey(parent.subkey, name);
     child.simulated = parent.simulated;
     return child;

@@ -160,19 +160,6 @@ bool ChooseColorFor(HWND owner, COLORREF* color, COLORREF* custom_colors)
     return true;
 }
 
-int CompareColorValue(COLORREF left, COLORREF right)
-{
-    if (left < right)
-    {
-        return -1;
-    }
-    if (left > right)
-    {
-        return 1;
-    }
-    return 0;
-}
-
 LRESULT CALLBACK ThemePresetListViewProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR)
 {
     if (message == WM_SETFOCUS || message == WM_KILLFOCUS)
@@ -253,7 +240,7 @@ int CALLBACK CompareColorListItems(LPARAM left_param, LPARAM right_param, int co
     {
         COLORREF left = preset->colors.*(kColorFields[left_index].member);
         COLORREF right = preset->colors.*(kColorFields[right_index].member);
-        result = CompareColorValue(left, right);
+        result = (left > right) - (left < right);
     }
     return result;
 }

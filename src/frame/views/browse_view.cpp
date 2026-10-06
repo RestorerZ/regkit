@@ -329,7 +329,7 @@ void MainWindow::Impl::WatchCurrentKey()
                       node->root != HKEY_PERFORMANCE_NLSTEXT;
     if (settings_.auto_refresh && live)
     {
-        key_watcher_.Watch(hwnd_, frame::message_id::kRegistryChanged, node->root, node->subkey);
+        key_watcher_.Watch(hwnd_, frame::message_id::kRegistryChanged, node->root, node->subkey, ViewOf(*node));
     }
     else
     {

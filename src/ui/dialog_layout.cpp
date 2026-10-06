@@ -145,7 +145,12 @@ void CenterWindow(HWND window, HWND owner)
     }
     const LONG width = rect.right - rect.left;
     const LONG height = rect.bottom - rect.top;
-    SetWindowPos(window, nullptr, target.left + std::max<LONG>(0, (target.right - target.left - width) / 2), target.top + std::max<LONG>(0, (target.bottom - target.top - height) / 2), 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+    MONITORINFO monitor = {sizeof(monitor)};
+    GetMonitorInfoW(MonitorFromRect(&target, MONITOR_DEFAULTTONEAREST), &monitor);
+    const RECT& work = monitor.rcWork;
+    const LONG x = std::clamp(target.left + (target.right - target.left - width) / 2, work.left, std::max(work.left, work.right - width));
+    const LONG y = std::clamp(target.top + (target.bottom - target.top - height) / 2, work.top, std::max(work.top, work.bottom - height));
+    SetWindowPos(window, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
 }
 
 static void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi)

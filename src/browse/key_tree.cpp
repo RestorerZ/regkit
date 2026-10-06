@@ -161,6 +161,7 @@ void RegistryTree::PopulateRoots(const std::vector<RegistryRootEntry>& roots)
 
         auto node = std::make_unique<RegistryNode>();
         node->root = root_entry.root;
+        node->view = root_entry.view;
         node->subkey = root_entry.subkey_prefix;
         node->root_name = root_entry.path_name;
         RegistryNode* stored = StoreNode(std::move(node));

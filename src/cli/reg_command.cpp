@@ -20,6 +20,8 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <memory>
+#include <optional>
 
 namespace regkit::cli
 {
@@ -88,6 +90,12 @@ void PrintError(const std::wstring& text)
     WriteTo(g_err, (prefixed ? text : L"ERROR: " + text) + L"\r\n");
 }
 
+void PrintSuccess()
+{
+    Print(L"The operation completed successfully.");
+    Print(L"");
+}
+
 int Fail(LONG status)
 {
     PrintError(status == ERROR_FILE_NOT_FOUND ? L"The system was unable to find the specified registry key or value." : util::FormatWin32Error(static_cast<DWORD>(status)));
@@ -98,31 +106,61 @@ struct KeyRef
 {
     HKEY root = nullptr;
     std::wstring subkey;
+    std::wstring path;
     std::wstring display;
+    std::shared_ptr<util::UniqueHKey> connection;
 };
 
-// split path into root/subkey & display form
+// [\\machine\]ROOT\subkey, remote machines expose HKLM and HKU only
 bool ParseKey(const std::wstring& text, KeyRef* key)
 {
     std::wstring_view view = text;
+    std::wstring machine;
+    if (view.starts_with(L"\\\\"))
+    {
+        view.remove_prefix(2);
+        const size_t end = view.find(L'\\');
+        machine = std::wstring(view.substr(0, end));
+        view = end == std::wstring_view::npos ? std::wstring_view() : view.substr(end + 1);
+    }
     while (!view.empty() && view.front() == L'\\')
     {
         view.remove_prefix(1);
     }
     const size_t split = view.find(L'\\');
     const std::wstring_view root_name = split == std::wstring_view::npos ? view : view.substr(0, split);
-    key->root = registry_path::RootFromName(root_name);
-    if (!key->root)
+    const HKEY root = registry_path::RootFromName(root_name);
+    if (!root)
     {
         PrintError(L"Invalid key name: " + text);
         return false;
     }
+    key->root = root;
     key->subkey = split == std::wstring_view::npos ? std::wstring() : std::wstring(view.substr(split + 1));
-    key->display = registry_path::RootName(key->root);
+    key->path = registry_path::RootName(root);
     if (!key->subkey.empty())
     {
-        key->display += L'\\';
-        key->display += key->subkey;
+        key->path += L'\\';
+        key->path += key->subkey;
+    }
+    key->display = key->path;
+    key->connection.reset();
+    if (!machine.empty() && machine != L".")
+    {
+        if (root != HKEY_LOCAL_MACHINE && root != HKEY_USERS)
+        {
+            PrintError(L"A remote machine was specified, the root key must be HKLM or HKU.");
+            return false;
+        }
+        key->connection = std::make_shared<util::UniqueHKey>();
+        const LONG status = RegConnectRegistryW((L"\\\\" + machine).c_str(), root, key->connection->put());
+        if (status != ERROR_SUCCESS)
+        {
+            Fail(status);
+            return false;
+        }
+        key->root = key->connection->get();
+        key->display = L"\\\\" + machine + L"\\" + key->path;
     }
     return true;
 }
@@ -131,10 +169,10 @@ using reg_exe::IsSwitch;
 using reg_exe::Options;
 using reg_exe::TypeName;
 
-bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, bool separator_switch = false)
+bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, reg_exe::Verb verb = reg_exe::Verb::kOther)
 {
     std::wstring error;
-    if (!reg_exe::ParseOptions(args, first, options, positional, separator_switch, &error))
+    if (!reg_exe::ParseOptions(args, first, options, positional, verb, &error))
     {
         PrintError(error);
         return false;
@@ -142,7 +180,7 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* 
     return true;
 }
 
-std::wstring FormatData(DWORD type, const BYTE* data, DWORD size)
+std::wstring FormatData(DWORD type, const BYTE* data, DWORD size, const std::wstring& separator = L"\\0")
 {
     switch (type)
     {
@@ -164,7 +202,7 @@ std::wstring FormatData(DWORD type, const BYTE* data, DWORD size)
             {
                 if (!joined.empty())
                 {
-                    joined += L"\\0";
+                    joined += separator;
                 }
                 joined += item;
             }
@@ -202,8 +240,14 @@ KeyRef ChildRef(const KeyRef& parent, const std::wstring& name)
 {
     KeyRef child = parent;
     child.subkey = registry_path::JoinSubkey(parent.subkey, name);
+    child.path = parent.path + L"\\" + name;
     child.display = parent.display + L"\\" + name;
     return child;
+}
+
+std::wstring ValueName(const RegistryValue& value)
+{
+    return value.name.empty() ? std::wstring(L"(Default)") : value.name;
 }
 
 using registry_backend::KeyContents;
@@ -222,47 +266,136 @@ void SelectValue(const Options& options, std::vector<RegistryValue>* values)
     }
 }
 
-int QueryKey(const KeyRef& key, const Options& options, bool recurse, bool* matched)
+// * & ? wildcards, the way reg query /f matches
+bool WildcardMatch(std::wstring_view text, std::wstring_view pattern, bool case_sensitive)
 {
+    auto same = [case_sensitive](wchar_t a, wchar_t b) { return case_sensitive ? a == b : towupper(a) == towupper(b); };
+    size_t t = 0;
+    size_t p = 0;
+    size_t star = std::wstring_view::npos;
+    size_t resume = 0;
+    while (t < text.size())
+    {
+        if (p < pattern.size() && (pattern[p] == L'?' || same(pattern[p], text[t])))
+        {
+            ++t;
+            ++p;
+        }
+        else if (p < pattern.size() && pattern[p] == L'*')
+        {
+            star = p++;
+            resume = t;
+        }
+        else if (star != std::wstring_view::npos)
+        {
+            p = star + 1;
+            t = ++resume;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    while (p < pattern.size() && pattern[p] == L'*')
+    {
+        ++p;
+    }
+    return p == pattern.size();
+}
+
+struct Query
+{
+    const Options& options;
+    std::vector<DWORD> types;
+    bool search_keys = false;
+    bool search_names = false;
+    bool search_data = false;
+    size_t matches = 0;
+    bool found_value = false;
+
+    bool Matches(const std::wstring& text) const
+    {
+        if (options.exact)
+        {
+            return options.case_sensitive ? text == options.find : util::EqualsInsensitive(text, options.find);
+        }
+        return WildcardMatch(text, L"*" + options.find + L"*", options.case_sensitive);
+    }
+    bool Matches(const RegistryValue& value) const
+    {
+        if (search_names && Matches(value.name))
+        {
+            return true;
+        }
+        if (!search_data)
+        {
+            return false;
+        }
+        // numbers are searched in decimal, as reg.exe does
+        if ((value.type == REG_DWORD || value.type == REG_QWORD) && value.data.size() >= (value.type == REG_DWORD ? 4u : 8u))
+        {
+            unsigned long long number = 0;
+            memcpy(&number, value.data.data(), value.type == REG_DWORD ? 4 : 8);
+            return Matches(std::to_wstring(number));
+        }
+        return Matches(FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size()), options.separator));
+    }
+};
+
+void PrintHeader(const KeyRef& key)
+{
+    Print(L"");
+    Print(key.display);
+}
+
+int QueryKey(const KeyRef& key, Query& query, bool name_matched)
+{
+    const Options& options = query.options;
     KeyContents contents;
     const LONG status = ReadKey(key, options.view, true, &contents);
     if (status != ERROR_SUCCESS)
     {
         return Fail(status);
     }
-    Print(key.display);
     SelectValue(options, &contents.values);
+    std::erase_if(contents.values, [&](const RegistryValue& value) {
+        return (!query.types.empty() && std::find(query.types.begin(), query.types.end(), value.type) == query.types.end()) ||
+               (options.has_find && !query.Matches(value));
+    });
     // keep unnamed default value at the top of the output
     std::stable_partition(contents.values.begin(), contents.values.end(), [](const RegistryValue& value) { return value.name.empty(); });
-    for (const RegistryValue& value : contents.values)
+    const bool listing = !options.has_find && !options.has_value;
+    if (listing || name_matched || !contents.values.empty())
     {
-        Print(L"    " + (value.name.empty() ? std::wstring(L"(Default)") : value.name) + L"    " + TypeName(value.type) + L"    " + FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size())));
-    }
-    const bool printed = !contents.values.empty();
-    if (printed && matched)
-    {
-        *matched = true;
-    }
-    if (!options.has_value || printed)
-    {
+        Print(key.display);
+        for (const RegistryValue& value : contents.values)
+        {
+            const std::wstring type = TypeName(value.type) + (options.verbose ? L" (" + std::to_wstring(value.type) + L")" : std::wstring());
+            Print(L"    " + ValueName(value) + L"    " + type + L"    " + FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size()), options.separator));
+        }
         Print(L"");
     }
-    if (!options.has_value && !recurse)
+    query.found_value = query.found_value || !contents.values.empty();
+    query.matches += contents.values.size() + (name_matched ? 1 : 0);
+    if (listing && !options.recurse)
     {
         for (const auto& child : contents.subkeys)
         {
-            Print(key.display + L'\\' + child);
+            Print(ChildRef(key, child).display);
         }
-        if (!contents.subkeys.empty())
-        {
-            Print(L"");
-        }
+        return kOk;
     }
-    if (recurse)
+    for (const auto& child : contents.subkeys)
     {
-        for (const auto& child : contents.subkeys)
+        const bool child_matched = options.has_find && query.search_keys && query.Matches(child);
+        if (options.recurse)
         {
-            QueryKey(ChildRef(key, child), options, true, matched);
+            QueryKey(ChildRef(key, child), query, child_matched);
+        }
+        else if (child_matched)
+        {
+            Print(ChildRef(key, child).display);
+            ++query.matches;
         }
     }
     return kOk;
@@ -272,7 +405,7 @@ int CmdQuery(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional))
+    if (!ParseOptions(args, 1, &options, &positional, reg_exe::Verb::kQuery))
     {
         return kFailed;
     }
@@ -281,7 +414,7 @@ int CmdQuery(const std::vector<std::wstring>& args)
         PrintError(L"reg query requires a key name.");
         return kFailed;
     }
-    if (positional.size() > 1)
+    if (positional.size() > 1 || (options.value_names && !options.has_find) || ((options.keys_only || options.data_only || options.case_sensitive || options.exact) && !options.has_find))
     {
         PrintError(L"Invalid syntax.");
         return kFailed;
@@ -291,21 +424,48 @@ int CmdQuery(const std::vector<std::wstring>& args)
     {
         return kFailed;
     }
-    bool matched = false;
-    const int result = QueryKey(key, options, options.recurse, &matched);
-    // key can exist even when the value requested with /v or /ve doesn't
-    if (result == kOk && options.has_value && !matched)
+    Query query{options};
+    for (size_t start = 0; !options.type_text.empty() && start <= options.type_text.size();)
     {
+        const size_t end = std::min(options.type_text.find(L',', start), options.type_text.size());
+        DWORD type = REG_NONE;
+        if (!reg_exe::ParseType(std::wstring_view(options.type_text).substr(start, end - start), &type))
+        {
+            PrintError(L"Invalid type: " + options.type_text);
+            return kFailed;
+        }
+        query.types.push_back(type);
+        start = end + 1;
+    }
+    const bool scoped = options.keys_only || options.value_names || options.data_only;
+    query.search_keys = !scoped || options.keys_only;
+    query.search_names = !scoped || options.value_names;
+    query.search_data = !scoped || options.data_only;
+    Print(L"");
+    const int result = QueryKey(key, query, false);
+    if (result != kOk)
+    {
+        return result;
+    }
+    if (options.has_find)
+    {
+        Print(L"End of search: " + std::to_wstring(query.matches) + L" match(es) found.");
+        return query.matches ? kOk : kFailed;
+    }
+    // key can exist even when the value requested with /v or /ve doesn't
+    if (options.has_value && !query.found_value)
+    {
+        Print(L"");
         return Fail(ERROR_FILE_NOT_FOUND);
     }
-    return result;
+    return kOk;
 }
 
 int CmdAdd(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional, true))
+    if (!ParseOptions(args, 1, &options, &positional, reg_exe::Verb::kAdd))
     {
         return kFailed;
     }
@@ -363,7 +523,7 @@ int CmdAdd(const std::vector<std::wstring>& args)
             return Fail(status);
         }
     }
-    Print(L"The operation completed successfully.");
+    PrintSuccess();
     return kOk;
 }
 
@@ -418,7 +578,7 @@ int CmdDelete(const std::vector<std::wstring>& args)
         {
             return Fail(status);
         }
-        Print(L"The operation completed successfully.");
+        PrintSuccess();
         return kOk;
     }
 
@@ -443,7 +603,7 @@ int CmdDelete(const std::vector<std::wstring>& args)
     {
         return Fail(status);
     }
-    Print(L"The operation completed successfully.");
+    PrintSuccess();
     return kOk;
 }
 
@@ -493,7 +653,7 @@ int CmdCopy(const std::vector<std::wstring>& args)
     {
         return Fail(status);
     }
-    Print(L"The operation completed successfully.");
+    PrintSuccess();
     return kOk;
 }
 
@@ -554,7 +714,7 @@ int CmdExport(const std::vector<std::wstring>& args)
         PrintError(error.empty() ? L"Export failed." : error);
         return kFailed;
     }
-    Print(L"The operation completed successfully.");
+    PrintSuccess();
     return kOk;
 }
 
@@ -571,7 +731,7 @@ int CmdImport(const std::vector<std::wstring>& args)
         PrintError(error.empty() ? L"Import failed." : error);
         return kFailed;
     }
-    Print(L"The operation completed successfully.");
+    PrintSuccess();
     return kOk;
 }
 
@@ -603,7 +763,7 @@ int CmdSave(const std::vector<std::wstring>& args)
     {
         return Fail(status);
     }
-    Print(L"The operation completed successfully.");
+    PrintSuccess();
     return kOk;
 }
 
@@ -630,7 +790,7 @@ int CmdRestore(const std::vector<std::wstring>& args)
     {
         return Fail(status);
     }
-    Print(L"The operation completed successfully.");
+    PrintSuccess();
     return kOk;
 }
 
@@ -652,7 +812,7 @@ int CmdLoad(const std::vector<std::wstring>& args)
     {
         return Fail(status);
     }
-    Print(L"The operation completed successfully.");
+    PrintSuccess();
     return kOk;
 }
 
@@ -674,83 +834,114 @@ int CmdUnload(const std::vector<std::wstring>& args)
     {
         return Fail(status);
     }
-    Print(L"The operation completed successfully.");
+    PrintSuccess();
     return kOk;
 }
 
-int CompareKeys(const KeyRef& left, const KeyRef& right, const Options& options, bool* differs)
+struct Compare
 {
+    const Options& options;
+    bool differs = false;
+
+    // = equal, < only or different on the left, > on the right; /oa /od /os /on pick which lines print
+    void Line(wchar_t mark, const KeyRef& key, const RegistryValue* value)
+    {
+        const bool equal = mark == L'=';
+        differs = differs || !equal;
+        const wchar_t output = options.compare_output;
+        if (output == L'n' || (output == L'd' && equal) || (output == L's' && !equal))
+        {
+            return;
+        }
+        std::wstring line(1, mark);
+        if (value)
+        {
+            line += L" Value: " + key.display + L"  " + ValueName(*value) + L" " + TypeName(value->type) + L" " + FormatData(value->type, value->data.data(), static_cast<DWORD>(value->data.size()));
+        }
+        else
+        {
+            line += L" Key: " + key.display;
+        }
+        Print(line);
+    }
+};
+
+int CompareKeys(const KeyRef& left, const KeyRef& right, Compare& compare, bool top)
+{
+    const Options& options = compare.options;
     KeyContents left_contents;
     KeyContents right_contents;
     const LONG left_status = ReadKey(left, options.view, true, &left_contents);
     const LONG right_status = ReadKey(right, options.view, true, &right_contents);
-    for (const auto& [status, ref] : {std::pair<LONG, const KeyRef*>{left_status, &left}, {right_status, &right}})
+    for (const LONG status : {left_status, right_status})
     {
-        if (status != ERROR_SUCCESS && status != ERROR_FILE_NOT_FOUND)
+        if (status != ERROR_SUCCESS)
         {
-            PrintError(L"The system was unable to open " + ref->display + L".");
-            return kFailed;
+            return Fail(status);
         }
-    }
-    const bool left_exists = left_status == ERROR_SUCCESS;
-    const bool right_exists = right_status == ERROR_SUCCESS;
-    if (!left_exists && !right_exists)
-    {
-        return kOk;
-    }
-    if (left_exists != right_exists)
-    {
-        Print(left_exists ? L"< " + left.display : L"> " + right.display);
-        *differs = true;
     }
     SelectValue(options, &left_contents.values);
     SelectValue(options, &right_contents.values);
-    auto find = [](const std::vector<RegistryValue>& list, const std::wstring& name) -> const RegistryValue* {
-        const auto found = std::find_if(list.begin(), list.end(), [&](const RegistryValue& value) {
-            return util::EqualsInsensitive(value.name, name);
-        });
+    if (top && options.has_value && (left_contents.values.empty() || right_contents.values.empty()))
+    {
+        return Fail(ERROR_FILE_NOT_FOUND);
+    }
+    auto find_value = [](const std::vector<RegistryValue>& list, const std::wstring& name) -> const RegistryValue* {
+        const auto found = std::find_if(list.begin(), list.end(), [&](const RegistryValue& value) { return util::EqualsInsensitive(value.name, name); });
         return found == list.end() ? nullptr : &*found;
     };
     for (const RegistryValue& value : left_contents.values)
     {
-        const RegistryValue* other = find(right_contents.values, value.name);
-        if (!other)
+        const RegistryValue* other = find_value(right_contents.values, value.name);
+        if (other && other->type == value.type && other->data == value.data)
         {
-            Print(L"< " + left.display + L"    " + value.name);
-            *differs = true;
+            compare.Line(L'=', left, &value);
+            continue;
         }
-        else if (other->type != value.type || other->data != value.data)
+        compare.Line(L'<', left, &value);
+        if (other)
         {
-            Print(L"< " + left.display + L"    " + value.name + L"    " + FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size())));
-            Print(L"> " + right.display + L"    " + other->name + L"    " + FormatData(other->type, other->data.data(), static_cast<DWORD>(other->data.size())));
-            *differs = true;
+            compare.Line(L'>', right, other);
         }
     }
     for (const RegistryValue& value : right_contents.values)
     {
-        if (!find(left_contents.values, value.name))
+        if (!find_value(left_contents.values, value.name))
         {
-            Print(L"> " + right.display + L"    " + value.name);
-            *differs = true;
+            compare.Line(L'>', right, &value);
         }
     }
     if (!options.recurse)
     {
         return kOk;
     }
-    // go through both child lists so keys found on only one side are still compared
-    std::vector<std::wstring> children = std::move(left_contents.subkeys);
-    children.insert(children.end(), right_contents.subkeys.begin(), right_contents.subkeys.end());
-    std::sort(children.begin(), children.end(), [](const std::wstring& a, const std::wstring& b) { return util::CompareInsensitive(a, b) < 0; });
-    children.erase(
-        std::unique(children.begin(), children.end(), [](const std::wstring& a, const std::wstring& b) { return util::EqualsInsensitive(a, b); }),
-        children.end()
-    );
-    for (const std::wstring& child : children)
+    auto has_child = [](const std::vector<std::wstring>& list, const std::wstring& name) {
+        return std::any_of(list.begin(), list.end(), [&](const std::wstring& item) { return util::EqualsInsensitive(item, name); });
+    };
+    // keys on both sides first, then keys found on one side only, which aren't descended into
+    for (const std::wstring& child : left_contents.subkeys)
     {
-        if (CompareKeys(ChildRef(left, child), ChildRef(right, child), options, differs) == kFailed)
+        if (has_child(right_contents.subkeys, child))
         {
-            return kFailed;
+            compare.Line(L'=', ChildRef(left, child), nullptr);
+            if (CompareKeys(ChildRef(left, child), ChildRef(right, child), compare, false) == kFailed)
+            {
+                return kFailed;
+            }
+        }
+    }
+    for (const std::wstring& child : left_contents.subkeys)
+    {
+        if (!has_child(right_contents.subkeys, child))
+        {
+            compare.Line(L'<', ChildRef(left, child), nullptr);
+        }
+    }
+    for (const std::wstring& child : right_contents.subkeys)
+    {
+        if (!has_child(left_contents.subkeys, child))
+        {
+            compare.Line(L'>', ChildRef(right, child), nullptr);
         }
     }
     return kOk;
@@ -764,34 +955,136 @@ int CmdCompare(const std::vector<std::wstring>& args)
     {
         return kFailed;
     }
-    if (positional.size() < 2)
+    if (positional.size() != 2)
     {
-        PrintError(L"reg compare requires two key names.");
+        PrintError(positional.size() < 2 ? L"reg compare requires two key names." : L"Invalid syntax.");
         return kFailed;
     }
     KeyRef left;
     KeyRef right;
-    if (!ParseKey(positional[0], &left) || !ParseKey(positional[1], &right))
+    // a bare \\machine as the second key means the first key's path on that machine
+    std::wstring second = positional[1];
+    if (second.starts_with(L"\\\\") && second.find(L'\\', 2) == std::wstring::npos && ParseKey(positional[0], &left))
+    {
+        second += L"\\" + left.path;
+    }
+    if (!ParseKey(positional[0], &left) || !ParseKey(second, &right))
     {
         return kFailed;
     }
-
-    KeyContents probe;
-    if (ReadKey(left, options.view, false, &probe) != ERROR_SUCCESS &&
-        ReadKey(right, options.view, false, &probe) != ERROR_SUCCESS)
+    if (util::EqualsInsensitive(left.display, right.display))
     {
-        PrintError(L"The system was unable to open " + left.display + L".");
+        PrintError(L"The registry entry is being compared with itself.");
         return kFailed;
     }
-
-    bool differs = false;
-    if (CompareKeys(left, right, options, &differs) == kFailed)
+    Compare compare{options};
+    if (CompareKeys(left, right, compare, true) == kFailed)
     {
         return kFailed;
     }
-    Print(differs ? L"Result Compared: Different" : L"Result Compared: Identical");
+    Print(L"");
+    Print(compare.differs ? L"Result Compared:  Different" : L"Result Compared:  Identical");
+    PrintSuccess();
     // reg.exe exit code 2 = keys are different
-    return differs ? 2 : kOk;
+    return compare.differs ? 2 : kOk;
+}
+
+struct ControlFlag
+{
+    const wchar_t* name;
+    ULONG bit;
+};
+
+constexpr ControlFlag kControlFlags[] = {
+    {L"DONT_VIRTUALIZE", util::kKeyDontVirtualize},
+    {L"DONT_SILENT_FAIL", util::kKeyDontSilentFail},
+    {L"RECURSE_FLAG", util::kKeyRecurseFlag},
+};
+
+LONG ApplyFlags(const KeyRef& key, const Options& options, std::optional<ULONG> set)
+{
+    util::UniqueHKey handle;
+    LONG status = util::OpenRegistryPath(key.root, key.subkey, KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS | (set ? KEY_SET_VALUE : 0) | options.view, false, &handle);
+    if (status != ERROR_SUCCESS)
+    {
+        return status;
+    }
+    if (set)
+    {
+        status = util::SetKeyControlFlags(handle.get(), *set);
+    }
+    else
+    {
+        const ULONG flags = util::QueryNativeKeyInfo(handle.get()).control_flags.value_or(0);
+        PrintHeader(key);
+        for (const ControlFlag& flag : kControlFlags)
+        {
+            Print(std::wstring(L"\tREG_KEY_") + flag.name + ((flags & flag.bit) ? L": SET" : L": CLEAR"));
+        }
+    }
+    if (status != ERROR_SUCCESS || !options.recurse)
+    {
+        return status;
+    }
+    KeyContents contents;
+    status = ReadKey(key, options.view, false, &contents);
+    for (size_t index = 0; status == ERROR_SUCCESS && index < contents.subkeys.size(); ++index)
+    {
+        status = ApplyFlags(ChildRef(key, contents.subkeys[index]), options, set);
+    }
+    return status;
+}
+
+int CmdFlags(const std::vector<std::wstring>& args)
+{
+    Options options;
+    std::vector<std::wstring> positional;
+    if (!ParseOptions(args, 1, &options, &positional))
+    {
+        return kFailed;
+    }
+    if (positional.size() < 2 || (util::EqualsInsensitive(positional[1], L"QUERY") ? positional.size() != 2 : !util::EqualsInsensitive(positional[1], L"SET")))
+    {
+        PrintError(L"Invalid syntax.");
+        return kFailed;
+    }
+    KeyRef key;
+    if (!ParseKey(positional[0], &key))
+    {
+        return kFailed;
+    }
+    const std::wstring_view first = std::wstring_view(key.subkey).substr(0, key.subkey.find(L'\\'));
+    if (key.connection || key.root != HKEY_LOCAL_MACHINE || !util::EqualsInsensitive(first, L"Software"))
+    {
+        PrintError(L"This operation can only be performed on subkeys of HKLM\\Software.");
+        return kFailed;
+    }
+    std::optional<ULONG> set;
+    if (util::EqualsInsensitive(positional[1], L"SET"))
+    {
+        set = 0;
+        for (size_t index = 2; index < positional.size(); ++index)
+        {
+            const auto flag = std::find_if(std::begin(kControlFlags), std::end(kControlFlags), [&](const ControlFlag& entry) { return util::EqualsInsensitive(positional[index], entry.name); });
+            if (flag == std::end(kControlFlags))
+            {
+                PrintError(L"Invalid syntax.");
+                return kFailed;
+            }
+            *set |= flag->bit;
+        }
+    }
+    const LONG status = ApplyFlags(key, options, set);
+    if (status != ERROR_SUCCESS)
+    {
+        return Fail(status);
+    }
+    if (!set)
+    {
+        Print(L"");
+    }
+    PrintSuccess();
+    return kOk;
 }
 
 int CmdConvert(const std::vector<std::wstring>& args)
@@ -831,7 +1124,7 @@ int CmdConvert(const std::vector<std::wstring>& args)
         PrintError(L"Failed to write " + positional[1]);
         return kFailed;
     }
-    Print(L"The operation completed successfully.");
+    PrintSuccess();
     return skipped.empty() ? kOk : kFailed;
 }
 
@@ -849,13 +1142,16 @@ void PrintUsage()
           L"reg.exe compatible (the leading \"reg\" is optional):\n"
           L"  add <key> [/v name | /ve] [/t type] [/s sep] [/d data] [/f]\n"
           L"  delete <key> [/v name | /ve | /va] [/f]\n"
-          L"  query <key> [/v name | /ve] [/s]\n"
+          L"  query <key> [/v [name] | /ve] [/s] [/f data [/k] [/d] [/c] [/e]]\n"
+          L"        [/t type[,type]] [/z] [/se separator]\n"
           L"  copy <src> <dst> [/s] [/f]\n"
           L"  export <key> <file.reg> [/y]\n"
           L"  import <file.reg>\n"
           L"  save <key> <file.hiv> [/y]      restore <key> <file.hiv>\n"
           L"  load <key> <file.hiv>           unload <key>\n"
-          L"  compare <key1> <key2> [/s]\n"
+          L"  compare <key1> <key2> [/v name | /ve] [/oa | /od | /os | /on] [/s]\n"
+          L"  flags <HKLM\\Software\\key> [QUERY | SET [DONT_VIRTUALIZE]\n"
+          L"        [DONT_SILENT_FAIL] [RECURSE_FLAG]] [/s]\n"
           L"  /reg:32 | /reg:64               pick the registry view\n"
           L"\n"
           L"RegKit additions:\n"
@@ -877,8 +1173,8 @@ void PrintUsage()
           L"  regkit --restart-ti             relaunch as TrustedInstaller\n"
           L"  regkit --help                   show this text\n"
           L"\n"
-          L"Key names accept HKLM, HKCU, HKCR, HKU, HKCC and their full forms.\n"
-          L"reg flags isn't implemented, every other verb above is.");
+          L"Key names accept HKLM, HKCU, HKCR, HKU, HKCC and their full forms,\n"
+          L"and \\\\machine\\HKLM or \\\\machine\\HKU for a remote registry.");
 }
 
 int RunVerb(const std::wstring& verb, const std::vector<std::wstring>& args)
@@ -900,6 +1196,7 @@ int RunVerb(const std::wstring& verb, const std::vector<std::wstring>& args)
         {L"load", CmdLoad},
         {L"unload", CmdUnload},
         {L"compare", CmdCompare},
+        {L"flags", CmdFlags},
         {L"convert", CmdConvert},
     };
     for (const Verb& entry : kVerbs)
@@ -908,11 +1205,6 @@ int RunVerb(const std::wstring& verb, const std::vector<std::wstring>& args)
         {
             return entry.run(args);
         }
-    }
-    if (util::EqualsInsensitive(verb, L"flags"))
-    {
-        PrintError(L"reg flags isn't implemented.");
-        return kFailed;
     }
     return -1;
 }

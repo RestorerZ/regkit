@@ -10,6 +10,7 @@
 #include "ui/dialog_layout.h"
 #include "ui/dialog_support.h"
 #include "ui/feedback.h"
+#include "ui/list_view_support.h"
 
 #include "resource.h"
 #include "win32/text_transform.h"
@@ -83,10 +84,26 @@ int IndexOfDecoder(const std::vector<DecoderEntry>& entries, DecoderId id)
     return 0;
 }
 
-void ShowOutput(HWND dialog, State* state, std::wstring text)
+void ShowOutput(HWND dialog, State* state, std::wstring text, const std::vector<value_decoder::Field>* fields = nullptr)
 {
     state->output = std::move(text);
-    SetDlgItemTextW(dialog, IDC_EDIT, state->output.c_str());
+    SetDlgItemTextW(dialog, IDC_EDIT, fields ? L"" : state->output.c_str());
+    const HWND list = GetDlgItem(dialog, IDC_DECODE_FIELDS);
+    SendMessageW(list, WM_SETREDRAW, FALSE, 0);
+    ListView_DeleteAllItems(list);
+    for (size_t i = 0; fields && i < fields->size(); ++i)
+    {
+        LVITEMW item = {LVIF_TEXT, static_cast<int>(i)};
+        item.pszText = const_cast<wchar_t*>((*fields)[i].name.c_str());
+        ListView_InsertItem(list, &item);
+        ListView_SetItemText(list, static_cast<int>(i), 1, const_cast<wchar_t*>((*fields)[i].value.c_str()));
+    }
+    appearance::FitListColumn(list, 0);
+    ListView_SetColumnWidth(list, 1, LVSCW_AUTOSIZE_USEHEADER);
+    SendMessageW(list, WM_SETREDRAW, TRUE, 0);
+    ShowWindow(list, fields ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(dialog, IDC_EDIT), fields ? SW_HIDE : SW_SHOW);
+    appearance::LayoutListViews(dialog);
 }
 
 void RunDecoder(HWND dialog, State* state)
@@ -109,17 +126,19 @@ void RunDecoder(HWND dialog, State* state)
     {
         text.append(field.name).append(L": ").append(field.value).append(L"\r\n");
     }
-    if (id == DecoderId::kRawBytes)
+    if (id != DecoderId::kRawBytes)
     {
-        // cap formatted preview so large registry values stay responsive
-        const size_t shown = std::min(bytes.size(), kRawBytePreviewLimit);
-        const std::span<const BYTE> span(bytes.data(), shown);
-        text.append(L"\r\n").append(util::ToHex(span, L' ', true));
-        text.append(L"\r\n\r\n").append(binary_text::Preview(span, 1, false));
-        if (shown != bytes.size())
-        {
-            text.append(L"\r\n\r\n").append(util::TrLabel(L"Bytes shown", std::to_wstring(shown)));
-        }
+        ShowOutput(dialog, state, std::move(text), &decoded.fields);
+        return;
+    }
+    // cap formatted preview so large registry values stay responsive
+    const size_t shown = std::min(bytes.size(), kRawBytePreviewLimit);
+    const std::span<const BYTE> span(bytes.data(), shown);
+    text.append(L"\r\n").append(util::ToHex(span, L' ', true));
+    text.append(L"\r\n\r\n").append(binary_text::Preview(span, 1, false));
+    if (shown != bytes.size())
+    {
+        text.append(L"\r\n\r\n").append(util::TrLabel(L"Bytes shown", std::to_wstring(shown)));
     }
     ShowOutput(dialog, state, std::move(text));
 }
@@ -194,6 +213,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         {
             SendDlgItemMessageW(dialog, IDC_EDIT, WM_SETFONT, reinterpret_cast<WPARAM>(state->mono_font), TRUE);
         }
+        dialog_support::SetupListView(GetDlgItem(dialog, IDC_DECODE_FIELDS), 0, {{util::Tr(L"Property"), 140}, {util::Tr(L"Value"), 200}});
         using namespace appearance;
         state->resizer.Attach(dialog, {
                                           {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
@@ -201,6 +221,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
                                           {IDC_DECODE_ENCODING, kAnchorLeft | kAnchorTop},
                                           {IDC_DECODE_FORMAT, kAnchorLeft | kAnchorTop},
                                           {IDC_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
+                                          {IDC_DECODE_FIELDS, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
                                           {IDOK, kAnchorRight | kAnchorBottom},
                                           {IDCANCEL, kAnchorRight | kAnchorBottom},
                                       });
@@ -209,6 +230,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     }
     if (message == WM_DESTROY)
     {
+        appearance::ReleaseListViews(dialog);
         if (state)
         {
             dialog_support::ReleaseFont(&state->mono_font);
@@ -216,16 +238,31 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         }
         return TRUE;
     }
+    if (message == WM_SIZE && state)
+    {
+        state->resizer.Apply(dialog);
+        appearance::LayoutListViews(dialog);
+        return TRUE;
+    }
     INT_PTR themed = 0;
     if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed, state ? &state->resizer : nullptr))
     {
         return themed;
+    }
+    if (message == WM_NOTIFY)
+    {
+        INT_PTR result = 0;
+        return dialog_support::HandleListViewNotify(dialog, reinterpret_cast<NMHDR*>(lparam), &result) ? result : FALSE;
     }
     if (message != WM_COMMAND || !state)
     {
         return FALSE;
     }
     const int id = LOWORD(wparam);
+    if (appearance::HandleListViewCommand(dialog, id))
+    {
+        return TRUE;
+    }
     if (HIWORD(wparam) == CBN_SELCHANGE)
     {
         if (id == IDC_DECODE_ENCODING)

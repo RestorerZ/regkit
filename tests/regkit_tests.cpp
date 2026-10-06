@@ -6,6 +6,7 @@
 #include "regfile/reg_file.h"
 #include "registry/hive_files.h"
 #include "registry/registry_path.h"
+#include "registry/resource_list.h"
 #include "registry/value_format.h"
 #include "search/compare.h"
 #include "search/search.h"
@@ -38,6 +39,10 @@ void RegistryPath()
     CHECK(registry_path::Normalize(L"[HKLM\\Software]") == L"HKEY_LOCAL_MACHINE\\Software");
     CHECK(registry_path::Normalize(L"Computer\\HKEY_CURRENT_USER\\Console") == L"HKEY_CURRENT_USER\\Console");
     CHECK(registry_path::Normalize(L"\\REGISTRY\\MACHINE\\SYSTEM") == L"HKEY_LOCAL_MACHINE\\SYSTEM");
+    CHECK(registry_path::VirtualStorePath(L"\\REGISTRY\\MACHINE\\SOFTWARE\\WOW6432Node\\App") == L"HKEY_CURRENT_USER\\Software\\Classes\\VirtualStore\\MACHINE\\SOFTWARE\\WOW6432Node\\App");
+    CHECK(registry_path::VirtualStorePath(L"\\REGISTRY\\MACHINE\\SOFTWAREX").empty() && registry_path::VirtualStorePath(L"\\REGISTRY\\MACHINE\\SYSTEM").empty());
+    CHECK(registry_path::GlobalKeyPath(L"HKEY_CURRENT_USER\\Software\\Classes\\VirtualStore\\MACHINE\\SOFTWARE\\App") == L"HKEY_LOCAL_MACHINE\\SOFTWARE\\App");
+    CHECK(registry_path::GlobalKeyPath(L"HKEY_CURRENT_USER\\Software").empty());
     CHECK(registry_path::Normalize(L"\\REGISTRY\\USER\\S-1-5-21-1\\Software", L"S-1-5-21-1") == L"HKEY_CURRENT_USER\\Software");
     CHECK(registry_path::Normalize(L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes\\.txt") == L"HKEY_LOCAL_MACHINE\\SOFTWARE\\Classes\\.txt");
     CHECK(registry_path::Normalize(L"Registry::HKCU\\Console") == L"HKEY_CURRENT_USER\\Console");
@@ -227,6 +232,28 @@ void Trace()
     CHECK(other == services);
 }
 
+void ResourceList()
+{
+    // Physical Memory\.Translated from an x64 machine: one descriptor, seven memory ranges and one large range
+    const std::string hex = "0100000000000000000000000000000008000000030100000010000000000000"
+                            "00F009000000000003010000000010000000000000F0C1090000000003010000"
+                            "0000000A0000000000002000000000000301000000E0200A000000000020DF00"
+                            "00000000030100000000020B00000000008025B80000000003010000009027C3"
+                            "0000000000302407000000000301000000F09FCB000000000010600100000000"
+                            "07010002000000000100000000302F0700000000";
+    std::vector<BYTE> data;
+    for (size_t i = 0; i + 1 < hex.size(); i += 2)
+    {
+        data.push_back(static_cast<BYTE>(std::stoi(hex.substr(i, 2), nullptr, 16)));
+    }
+    const auto tables = resource_list::Decode(REG_RESOURCE_LIST, data.data(), data.size());
+    CHECK(tables && tables->size() == 2);
+    CHECK(tables && tables->front().rows.size() == 1 && tables->front().rows[0].back() == L"8");
+    CHECK(tables && (*tables)[1].rows.size() == 8 && (*tables)[1].rows[0][0] == L"0x0000000000001000" && (*tables)[1].rows[0][1] == L"0x0009F000");
+    CHECK(tables && (*tables)[1].rows[7][0] == L"0x0000000100000000" && (*tables)[1].rows[7][1] == L"0x000000072F300000");
+    CHECK(!resource_list::Decode(REG_RESOURCE_LIST, data.data(), 40));
+}
+
 } // namespace
 
 int main()
@@ -239,6 +266,7 @@ int main()
     Search();
     Compare();
     Trace();
+    ResourceList();
     std::printf(failures ? "%d failed\n" : "all passed\n", failures);
     return failures ? 1 : 0;
 }

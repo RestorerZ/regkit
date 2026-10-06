@@ -133,7 +133,7 @@ bool RegistryStore::QuerySymbolicLinkTarget(const RegistryNode& node, std::wstri
                : registry_backend::live::QuerySymbolicLinkTarget(node, target, denied);
 }
 
-KeyInspection RegistryStore::InspectKey(const RegistryNode& node, bool want_info)
+KeyInspection RegistryStore::InspectKey(const RegistryNode& node, bool want_info, bool want_source)
 {
     KeyInspection result;
     if (FindRoot(node.root) || registry_backend::offline::Owns(node.root))
@@ -143,7 +143,7 @@ KeyInspection RegistryStore::InspectKey(const RegistryNode& node, bool want_info
     }
     else
     {
-        result = registry_backend::live::InspectKey(node, want_info);
+        result = registry_backend::live::InspectKey(node, want_info, want_source);
     }
     if (want_info && !result.info_valid)
     {
@@ -204,6 +204,13 @@ bool RegistryStore::QueryValue(const RegistryNode& node, const std::wstring& val
         [&] { return registry_backend::offline::QueryValue(node, value_name, out); },
         [&] { return registry_backend::live::QueryValue(node, value_name, out); }
     );
+}
+
+LONG RegistryStore::SetKeyControlFlags(const RegistryNode& node, ULONG flags)
+{
+    util::UniqueHKey key;
+    const LONG status = util::OpenRegistryPath(node.root, node.subkey, KEY_SET_VALUE | ViewOf(node), false, &key);
+    return status == ERROR_SUCCESS ? util::SetKeyControlFlags(key.get(), flags) : status;
 }
 
 bool RegistryStore::QueryKeyDetails(const RegistryNode& node, KeyDetails* details)

@@ -7,6 +7,7 @@
 #include "win32/translation.h"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <span>
 #include <utility>
@@ -16,15 +17,12 @@ namespace regkit::resource_list
 namespace
 {
 
-using value_decoder::Decoded;
-
 // layouts follow wdm.h; partial descriptors hold a pointer sized affinity, so their size depends on the writer's architecture
 constexpr size_t kPartialHeader = 4;
 constexpr size_t kRequirementSize = 32;
 constexpr size_t kDeviceSpecificLimit = 256;
 constexpr USHORT kInterruptLatched = 0x1;
 constexpr USHORT kInterruptMessage = 0x2;
-constexpr USHORT kDmaV3 = 0x100;
 constexpr USHORT kMemoryLarge40 = 0x200;
 constexpr USHORT kMemoryLarge48 = 0x400;
 constexpr USHORT kMemoryLarge64 = 0x800;
@@ -51,19 +49,10 @@ struct Reader
     {
         return width == 8 ? At<unsigned long long>(offset) : At<ULONG>(offset);
     }
-};
-
-struct Output
-{
-    Decoded* decoded;
-
-    void Add(std::wstring label, std::wstring value) const
+    std::wstring Bytes(size_t offset, size_t length, size_t limit = 0) const
     {
-        decoded->fields.push_back({std::move(label), std::move(value)});
-    }
-    void Gap() const
-    {
-        decoded->fields.push_back({});
+        const size_t start = std::min(offset, size);
+        return util::ToHex(std::span(data + start, std::min(length, size - start)), L' ', true, limit);
     }
 };
 
@@ -79,7 +68,7 @@ std::wstring Number(unsigned long long value)
     return std::to_wstring(value);
 }
 
-const wchar_t* Lookup(std::span<const std::pair<int, const wchar_t*>> names, int value)
+std::wstring NameOrNumber(std::span<const std::pair<int, const wchar_t*>> names, int value)
 {
     for (const auto& [key, name] : names)
     {
@@ -88,13 +77,7 @@ const wchar_t* Lookup(std::span<const std::pair<int, const wchar_t*>> names, int
             return util::Tr(name);
         }
     }
-    return nullptr;
-}
-
-std::wstring NameOrNumber(std::span<const std::pair<int, const wchar_t*>> names, int value)
-{
-    const wchar_t* name = Lookup(names, value);
-    return name ? std::wstring(name) : Hex(static_cast<unsigned long long>(static_cast<unsigned int>(value)), 2);
+    return Hex(static_cast<unsigned long long>(static_cast<unsigned int>(value)), 2);
 }
 
 constexpr std::pair<int, const wchar_t*> kInterfaceTypes[] = {
@@ -105,9 +88,7 @@ constexpr std::pair<int, const wchar_t*> kInterfaceTypes[] = {
 };
 
 constexpr std::pair<int, const wchar_t*> kResourceTypes[] = {
-    {0, util::TrNoop(L"Null")}, {1, util::TrNoop(L"Port")}, {2, util::TrNoop(L"Interrupt")}, {3, util::TrNoop(L"Memory")},
-    {4, util::TrNoop(L"DMA")}, {5, util::TrNoop(L"Device specific")}, {6, util::TrNoop(L"Bus number")},
-    {7, util::TrNoop(L"Large memory")}, {0x80, util::TrNoop(L"Configuration data")}, {0x81, util::TrNoop(L"Device private")},
+    {0, util::TrNoop(L"Null")}, {0x80, util::TrNoop(L"Configuration data")}, {0x81, util::TrNoop(L"Device private")},
     {0x82, util::TrNoop(L"PC card configuration")}, {0x83, util::TrNoop(L"Multifunction card configuration")},
     {0x84, util::TrNoop(L"Connection")},
 };
@@ -116,201 +97,265 @@ constexpr std::pair<int, const wchar_t*> kShareDispositions[] = {
     {0, util::TrNoop(L"Undetermined")}, {1, util::TrNoop(L"Device exclusive")}, {2, util::TrNoop(L"Driver exclusive")}, {3, util::TrNoop(L"Shared")},
 };
 
-std::wstring ResourceType(int type)
-{
-    return NameOrNumber(kResourceTypes, type);
-}
-
 unsigned long long LargeLength(USHORT flags, ULONG length)
 {
     const int shift = (flags & kMemoryLarge64) ? 32 : (flags & kMemoryLarge48) ? 16 : (flags & kMemoryLarge40) ? 8 : 0;
     return static_cast<unsigned long long>(length) << shift;
 }
 
+std::wstring Share(BYTE share)
+{
+    return NameOrNumber(kShareDispositions, share);
+}
+
+std::wstring Mode(USHORT flags)
+{
+    return (flags & kInterruptLatched) ? util::Tr(L"Latched") : util::Tr(L"Level sensitive");
+}
+
+enum Kind
+{
+    kPort,
+    kInterrupt,
+    kMemory,
+    kDma,
+    kBusNumber,
+    kDeviceSpecific,
+    kOther,
+    kKindCount,
+};
+
+constexpr const wchar_t* kKindTitles[kKindCount] = {
+    util::TrNoop(L"Ports"), util::TrNoop(L"Interrupts"), util::TrNoop(L"Memory"), util::TrNoop(L"DMA"),
+    util::TrNoop(L"Bus numbers"), util::TrNoop(L"Device specific data"), util::TrNoop(L"Other resources"),
+};
+
+Kind KindOf(BYTE type)
+{
+    switch (type)
+    {
+    case 1:
+        return kPort;
+    case 2:
+        return kInterrupt;
+    case 3:
+    case 7:
+        return kMemory;
+    case 4:
+        return kDma;
+    case 5:
+        return kDeviceSpecific;
+    case 6:
+        return kBusNumber;
+    default:
+        return kOther;
+    }
+}
+
+// one table per resource kind; with several descriptors or lists the first column says which one a row belongs to
+struct Tables
+{
+    records::Table header;
+    std::array<records::Table, kKindCount> kinds;
+    const wchar_t* number_title = nullptr;
+    std::wstring number;
+
+    void Add(Kind kind, std::initializer_list<const wchar_t*> columns, std::vector<std::wstring> cells)
+    {
+        records::Table& table = kinds[kind];
+        if (table.columns.empty())
+        {
+            table.title = util::Tr(kKindTitles[kind]);
+            if (number_title)
+            {
+                table.columns.push_back(util::Tr(number_title));
+            }
+            for (const wchar_t* column : columns)
+            {
+                table.columns.push_back(util::Tr(column));
+            }
+        }
+        if (number_title)
+        {
+            cells.insert(cells.begin(), number);
+        }
+        table.rows.push_back(std::move(cells));
+    }
+    std::vector<records::Table> Take()
+    {
+        std::vector<records::Table> tables = {std::move(header)};
+        for (records::Table& table : kinds)
+        {
+            if (!table.rows.empty())
+            {
+                tables.push_back(std::move(table));
+            }
+        }
+        return tables;
+    }
+};
+
 // returns the bytes the descriptor occupies, including device specific data behind it
-size_t DecodePartial(Reader& reader, size_t offset, size_t width, size_t descriptor, const Output& out)
+size_t DecodePartial(Reader& reader, size_t offset, size_t width, size_t descriptor, Tables& out)
 {
     const BYTE type = reader.At<BYTE>(offset);
     const BYTE share = reader.At<BYTE>(offset + 1);
     const USHORT flags = reader.At<USHORT>(offset + 2);
     const size_t u = offset + kPartialHeader;
-    out.Add(L"  " + std::wstring(util::Tr(L"Share")), NameOrNumber(kShareDispositions, share));
-    out.Add(L"  " + std::wstring(util::Tr(L"Flags")), Hex(flags, 4));
-    switch (type)
+    const Kind kind = KindOf(type);
+    switch (kind)
     {
-    case 1:
-    case 3:
-        out.Add(L"  " + std::wstring(util::Tr(L"Start")), Hex(reader.At<unsigned long long>(u), 16));
-        out.Add(L"  " + std::wstring(util::Tr(L"Length")), Hex(reader.At<ULONG>(u + 8), 8));
-        break;
-    case 7:
-        out.Add(L"  " + std::wstring(util::Tr(L"Start")), Hex(reader.At<unsigned long long>(u), 16));
-        out.Add(L"  " + std::wstring(util::Tr(L"Length")), Hex(LargeLength(flags, reader.At<ULONG>(u + 8)), 16));
-        break;
-    case 2:
-        out.Add(L"  " + std::wstring(util::Tr(L"Mode")), (flags & kInterruptLatched) ? util::Tr(L"Latched") : util::Tr(L"Level sensitive"));
-        if (flags & kInterruptMessage)
+    case kPort:
+    case kMemory:
         {
-            out.Add(L"  " + std::wstring(util::Tr(L"Message count")), Number(reader.At<USHORT>(u + 2)));
+            const ULONG length = reader.At<ULONG>(u + 8);
+            out.Add(kind, {util::TrNoop(L"Start"), util::TrNoop(L"Length"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")},
+                    {Hex(reader.At<unsigned long long>(u), 16), type == 7 ? Hex(LargeLength(flags, length), 16) : Hex(length, 8), Share(share), Hex(flags, 4)});
+            break;
         }
-        else
+    case kInterrupt:
         {
-            out.Add(L"  " + std::wstring(util::Tr(L"Level")), Number(reader.At<USHORT>(u)));
-            out.Add(L"  " + std::wstring(util::Tr(L"Group")), Number(reader.At<USHORT>(u + 2)));
+            const bool message = (flags & kInterruptMessage) != 0;
+            out.Add(kind, {util::TrNoop(L"Vector"), util::TrNoop(L"Level"), util::TrNoop(L"Group"), util::TrNoop(L"Affinity"), util::TrNoop(L"Mode"), util::TrNoop(L"Share")},
+                    {Number(reader.At<ULONG>(u + 4)), message ? std::wstring() : Number(reader.At<USHORT>(u)), message ? std::wstring() : Number(reader.At<USHORT>(u + 2)),
+                     Hex(reader.Affinity(u + 8, width), static_cast<int>(width * 2)),
+                     message ? util::Tr(L"Message") + std::wstring(L" (") + Number(reader.At<USHORT>(u + 2)) + L")" : Mode(flags), Share(share)});
+            break;
         }
-        out.Add(L"  " + std::wstring(util::Tr(L"Vector")), Number(reader.At<ULONG>(u + 4)));
-        out.Add(L"  " + std::wstring(util::Tr(L"Affinity")), Hex(reader.Affinity(u + 8, width), static_cast<int>(width * 2)));
+    case kDma:
+        out.Add(kind, {util::TrNoop(L"Channel"), util::TrNoop(L"Port / request line"), util::TrNoop(L"Share")}, {Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Share(share)});
         break;
-    case 4:
-        out.Add(L"  " + std::wstring(util::Tr(L"Channel")), Number(reader.At<ULONG>(u)));
-        out.Add(L"  " + std::wstring((flags & kDmaV3) ? util::Tr(L"Request line") : util::Tr(L"Port")), Number(reader.At<ULONG>(u + 4)));
+    case kBusNumber:
+        out.Add(kind, {util::TrNoop(L"Start"), util::TrNoop(L"Length"), util::TrNoop(L"Share")}, {Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Share(share)});
         break;
-    case 6:
-        out.Add(L"  " + std::wstring(util::Tr(L"Start")), Number(reader.At<ULONG>(u)));
-        out.Add(L"  " + std::wstring(util::Tr(L"Length")), Number(reader.At<ULONG>(u + 4)));
-        break;
-    case 5:
+    case kDeviceSpecific:
         {
             const ULONG length = reader.At<ULONG>(u);
-            out.Add(L"  " + std::wstring(util::Tr(L"Data size")), Number(length));
             if (length > reader.size || offset + descriptor > reader.size - length)
             {
                 reader.ok = false;
                 return descriptor;
             }
-            out.Add(L"  " + std::wstring(util::Tr(L"Data")), util::ToHex(std::span(reader.data + offset + descriptor, length), L' ', true, kDeviceSpecificLimit));
+            out.Add(kind, {util::TrNoop(L"Size"), util::TrNoop(L"Data")}, {Number(length), reader.Bytes(offset + descriptor, length, kDeviceSpecificLimit)});
             return descriptor + length;
         }
-    case 0x84:
-        out.Add(L"  " + std::wstring(util::Tr(L"Connection ID")), Hex((static_cast<unsigned long long>(reader.At<ULONG>(u + 8)) << 32) | reader.At<ULONG>(u + 4), 16));
-        break;
     default:
-        out.Add(L"  " + std::wstring(util::Tr(L"Data")), util::ToHex(std::span(reader.data + std::min(u, reader.size), std::min(descriptor - kPartialHeader, reader.size - std::min(u, reader.size))), L' ', true));
+        out.Add(kind, {util::TrNoop(L"Type"), util::TrNoop(L"Share"), util::TrNoop(L"Flags"), util::TrNoop(L"Data")},
+                {NameOrNumber(kResourceTypes, type), Share(share), Hex(flags, 4),
+                 type == 0x84 ? Hex((static_cast<unsigned long long>(reader.At<ULONG>(u + 8)) << 32) | reader.At<ULONG>(u + 4), 16) : reader.Bytes(u, descriptor - kPartialHeader)});
         break;
     }
     return descriptor;
 }
 
-size_t DecodeFull(Reader& reader, size_t offset, size_t width, int index, const Output& out)
+size_t DecodeFull(Reader& reader, size_t offset, size_t width, Tables& out)
 {
     const size_t descriptor = kPartialHeader + std::max<size_t>(12, 8 + width);
-    out.Add(index > 0 ? std::wstring(util::Tr(L"Full descriptor")) + L" " + std::to_wstring(index) : util::Tr(L"Full descriptor"),
-            NameOrNumber(kInterfaceTypes, reader.At<LONG>(offset)));
-    out.Add(util::Tr(L"Bus number"), Number(reader.At<ULONG>(offset + 4)));
-    out.Add(util::Tr(L"Version"), Number(reader.At<USHORT>(offset + 8)) + L"." + Number(reader.At<USHORT>(offset + 10)));
     const ULONG count = reader.At<ULONG>(offset + 12);
+    std::vector<std::wstring> row = {NameOrNumber(kInterfaceTypes, reader.At<LONG>(offset)), Number(reader.At<ULONG>(offset + 4)),
+                                     Number(reader.At<USHORT>(offset + 8)) + L"." + Number(reader.At<USHORT>(offset + 10)), Number(count)};
+    if (out.number_title)
+    {
+        row.insert(row.begin(), out.number);
+    }
+    out.header.rows.push_back(std::move(row));
     size_t position = offset + 16;
     for (ULONG partial = 0; partial < count && reader.ok; ++partial)
     {
-        out.Gap();
-        out.Add(std::wstring(util::Tr(L"Resource")) + L" " + std::to_wstring(partial + 1), ResourceType(reader.At<BYTE>(position)));
         position += DecodePartial(reader, position, width, descriptor, out);
-        if (position > reader.size)
-        {
-            reader.ok = false;
-        }
+        reader.ok = reader.ok && position <= reader.size;
     }
     return position - offset;
 }
 
-size_t DecodeRequirement(Reader& reader, size_t offset, size_t width, const Output& out)
+void DecodeRequirement(Reader& reader, size_t offset, size_t width, Tables& out)
 {
     static constexpr std::pair<int, const wchar_t*> kOptions[] = {
         {0, util::TrNoop(L"Required")}, {1, util::TrNoop(L"Preferred")}, {2, util::TrNoop(L"Default")}, {8, util::TrNoop(L"Alternative")},
     };
-    const BYTE option = reader.At<BYTE>(offset);
+    const std::wstring option = NameOrNumber(kOptions, reader.At<BYTE>(offset));
     const BYTE type = reader.At<BYTE>(offset + 1);
+    const std::wstring share = Share(reader.At<BYTE>(offset + 2));
     const USHORT flags = reader.At<USHORT>(offset + 4);
     const size_t u = offset + 8;
-    out.Add(L"  " + std::wstring(util::Tr(L"Option")), NameOrNumber(kOptions, option));
-    out.Add(L"  " + std::wstring(util::Tr(L"Share")), NameOrNumber(kShareDispositions, reader.At<BYTE>(offset + 2)));
-    out.Add(L"  " + std::wstring(util::Tr(L"Flags")), Hex(flags, 4));
-    switch (type)
+    const Kind kind = KindOf(type);
+    switch (kind)
     {
-    case 1:
-    case 3:
-    case 7:
-        out.Add(L"  " + std::wstring(util::Tr(L"Length")), Hex(type == 7 ? LargeLength(flags, reader.At<ULONG>(u)) : reader.At<ULONG>(u), 8));
-        out.Add(L"  " + std::wstring(util::Tr(L"Alignment")), Hex(type == 7 ? LargeLength(flags, reader.At<ULONG>(u + 4)) : reader.At<ULONG>(u + 4), 8));
-        out.Add(L"  " + std::wstring(util::Tr(L"Minimum address")), Hex(reader.At<unsigned long long>(u + 8), 16));
-        out.Add(L"  " + std::wstring(util::Tr(L"Maximum address")), Hex(reader.At<unsigned long long>(u + 16), 16));
+    case kPort:
+    case kMemory:
+        {
+            auto length = [&](size_t at) { return Hex(type == 7 ? LargeLength(flags, reader.At<ULONG>(at)) : reader.At<ULONG>(at), 8); };
+            out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Length"), util::TrNoop(L"Alignment"), util::TrNoop(L"Minimum address"), util::TrNoop(L"Maximum address"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")},
+                    {option, length(u), length(u + 4), Hex(reader.At<unsigned long long>(u + 8), 16), Hex(reader.At<unsigned long long>(u + 16), 16), share, Hex(flags, 4)});
+            break;
+        }
+    case kInterrupt:
+        out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Minimum vector"), util::TrNoop(L"Maximum vector"), util::TrNoop(L"Group"), util::TrNoop(L"Targeted processors"), util::TrNoop(L"Mode"), util::TrNoop(L"Share")},
+                {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Number(reader.At<USHORT>(u + 10)), Hex(reader.Affinity(u + 16, width), static_cast<int>(width * 2)), Mode(flags), share});
         break;
-    case 2:
-        out.Add(L"  " + std::wstring(util::Tr(L"Mode")), (flags & kInterruptLatched) ? util::Tr(L"Latched") : util::Tr(L"Level sensitive"));
-        out.Add(L"  " + std::wstring(util::Tr(L"Minimum vector")), Number(reader.At<ULONG>(u)));
-        out.Add(L"  " + std::wstring(util::Tr(L"Maximum vector")), Number(reader.At<ULONG>(u + 4)));
-        out.Add(L"  " + std::wstring(util::Tr(L"Group")), Number(reader.At<USHORT>(u + 10)));
-        out.Add(L"  " + std::wstring(util::Tr(L"Targeted processors")), Hex(reader.Affinity(u + 16, width), static_cast<int>(width * 2)));
+    case kDma:
+        out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Minimum channel"), util::TrNoop(L"Maximum channel"), util::TrNoop(L"Share")}, {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), share});
         break;
-    case 4:
-        out.Add(L"  " + std::wstring(util::Tr(L"Minimum channel")), Number(reader.At<ULONG>(u)));
-        out.Add(L"  " + std::wstring(util::Tr(L"Maximum channel")), Number(reader.At<ULONG>(u + 4)));
-        break;
-    case 6:
-        out.Add(L"  " + std::wstring(util::Tr(L"Length")), Number(reader.At<ULONG>(u)));
-        out.Add(L"  " + std::wstring(util::Tr(L"Minimum bus number")), Number(reader.At<ULONG>(u + 4)));
-        out.Add(L"  " + std::wstring(util::Tr(L"Maximum bus number")), Number(reader.At<ULONG>(u + 8)));
+    case kBusNumber:
+        out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Length"), util::TrNoop(L"Minimum bus number"), util::TrNoop(L"Maximum bus number"), util::TrNoop(L"Share")},
+                {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Number(reader.At<ULONG>(u + 8)), share});
         break;
     default:
-        out.Add(L"  " + std::wstring(util::Tr(L"Data")), util::ToHex(std::span(reader.data + std::min(u, reader.size), std::min<size_t>(24, reader.size - std::min(u, reader.size))), L' ', true));
+        out.Add(kOther, {util::TrNoop(L"Option"), util::TrNoop(L"Type"), util::TrNoop(L"Share"), util::TrNoop(L"Flags"), util::TrNoop(L"Data")},
+                {option, NameOrNumber(kResourceTypes, type), share, Hex(flags, 4), reader.Bytes(u, 24)});
         break;
     }
-    return kRequirementSize;
 }
 
-Decoded DecodeLayout(DWORD type, const BYTE* data, size_t size, size_t width, size_t* consumed)
+std::optional<std::vector<records::Table>> DecodeLayout(DWORD type, const BYTE* data, size_t size, size_t width, size_t* consumed)
 {
-    Decoded decoded;
     Reader reader{data, size};
-    const Output out{&decoded};
+    Tables out;
     size_t position = 0;
-    if (type == REG_FULL_RESOURCE_DESCRIPTOR)
-    {
-        position = DecodeFull(reader, 0, width, 0, out);
-    }
-    else if (type == REG_RESOURCE_LIST)
-    {
-        const ULONG count = reader.At<ULONG>(0);
-        position = 4;
-        for (ULONG index = 0; index < count && reader.ok; ++index)
-        {
-            if (index > 0)
-            {
-                out.Gap();
-            }
-            position += DecodeFull(reader, position, width, static_cast<int>(index + 1), out);
-        }
-    }
-    else
+    if (type == REG_RESOURCE_REQUIREMENTS_LIST)
     {
         const ULONG list_size = reader.At<ULONG>(0);
-        out.Add(util::Tr(L"Interface"), NameOrNumber(kInterfaceTypes, reader.At<LONG>(4)));
-        out.Add(util::Tr(L"Bus number"), Number(reader.At<ULONG>(8)));
-        out.Add(util::Tr(L"Slot number"), Number(reader.At<ULONG>(12)));
         const ULONG lists = reader.At<ULONG>(28);
+        out.header = {util::Tr(L"Requirements"),
+                      {util::Tr(L"Interface"), util::Tr(L"Bus number"), util::Tr(L"Slot number"), util::Tr(L"Alternative lists")},
+                      {{NameOrNumber(kInterfaceTypes, reader.At<LONG>(4)), Number(reader.At<ULONG>(8)), Number(reader.At<ULONG>(12)), Number(lists)}}};
+        out.number_title = lists > 1 ? util::TrNoop(L"List") : nullptr;
         position = 32;
         for (ULONG list = 0; list < lists && reader.ok; ++list)
         {
-            out.Gap();
-            out.Add(std::wstring(util::Tr(L"Alternative list")) + L" " + std::to_wstring(list + 1), util::Tr(L"Version") + std::wstring(L" ") + Number(reader.At<USHORT>(position)) + L"." + Number(reader.At<USHORT>(position + 2)));
+            out.number = Number(list + 1);
             const ULONG count = reader.At<ULONG>(position + 4);
             position += 8;
-            for (ULONG item = 0; item < count && reader.ok; ++item)
+            for (ULONG item = 0; item < count && reader.ok; ++item, position += kRequirementSize)
             {
-                out.Add(std::wstring(util::Tr(L"Resource")) + L" " + std::to_wstring(item + 1), ResourceType(reader.At<BYTE>(position + 1)));
-                position += DecodeRequirement(reader, position, width, out);
+                DecodeRequirement(reader, position, width, out);
             }
         }
-        reader.ok = reader.ok && position <= size && list_size <= size;
+        reader.ok = reader.ok && list_size <= size;
     }
-    decoded.ok = reader.ok && position <= size;
-    if (!decoded.ok)
+    else
     {
-        decoded.fields.clear();
-        decoded.error = util::Tr(L"The resource data is malformed.");
+        const bool single = type == REG_FULL_RESOURCE_DESCRIPTOR;
+        const ULONG count = single ? 1 : reader.At<ULONG>(0);
+        out.number_title = count > 1 ? util::TrNoop(L"Descriptor") : nullptr;
+        out.header = {util::Tr(L"Descriptors"), {util::Tr(L"Interface"), util::Tr(L"Bus number"), util::Tr(L"Version"), util::Tr(L"Resources")}, {}};
+        if (out.number_title)
+        {
+            out.header.columns.insert(out.header.columns.begin(), util::Tr(out.number_title));
+        }
+        position = single ? 0 : 4;
+        for (ULONG index = 0; index < count && reader.ok; ++index)
+        {
+            out.number = Number(index + 1);
+            position += DecodeFull(reader, position, width, out);
+        }
     }
     *consumed = position;
-    return decoded;
+    if (!reader.ok || position > size)
+    {
+        return std::nullopt;
+    }
+    return out.Take();
 }
 
 } // namespace
@@ -320,21 +365,21 @@ bool IsResourceType(DWORD type) noexcept
     return type == REG_RESOURCE_LIST || type == REG_FULL_RESOURCE_DESCRIPTOR || type == REG_RESOURCE_REQUIREMENTS_LIST;
 }
 
-Decoded Decode(DWORD type, const BYTE* data, size_t size)
+std::optional<std::vector<records::Table>> Decode(DWORD type, const BYTE* data, size_t size)
 {
     // prefer the native layout and fall back to the other one when it doesn't account for the data exactly
     SYSTEM_INFO system = {};
     GetNativeSystemInfo(&system);
     const size_t native = system.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL ? 4 : 8;
     size_t consumed = 0;
-    Decoded first = DecodeLayout(type, data, size, native, &consumed);
-    if (first.ok && consumed == size)
+    auto first = DecodeLayout(type, data, size, native, &consumed);
+    if (first && consumed == size)
     {
         return first;
     }
     size_t other_consumed = 0;
-    Decoded other = DecodeLayout(type, data, size, native == 8 ? 4 : 8, &other_consumed);
-    return other.ok && (other_consumed == size || !first.ok) ? other : first;
+    auto other = DecodeLayout(type, data, size, native == 8 ? 4 : 8, &other_consumed);
+    return other && (other_consumed == size || !first) ? other : first;
 }
 
 } // namespace regkit::resource_list

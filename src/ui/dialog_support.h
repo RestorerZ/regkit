@@ -43,6 +43,7 @@ std::wstring ToDisplayText(const std::wstring& text);
 std::wstring FromDisplayText(const std::wstring& text);
 std::wstring SingleLine(const std::wstring& text);
 bool Matches(const std::wstring& text, const std::wstring& filter);
+void SetComboItems(HWND combo, const std::vector<std::wstring>& items);
 void FitDroppedWidth(HWND combo);
 void MatchComboHeights(HWND dialog, int edit_id, std::initializer_list<int> combos);
 

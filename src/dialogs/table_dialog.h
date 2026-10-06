@@ -3,28 +3,31 @@
 
 #pragma once
 
+#include "records/table.h"
 #include "win32/windows_config.h"
 
 #include <windows.h>
 
 #include <functional>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace regkit::editors
 {
 
-struct FieldsRequest
+struct TablesRequest
 {
     std::wstring title;
     std::wstring identifier;
-    // an empty label starts a new group
-    std::vector<std::pair<std::wstring, std::wstring>> fields;
+    std::vector<records::Table> tables;
     std::wstring action_label;
     std::function<void(HWND)> action;
+    // rows of tables[check_table] get checkboxes; on_check applies a click and returns false to undo it
+    int check_table = -1;
+    std::vector<bool> checked;
+    std::function<bool(HWND, size_t, bool)> on_check;
 };
 
-void ShowFields(HWND owner, const FieldsRequest& request);
+void ShowTables(HWND owner, const TablesRequest& request);
 
 } // namespace regkit::editors

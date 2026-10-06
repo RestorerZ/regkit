@@ -226,7 +226,7 @@ bool ShowRegistryPermissions(HWND owner, const RegistryNode& node)
     REGSAM granted = 0;
     for (const REGSAM access : {READ_CONTROL | WRITE_DAC | WRITE_OWNER | audits, REGSAM(READ_CONTROL | WRITE_DAC | WRITE_OWNER), READ_CONTROL | audits, REGSAM(READ_CONTROL), REGSAM(MAXIMUM_ALLOWED)})
     {
-        result = util::OpenRegistryPath(node.root, node.subkey, access | win32::kDefaultRegistryView, true, &key);
+        result = util::OpenRegistryPath(node.root, node.subkey, access | ViewOf(node), true, &key);
         if (result != ERROR_ACCESS_DENIED && result != ERROR_PRIVILEGE_NOT_HELD)
         {
             granted = access;

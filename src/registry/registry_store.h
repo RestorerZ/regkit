@@ -6,6 +6,7 @@
 #include "registry/registry_value.h"
 #include "registry/virtual_registry.h"
 #include "win32/registry_native.h"
+#include "win32/registry_view.h"
 #include "win32/windows_config.h"
 
 #include <windows.h>
@@ -23,6 +24,7 @@ struct RegistryNode
     HKEY root = nullptr;
     std::wstring subkey;
     std::wstring root_name;
+    REGSAM view = 0;
     bool children_loaded = false;
     bool simulated = false;
     signed char has_children = -1;
@@ -42,7 +44,14 @@ struct RegistryRootEntry
     std::wstring path_name;
     std::wstring subkey_prefix;
     RegistryRootGroup group = RegistryRootGroup::kStandard;
+    REGSAM view = 0;
 };
+
+// 0 keeps the native view; local 32-bit tabs set KEY_WOW64_32KEY on their roots and every child inherits it
+inline REGSAM ViewOf(const RegistryNode& node)
+{
+    return node.view ? node.view : win32::kDefaultRegistryView;
+}
 
 struct ValueInfo
 {
@@ -118,7 +127,7 @@ class RegistryStore
     static bool IsOfflineRoot(HKEY root);
     static bool QueryValue(const RegistryNode& node, const std::wstring& value_name, RegistryValue* out);
     static bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);
-    static KeyInspection InspectKey(const RegistryNode& node, bool want_info);
+    static KeyInspection InspectKey(const RegistryNode& node, bool want_info, bool want_source = false);
     static bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, bool* denied = nullptr);
     static bool OpenOfflineHive(const std::wstring& path, HKEY* root, std::wstring* error);
     static bool SaveOfflineHive(HKEY root, const std::wstring& path, std::wstring* error);
@@ -130,6 +139,8 @@ class RegistryStore
     static bool IsVirtualRoot(HKEY root);
     static bool GetVirtualRootName(HKEY root, std::wstring* root_name);
     static bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details);
+    // live keys only, the uac virtualization flags reg flags sets
+    static LONG SetKeyControlFlags(const RegistryNode& node, ULONG flags);
     static bool CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCreateOptions& options = {}, bool* created_volatile = nullptr);
     static bool CreateKeyLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target);
     static bool ReadKeyLink(const RegistryNode& node, std::wstring* target);

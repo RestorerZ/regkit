@@ -178,6 +178,11 @@ void MainWindow::Impl::ApplyTabSelection(int index)
             ShowSession(std::shared_ptr<RegistrySession>(entry.session));
             shown = true;
         }
+        else if (entry.registry_mode == RegistryMode::kLocal && entry.registry_view)
+        {
+            ShowSession(LocalViewSession(entry.registry_view));
+            shown = true;
+        }
         else if (entry.registry_mode == RegistryMode::kRemote && !entry.remote_machine.empty())
         {
             shown = ConnectRemoteRegistry(std::wstring(entry.remote_machine), false);
@@ -279,39 +284,10 @@ std::wstring MainWindow::Impl::LookupHivePath(const RegistryNode& node, bool* is
     std::wstring nt_path = registry_path::BuildNative(node);
     if (nt_path.empty() && !node.root_name.empty())
     {
-        auto equals_root = [&](const wchar_t* name) -> bool { return EqualsInsensitive(node.root_name, name); };
-        if (equals_root(L"REGISTRY"))
-        {
-            nt_path = L"\\REGISTRY";
-        }
-        else if (equals_root(L"HKLM") || equals_root(L"HKEY_LOCAL_MACHINE"))
-        {
-            nt_path = L"\\REGISTRY\\MACHINE";
-        }
-        else if (equals_root(L"HKU") || equals_root(L"HKEY_USERS"))
-        {
-            nt_path = L"\\REGISTRY\\USER";
-        }
-        else if (equals_root(L"HKCU") || equals_root(L"HKEY_CURRENT_USER"))
-        {
-            std::wstring sid = util::GetCurrentUserSidString();
-            if (!sid.empty())
-            {
-                nt_path = L"\\REGISTRY\\USER\\" + sid;
-            }
-        }
-        else if (equals_root(L"HKCC") || equals_root(L"HKEY_CURRENT_CONFIG"))
-        {
-            nt_path = L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Hardware Profiles\\Current";
-        }
-        else if (equals_root(L"HKCR") || equals_root(L"HKEY_CLASSES_ROOT"))
-        {
-            nt_path = L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes";
-        }
-        if (!nt_path.empty() && !node.subkey.empty())
-        {
-            nt_path += L"\\" + node.subkey;
-        }
+        // nodes without a predefined handle still name their root
+        RegistryNode named = node;
+        named.root = registry_path::RootFromName(node.root_name);
+        nt_path = named.root == HKEY_CLASSES_ROOT ? registry_path::JoinSubkey(L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes", node.subkey) : registry_path::BuildNative(named);
     }
     return LookupNativeHivePath(nt_path, is_root);
 }

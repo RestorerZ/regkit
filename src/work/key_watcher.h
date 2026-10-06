@@ -23,7 +23,7 @@ class KeyWatcher
     KeyWatcher(const KeyWatcher&) = delete;
     KeyWatcher& operator=(const KeyWatcher&) = delete;
 
-    void Watch(HWND window, UINT message, HKEY root, const std::wstring& subkey);
+    void Watch(HWND window, UINT message, HKEY root, const std::wstring& subkey, REGSAM view);
     void Stop();
     uint64_t generation() const noexcept
     {
@@ -39,6 +39,7 @@ class KeyWatcher
     UINT message_ = 0;
     HKEY root_ = nullptr;
     std::wstring subkey_;
+    REGSAM view_ = 0;
     std::atomic<uint64_t> generation_{0};
     util::UniqueHandle stop_;
     util::UniqueHandle retarget_;

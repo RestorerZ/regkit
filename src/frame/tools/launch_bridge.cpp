@@ -4,7 +4,7 @@
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
-#include "dialogs/fields_dialog.h"
+#include "dialogs/table_dialog.h"
 #include "registry/key_access.h"
 #include "registry/resource_list.h"
 #include "registry/value_format.h"
@@ -61,7 +61,7 @@ std::wstring IntegrityLevelName(BYTE* descriptor)
 
 void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
 {
-    editors::FieldsRequest request;
+    editors::TablesRequest request;
     request.title = util::Tr(L"Key Information");
     request.identifier = registry_path::DisplayName(registry_path::Build(node));
     KeyDetails details;
@@ -82,127 +82,165 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
         }
         return text.empty() ? std::wstring(util::Tr(L"None")) : text;
     };
-    auto& fields = request.fields;
+    const std::vector<std::wstring> property_columns = {util::Tr(L"Property"), util::Tr(L"Value")};
+    records::Table general = {util::Tr(L"General"), property_columns, {}};
+    records::Table contents = {util::Tr(L"Contents"), property_columns, {}};
+    records::Table flags = {util::Tr(L"Flags"), property_columns, {}};
+    const auto add = [](records::Table& table, const wchar_t* label, std::wstring value) { table.rows.push_back({label, std::move(value)}); };
+
     const util::NativeKeyInfo& native = details.native;
-    fields.push_back({util::Tr(L"Name"), registry_path::DisplayName(LeafName(node))});
+    add(general, util::Tr(L"Name"), registry_path::DisplayName(LeafName(node)));
     if (!native.native_name.empty())
     {
-        fields.push_back({util::Tr(L"Native name"), registry_path::DisplayName(native.native_name)});
+        add(general, util::Tr(L"Native name"), registry_path::DisplayName(native.native_name));
     }
     if (node.root == HKEY_CLASSES_ROOT && registry_path::ClassesSource(native.native_name) != ClassSource::kNone)
     {
-        fields.push_back({util::Tr(L"Source"), registry_path::ClassesSource(native.native_name) == ClassSource::kMachine ? util::Tr(L"Machine") : util::Tr(L"User")});
+        add(general, util::Tr(L"Source"), registry_path::ClassesSource(native.native_name) == ClassSource::kMachine ? util::Tr(L"Machine") : util::Tr(L"User"));
     }
     bool hive_root = false;
     const std::wstring hive = native.native_name.empty() ? LookupHivePath(node, &hive_root) : LookupNativeHivePath(native.native_name, &hive_root);
     if (!hive.empty())
     {
-        fields.push_back({util::Tr(L"Hive file"), hive});
-        fields.push_back({util::Tr(L"Hive root"), yes_no(hive_root)});
-    }
-    fields.push_back({});
-    fields.push_back({util::Tr(L"Subkeys"), std::to_wstring(details.info.subkey_count)});
-    fields.push_back({util::Tr(L"Values"), std::to_wstring(details.info.value_count)});
-    fields.push_back({util::Tr(L"Longest subkey name"), std::to_wstring(details.max_subkey_name)});
-    fields.push_back({util::Tr(L"Longest class name"), std::to_wstring(details.max_class)});
-    fields.push_back({util::Tr(L"Longest value name"), std::to_wstring(details.max_value_name)});
-    fields.push_back({util::Tr(L"Largest value data"), value_format::ByteCount(details.max_value_data)});
-    fields.push_back({});
-    FILETIME local = {};
-    SYSTEMTIME time = {};
-    if (FileTimeToLocalFileTime(&details.info.last_write, &local) && FileTimeToSystemTime(&local, &time))
-    {
-        fields.push_back({util::Tr(L"Last write time"), util::FormatLocalTime(time, true)});
-    }
-    if (FileTimeToSystemTime(&details.info.last_write, &time))
-    {
-        fields.push_back({util::Tr(L"Last write time (UTC)"), util::FormatLocalTime(time, true)});
+        add(general, util::Tr(L"Hive file"), hive);
+        add(general, util::Tr(L"Hive root"), yes_no(hive_root));
     }
     std::wstring class_name = details.class_name.empty() ? std::wstring(util::Tr(L"None")) : registry_path::DisplayName(details.class_name);
     if (std::any_of(details.class_name.begin(), details.class_name.end(), [](wchar_t ch) { return !iswprint(ch); }))
     {
         class_name.append(L" (").append(util::ToHex(std::span(reinterpret_cast<const BYTE*>(details.class_name.data()), details.class_name.size() * sizeof(wchar_t)), L' ', true)).append(L")");
     }
-    fields.push_back({util::Tr(L"Class name"), class_name});
-    fields.push_back({});
+    add(general, util::Tr(L"Class name"), class_name);
+    FILETIME local = {};
+    SYSTEMTIME time = {};
+    if (FileTimeToLocalFileTime(&details.info.last_write, &local) && FileTimeToSystemTime(&local, &time))
+    {
+        add(general, util::Tr(L"Last write time"), util::FormatLocalTime(time, true));
+    }
+    if (FileTimeToSystemTime(&details.info.last_write, &time))
+    {
+        add(general, util::Tr(L"Last write time (UTC)"), util::FormatLocalTime(time, true));
+    }
+
+    add(contents, util::Tr(L"Subkeys"), std::to_wstring(details.info.subkey_count));
+    add(contents, util::Tr(L"Values"), std::to_wstring(details.info.value_count));
+    add(contents, util::Tr(L"Longest subkey name"), std::to_wstring(details.max_subkey_name));
+    add(contents, util::Tr(L"Longest class name"), std::to_wstring(details.max_class));
+    add(contents, util::Tr(L"Longest value name"), std::to_wstring(details.max_value_name));
+    add(contents, util::Tr(L"Largest value data"), value_format::ByteCount(details.max_value_data));
+
     if (native.key_flags || !native.native_name.empty())
     {
-        fields.push_back({util::Tr(L"Volatile"), yes_no((native.key_flags.value_or(0) & util::kKeyFlagVolatile) || registry_path::InVolatileHive(native.native_name))});
+        add(flags, util::Tr(L"Volatile"), yes_no((native.key_flags.value_or(0) & util::kKeyFlagVolatile) || registry_path::InVolatileHive(native.native_name)));
     }
     std::wstring target;
-    fields.push_back({util::Tr(L"Symbolic link"), RegistryStore::QuerySymbolicLinkTarget(node, &target) ? target : yes_no(false)});
-    if (native.control_flags)
+    add(flags, util::Tr(L"Symbolic link"), RegistryStore::QuerySymbolicLinkTarget(node, &target) ? target : yes_no(false));
+    if (win32::HasAlternateView() && session_->mode == RegistryMode::kLocal && !native.native_name.empty())
     {
-        fields.push_back({util::Tr(L"Virtualization flags"), bits(*native.control_flags, {{0x2, util::TrNoop(L"Don't virtualize")}, {0x4, util::TrNoop(L"Don't silent fail")}, {0x8, util::TrNoop(L"Recurse")}})});
+        // the same path opened in the other view lands on the same key unless wow64 redirects it
+        RegistryNode other = node;
+        other.view = node.view ? 0 : win32::kAlternateRegistryView;
+        KeyDetails other_details;
+        std::wstring wow64 = util::Tr(L"Not in the other view");
+        if (RegistryStore::QueryKeyDetails(other, &other_details) && !other_details.native.native_name.empty())
+        {
+            const std::wstring& path32 = node.view ? native.native_name : other_details.native.native_name;
+            wow64 = util::EqualsInsensitive(native.native_name, other_details.native.native_name) ? std::wstring(util::Tr(L"Shared by both views")) : util::TrLabel(L"32-bit view", registry_path::DisplayName(path32));
+        }
+        add(flags, L"WOW64", wow64);
+    }
+    static constexpr std::pair<ULONG, const wchar_t*> kControlFlags[] = {
+        {util::kKeyDontVirtualize, util::TrNoop(L"Don't virtualize")}, {util::kKeyDontSilentFail, util::TrNoop(L"Don't silent fail")}, {util::kKeyRecurseFlag, util::TrNoop(L"Recurse")}};
+    // reg flags only accepts HKLM\SOFTWARE keys, the same keys uac virtualizes
+    const std::wstring store = registry_path::VirtualStorePath(native.native_name);
+    const bool editable_flags = native.control_flags && !store.empty() && session_->mode == RegistryMode::kLocal && !settings_.read_only;
+    if (native.control_flags && !editable_flags)
+    {
+        add(flags, util::Tr(L"Virtualization flags"), bits(*native.control_flags, {kControlFlags[0], kControlFlags[1], kControlFlags[2]}));
+    }
+    if (!store.empty())
+    {
+        RegistryNode store_node;
+        KeyInfo store_info;
+        add(flags, util::Tr(L"Virtual store copy"), registry_path::ParseRoot(store, &store_node) && RegistryStore::QueryKeyInfo(store_node, &store_info) ? store : std::wstring(util::Tr(L"None")));
     }
     if (native.virtualization)
     {
-        fields.push_back({util::Tr(L"Virtualization state"), bits(*native.virtualization, {{0x1, util::TrNoop(L"Candidate")}, {0x2, util::TrNoop(L"Enabled")}, {0x4, util::TrNoop(L"Virtual target")}, {0x8, util::TrNoop(L"Virtual store")}, {0x10, util::TrNoop(L"Virtual source")}})});
+        add(flags, util::Tr(L"Virtualization state"), bits(*native.virtualization, {{0x1, util::TrNoop(L"Candidate")}, {0x2, util::TrNoop(L"Enabled")}, {0x4, util::TrNoop(L"Virtual target")}, {0x8, util::TrNoop(L"Virtual store")}, {0x10, util::TrNoop(L"Virtual source")}}));
     }
     if (native.trust)
     {
-        fields.push_back({util::Tr(L"Trusted key"), yes_no(*native.trust & 0x1)});
+        add(flags, util::Tr(L"Trusted key"), yes_no(*native.trust & 0x1));
     }
     if (native.layer)
     {
-        fields.push_back({util::Tr(L"Layer"), bits(*native.layer, {{0x1, util::TrNoop(L"Tombstone")}, {0x2, util::TrNoop(L"Supersede local")}, {0x4, util::TrNoop(L"Supersede tree")}, {0x8, util::TrNoop(L"Class is inherited")}})});
+        add(flags, util::Tr(L"Layer"), bits(*native.layer, {{0x1, util::TrNoop(L"Tombstone")}, {0x2, util::TrNoop(L"Supersede local")}, {0x4, util::TrNoop(L"Supersede tree")}, {0x8, util::TrNoop(L"Class is inherited")}}));
     }
     SECURITY_INFORMATION parts = LABEL_SECURITY_INFORMATION;
     std::vector<BYTE> descriptor;
     if (RegistryStore::ReadKeySecurity(node, &parts, &descriptor) && parts == LABEL_SECURITY_INFORMATION)
     {
-        fields.push_back({util::Tr(L"Integrity level"), IntegrityLevelName(descriptor.data())});
+        add(flags, util::Tr(L"Integrity level"), IntegrityLevelName(descriptor.data()));
     }
+    request.tables = {std::move(general), std::move(contents), std::move(flags)};
+    auto control_flags = std::make_shared<ULONG>(native.control_flags.value_or(0));
+    if (editable_flags)
+    {
+        records::Table virtualization = {util::Tr(L"Virtualization flags"), {util::Tr(L"Flag")}, {}};
+        for (const auto& [bit, name] : kControlFlags)
+        {
+            virtualization.rows.push_back({util::Tr(name)});
+            request.checked.push_back((*control_flags & bit) != 0);
+        }
+        request.check_table = static_cast<int>(request.tables.size());
+        request.tables.push_back(std::move(virtualization));
+        request.on_check = [node, control_flags](HWND dialog, size_t row, bool checked) {
+            const ULONG flags = checked ? *control_flags | kControlFlags[row].first : *control_flags & ~kControlFlags[row].first;
+            const LONG status = RegistryStore::SetKeyControlFlags(node, flags);
+            if (status != ERROR_SUCCESS)
+            {
+                ui::ShowError(dialog, FormatWin32Error(status));
+                return false;
+            }
+            *control_flags = flags;
+            return true;
+        };
+    }
+
     SECURITY_INFORMATION access_parts = OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
     std::vector<BYTE> access_descriptor;
     if (RegistryStore::ReadKeySecurity(node, &access_parts, &access_descriptor))
     {
         // which run level is needed to write here, so the user can pick it before trying
-        fields.push_back({});
-        fields.push_back({util::Tr(L"Access"), L""});
-        const wchar_t* write_needs = nullptr;
+        records::Table access = {util::Tr(L"Access"), {util::Tr(L"Run level"), util::Tr(L"Access"), util::Tr(L"Can write")}, {}};
         for (const key_access::RunLevel& level : key_access::ForRunLevels(access_descriptor.data()))
         {
-            fields.push_back({L"  " + std::wstring(util::Tr(level.name)), key_access::Describe(level.granted)});
-            if (!write_needs && key_access::CanWrite(level.granted))
-            {
-                write_needs = level.name;
-            }
+            access.rows.push_back({util::Tr(level.name), key_access::Describe(level.granted), yes_no(key_access::CanWrite(level.granted))});
         }
-        fields.push_back({util::Tr(L"Write needs"), write_needs ? util::Tr(write_needs) : util::Tr(L"Taking ownership")});
+        request.tables.push_back(std::move(access));
     }
     request.action_label = util::Tr(L"Permissions...");
     if (!settings_.read_only)
     {
         request.action = [node](HWND owner) { ShowRegistryPermissions(owner, node); };
     }
-    editors::ShowFields(hwnd_, request);
+    editors::ShowTables(hwnd_, request);
 }
 
 bool MainWindow::Impl::ShowResourceList(const RegistryValue& value)
 {
-    const value_decoder::Decoded decoded = resource_list::Decode(value_format::NormalizeType(value.type), value.data.data(), value.data.size());
-    editors::FieldsRequest request;
+    editors::TablesRequest request;
     request.title = value_format::TypeName(value.type);
     request.identifier = value.name.empty() ? std::wstring(util::Tr(L"(Default)")) : registry_path::DisplayName(value.name);
-    if (decoded.ok)
-    {
-        for (const value_decoder::Field& field : decoded.fields)
-        {
-            request.fields.push_back({field.name, field.value});
-        }
-    }
-    else
-    {
-        request.fields.push_back({util::Tr(L"Error"), decoded.error});
-    }
+    auto tables = resource_list::Decode(value_format::NormalizeType(value.type), value.data.data(), value.data.size());
+    request.tables = tables ? std::move(*tables) : std::vector<records::Table>{{util::Tr(L"Error"), {util::Tr(L"Error")}, {{util::Tr(L"The resource data is malformed.")}}}};
     bool edit_binary = false;
     request.action_label = util::Tr(L"Edit Binary...");
     request.action = [&edit_binary](HWND dialog) {
         edit_binary = true;
         EndDialog(dialog, IDCANCEL);
     };
-    editors::ShowFields(hwnd_, request);
+    editors::ShowTables(hwnd_, request);
     return edit_binary;
 }
 

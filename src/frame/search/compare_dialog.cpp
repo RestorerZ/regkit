@@ -75,19 +75,6 @@ std::vector<std::wstring> ExtractRegFileKeys(const regfile::Document& data)
     return keys;
 }
 
-void PopulateCombo(HWND combo, const std::vector<std::wstring>& items)
-{
-    if (!combo)
-    {
-        return;
-    }
-    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
-    for (const auto& item : items)
-    {
-        SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item.c_str()));
-    }
-}
-
 void SetComboSelection(HWND combo, const std::wstring& value)
 {
     if (!combo)
@@ -142,7 +129,7 @@ void PopulateFileKeys(HWND dlg, bool left)
     std::vector<std::wstring> keys = ExtractRegFileKeys(data);
     HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
     std::wstring current = util::WindowText(combo);
-    PopulateCombo(combo, keys);
+    editors::dialog_support::SetComboItems(combo, keys);
     if (!current.empty())
     {
         SetComboSelection(combo, current);
@@ -169,7 +156,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
             }
             for (const int id : {IDC_COMPARE_LEFT_SOURCE, IDC_COMPARE_RIGHT_SOURCE})
             {
-                PopulateCombo(GetDlgItem(dlg, id), {CompareSourceLabel(CompareSourceType::kRegistry), CompareSourceLabel(CompareSourceType::kRegFile), CompareSourceLabel(CompareSourceType::kOfflineHive), CompareSourceLabel(CompareSourceType::kNetwork)});
+                editors::dialog_support::SetComboItems(GetDlgItem(dlg, id), {CompareSourceLabel(CompareSourceType::kRegistry), CompareSourceLabel(CompareSourceType::kRegFile), CompareSourceLabel(CompareSourceType::kOfflineHive), CompareSourceLabel(CompareSourceType::kNetwork)});
             }
 
             SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), CompareSourceLabel(state->data.left.type));
@@ -288,7 +275,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                         return TRUE;
                     }
                     HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
-                    PopulateCombo(combo, keys);
+                    editors::dialog_support::SetComboItems(combo, keys);
                     if (!keys.empty())
                     {
                         SendMessageW(combo, CB_SETCURSEL, 0, 0);

@@ -13,11 +13,17 @@ namespace regkit::win32
 inline constexpr REGSAM kDefaultRegistryView = KEY_WOW64_64KEY;
 inline constexpr REGSAM kAlternateRegistryView = KEY_WOW64_32KEY;
 
-inline const wchar_t* RegExeViewSwitch(REGSAM view)
+// 64-bit windows keeps a separate registry view for 32-bit programs
+inline bool HasAlternateView()
 {
     SYSTEM_INFO info = {};
     GetNativeSystemInfo(&info);
-    if (info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL)
+    return info.wProcessorArchitecture != PROCESSOR_ARCHITECTURE_INTEL;
+}
+
+inline const wchar_t* RegExeViewSwitch(REGSAM view)
+{
+    if (!HasAlternateView())
     {
         return L"";
     }

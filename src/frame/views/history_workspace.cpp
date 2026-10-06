@@ -586,6 +586,7 @@ void MainWindow::Impl::LoadTabs()
             TabEntry entry;
             entry.kind = TabEntry::Kind::kRegistry;
             entry.registry_mode = static_cast<RegistryMode>(saved.registry_mode);
+            entry.registry_view = entry.registry_mode == RegistryMode::kLocal && win32::HasAlternateView() ? static_cast<REGSAM>(saved.registry_view) : 0;
             entry.offline_path =
                 entry.registry_mode == RegistryMode::kOffline ? std::move(saved.source_path) : std::wstring();
             entry.remote_machine = std::move(saved.remote_machine);
@@ -806,6 +807,7 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds)
             saved.value_top_index = registry_entry.value_top_index;
             saved.expanded_paths = registry_entry.expanded_paths;
             saved.registry_mode = static_cast<int>(registry_entry.registry_mode);
+            saved.registry_view = static_cast<int>(registry_entry.registry_view);
             saved.source_path = registry_entry.offline_path;
             saved.remote_machine = registry_entry.remote_machine;
             state.tabs.push_back(std::move(saved));

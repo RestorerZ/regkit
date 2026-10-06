@@ -49,7 +49,7 @@ bool IsSwitch(std::wstring_view text, std::wstring_view name)
     return !text.empty() && (text[0] == L'/' || text[0] == L'-') && util::EqualsInsensitive(text.substr(1), name);
 }
 
-bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, bool separator_switch, std::wstring* error)
+bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, Verb verb, std::wstring* error)
 {
     for (size_t i = first; i < args.size(); ++i)
     {
@@ -62,7 +62,12 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* 
             *out = args[++i];
             return true;
         };
-        if (IsSwitch(arg, L"v"))
+        auto is_switch = [](const std::wstring& text) { return !text.empty() && (text[0] == L'/' || text[0] == L'-'); };
+        if (IsSwitch(arg, L"v") && verb == Verb::kQuery && (i + 1 >= args.size() || is_switch(args[i + 1])))
+        {
+            options->value_names = true;
+        }
+        else if (IsSwitch(arg, L"v"))
         {
             if (!next(&options->value_name))
                 return false;
@@ -82,28 +87,59 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* 
             if (!next(&options->type_text))
                 return false;
         }
+        else if (IsSwitch(arg, L"d") && verb == Verb::kQuery)
+        {
+            options->data_only = true;
+        }
         else if (IsSwitch(arg, L"d"))
         {
             if (!next(&options->data))
                 return false;
             options->has_data = true;
         }
+        else if (IsSwitch(arg, L"s") && verb == Verb::kAdd)
+        {
+            if (!next(&options->separator))
+                return false;
+        }
         else if (IsSwitch(arg, L"s"))
         {
-            // /s selects multi string separator for add and recursion elsewhere
-            if (separator_switch)
-            {
-                if (!next(&options->separator))
-                    return false;
-            }
-            else
-            {
-                options->recurse = true;
-            }
+            options->recurse = true;
+        }
+        else if (IsSwitch(arg, L"se") && verb == Verb::kQuery)
+        {
+            if (!next(&options->separator))
+                return false;
+        }
+        else if (IsSwitch(arg, L"f") && verb == Verb::kQuery)
+        {
+            if (!next(&options->find))
+                return false;
+            options->has_find = true;
         }
         else if (IsSwitch(arg, L"f") || IsSwitch(arg, L"y"))
         {
             options->force = true;
+        }
+        else if (verb == Verb::kQuery && IsSwitch(arg, L"k"))
+        {
+            options->keys_only = true;
+        }
+        else if (verb == Verb::kQuery && IsSwitch(arg, L"c"))
+        {
+            options->case_sensitive = true;
+        }
+        else if (verb == Verb::kQuery && IsSwitch(arg, L"e"))
+        {
+            options->exact = true;
+        }
+        else if (verb == Verb::kQuery && IsSwitch(arg, L"z"))
+        {
+            options->verbose = true;
+        }
+        else if (IsSwitch(arg, L"oa") || IsSwitch(arg, L"od") || IsSwitch(arg, L"os") || IsSwitch(arg, L"on"))
+        {
+            options->compare_output = static_cast<wchar_t>(towlower(arg[2]));
         }
         else if (IsSwitch(arg, L"reg:32"))
         {

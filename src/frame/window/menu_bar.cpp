@@ -272,6 +272,10 @@ void MainWindow::Impl::BuildMenus()
     append_menu(file_menu, MF_STRING, cmd::kFileExportComments, util::Tr(L"Export Comments..."));
     separator(file_menu);
     append_menu(file_menu, MF_STRING, cmd::kRegistryLocal, util::Tr(L"Local Registry"));
+    if (win32::HasAlternateView())
+    {
+        append_menu(file_menu, MF_STRING, cmd::kRegistryLocal32, util::Tr(L"Local Registry (32-bit)"));
+    }
     append_menu(file_menu, MF_STRING, cmd::kRegistryNetwork, util::Tr(L"Remote Registry..."));
     append_menu(file_menu, MF_STRING, cmd::kRegistryOffline, util::Tr(L"Offline Registry..."));
     append_menu(file_menu, MF_STRING, cmd::kFileSaveOfflineHive, util::Tr(L"Save Offline Hive..."));
@@ -320,6 +324,12 @@ void MainWindow::Impl::BuildMenus()
     append_menu(edit_menu, MF_STRING, cmd::kEditFind, util::Tr(L"Find..."));
     append_menu(edit_menu, MF_STRING, cmd::kEditReplace, util::Tr(L"Replace..."));
     append_menu(edit_menu, MF_STRING, cmd::kEditGoTo, util::Tr(L"Go To..."));
+    if (win32::HasAlternateView())
+    {
+        append_menu(edit_menu, MF_STRING, cmd::kRegistryOtherView, util::Tr(L"Go to Other View"));
+    }
+    append_menu(edit_menu, MF_STRING, cmd::kEditGoToVirtualStore, util::Tr(L"Go to Virtual Store Copy"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditGoToGlobalKey, util::Tr(L"Go to Global Key"));
     separator(edit_menu);
     append_menu(edit_menu, MF_STRING, cmd::kEditPermissions, util::Tr(L"Permissions..."));
     append_menu(edit_menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
@@ -631,7 +641,14 @@ void MainWindow::Impl::UpdateMenuState(HMENU menu)
     const TabEntry* tab = tab_index >= 0 && static_cast<size_t>(tab_index) < tabs_.size() ? &tabs_[static_cast<size_t>(tab_index)] : nullptr;
     const bool dirty = tab && (tab->kind == TabEntry::Kind::kRegFile ? tab->reg_file_dirty : tab->kind == TabEntry::Kind::kRegistry && tab->session && tab->session->offline_dirty);
     enable(cmd::kFileSave, can_modify && dirty);
-    check(cmd::kRegistryLocal, mode == RegistryMode::kLocal);
+    check(cmd::kRegistryLocal, mode == RegistryMode::kLocal && !session_->view);
+    check(cmd::kRegistryLocal32, mode == RegistryMode::kLocal && session_->view);
+    enable(cmd::kRegistryOtherView, mode == RegistryMode::kLocal && node != nullptr);
+    if (GetMenuState(menu, cmd::kEditGoToVirtualStore, MF_BYCOMMAND) != static_cast<UINT>(-1))
+    {
+        enable(cmd::kEditGoToVirtualStore, !VirtualStoreTarget().empty());
+        enable(cmd::kEditGoToGlobalKey, !GlobalKeyTarget().empty());
+    }
     check(cmd::kRegistryNetwork, mode == RegistryMode::kRemote);
     check(cmd::kRegistryOffline, mode == RegistryMode::kOffline);
     enable(cmd::kFileSaveOfflineHive, mode == RegistryMode::kOffline && !session_->offline_mount.empty());

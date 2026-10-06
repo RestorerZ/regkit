@@ -247,15 +247,7 @@ uint64_t FileTimeToUint64(const FILETIME& filetime)
 
 static int CompareUint64(uint64_t left, uint64_t right)
 {
-    if (left < right)
-    {
-        return -1;
-    }
-    if (left > right)
-    {
-        return 1;
-    }
-    return 0;
+    return (left > right) - (left < right);
 }
 
 const std::wstring& ValueRowFieldText(const ListRow& row, int subitem)

@@ -15,7 +15,7 @@ namespace live
 bool HasSubKeys(const RegistryNode& node);
 bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);
 bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, bool* denied = nullptr);
-KeyInspection InspectKey(const RegistryNode& node, bool want_info);
+KeyInspection InspectKey(const RegistryNode& node, bool want_info, bool want_source);
 std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node, bool sorted);
 bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, RegistryStore::KeyEnumResult* out_info, const RegistryStore::ValueStreamCallback& value_callback, const RegistryStore::SubkeyStreamCallback& subkey_callback, DWORD max_data_size, EnumerationScratch* scratch, bool ordered, bool open_link = false);
 bool QueryValue(const RegistryNode& node, const std::wstring& value_name, RegistryValue* out);

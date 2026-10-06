@@ -77,6 +77,10 @@ constexpr int kToolsConvertFile = 2143;
 constexpr int kRegistryLocal = 2120;
 constexpr int kRegistryNetwork = 2121;
 constexpr int kRegistryOffline = 2122;
+constexpr int kRegistryLocal32 = 2126;
+constexpr int kRegistryOtherView = 2127;
+constexpr int kEditGoToVirtualStore = 2128;
+constexpr int kEditGoToGlobalKey = 2129;
 
 constexpr int kNavBack = 2150;
 constexpr int kNavForward = 2151;

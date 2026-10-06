@@ -15,6 +15,14 @@
 namespace regkit::reg_exe
 {
 
+// switches mean different things per verb: /f forces add and delete but is the pattern for query, /d is data for add
+enum class Verb
+{
+    kAdd,
+    kQuery,
+    kOther,
+};
+
 struct Options
 {
     std::wstring value_name;
@@ -27,11 +35,20 @@ struct Options
     bool recurse = false;
     bool force = false;
     bool has_data = false;
+    std::wstring find;
+    bool has_find = false;
+    bool keys_only = false;
+    bool data_only = false;
+    bool value_names = false;
+    bool case_sensitive = false;
+    bool exact = false;
+    bool verbose = false;
+    wchar_t compare_output = L'd';
     REGSAM view = win32::kDefaultRegistryView;
 };
 
 bool IsSwitch(std::wstring_view text, std::wstring_view name);
-bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, bool separator_switch, std::wstring* error);
+bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, Verb verb, std::wstring* error);
 bool ParseType(std::wstring_view text, DWORD* type);
 std::wstring TypeName(DWORD type);
 bool BuildData(DWORD type, std::wstring_view text, std::wstring_view separator, std::vector<BYTE>* data, std::wstring* error);

@@ -356,6 +356,20 @@ void LayoutListViews(HWND owner)
     }
 }
 
+int FitListColumn(HWND list, int column)
+{
+    wchar_t title[128] = {};
+    LVCOLUMNW info = {};
+    info.mask = LVCF_TEXT;
+    info.pszText = title;
+    info.cchTextMax = static_cast<int>(_countof(title));
+    ListView_GetColumn(list, column, &info);
+    ListView_SetColumnWidth(list, column, LVSCW_AUTOSIZE);
+    const int width = std::max(ListView_GetColumnWidth(list, column), ListView_GetStringWidth(list, title) + appearance::ScaleForDpi(16, win32::DpiForWindow(list)));
+    ListView_SetColumnWidth(list, column, width);
+    return width;
+}
+
 void RefreshListView(HWND list)
 {
     if (!list)
@@ -512,7 +526,7 @@ bool ShowListColumnMenu(HWND list, POINT screen)
     DestroyMenu(menu);
     if (chosen == kMenuSizeToFit && column >= 0)
     {
-        ListView_SetColumnWidth(list, column, LVSCW_AUTOSIZE_USEHEADER);
+        FitListColumn(list, column);
         CaptureWidths(entry);
         return true;
     }
@@ -522,7 +536,7 @@ bool ShowListColumnMenu(HWND list, POINT screen)
         {
             if (widths[static_cast<size_t>(display)] > 0)
             {
-                ListView_SetColumnWidth(list, display, LVSCW_AUTOSIZE_USEHEADER);
+                FitListColumn(list, display);
             }
         }
         CaptureWidths(entry);

@@ -86,6 +86,7 @@ class MainWindow::Impl
         ~RegistrySession();
 
         RegistryMode mode = RegistryMode::kLocal;
+        REGSAM view = 0;
         std::wstring remote_machine;
         HKEY remote_hklm = nullptr;
         HKEY remote_hku = nullptr;
@@ -305,7 +306,10 @@ class MainWindow::Impl
     bool ConfirmOfflineChanges(RegistrySession& session, const wchar_t* message);
     void MarkOfflineDirty();
     int AddRegistryTab(RegistryMode mode, const wchar_t* label);
-    void OpenLocalRegistryTab();
+    void OpenLocalRegistryTab(REGSAM view = 0);
+    void GoToOtherView();
+    std::wstring VirtualStoreTarget() const;
+    std::wstring GlobalKeyTarget() const;
     int CurrentRegistryTabIndex() const;
     void UpdateRegistryTabEntry(RegistryMode mode, const std::wstring& offline_path, const std::wstring& remote_machine);
     bool IsSearchTabIndex(int index) const;
@@ -430,6 +434,8 @@ class MainWindow::Impl
     std::wstring LookupNativeHivePath(const std::wstring& nt_path, bool* is_root);
     int KeyIconIndex(const RegistryNode& node, bool* is_link, bool* is_hive_root);
     void AppendRealRegistryRoot(std::vector<RegistryRootEntry>* roots);
+    std::vector<RegistryRootEntry> LocalRoots(REGSAM view);
+    std::shared_ptr<RegistrySession> LocalViewSession(REGSAM view) const;
     void HandleTypeToSelectTree(wchar_t ch);
     void HandleTypeToSelectList(wchar_t ch);
     std::wstring NormalizeRegistryPath(const std::wstring& path) const;
@@ -710,6 +716,7 @@ class MainWindow::Impl
         Kind kind = Kind::kRegistry;
         int search_index = -1;
         RegistryMode registry_mode = RegistryMode::kLocal;
+        REGSAM registry_view = 0;
         std::wstring offline_path;
         std::wstring remote_machine;
         std::wstring selected_path;

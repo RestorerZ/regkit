@@ -37,6 +37,11 @@ std::optional<ULONG> QueryKeyFlags(HKEY key);
 std::wstring QueryKeyName(HKEY key);
 NativeKeyInfo QueryNativeKeyInfo(HKEY key);
 LONG SetKeyLastWriteTime(HKEY key, const FILETIME& time);
+inline constexpr ULONG kKeyDontVirtualize = 0x2;
+inline constexpr ULONG kKeyDontSilentFail = 0x4;
+inline constexpr ULONG kKeyRecurseFlag = 0x8;
+// REG_KEY_DONT_VIRTUALIZE, REG_KEY_DONT_SILENT_FAIL & REG_KEY_RECURSE_FLAG, as reg flags sets them
+LONG SetKeyControlFlags(HKEY key, ULONG flags);
 LONG QueryValueCounted(HKEY key, const std::wstring& name, DWORD* type, BYTE* data, DWORD* size);
 LONG SetValueCounted(HKEY key, const std::wstring& name, DWORD type, const BYTE* data, DWORD size);
 LONG DeleteValueCounted(HKEY key, const std::wstring& name);

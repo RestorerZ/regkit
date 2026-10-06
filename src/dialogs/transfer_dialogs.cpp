@@ -91,7 +91,7 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, bool allow_hive, st
     }
     if (options.hive)
     {
-        const LONG saved = SaveKeyToHive(node.root, node.subkey, win32::kDefaultRegistryView, options.path);
+        const LONG saved = SaveKeyToHive(node.root, node.subkey, ViewOf(node), options.path);
         if (saved != ERROR_SUCCESS)
         {
             *error = HiveTransferError(saved, options.path);
@@ -104,7 +104,7 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, bool allow_hive, st
     last_open_after = options.open_after;
     regfile::Writer writer;
     std::vector<std::wstring> skipped;
-    const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, win32::kDefaultRegistryView, options.include_subkeys, &skipped);
+    const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, ViewOf(node), options.include_subkeys, &skipped);
     if (status != ERROR_SUCCESS)
     {
         return ReportUnreadableKey(status, display, error);
@@ -151,7 +151,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
             return false;
         }
         registry_backend::KeyContents contents;
-        const LONG status = registry_backend::ReadKeyContents(base.root, base.subkey, win32::kDefaultRegistryView, true, &contents);
+        const LONG status = registry_backend::ReadKeyContents(base.root, base.subkey, ViewOf(base), true, &contents);
         if (status != ERROR_SUCCESS)
         {
             return ReportUnreadableKey(status, display, error);
@@ -188,7 +188,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
         {
             return false;
         }
-        const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, win32::kDefaultRegistryView, true, &skipped);
+        const LONG status = regfile::AppendRegistryTree(&writer, node.root, node.subkey, display, ViewOf(node), true, &skipped);
         if (status != ERROR_SUCCESS)
         {
             return ReportUnreadableKey(status, display, error);

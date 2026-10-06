@@ -108,19 +108,6 @@ void UpdateHistoryList(std::vector<std::wstring>* items, const std::wstring& ent
     }
 }
 
-void PopulateHistoryCombo(HWND combo, const std::vector<std::wstring>& items)
-{
-    if (!combo)
-    {
-        return;
-    }
-    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
-    for (const auto& item : items)
-    {
-        SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item.c_str()));
-    }
-}
-
 void UpdateScopeComboText(SearchDialogState* state)
 {
     if (!state || !Item(state, IDC_FIND_SCOPE_ROOTS))
@@ -347,7 +334,7 @@ void UpdateDialogEnableState(SearchDialogState* state)
 void LoadInitialState(SearchDialogState* state)
 {
     state->history = LoadSearchHistory();
-    PopulateHistoryCombo(Item(state, IDC_FIND_WHAT), state->history);
+    dialog_support::SetComboItems(Item(state, IDC_FIND_WHAT), state->history);
     if (state->out && !state->out->criteria.query.empty())
     {
         SetWindowTextW(Item(state, IDC_FIND_WHAT), state->out->criteria.query.c_str());

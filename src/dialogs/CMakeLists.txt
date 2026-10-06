@@ -7,7 +7,7 @@ regkit_add_library(regkit_dialogs
     comment_editor.cpp
     decoder_dialog.cpp
     export_dialog.cpp
-    fields_dialog.cpp
+    table_dialog.cpp
     hive_dialog.cpp
     query_dialog.cpp
     query_prompts.cpp

@@ -19,11 +19,11 @@ KeyWatcher::~KeyWatcher()
     }
 }
 
-void KeyWatcher::Watch(HWND window, UINT message, HKEY root, const std::wstring& subkey)
+void KeyWatcher::Watch(HWND window, UINT message, HKEY root, const std::wstring& subkey, REGSAM view)
 {
     {
         std::lock_guard lock(mutex_);
-        if (thread_.joinable() && root_ == root && subkey_ == subkey)
+        if (thread_.joinable() && root_ == root && subkey_ == subkey && view_ == view)
         {
             return;
         }
@@ -31,6 +31,7 @@ void KeyWatcher::Watch(HWND window, UINT message, HKEY root, const std::wstring&
         message_ = message;
         root_ = root;
         subkey_ = subkey;
+        view_ = view;
         generation_.fetch_add(1);
     }
     if (!thread_.joinable())
@@ -52,7 +53,7 @@ void KeyWatcher::Stop()
 {
     if (thread_.joinable())
     {
-        Watch(nullptr, 0, nullptr, {});
+        Watch(nullptr, 0, nullptr, {}, 0);
     }
 }
 
@@ -73,12 +74,14 @@ void KeyWatcher::Run()
         {
             HKEY root = nullptr;
             std::wstring subkey;
+            REGSAM view = 0;
             {
                 std::lock_guard lock(mutex_);
                 window = window_;
                 message = message_;
                 root = root_;
                 subkey = subkey_;
+                view = view_;
                 generation = generation_.load();
             }
             // closing the old key signals its registration
@@ -86,7 +89,7 @@ void KeyWatcher::Run()
             ResetEvent(change.get());
             if (root)
             {
-                util::OpenRegistryPath(root, subkey, KEY_NOTIFY | win32::kDefaultRegistryView, false, &key);
+                util::OpenRegistryPath(root, subkey, KEY_NOTIFY | view, false, &key);
             }
         }
         else if (signaled == WAIT_OBJECT_0 + 2)
