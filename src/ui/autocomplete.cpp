@@ -43,38 +43,16 @@ UINT SuggestMessage()
     return message;
 }
 
-bool PendingCompletion(HWND edit, ::IAutoCompleteDropDown* dropdown)
+LRESULT CALLBACK EditSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR)
 {
-    DWORD start = 0;
-    DWORD end = 0;
-    DWORD status = 0;
-    SendMessageW(edit, EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
-    return dropdown && start < end && end == static_cast<DWORD>(GetWindowTextLengthW(edit)) && SUCCEEDED(dropdown->GetDropDownStatus(&status, nullptr)) && (status & ACDD_VISIBLE);
-}
-
-LRESULT CALLBACK EditSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR id, DWORD_PTR data)
-{
-    auto* dropdown = reinterpret_cast<::IAutoCompleteDropDown*>(data);
     if (msg == SuggestMessage() && lparam)
     {
         const std::unique_ptr<std::shared_ptr<SuggestCall>> call(reinterpret_cast<std::shared_ptr<SuggestCall>*>(lparam));
         (*call)->result = (*call)->suggest((*call)->query);
         return TRUE;
     }
-    if (msg == WM_GETDLGCODE && lparam)
-    {
-        const MSG* key = reinterpret_cast<const MSG*>(lparam);
-        if (key->message == WM_KEYDOWN && key->wParam == VK_TAB && GetKeyState(VK_SHIFT) >= 0 && PendingCompletion(hwnd, dropdown))
-        {
-            return DefSubclassProc(hwnd, msg, wparam, lparam) | DLGC_WANTTAB;
-        }
-    }
     if (msg == WM_NCDESTROY)
     {
-        if (dropdown)
-        {
-            dropdown->Release();
-        }
         RemoveWindowSubclass(hwnd, EditSubclassProc, id);
     }
     return DefSubclassProc(hwnd, msg, wparam, lparam);
@@ -465,12 +443,7 @@ bool AttachAutoComplete(HWND edit, AutoCompleteSuggest suggest)
     source->Release();
     if (SUCCEEDED(hr))
     {
-        autocomplete->SetOptions(ACO_AUTOSUGGEST | ACO_AUTOAPPEND | ACO_UPDOWNKEYDROPSLIST);
-        ::IAutoCompleteDropDown* dropdown = nullptr;
-        if (SUCCEEDED(autocomplete->QueryInterface(IID_PPV_ARGS(&dropdown))))
-        {
-            SetWindowSubclass(edit, EditSubclassProc, kEditSubclassId, reinterpret_cast<DWORD_PTR>(dropdown));
-        }
+        autocomplete->SetOptions(ACO_AUTOSUGGEST | ACO_AUTOAPPEND | ACO_UPDOWNKEYDROPSLIST | ACO_USETAB);
     }
     // attached edit keeps autocomplete object alive
     autocomplete->Release();
