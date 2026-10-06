@@ -29,13 +29,34 @@ bool IsAncestorItem(HWND tree, HTREEITEM candidate, HTREEITEM item)
     return false;
 }
 
+std::wstring KernelName(const RegistryNode& node)
+{
+    KeyDetails details;
+    return RegistryStore::QueryKeyDetails(node, &details) ? details.native.native_name : std::wstring();
+}
+
+std::wstring NativePath(const RegistryNode& node)
+{
+    return node.view ? std::wstring() : registry_path::BuildNative(node);
+}
+
 } // namespace
 
-void MainWindow::Impl::RefreshMatchingTreeNodes()
+void MainWindow::Impl::RefreshMatchingTreeNodes(HTREEITEM selected)
 {
     HWND tree = browse_.tree().hwnd();
-    HTREEITEM selected = tree ? TreeView_GetSelection(tree) : nullptr;
-    if (!selected)
+    if (tree && !selected)
+    {
+        selected = TreeView_GetSelection(tree);
+    }
+    const RegistryNode* target = selected ? browse_.tree().NodeFromItem(selected) : nullptr;
+    if (!target)
+    {
+        return;
+    }
+    const std::wstring native = NativePath(*target);
+    const std::wstring kernel = KernelName(*target);
+    if (native.empty() && kernel.empty())
     {
         return;
     }
@@ -68,12 +89,15 @@ void MainWindow::Impl::RefreshMatchingTreeNodes()
         {
             pending.emplace_back(depth + 1, child);
         }
-        if (item == selected || !browse_.tree().NodeFromItem(item) || IsAncestorItem(tree, item, selected))
+        const RegistryNode* node = browse_.tree().NodeFromItem(item);
+        if (item == selected || !node || !node->children_loaded || IsAncestorItem(tree, item, selected))
         {
             continue;
         }
+        const std::wstring path = NativePath(*node);
         wchar_t text[256] = {};
-        if (label_of(item, text, static_cast<int>(_countof(text))) && util::EqualsInsensitive(text, wanted))
+        if ((!path.empty() && (util::EqualsInsensitive(path, native) || util::EqualsInsensitive(path, kernel))) ||
+            (!kernel.empty() && label_of(item, text, static_cast<int>(_countof(text))) && util::EqualsInsensitive(text, wanted) && util::EqualsInsensitive(KernelName(*node), kernel)))
         {
             matches.emplace_back(depth, item);
         }
@@ -105,7 +129,9 @@ void MainWindow::Impl::RefreshTreeSelection()
     {
         return;
     }
-    RefreshTreeItem(TreeView_GetSelection(browse_.tree().hwnd()));
+    HTREEITEM selected = TreeView_GetSelection(browse_.tree().hwnd());
+    RefreshTreeItem(selected);
+    RefreshMatchingTreeNodes(selected);
 }
 
 void MainWindow::Impl::RefreshTreeItem(HTREEITEM item)

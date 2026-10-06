@@ -111,7 +111,6 @@ bool MainWindow::Impl::HandleMutationCommand(int command_id)
             AppendHistoryEntry(L"Create symbolic link " + link.name, L"", native);
             MarkOfflineDirty();
             RefreshTreeSelection();
-            RefreshMatchingTreeNodes();
             UpdateValueListForNode(browse_.current_node());
             return true;
         }
@@ -180,7 +179,6 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
             }
             UpdateSimulatedChain(TreeView_GetSelection(browse_.tree().hwnd()));
             RefreshTreeSelection();
-            RefreshMatchingTreeNodes();
             UpdateValueListForNode(browse_.current_node());
             return true;
         }
@@ -252,7 +250,10 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
                     {
                         RefreshTreeSelection();
                     }
-                    RefreshMatchingTreeNodes();
+                    else
+                    {
+                        RefreshMatchingTreeNodes();
+                    }
 
                     if (!target && parent_item)
                     {
@@ -505,7 +506,6 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                     op.new_value.data = data;
                     PushUndo(std::move(op));
                     RefreshTreeSelection();
-                    RefreshMatchingTreeNodes();
                     UpdateValueListForNode(browse_.current_node());
                     return true;
                 }
@@ -857,6 +857,7 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                 RegistryNode parent = target;
                 parent.subkey = registry_path::Parent(target.subkey);
                 HTREEITEM deleted_item = TreeView_GetSelection(browse_.tree().hwnd());
+                HTREEITEM parent_item = deleted_item ? TreeView_GetParent(browse_.tree().hwnd(), deleted_item) : nullptr;
                 const std::wstring neighbour_path = TreeNeighbourPath(deleted_item);
                 changes::KeySnapshot snapshot = changes::CaptureKey(target);
                 const bool restorable = snapshot.complete;
@@ -888,7 +889,7 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                     }
                     std::wstring next_path = neighbour_path.empty() ? registry_path::Build(parent) : neighbour_path;
                     const bool moved = !next_path.empty() && SelectTreePath(next_path);
-                    RefreshMatchingTreeNodes();
+                    RefreshMatchingTreeNodes(parent_item);
                     if (!moved)
                     {
                         UpdateValueListForNode(browse_.current_node());
@@ -996,7 +997,6 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                         PushUndo(std::move(op));
                     }
                     RefreshTreeSelection();
-                    RefreshMatchingTreeNodes();
                     UpdateValueListForNode(browse_.current_node());
                 }
                 return true;

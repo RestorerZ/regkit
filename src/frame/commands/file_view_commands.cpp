@@ -504,7 +504,6 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
     {
     case cmd::kViewRefresh:
         RefreshTreeSelection();
-        RefreshMatchingTreeNodes();
         UpdateValueListForNode(browse_.current_node());
         return true;
     case cmd::kViewAddressBar:

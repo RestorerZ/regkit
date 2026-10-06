@@ -568,6 +568,7 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
             op.new_name = new_name;
             PushUndo(std::move(op));
             RefreshTreeSelection();
+            RefreshMatchingTreeNodes(TreeView_GetParent(browse_.tree().hwnd(), disp->item.hItem));
             UpdateValueListForNode(browse_.current_node());
             return TRUE;
         }

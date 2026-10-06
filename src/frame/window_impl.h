@@ -538,7 +538,7 @@ class MainWindow::Impl
     void RefreshTreeItem(HTREEITEM item);
     void RefreshTreePath(const std::wstring& path);
     void RefreshTreeSelection();
-    void RefreshMatchingTreeNodes();
+    void RefreshMatchingTreeNodes(HTREEITEM selected = nullptr);
     void UpdateSimulatedChain(HTREEITEM item);
     void ApplySavedWindowPlacement();
     LOGFONTW DefaultLogFont() const;
