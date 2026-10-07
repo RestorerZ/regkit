@@ -536,7 +536,8 @@ HKEY MapCurrentUserRoot(HKEY root)
         return root;
     }
     const ShellUserRoots& roots = ShellRoots();
-    return root == HKEY_CURRENT_USER ? roots.user.get() : root == HKEY_CLASSES_ROOT && roots.classes ? roots.classes.get() : root;
+    return root == HKEY_CURRENT_USER ? roots.user.get() : root == HKEY_CLASSES_ROOT && roots.classes ? roots.classes.get()
+                                                                                                     : root;
 }
 
 std::wstring AccountName(const std::wstring& sid_text)
@@ -553,7 +554,8 @@ std::wstring AccountName(const std::wstring& sid_text)
     SID_NAME_USE use = SidTypeUnknown;
     const bool found = LookupAccountSidW(nullptr, sid, name, &name_size, domain, &domain_size, &use) != FALSE;
     LocalFree(sid);
-    return !found ? sid_text : domain[0] ? std::wstring(domain) + L"\\" + name : std::wstring(name);
+    return !found ? sid_text : domain[0] ? std::wstring(domain) + L"\\" + name
+                                         : std::wstring(name);
 }
 
 std::wstring GetShellUserDocuments()

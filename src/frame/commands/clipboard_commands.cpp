@@ -9,6 +9,11 @@ namespace regkit
 {
 using namespace command_detail;
 
+void MainWindow::Impl::ShowFavoritesImported(size_t imported)
+{
+    ui::ShowInfo(hwnd_, imported ? util::TrLabel(L"New favorites imported", std::to_wstring(imported)) : std::wstring(util::Tr(L"There are no new favorites to import.")));
+}
+
 bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
 {
     switch (command_id)
@@ -72,16 +77,16 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
             {
                 return true;
             }
-            if (!FavoritesStore::ImportFromFile(path))
+            size_t imported = 0;
+            if (!FavoritesStore::ImportFromFile(path, &imported))
             {
                 ui::ShowError(hwnd_, util::Tr(L"Failed to import favorites."));
+                return true;
             }
-            else
-            {
-                RefreshFavoritesCache();
-                AppendHistoryEntry(L"Import favorites " + util::FileName(path), L"", path);
-            }
+            RefreshFavoritesCache();
+            AppendHistoryEntry(L"Import favorites " + util::FileName(path), L"", path);
             BuildMenus();
+            ShowFavoritesImported(imported);
             return true;
         }
     case cmd::kFavoritesImportRegEdit:
@@ -99,6 +104,7 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
                 BuildMenus();
             }
             AppendHistoryEntry(L"Import RegEdit favorites", L"", std::to_wstring(imported) + L" favorites");
+            ShowFavoritesImported(imported);
             return true;
         }
     case cmd::kFavoritesExport:

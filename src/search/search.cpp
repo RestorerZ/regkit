@@ -264,7 +264,14 @@ int CompareResult(const Result& left, const Result& right, int column)
     switch (column)
     {
     case 0:
-        return util::CompareListText(left.key_path, right.key_path);
+        {
+            int result = util::CompareListText(left.key_path, right.key_path);
+            if (result == 0)
+            {
+                result = CompareNumeric(!IsKeyRow(left), !IsKeyRow(right));
+            }
+            return result != 0 ? result : util::CompareInsensitive(left.value_name, right.value_name);
+        }
     case 1:
         return util::CompareListText(DisplayName(left), DisplayName(right));
     case 3:
@@ -734,7 +741,9 @@ std::wstring ValueAnomaly(uint32_t kinds, const ValueInfo& value, const BYTE* da
     }
     const bool string = type == REG_SZ || type == REG_EXPAND_SZ;
     const bool multi = type == REG_MULTI_SZ;
-    if (!(kinds & (string ? kAnomalyStringEnd : multi ? kAnomalyMultiString : 0)) || size == 0)
+    if (!(kinds & (string ? kAnomalyStringEnd : multi ? kAnomalyMultiString
+                                                      : 0)) ||
+        size == 0)
     {
         return {};
     }
@@ -1007,6 +1016,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
         }
     }
 
+    std::reverse(stack.begin(), stack.end());
     std::atomic<uint64_t> searched_keys(0);
     std::atomic<uint64_t> total_keys(stack.size());
     std::atomic<uint64_t> last_reported(0);
@@ -1046,7 +1056,11 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
     };
 
     const uint64_t max_results = criteria.max_results;
-    uint64_t emitted = 0;
+    const auto rank_less = [](const Result& left, const Result& right) { return CompareResult(left, right, 0) < 0; };
+    std::vector<Result> ranked;
+    std::mutex cutoff_mutex;
+    std::atomic<uint64_t> cutoff_version{0};
+    std::wstring cutoff_path;
 
     auto publish_batch = [&](ResultBatch& batch) -> bool {
         if (batch.empty())
@@ -1054,27 +1068,39 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
             return true;
         }
         bool accepted = true;
-        bool reached_limit = false;
         {
             std::lock_guard<std::mutex> lock(publish_mutex);
             if (max_results > 0)
             {
-                const uint64_t room = emitted < max_results ? max_results - emitted : 0;
-                if (batch.size() > room)
+                std::erase_if(batch, [&](const Result& result) {
+                    if (ranked.size() == max_results)
+                    {
+                        if (!rank_less(result, ranked.front()))
+                        {
+                            return true;
+                        }
+                        std::pop_heap(ranked.begin(), ranked.end(), rank_less);
+                        ranked.pop_back();
+                    }
+                    Result rank;
+                    rank.key_path = result.key_path;
+                    rank.value_name = result.value_name;
+                    rank.kind = result.kind;
+                    ranked.push_back(std::move(rank));
+                    std::push_heap(ranked.begin(), ranked.end(), rank_less);
+                    return false;
+                });
+                if (ranked.size() == max_results && cutoff_path != ranked.front().key_path)
                 {
-                    batch.resize(static_cast<size_t>(room));
+                    std::lock_guard<std::mutex> cutoff_lock(cutoff_mutex);
+                    cutoff_path = ranked.front().key_path;
+                    cutoff_version.fetch_add(1);
                 }
-                emitted += batch.size();
-                reached_limit = emitted >= max_results;
             }
             if (!batch.empty())
             {
                 accepted = !publish || publish(std::move(batch));
             }
-        }
-        if (reached_limit)
-        {
-            accepted = false;
         }
         batch.clear();
         batch.reserve(kResultBatchSize);
@@ -1107,6 +1133,8 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
         std::vector<NodeTask> children;
         uint64_t local_searched = 0;
         uint64_t local_tick = GetTickCount64();
+        std::wstring local_cutoff;
+        uint64_t local_cutoff_version = 0;
 
         auto flush_progress = [&](bool force) {
             if (local_searched == 0 && !force)
@@ -1196,6 +1224,17 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                 };
 
                 if (has_excludes && IsExcludedPath(path_text(), criteria.exclude_paths))
+                {
+                    continue;
+                }
+                if (max_results > 0 && cutoff_version.load(std::memory_order_relaxed) != local_cutoff_version)
+                {
+                    std::lock_guard<std::mutex> lock(cutoff_mutex);
+                    local_cutoff = cutoff_path;
+                    local_cutoff_version = cutoff_version.load();
+                }
+                if (!local_cutoff.empty() && util::CompareListText(path_text(), local_cutoff) > 0 &&
+                    (mirror_text().empty() || util::CompareListText(mirror_text(), local_cutoff) > 0))
                 {
                     continue;
                 }
@@ -1433,7 +1472,8 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                         result.modified = enum_result.info_valid ? enum_result.info.last_write : FILETIME{};
                         const size_t path_start =
                             result.key_path.size() >= leaf.size() ? result.key_path.size() - leaf.size() : 0;
-                        result.match_field = key_match.matched ? MatchField::kPath : comment_match.matched ? MatchField::kComment : MatchField::kData;
+                        result.match_field = key_match.matched ? MatchField::kPath : comment_match.matched ? MatchField::kComment
+                                                                                                           : MatchField::kData;
                         result.match_start = key_match.matched ? static_cast<uint32_t>(path_start + key_match.start) : 0u;
                         result.match_length = static_cast<uint32_t>(key_match.length);
 
@@ -1461,7 +1501,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                 if (!should_stop() && want_subkeys && !children.empty())
                 {
                     std::lock_guard<std::mutex> lock(mutex);
-                    stack.insert(stack.end(), std::make_move_iterator(children.begin()), std::make_move_iterator(children.end()));
+                    stack.insert(stack.end(), std::make_move_iterator(children.rbegin()), std::make_move_iterator(children.rend()));
                     total_keys.fetch_add(static_cast<uint64_t>(children.size()));
                     cv.notify_all();
                 }

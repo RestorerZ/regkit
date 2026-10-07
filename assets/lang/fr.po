@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-06 20:00+0200\n"
+"POT-Creation-Date: 2026-10-07 10:20+0200\n"
 "PO-Revision-Date: 2026-10-04 13:38+0200\n"
 "Last-Translator: nohuto contact@noverse.dev\n"
 "Language-Team: none\n"
@@ -69,12 +69,12 @@ msgstr "Non valide"
 #: dialogs/bitfield_editor.cpp:788 dialogs/decoder_dialog.cpp:184
 #: dialogs/trace_dialog.cpp:205 dialogs/trace_dialog.cpp:245
 #: dialogs/trace_dialog.cpp:268 dialogs/value_editor.cpp:731
-#: frame/detail/control_detail.cpp:162 frame/search/search_window.cpp:1092
-#: frame/tools/launch_bridge.cpp:234 frame/views/history_workspace.cpp:1005
+#: frame/detail/control_detail.cpp:162 frame/search/search_window.cpp:1068
+#: frame/tools/launch_bridge.cpp:234 frame/views/history_workspace.cpp:1012
 #: frame/views/value_loading.cpp:386 frame/views/value_loading.cpp:433
-#: frame/window/notifications.cpp:144 frame/window/notifications.cpp:1229
-#: frame/window/notifications.cpp:1301 regfile/script_convert.cpp:189
-#: search/search.cpp:234 search/search.cpp:1243 ui/feedback.cpp:790
+#: frame/window/notifications.cpp:144 frame/window/notifications.cpp:1230
+#: frame/window/notifications.cpp:1302 regfile/script_convert.cpp:189
+#: search/search.cpp:234 search/search.cpp:1280 ui/feedback.cpp:790
 msgid "(Default)"
 msgstr "(par défaut)"
 
@@ -268,12 +268,12 @@ msgstr "Ce fichier de définition contient des modifications non enregistrées."
 
 #: dialogs/bitfield_definition_editor.cpp:529
 #: dialogs/bitfield_definition_editor.cpp:595
-#: dialogs/bitfield_definition_editor.cpp:806 frame/window/menu_bar.cpp:464
+#: dialogs/bitfield_definition_editor.cpp:806 frame/window/menu_bar.cpp:459
 msgid "Bit Definitions"
 msgstr "Définitions de bits"
 
-#: dialogs/bitfield_definition_editor.cpp:529 frame/views/tab_lists.cpp:429
-#: frame/views/tab_lists.cpp:464 frame/window/menu_bar.cpp:147
+#: dialogs/bitfield_definition_editor.cpp:529 frame/views/tab_lists.cpp:426
+#: frame/views/tab_lists.cpp:461 frame/window/menu_bar.cpp:147
 #: frame/window/menu_bar.cpp:266
 msgid "Save"
 msgstr "Enregistrer"
@@ -286,13 +286,13 @@ msgstr "Abandonner"
 #: dialogs/bitfield_definition_editor.cpp:595 dialogs/bitfield_editor.cpp:387
 #: dialogs/query_prompts.cpp:127 dialogs/query_prompts.cpp:211
 #: dialogs/value_editor.cpp:880 frame/commands/file_view_commands.cpp:50
-#: frame/commands/file_view_commands.cpp:430
-#: frame/commands/workspace_commands.cpp:261
+#: frame/commands/file_view_commands.cpp:434
+#: frame/commands/workspace_commands.cpp:262
 #: frame/tools/key_handles_window.cpp:358 frame/tools/launch_bridge.cpp:481
 #: frame/tools/launch_bridge.cpp:498 frame/views/history_workspace.cpp:196
 #: frame/views/registry_sessions.cpp:669 frame/views/registry_sessions.cpp:709
-#: frame/views/registry_sessions.cpp:927 frame/views/registry_sessions.cpp:934
-#: frame/views/tab_lists.cpp:429 frame/views/tab_lists.cpp:464
+#: frame/views/registry_sessions.cpp:932 frame/views/registry_sessions.cpp:939
+#: frame/views/tab_lists.cpp:426 frame/views/tab_lists.cpp:461
 #: frame/window/lifetime.cpp:23 frame/window/message_routes.cpp:54
 #: ui/feedback.cpp:795 ui/feedback.cpp:805 ui/feedback.cpp:818
 msgid "Cancel"
@@ -444,15 +444,15 @@ msgstr "Interpréter comme :"
 msgid "Property"
 msgstr ""
 
-#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:179
+#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:190
 msgid "Don't open"
 msgstr "Ne pas ouvrir"
 
-#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:180
+#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:191
 msgid "In text editor"
 msgstr "Éditeur de texte"
 
-#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:183
+#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:194
 msgid "In RegKit"
 msgstr "Dans RegKit"
 
@@ -556,21 +556,21 @@ msgstr ""
 msgid "Exclude Keys"
 msgstr "Exclure les clés"
 
-#: dialogs/query_dialog.cpp:747 frame/commands/clipboard_commands.cpp:49
+#: dialogs/query_dialog.cpp:747 frame/commands/clipboard_commands.cpp:54
 msgid "Each line should include one key."
 msgstr "Chaque ligne doit contenir une clé."
 
-#: dialogs/query_prompts.cpp:122 frame/commands/context_menus.cpp:163
-#: frame/window/menu_bar.cpp:321
+#: dialogs/query_prompts.cpp:122 frame/commands/context_menus.cpp:217
+#: frame/window/menu_bar.cpp:316
 msgid "Select All"
 msgstr "Sélectionner tout"
 
-#: dialogs/query_prompts.cpp:124 frame/window/menu_bar.cpp:425
+#: dialogs/query_prompts.cpp:124 frame/window/menu_bar.cpp:420
 msgid "Clear All"
 msgstr "Tout effacer"
 
 #: dialogs/query_prompts.cpp:125 dialogs/query_prompts.cpp:209
-#: frame/views/registry_sessions.cpp:905 frame/window/lifetime.cpp:447
+#: frame/views/registry_sessions.cpp:910 frame/window/lifetime.cpp:447
 #: frame/window/notifications.cpp:32 ui/feedback.cpp:405 ui/feedback.cpp:447
 #: ui/feedback.cpp:728 ui/feedback.cpp:748 ui/feedback.cpp:825
 msgid "OK"
@@ -592,7 +592,7 @@ msgstr "Sélectionnez une clé."
 msgid "Browse Key"
 msgstr "Parcourir les clés"
 
-#: dialogs/replace_dialog.cpp:58 frame/search/search_window.cpp:748
+#: dialogs/replace_dialog.cpp:58 frame/search/search_window.cpp:745
 msgid "Enter text to find."
 msgstr "Entrez le texte à rechercher."
 
@@ -684,7 +684,7 @@ msgstr "Aucune valeur sélectionnée trouvée dans l'exportation."
 msgid "Loading a hive needs the backup and restore privileges. Run RegKit elevated."
 msgstr "Le chargement d'une ruche nécessite les privilèges de sauvegarde et de restauration. Exécutez RegKit avec des droits élevés."
 
-#: dialogs/transfer_dialogs.cpp:245 frame/commands/file_view_commands.cpp:430
+#: dialogs/transfer_dialogs.cpp:245 frame/commands/file_view_commands.cpp:434
 msgid "Unload Hive"
 msgstr "Décharger la ruche"
 
@@ -736,79 +736,87 @@ msgstr "Nombre hors limites."
 msgid "This value has no data to edit as bits."
 msgstr "Cette valeur ne contient aucune donnée à modifier sous forme de bits."
 
-#: frame/commands/clipboard_commands.cpp:48
+#: frame/commands/clipboard_commands.cpp:14
+msgid "New favorites imported"
+msgstr "Nouveaux favoris importés"
+
+#: frame/commands/clipboard_commands.cpp:14
+msgid "There are no new favorites to import."
+msgstr "Il n'y a aucun nouveau favori à importer."
+
+#: frame/commands/clipboard_commands.cpp:53
 msgid "Edit Favorites"
 msgstr "Modifier les favoris"
 
-#: frame/commands/clipboard_commands.cpp:59 workspace/favorites.cpp:129
+#: frame/commands/clipboard_commands.cpp:64 workspace/favorites.cpp:130
 msgid "Failed to save favorites."
 msgstr "Échec de l'enregistrement des favoris."
 
-#: frame/commands/clipboard_commands.cpp:77
+#: frame/commands/clipboard_commands.cpp:83
 msgid "Failed to import favorites."
 msgstr "Échec de l'importation des favoris."
 
-#: frame/commands/clipboard_commands.cpp:93
+#: frame/commands/clipboard_commands.cpp:98
 msgid "Failed to import RegEdit favorites."
 msgstr "Échec de l'importation des favoris RegEdit."
 
-#: frame/commands/clipboard_commands.cpp:114
+#: frame/commands/clipboard_commands.cpp:120
 msgid "Failed to export favorites."
 msgstr "Échec de l'exportation des favoris."
 
-#: frame/commands/clipboard_commands.cpp:233
-#: frame/commands/clipboard_commands.cpp:403
-#: frame/commands/mutation_commands.cpp:403
+#: frame/commands/clipboard_commands.cpp:239
+#: frame/commands/clipboard_commands.cpp:346
+#: frame/commands/mutation_commands.cpp:404
 #: frame/commands/mutation_commands.cpp:512
 #: frame/commands/mutation_commands.cpp:1018
 #: frame/commands/tools_commands.cpp:92
 msgid "Failed to read value."
 msgstr "Échec de la lecture de la valeur."
 
-#: frame/commands/clipboard_commands.cpp:461
+#: frame/commands/clipboard_commands.cpp:404
 #, fuzzy
 msgid "The source key couldn't be opened."
 msgstr "Clé introuvable."
 
-#: frame/commands/clipboard_commands.cpp:525
+#: frame/commands/clipboard_commands.cpp:468
 msgid "Failed to paste value."
 msgstr "Échec du collage de la valeur."
 
-#: frame/commands/clipboard_commands.cpp:557
+#: frame/commands/clipboard_commands.cpp:500
 msgid "Failed to paste key."
 msgstr "Échec du collage de la clé."
 
-#: frame/commands/clipboard_commands.cpp:612
+#: frame/commands/clipboard_commands.cpp:555
 #, fuzzy
 msgid "The change couldn't be undone."
 msgstr "Clé introuvable."
 
-#: frame/commands/clipboard_commands.cpp:638
+#: frame/commands/clipboard_commands.cpp:581
 #, fuzzy
 msgid "The change couldn't be redone."
 msgstr "Impossible de télécharger la mise à jour."
 
-#: frame/commands/command_detail.h:70 frame/commands/context_menus.cpp:728
+#: frame/commands/command_detail.h:70
 msgid "Abbreviated (HKLM)"
 msgstr "Abrégé (HKLM)"
 
-#: frame/commands/command_detail.h:71 frame/commands/context_menus.cpp:729
+#: frame/commands/command_detail.h:71
 msgid "RegEdit Address Bar"
 msgstr "Barre d'adresse de RegEdit"
 
-#: frame/commands/command_detail.h:72 frame/commands/context_menus.cpp:730
+#: frame/commands/command_detail.h:72
 msgid ".reg File Header"
 msgstr "En-tête de fichier .reg"
 
-#: frame/commands/command_detail.h:73 frame/commands/context_menus.cpp:731
+#: frame/commands/command_detail.h:73
 msgid "PowerShell Drive"
 msgstr "Lecteur PowerShell"
 
-#: frame/commands/command_detail.h:74 frame/commands/context_menus.cpp:732
+#: frame/commands/command_detail.h:74
 msgid "PowerShell Provider"
 msgstr "Fournisseur PowerShell"
 
-#: frame/commands/command_detail.h:75 frame/commands/context_menus.cpp:733
+#: frame/commands/command_detail.h:75
 msgid "Escaped Backslashes"
 msgstr "Barres obliques inverses échappées"
 
@@ -821,233 +829,237 @@ msgstr "Nom natif"
 msgid "Native (Resolved)"
 msgstr ""
 
-#: frame/commands/command_detail.h:82
+#: frame/commands/command_detail.h:83 frame/tools/key_handles_window.cpp:494
+#: frame/views/value_loading.cpp:229 frame/views/value_loading.cpp:262
+#: frame/window/notifications.cpp:1312 search/search.cpp:59
+#: search/search.cpp:241
+msgid "Key"
+msgstr "Clé"
+
+#: frame/commands/command_detail.h:84 frame/views/value_loading.cpp:229
+#, fuzzy
+msgid "Volatile Key"
+msgstr "Réduire la clé"
+
+#: frame/commands/command_detail.h:86
 msgid "String Value"
 msgstr "Valeur de chaîne"
 
-#: frame/commands/command_detail.h:83
+#: frame/commands/command_detail.h:87
 msgid "Binary Value"
 msgstr "Valeur binaire"
 
-#: frame/commands/command_detail.h:84
+#: frame/commands/command_detail.h:88
 msgid "DWORD (32-bit) Value"
 msgstr "Valeur DWORD (32 bits)"
 
-#: frame/commands/command_detail.h:85
+#: frame/commands/command_detail.h:89
 msgid "QWORD (64-bit) Value"
 msgstr "Valeur QWORD (64 bits)"
 
-#: frame/commands/command_detail.h:86
+#: frame/commands/command_detail.h:90
 msgid "Multi-String Value"
 msgstr "Valeur à chaînes multiples"
 
-#: frame/commands/command_detail.h:87
+#: frame/commands/command_detail.h:91
 msgid "Expandable String Value"
 msgstr "Valeur de chaîne extensible"
 
-#: frame/commands/command_detail.h:89
+#: frame/commands/command_detail.h:93
 msgid "Symbolic Link"
 msgstr "Lien symbolique"
 
-#: frame/commands/context_menus.cpp:155 frame/window/menu_bar.cpp:151
-#: frame/window/menu_bar.cpp:290
-msgid "Undo"
-msgstr "Annuler"
-
-#: frame/commands/context_menus.cpp:157
-msgid "Cut"
-msgstr "Couper"
-
-#: frame/commands/context_menus.cpp:158 frame/commands/context_menus.cpp:546
-#: frame/window/menu_bar.cpp:155 frame/window/menu_bar.cpp:307
-msgid "Copy"
-msgstr "Copier"
-
-#: frame/commands/context_menus.cpp:159 frame/window/menu_bar.cpp:157
-#: frame/window/menu_bar.cpp:308
-msgid "Paste"
-msgstr "Coller"
-
-#: frame/commands/context_menus.cpp:160
-msgid "Paste and Go"
-msgstr "Coller et ouvrir"
-
-#: frame/commands/context_menus.cpp:161 frame/commands/context_menus.cpp:291
-#: frame/commands/context_menus.cpp:400 frame/commands/context_menus.cpp:464
-#: frame/commands/context_menus.cpp:779 frame/window/menu_bar.cpp:159
-#: frame/window/menu_bar.cpp:310 ui/feedback.cpp:795
-msgid "Delete"
-msgstr "Supprimer"
-
-#: frame/commands/context_menus.cpp:244
-msgid "Collapse Key"
-msgstr "Réduire la clé"
-
-#: frame/commands/context_menus.cpp:244 frame/commands/context_menus.cpp:346
-msgid "Expand Key"
-msgstr "Développer la clé"
-
-#: frame/commands/context_menus.cpp:249 frame/commands/context_menus.cpp:358
-#: frame/commands/context_menus.cpp:472 frame/commands/context_menus.cpp:765
+#: frame/commands/context_menus.cpp:81 frame/commands/context_menus.cpp:419
+#: frame/commands/context_menus.cpp:663
 msgid "Copy Key Name"
 msgstr "Copier le nom de la clé"
 
-#: frame/commands/context_menus.cpp:250 frame/commands/context_menus.cpp:359
-#: frame/commands/context_menus.cpp:473 frame/commands/context_menus.cpp:766
+#: frame/commands/context_menus.cpp:82 frame/commands/context_menus.cpp:420
+#: frame/commands/context_menus.cpp:664
 msgid "Copy Key Path"
 msgstr "Copier le chemin de la clé"
 
-#: frame/commands/context_menus.cpp:251 frame/commands/context_menus.cpp:360
-#: frame/commands/context_menus.cpp:474 frame/commands/context_menus.cpp:767
+#: frame/commands/context_menus.cpp:83 frame/commands/context_menus.cpp:421
+#: frame/commands/context_menus.cpp:665
 msgid "Copy Key Path As"
 msgstr "Copier le chemin de la clé en tant que"
 
-#: frame/commands/context_menus.cpp:252 frame/commands/context_menus.cpp:361
-#: frame/commands/context_menus.cpp:429 frame/commands/context_menus.cpp:760
-#: frame/window/menu_bar.cpp:304
+#: frame/commands/context_menus.cpp:84 frame/commands/context_menus.cpp:376
+#: frame/commands/context_menus.cpp:660 frame/window/menu_bar.cpp:300
 msgid "Modify Comment..."
 msgstr "Modifier le commentaire..."
 
-#: frame/commands/context_menus.cpp:255 frame/commands/context_menus.cpp:364
-#: frame/commands/context_menus.cpp:496 frame/commands/context_menus.cpp:769
-#: frame/tools/launch_bridge.cpp:222 frame/window/menu_bar.cpp:334
-msgid "Permissions..."
-msgstr "Autorisations..."
-
-#: frame/commands/context_menus.cpp:256 frame/commands/context_menus.cpp:365
-#: frame/commands/context_menus.cpp:497 frame/window/menu_bar.cpp:335
-#, fuzzy
-msgid "Key Information..."
-msgstr "Information"
-
-#: frame/commands/context_menus.cpp:259 frame/commands/context_menus.cpp:368
+#: frame/commands/context_menus.cpp:87
 #, fuzzy
 msgid "Open in Source Hive"
 msgstr "Ouvrir un fichier .reg"
 
-#: frame/commands/context_menus.cpp:263 frame/commands/context_menus.cpp:372
-#: frame/commands/context_menus.cpp:771
+#: frame/commands/context_menus.cpp:91 frame/commands/context_menus.cpp:667
 msgid "On-Disk Hive File"
 msgstr "Fichier de ruche sur disque"
 
-#: frame/commands/context_menus.cpp:268 frame/commands/context_menus.cpp:377
+#: frame/commands/context_menus.cpp:95
 msgid "Expand All Subkeys"
 msgstr "Développer toutes les sous-clés"
 
-#: frame/commands/context_menus.cpp:272 frame/commands/context_menus.cpp:381
-#: frame/commands/context_menus.cpp:478 frame/views/registry_sessions.cpp:934
+#: frame/commands/context_menus.cpp:99 frame/commands/context_menus.cpp:425
+#: frame/views/registry_sessions.cpp:939
 msgid "Create Key"
 msgstr "Créer une clé"
 
-#: frame/commands/context_menus.cpp:277 frame/commands/context_menus.cpp:386
-#: frame/commands/context_menus.cpp:483
-msgid "New Key"
-msgstr "Nouvelle clé"
-
-#: frame/commands/context_menus.cpp:278 frame/commands/context_menus.cpp:387
-#: frame/commands/context_menus.cpp:484
-msgid "New Value"
-msgstr "Nouvelle valeur"
-
-#: frame/commands/context_menus.cpp:283 frame/commands/context_menus.cpp:392
-#: frame/commands/context_menus.cpp:461 frame/commands/context_menus.cpp:489
-#: frame/commands/context_menus.cpp:774 frame/window/menu_bar.cpp:269
-msgid "Export..."
-msgstr "Exporter..."
-
-#: frame/commands/context_menus.cpp:286 frame/commands/context_menus.cpp:395
-#: frame/commands/context_menus.cpp:492 frame/commands/context_menus.cpp:552
+#: frame/commands/context_menus.cpp:101 frame/commands/context_menus.cpp:108
+#: frame/commands/context_menus.cpp:437 frame/commands/context_menus.cpp:489
 #: frame/tools/key_handles_window.cpp:399 frame/window/menu_bar.cpp:161
-#: frame/window/menu_bar.cpp:339
+#: frame/window/menu_bar.cpp:334
 msgid "Refresh"
 msgstr "Actualiser"
 
-#: frame/commands/context_menus.cpp:290 frame/commands/context_menus.cpp:399
-#: frame/commands/context_menus.cpp:463 frame/commands/context_menus.cpp:778
-#: frame/window/menu_bar.cpp:309
+#: frame/commands/context_menus.cpp:104 frame/commands/context_menus.cpp:429
+#: frame/window/menu_bar.cpp:293
+msgid "New"
+msgstr "Nouveau"
+
+#: frame/commands/context_menus.cpp:106 frame/commands/context_menus.cpp:408
+#: frame/commands/context_menus.cpp:434 frame/commands/context_menus.cpp:670
+#: frame/window/menu_bar.cpp:269
+msgid "Export..."
+msgstr "Exporter..."
+
+#: frame/commands/context_menus.cpp:110 frame/commands/context_menus.cpp:410
+#: frame/commands/context_menus.cpp:674 frame/window/menu_bar.cpp:313
 msgid "Rename"
 msgstr "Renommer"
 
-#: frame/commands/context_menus.cpp:425 frame/commands/context_menus.cpp:758
-#: frame/window/menu_bar.cpp:299
+#: frame/commands/context_menus.cpp:111 frame/commands/context_menus.cpp:215
+#: frame/commands/context_menus.cpp:411 frame/commands/context_menus.cpp:675
+#: frame/window/menu_bar.cpp:159 frame/window/menu_bar.cpp:314
+#: ui/feedback.cpp:795
+msgid "Delete"
+msgstr "Supprimer"
+
+#: frame/commands/context_menus.cpp:113 frame/commands/context_menus.cpp:441
+#: frame/commands/context_menus.cpp:678 frame/tools/launch_bridge.cpp:222
+#: frame/window/menu_bar.cpp:329
+msgid "Permissions..."
+msgstr "Autorisations..."
+
+#: frame/commands/context_menus.cpp:114 frame/commands/context_menus.cpp:442
+#: frame/window/menu_bar.cpp:330
+#, fuzzy
+msgid "Key Information..."
+msgstr "Information"
+
+#: frame/commands/context_menus.cpp:209 frame/window/menu_bar.cpp:151
+#: frame/window/menu_bar.cpp:290
+msgid "Undo"
+msgstr "Annuler"
+
+#: frame/commands/context_menus.cpp:211
+msgid "Cut"
+msgstr "Couper"
+
+#: frame/commands/context_menus.cpp:212 frame/commands/context_menus.cpp:483
+#: frame/window/menu_bar.cpp:155 frame/window/menu_bar.cpp:303
+msgid "Copy"
+msgstr "Copier"
+
+#: frame/commands/context_menus.cpp:213 frame/window/menu_bar.cpp:157
+#: frame/window/menu_bar.cpp:312
+msgid "Paste"
+msgstr "Coller"
+
+#: frame/commands/context_menus.cpp:214
+msgid "Paste and Go"
+msgstr "Coller et ouvrir"
+
+#: frame/commands/context_menus.cpp:294
+msgid "Collapse Key"
+msgstr "Réduire la clé"
+
+#: frame/commands/context_menus.cpp:294 frame/commands/context_menus.cpp:341
+msgid "Expand Key"
+msgstr "Développer la clé"
+
+#: frame/commands/context_menus.cpp:371 frame/commands/context_menus.cpp:656
+#: frame/window/menu_bar.cpp:295
 msgid "Modify..."
 msgstr "Modifier..."
 
-#: frame/commands/context_menus.cpp:426 frame/commands/context_menus.cpp:759
-#: frame/window/menu_bar.cpp:300
+#: frame/commands/context_menus.cpp:372 frame/commands/context_menus.cpp:657
+#: frame/window/menu_bar.cpp:296
 msgid "Modify Binary Data..."
 msgstr "Modifier les données binaires..."
 
-#: frame/commands/context_menus.cpp:427 frame/window/menu_bar.cpp:301
+#: frame/commands/context_menus.cpp:373 frame/window/menu_bar.cpp:297
 msgid "Change Data Type..."
 msgstr "Modifier le type de données..."
 
-#: frame/commands/context_menus.cpp:428 frame/window/menu_bar.cpp:305
-msgid "Reset to Default"
-msgstr "Rétablir la valeur par défaut"
-
-#: frame/commands/context_menus.cpp:430 frame/commands/context_menus.cpp:762
-#: frame/window/menu_bar.cpp:303
-msgid "Decode Value..."
-msgstr "Décoder la valeur..."
-
-#: frame/commands/context_menus.cpp:431 frame/window/menu_bar.cpp:302
+#: frame/commands/context_menus.cpp:374 frame/window/menu_bar.cpp:298
 msgid "Edit Bits..."
 msgstr "Modifier les bits..."
 
-#: frame/commands/context_menus.cpp:433
+#: frame/commands/context_menus.cpp:375 frame/commands/context_menus.cpp:659
+#: frame/window/menu_bar.cpp:299
+msgid "Decode Value..."
+msgstr "Décoder la valeur..."
+
+#: frame/commands/context_menus.cpp:377 frame/window/menu_bar.cpp:301
+msgid "Reset to Default"
+msgstr "Rétablir la valeur par défaut"
+
+#: frame/commands/context_menus.cpp:379
 msgid "Copy Value Name"
 msgstr "Copier le nom de la valeur"
 
-#: frame/commands/context_menus.cpp:434
+#: frame/commands/context_menus.cpp:380
 msgid "Copy Value Data"
 msgstr "Copier les données de la valeur"
 
-#: frame/commands/context_menus.cpp:450 frame/commands/context_menus.cpp:459
+#: frame/commands/context_menus.cpp:396 frame/commands/context_menus.cpp:405
 msgid "Open Link"
 msgstr "Ouvrir le lien"
 
-#: frame/commands/context_menus.cpp:543
+#: frame/commands/context_menus.cpp:480
 msgid "Open Entry"
 msgstr "Ouvrir l'entrée"
 
-#: frame/commands/context_menus.cpp:544 frame/views/history_workspace.cpp:196
+#: frame/commands/context_menus.cpp:481 frame/views/history_workspace.cpp:196
 msgid "Revert"
 msgstr "Restaurer"
 
-#: frame/commands/context_menus.cpp:548
+#: frame/commands/context_menus.cpp:485
 msgid "Remove from History"
 msgstr "Supprimer de l'historique"
 
-#: frame/commands/context_menus.cpp:555
+#: frame/commands/context_menus.cpp:492
 msgid "Clear History"
 msgstr "Effacer l'historique"
 
-#: frame/commands/context_menus.cpp:564
+#: frame/commands/context_menus.cpp:501
 msgid "Failed to open history target."
 msgstr "Échec de l'ouverture de la cible de l'historique."
 
-#: frame/commands/context_menus.cpp:744
+#: frame/commands/context_menus.cpp:642
 msgid "Open First Entry"
 msgstr "Ouvrir la première entrée"
 
-#: frame/commands/context_menus.cpp:745
+#: frame/commands/context_menus.cpp:643
 msgid "Open First Entry in New Tab"
 msgstr "Ouvrir la première entrée dans un nouvel onglet"
 
-#: frame/commands/context_menus.cpp:746
+#: frame/commands/context_menus.cpp:644
 msgid "Open Second Entry"
 msgstr "Ouvrir la seconde entrée"
 
-#: frame/commands/context_menus.cpp:747
+#: frame/commands/context_menus.cpp:645
 msgid "Open Second Entry in New Tab"
 msgstr "Ouvrir la seconde entrée dans un nouvel onglet"
 
-#: frame/commands/context_menus.cpp:752 frame/tools/key_handles_window.cpp:388
+#: frame/commands/context_menus.cpp:650 frame/tools/key_handles_window.cpp:388
 msgid "Open Key"
 msgstr "Ouvrir la clé"
 
-#: frame/commands/context_menus.cpp:753 frame/tools/key_handles_window.cpp:389
+#: frame/commands/context_menus.cpp:651 frame/tools/key_handles_window.cpp:389
 msgid "Open Key in New Tab"
 msgstr "Ouvrir la clé dans un nouvel onglet"
 
@@ -1075,64 +1087,68 @@ msgid "Restore"
 msgstr "Redémarrer"
 
 #: frame/commands/file_view_commands.cpp:356
+msgid "Comments imported"
+msgstr "Commentaires importés"
+
+#: frame/commands/file_view_commands.cpp:360
 msgid "Failed to import comments."
 msgstr "Échec de l'importation des commentaires."
 
-#: frame/commands/file_view_commands.cpp:375
+#: frame/commands/file_view_commands.cpp:379
 msgid "Failed to export comments."
 msgstr "Échec de l'exportation des commentaires."
 
-#: frame/commands/file_view_commands.cpp:387
+#: frame/commands/file_view_commands.cpp:391
 msgid "Loading hives isn't supported for remote registries."
 msgstr "Le chargement de ruches n'est pas pris en charge pour les Registres distants."
 
-#: frame/commands/file_view_commands.cpp:414
+#: frame/commands/file_view_commands.cpp:418
 msgid "Unloading hives isn't supported for remote registries."
 msgstr "Le déchargement de ruches n'est pas pris en charge pour les Registres distants."
 
-#: frame/commands/file_view_commands.cpp:427
+#: frame/commands/file_view_commands.cpp:431
 msgid "Select a hive you loaded under HKEY_LOCAL_MACHINE or HKEY_USERS first."
 msgstr "Sélectionnez d'abord une ruche que vous avez chargée sous HKEY_LOCAL_MACHINE ou HKEY_USERS."
 
-#: frame/commands/file_view_commands.cpp:430
+#: frame/commands/file_view_commands.cpp:434
 msgid "Unload this key and all of its subkeys?"
 msgstr "Décharger cette clé et toutes ses sous-clés ?"
 
-#: frame/commands/file_view_commands.cpp:430
+#: frame/commands/file_view_commands.cpp:434
 msgid "Unload"
 msgstr "Décharger"
 
-#: frame/commands/file_view_commands.cpp:597
+#: frame/commands/file_view_commands.cpp:600
 msgid "Expanded keys"
 msgstr "Clés développées"
 
-#: frame/commands/file_view_commands.cpp:597
+#: frame/commands/file_view_commands.cpp:600
 msgid "This key has too many subkeys to expand at once."
 msgstr "Cette clé contient trop de sous-clés pour toutes les développer à la fois."
 
-#: frame/commands/file_view_commands.cpp:801
+#: frame/commands/file_view_commands.cpp:804
 msgid "Edit Active Defaults"
 msgstr "Modifier les valeurs par défaut actives"
 
-#: frame/commands/file_view_commands.cpp:802
-#: frame/commands/file_view_commands.cpp:862
+#: frame/commands/file_view_commands.cpp:805
+#: frame/commands/file_view_commands.cpp:865
 msgid "One default path per line."
 msgstr "Un chemin de fichier de valeurs par défaut par ligne."
 
-#: frame/commands/file_view_commands.cpp:831
+#: frame/commands/file_view_commands.cpp:834
 msgid "Edit Active Traces"
 msgstr "Modifier les Traces actives"
 
-#: frame/commands/file_view_commands.cpp:832
-#: frame/commands/file_view_commands.cpp:882
+#: frame/commands/file_view_commands.cpp:835
+#: frame/commands/file_view_commands.cpp:885
 msgid "One trace path per line."
 msgstr "Un chemin de fichier Trace par ligne."
 
-#: frame/commands/file_view_commands.cpp:861
+#: frame/commands/file_view_commands.cpp:864
 msgid "Edit Recent Defaults"
 msgstr "Modifier les valeurs par défaut récentes"
 
-#: frame/commands/file_view_commands.cpp:881
+#: frame/commands/file_view_commands.cpp:884
 msgid "Edit Recent Traces"
 msgstr "Modifier les Traces récentes"
 
@@ -1148,22 +1164,22 @@ msgstr "La cible doit être un chemin de Registre complet sous une racine standa
 msgid "Failed to create the symbolic link."
 msgstr "Échec de la création du lien symbolique."
 
-#: frame/commands/mutation_commands.cpp:178
-#: frame/commands/mutation_commands.cpp:206
-#: frame/commands/mutation_commands.cpp:485
+#: frame/commands/mutation_commands.cpp:177
+#: frame/commands/mutation_commands.cpp:204
+#: frame/commands/mutation_commands.cpp:486
 msgid "Failed to create the key."
 msgstr "Échec de la création de la clé."
 
-#: frame/commands/mutation_commands.cpp:213
+#: frame/commands/mutation_commands.cpp:211
 msgid "Created a volatile key, because its parent key is volatile."
 msgstr ""
 
-#: frame/commands/mutation_commands.cpp:349
-#: frame/commands/mutation_commands.cpp:492
+#: frame/commands/mutation_commands.cpp:350
+#: frame/commands/mutation_commands.cpp:493
 msgid "Failed to set value."
 msgstr "Échec de la définition de la valeur."
 
-#: frame/commands/mutation_commands.cpp:426
+#: frame/commands/mutation_commands.cpp:427
 #: frame/commands/mutation_commands.cpp:592
 #: frame/commands/mutation_commands.cpp:800
 msgid "Failed to update value."
@@ -1180,35 +1196,35 @@ msgid "Failed to delete value."
 msgstr "Échec de la suppression de la valeur."
 
 #: frame/commands/mutation_commands.cpp:852
-#: frame/commands/mutation_commands.cpp:863
-#: frame/commands/mutation_commands.cpp:969
-#: frame/commands/mutation_commands.cpp:976 ui/feedback.cpp:770
+#: frame/commands/mutation_commands.cpp:864
+#: frame/commands/mutation_commands.cpp:970
+#: frame/commands/mutation_commands.cpp:977 ui/feedback.cpp:770
 msgid "Delete Key"
 msgstr "Supprimer la clé"
 
-#: frame/commands/mutation_commands.cpp:863
-#: frame/commands/mutation_commands.cpp:976
+#: frame/commands/mutation_commands.cpp:864
+#: frame/commands/mutation_commands.cpp:977
 msgid "Part of this key couldn't be read, so this delete can't be undone. Delete anyway?"
 msgstr "Impossible de lire une partie de cette clé, cette suppression ne peut donc pas être annulée. Supprimer quand même ?"
 
-#: frame/commands/mutation_commands.cpp:870
-#: frame/commands/mutation_commands.cpp:983
+#: frame/commands/mutation_commands.cpp:871
+#: frame/commands/mutation_commands.cpp:984
 msgid "Failed to delete key."
 msgstr "Échec de la suppression de la clé."
 
-#: frame/commands/mutation_commands.cpp:909
+#: frame/commands/mutation_commands.cpp:910
 msgid "Bulk deletion only supports registry values."
 msgstr "La suppression en bloc ne prend en charge que les valeurs de Registre."
 
-#: frame/commands/mutation_commands.cpp:920
+#: frame/commands/mutation_commands.cpp:921
 msgid "Failed to read all selected values."
 msgstr "Échec de la lecture de toutes les valeurs sélectionnées."
 
-#: frame/commands/mutation_commands.cpp:932 ui/feedback.cpp:774
+#: frame/commands/mutation_commands.cpp:933 ui/feedback.cpp:774
 msgid "Delete Values"
 msgstr "Supprimer les valeurs"
 
-#: frame/commands/mutation_commands.cpp:961
+#: frame/commands/mutation_commands.cpp:962
 msgid "Some of the selected values couldn't be deleted."
 msgstr "Certaines des valeurs sélectionnées n'ont pas pu être supprimées."
 
@@ -1216,7 +1232,7 @@ msgstr "Certaines des valeurs sélectionnées n'ont pas pu être supprimées."
 msgid "The key couldn't be found."
 msgstr "Clé introuvable."
 
-#: frame/commands/undo.cpp:187 frame/window/notifications.cpp:803
+#: frame/commands/undo.cpp:187 frame/window/notifications.cpp:804
 msgid "The value was copied to the new name but the old name couldn't be removed. Both names now exist."
 msgstr "La valeur a été copiée sous le nouveau nom, mais l'ancien nom n'a pas pu être supprimé. Les deux noms existent maintenant."
 
@@ -1224,11 +1240,11 @@ msgstr "La valeur a été copiée sous le nouveau nom, mais l'ancien nom n'a pas
 msgid "Restart RegKit now to apply the language?"
 msgstr "Redémarrer RegKit maintenant pour appliquer la langue ?"
 
-#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:380
+#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:375
 msgid "Language"
 msgstr "Langue"
 
-#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:391
+#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:386
 msgid "Restart"
 msgstr "Redémarrer"
 
@@ -1241,15 +1257,15 @@ msgstr "Plus tard"
 msgid "Backup/restore mode needs the backup and restore privileges. Run RegKit elevated."
 msgstr "Le chargement d'une ruche nécessite les privilèges de sauvegarde et de restauration. Exécutez RegKit avec des droits élevés."
 
-#: frame/commands/workspace_commands.cpp:261
+#: frame/commands/workspace_commands.cpp:262
 msgid "Reset all settings and restart RegKit?"
 msgstr "Réinitialiser tous les paramètres et redémarrer RegKit ?"
 
-#: frame/commands/workspace_commands.cpp:261
+#: frame/commands/workspace_commands.cpp:262
 msgid "Reset Settings"
 msgstr "Réinitialiser les paramètres"
 
-#: frame/commands/workspace_commands.cpp:261
+#: frame/commands/workspace_commands.cpp:262
 msgid "Reset"
 msgstr "Réinitialiser"
 
@@ -1269,8 +1285,8 @@ msgstr "Sélectionnez l'ordinateur de comparaison."
 msgid "Network registry path not found."
 msgstr "Chemin de Registre distant introuvable."
 
-#: frame/search/compare_command.cpp:185 frame/views/registry_sessions.cpp:920
-#: frame/views/registry_sessions.cpp:962 frame/window/message_routes.cpp:1216
+#: frame/search/compare_command.cpp:185 frame/views/registry_sessions.cpp:925
+#: frame/views/registry_sessions.cpp:967 frame/window/message_routes.cpp:1188
 msgid "Registry path not found."
 msgstr "Chemin de Registre introuvable."
 
@@ -1324,7 +1340,7 @@ msgstr "Un chemin de fichier de ruche est requis."
 msgid "Registry file path is required."
 msgstr "Un chemin de fichier de Registre est requis."
 
-#: frame/search/compare_dialog.cpp:336 frame/sources/regfile_commands.cpp:181
+#: frame/search/compare_dialog.cpp:336 frame/sources/regfile_commands.cpp:182
 #: regfile/reg_file.cpp:613
 msgid "Failed to read registry file."
 msgstr "Échec de la lecture du fichier de Registre."
@@ -1333,112 +1349,112 @@ msgstr "Échec de la lecture du fichier de Registre."
 msgid "The selected key path wasn't found in the .reg file."
 msgstr "Le chemin de clé sélectionné est introuvable dans le fichier .reg."
 
-#: frame/search/search_window.cpp:177 frame/search/search_window.cpp:198
+#: frame/search/search_window.cpp:174 frame/search/search_window.cpp:195
 #, c-format
 msgid "Results: %llu"
 msgstr "Résultats : %llu"
 
-#: frame/search/search_window.cpp:184
+#: frame/search/search_window.cpp:181
 #, c-format
 msgid "Searching... Results: ~%llu | Scanned: %llu"
 msgstr "Recherche... Résultats : ~%llu | Analysés : %llu"
 
-#: frame/search/search_window.cpp:188
+#: frame/search/search_window.cpp:185
 #, c-format
 msgid "Searching... Results: ~%llu"
 msgstr "Recherche... Résultats : ~%llu"
 
-#: frame/search/search_window.cpp:194
+#: frame/search/search_window.cpp:191
 #, c-format
 msgid "Results: %llu (%.2fs)"
 msgstr "Résultats : %llu (%.2fs)"
 
-#: frame/search/search_window.cpp:213
+#: frame/search/search_window.cpp:210
 msgid "Loading"
 msgstr "Chargement"
 
-#: frame/search/search_window.cpp:245
+#: frame/search/search_window.cpp:242
 msgid "HKCU"
 msgstr ""
 
-#: frame/search/search_window.cpp:248
+#: frame/search/search_window.cpp:245
 msgid "HKCR"
 msgstr ""
 
-#: frame/search/search_window.cpp:255 frame/window/notifications.cpp:42
+#: frame/search/search_window.cpp:252 frame/window/notifications.cpp:42
 msgid "Backup/restore mode"
 msgstr ""
 
-#: frame/search/search_window.cpp:257
+#: frame/search/search_window.cpp:254
 #, c-format
 msgid "Keys: %d"
 msgstr "Clés : %d"
 
-#: frame/search/search_window.cpp:259
+#: frame/search/search_window.cpp:256
 #, c-format
 msgid "Values: %d"
 msgstr "Valeurs : %d"
 
-#: frame/search/search_window.cpp:261
+#: frame/search/search_window.cpp:258
 #, c-format
 msgid "Selected: %d"
 msgstr "Sélection : %d"
 
-#: frame/search/search_window.cpp:574 frame/search/search_window.cpp:1381
+#: frame/search/search_window.cpp:571 frame/search/search_window.cpp:1353
 msgid "Starting key path wasn't found."
 msgstr "Chemin de clé de départ introuvable."
 
-#: frame/search/search_window.cpp:585 frame/search/search_window.cpp:784
-#: frame/search/search_window.cpp:1391
+#: frame/search/search_window.cpp:582 frame/search/search_window.cpp:781
+#: frame/search/search_window.cpp:1363
 msgid "Select a starting key first."
 msgstr "Sélectionnez d'abord une clé de départ."
 
-#: frame/search/search_window.cpp:799
+#: frame/search/search_window.cpp:796
 msgid "No keys to search in the selected sources."
 msgstr "Aucune clé à rechercher dans les sources sélectionnées."
 
-#: frame/search/search_window.cpp:828
+#: frame/search/search_window.cpp:823
 msgid "Anomalies"
 msgstr ""
 
-#: frame/search/search_window.cpp:828 frame/search/search_window.cpp:831
+#: frame/search/search_window.cpp:823 frame/search/search_window.cpp:826
 #: frame/views/history_workspace.cpp:520 frame/window/menu_bar.cpp:143
 msgid "Find"
 msgstr "Rechercher"
 
-#: frame/search/search_window.cpp:1368 frame/window/menu_bar.cpp:179
+#: frame/search/search_window.cpp:1340 frame/window/menu_bar.cpp:179
 msgid "Read only mode is enabled."
 msgstr "Le mode lecture seule est activé."
 
-#: frame/search/search_window.cpp:1404
+#: frame/search/search_window.cpp:1376
 msgid "Replace is already running."
 msgstr "Un remplacement est déjà en cours."
 
-#: frame/search/search_window.cpp:1632 frame/search/search_window.cpp:1649
+#: frame/search/search_window.cpp:1604 frame/search/search_window.cpp:1621
 msgid "Replaced"
 msgstr "Remplacé"
 
-#: frame/search/search_window.cpp:1635 frame/search/search_window.cpp:1650
+#: frame/search/search_window.cpp:1607 frame/search/search_window.cpp:1622
 msgid "Failed"
 msgstr "Échec"
 
-#: frame/search/search_window.cpp:1639
+#: frame/search/search_window.cpp:1611
 msgid "Skipped"
 msgstr "Ignoré"
 
-#: frame/search/search_window.cpp:1643
+#: frame/search/search_window.cpp:1615
 msgid "cancelled"
 msgstr "annulé"
 
-#: frame/search/search_window.cpp:1649
+#: frame/search/search_window.cpp:1621
 msgid "Replace finished with some failures."
 msgstr "Le remplacement s'est terminé avec des échecs."
 
-#: frame/search/search_window.cpp:1653
+#: frame/search/search_window.cpp:1625
 msgid "Skipped, the replacement isn't valid for the value type"
 msgstr "Ignoré, le remplacement n'est pas valide pour le type de valeur"
 
-#: frame/search/search_window.cpp:1657
+#: frame/search/search_window.cpp:1629
 msgid "Copied to the new name, the old name couldn't be removed"
 msgstr "Copié sous le nouveau nom, l'ancien nom n'a pas pu être supprimé"
 
@@ -1450,19 +1466,19 @@ msgstr "Fichier de valeurs par défaut introuvable."
 msgid "Default entries"
 msgstr "Entrées de valeurs par défaut"
 
-#: frame/sources/regfile_commands.cpp:32
+#: frame/sources/regfile_commands.cpp:33
 msgid "Failed to save registry file."
 msgstr "Échec de l'enregistrement du fichier de Registre."
 
-#: frame/sources/regfile_commands.cpp:61
+#: frame/sources/regfile_commands.cpp:62
 msgid "Failed to export registry file."
 msgstr "Échec de l'exportation du fichier de Registre."
 
-#: frame/sources/regfile_commands.cpp:216
+#: frame/sources/regfile_commands.cpp:222
 msgid "Registry file not found."
 msgstr "Fichier de Registre introuvable."
 
-#: frame/sources/regfile_commands.cpp:222
+#: frame/sources/regfile_commands.cpp:228
 msgid "Registry File"
 msgstr "Fichier de Registre"
 
@@ -1596,13 +1612,6 @@ msgstr "Handle"
 msgid "Object Address"
 msgstr "Adresse de l'objet"
 
-#: frame/tools/key_handles_window.cpp:494 frame/views/value_loading.cpp:229
-#: frame/views/value_loading.cpp:262 frame/window/menu_bar.cpp:294
-#: frame/window/notifications.cpp:1311 search/search.cpp:59
-#: search/search.cpp:241
-msgid "Key"
-msgstr "Clé"
-
 #: frame/tools/key_handles_window.cpp:494 frame/tools/launch_bridge.cpp:215
 msgid "Access"
 msgstr "Droits d'accès"
@@ -1635,7 +1644,7 @@ msgstr ""
 msgid "High"
 msgstr ""
 
-#: frame/tools/launch_bridge.cpp:45 frame/window/menu_bar.cpp:359
+#: frame/tools/launch_bridge.cpp:45 frame/window/menu_bar.cpp:354
 msgid "System"
 msgstr "Système"
 
@@ -1789,7 +1798,7 @@ msgstr "Récursif"
 msgid "Virtualization flags"
 msgstr ""
 
-#: frame/tools/launch_bridge.cpp:165 search/search.cpp:1395
+#: frame/tools/launch_bridge.cpp:165 search/search.cpp:1432
 msgid "Virtual store copy"
 msgstr ""
 
@@ -1941,7 +1950,7 @@ msgstr ""
 "Choisissez Remplacer quand même pour l'appliquer depuis cet emplacement."
 
 #: frame/tools/launch_bridge.cpp:478 frame/tools/launch_bridge.cpp:495
-#: frame/window/menu_bar.cpp:404
+#: frame/window/menu_bar.cpp:399
 msgid "Replace RegEdit"
 msgstr "Remplacer RegEdit"
 
@@ -2050,8 +2059,8 @@ msgstr "Type"
 msgid "Data"
 msgstr "Données"
 
-#: frame/views/browse_view.cpp:62 frame/window/menu_bar.cpp:548
-#: frame/window/menu_bar.cpp:864 registry/resource_list.cpp:309
+#: frame/views/browse_view.cpp:62 frame/window/menu_bar.cpp:543
+#: frame/window/menu_bar.cpp:859 registry/resource_list.cpp:309
 #: search/search.cpp:67
 msgid "Default"
 msgstr "Par défaut"
@@ -2135,25 +2144,25 @@ msgstr "Impossible d'écrire l'historique sur le disque. Il est conservé unique
 
 #: frame/views/history_workspace.cpp:581 frame/views/history_workspace.cpp:607
 #: frame/views/history_workspace.cpp:799 frame/views/registry_sessions.cpp:406
-#: frame/views/registry_sessions.cpp:409 frame/views/tab_lists.cpp:592
+#: frame/views/registry_sessions.cpp:409 frame/views/tab_lists.cpp:589
 #: frame/window/menu_bar.cpp:137 frame/window/menu_bar.cpp:274
 #: search/search.cpp:51
 msgid "Local Registry"
 msgstr "Registre local"
 
-#: frame/views/history_workspace.cpp:901
+#: frame/views/history_workspace.cpp:902
 msgid "Comments were imported but couldn't be saved."
 msgstr "Les commentaires ont été importés, mais n'ont pas pu être enregistrés."
 
-#: frame/views/history_workspace.cpp:1006
+#: frame/views/history_workspace.cpp:1013
 msgid "Different types"
 msgstr "Types différents"
 
-#: frame/views/history_workspace.cpp:1008
+#: frame/views/history_workspace.cpp:1015
 msgid "Different lengths"
 msgstr "Longueurs différentes"
 
-#: frame/views/history_workspace.cpp:1056
+#: frame/views/history_workspace.cpp:1063
 msgid "The comment couldn't be saved."
 msgstr "Impossible d'enregistrer le commentaire."
 
@@ -2262,35 +2271,35 @@ msgstr "Échec de la résolution des chemins des ruches hors connexion à enregi
 msgid "Failed to resolve offline hive path for saving."
 msgstr "Échec de la résolution du chemin de la ruche hors connexion à enregistrer."
 
-#: frame/views/registry_sessions.cpp:850 frame/views/registry_sessions.cpp:876
+#: frame/views/registry_sessions.cpp:850 frame/views/registry_sessions.cpp:877
 msgid "Failed to save offline hive."
 msgstr "Échec de l'enregistrement de la ruche hors connexion."
 
-#: frame/views/registry_sessions.cpp:905
+#: frame/views/registry_sessions.cpp:910
 msgid "The key was opened, but it doesn't contain this value:"
 msgstr "La clé a été ouverte, mais elle ne contient pas cette valeur :"
 
-#: frame/views/registry_sessions.cpp:905
+#: frame/views/registry_sessions.cpp:910
 msgid "Value Not Found"
 msgstr "Valeur introuvable"
 
-#: frame/views/registry_sessions.cpp:923
+#: frame/views/registry_sessions.cpp:928
 msgid "The registry key doesn't exist:"
 msgstr "La clé de Registre n'existe pas :"
 
-#: frame/views/registry_sessions.cpp:927 frame/views/registry_sessions.cpp:934
+#: frame/views/registry_sessions.cpp:932 frame/views/registry_sessions.cpp:939
 msgid "Registry Path Not Found"
 msgstr "Chemin de Registre introuvable"
 
-#: frame/views/registry_sessions.cpp:927 frame/views/registry_sessions.cpp:934
+#: frame/views/registry_sessions.cpp:932 frame/views/registry_sessions.cpp:939
 msgid "Go to Nearest Key"
 msgstr "Accéder à la clé la plus proche"
 
-#: frame/views/registry_sessions.cpp:944
+#: frame/views/registry_sessions.cpp:949
 msgid "Failed to create registry key."
 msgstr "Échec de la création de la clé de Registre."
 
-#: frame/views/tab_lists.cpp:426
+#: frame/views/tab_lists.cpp:423
 msgid ""
 "The registry file has unsaved changes.\n"
 "Save before closing the tab?"
@@ -2298,15 +2307,15 @@ msgstr ""
 "Le fichier de Registre contient des modifications non enregistrées.\n"
 "Enregistrer avant de fermer l'onglet ?"
 
-#: frame/views/tab_lists.cpp:429 frame/views/tab_lists.cpp:464
+#: frame/views/tab_lists.cpp:426 frame/views/tab_lists.cpp:461
 msgid "Unsaved Changes"
 msgstr "Modifications non enregistrées"
 
-#: frame/views/tab_lists.cpp:429 frame/views/tab_lists.cpp:464
+#: frame/views/tab_lists.cpp:426 frame/views/tab_lists.cpp:461
 msgid "Don't Save"
 msgstr "Ne pas enregistrer"
 
-#: frame/views/tab_lists.cpp:449
+#: frame/views/tab_lists.cpp:446
 msgid ""
 "The offline registry has unsaved changes.\n"
 "Save before closing the tab?"
@@ -2314,11 +2323,11 @@ msgstr ""
 "Le Registre hors connexion contient des modifications non enregistrées.\n"
 "Enregistrer avant de fermer l'onglet ?"
 
-#: frame/views/value_loading.cpp:123 frame/window/menu_bar.cpp:497
+#: frame/views/value_loading.cpp:123 frame/window/menu_bar.cpp:492
 msgid "Trace"
 msgstr "Trace"
 
-#: frame/views/value_loading.cpp:180 frame/window/menu_bar.cpp:867
+#: frame/views/value_loading.cpp:180 frame/window/menu_bar.cpp:862
 #: search/compare.cpp:55 search/compare.cpp:315 search/compare.cpp:316
 msgid "(Missing)"
 msgstr "(manquant)"
@@ -2326,11 +2335,6 @@ msgstr "(manquant)"
 #: frame/views/value_loading.cpp:229
 msgid "Link"
 msgstr "Lien"
-
-#: frame/views/value_loading.cpp:229 frame/window/menu_bar.cpp:295
-#, fuzzy
-msgid "Volatile Key"
-msgstr "Réduire la clé"
 
 #: frame/views/value_loading.cpp:388 frame/views/value_loading.cpp:436
 msgid "(value not set)"
@@ -2356,11 +2360,11 @@ msgstr "Créer le dossier"
 msgid "Go"
 msgstr "Atteindre"
 
-#: frame/window/lifetime.cpp:128 frame/window/menu_bar.cpp:348
+#: frame/window/lifetime.cpp:128 frame/window/menu_bar.cpp:343
 msgid "Key Tree"
 msgstr "Arborescence des clés"
 
-#: frame/window/lifetime.cpp:158 frame/window/menu_bar.cpp:349
+#: frame/window/lifetime.cpp:158 frame/window/menu_bar.cpp:344
 msgid "History"
 msgstr "Historique"
 
@@ -2372,7 +2376,7 @@ msgstr "Impossible de lire le fichier de commentaires, les modifications des com
 msgid "Comments"
 msgstr "Commentaires"
 
-#: frame/window/lifetime.cpp:546
+#: frame/window/lifetime.cpp:549
 msgid "The open tabs couldn't be saved for the next session."
 msgstr "Impossible d'enregistrer les onglets ouverts pour la prochaine session."
 
@@ -2440,443 +2444,439 @@ msgstr "Quitter"
 msgid "&File"
 msgstr "&Fichier"
 
-#: frame/window/menu_bar.cpp:297
-msgid "New"
-msgstr "Nouveau"
-
-#: frame/window/menu_bar.cpp:313
+#: frame/window/menu_bar.cpp:305
 msgid "Key Name"
 msgstr "Nom de la clé"
 
-#: frame/window/menu_bar.cpp:314
+#: frame/window/menu_bar.cpp:306
 msgid "Key Path"
 msgstr "Chemin de la clé"
 
-#: frame/window/menu_bar.cpp:315
+#: frame/window/menu_bar.cpp:307
 msgid "Key Path As"
 msgstr "Chemin de la clé en tant que"
 
-#: frame/window/menu_bar.cpp:317
+#: frame/window/menu_bar.cpp:309
 msgid "Value Name"
 msgstr "Nom de la valeur"
 
-#: frame/window/menu_bar.cpp:318
+#: frame/window/menu_bar.cpp:310
 msgid "Value Data"
 msgstr "Données de la valeur"
 
-#: frame/window/menu_bar.cpp:319
+#: frame/window/menu_bar.cpp:311
 msgid "Copy Other"
 msgstr "Autres copies"
 
-#: frame/window/menu_bar.cpp:322
+#: frame/window/menu_bar.cpp:317
 msgid "Invert Selection"
 msgstr "Inverser la sélection"
 
-#: frame/window/menu_bar.cpp:324
+#: frame/window/menu_bar.cpp:319
 msgid "Find..."
 msgstr "Rechercher..."
 
-#: frame/window/menu_bar.cpp:325
+#: frame/window/menu_bar.cpp:320
 msgid "Replace..."
 msgstr "Remplacer..."
 
-#: frame/window/menu_bar.cpp:326
+#: frame/window/menu_bar.cpp:321
 msgid "Go To..."
 msgstr "Atteindre..."
 
-#: frame/window/menu_bar.cpp:329
+#: frame/window/menu_bar.cpp:324
 #, fuzzy
 msgid "Go to Other View"
 msgstr "Accéder à la clé la plus proche"
 
-#: frame/window/menu_bar.cpp:331
+#: frame/window/menu_bar.cpp:326
 msgid "Go to Virtual Store Copy"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:332
+#: frame/window/menu_bar.cpp:327
 #, fuzzy
 msgid "Go to Global Key"
 msgstr "Accéder à la clé la plus proche"
 
-#: frame/window/menu_bar.cpp:336
+#: frame/window/menu_bar.cpp:331
 msgid "&Edit"
 msgstr "É&dition"
 
-#: frame/window/menu_bar.cpp:340
+#: frame/window/menu_bar.cpp:335
 #, fuzzy
 msgid "Auto Refresh"
 msgstr "Actualiser"
 
-#: frame/window/menu_bar.cpp:342
+#: frame/window/menu_bar.cpp:337
 msgid "Toolbar"
 msgstr "Barre d'outils"
 
-#: frame/window/menu_bar.cpp:343
+#: frame/window/menu_bar.cpp:338
 msgid "Address Bar"
 msgstr "Barre d'adresse"
 
-#: frame/window/menu_bar.cpp:344
+#: frame/window/menu_bar.cpp:339
 msgid "Filter Bar"
 msgstr "Barre de filtre"
 
-#: frame/window/menu_bar.cpp:345
+#: frame/window/menu_bar.cpp:340
 msgid "Tabs"
 msgstr "Onglets"
 
-#: frame/window/menu_bar.cpp:346
+#: frame/window/menu_bar.cpp:341
 msgid "Status Bar"
 msgstr "Barre d'état"
 
-#: frame/window/menu_bar.cpp:351
+#: frame/window/menu_bar.cpp:346
 msgid "Keys in List"
 msgstr "Clés dans la liste"
 
-#: frame/window/menu_bar.cpp:352 ui/list_view_support.cpp:176
+#: frame/window/menu_bar.cpp:347 ui/list_view_support.cpp:176
 #: ui/list_view_support.cpp:184
 msgid "Grid Lines"
 msgstr "Quadrillage"
 
-#: frame/window/menu_bar.cpp:353
+#: frame/window/menu_bar.cpp:348
 msgid "Simulated Keys"
 msgstr "Clés simulées"
 
-#: frame/window/menu_bar.cpp:354
+#: frame/window/menu_bar.cpp:349
 msgid "Show Extra Root Keys"
 msgstr "Afficher les clés racines supplémentaires"
 
-#: frame/window/menu_bar.cpp:355
+#: frame/window/menu_bar.cpp:350
 msgid "&View"
 msgstr "&Affichage"
 
-#: frame/window/menu_bar.cpp:360
+#: frame/window/menu_bar.cpp:355
 msgid "Light"
 msgstr "Clair"
 
-#: frame/window/menu_bar.cpp:361
+#: frame/window/menu_bar.cpp:356
 msgid "Dark"
 msgstr "Sombre"
 
-#: frame/window/menu_bar.cpp:362 frame/window/menu_bar.cpp:369
+#: frame/window/menu_bar.cpp:357 frame/window/menu_bar.cpp:364
 msgid "Custom"
 msgstr "Personnalisé"
 
-#: frame/window/menu_bar.cpp:364
+#: frame/window/menu_bar.cpp:359
 msgid "Theme Presets..."
 msgstr "Préréglages de thème..."
 
-#: frame/window/menu_bar.cpp:365
+#: frame/window/menu_bar.cpp:360
 msgid "Theme"
 msgstr "Thème"
 
-#: frame/window/menu_bar.cpp:367
+#: frame/window/menu_bar.cpp:362
 msgid "Classic"
 msgstr "Classique"
 
-#: frame/window/menu_bar.cpp:368
+#: frame/window/menu_bar.cpp:363
 msgid "Phosphor"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:370
+#: frame/window/menu_bar.cpp:365
 msgid "Icons"
 msgstr "Icônes"
 
-#: frame/window/menu_bar.cpp:374
+#: frame/window/menu_bar.cpp:369
 msgid "Automatic"
 msgstr "Automatique"
 
-#: frame/window/menu_bar.cpp:381
+#: frame/window/menu_bar.cpp:376
 msgid "Font..."
 msgstr "Police..."
 
-#: frame/window/menu_bar.cpp:383
+#: frame/window/menu_bar.cpp:378
 msgid "Read Only Mode"
 msgstr "Mode lecture seule"
 
-#: frame/window/menu_bar.cpp:384
+#: frame/window/menu_bar.cpp:379
 msgid "Use Backup/Restore Privileges"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:392
+#: frame/window/menu_bar.cpp:387
 msgid "Restart as User"
 msgstr "Redémarrer en tant qu'utilisateur"
 
-#: frame/window/menu_bar.cpp:393
+#: frame/window/menu_bar.cpp:388
 msgid "Restart as Admin"
 msgstr "Redémarrer en tant qu'administrateur"
 
-#: frame/window/menu_bar.cpp:394
+#: frame/window/menu_bar.cpp:389
 msgid "Restart as SYSTEM"
 msgstr "Redémarrer sous SYSTEM"
 
-#: frame/window/menu_bar.cpp:395
+#: frame/window/menu_bar.cpp:390
 msgid "Restart as TrustedInstaller"
 msgstr "Redémarrer sous TrustedInstaller"
 
-#: frame/window/menu_bar.cpp:397
+#: frame/window/menu_bar.cpp:392
 msgid "Always Run as Admin"
 msgstr "Toujours exécuter en tant qu'administrateur"
 
-#: frame/window/menu_bar.cpp:398
+#: frame/window/menu_bar.cpp:393
 msgid "Always Run as SYSTEM"
 msgstr "Toujours exécuter sous SYSTEM"
 
-#: frame/window/menu_bar.cpp:399
+#: frame/window/menu_bar.cpp:394
 msgid "Always Run as TrustedInstaller"
 msgstr "Toujours exécuter sous TrustedInstaller"
 
-#: frame/window/menu_bar.cpp:401
+#: frame/window/menu_bar.cpp:396
 msgid "HKCU Follows Signed-In User"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:402
+#: frame/window/menu_bar.cpp:397
 msgid "Run As"
 msgstr "Exécuter en tant que"
 
-#: frame/window/menu_bar.cpp:405
+#: frame/window/menu_bar.cpp:400
 msgid "Add \"Edit\" Context Menu"
 msgstr "Ajouter \"Modifier\" au menu contextuel"
 
-#: frame/window/menu_bar.cpp:406
+#: frame/window/menu_bar.cpp:401
 msgid "Single Instance"
 msgstr "Instance unique"
 
-#: frame/window/menu_bar.cpp:407
+#: frame/window/menu_bar.cpp:402
 msgid "Autocomplete Key Paths"
 msgstr "Compléter automatiquement les chemins de clés"
 
-#: frame/window/menu_bar.cpp:409
+#: frame/window/menu_bar.cpp:404
 msgid "All Tabs"
 msgstr "Tous les onglets"
 
-#: frame/window/menu_bar.cpp:411
+#: frame/window/menu_bar.cpp:406
 msgid "Local Registry Tabs"
 msgstr "Onglets du Registre local"
 
-#: frame/window/menu_bar.cpp:412
+#: frame/window/menu_bar.cpp:407
 msgid "Offline Hive Tabs"
 msgstr "Onglets de ruches hors connexion"
 
-#: frame/window/menu_bar.cpp:413
+#: frame/window/menu_bar.cpp:408
 msgid "Remote Registry Tabs"
 msgstr "Onglets du Registre distant"
 
-#: frame/window/menu_bar.cpp:415
+#: frame/window/menu_bar.cpp:410
 msgid "Find Results"
 msgstr "Résultats de recherche"
 
-#: frame/window/menu_bar.cpp:416
+#: frame/window/menu_bar.cpp:411
 msgid "Comparison Results"
 msgstr "Résultats de comparaison"
 
-#: frame/window/menu_bar.cpp:417
+#: frame/window/menu_bar.cpp:412
 msgid ".reg File Tabs"
 msgstr "Onglets de fichiers .reg"
 
-#: frame/window/menu_bar.cpp:419
+#: frame/window/menu_bar.cpp:414
 msgid "Save Tabs"
 msgstr "Enregistrer les onglets"
 
-#: frame/window/menu_bar.cpp:420
+#: frame/window/menu_bar.cpp:415
 msgid "Save Previous Tree State"
 msgstr "Enregistrer l'état précédent de l'arborescence"
 
-#: frame/window/menu_bar.cpp:421
+#: frame/window/menu_bar.cpp:416
 msgid "Clear History on Exit"
 msgstr "Effacer l'historique à la fermeture"
 
-#: frame/window/menu_bar.cpp:422
+#: frame/window/menu_bar.cpp:417
 msgid "Clear Tabs on Exit"
 msgstr "Effacer les onglets à la fermeture"
 
-#: frame/window/menu_bar.cpp:427
+#: frame/window/menu_bar.cpp:422
 msgid "Tab Sessions"
 msgstr "Sessions d'onglets"
 
-#: frame/window/menu_bar.cpp:428
+#: frame/window/menu_bar.cpp:423
 msgid "Change History"
 msgstr "Historique des modifications"
 
-#: frame/window/menu_bar.cpp:429
+#: frame/window/menu_bar.cpp:424
 msgid "Search History"
 msgstr "Historique de recherche"
 
-#: frame/window/menu_bar.cpp:430
+#: frame/window/menu_bar.cpp:425
 msgid "Tree State"
 msgstr "État de l'arborescence"
 
-#: frame/window/menu_bar.cpp:431
+#: frame/window/menu_bar.cpp:426
 msgid "Temporary Files"
 msgstr "Fichiers temporaires"
 
-#: frame/window/menu_bar.cpp:432
+#: frame/window/menu_bar.cpp:427
 msgid "Clear Caches"
 msgstr "Vider les caches"
 
-#: frame/window/menu_bar.cpp:433
+#: frame/window/menu_bar.cpp:428
 msgid "Reset Settings..."
 msgstr "Réinitialiser les paramètres..."
 
-#: frame/window/menu_bar.cpp:435
+#: frame/window/menu_bar.cpp:430
 msgid "Add to Favorites..."
 msgstr "Ajouter aux favoris..."
 
-#: frame/window/menu_bar.cpp:436
+#: frame/window/menu_bar.cpp:431
 msgid "Remove Favorite"
 msgstr "Supprimer le favori"
 
-#: frame/window/menu_bar.cpp:437
+#: frame/window/menu_bar.cpp:432
 msgid "Edit Favorites..."
 msgstr "Modifier les favoris..."
 
-#: frame/window/menu_bar.cpp:439
+#: frame/window/menu_bar.cpp:434
 msgid "Import Favorites..."
 msgstr "Importer des favoris..."
 
-#: frame/window/menu_bar.cpp:440
+#: frame/window/menu_bar.cpp:435
 msgid "Import RegEdit Favorites"
 msgstr "Importer les favoris RegEdit"
 
-#: frame/window/menu_bar.cpp:441
+#: frame/window/menu_bar.cpp:436
 msgid "Export Favorites..."
 msgstr "Exporter les favoris..."
 
-#: frame/window/menu_bar.cpp:455
+#: frame/window/menu_bar.cpp:450
 msgid "F&avorites"
 msgstr "Fa&voris"
 
-#: frame/window/menu_bar.cpp:456
+#: frame/window/menu_bar.cpp:451
 msgid "&Options"
 msgstr "&Options"
 
-#: frame/window/menu_bar.cpp:459
+#: frame/window/menu_bar.cpp:454
 msgid "Compare Registries..."
 msgstr "Comparer les Registres..."
 
-#: frame/window/menu_bar.cpp:460
+#: frame/window/menu_bar.cpp:455
 msgid "Convert File..."
 msgstr "Convertir un fichier..."
 
-#: frame/window/menu_bar.cpp:461
+#: frame/window/menu_bar.cpp:456
 msgid "Key Handles..."
 msgstr "Handles de clé..."
 
-#: frame/window/menu_bar.cpp:463
+#: frame/window/menu_bar.cpp:458
 msgid "New Definition File..."
 msgstr "Nouveau fichier de définition..."
 
-#: frame/window/menu_bar.cpp:465
+#: frame/window/menu_bar.cpp:460
 msgid "&Tools"
 msgstr "O&utils"
 
-#: frame/window/menu_bar.cpp:468
+#: frame/window/menu_bar.cpp:463
 msgid "New Window"
 msgstr "Nouvelle fenêtre"
 
-#: frame/window/menu_bar.cpp:470
+#: frame/window/menu_bar.cpp:465
 msgid "Close Tab"
 msgstr "Fermer l'onglet"
 
-#: frame/window/menu_bar.cpp:471
+#: frame/window/menu_bar.cpp:466
 msgid "Close Window"
 msgstr "Fermer la fenêtre"
 
-#: frame/window/menu_bar.cpp:473
+#: frame/window/menu_bar.cpp:468
 msgid "Always on Top"
 msgstr "Toujours visible"
 
-#: frame/window/menu_bar.cpp:474
+#: frame/window/menu_bar.cpp:469
 msgid "&Window"
 msgstr "Fe&nêtre"
 
-#: frame/window/menu_bar.cpp:477
+#: frame/window/menu_bar.cpp:472
 msgid "23H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:478
+#: frame/window/menu_bar.cpp:473
 msgid "24H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:479
+#: frame/window/menu_bar.cpp:474
 msgid "25H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:502
+#: frame/window/menu_bar.cpp:497
 msgid "Open Trace File..."
 msgstr "Ouvrir un fichier Trace..."
 
-#: frame/window/menu_bar.cpp:504
+#: frame/window/menu_bar.cpp:499
 msgid "Edit Active Traces..."
 msgstr "Modifier les Traces actives..."
 
-#: frame/window/menu_bar.cpp:505
+#: frame/window/menu_bar.cpp:500
 msgid "Clear Active Traces"
 msgstr "Effacer les Traces actives"
 
-#: frame/window/menu_bar.cpp:507
+#: frame/window/menu_bar.cpp:502
 msgid "Edit Recent Traces..."
 msgstr "Modifier les Traces récentes..."
 
-#: frame/window/menu_bar.cpp:508
+#: frame/window/menu_bar.cpp:503
 msgid "Clear Recent Traces"
 msgstr "Effacer les Traces récentes"
 
-#: frame/window/menu_bar.cpp:510
+#: frame/window/menu_bar.cpp:505
 msgid "Guide"
 msgstr "Guide"
 
-#: frame/window/menu_bar.cpp:553
+#: frame/window/menu_bar.cpp:548
 msgid "Open Default File..."
 msgstr "Ouvrir un fichier de valeurs par défaut..."
 
-#: frame/window/menu_bar.cpp:555
+#: frame/window/menu_bar.cpp:550
 msgid "Edit Active Defaults..."
 msgstr "Modifier les valeurs par défaut actives..."
 
-#: frame/window/menu_bar.cpp:556
+#: frame/window/menu_bar.cpp:551
 msgid "Clear Active Defaults"
 msgstr "Effacer les valeurs par défaut actives"
 
-#: frame/window/menu_bar.cpp:558
+#: frame/window/menu_bar.cpp:553
 msgid "Edit Recent Defaults..."
 msgstr "Modifier les valeurs par défaut récentes..."
 
-#: frame/window/menu_bar.cpp:559
+#: frame/window/menu_bar.cpp:554
 msgid "Clear Recent Defaults"
 msgstr "Effacer les valeurs par défaut récentes"
 
-#: frame/window/menu_bar.cpp:561
+#: frame/window/menu_bar.cpp:556
 msgid "Enable Context Menu (risky)"
 msgstr "Activer le menu contextuel (risqué)"
 
-#: frame/window/menu_bar.cpp:564
+#: frame/window/menu_bar.cpp:559
 msgid "Help"
 msgstr "Aide"
 
-#: frame/window/menu_bar.cpp:566
+#: frame/window/menu_bar.cpp:561
 msgid "Check for Updates"
 msgstr "Rechercher des mises à jour"
 
-#: frame/window/menu_bar.cpp:567
+#: frame/window/menu_bar.cpp:562
 msgid "Check for Updates Automatically"
 msgstr "Rechercher automatiquement les mises à jour"
 
-#: frame/window/menu_bar.cpp:569 ui/feedback.cpp:525
+#: frame/window/menu_bar.cpp:564 ui/feedback.cpp:525
 msgid "About RegKit"
 msgstr "À propos de RegKit"
 
-#: frame/window/menu_bar.cpp:582
+#: frame/window/menu_bar.cpp:577
 msgid "T&race"
 msgstr "&Trace"
 
-#: frame/window/menu_bar.cpp:583
+#: frame/window/menu_bar.cpp:578
 msgid "Defa&ult"
 msgstr "Valeurs &par défaut"
 
-#: frame/window/menu_bar.cpp:584
+#: frame/window/menu_bar.cpp:579
 msgid "Re&search"
 msgstr "&Recherche"
 
-#: frame/window/menu_bar.cpp:585
+#: frame/window/menu_bar.cpp:580
 msgid "&Help"
 msgstr "A&ide"
 
@@ -2898,44 +2898,44 @@ msgstr ""
 msgid "Open .reg File"
 msgstr "Ouvrir un fichier .reg"
 
-#: frame/window/message_routes.cpp:568 search/regex.cpp:276
+#: frame/window/message_routes.cpp:528 search/regex.cpp:276
 #: search/regex.cpp:278
 msgid "The find text isn't a valid regular expression."
 msgstr "Le texte à rechercher n'est pas une expression régulière valide."
 
-#: frame/window/notifications.cpp:143 frame/window/notifications.cpp:1225
+#: frame/window/notifications.cpp:143 frame/window/notifications.cpp:1226
 msgid "(Key)"
 msgstr "(clé)"
 
-#: frame/window/notifications.cpp:150 frame/window/notifications.cpp:1243
+#: frame/window/notifications.cpp:150 frame/window/notifications.cpp:1244
 msgid "Same"
 msgstr "Identique"
 
-#: frame/window/notifications.cpp:150 frame/window/notifications.cpp:1243
+#: frame/window/notifications.cpp:150 frame/window/notifications.cpp:1244
 msgid "Different"
 msgstr "Différent"
 
-#: frame/window/notifications.cpp:549 frame/window/notifications.cpp:770
+#: frame/window/notifications.cpp:549 frame/window/notifications.cpp:771
 msgid "A key with this name already exists:"
 msgstr "Une clé portant ce nom existe déjà :"
 
-#: frame/window/notifications.cpp:549 frame/window/notifications.cpp:770
+#: frame/window/notifications.cpp:549 frame/window/notifications.cpp:771
 msgid "Rename Key"
 msgstr "Renommer la clé"
 
-#: frame/window/notifications.cpp:554 frame/window/notifications.cpp:775
+#: frame/window/notifications.cpp:554 frame/window/notifications.cpp:776
 msgid "Failed to rename key."
 msgstr "Échec du changement de nom de la clé."
 
-#: frame/window/notifications.cpp:792
+#: frame/window/notifications.cpp:793
 msgid "A value with this name already exists:"
 msgstr "Une valeur portant ce nom existe déjà :"
 
-#: frame/window/notifications.cpp:792
+#: frame/window/notifications.cpp:793
 msgid "Rename Value"
 msgstr "Renommer la valeur"
 
-#: frame/window/notifications.cpp:808
+#: frame/window/notifications.cpp:809
 msgid "Failed to rename value."
 msgstr "Échec du changement de nom de la valeur."
 
@@ -3222,7 +3222,7 @@ msgstr "Impossible de résoudre le répertoire système."
 msgid "reg.exe exited with an error."
 msgstr "reg.exe s'est terminé avec une erreur."
 
-#: regfile/registry_transfer.cpp:211
+#: regfile/registry_transfer.cpp:215
 #, fuzzy
 msgid "Hive files need the backup and restore privileges. Run RegKit elevated."
 msgstr "Le chargement d'une ruche nécessite les privilèges de sauvegarde et de restauration. Exécutez RegKit avec des droits élevés."
@@ -3902,42 +3902,42 @@ msgstr "Impossible d'appliquer le modèle."
 msgid "Position"
 msgstr "Position"
 
-#: search/search.cpp:709
+#: search/search.cpp:716
 #, fuzzy
 msgid "Null character in the name"
 msgstr "Noms de clés"
 
-#: search/search.cpp:714
+#: search/search.cpp:721
 msgid "Edge spaces or control characters in the name"
 msgstr ""
 
-#: search/search.cpp:729
+#: search/search.cpp:736
 #, fuzzy
 msgid "Unknown type"
 msgstr "Erreur inconnue."
 
-#: search/search.cpp:733
+#: search/search.cpp:740
 #, fuzzy
 msgid "Unexpected size"
 msgstr "Type inattendu"
 
-#: search/search.cpp:743
+#: search/search.cpp:750
 msgid "Odd size"
 msgstr ""
 
-#: search/search.cpp:752
+#: search/search.cpp:759
 msgid "No terminating null"
 msgstr ""
 
-#: search/search.cpp:756
+#: search/search.cpp:763
 msgid "No final double null"
 msgstr ""
 
-#: search/search.cpp:760
+#: search/search.cpp:767
 msgid "Empty item"
 msgstr ""
 
-#: search/search.cpp:1406
+#: search/search.cpp:1443
 msgid "Link target missing"
 msgstr ""
 
@@ -4135,11 +4135,11 @@ msgstr "Échec de l'importation des préréglages de thème."
 msgid "Failed to export theme presets."
 msgstr "Échec de l'exportation des préréglages de thème."
 
-#: win32/file_dialog.cpp:177
+#: win32/file_dialog.cpp:188
 msgid "Open after saving:"
 msgstr "Ouvrir après l'enregistrement :"
 
-#: win32/file_dialog.cpp:372
+#: win32/file_dialog.cpp:383
 msgid "The file dialog failed."
 msgstr "Échec de la boîte de dialogue de fichiers."
 
@@ -4545,15 +4545,15 @@ msgstr "Remplacer par :"
 msgid "Where to search"
 msgstr "Emplacement de recherche"
 
-#: ../resources/search_dialogs.rc:80 ../resources/search_dialogs.rc:130
+#: ../resources/search_dialogs.rc:80 ../resources/search_dialogs.rc:132
 msgid "Match whole string"
 msgstr "Chaîne entière"
 
-#: ../resources/search_dialogs.rc:81 ../resources/search_dialogs.rc:129
+#: ../resources/search_dialogs.rc:81 ../resources/search_dialogs.rc:131
 msgid "Match case"
 msgstr "Respecter la casse"
 
-#: ../resources/search_dialogs.rc:82 ../resources/search_dialogs.rc:131
+#: ../resources/search_dialogs.rc:82 ../resources/search_dialogs.rc:133
 msgid "Regular expressions"
 msgstr "Expressions régulières"
 
@@ -4615,20 +4615,20 @@ msgid "Search comments"
 msgstr "Commentaires"
 
 #: ../resources/search_dialogs.rc:125
-msgid "Min data size (bytes):"
-msgstr "Taille min. (octets) :"
-
-#: ../resources/search_dialogs.rc:127
-msgid "Max data size (bytes):"
-msgstr "Taille max. (octets) :"
-
-#: ../resources/search_dialogs.rc:132
 msgid "Skip symbolic links"
 msgstr "Ignorer les liens symboliques"
 
-#: ../resources/search_dialogs.rc:133
+#: ../resources/search_dialogs.rc:126
 msgid "Data Types..."
 msgstr "Types de données..."
+
+#: ../resources/search_dialogs.rc:127
+msgid "Min data size (bytes):"
+msgstr "Taille min. (octets) :"
+
+#: ../resources/search_dialogs.rc:129
+msgid "Max data size (bytes):"
+msgstr "Taille max. (octets) :"
 
 #: ../resources/search_dialogs.rc:134
 #, fuzzy
@@ -4741,22 +4741,22 @@ msgstr "Fichiers JSON (*.jsonc;*.json)"
 msgid "Registry Files (*.reg)"
 msgstr "Fichiers de Registre (*.reg)"
 
-#: dialogs/transfer_dialogs.cpp:34 frame/commands/clipboard_commands.cpp:71
-#: frame/commands/clipboard_commands.cpp:108
-#: frame/commands/file_view_commands.cpp:346
-#: frame/commands/file_view_commands.cpp:364 frame/detail/file_detail.h:77
+#: dialogs/transfer_dialogs.cpp:34 frame/commands/clipboard_commands.cpp:76
+#: frame/commands/clipboard_commands.cpp:114
+#: frame/commands/file_view_commands.cpp:348
+#: frame/commands/file_view_commands.cpp:368 frame/detail/file_detail.h:77
 #: frame/sources/trace_commands.cpp:365 regfile/script_convert.h:23
 #: ui/feedback.h:50 ui/feedback.h:52 ui/preset_editor.cpp:141
 msgid "All Files (*.*)"
 msgstr "Tous les fichiers (*.*)"
 
-#: frame/commands/clipboard_commands.cpp:71
-#: frame/commands/clipboard_commands.cpp:108
+#: frame/commands/clipboard_commands.cpp:76
+#: frame/commands/clipboard_commands.cpp:114
 msgid "Favorites Files (*.txt)"
 msgstr "Fichiers de favoris (*.txt)"
 
-#: frame/commands/file_view_commands.cpp:346
-#: frame/commands/file_view_commands.cpp:364
+#: frame/commands/file_view_commands.cpp:348
+#: frame/commands/file_view_commands.cpp:368
 msgid "RegKit Comment Files (*.jsonc)"
 msgstr "Fichiers de commentaires RegKit (*.jsonc)"
 
@@ -4788,6 +4788,12 @@ msgstr "Fichiers de ruche (*.*)"
 #: ui/preset_editor.cpp:141
 msgid "RegKit Theme Presets (*.rktheme)"
 msgstr "Préréglages de thème RegKit (*.rktheme)"
+
+#~ msgid "New Key"
+#~ msgstr "Nouvelle clé"
+
+#~ msgid "New Value"
+#~ msgstr "Nouvelle valeur"
 
 #, fuzzy
 #~ msgid "Matching"

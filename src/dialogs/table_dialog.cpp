@@ -52,7 +52,8 @@ int CALLBACK CompareRows(LPARAM left, LPARAM right, int column, void* context)
     {
         const unsigned long long x = wcstoull(a, nullptr, 16);
         const unsigned long long y = wcstoull(b, nullptr, 16);
-        return x < y ? -1 : x > y ? 1 : 0;
+        return x < y ? -1 : x > y ? 1
+                                  : 0;
     }
     return util::CompareListText(a, b);
 }

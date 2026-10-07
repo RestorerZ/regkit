@@ -191,11 +191,7 @@ struct ValueListPayload : work::MoveOnly
     int value_count = 0;
 };
 
-
 bool GetChildRectInParent(HWND parent, HWND child, RECT* rect);
-
-
-
 
 int MappedSubItem(const std::vector<int>& map, int display_index);
 

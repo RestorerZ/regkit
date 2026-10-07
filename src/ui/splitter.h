@@ -16,7 +16,8 @@ namespace regkit::ui
 class Splitter
 {
   public:
-    Splitter(bool vertical, bool grows_backward) noexcept : vertical_(vertical), backward_(grows_backward)
+    Splitter(bool vertical, bool grows_backward) noexcept
+        : vertical_(vertical), backward_(grows_backward)
     {
     }
 

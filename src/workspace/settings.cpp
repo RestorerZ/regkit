@@ -35,26 +35,26 @@ struct TextField
 };
 
 constexpr BoolField kBoolFields[] = {
-    {L"clear_history_on_exit", &Settings::clear_history_on_exit}, // Options > Clear History on Exit
-    {L"clear_tabs_on_exit", &Settings::clear_tabs_on_exit},       // Options > Clear Tabs on Exit
-    {L"view_toolbar", &Settings::show_toolbar},                   // View > Toolbar
-    {L"view_address_bar", &Settings::show_address_bar},           // View > Address Bar
-    {L"view_filter_bar", &Settings::show_filter_bar},             // View > Filter Bar
-    {L"view_tab_control", &Settings::show_tab_control},           // View > Tabs
-    {L"view_tree", &Settings::show_tree},                         // View > Key Tree
-    {L"view_history", &Settings::show_history},                   // View > History
-    {L"view_status_bar", &Settings::show_status_bar},             // View > Status Bar
-    {L"view_keys_in_list", &Settings::show_keys_in_list},         // View > Keys in List
-    {L"view_simulated_keys", &Settings::show_simulated_keys},     // View > Simulated Keys
-    {L"view_extra_hives", &Settings::show_extra_hives},           // View > Show Extra Root Keys
-    {L"view_value_grid", &Settings::show_value_grid},             // View > Grid Lines
-    {L"view_auto_refresh", &Settings::auto_refresh},              // View > Auto Refresh
+    {L"clear_history_on_exit", &Settings::clear_history_on_exit},     // Options > Clear History on Exit
+    {L"clear_tabs_on_exit", &Settings::clear_tabs_on_exit},           // Options > Clear Tabs on Exit
+    {L"view_toolbar", &Settings::show_toolbar},                       // View > Toolbar
+    {L"view_address_bar", &Settings::show_address_bar},               // View > Address Bar
+    {L"view_filter_bar", &Settings::show_filter_bar},                 // View > Filter Bar
+    {L"view_tab_control", &Settings::show_tab_control},               // View > Tabs
+    {L"view_tree", &Settings::show_tree},                             // View > Key Tree
+    {L"view_history", &Settings::show_history},                       // View > History
+    {L"view_status_bar", &Settings::show_status_bar},                 // View > Status Bar
+    {L"view_keys_in_list", &Settings::show_keys_in_list},             // View > Keys in List
+    {L"view_simulated_keys", &Settings::show_simulated_keys},         // View > Simulated Keys
+    {L"view_extra_hives", &Settings::show_extra_hives},               // View > Show Extra Root Keys
+    {L"view_value_grid", &Settings::show_value_grid},                 // View > Grid Lines
+    {L"view_auto_refresh", &Settings::auto_refresh},                  // View > Auto Refresh
     {L"hkcu_follows_shell_user", &Settings::hkcu_follows_shell_user}, // Options > Run As > HKCU Follows Signed-In User
-    {L"save_tree_state", &Settings::save_tree_state},             // Options > Save Previous Tree State
-    {L"auto_check_updates", &Settings::auto_check_updates},       // Help > Check for Updates Automatically
-    {L"default_reset_enabled", &Settings::default_reset_enabled}, // Default > Enable Context Menu (risky)
-    {L"always_run_as_admin", &Settings::always_run_as_admin},     // Options > Run As > Always Run as Admin
-    {L"always_run_as_system", &Settings::always_run_as_system},   // Options > Run As > Always Run as SYSTEM
+    {L"save_tree_state", &Settings::save_tree_state},                 // Options > Save Previous Tree State
+    {L"auto_check_updates", &Settings::auto_check_updates},           // Help > Check for Updates Automatically
+    {L"default_reset_enabled", &Settings::default_reset_enabled},     // Default > Enable Context Menu (risky)
+    {L"always_run_as_admin", &Settings::always_run_as_admin},         // Options > Run As > Always Run as Admin
+    {L"always_run_as_system", &Settings::always_run_as_system},       // Options > Run As > Always Run as SYSTEM
     {L"always_run_as_trustedinstaller",
      &Settings::always_run_as_trustedinstaller},      // Options > Run As > Always Run as TrustedInstaller
     {L"always_on_top", &Settings::always_on_top},     // Window > Always on Top

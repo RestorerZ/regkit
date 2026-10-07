@@ -174,7 +174,7 @@ LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool
             result = OpenNative(parent.get(), split == std::wstring::npos ? subkey : subkey.substr(split + 1), access, open_link, key);
         }
     }
-    
+
     const ULONG_PTR value = reinterpret_cast<ULONG_PTR>(root);
     const bool predefined = (value & ~static_cast<ULONG_PTR>(0xFF)) == reinterpret_cast<ULONG_PTR>(HKEY_CLASSES_ROOT);
     if (result == ERROR_ACCESS_DENIED && g_backup_restore && !merged && !subkey.empty() && (predefined || !(value & 3)))

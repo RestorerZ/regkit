@@ -153,7 +153,9 @@ void MainWindow::Impl::ApplyViewVisibility()
     ShowWindow(status_bar_, settings_.show_status_bar ? SW_SHOW : SW_HIDE);
     if (search_progress_)
     {
-        bool show_progress = settings_.show_status_bar && show_search && search_running_ && !IsCompareTabSelected();
+        const SearchTab* shown = ShownSearchTab();
+        const bool show_progress = settings_.show_status_bar && show_search && shown && shown->run && !IsCompareTabSelected();
+        SendMessageW(search_progress_, PBM_SETMARQUEE, show_progress, 30);
         ShowWindow(search_progress_, show_progress ? SW_SHOW : SW_HIDE);
     }
 
@@ -377,7 +379,8 @@ int MainWindow::Impl::KeyIconIndex(const RegistryNode& node, bool* is_link, bool
         }
         return denied ? kDatabaseDeniedIconIndex : kDatabaseIconIndex;
     }
-    return denied ? kFolderDeniedIconIndex : inspection.is_volatile ? kFolderVolatileIconIndex : kFolderIconIndex;
+    return denied ? kFolderDeniedIconIndex : inspection.is_volatile ? kFolderVolatileIconIndex
+                                                                    : kFolderIconIndex;
 }
 
 std::wstring MainWindow::Impl::ResolveIconDir(bool use_light) const

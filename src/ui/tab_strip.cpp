@@ -120,7 +120,8 @@ void TabStrip::DrawItem(HDC hdc, int index, const RECT& item_rect, int header_bo
     const Theme& theme = Theme::Current();
     const RECT draw_rect = DrawRect(item_rect, header_bottom, selected);
     const bool hot = index == hot_;
-    FillRect(hdc, &draw_rect, appearance::CachedBrush(hot ? theme.HoverColor() : selected ? theme.SurfaceColor() : theme.PanelColor()));
+    FillRect(hdc, &draw_rect, appearance::CachedBrush(hot ? theme.HoverColor() : selected ? theme.SurfaceColor()
+                                                                                          : theme.PanelColor()));
 
     HGDIOBJ old_pen = SelectObject(hdc, appearance::CachedPen(theme.BorderColor(), 1));
     MoveToEx(hdc, draw_rect.left, draw_rect.bottom, nullptr);

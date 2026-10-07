@@ -229,7 +229,9 @@ class MainWindow::Impl
     void StartSearchSortWorker();
     void StartSearchTabLoadWorker();
     void ApplySearchTabLoad(std::unique_ptr<SearchTabLoadPayload> owned);
-    void FinishSearchSession(uint64_t generation);
+    void FinishSearch(SearchTab* tab);
+    SearchTab* SearchTabByGeneration(uint64_t generation);
+    SearchTab* ShownSearchTab();
     void StartSearchPreviewWorker();
     void StartValueListWorker();
     void StopValueListWorker();
@@ -267,7 +269,7 @@ class MainWindow::Impl
     void ApplyReplacePayload(std::unique_ptr<ReplacePayload> owned);
     void CommitReplacePayload(std::unique_ptr<ReplacePayload> payload, bool show_failures);
     void StopReplace();
-    void CancelSearch();
+    void CancelSearch(SearchTab* tab);
     bool IsSearchTabSelected() const;
     void UpdateSearchResultsView();
     void SortSearchTabResults(SearchTab* tab);
@@ -467,7 +469,8 @@ class MainWindow::Impl
     void StopStartupCacheLoad();
     void ApplyStartupCachePayload(std::unique_ptr<StartupCachePayload> owned);
     bool SaveComments() const;
-    bool ImportCommentsFromFile(const std::wstring& path);
+    bool ImportCommentsFromFile(const std::wstring& path, size_t* imported);
+    void ShowFavoritesImported(size_t imported);
     bool ExportCommentsToFile(const std::wstring& path) const;
     void RefreshValueListComments();
     bool ApplyValueComments(std::vector<ListRow>* rows) const;
@@ -531,6 +534,7 @@ class MainWindow::Impl
     void RefreshTreeItem(HTREEITEM item);
     void RefreshTreePath(const std::wstring& path);
     void RefreshTreeSelection();
+    void RefreshWholeTree();
     void RefreshMatchingTreeNodes(HTREEITEM selected = nullptr);
     void UpdateSimulatedChain(HTREEITEM item);
     void ApplySavedWindowPlacement();
@@ -687,6 +691,29 @@ class MainWindow::Impl
     ReplaceDialogResult last_replace_;
     SearchDialogResult last_search_;
 
+    struct SearchRun
+    {
+        ~SearchRun()
+        {
+            session.Cancel();
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+            }
+            space.notify_all();
+            session.Join();
+        }
+        work::Session session;
+        std::mutex mutex;
+        std::condition_variable space;
+        std::deque<std::vector<search::Result>> batches;
+        size_t pending_rows = 0;
+        bool producer_done = false;
+        std::atomic_bool posted{false};
+        std::atomic_bool progress_posted{false};
+        std::atomic<uint64_t> searched{0};
+        uint64_t start_tick = 0;
+    };
+
     struct SearchTab
     {
         std::wstring label;
@@ -703,6 +730,9 @@ class MainWindow::Impl
         search::compare::RowFilter compare_filter = search::compare::RowFilter::kDifferences;
         std::vector<search::Source> sources;
         size_t last_ui_count = 0;
+        uint64_t max_results = 0;
+        std::shared_ptr<SearchRun> run;
+        uint64_t duration_ms = 0;
         int sort_column = -1;
         bool sort_ascending = true;
         bool sort_dirty = false;
@@ -744,36 +774,18 @@ class MainWindow::Impl
         bool reg_file_loading = false;
     };
 
-    struct PendingSearchBatch
-    {
-        uint64_t generation = 0;
-        std::vector<search::Result> rows;
-    };
-
     struct TraceLoadPayload;
     struct DefaultLoadPayload;
 
     HWND search_results_list_ = nullptr;
     std::vector<TabEntry> tabs_;
     std::vector<SearchTab> search_tabs_;
-    std::deque<PendingSearchBatch> search_pending_batches_;
-    size_t search_pending_rows_ = 0;
-    bool search_producer_done_ = false;
-    std::mutex search_mutex_;
-    std::condition_variable search_queue_space_;
-    std::atomic_bool search_posted_{false};
     bool search_preview_request_posted_ = false;
     bool value_preview_request_posted_ = false;
-    std::atomic<uint64_t> search_progress_searched_{0};
-    std::atomic_bool search_progress_posted_{false};
     uint64_t search_last_refresh_tick_ = 0;
-    uint64_t search_start_tick_ = 0;
-    uint64_t search_duration_ms_ = 0;
-    bool search_duration_valid_ = false;
-    work::Session search_session_;
+    uint64_t search_generation_ = 0;
     work::Session replace_session_;
     bool replace_result_pending_ = false;
-    bool search_running_ = false;
     int active_search_tab_index_ = -1;
     int search_results_view_tab_index_ = -1;
     ui::TabStrip tab_strip_;

@@ -52,10 +52,14 @@ HWND Item(const SearchDialogState* state, int id)
 }
 
 constexpr std::pair<int, uint32_t> kAnomalyBoxes[] = {
-    {IDC_FIND_NUL_NAMES, search::kAnomalyNulName},          {IDC_FIND_ODD_NAMES, search::kAnomalyOddName},
-    {IDC_FIND_INTEGER_SIZE, search::kAnomalyIntegerSize},   {IDC_FIND_STRING_END, search::kAnomalyStringEnd},
-    {IDC_FIND_MULTI_STRING, search::kAnomalyMultiString},   {IDC_FIND_UNKNOWN_TYPE, search::kAnomalyUnknownType},
-    {IDC_FIND_BROKEN_LINKS, search::kAnomalyBrokenLink},    {IDC_FIND_VIRTUAL_STORE, search::kAnomalyVirtualStore},
+    {IDC_FIND_NUL_NAMES, search::kAnomalyNulName},
+    {IDC_FIND_ODD_NAMES, search::kAnomalyOddName},
+    {IDC_FIND_INTEGER_SIZE, search::kAnomalyIntegerSize},
+    {IDC_FIND_STRING_END, search::kAnomalyStringEnd},
+    {IDC_FIND_MULTI_STRING, search::kAnomalyMultiString},
+    {IDC_FIND_UNKNOWN_TYPE, search::kAnomalyUnknownType},
+    {IDC_FIND_BROKEN_LINKS, search::kAnomalyBrokenLink},
+    {IDC_FIND_VIRTUAL_STORE, search::kAnomalyVirtualStore},
 };
 
 std::wstring SearchHistoryPath()
@@ -661,9 +665,9 @@ INT_PTR CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
             hwnd,
             Item(state, IDC_FIND_REGEX),
             util::Tr(L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
-                 L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
-                 L"\\X.\n"
-                 L"Matching is unicode aware and ignores case unless 'Match case' is set.")
+                     L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
+                     L"\\X.\n"
+                     L"Matching is unicode aware and ignores case unless 'Match case' is set.")
         );
         SetDlgItemTextW(hwnd, IDC_FIND_LIMIT_EDIT, L"1000");
         LoadInitialState(state);

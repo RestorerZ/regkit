@@ -190,14 +190,16 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
                 return true;
             }
             std::wstring error;
-            if (ImportRegFileFromPath(path, &error))
+            const bool imported = ImportRegFileFromPath(path, &error);
+            RefreshWholeTree();
+            UpdateValueListForNode(browse_.current_node());
+            if (!imported)
             {
-                AppendHistoryEntry(L"Import .reg file " + util::FileName(path), L"", path);
+                ui::ShowRegFileMergeFailed(hwnd_, path, error);
+                return true;
             }
-            else if (!error.empty())
-            {
-                ui::ShowError(hwnd_, error);
-            }
+            AppendHistoryEntry(L"Import .reg file " + util::FileName(path), L"", path);
+            ui::ShowRegFileMergeSucceeded(hwnd_, path);
             return true;
         }
     case cmd::kFileOpenRegFile:
@@ -347,9 +349,11 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             {
                 return true;
             }
-            if (ImportCommentsFromFile(path))
+            size_t imported = 0;
+            if (ImportCommentsFromFile(path, &imported))
             {
                 AppendHistoryEntry(L"Import comments " + util::FileName(path), L"", path);
+                ui::ShowInfo(hwnd_, util::TrLabel(L"Comments imported", std::to_wstring(imported)));
             }
             else
             {
@@ -503,7 +507,7 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
     switch (command_id)
     {
     case cmd::kViewRefresh:
-        RefreshTreeSelection();
+        RefreshWholeTree();
         UpdateValueListForNode(browse_.current_node());
         return true;
     case cmd::kViewAddressBar:

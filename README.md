@@ -393,17 +393,17 @@ Using `reg` here is optional, means both `regkit reg query` & `regkit query` wor
 | --- | --- |
 | `add <key> [/v name \| /ve] [/t type] [/s sep] [/d data] [/f]` | `/f` overwrites an existing value |
 | `delete <key> [/v name \| /ve \| /va] [/f]` | Without `/v` the whole key tree is removed |
-| `query <key> [/v [name] \| /ve] [/s] [/f data [/k] [/d] [/c] [/e]] [/t types] [/z] [/se sep]` | `/f` searches key names, value names & data (`*` & `?` wildcards), `/k`, `/v`, `/d` limit where, `/c` case sensitive, `/e` exact; `/t` takes a comma separated list, `/z` adds the numeric type |
+| `query <key> [/v [name] \| /ve] [/s] [/f data [/k] [/d] [/c] [/e]] [/t types] [/z] [/se sep]` | `/f` searches key names, value names & data (`*` & `?` wildcards), `/k`, `/v`, `/d` limit where, `/c` case sensitive, `/e` exact, `/t` takes a comma separated list, `/z` adds the numeric type |
 | `copy <src> <dst> [/s] [/f]` | `/s` copies subkeys too |
 | `export <key> <file.reg> [/y]` | `/y` overwrites an existing file |
 | `import <file.reg>` | |
 | `save <key> <file.hiv> [/y]` | Needs the backup privilege |
 | `restore <key> <file.hiv>` | Needs the restore & backup privileges |
 | `load <key> <file.hiv>` / `unload <key>` | Mounts/releases a hive file |
-| `compare <key1> <key2> [/v name \| /ve] [/oa \| /od \| /os \| /on] [/s]` | `/oa` all lines, `/od` differences (default), `/os` matches, `/on` none; exit code `0` = identical, `2` = different |
-| `flags <HKLM\Software\key> [QUERY \| SET [DONT_VIRTUALIZE] [DONT_SILENT_FAIL] [RECURSE_FLAG]] [/s]` | UAC virtualization flags; `SET` clears every flag it doesn't name, `/s` applies to subkeys |
+| `compare <key1> <key2> [/v name \| /ve] [/oa \| /od \| /os \| /on] [/s]` | `/oa` all lines, `/od` differences (default), `/os` matches, `/on` none, exit code `0` = identical, `2` = different |
+| `flags <HKLM\Software\key> [QUERY \| SET [DONT_VIRTUALIZE] [DONT_SILENT_FAIL] [RECURSE_FLAG]] [/s]` | UAC virtualization flags, `SET` clears every flag it doesn't name, `/s` applies to subkeys |
 | `/reg:32` `/reg:64` | Selects the 32/64 bit registry view |
-| `\\machine\HKLM\...` | Remote registry (HKLM & HKU only); `compare <key> \\machine` compares the same path on that machine |
+| `\\machine\HKLM\...` | Remote registry (HKLM & HKU), `compare <key> \\machine` compares the same path on that machine |
 
 ### regkit (additions)
 

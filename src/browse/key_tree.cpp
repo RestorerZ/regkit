@@ -257,6 +257,33 @@ void RegistryTree::OnItemExpanding(const NMTREEVIEWW* info)
     node->children_loaded = AddChildren(info->itemNew.hItem, node);
 }
 
+void RegistryTree::Resync(HTREEITEM item, bool load)
+{
+    if (RegistryNode* node = NodeFromItem(item))
+    {
+        node->icon = -1;
+        if (!load && !node->children_loaded)
+        {
+            node->has_children = -1;
+            if (TreeView_GetItemState(hwnd_, item, TVIS_EXPANDEDONCE))
+            {
+                TVITEMW state = {};
+                state.mask = TVIF_CHILDREN | TVIF_STATE;
+                state.hItem = item;
+                state.stateMask = TVIS_EXPANDEDONCE;
+                state.cChildren = I_CHILDRENCALLBACK;
+                TreeView_SetItem(hwnd_, &state);
+            }
+            return;
+        }
+        node->children_loaded = AddChildren(item, node);
+    }
+    for (HTREEITEM child = TreeView_GetChild(hwnd_, item); child; child = TreeView_GetNextSibling(hwnd_, child))
+    {
+        Resync(child, false);
+    }
+}
+
 RegistryNode* RegistryTree::OnSelectionChanged(const NMTREEVIEWW* info)
 {
     if (!info)
@@ -426,12 +453,50 @@ bool RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node)
     {
         nodes_.reserve(nodes_.size() + entries.size());
     }
-    for (const auto& entry : entries)
+    std::vector<RegistryNode*> released;
+    HTREEITEM child = TreeView_GetChild(hwnd_, parent);
+    HTREEITEM after = TVI_FIRST;
+    wchar_t text[512] = {};
+    for (size_t index = 0; child || index < entries.size();)
     {
-        const std::wstring& name = entry.name;
-        auto child = std::make_unique<RegistryNode>(registry_path::ChildNode(*node, name));
-        child->simulated = entry.simulated;
-        InsertNodeItem(hwnd_, parent, TVI_LAST, entry.label, StoreNode(std::move(child)));
+        int order = 1;
+        if (child)
+        {
+            TVITEMW item = {};
+            item.mask = TVIF_TEXT;
+            item.hItem = child;
+            item.pszText = text;
+            item.cchTextMax = static_cast<int>(_countof(text));
+            order = index == entries.size() || !TreeView_GetItem(hwnd_, &item) ? -1 : util::CompareInsensitive(text, entries[index].label);
+        }
+        if (order < 0)
+        {
+            HTREEITEM next = TreeView_GetNextSibling(hwnd_, child);
+            CollectSubtree(child, &released);
+            TreeView_DeleteItem(hwnd_, child);
+            child = next;
+            continue;
+        }
+        if (order == 0)
+        {
+            if (RegistryNode* existing = NodeFromItem(child))
+            {
+                existing->simulated = entries[index].simulated;
+            }
+            after = child;
+            child = TreeView_GetNextSibling(hwnd_, child);
+        }
+        else
+        {
+            auto added = std::make_unique<RegistryNode>(registry_path::ChildNode(*node, entries[index].name));
+            added->simulated = entries[index].simulated;
+            after = InsertNodeItem(hwnd_, parent, after, entries[index].label, StoreNode(std::move(added)));
+        }
+        ++index;
+    }
+    for (RegistryNode* stale : released)
+    {
+        nodes_.erase(stale);
     }
     SetChildState(hwnd_, parent, node, !entries.empty());
     // only cache the load when the key read succeeded

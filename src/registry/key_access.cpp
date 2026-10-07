@@ -79,7 +79,8 @@ Context FromSid(PSID sid, std::initializer_list<const wchar_t*> groups)
     {
         LocalFree(group);
     }
-    return !added ? Context() : sids.empty() ? std::move(context) : std::move(extended);
+    return !added ? Context() : sids.empty() ? std::move(context)
+                                             : std::move(extended);
 }
 
 Context FromSidText(const wchar_t* text, std::initializer_list<const wchar_t*> groups)
@@ -145,7 +146,8 @@ std::wstring Describe(ACCESS_MASK granted)
         return util::Tr(L"Full control");
     }
     const bool read = (granted & KEY_QUERY_VALUE) != 0;
-    std::wstring text = CanWrite(granted) ? (read ? util::Tr(L"Read and write") : util::Tr(L"Write")) : read ? util::Tr(L"Read") : util::Tr(L"No access");
+    std::wstring text = CanWrite(granted) ? (read ? util::Tr(L"Read and write") : util::Tr(L"Write")) : read ? util::Tr(L"Read")
+                                                                                                             : util::Tr(L"No access");
     // an owner can always rewrite the dacl and so gain any access
     if (!CanWrite(granted) && (granted & (WRITE_DAC | WRITE_OWNER)))
     {

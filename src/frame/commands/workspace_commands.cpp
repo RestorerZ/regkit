@@ -246,6 +246,7 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
             }
         }
         util::SetBackupRestoreMode(backup_privileges_ != nullptr);
+        RefreshWholeTree();
         UpdateValueListForNode(browse_.current_node());
         UpdateStatus();
         return true;

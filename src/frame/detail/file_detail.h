@@ -61,8 +61,6 @@
 namespace regkit::window_detail
 {
 
-
-
 constexpr wchar_t kIconSetPhosphor[] = L"phosphor";
 constexpr wchar_t kIconSetClassic[] = L"classic";
 constexpr wchar_t kIconSetCustom[] = L"custom";
@@ -88,7 +86,6 @@ using util::EqualsInsensitive;
 
 using util::StartsWithInsensitive;
 
-
 struct RegFileParsePayload : work::MoveOnly
 {
     uint64_t generation = 0;
@@ -98,7 +95,5 @@ struct RegFileParsePayload : work::MoveOnly
     std::wstring error;
     bool cancelled = false;
 };
-
-
 
 } // namespace regkit::window_detail

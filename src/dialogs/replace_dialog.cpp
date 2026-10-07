@@ -27,7 +27,7 @@ struct State
 constexpr struct
 {
     int id;
-    bool ReplaceDialogResult::*field;
+    bool ReplaceDialogResult::* field;
 } kChecks[] = {
     {IDC_REPLACE_RECURSIVE, &ReplaceDialogResult::recursive},
     {IDC_REPLACE_CASE, &ReplaceDialogResult::match_case},
@@ -94,10 +94,10 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             dialog,
             GetDlgItem(dialog, IDC_REPLACE_REGEX),
             util::Tr(L"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
-                         L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
-                         L"\\X.\n"
-                         L"Replace with: $1 or ${1} for a group, $<name> or ${name} for a named group, $& for the whole match, $$ "
-                         L"for a dollar.")
+                     L"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, "
+                     L"\\X.\n"
+                     L"Replace with: $1 or ${1} for a group, $<name> or ${name} for a named group, $& for the whole match, $$ "
+                     L"for a dollar.")
         );
         dialog_support::Initialize(dialog, &state->font, {IDC_REPLACE_FIND, IDC_REPLACE_WITH, IDC_REPLACE_KEY});
         return TRUE;

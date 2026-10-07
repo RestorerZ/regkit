@@ -886,7 +886,7 @@ bool MainWindow::Impl::SaveComments() const
     return !comments_unreadable_ && value_comments_.Save(CommentsPath());
 }
 
-bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path)
+bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path, size_t* imported)
 {
     std::wstring content;
     std::vector<changes::CommentRule> rules;
@@ -895,6 +895,7 @@ bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path)
     {
         return false;
     }
+    *imported = rules.size();
     value_comments_.Merge(rules);
     if (!SaveComments())
     {

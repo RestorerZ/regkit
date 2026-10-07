@@ -315,33 +315,34 @@ std::optional<LRESULT> MainWindow::Impl::HandleWorkerMessage(UINT message, WPARA
     }
 }
 
-void MainWindow::Impl::FinishSearchSession(uint64_t generation)
+MainWindow::Impl::SearchTab* MainWindow::Impl::SearchTabByGeneration(uint64_t generation)
 {
-    if (!search_running_ || !search_session_.IsCurrent(generation))
+    for (auto& tab : search_tabs_)
     {
-        return;
-    }
-    search_session_.Join();
-    search_running_ = false;
-    for (auto& search_tab : search_tabs_)
-    {
-        if (search_tab.generation == generation && search_tab.sort_dirty)
+        if (tab.run && tab.generation == generation)
         {
-            SortSearchTabResults(&search_tab);
-            break;
+            return &tab;
         }
     }
-    if (search_start_tick_ != 0)
+    return nullptr;
+}
+
+MainWindow::Impl::SearchTab* MainWindow::Impl::ShownSearchTab()
+{
+    const int index = tab_ ? SearchIndexFromTab(TabCtrl_GetCurSel(tab_)) : -1;
+    return index >= 0 && static_cast<size_t>(index) < search_tabs_.size() ? &search_tabs_[static_cast<size_t>(index)] : nullptr;
+}
+
+void MainWindow::Impl::FinishSearch(SearchTab* tab)
+{
+    tab->run->session.Join();
+    tab->duration_ms = std::max<uint64_t>(GetTickCount64() - tab->run->start_tick, 1);
+    tab->run.reset();
+    if (tab->sort_dirty)
     {
-        search_duration_ms_ = GetTickCount64() - search_start_tick_;
-        search_duration_valid_ = true;
+        SortSearchTabResults(tab);
     }
-    else
-    {
-        search_duration_ms_ = 0;
-        search_duration_valid_ = false;
-    }
-    if (IsSearchTabIndex(TabCtrl_GetCurSel(tab_)))
+    if (ShownSearchTab() == tab)
     {
         search_last_refresh_tick_ = GetTickCount64();
         UpdateSearchResultsView();
@@ -356,81 +357,50 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
     {
     case frame::message_id::kSearchResults:
         {
-            const uint64_t generation = static_cast<uint64_t>(wparam);
-            if (!search_session_.IsCurrent(generation))
+            SearchTab* tab = SearchTabByGeneration(static_cast<uint64_t>(wparam));
+            if (!tab)
             {
                 return 0;
             }
-
-            search_posted_.store(false);
-            const int index =
-                IsSearchTabIndex(active_search_tab_index_) ? SearchIndexFromTab(active_search_tab_index_) : -1;
-            SearchTab* tab = index >= 0 && static_cast<size_t>(index) < search_tabs_.size()
-                                 ? &search_tabs_[static_cast<size_t>(index)]
-                                 : nullptr;
-
+            SearchRun& run = *tab->run;
+            run.posted.store(false);
             const uint64_t start_tick = GetTickCount64();
             bool appended = false;
+            bool more_pending = false;
+            bool producer_done = false;
             for (;;)
             {
-                PendingSearchBatch batch;
+                std::vector<search::Result> rows;
                 {
-                    std::lock_guard<std::mutex> lock(search_mutex_);
-                    if (search_pending_batches_.empty())
+                    std::lock_guard<std::mutex> lock(run.mutex);
+                    producer_done = run.producer_done;
+                    if (run.batches.empty())
                     {
                         break;
                     }
-                    batch = std::move(search_pending_batches_.front());
-                    search_pending_batches_.pop_front();
-                    search_pending_rows_ -= batch.rows.size();
+                    rows = std::move(run.batches.front());
+                    run.batches.pop_front();
+                    run.pending_rows -= rows.size();
+                    more_pending = !run.batches.empty();
                 }
-                search_queue_space_.notify_all();
-                if (batch.generation != generation || !tab)
-                {
-                    continue;
-                }
-                for (auto& row : batch.rows)
+                run.space.notify_all();
+                for (auto& row : rows)
                 {
                     row.row_id = tab->next_row_id++;
                 }
-
-                if (tab->results.empty())
-                {
-                    tab->results = std::move(batch.rows);
-                }
-                else
-                {
-                    tab->results.insert(tab->results.end(), std::make_move_iterator(batch.rows.begin()), std::make_move_iterator(batch.rows.end()));
-                }
+                tab->results.insert(tab->results.end(), std::make_move_iterator(rows.begin()), std::make_move_iterator(rows.end()));
                 appended = true;
-                if ((GetTickCount64() - start_tick) >= kSearchResultsMaxMs)
+                if (GetTickCount64() - start_tick >= kSearchResultsMaxMs)
                 {
                     break;
                 }
             }
-
-            if (appended && tab && tab->sort_column >= 0)
+            tab->sort_dirty = tab->sort_dirty || appended;
+            if (more_pending && !run.posted.exchange(true) && !PostMessageW(hwnd_, frame::message_id::kSearchResults, wparam, 0))
             {
-                tab->sort_dirty = true;
+                run.posted.store(false);
             }
-
-            bool more_pending = false;
-            bool producer_done = false;
-            {
-                std::lock_guard<std::mutex> lock(search_mutex_);
-                more_pending = !search_pending_batches_.empty();
-                producer_done = search_producer_done_;
-            }
-
-            if (more_pending && !search_posted_.exchange(true))
-            {
-                if (!PostMessageW(hwnd_, frame::message_id::kSearchResults, static_cast<WPARAM>(generation), 0))
-                {
-                    search_posted_.store(false);
-                }
-            }
-
-            if (appended && TabCtrl_GetCurSel(tab_) == active_search_tab_index_)
+            if (appended && ShownSearchTab() == tab)
             {
                 const uint64_t now = GetTickCount64();
                 if (now - search_last_refresh_tick_ >= kSearchResultsRefreshMs)
@@ -440,10 +410,9 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
                     UpdateStatus();
                 }
             }
-
             if (!more_pending && producer_done)
             {
-                FinishSearchSession(generation);
+                FinishSearch(tab);
             }
             return 0;
         }
@@ -542,34 +511,23 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
         ApplySearchTabLoad(work::TakePayload<SearchTabLoadPayload>(lparam));
         return 0;
     case frame::message_id::kSearchProgress:
+        if (SearchTab* tab = SearchTabByGeneration(static_cast<uint64_t>(wparam)))
         {
-            uint64_t generation = static_cast<uint64_t>(wparam);
-            if (!search_session_.IsCurrent(generation))
+            tab->run->progress_posted.store(false);
+            if (ShownSearchTab() == tab)
             {
-                return 0;
+                UpdateStatus();
             }
-            search_progress_posted_.store(false);
-            UpdateStatus();
-            return 0;
         }
+        return 0;
     case frame::message_id::kSearchFailed:
+        if (SearchTab* tab = SearchTabByGeneration(static_cast<uint64_t>(wparam)))
         {
-            uint64_t generation = static_cast<uint64_t>(wparam);
-            if (!search_session_.IsCurrent(generation))
-            {
-                return 0;
-            }
-            search_session_.Join();
-            search_running_ = false;
-            search_duration_ms_ = 0;
-            search_duration_valid_ = false;
-            const auto regex_status = static_cast<search::regex::Status>(lparam);
-            const std::wstring detail = search::regex::StatusText(regex_status);
+            CancelSearch(tab);
+            const std::wstring detail = search::regex::StatusText(static_cast<search::regex::Status>(lparam));
             ui::ShowError(hwnd_, detail.empty() ? std::wstring(util::Tr(L"The find text isn't a valid regular expression.")) : detail);
-            ApplyViewVisibility();
-            UpdateStatus();
-            return 0;
         }
+        return 0;
     case frame::message_id::kReplaceReady:
         ApplyReplacePayload(work::TakePayload<ReplacePayload>(lparam));
         return 0;

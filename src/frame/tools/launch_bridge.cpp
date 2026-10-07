@@ -150,7 +150,10 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
         add(flags, L"WOW64", wow64);
     }
     static constexpr std::pair<ULONG, const wchar_t*> kControlFlags[] = {
-        {util::kKeyDontVirtualize, util::TrNoop(L"Don't virtualize")}, {util::kKeyDontSilentFail, util::TrNoop(L"Don't silent fail")}, {util::kKeyRecurseFlag, util::TrNoop(L"Recurse")}};
+        {util::kKeyDontVirtualize, util::TrNoop(L"Don't virtualize")},
+        {util::kKeyDontSilentFail, util::TrNoop(L"Don't silent fail")},
+        {util::kKeyRecurseFlag, util::TrNoop(L"Recurse")}
+    };
     // reg flags only accepts HKLM\SOFTWARE keys, the same keys uac virtualizes
     const std::wstring store = registry_path::VirtualStorePath(native.native_name);
     const bool editable_flags = native.control_flags && !store.empty() && session_->mode == RegistryMode::kLocal && !settings_.read_only;

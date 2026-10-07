@@ -83,7 +83,7 @@ bool FavoritesStore::Remove(const std::wstring& path)
     return !path.empty() && (removed == 0 || Save(favorites));
 }
 
-bool FavoritesStore::ImportFromFile(const std::wstring& path)
+bool FavoritesStore::ImportFromFile(const std::wstring& path, size_t* imported_count)
 {
     std::vector<std::wstring> imported;
     if (!LoadFromFile(path, &imported))
@@ -92,7 +92,8 @@ bool FavoritesStore::ImportFromFile(const std::wstring& path)
     }
     std::vector<std::wstring> favorites;
     Load(&favorites);
-    return MergeUnique(&favorites, imported) == 0 || Save(favorites);
+    *imported_count = MergeUnique(&favorites, imported);
+    return *imported_count == 0 || Save(favorites);
 }
 
 bool FavoritesStore::ExportToFile(const std::wstring& path)

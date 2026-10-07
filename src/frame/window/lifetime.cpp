@@ -525,7 +525,10 @@ void MainWindow::Impl::OnDestroy()
     {
         StopTreeStateWorker();
     }
-    CancelSearch();
+    for (auto& tab : search_tabs_)
+    {
+        tab.run.reset();
+    }
     updates_.Cancel();
     DiscardWorkerMessages();
     for (auto& entry : tabs_)

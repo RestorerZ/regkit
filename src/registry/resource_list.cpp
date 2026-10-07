@@ -81,25 +81,48 @@ std::wstring NameOrNumber(std::span<const std::pair<int, const wchar_t*>> names,
 }
 
 constexpr std::pair<int, const wchar_t*> kInterfaceTypes[] = {
-    {-1, util::TrNoop(L"Undefined")}, {0, util::TrNoop(L"Internal")}, {1, L"ISA"}, {2, L"EISA"}, {3, L"MicroChannel"},
-    {4, L"TurboChannel"}, {5, L"PCI"}, {6, L"VME"}, {7, L"NuBus"}, {8, L"PCMCIA"}, {9, L"CBus"}, {10, L"MPI"}, {11, L"MPSA"},
-    {12, util::TrNoop(L"Processor internal")}, {13, util::TrNoop(L"Internal power bus")}, {14, L"PnP ISA"}, {15, L"PnP"},
-    {16, L"VMCS"}, {17, L"ACPI"},
+    {-1, util::TrNoop(L"Undefined")},
+    {0, util::TrNoop(L"Internal")},
+    {1, L"ISA"},
+    {2, L"EISA"},
+    {3, L"MicroChannel"},
+    {4, L"TurboChannel"},
+    {5, L"PCI"},
+    {6, L"VME"},
+    {7, L"NuBus"},
+    {8, L"PCMCIA"},
+    {9, L"CBus"},
+    {10, L"MPI"},
+    {11, L"MPSA"},
+    {12, util::TrNoop(L"Processor internal")},
+    {13, util::TrNoop(L"Internal power bus")},
+    {14, L"PnP ISA"},
+    {15, L"PnP"},
+    {16, L"VMCS"},
+    {17, L"ACPI"},
 };
 
 constexpr std::pair<int, const wchar_t*> kResourceTypes[] = {
-    {0, util::TrNoop(L"Null")}, {0x80, util::TrNoop(L"Configuration data")}, {0x81, util::TrNoop(L"Device private")},
-    {0x82, util::TrNoop(L"PC card configuration")}, {0x83, util::TrNoop(L"Multifunction card configuration")},
+    {0, util::TrNoop(L"Null")},
+    {0x80, util::TrNoop(L"Configuration data")},
+    {0x81, util::TrNoop(L"Device private")},
+    {0x82, util::TrNoop(L"PC card configuration")},
+    {0x83, util::TrNoop(L"Multifunction card configuration")},
     {0x84, util::TrNoop(L"Connection")},
 };
 
 constexpr std::pair<int, const wchar_t*> kShareDispositions[] = {
-    {0, util::TrNoop(L"Undetermined")}, {1, util::TrNoop(L"Device exclusive")}, {2, util::TrNoop(L"Driver exclusive")}, {3, util::TrNoop(L"Shared")},
+    {0, util::TrNoop(L"Undetermined")},
+    {1, util::TrNoop(L"Device exclusive")},
+    {2, util::TrNoop(L"Driver exclusive")},
+    {3, util::TrNoop(L"Shared")},
 };
 
 unsigned long long LargeLength(USHORT flags, ULONG length)
 {
-    const int shift = (flags & kMemoryLarge64) ? 32 : (flags & kMemoryLarge48) ? 16 : (flags & kMemoryLarge40) ? 8 : 0;
+    const int shift = (flags & kMemoryLarge64) ? 32 : (flags & kMemoryLarge48) ? 16
+                                                  : (flags & kMemoryLarge40)   ? 8
+                                                                               : 0;
     return static_cast<unsigned long long>(length) << shift;
 }
 
@@ -154,8 +177,13 @@ enum Kind
 };
 
 constexpr const wchar_t* kKindTitles[kKindCount] = {
-    util::TrNoop(L"Ports"), util::TrNoop(L"Interrupts"), util::TrNoop(L"Memory"), util::TrNoop(L"DMA"),
-    util::TrNoop(L"Bus numbers"), util::TrNoop(L"Device specific data"), util::TrNoop(L"Other resources"),
+    util::TrNoop(L"Ports"),
+    util::TrNoop(L"Interrupts"),
+    util::TrNoop(L"Memory"),
+    util::TrNoop(L"DMA"),
+    util::TrNoop(L"Bus numbers"),
+    util::TrNoop(L"Device specific data"),
+    util::TrNoop(L"Other resources"),
 };
 
 Kind KindOf(BYTE type)
@@ -238,8 +266,7 @@ size_t DecodePartial(Reader& reader, size_t offset, size_t width, size_t descrip
     case kMemory:
         {
             const ULONG length = reader.At<ULONG>(u + 8);
-            out.Add(kind, {util::TrNoop(L"Start"), util::TrNoop(L"Length"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")},
-                    {Hex(reader.At<unsigned long long>(u), 16), type == 7 ? Hex(LargeLength(flags, length), 16) : Hex(length, 8), Share(share), Flags(flags, kind == kPort ? kPortFlags : kMemoryFlags)});
+            out.Add(kind, {util::TrNoop(L"Start"), util::TrNoop(L"Length"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")}, {Hex(reader.At<unsigned long long>(u), 16), type == 7 ? Hex(LargeLength(flags, length), 16) : Hex(length, 8), Share(share), Flags(flags, kind == kPort ? kPortFlags : kMemoryFlags)});
             break;
         }
     case kInterrupt:
@@ -251,14 +278,11 @@ size_t DecodePartial(Reader& reader, size_t offset, size_t width, size_t descrip
             {
                 flag_text.append(L", ").append(util::TrLabel(L"Messages", Number(reader.At<USHORT>(u + 2))));
             }
-            out.Add(kind, {util::TrNoop(L"Vector"), util::TrNoop(L"Level"), util::TrNoop(L"Group"), util::TrNoop(L"Affinity"), util::TrNoop(L"Flags"), util::TrNoop(L"Share")},
-                    {Number(reader.At<ULONG>(u + 4)), raw_message ? std::wstring() : Number(reader.At<USHORT>(u)), Number(reader.At<USHORT>(raw_message ? u : u + 2)),
-                     Hex(reader.Affinity(u + 8, width), static_cast<int>(width * 2)), flag_text, Share(share)});
+            out.Add(kind, {util::TrNoop(L"Vector"), util::TrNoop(L"Level"), util::TrNoop(L"Group"), util::TrNoop(L"Affinity"), util::TrNoop(L"Flags"), util::TrNoop(L"Share")}, {Number(reader.At<ULONG>(u + 4)), raw_message ? std::wstring() : Number(reader.At<USHORT>(u)), Number(reader.At<USHORT>(raw_message ? u : u + 2)), Hex(reader.Affinity(u + 8, width), static_cast<int>(width * 2)), flag_text, Share(share)});
             break;
         }
     case kDma:
-        out.Add(kind, {util::TrNoop(L"Channel"), util::TrNoop(L"Port / request line"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")},
-                {Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Share(share), Flags(flags, kDmaFlags)});
+        out.Add(kind, {util::TrNoop(L"Channel"), util::TrNoop(L"Port / request line"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")}, {Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Share(share), Flags(flags, kDmaFlags)});
         break;
     case kBusNumber:
         out.Add(kind, {util::TrNoop(L"Start"), util::TrNoop(L"Length"), util::TrNoop(L"Share")}, {Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Share(share)});
@@ -275,9 +299,7 @@ size_t DecodePartial(Reader& reader, size_t offset, size_t width, size_t descrip
             return descriptor + length;
         }
     default:
-        out.Add(kind, {util::TrNoop(L"Type"), util::TrNoop(L"Share"), util::TrNoop(L"Flags"), util::TrNoop(L"Data")},
-                {NameOrNumber(kResourceTypes, type), Share(share), Hex(flags, 4),
-                 type == 0x84 ? Hex((static_cast<unsigned long long>(reader.At<ULONG>(u + 8)) << 32) | reader.At<ULONG>(u + 4), 16) : reader.Bytes(u, descriptor - kPartialHeader)});
+        out.Add(kind, {util::TrNoop(L"Type"), util::TrNoop(L"Share"), util::TrNoop(L"Flags"), util::TrNoop(L"Data")}, {NameOrNumber(kResourceTypes, type), Share(share), Hex(flags, 4), type == 0x84 ? Hex((static_cast<unsigned long long>(reader.At<ULONG>(u + 8)) << 32) | reader.At<ULONG>(u + 4), 16) : reader.Bytes(u, descriptor - kPartialHeader)});
         break;
     }
     return descriptor;
@@ -287,8 +309,7 @@ size_t DecodeFull(Reader& reader, size_t offset, size_t width, Tables& out)
 {
     const size_t descriptor = kPartialHeader + std::max<size_t>(12, 8 + width);
     const ULONG count = reader.At<ULONG>(offset + 12);
-    std::vector<std::wstring> row = {NameOrNumber(kInterfaceTypes, reader.At<LONG>(offset)), Number(reader.At<ULONG>(offset + 4)),
-                                     Number(reader.At<USHORT>(offset + 8)) + L"." + Number(reader.At<USHORT>(offset + 10)), Number(count)};
+    std::vector<std::wstring> row = {NameOrNumber(kInterfaceTypes, reader.At<LONG>(offset)), Number(reader.At<ULONG>(offset + 4)), Number(reader.At<USHORT>(offset + 8)) + L"." + Number(reader.At<USHORT>(offset + 10)), Number(count)};
     if (out.number_title)
     {
         row.insert(row.begin(), out.number);
@@ -306,7 +327,10 @@ size_t DecodeFull(Reader& reader, size_t offset, size_t width, Tables& out)
 void DecodeRequirement(Reader& reader, size_t offset, size_t width, Tables& out)
 {
     static constexpr std::pair<int, const wchar_t*> kOptions[] = {
-        {0, util::TrNoop(L"Required")}, {1, util::TrNoop(L"Preferred")}, {2, util::TrNoop(L"Default")}, {8, util::TrNoop(L"Alternative")},
+        {0, util::TrNoop(L"Required")},
+        {1, util::TrNoop(L"Preferred")},
+        {2, util::TrNoop(L"Default")},
+        {8, util::TrNoop(L"Alternative")},
     };
     const std::wstring option = NameOrNumber(kOptions, reader.At<BYTE>(offset));
     const BYTE type = reader.At<BYTE>(offset + 1);
@@ -320,25 +344,20 @@ void DecodeRequirement(Reader& reader, size_t offset, size_t width, Tables& out)
     case kMemory:
         {
             auto length = [&](size_t at) { return Hex(type == 7 ? LargeLength(flags, reader.At<ULONG>(at)) : reader.At<ULONG>(at), 8); };
-            out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Length"), util::TrNoop(L"Alignment"), util::TrNoop(L"Minimum address"), util::TrNoop(L"Maximum address"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")},
-                    {option, length(u), length(u + 4), Hex(reader.At<unsigned long long>(u + 8), 16), Hex(reader.At<unsigned long long>(u + 16), 16), share, Flags(flags, kind == kPort ? kPortFlags : kMemoryFlags)});
+            out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Length"), util::TrNoop(L"Alignment"), util::TrNoop(L"Minimum address"), util::TrNoop(L"Maximum address"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")}, {option, length(u), length(u + 4), Hex(reader.At<unsigned long long>(u + 8), 16), Hex(reader.At<unsigned long long>(u + 16), 16), share, Flags(flags, kind == kPort ? kPortFlags : kMemoryFlags)});
             break;
         }
     case kInterrupt:
-        out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Minimum vector"), util::TrNoop(L"Maximum vector"), util::TrNoop(L"Group"), util::TrNoop(L"Targeted processors"), util::TrNoop(L"Flags"), util::TrNoop(L"Share")},
-                {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Number(reader.At<USHORT>(u + 10)), Hex(reader.Affinity(u + 16, width), static_cast<int>(width * 2)), Flags(flags, kInterruptFlags), share});
+        out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Minimum vector"), util::TrNoop(L"Maximum vector"), util::TrNoop(L"Group"), util::TrNoop(L"Targeted processors"), util::TrNoop(L"Flags"), util::TrNoop(L"Share")}, {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Number(reader.At<USHORT>(u + 10)), Hex(reader.Affinity(u + 16, width), static_cast<int>(width * 2)), Flags(flags, kInterruptFlags), share});
         break;
     case kDma:
-        out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Minimum channel"), util::TrNoop(L"Maximum channel"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")},
-                {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), share, Flags(flags, kDmaFlags)});
+        out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Minimum channel"), util::TrNoop(L"Maximum channel"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")}, {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), share, Flags(flags, kDmaFlags)});
         break;
     case kBusNumber:
-        out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Length"), util::TrNoop(L"Minimum bus number"), util::TrNoop(L"Maximum bus number"), util::TrNoop(L"Share")},
-                {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Number(reader.At<ULONG>(u + 8)), share});
+        out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Length"), util::TrNoop(L"Minimum bus number"), util::TrNoop(L"Maximum bus number"), util::TrNoop(L"Share")}, {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Number(reader.At<ULONG>(u + 8)), share});
         break;
     default:
-        out.Add(kOther, {util::TrNoop(L"Option"), util::TrNoop(L"Type"), util::TrNoop(L"Share"), util::TrNoop(L"Flags"), util::TrNoop(L"Data")},
-                {option, NameOrNumber(kResourceTypes, type), share, Hex(flags, 4), reader.Bytes(u, 24)});
+        out.Add(kOther, {util::TrNoop(L"Option"), util::TrNoop(L"Type"), util::TrNoop(L"Share"), util::TrNoop(L"Flags"), util::TrNoop(L"Data")}, {option, NameOrNumber(kResourceTypes, type), share, Hex(flags, 4), reader.Bytes(u, 24)});
         break;
     }
 }
@@ -353,9 +372,7 @@ std::optional<std::vector<records::Table>> DecodeLayout(DWORD type, const BYTE* 
     {
         const ULONG list_size = reader.At<ULONG>(0);
         const ULONG lists = reader.At<ULONG>(28);
-        out.header = {util::Tr(L"Requirements"),
-                      {util::Tr(L"Interface"), util::Tr(L"Bus number"), util::Tr(L"Slot number"), util::Tr(L"Alternative lists")},
-                      {{NameOrNumber(kInterfaceTypes, reader.At<LONG>(4)), Number(reader.At<ULONG>(8)), Number(reader.At<ULONG>(12)), Number(lists)}}};
+        out.header = {util::Tr(L"Requirements"), {util::Tr(L"Interface"), util::Tr(L"Bus number"), util::Tr(L"Slot number"), util::Tr(L"Alternative lists")}, {{NameOrNumber(kInterfaceTypes, reader.At<LONG>(4)), Number(reader.At<ULONG>(8)), Number(reader.At<ULONG>(12)), Number(lists)}}};
         out.number_title = lists > 1 ? util::TrNoop(L"List") : nullptr;
         position = 32;
         for (ULONG list = 0; list < lists && reader.ok; ++list)

@@ -212,41 +212,56 @@ void MainWindow::Impl::SortHistoryList(int column, bool toggle)
 
 void MainWindow::Impl::SortSearchTabResults(SearchTab* tab)
 {
-    if (!tab || tab->sort_column < 0)
+    if (!tab)
     {
-        if (tab)
-        {
-            tab->sort_dirty = false;
-        }
         return;
+    }
+    tab->sort_dirty = false;
+    if (tab->is_compare && tab->sort_column < 0)
+    {
+        return;
+    }
+    const int shown_index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
+    const bool shown = shown_index >= 0 && static_cast<size_t>(shown_index) < search_tabs_.size() && &search_tabs_[static_cast<size_t>(shown_index)] == tab;
+    auto key_at = [tab](int row) {
+        if (row < 0)
+        {
+            return std::wstring();
+        }
+        if (tab->is_compare)
+        {
+            return static_cast<size_t>(row) < tab->compare_rows.size() ? CompareRowIdentity(tab->compare_rows[static_cast<size_t>(row)]) : std::wstring();
+        }
+        return static_cast<size_t>(row) < tab->results.size() ? SearchResultIdentity(tab->results[static_cast<size_t>(row)]) : std::wstring();
+    };
+    const StableListSelection selection = shown ? CaptureListSelection(search_results_list_, key_at) : StableListSelection();
+    if (!tab->is_compare && tab->max_results > 0 && tab->results.size() > tab->max_results)
+    {
+        search::SortResults(&tab->results, 0, true);
+        tab->results.resize(static_cast<size_t>(tab->max_results));
     }
     if (tab->is_compare)
     {
         search::compare::SortRows(&tab->compare_rows, tab->sort_column, tab->sort_ascending);
-        tab->sort_dirty = false;
+    }
+    else if (tab->sort_column < 0)
+    {
+        search::SortResults(&tab->results, 0, true);
+    }
+    else if (tab->sort_column == 3 && std::any_of(tab->results.begin(), tab->results.end(), [](const search::Result& result) { return result.data_state == search::DataState::kNotLoaded; }))
+    {
+        QueueSearchSort(tab);
         return;
     }
-
-    if (tab->sort_column == 3)
+    else
     {
-        bool unresolved = false;
-        for (const auto& result : tab->results)
-        {
-            if (result.data_state == search::DataState::kNotLoaded)
-            {
-                unresolved = true;
-                break;
-            }
-        }
-        if (unresolved)
-        {
-            QueueSearchSort(tab);
-            tab->sort_dirty = false;
-            return;
-        }
+        search::SortResults(&tab->results, tab->sort_column, tab->sort_ascending);
     }
-    search::SortResults(&tab->results, tab->sort_column, tab->sort_ascending);
-    tab->sort_dirty = false;
+    if (shown)
+    {
+        RestoreListSelection(search_results_list_, selection, key_at);
+        RedrawWindow(search_results_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
+    }
 }
 
 void MainWindow::Impl::SortSearchResults(int column, bool toggle)
@@ -263,27 +278,9 @@ void MainWindow::Impl::SortSearchResults(int column, bool toggle)
     }
     EnsureSearchTabResultsLoaded(index);
     auto& tab = search_tabs_[static_cast<size_t>(index)];
-    auto search_key_at = [&tab](int row) {
-        if (row < 0)
-        {
-            return std::wstring();
-        }
-        if (tab.is_compare)
-        {
-            return static_cast<size_t>(row) < tab.compare_rows.size()
-                       ? CompareRowIdentity(tab.compare_rows[static_cast<size_t>(row)])
-                       : std::wstring();
-        }
-        return static_cast<size_t>(row) < tab.results.size()
-                   ? SearchResultIdentity(tab.results[static_cast<size_t>(row)])
-                   : std::wstring();
-    };
-    StableListSelection selection = CaptureListSelection(search_results_list_, search_key_at);
     appearance::UpdateListSortState(column, toggle, &tab.sort_column, &tab.sort_ascending);
     SortSearchTabResults(&tab);
-    RestoreListSelection(search_results_list_, selection, search_key_at);
     appearance::UpdateListViewSort(search_results_list_, tab.sort_column, tab.sort_ascending);
-    RedrawWindow(search_results_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
 }
 
 void MainWindow::Impl::ClearHistoryItems(bool delete_cache)

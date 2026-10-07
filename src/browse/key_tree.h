@@ -44,6 +44,7 @@ class RegistryTree
     RegistryNode* NodeFromItem(HTREEITEM item);
     void DeleteChildren(HTREEITEM parent);
     HTREEITEM InsertChild(HTREEITEM parent, const std::wstring& name);
+    void Resync(HTREEITEM item, bool load = true);
     void OnItemExpanding(const NMTREEVIEWW* info);
     void OnGetDispInfo(NMTVDISPINFOW* info);
     RegistryNode* OnSelectionChanged(const NMTREEVIEWW* info);

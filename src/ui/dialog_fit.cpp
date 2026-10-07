@@ -80,10 +80,10 @@ int TextFitWidth(HWND control)
 {
     wchar_t class_name[16] = {};
     GetClassNameW(control, class_name, static_cast<int>(_countof(class_name)));
-    const Kind kind = util::EqualsInsensitive(class_name, WC_BUTTONW) ? Kind::button
-                      : util::EqualsInsensitive(class_name, WC_LINK)  ? Kind::link
+    const Kind kind = util::EqualsInsensitive(class_name, WC_BUTTONW)   ? Kind::button
+                      : util::EqualsInsensitive(class_name, WC_LINK)    ? Kind::link
                       : util::EqualsInsensitive(class_name, WC_STATICW) ? Kind::label
-                                                                       : Kind::other;
+                                                                        : Kind::other;
     if (kind == Kind::other)
     {
         return 0;

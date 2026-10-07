@@ -16,7 +16,8 @@ void MainWindow::Impl::DrawPanelButton(const DRAWITEMSTRUCT* info)
     const RECT& rect = info->rcItem;
     const bool header = info->CtlID == kTreeHeaderCloseId || info->CtlID == kHistoryHeaderCloseId;
     const bool pressed = (info->itemState & ODS_SELECTED) != 0;
-    FillRect(hdc, &rect, appearance::CachedBrush(pressed ? theme.HoverColor() : header ? theme.HeaderColor() : theme.SurfaceColor()));
+    FillRect(hdc, &rect, appearance::CachedBrush(pressed ? theme.HoverColor() : header ? theme.HeaderColor()
+                                                                                       : theme.SurfaceColor()));
     const UINT dpi = win32::DpiForWindow(info->hwndItem);
     if (!header)
     {

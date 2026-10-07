@@ -38,7 +38,8 @@ void MainWindow::Impl::StartValueListWorker()
             {
                 return inspection.denied ? kDatabaseDeniedIconIndex : kDatabaseIconIndex;
             }
-            return inspection.denied ? kFolderDeniedIconIndex : inspection.is_volatile ? kFolderVolatileIconIndex : kFolderIconIndex;
+            return inspection.denied ? kFolderDeniedIconIndex : inspection.is_volatile ? kFolderVolatileIconIndex
+                                                                                       : kFolderIconIndex;
         };
 
         std::vector<std::wstring> subkeys;
@@ -226,7 +227,8 @@ void MainWindow::Impl::StartValueListWorker()
                 const RegistryNode child = registry_path::ChildNode(task->snapshot, name);
                 const KeyInspection inspection = RegistryStore::InspectKey(child, task->include_dates || task->include_details, task->include_details);
                 row.image_index = key_icon(child, inspection);
-                row.type = inspection.link ? util::Tr(L"Link") : inspection.is_volatile ? util::Tr(L"Volatile Key") : util::Tr(L"Key");
+                row.type = inspection.link ? util::Tr(L"Link") : inspection.is_volatile ? util::Tr(L"Volatile Key")
+                                                                                        : util::Tr(L"Key");
                 row.extra = name;
                 row.kind = rowkind::kKey;
                 const KeyInfo& info = inspection.info;

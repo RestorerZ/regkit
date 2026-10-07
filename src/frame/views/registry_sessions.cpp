@@ -96,7 +96,6 @@ void MainWindow::Impl::ShowSession(const std::shared_ptr<RegistrySession>& sessi
     UpdateUndoButtons();
 }
 
-
 void MainWindow::Impl::ApplyRegistryRoots(const std::vector<RegistryRootEntry>& roots)
 {
     browse_.roots() = roots;
@@ -568,7 +567,7 @@ bool MainWindow::Impl::SwitchToLocalRegistry()
 {
     RegistrySession* current = CurrentTabSession();
     if (current && !ConfirmOfflineChanges(*current, util::Tr(L"The offline registry has unsaved changes.\n"
-                                                            L"Save before switching?")))
+                                                             L"Save before switching?")))
     {
         return false;
     }
@@ -628,7 +627,7 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
     const LONG hku_result = RegConnectRegistryW(machine.c_str(), HKEY_USERS, &session->remote_hku);
     RegistrySession* current = CurrentTabSession();
     if (!open_new_tab && current && !ConfirmOfflineChanges(*current, util::Tr(L"The offline registry has unsaved changes.\n"
-                                                                             L"Save before switching?")))
+                                                                              L"Save before switching?")))
     {
         return false;
     }
@@ -732,7 +731,7 @@ bool MainWindow::Impl::LoadOfflineRegistryFromPath(const std::wstring& path, boo
 {
     RegistrySession* current = CurrentTabSession();
     if (!open_new_tab && current && !ConfirmOfflineChanges(*current, util::Tr(L"The offline registry has unsaved changes.\n"
-                                                                             L"Save before switching?")))
+                                                                              L"Save before switching?")))
     {
         return false;
     }

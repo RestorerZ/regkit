@@ -140,18 +140,18 @@ void MainWindow::Impl::RefreshTreeItem(HTREEITEM item)
     {
         return;
     }
-    RegistryNode* node = browse_.tree().NodeFromItem(item);
-    if (!node)
-    {
-        return;
-    }
-    browse_.tree().DeleteChildren(item);
-    node->children_loaded = false;
-    NMTREEVIEWW info = {};
-    info.action = TVE_EXPAND;
-    info.itemNew.hItem = item;
-    browse_.tree().OnItemExpanding(&info);
+    browse_.tree().SuspendRedraw();
+    browse_.tree().Resync(item);
+    browse_.tree().ResumeRedraw();
     MarkTreeStateDirty();
+}
+
+void MainWindow::Impl::RefreshWholeTree()
+{
+    if (browse_.tree().hwnd())
+    {
+        RefreshTreeItem(TreeView_GetRoot(browse_.tree().hwnd()));
+    }
 }
 
 void MainWindow::Impl::UpdateSimulatedChain(HTREEITEM item)
