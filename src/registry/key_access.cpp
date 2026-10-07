@@ -62,37 +62,27 @@ Context FromSid(PSID sid, std::initializer_list<const wchar_t*> groups)
     {
         return Context();
     }
-    std::vector<PSID> owned;
+    std::vector<util::UniqueLocal<PSID>> owned;
     std::vector<SID_AND_ATTRIBUTES> sids;
     for (const wchar_t* text : groups)
     {
-        PSID group = nullptr;
-        if (ConvertStringSidToSidW(text, &group))
+        util::UniqueLocal<PSID> group;
+        if (ConvertStringSidToSidW(text, group.put()))
         {
-            owned.push_back(group);
-            sids.push_back({group, SE_GROUP_ENABLED | SE_GROUP_MANDATORY});
+            sids.push_back({group.get(), SE_GROUP_ENABLED | SE_GROUP_MANDATORY});
+            owned.push_back(std::move(group));
         }
     }
     Context extended;
     const bool added = sids.empty() || AuthzAddSidsToContext(context.get(), sids.data(), static_cast<DWORD>(sids.size()), nullptr, 0, extended.put());
-    for (PSID group : owned)
-    {
-        LocalFree(group);
-    }
     return !added ? Context() : sids.empty() ? std::move(context)
                                              : std::move(extended);
 }
 
 Context FromSidText(const wchar_t* text, std::initializer_list<const wchar_t*> groups)
 {
-    PSID sid = nullptr;
-    if (!ConvertStringSidToSidW(text, &sid))
-    {
-        return Context();
-    }
-    Context context = FromSid(sid, groups);
-    LocalFree(sid);
-    return context;
+    util::UniqueLocal<PSID> sid;
+    return ConvertStringSidToSidW(text, sid.put()) ? FromSid(sid.get(), groups) : Context();
 }
 
 Context FromToken(HANDLE token)

@@ -18,6 +18,14 @@ void Toolbar::Create(HWND parent, HINSTANCE instance, int control_id)
     SendMessageW(hwnd_, TB_SETEXTENDEDSTYLE, 0, TBSTYLE_EX_DOUBLEBUFFER);
 }
 
+Toolbar::~Toolbar()
+{
+    if (image_list_)
+    {
+        ImageList_Destroy(image_list_);
+    }
+}
+
 HWND Toolbar::hwnd() const
 {
     return hwnd_;

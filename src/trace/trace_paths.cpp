@@ -61,21 +61,18 @@ std::wstring WithCurrentControlSet(const std::wstring& path, bool numbered)
     {
         return {};
     }
-    for (size_t i = 0; i + 1 < parts.size(); ++i)
+    const size_t system = EqualsInsensitive(parts[0], L"REGISTRY") ? 2 : 1;
+    if (parts.size() < system + 2 || !EqualsInsensitive(parts[system], L"SYSTEM"))
     {
-        std::wstring& segment = parts[i + 1];
-        if (!EqualsInsensitive(parts[i], L"SYSTEM") || !(numbered ? IsNumberedControlSet(segment) : EqualsInsensitive(segment, L"CurrentControlSet")))
-        {
-            continue;
-        }
-        if (EqualsInsensitive(segment, current))
-        {
-            return {};
-        }
-        segment = current;
-        return registry_path::Join(parts);
+        return {};
     }
-    return {};
+    std::wstring& segment = parts[system + 1];
+    if (!(numbered ? IsNumberedControlSet(segment) : EqualsInsensitive(segment, L"CurrentControlSet")) || EqualsInsensitive(segment, current))
+    {
+        return {};
+    }
+    segment = current;
+    return registry_path::Join(parts);
 }
 
 std::wstring CleanKeyText(const std::wstring& text, const std::wstring& sid)

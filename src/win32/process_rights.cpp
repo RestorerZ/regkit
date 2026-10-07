@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <new>
 #include <vector>
 
 #include <aclapi.h>
@@ -69,14 +70,8 @@ PSID CurrentUserSid(const std::vector<BYTE>& buffer)
 
 std::wstring UserSidString(const std::vector<BYTE>& user)
 {
-    std::wstring text;
-    LPWSTR sid = nullptr;
-    if (!user.empty() && ConvertSidToStringSidW(CurrentUserSid(user), &sid))
-    {
-        text.assign(sid);
-        LocalFree(sid);
-    }
-    return text;
+    util::UniqueLocal<LPWSTR> sid;
+    return !user.empty() && ConvertSidToStringSidW(CurrentUserSid(user), sid.put()) ? std::wstring(sid.get()) : std::wstring();
 }
 
 const std::wstring& ProcessUserSid()
@@ -229,7 +224,6 @@ bool WaitWhileServicePending(SC_HANDLE service, DWORD pending_state, SERVICE_STA
         {
             checkpoint = status->dwCheckPoint;
             progress = now;
-            continue;
         }
         if (now - progress > std::max<ULONGLONG>(status->dwWaitHint, 5000) || now - start > kMaxWaitMs)
         {
@@ -376,7 +370,15 @@ bool LaunchImpersonated(const std::wstring& command_line, const std::wstring& wo
     {
         return ReportLaunch(false, error_code);
     }
-    const bool launched = LaunchElevatedToken(command_line, work_dir, service_name);
+    bool launched = false;
+    try
+    {
+        launched = LaunchElevatedToken(command_line, work_dir, service_name);
+    }
+    catch (const std::bad_alloc&)
+    {
+        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+    }
     DWORD error = launched ? ERROR_SUCCESS : GetLastError();
     if (had_thread_token ? !SetThreadToken(nullptr, previous_thread_token.get()) : !RevertToSelf())
     {
@@ -450,6 +452,7 @@ bool EnableTokenPrivilege(HANDLE token, const wchar_t* name, TOKEN_PRIVILEGES* p
 
 PrivilegeScope::PrivilegeScope(std::initializer_list<const wchar_t*> names)
 {
+    previous_.reserve(names.size());
     held_ = OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, token_.put()) != FALSE;
     for (const wchar_t* name : names)
     {
@@ -561,14 +564,10 @@ std::wstring AccountName(const std::wstring& sid_text)
 std::wstring GetShellUserDocuments()
 {
     // the documents folder of the signed in user, also after restarting as SYSTEM or TrustedInstaller
-    PWSTR documents = nullptr;
-    std::wstring path;
-    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, OpenShellToken(TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE).get(), &documents)))
-    {
-        path = documents;
-    }
-    CoTaskMemFree(documents);
-    return path;
+    util::UniqueCoTask<PWSTR> documents;
+    return SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, OpenShellToken(TOKEN_QUERY | TOKEN_IMPERSONATE | TOKEN_DUPLICATE).get(), documents.put())) && documents
+               ? std::wstring(documents.get())
+               : std::wstring();
 }
 
 bool IsProcessElevated()
@@ -592,11 +591,10 @@ bool IsWritableByNonAdmins(const std::wstring& file_path)
     const std::wstring user_sid = !IsUacEnabled() && IsProcessElevated() ? ProcessUserSid() : std::wstring();
     for (const wchar_t* text : {L"S-1-5-18", L"S-1-5-32-544", L"S-1-3-4", L"S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464", user_sid.c_str()})
     {
-        PSID sid = nullptr;
-        if (*text && ConvertStringSidToSidW(text, &sid))
+        util::UniqueLocal<PSID> sid;
+        if (*text && ConvertStringSidToSidW(text, sid.put()))
         {
-            trusted_sids.emplace_back(static_cast<BYTE*>(sid), static_cast<BYTE*>(sid) + GetLengthSid(sid));
-            LocalFree(sid);
+            trusted_sids.emplace_back(static_cast<BYTE*>(sid.get()), static_cast<BYTE*>(sid.get()) + GetLengthSid(sid.get()));
         }
     }
     for (std::wstring path = file_path; path.size() > 3;)

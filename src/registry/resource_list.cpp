@@ -240,7 +240,9 @@ struct Tables
     }
     std::vector<records::Table> Take()
     {
-        std::vector<records::Table> tables = {std::move(header)};
+        std::vector<records::Table> tables;
+        tables.reserve(kinds.size() + 1);
+        tables.push_back(std::move(header));
         for (records::Table& table : kinds)
         {
             if (!table.rows.empty())
@@ -385,7 +387,7 @@ std::optional<std::vector<records::Table>> DecodeLayout(DWORD type, const BYTE* 
                 DecodeRequirement(reader, position, width, out);
             }
         }
-        reader.ok = reader.ok && list_size <= size;
+        reader.ok = reader.ok && position <= list_size && list_size <= size;
     }
     else
     {

@@ -62,7 +62,7 @@ KeySnapshot Capture(const RegistryNode& node, SECURITY_INFORMATION parts)
                             true,
                             link
                         ) &&
-                        snapshot.complete;
+                        result.error == ERROR_SUCCESS && snapshot.complete;
 
     snapshot.class_name = std::move(result.options.class_name);
     snapshot.is_volatile = result.options.is_volatile;
@@ -143,21 +143,26 @@ bool ReplaceKey(const RegistryNode& node, const KeySnapshot& snapshot)
     const util::PrivilegeScope audit({SE_SECURITY_NAME});
     std::vector<std::wstring> values;
     std::vector<std::wstring> children;
-    RegistryStore::EnumKeyStreaming(
-        node,
-        true,
-        false,
-        true,
-        nullptr,
-        [&](const ValueInfo& info, const BYTE*, DWORD) {
-            values.push_back(info.name);
-            return true;
-        },
-        [&](const std::wstring& name) {
-            children.push_back(name);
-            return true;
-        }
-    );
+    RegistryStore::KeyEnumResult result;
+    if (!RegistryStore::EnumKeyStreaming(
+            node,
+            true,
+            false,
+            true,
+            &result,
+            [&](const ValueInfo& info, const BYTE*, DWORD) {
+                values.push_back(info.name);
+                return true;
+            },
+            [&](const std::wstring& name) {
+                children.push_back(name);
+                return true;
+            }
+        ) ||
+        result.error != ERROR_SUCCESS)
+    {
+        return false;
+    }
     for (const std::wstring& name : values)
     {
         if (!RegistryStore::DeleteValue(node, name))

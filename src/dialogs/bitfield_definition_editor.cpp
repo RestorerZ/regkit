@@ -1073,7 +1073,7 @@ void ShowBitfieldDefinitionEditor(HWND owner, const std::wstring& path)
         fresh.owner.fill(-1);
         state.file.definitions.push_back(std::move(fresh));
     }
-    if (RunDefinitionDialog(owner, &state) == IDOK && state.accepted && !state.saved)
+    if (RunDefinitionDialog(owner, &state) == IDOK && state.accepted && (!state.saved || state.dirty))
     {
         SaveToFile(owner, &state.file);
     }

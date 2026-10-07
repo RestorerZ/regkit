@@ -242,7 +242,7 @@ bool BuildData(DWORD type, std::wstring_view text, std::wstring_view separator, 
             {
                 return Fail(error, util::TrLabel(L"Numeric data out of range for a DWORD", text));
             }
-            *data = value_format::UnsignedBytes(value, type == REG_QWORD ? sizeof(ULONGLONG) : sizeof(DWORD));
+            *data = value_format::UnsignedBytes(value, type == REG_QWORD ? sizeof(ULONGLONG) : sizeof(DWORD), type == REG_DWORD_BIG_ENDIAN);
             return true;
         }
     default:

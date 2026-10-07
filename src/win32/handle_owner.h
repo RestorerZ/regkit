@@ -122,8 +122,39 @@ struct DeleteGdiObject
     }
 };
 
+struct CloseFind
+{
+    void operator()(HANDLE find) const noexcept
+    {
+        FindClose(find);
+    }
+};
+
+struct FreeLocal
+{
+    void operator()(void* memory) const noexcept
+    {
+        LocalFree(memory);
+    }
+};
+
+struct FreeCoTask
+{
+    void operator()(void* memory) const noexcept
+    {
+        CoTaskMemFree(memory);
+    }
+};
+
 using UniqueHKey = UniqueResource<HKEY, CloseKey>;
 using UniqueHandle = UniqueResource<HANDLE, CloseKernelHandle>;
+using UniqueFind = UniqueResource<HANDLE, CloseFind>;
+
+template <typename T>
+using UniqueLocal = UniqueResource<T, FreeLocal>;
+
+template <typename T>
+using UniqueCoTask = UniqueResource<T, FreeCoTask>;
 
 template <typename T>
 using UniqueGdiObject = UniqueResource<T, DeleteGdiObject>;

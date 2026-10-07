@@ -184,6 +184,10 @@ std::wstring ToHex(std::span<const BYTE> data, wchar_t separator, bool uppercase
 
 int CompareInsensitive(std::wstring_view left, std::wstring_view right)
 {
+    if (left.empty() || right.empty())
+    {
+        return static_cast<int>(!left.empty()) - static_cast<int>(!right.empty());
+    }
     return CompareStringOrdinal(left.data(), static_cast<int>(left.size()), right.data(), static_cast<int>(right.size()), TRUE) -
            CSTR_EQUAL;
 }

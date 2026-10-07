@@ -764,30 +764,26 @@ bool ConfirmDelete(HWND owner, const std::wstring& title, const std::vector<std:
     }
     const bool many = names.size() > 1;
     std::wstring message = override_message;
-    if (!message.empty())
+    if (message.empty())
     {
-    }
-    else if (title == util::Tr(L"Delete Key"))
-    {
-        message = many ? util::Tr(L"Delete these keys and all of their subkeys?") : util::Tr(L"Delete this key and all of its subkeys?");
-    }
-    else if (title == util::Tr(L"Delete Value") || title == util::Tr(L"Delete Values"))
-    {
-        message = many ? util::Tr(L"Delete these values?") : util::Tr(L"Delete this value?");
-    }
-    else
-    {
-        message = many ? util::Tr(L"Delete these items?") : util::Tr(L"Delete this item?");
+        if (title == util::Tr(L"Delete Key"))
+        {
+            message = many ? util::Tr(L"Delete these keys and all of their subkeys?") : util::Tr(L"Delete this key and all of its subkeys?");
+        }
+        else if (title == util::Tr(L"Delete Value") || title == util::Tr(L"Delete Values"))
+        {
+            message = many ? util::Tr(L"Delete these values?") : util::Tr(L"Delete this value?");
+        }
+        else
+        {
+            message = many ? util::Tr(L"Delete these items?") : util::Tr(L"Delete this item?");
+        }
     }
 
     std::wstring detail;
     for (const std::wstring& name : names)
     {
-        if (!detail.empty())
-        {
-            detail.append(L"\r\n");
-        }
-        detail.append(name.empty() ? util::Tr(L"(Default)") : name);
+        detail.append(detail.empty() ? L"" : L"\r\n").append(name.empty() ? util::Tr(L"(Default)") : name);
     }
 
     const int lines = std::min(static_cast<int>(names.size()), kMaxDetailLines);

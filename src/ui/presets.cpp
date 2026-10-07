@@ -310,23 +310,13 @@ bool ParseColorHex(const std::wstring& text, COLORREF* color)
         return false;
     }
     std::wstring value = util::TrimWhitespace(text);
-    if (value.size() == 7 && value[0] == L'#')
+    const size_t prefix = value.size() == 7 && value[0] == L'#' ? 1 : value.size() == 8 && value.starts_with(L"0x") ? 2
+                                                                                                                    : 0;
+    if (prefix && std::all_of(value.begin() + prefix, value.end(), [](wchar_t c) { return util::HexDigitValue(c) >= 0; }))
     {
-        unsigned int rgb = 0;
-        if (swscanf_s(value.c_str() + 1, L"%06x", &rgb) == 1)
-        {
-            *color = RGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
-            return true;
-        }
-    }
-    if (value.rfind(L"0x", 0) == 0 && value.size() >= 8)
-    {
-        unsigned int rgb = 0;
-        if (swscanf_s(value.c_str() + 2, L"%06x", &rgb) == 1)
-        {
-            *color = RGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
-            return true;
-        }
+        const unsigned long rgb = wcstoul(value.c_str() + prefix, nullptr, 16);
+        *color = RGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+        return true;
     }
     if (value.find(L',') != std::wstring::npos)
     {

@@ -4,6 +4,7 @@
 #include "registry/hive_files.h"
 
 #include "registry/registry_path.h"
+#include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 
@@ -42,19 +43,11 @@ std::wstring ResolveDevicePath(const std::wstring& path)
         {
             continue;
         }
-        size_t device_len = wcslen(device);
-        if (!util::StartsWithInsensitive(path, device))
+        const size_t device_len = wcslen(device);
+        if (util::StartsWithInsensitive(path, device) && (path.size() == device_len || path[device_len] == L'\\'))
         {
-            continue;
+            return drive_root + path.substr(device_len);
         }
-        std::wstring rest = path.substr(device_len);
-        if (!rest.empty() && rest.front() != L'\\')
-        {
-            rest.insert(rest.begin(), L'\\');
-        }
-        std::wstring mapped = drive_root;
-        mapped += rest;
-        return mapped;
     }
     return path;
 }
@@ -119,8 +112,8 @@ void CollectUserHivesRecursive(const std::wstring& folder, const std::wstring& b
 {
     WIN32_FIND_DATAW data = {};
     std::wstring search = util::JoinPath(folder, L"*");
-    HANDLE find = FindFirstFileW(search.c_str(), &data);
-    if (find == INVALID_HANDLE_VALUE)
+    const util::UniqueFind find(FindFirstFileW(search.c_str(), &data));
+    if (!find)
     {
         return;
     }
@@ -141,8 +134,7 @@ void CollectUserHivesRecursive(const std::wstring& folder, const std::wstring& b
         std::wstring subdir = util::JoinPath(folder, data.cFileName);
         CollectUserHiveCandidates(subdir, base, out, seen);
         CollectUserHivesRecursive(subdir, base, out, seen);
-    } while (FindNextFileW(find, &data));
-    FindClose(find);
+    } while (FindNextFileW(find.get(), &data));
 }
 
 bool ShouldIncludeOfflineHiveFile(const std::wstring& name)
@@ -160,8 +152,8 @@ void CollectLooseHivesInFolder(const std::wstring& folder, std::vector<OfflineHi
 {
     WIN32_FIND_DATAW data = {};
     std::wstring search = util::JoinPath(folder, L"*");
-    HANDLE find = FindFirstFileW(search.c_str(), &data);
-    if (find == INVALID_HANDLE_VALUE)
+    const util::UniqueFind find(FindFirstFileW(search.c_str(), &data));
+    if (!find)
     {
         return;
     }
@@ -178,8 +170,7 @@ void CollectLooseHivesInFolder(const std::wstring& folder, std::vector<OfflineHi
         std::wstring candidate = util::JoinPath(folder, data.cFileName);
         std::wstring label = util::FileBaseName(data.cFileName);
         AddOfflineHiveCandidate(out, seen, candidate, label);
-    } while (FindNextFileW(find, &data));
-    FindClose(find);
+    } while (FindNextFileW(find.get(), &data));
 }
 
 } // namespace
@@ -191,19 +182,19 @@ std::wstring NormalizeHiveFilePath(const std::wstring& raw_path)
         return raw_path;
     }
     std::wstring path = raw_path;
-    if (util::StartsWithInsensitive(path, L"\\??\\"))
+    if (util::StartsWithInsensitive(path, L"\\??\\") || util::StartsWithInsensitive(path, L"\\\\?\\"))
     {
         path.erase(0, 4);
-    }
-    else if (util::StartsWithInsensitive(path, L"\\\\?\\"))
-    {
-        path.erase(0, 4);
+        if (util::StartsWithInsensitive(path, L"UNC\\"))
+        {
+            path.replace(0, 3, L"\\");
+        }
     }
     else if (util::StartsWithInsensitive(path, L"\\DosDevices\\"))
     {
         path.erase(0, wcslen(L"\\DosDevices\\"));
     }
-    if (util::StartsWithInsensitive(path, L"\\SystemRoot"))
+    if (util::StartsWithInsensitive(path, L"\\SystemRoot") && (path.size() == 11 || path[11] == L'\\'))
     {
         wchar_t windows_dir[MAX_PATH] = {};
         UINT len = GetWindowsDirectoryW(windows_dir, _countof(windows_dir));

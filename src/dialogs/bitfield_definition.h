@@ -16,6 +16,7 @@ namespace regkit::editors::bitfield
 {
 
 constexpr size_t kMaxNameLength = 256;
+constexpr size_t kMaxStates = 256;
 constexpr size_t kMaxMeaningLength = 4096;
 constexpr size_t kMaxCommentLength = 16384;
 constexpr size_t kMaxPathLength = 512;

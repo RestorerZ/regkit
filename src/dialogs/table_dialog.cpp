@@ -68,9 +68,9 @@ size_t RowOf(HWND list, int item)
 std::wstring Line(const std::vector<std::wstring>& cells)
 {
     std::wstring line;
-    for (const std::wstring& cell : cells)
+    for (size_t index = 0; index < cells.size(); ++index)
     {
-        line.append(line.empty() ? L"" : L"\t").append(cell);
+        line.append(index ? L"\t" : L"").append(cells[index]);
     }
     return line.append(L"\r\n");
 }
@@ -226,8 +226,8 @@ void CreateLists(HWND dialog, State* state)
     MONITORINFO monitor = {sizeof(monitor)};
     GetMonitorInfoW(MonitorFromWindow(dialog, MONITOR_DEFAULTTONEAREST), &monitor);
     const int needed_height = content_height + Gap(dialog) * static_cast<int>(state->lists.size() + 1);
-    const int extra_width = std::clamp(content_width - static_cast<int>(top.right - top.left), 0, static_cast<int>(monitor.rcWork.right - monitor.rcWork.left) * 9 / 10 - static_cast<int>(window.right - window.left));
-    const int extra_height = std::clamp(needed_height - static_cast<int>(bottom.top - top.bottom), 0, static_cast<int>(monitor.rcWork.bottom - monitor.rcWork.top) * 85 / 100 - static_cast<int>(window.bottom - window.top));
+    const int extra_width = std::max(0, std::min(content_width - static_cast<int>(top.right - top.left), static_cast<int>(monitor.rcWork.right - monitor.rcWork.left) * 9 / 10 - static_cast<int>(window.right - window.left)));
+    const int extra_height = std::max(0, std::min(needed_height - static_cast<int>(bottom.top - top.bottom), static_cast<int>(monitor.rcWork.bottom - monitor.rcWork.top) * 85 / 100 - static_cast<int>(window.bottom - window.top)));
     SetWindowPos(dialog, nullptr, 0, 0, window.right - window.left + extra_width, window.bottom - window.top + extra_height, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     appearance::CenterWindow(dialog, GetWindow(dialog, GW_OWNER));
 }

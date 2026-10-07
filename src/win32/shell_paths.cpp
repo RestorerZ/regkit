@@ -3,6 +3,7 @@
 
 #include "win32/shell_paths.h"
 
+#include "win32/handle_owner.h"
 #include "win32/system_api.h"
 #include "win32/text_transform.h"
 
@@ -130,13 +131,12 @@ std::wstring GetAppDataFolder()
         }
     }
 
-    PWSTR base = nullptr;
-    if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &base)) || !base)
+    UniqueCoTask<PWSTR> base;
+    if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, base.put())) || !base)
     {
         return {};
     }
-    std::wstring folder = JoinPath(base, L"Noverse\\RegKit");
-    CoTaskMemFree(base);
+    std::wstring folder = JoinPath(base.get(), L"Noverse\\RegKit");
     SHCreateDirectoryExW(nullptr, folder.c_str(), nullptr);
     return folder;
 }

@@ -6,6 +6,8 @@
 
 #include <pcre2.h>
 
+#include <algorithm>
+#include <memory>
 #include <utility>
 
 namespace regkit::search::regex
@@ -122,8 +124,10 @@ PatternRef Compile(const std::wstring& pattern, const Options& options, Error* e
 
     int code = 0;
     PCRE2_SIZE offset = 0;
-    pcre2_code_16* compiled =
-        pcre2_compile_16(Units(pattern.c_str()), pattern.size(), compile_options, &code, &offset, compile_context);
+    std::unique_ptr<pcre2_code_16, decltype(&pcre2_code_free_16)> compiled(
+        pcre2_compile_16(Units(pattern.c_str()), pattern.size(), compile_options, &code, &offset, compile_context),
+        pcre2_code_free_16
+    );
     pcre2_compile_context_free_16(compile_context);
     if (!compiled)
     {
@@ -135,7 +139,9 @@ PatternRef Compile(const std::wstring& pattern, const Options& options, Error* e
         }
         return nullptr;
     }
-    return std::make_shared<const Pattern>(compiled, options.whole);
+    auto result = std::make_shared<const Pattern>(compiled.get(), options.whole);
+    compiled.release();
+    return result;
 }
 
 Session::Session() noexcept = default;
@@ -207,7 +213,7 @@ Status Session::Replace(std::wstring_view subject, const std::wstring& replaceme
     {
         options |= PCRE2_SUBSTITUTE_GLOBAL;
     }
-    std::wstring buffer(subject.size() + replacement.size() + 32, L'\0');
+    std::wstring buffer(std::min(subject.size() + replacement.size() + 32, kMaxReplaceLength + 1), L'\0');
     for (int attempt = 0; attempt < 2; ++attempt)
     {
         PCRE2_SIZE length = buffer.size();
@@ -229,6 +235,10 @@ Status Session::Replace(std::wstring_view subject, const std::wstring& replaceme
             if (rc == 0)
             {
                 return Status::kNoMatch;
+            }
+            if (length > kMaxReplaceLength)
+            {
+                return Status::kLimit;
             }
             buffer.resize(length);
             *out = std::move(buffer);

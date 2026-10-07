@@ -18,6 +18,8 @@ namespace regkit::registry_backend
 {
 
 inline constexpr REGSAM kKeyReadAccess = KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS;
+inline constexpr size_t kMaxKeyNameLength = 255;
+inline constexpr size_t kMaxValueNameLength = 16383;
 inline constexpr SECURITY_INFORMATION kKeySecurityInformation =
     OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
 
@@ -118,7 +120,7 @@ bool QueryKeyInfo(const Key& key, KeyInfo* info)
 }
 
 template <typename Key>
-bool QueryKeyDetails(const Key& key, KeyDetails* details)
+LONG QueryKeyDetails(const Key& key, KeyDetails* details)
 {
     std::wstring& name = details->class_name;
     LONG result = ERROR_MORE_DATA;
@@ -133,7 +135,21 @@ bool QueryKeyDetails(const Key& key, KeyDetails* details)
         result = key.QueryInfo(&details->info.subkey_count, &details->max_subkey_name, &details->info.value_count, &details->max_value_name, &details->max_value_data, &details->info.last_write, name.data(), &length, &details->max_class);
         name.resize(result == ERROR_SUCCESS ? length : 0);
     }
-    return result == ERROR_SUCCESS;
+    return result;
+}
+
+template <typename Key>
+LONG EnumKeyName(const Key& key, DWORD index, std::wstring* name, DWORD* length)
+{
+    *length = static_cast<DWORD>(name->size());
+    LONG result = key.EnumKey(index, name->data(), length);
+    if (result == ERROR_MORE_DATA)
+    {
+        name->resize(kMaxKeyNameLength + 1);
+        *length = static_cast<DWORD>(name->size());
+        result = key.EnumKey(index, name->data(), length);
+    }
+    return result;
 }
 
 template <typename Key>
@@ -150,8 +166,13 @@ std::vector<std::wstring> SubKeyNames(const Key& key, bool sorted)
     std::wstring buffer(max_length + 1, L'\0');
     for (DWORD index = 0; index < count; ++index)
     {
-        DWORD length = static_cast<DWORD>(buffer.size());
-        if (key.EnumKey(index, buffer.data(), &length) == ERROR_SUCCESS)
+        DWORD length = 0;
+        const LONG result = EnumKeyName(key, index, &buffer, &length);
+        if (result == ERROR_NO_MORE_ITEMS)
+        {
+            break;
+        }
+        if (result == ERROR_SUCCESS)
         {
             names.emplace_back(buffer.data(), length);
         }
@@ -170,11 +191,22 @@ bool EnumerateKey(const Key& key, bool include_values, bool include_data, bool i
     EnumerationScratch& buffers = scratch ? *scratch : local;
     KeyDetails details;
     const bool want_options = out_info && out_info->want_options;
-    if (want_options ? !QueryKeyDetails(key, &details)
-                     : key.QueryInfo(&details.info.subkey_count, &details.max_subkey_name, &details.info.value_count, &details.max_value_name, &details.max_value_data, &details.info.last_write) != ERROR_SUCCESS)
+    const LONG status = want_options ? QueryKeyDetails(key, &details)
+                                     : key.QueryInfo(&details.info.subkey_count, &details.max_subkey_name, &details.info.value_count, &details.max_value_name, &details.max_value_data, &details.info.last_write);
+    if (status != ERROR_SUCCESS)
     {
+        if (out_info)
+        {
+            out_info->error = status;
+        }
         return false;
     }
+    const auto fail = [&](LONG result) {
+        if (out_info && out_info->error == ERROR_SUCCESS && result != ERROR_NO_MORE_ITEMS)
+        {
+            out_info->error = result;
+        }
+    };
     const KeyInfo& info = details.info;
     const DWORD max_subkey_length = details.max_subkey_name;
     const DWORD max_value_name_length = details.max_value_name;
@@ -198,35 +230,40 @@ bool EnumerateKey(const Key& key, bool include_values, bool include_data, bool i
         {
             data.resize(std::min(max_value_data_length, max_data_size));
         }
+        ValueInfo value;
         for (DWORD index = 0; index < info.value_count; ++index)
         {
             DWORD name_length = static_cast<DWORD>(name.size());
             DWORD data_length = include_data ? static_cast<DWORD>(data.size()) : 0;
             DWORD type = 0;
-            LONG result = key.EnumValue(index, name.data(), &name_length, &type, include_data && !data.empty() ? data.data() : nullptr, &data_length);
-            if (result == ERROR_MORE_DATA && include_data && data_length <= max_data_size)
+            BYTE* buffer = include_data && !data.empty() ? data.data() : nullptr;
+            LONG result = key.EnumValue(index, name.data(), &name_length, &type, buffer, &data_length);
+            if (result == ERROR_MORE_DATA || (result == ERROR_SUCCESS && include_data && !buffer && data_length > 0 && data_length <= max_data_size))
             {
-                data.resize(std::max<size_t>(data.size(), data_length));
+                name.resize(std::max(name.size(), kMaxValueNameLength + 1));
+                buffer = nullptr;
+                if (include_data && data_length <= max_data_size)
+                {
+                    data.resize(std::max<size_t>(data.size(), data_length));
+                    buffer = data.empty() ? nullptr : data.data();
+                }
                 name_length = static_cast<DWORD>(name.size());
-                data_length = static_cast<DWORD>(data.size());
-                result = key.EnumValue(index, name.data(), &name_length, &type, data.data(), &data_length);
-            }
-            bool data_available = include_data && result == ERROR_SUCCESS && data_length > 0;
-            if (result == ERROR_MORE_DATA)
-            {
-                name_length = static_cast<DWORD>(name.size());
-                data_length = 0;
-                result = key.EnumValue(index, name.data(), &name_length, &type, nullptr, &data_length);
+                data_length = buffer ? static_cast<DWORD>(data.size()) : 0;
+                result = key.EnumValue(index, name.data(), &name_length, &type, buffer, &data_length);
             }
             if (result != ERROR_SUCCESS)
             {
+                fail(result);
+                if (result == ERROR_NO_MORE_ITEMS)
+                {
+                    break;
+                }
                 continue;
             }
-            ValueInfo value;
             value.name.assign(name.data(), name_length);
             value.type = type;
             value.data_size = data_length;
-            if (!value_callback(value, data_available ? data.data() : nullptr, data_length))
+            if (!value_callback(value, buffer && data_length > 0 ? buffer : nullptr, data_length))
             {
                 return false;
             }
@@ -239,9 +276,18 @@ bool EnumerateKey(const Key& key, bool include_values, bool include_data, bool i
         name.resize(static_cast<size_t>(max_subkey_length) + 1);
         for (DWORD index = 0; index < info.subkey_count; ++index)
         {
-            DWORD name_length = static_cast<DWORD>(name.size());
-            if (key.EnumKey(index, name.data(), &name_length) == ERROR_SUCCESS &&
-                !subkey_callback(std::wstring(name.data(), name_length)))
+            DWORD name_length = 0;
+            const LONG result = EnumKeyName(key, index, &name, &name_length);
+            if (result != ERROR_SUCCESS)
+            {
+                fail(result);
+                if (result == ERROR_NO_MORE_ITEMS)
+                {
+                    break;
+                }
+                continue;
+            }
+            if (!subkey_callback(std::wstring(name.data(), name_length)))
             {
                 return false;
             }
@@ -268,12 +314,13 @@ inline LONG ReadKeyContents(HKEY root, const std::wstring& subkey, REGSAM view, 
     {
         *is_volatile = util::IsLocalRoot(root) && (util::QueryKeyFlags(handle.get()).value_or(0) & util::kKeyFlagVolatile);
     }
+    RegistryStore::KeyEnumResult result;
     EnumerateKey(
         RegistryKeyHandle(std::move(handle)),
         true,
         include_data,
         true,
-        nullptr,
+        &result,
         [&](const ValueInfo& info, const BYTE* data, DWORD size) {
             contents->values.push_back({info.name, info.type, data ? std::vector<BYTE>(data, data + size) : std::vector<BYTE>()});
             return true;
@@ -285,23 +332,24 @@ inline LONG ReadKeyContents(HKEY root, const std::wstring& subkey, REGSAM view, 
         MAXDWORD,
         nullptr
     );
-    return ERROR_SUCCESS;
+    return result.error;
 }
 
 template <typename Key>
 LONG ReadValue(const Key& key, const std::wstring& name, DWORD* type, std::vector<BYTE>* data)
 {
+    data->clear();
     DWORD size = 0;
     LONG result = key.GetValue(name, type, nullptr, &size);
     for (int attempt = 0; attempt < 4 && (result == ERROR_SUCCESS || result == ERROR_MORE_DATA); ++attempt)
     {
-        data->resize(size);
-        result = key.GetValue(name, type, data->empty() ? nullptr : data->data(), &size);
-        if (result == ERROR_SUCCESS)
+        if (result == ERROR_SUCCESS && size <= data->size())
         {
             data->resize(size);
             return result;
         }
+        data->resize(size);
+        result = key.GetValue(name, type, data->empty() ? nullptr : data->data(), &size);
     }
     data->clear();
     return result == ERROR_SUCCESS ? ERROR_MORE_DATA : result;

@@ -313,39 +313,6 @@ void RegistryTree::CollectSubtree(HTREEITEM item, std::vector<RegistryNode*>* no
     }
 }
 
-void RegistryTree::DeleteChildren(HTREEITEM parent)
-{
-    if (!hwnd_ || !parent)
-    {
-        return;
-    }
-    HTREEITEM child = TreeView_GetChild(hwnd_, parent);
-    if (!child)
-    {
-        return;
-    }
-    if (RegistryNode* node = NodeFromItem(parent))
-    {
-        node->has_children = -1;
-        node->icon = -1;
-    }
-    std::vector<RegistryNode*> released;
-    SuspendRedraw();
-    while (child)
-    {
-        HTREEITEM next = TreeView_GetNextSibling(hwnd_, child);
-        // collect node pointers before deleting their tree items
-        CollectSubtree(child, &released);
-        TreeView_DeleteItem(hwnd_, child);
-        child = next;
-    }
-    ResumeRedraw();
-    for (RegistryNode* node : released)
-    {
-        nodes_.erase(node);
-    }
-}
-
 HTREEITEM RegistryTree::InsertChild(HTREEITEM parent, const std::wstring& name)
 {
     RegistryNode* parent_node = NodeFromItem(parent);

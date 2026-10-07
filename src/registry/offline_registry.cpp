@@ -414,7 +414,7 @@ bool QueryValue(const RegistryNode& node, const std::wstring& value_name, Regist
 bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details)
 {
     const OfflineKey key(node);
-    return key && registry_backend::QueryKeyDetails(key, details);
+    return key && registry_backend::QueryKeyDetails(key, details) == ERROR_SUCCESS;
 }
 
 std::wstring SelectedControlSet(const RegistryNode& node)

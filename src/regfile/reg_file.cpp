@@ -9,6 +9,7 @@
 #include "registry/value_format.h"
 #include "regfile/script_convert.h"
 #include "win32/file_text.h"
+#include "win32/system_error.h"
 #include "win32/translation.h"
 
 #include <algorithm>
@@ -260,6 +261,10 @@ LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring
         }
         if (status != ERROR_SUCCESS)
         {
+            if (!top && skipped)
+            {
+                skipped->push_back(Describe({Operation::Kind::kKey, current.display}, util::FormatWin32Error(static_cast<DWORD>(status))));
+            }
             continue;
         }
         if (is_volatile && !current.volatile_parent)

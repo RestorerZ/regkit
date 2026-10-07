@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <new>
 #include <unordered_set>
 
 namespace regkit::appearance
@@ -146,7 +147,7 @@ class AutoCompleteSource : public ::IEnumString, public ::IACList
     HRESULT STDMETHODCALLTYPE Skip(ULONG celt) override
     {
         UpdateSuggestionsIfNeeded();
-        if (index_ + celt >= suggestions_.size())
+        if (celt > suggestions_.size() - std::min(index_, suggestions_.size()))
         {
             index_ = suggestions_.size();
             return S_FALSE;
@@ -168,11 +169,24 @@ class AutoCompleteSource : public ::IEnumString, public ::IACList
         {
             return E_POINTER;
         }
-        auto* clone = new AutoCompleteSource(suggest_, edit_);
-        clone->suggestions_ = suggestions_;
-        clone->index_ = index_;
-        clone->last_text_ = last_text_;
-        clone->query_override_ = query_override_;
+        *out = nullptr;
+        AutoCompleteSource* clone = nullptr;
+        try
+        {
+            clone = new AutoCompleteSource(suggest_, edit_);
+            clone->suggestions_ = suggestions_;
+            clone->index_ = index_;
+            clone->last_text_ = last_text_;
+            clone->query_override_ = query_override_;
+        }
+        catch (const std::bad_alloc&)
+        {
+            if (clone)
+            {
+                clone->Release();
+            }
+            return E_OUTOFMEMORY;
+        }
         *out = clone;
         return S_OK;
     }

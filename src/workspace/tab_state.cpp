@@ -255,7 +255,7 @@ std::wstring SerializeTabs(const TabState& state)
         AppendField(&fields, L"val=", tab.selected_value);
         for (const std::wstring& value : tab.selected_values)
         {
-            AppendField(&fields, L"sel=", value);
+            fields.push_back(L"sel=" + value);
         }
         for (const std::wstring& path : tab.expanded_paths)
         {

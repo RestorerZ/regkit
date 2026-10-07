@@ -51,21 +51,16 @@ bool RestoreSessionRequested()
 std::wstring RestartUserSid()
 {
     int argc = 0;
-    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (!argv)
-    {
-        return {};
-    }
-    std::wstring sid;
-    for (int i = 1; i + 1 < argc && sid.empty(); ++i)
+    const util::UniqueLocal<LPWSTR*> args(CommandLineToArgvW(GetCommandLineW(), &argc));
+    LPWSTR* argv = args.get();
+    for (int i = 1; argv && i + 1 < argc; ++i)
     {
         if (util::EqualsInsensitive(argv[i], kRestartUserSidArg) && util::StartsWithInsensitive(argv[i + 1], L"S-") && !wcschr(argv[i + 1], L'\\'))
         {
-            sid = argv[i + 1];
+            return argv[i + 1];
         }
     }
-    LocalFree(argv);
-    return sid;
+    return {};
 }
 
 namespace

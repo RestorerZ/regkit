@@ -121,6 +121,7 @@ class RegistryStore
         KeyInfo info;
         bool info_valid = false;
         bool want_options = false;
+        LONG error = ERROR_SUCCESS;
         KeyCreateOptions options;
     };
     static bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool include_data, bool include_subkeys, KeyEnumResult* out_info, const ValueStreamCallback& value_callback, const SubkeyStreamCallback& subkey_callback, DWORD max_data_size = MAXDWORD, EnumerationScratch* scratch = nullptr, bool ordered = true, bool open_link = false);

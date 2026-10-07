@@ -4,6 +4,7 @@
 #include "win32/translation.h"
 
 #include "win32/file_text.h"
+#include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 
@@ -207,8 +208,8 @@ std::vector<LanguagePack> InstalledLanguages()
 {
     std::vector<LanguagePack> packs;
     WIN32_FIND_DATAW data = {};
-    HANDLE find = FindFirstFileW(JoinPath(LanguageFolder(), L"*.po").c_str(), &data);
-    if (find == INVALID_HANDLE_VALUE)
+    const UniqueFind find(FindFirstFileW(JoinPath(LanguageFolder(), L"*.po").c_str(), &data));
+    if (!find)
     {
         return packs;
     }
@@ -219,8 +220,7 @@ std::vector<LanguagePack> InstalledLanguages()
         wchar_t name[LOCALE_NAME_MAX_LENGTH] = {};
         packs.push_back({code, GetLocaleInfoEx(code.c_str(), LOCALE_SNATIVEDISPLAYNAME, name, LOCALE_NAME_MAX_LENGTH) ? name : code});
         CharUpperBuffW(packs.back().name.data(), 1);
-    } while (FindNextFileW(find, &data));
-    FindClose(find);
+    } while (FindNextFileW(find.get(), &data));
     return packs;
 }
 

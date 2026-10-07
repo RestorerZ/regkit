@@ -49,6 +49,7 @@ bool Reader::Fail(const wchar_t* message)
         *error_ = message;
     }
     ptr_ = end_;
+    failed_ = true;
     return false;
 }
 
@@ -79,11 +80,16 @@ void Reader::SkipSpace()
             return;
         }
         ptr_ += 2;
-        while (ptr_ + 1 < end_ && (*ptr_ != L'*' || ptr_[1] != L'/'))
+        while (end_ - ptr_ >= 2 && (*ptr_ != L'*' || ptr_[1] != L'/'))
         {
             ++ptr_;
         }
-        ptr_ = ptr_ + 1 < end_ ? ptr_ + 2 : end_;
+        if (end_ - ptr_ < 2)
+        {
+            Fail(util::Tr(L"The file isn't valid JSON."));
+            return;
+        }
+        ptr_ += 2;
     }
 }
 
@@ -331,7 +337,7 @@ bool Reader::Skip()
 bool Reader::End()
 {
     SkipSpace();
-    return ptr_ == end_ || Fail(util::Tr(L"The file contains trailing content."));
+    return !failed_ && (ptr_ == end_ || Fail(util::Tr(L"The file contains trailing content.")));
 }
 
 void AppendString(std::wstring* out, std::wstring_view text)

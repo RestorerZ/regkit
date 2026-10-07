@@ -12,7 +12,6 @@
 
 #include <algorithm>
 #include <cerrno>
-#include <cstring>
 #include <cwchar>
 #include <cwctype>
 #include <limits>
@@ -201,14 +200,14 @@ std::wstring SerializeHistoryEntry(const HistoryEntry& entry)
 
 bool WriteHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>& entries)
 {
+    if (path.empty())
+    {
+        return false;
+    }
     std::wstring content;
     for (const auto& entry : entries)
     {
         content += SerializeHistoryEntry(entry);
-    }
-    if (path.empty())
-    {
-        return false;
     }
     if (content.empty())
     {
@@ -297,18 +296,7 @@ bool PrepareRevert(const HistoryEntry& entry, const QueryValue& query_value, His
     }
 
     current.name = value_name;
-    if (type == REG_QWORD)
-    {
-        current.data.resize(sizeof(value));
-        memcpy(current.data.data(), &value, sizeof(value));
-    }
-    else
-    {
-        const DWORD dword =
-            type == REG_DWORD_BIG_ENDIAN ? _byteswap_ulong(static_cast<DWORD>(value)) : static_cast<DWORD>(value);
-        current.data.resize(sizeof(dword));
-        memcpy(current.data.data(), &dword, sizeof(dword));
-    }
+    current.data = value_format::UnsignedBytes(value, type == REG_QWORD ? sizeof(ULONGLONG) : sizeof(DWORD), type == REG_DWORD_BIG_ENDIAN);
     prepared->value_name = value_name;
     prepared->revert_value = std::move(current);
     prepared->revert_kind = HistoryEntry::RevertKind::kSetValue;

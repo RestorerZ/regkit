@@ -146,7 +146,7 @@ bool BatchData(const Value& value, std::wstring* type, std::wstring* text, std::
                 return false;
             }
             wchar_t number[24] = {};
-            swprintf_s(number, L"0x%llx", value_format::ReadUnsigned(value.data, width));
+            swprintf_s(number, L"0x%llx", value_format::ReadUnsigned(value.data, width, value.type == REG_DWORD_BIG_ENDIAN));
             *text = number;
             break;
         }

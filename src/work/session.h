@@ -148,8 +148,11 @@ class LatestTask
 
     void Stop() noexcept
     {
-        stopping_.store(true);
-        superseded_.store(true);
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            stopping_.store(true);
+            superseded_.store(true);
+        }
         ready_.notify_one();
         if (thread_.joinable())
         {
@@ -171,7 +174,6 @@ class LatestTask
         for (;;)
         {
             std::unique_ptr<Task> task;
-            Processor processor;
             {
                 std::unique_lock<std::mutex> lock(mutex_);
                 ready_.wait(lock, [this]() { return stopping_.load() || pending_ != nullptr; });
@@ -180,14 +182,13 @@ class LatestTask
                     return;
                 }
                 task = std::move(pending_);
-                processor = processor_;
                 superseded_.store(false);
             }
-            if (processor && task)
+            if (processor_)
             {
                 try
                 {
-                    processor(std::move(task), superseded_);
+                    processor_(std::move(task), superseded_);
                 }
                 catch (...)
                 {
@@ -307,13 +308,12 @@ class DebouncedTask
 
             Task task = std::move(*pending_);
             pending_.reset();
-            Handler handler = handler_;
             lock.unlock();
             try
             {
-                if (handler)
+                if (handler_)
                 {
-                    handler(std::move(task));
+                    handler_(std::move(task));
                 }
             }
             catch (...)

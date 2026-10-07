@@ -234,16 +234,12 @@ void EnsureValueNodes(HWND tree, TraceDialogState* state, HTREEITEM key_item, co
         return;
     }
     auto& loaded = state->values_loaded[key_lower];
-    for (const auto& entry : values_it->second)
+    for (const auto& [value_lower, value_name] : values_it->second)
     {
-        const std::wstring& value_lower = entry.first;
-        const std::wstring& display = entry.second;
-        if (!loaded.insert(value_lower).second)
+        if (loaded.insert(value_lower).second)
         {
-            continue;
+            InsertValueNode(tree, state, key_item, key_path, value_name);
         }
-        std::wstring value_name = display == util::Tr(L"(Default)") ? L"" : display;
-        InsertValueNode(tree, state, key_item, key_path, value_name);
     }
 }
 
@@ -264,20 +260,14 @@ void AddEntry(HWND tree, TraceDialogState* state, const KeyValueDialogEntry& ent
     {
         return;
     }
-    std::wstring value_name = entry.value_name;
-    std::wstring display_name = value_name.empty() ? util::Tr(L"(Default)") : value_name;
-    std::wstring value_lower = ToLower(value_name);
+    std::wstring value_lower = ToLower(entry.value_name);
     auto& values = state->values_by_key[key_lower];
-    if (values.emplace(value_lower, display_name).second)
+    if (values.emplace(value_lower, entry.value_name).second)
     {
         state->value_count++;
-        if (key_item)
+        if (key_item && (TreeView_GetItemState(tree, key_item, TVIS_EXPANDED) & TVIS_EXPANDED) && state->values_loaded[key_lower].insert(value_lower).second)
         {
-            UINT state_mask = TreeView_GetItemState(tree, key_item, TVIS_EXPANDED);
-            if (state_mask & TVIS_EXPANDED)
-            {
-                InsertValueNode(tree, state, key_item, entry.key_path, value_name);
-            }
+            InsertValueNode(tree, state, key_item, entry.key_path, entry.value_name);
         }
     }
 }
@@ -492,6 +482,10 @@ INT_PTR CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
             while (PeekMessageW(&pending, hwnd, kDialogAddEntriesMessage, kDialogAddEntriesMessage, PM_REMOVE))
             {
                 delete reinterpret_cast<std::vector<KeyValueDialogEntry>*>(pending.lParam);
+            }
+            if (HIMAGELIST checks = TreeView_SetImageList(state->tree, nullptr, TVSIL_STATE))
+            {
+                ImageList_Destroy(checks);
             }
             dialog_support::ReleaseFont(&state->font);
             return TRUE;

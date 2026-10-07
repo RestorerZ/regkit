@@ -50,6 +50,10 @@ void RecentItems::Normalize()
     normalized.reserve(std::min(items_.size(), maximum_));
     for (const std::wstring& item : items_)
     {
+        if (normalized.size() >= maximum_)
+        {
+            break;
+        }
         std::wstring cleaned = util::TrimWhitespace(item);
         if (cleaned.empty())
         {
@@ -61,10 +65,6 @@ void RecentItems::Normalize()
         if (!duplicate)
         {
             normalized.push_back(std::move(cleaned));
-            if (normalized.size() == maximum_)
-            {
-                break;
-            }
         }
     }
     items_.swap(normalized);

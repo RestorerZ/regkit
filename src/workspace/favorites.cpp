@@ -58,8 +58,7 @@ std::wstring FavoritesStore::FavoritesPath()
 bool FavoritesStore::Load(std::vector<std::wstring>* favorites)
 {
     const std::wstring path = FavoritesPath();
-    LoadFromFile(path, favorites);
-    return !path.empty();
+    return LoadFromFile(path, favorites) || (!path.empty() && GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES);
 }
 
 bool FavoritesStore::Save(const std::vector<std::wstring>& favorites)
@@ -70,28 +69,29 @@ bool FavoritesStore::Save(const std::vector<std::wstring>& favorites)
 bool FavoritesStore::Add(const std::wstring& path)
 {
     std::vector<std::wstring> favorites;
-    Load(&favorites);
-    return !path.empty() && (MergeUnique(&favorites, {path}) == 0 || Save(favorites));
+    return !path.empty() && Load(&favorites) && (MergeUnique(&favorites, {path}) == 0 || Save(favorites));
 }
 
 bool FavoritesStore::Remove(const std::wstring& path)
 {
     std::vector<std::wstring> favorites;
-    Load(&favorites);
+    if (path.empty() || !Load(&favorites))
+    {
+        return false;
+    }
     const size_t removed =
         std::erase_if(favorites, [&](const std::wstring& entry) { return util::EqualsInsensitive(entry, path); });
-    return !path.empty() && (removed == 0 || Save(favorites));
+    return removed == 0 || Save(favorites);
 }
 
 bool FavoritesStore::ImportFromFile(const std::wstring& path, size_t* imported_count)
 {
     std::vector<std::wstring> imported;
-    if (!LoadFromFile(path, &imported))
+    std::vector<std::wstring> favorites;
+    if (!LoadFromFile(path, &imported) || !Load(&favorites))
     {
         return false;
     }
-    std::vector<std::wstring> favorites;
-    Load(&favorites);
     *imported_count = MergeUnique(&favorites, imported);
     return *imported_count == 0 || Save(favorites);
 }
@@ -99,8 +99,7 @@ bool FavoritesStore::ImportFromFile(const std::wstring& path, size_t* imported_c
 bool FavoritesStore::ExportToFile(const std::wstring& path)
 {
     std::vector<std::wstring> favorites;
-    Load(&favorites);
-    return SaveToFile(path, favorites);
+    return Load(&favorites) && SaveToFile(path, favorites);
 }
 
 bool FavoritesStore::ImportFromRegEdit(size_t* imported_count, std::wstring* error)
@@ -121,7 +120,14 @@ bool FavoritesStore::ImportFromRegEdit(size_t* imported_count, std::wstring* err
         imported.push_back(std::move(favorite.path));
     }
     std::vector<std::wstring> favorites;
-    Load(&favorites);
+    if (!Load(&favorites))
+    {
+        if (error)
+        {
+            *error = util::Tr(L"Failed to import RegEdit favorites.");
+        }
+        return false;
+    }
     const size_t added = MergeUnique(&favorites, imported);
     if (added != 0 && !Save(favorites))
     {

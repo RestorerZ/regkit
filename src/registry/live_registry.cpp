@@ -164,7 +164,7 @@ bool QueryValue(const RegistryNode& node, const std::wstring& value_name, Regist
 bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details, bool open_link)
 {
     LiveKey key(node, kKeyReadAccess, open_link);
-    if (!key || !registry_backend::QueryKeyDetails(key, details))
+    if (!key || registry_backend::QueryKeyDetails(key, details) != ERROR_SUCCESS)
     {
         return false;
     }
@@ -208,6 +208,10 @@ bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, cons
     {
         const DWORD flags = (options.is_volatile ? REG_OPTION_VOLATILE : REG_OPTION_NON_VOLATILE) | REG_OPTION_CREATE_LINK;
         result = util::CreateRegistryKey(parent.get(), name, KEY_SET_VALUE | KEY_CREATE_LINK | DELETE, flags, &created, &disposition, options.class_name);
+        if (result == ERROR_SUCCESS && disposition != REG_CREATED_NEW_KEY)
+        {
+            result = ERROR_ALREADY_EXISTS;
+        }
     }
     if (result == ERROR_SUCCESS)
     {

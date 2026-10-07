@@ -56,29 +56,6 @@ class ComPtr
     T* ptr_ = nullptr;
 };
 
-class CoTaskString
-{
-  public:
-    ~CoTaskString()
-    {
-        if (text_)
-        {
-            CoTaskMemFree(text_);
-        }
-    }
-    PWSTR* Receive()
-    {
-        return &text_;
-    }
-    PCWSTR Get() const
-    {
-        return text_;
-    }
-
-  private:
-    PWSTR text_ = nullptr;
-};
-
 std::vector<COMDLG_FILTERSPEC> ParseFilter(const wchar_t* filter)
 {
     std::vector<COMDLG_FILTERSPEC> specs;
@@ -148,11 +125,11 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
     }
     if (util::IsProcessSystem())
     {
-        CoTaskString own_desktop;
-        if (g_missing_desktop_prompt && SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, KF_FLAG_DONT_VERIFY, nullptr, own_desktop.Receive())) &&
-            GetFileAttributesW(own_desktop.Get()) == INVALID_FILE_ATTRIBUTES && std::exchange(g_missing_desktop_prompt, nullptr)(owner, own_desktop.Get()))
+        util::UniqueCoTask<PWSTR> own_desktop;
+        if (g_missing_desktop_prompt && SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, KF_FLAG_DONT_VERIFY, nullptr, own_desktop.put())) &&
+            GetFileAttributesW(own_desktop.get()) == INVALID_FILE_ATTRIBUTES && std::exchange(g_missing_desktop_prompt, nullptr)(owner, own_desktop.get()))
         {
-            CreateDirectoryW(own_desktop.Get(), nullptr);
+            CreateDirectoryW(own_desktop.get(), nullptr);
         }
         IShellItem* documents = nullptr;
         PIDLIST_ABSOLUTE documents_id = nullptr;
@@ -213,13 +190,13 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
     {
         return hr;
     }
-    CoTaskString text;
-    hr = item->GetDisplayName(SIGDN_FILESYSPATH, text.Receive());
+    util::UniqueCoTask<PWSTR> text;
+    hr = item->GetDisplayName(SIGDN_FILESYSPATH, text.put());
     if (FAILED(hr))
     {
         return hr;
     }
-    *path = text.Get() ? text.Get() : L"";
+    *path = text ? text.get() : L"";
     return S_OK;
 }
 
@@ -314,6 +291,7 @@ HRESULT ChooseComputer(HWND owner, std::wstring* name)
     {
         return hr;
     }
+    const std::unique_ptr<STGMEDIUM, decltype(&ReleaseStgMedium)> release(&medium, ReleaseStgMedium);
     if (auto* list = static_cast<PDS_SELECTION_LIST>(GlobalLock(medium.hGlobal)))
     {
         if (list->cItems > 0 && list->aDsSelection[0].pwzName)
@@ -322,7 +300,6 @@ HRESULT ChooseComputer(HWND owner, std::wstring* name)
         }
         GlobalUnlock(medium.hGlobal);
     }
-    ReleaseStgMedium(&medium);
     if (!name->empty() && name->back() == L'$')
     {
         name->pop_back();

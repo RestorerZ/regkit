@@ -4,6 +4,7 @@
 #include "registry/value_decoder.h"
 #include "registry/value_format.h"
 #include "win32/file_text.h"
+#include "win32/handle_owner.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
 
@@ -384,11 +385,15 @@ Decoded Failure(std::wstring error)
     return decoded;
 }
 
-Decoded Success(std::initializer_list<Field> fields)
+Decoded Success(Field first, Field second = {})
 {
     Decoded decoded;
     decoded.ok = true;
-    decoded.fields = fields;
+    decoded.fields.push_back(std::move(first));
+    if (!second.name.empty())
+    {
+        decoded.fields.push_back(std::move(second));
+    }
     return decoded;
 }
 
@@ -422,14 +427,14 @@ Decoded DecodeUtf8(const BYTE* data, size_t size)
     }
     if (size == 0)
     {
-        return Success({{util::Tr(L"Text"), L""}, {util::Tr(L"Bytes"), L"0"}});
+        return Success({util::Tr(L"Text"), L""}, {util::Tr(L"Bytes"), L"0"});
     }
     std::wstring text = util::Utf8ToWide(std::string_view(reinterpret_cast<const char*>(data), size));
     if (text.empty())
     {
         return Failure(util::Tr(L"Invalid UTF-8."));
     }
-    return Success({{util::Tr(L"Text"), std::move(text)}, {util::Tr(L"Bytes"), std::to_wstring(size)}});
+    return Success({util::Tr(L"Text"), std::move(text)}, {util::Tr(L"Bytes"), std::to_wstring(size)});
 }
 
 Decoded DecodeUtf16(const BYTE* data, size_t size, bool big_endian)
@@ -461,7 +466,7 @@ Decoded DecodeUtf16(const BYTE* data, size_t size, bool big_endian)
     {
         return Failure(util::Tr(L"Invalid UTF-16 surrogate pair."));
     }
-    return Success({{util::Tr(L"Text"), std::move(text)}, {util::Tr(L"Code units"), std::to_wstring(units)}});
+    return Success({util::Tr(L"Text"), std::move(text)}, {util::Tr(L"Code units"), std::to_wstring(units)});
 }
 
 Decoded DecodeAscii(const BYTE* data, size_t size)
@@ -476,7 +481,7 @@ Decoded DecodeAscii(const BYTE* data, size_t size)
         }
         text.push_back(static_cast<wchar_t>(data[i]));
     }
-    return Success({{util::Tr(L"Text"), std::move(text)}, {util::Tr(L"Bytes"), std::to_wstring(size)}});
+    return Success({util::Tr(L"Text"), std::move(text)}, {util::Tr(L"Bytes"), std::to_wstring(size)});
 }
 
 Decoded DecodeFileTime(const BYTE* data, size_t size)
@@ -568,7 +573,7 @@ Decoded DecodeGuid(const BYTE* data, size_t size)
     {
         return Failure(util::Tr(L"The GUID couldn't be formatted."));
     }
-    return Success({{L"GUID", text}});
+    return Success({L"GUID", text});
 }
 
 bool SidFits(const BYTE* data, size_t size)
@@ -593,15 +598,14 @@ Decoded DecodeSid(const BYTE* data, size_t size)
     {
         return Failure(util::Tr(L"Invalid SID."));
     }
-    LPWSTR text = nullptr;
-    if (!ConvertSidToStringSidW(sid, &text) || !text)
+    util::UniqueLocal<LPWSTR> text;
+    if (!ConvertSidToStringSidW(sid, text.put()) || !text)
     {
         return Failure(util::Tr(L"Invalid SID."));
     }
     Decoded decoded;
     decoded.ok = true;
-    decoded.fields.push_back({L"SID", text});
-    LocalFree(text);
+    decoded.fields.push_back({L"SID", text.get()});
     decoded.fields.push_back({util::Tr(L"Length"), std::to_wstring(GetLengthSid(sid))});
 
     DWORD name_size = 0;
@@ -670,37 +674,27 @@ Decoded DecodeSecurityDescriptor(const BYTE* data, size_t size)
     {
         return Failure(util::Tr(L"Invalid security descriptor."));
     }
-    SECURITY_INFORMATION information = 0;
-    if (header.Owner != 0)
-    {
-        information |= OWNER_SECURITY_INFORMATION;
-    }
-    if (header.Group != 0)
-    {
-        information |= GROUP_SECURITY_INFORMATION;
-    }
-    if (header.Dacl != 0)
-    {
-        information |= DACL_SECURITY_INFORMATION;
-    }
-    if (header.Sacl != 0)
-    {
-        information |= SACL_SECURITY_INFORMATION;
-    }
-    LPWSTR sddl = nullptr;
-    if (!ConvertSecurityDescriptorToStringSecurityDescriptorW(descriptor, SDDL_REVISION_1, information, &sddl, nullptr) ||
+    const bool dacl = (header.Control & SE_DACL_PRESENT) != 0;
+    const bool sacl = (header.Control & SE_SACL_PRESENT) != 0;
+    const SECURITY_INFORMATION information = (header.Owner ? OWNER_SECURITY_INFORMATION : 0) | (header.Group ? GROUP_SECURITY_INFORMATION : 0) |
+                                             (dacl ? DACL_SECURITY_INFORMATION : 0) | (sacl ? SACL_SECURITY_INFORMATION : 0);
+    util::UniqueLocal<LPWSTR> sddl;
+    if (!ConvertSecurityDescriptorToStringSecurityDescriptorW(descriptor, SDDL_REVISION_1, information, sddl.put(), nullptr) ||
         !sddl)
     {
         return Failure(util::Tr(L"The security descriptor couldn't be converted."));
     }
+    const auto presence = [](bool present, DWORD offset) {
+        return !present ? util::Tr(L"absent") : offset ? util::Tr(L"present")
+                                                       : L"NULL";
+    };
     Decoded decoded;
     decoded.ok = true;
-    decoded.fields.push_back({L"SDDL", sddl});
-    LocalFree(sddl);
-    decoded.fields.push_back({util::Tr(L"Owner"), header.Owner != 0 ? util::Tr(L"present") : util::Tr(L"absent")});
-    decoded.fields.push_back({util::Tr(L"Group"), header.Group != 0 ? util::Tr(L"present") : util::Tr(L"absent")});
-    decoded.fields.push_back({L"DACL", header.Dacl != 0 ? util::Tr(L"present") : util::Tr(L"absent")});
-    decoded.fields.push_back({L"SACL", header.Sacl != 0 ? util::Tr(L"present") : util::Tr(L"absent")});
+    decoded.fields.push_back({L"SDDL", sddl.get()});
+    decoded.fields.push_back({util::Tr(L"Owner"), presence(header.Owner != 0, header.Owner)});
+    decoded.fields.push_back({util::Tr(L"Group"), presence(header.Group != 0, header.Group)});
+    decoded.fields.push_back({L"DACL", presence(dacl, header.Dacl)});
+    decoded.fields.push_back({L"SACL", presence(sacl, header.Sacl)});
     return decoded;
 }
 
@@ -718,7 +712,7 @@ Decoded DecodeAddress(const BYTE* data, size_t size, bool ipv6)
     {
         return Failure(util::Tr(L"The address couldn't be formatted."));
     }
-    return Success({{util::Tr(L"Address"), text}});
+    return Success({util::Tr(L"Address"), text});
 }
 
 struct PathRule
@@ -844,7 +838,7 @@ Decoded Decode(DecoderId id, const BYTE* data, size_t size)
     switch (id)
     {
     case DecoderId::kRawBytes:
-        return Success({{util::Tr(L"Bytes"), std::to_wstring(size)}});
+        return Success({util::Tr(L"Bytes"), std::to_wstring(size)});
     case DecoderId::kUtf8:
         return DecodeUtf8(data, size);
     case DecoderId::kUtf16Le:

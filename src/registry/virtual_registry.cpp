@@ -267,20 +267,18 @@ bool RenameKey(VirtualRegistryData& data, const RegistryNode& node, const std::w
     {
         return false;
     }
-    const std::wstring old_lower = util::ToLower(old_name);
-    const std::wstring new_lower = util::ToLower(new_name);
-    auto source = parent->children.find(old_lower);
-    if (source == parent->children.end() || parent->children.find(new_lower) != parent->children.end())
+    std::wstring new_lower = util::ToLower(new_name);
+    auto source = parent->children.find(util::ToLower(old_name));
+    if (source == parent->children.end() || !source->second || parent->children.find(new_lower) != parent->children.end())
     {
         return false;
     }
-    std::unique_ptr<VirtualRegistryKey> moved = std::move(source->second);
-    parent->children.erase(source);
-    if (moved)
-    {
-        moved->name = new_name;
-    }
-    parent->children.emplace(new_lower, std::move(moved));
+    std::wstring name = new_name;
+    parent->children.reserve(parent->children.size() + 1);
+    auto node_handle = parent->children.extract(source);
+    node_handle.key() = std::move(new_lower);
+    node_handle.mapped()->name.swap(name);
+    parent->children.insert(std::move(node_handle));
     return true;
 }
 
@@ -318,17 +316,18 @@ bool RenameValue(VirtualRegistryData& data, const RegistryNode& node, const std:
     {
         return false;
     }
-    const std::wstring old_lower = util::ToLower(old_name);
-    const std::wstring new_lower = util::ToLower(new_name);
-    auto source = key->values.find(old_lower);
+    std::wstring new_lower = util::ToLower(new_name);
+    auto source = key->values.find(util::ToLower(old_name));
     if (source == key->values.end() || key->values.find(new_lower) != key->values.end())
     {
         return false;
     }
-    RegistryValue value = std::move(source->second);
-    key->values.erase(source);
-    value.name = new_name;
-    key->values.emplace(new_lower, std::move(value));
+    std::wstring name = new_name;
+    key->values.reserve(key->values.size() + 1);
+    auto node_handle = key->values.extract(source);
+    node_handle.key() = std::move(new_lower);
+    node_handle.mapped().name.swap(name);
+    key->values.insert(std::move(node_handle));
     return true;
 }
 

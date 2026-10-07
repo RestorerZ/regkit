@@ -149,12 +149,11 @@ bool IsTrustedResourcePath(const wchar_t* full)
         std::vector<std::wstring> list;
         for (const KNOWNFOLDERID& folder : {FOLDERID_Windows, FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86})
         {
-            PWSTR root = nullptr;
-            if (SUCCEEDED(SHGetKnownFolderPath(folder, 0, nullptr, &root)))
+            util::UniqueCoTask<PWSTR> root;
+            if (SUCCEEDED(SHGetKnownFolderPath(folder, 0, nullptr, root.put())))
             {
-                list.emplace_back(root);
+                list.emplace_back(root.get());
             }
-            CoTaskMemFree(root);
         }
         wchar_t native[MAX_PATH] = {};
         DWORD size = sizeof(native);

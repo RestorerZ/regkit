@@ -80,6 +80,7 @@ class Reader
     std::wstring* error_ = nullptr;
     int max_depth_ = 16;
     int depth_ = 0;
+    bool failed_ = false;
 };
 
 void AppendString(std::wstring* out, std::wstring_view text);

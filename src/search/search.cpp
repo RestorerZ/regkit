@@ -22,6 +22,7 @@
 #include <map>
 #include <mutex>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -172,7 +173,7 @@ Match Matcher::Find(std::wstring_view text) const
 
 regex::Status Matcher::Replace(std::wstring_view text, const std::wstring& replacement, std::wstring* out) const
 {
-    if (!out || !valid_)
+    if (!out || !valid_ || match_all_)
     {
         return regex::Status::kFailed;
     }
@@ -557,6 +558,12 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
     {
         return result;
     }
+    const auto note = [&](regex::Status status) {
+        if (status != regex::Status::kMatch && status != regex::Status::kNoMatch)
+        {
+            result.match.status = status;
+        }
+    };
 
     DWORD base_type = value_format::NormalizeType(type);
     if (base_type == REG_MULTI_SZ)
@@ -566,7 +573,7 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
         for (const std::wstring& item : value_format::MultiStringItems({data, size - size % sizeof(wchar_t)}))
         {
             const Match match = matcher.Find(item);
-            result.match.status = match.status;
+            note(match.status);
             if (match.matched)
             {
                 result.matched = true;
@@ -607,6 +614,7 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
         }
         else
         {
+            note(display_match.status);
             result.data_text = std::wstring(view);
         }
         return result;
@@ -621,25 +629,10 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
             {
                 const BYTE* begin = data;
                 const BYTE* end = data + size;
-                const BYTE* hit = nullptr;
-                if (needle <= 2)
-                {
-                    for (const BYTE* p = begin; p + needle <= end; ++p)
-                    {
-                        if (memcmp(p, hex_query.bytes.data(), needle) == 0)
-                        {
-                            hit = p;
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    const std::boyer_moore_horspool_searcher searcher(hex_query.bytes.begin(), hex_query.bytes.end());
-                    const BYTE* found = std::search(begin, end, searcher);
-                    hit = found == end ? nullptr : found;
-                }
-                if (hit)
+                const auto first = hex_query.bytes.begin();
+                const auto last = hex_query.bytes.end();
+                const BYTE* hit = needle <= 2 ? std::search(begin, end, first, last) : std::search(begin, end, std::boyer_moore_horspool_searcher(first, last));
+                if (hit != end)
                 {
                     const size_t offset = static_cast<size_t>(hit - begin);
                     result.matched = true;
@@ -681,6 +674,7 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
                 accept_bytes(match.start, match.length);
                 return result;
             }
+            note(match.status);
         }
 
         if (size >= sizeof(wchar_t) && (size % sizeof(wchar_t)) == 0 &&
@@ -693,6 +687,7 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
                 accept_bytes(match.start * sizeof(wchar_t), match.length * sizeof(wchar_t));
                 return result;
             }
+            note(match.status);
         }
         return result;
     }
@@ -701,6 +696,7 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
     Match match = matcher.Find(text);
     if (!match.matched)
     {
+        note(match.status);
         return result;
     }
     result.matched = true;
@@ -1539,13 +1535,31 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
     worker_count =
         static_cast<unsigned int>(std::min<size_t>(worker_count, std::max<size_t>(1, criteria.start_nodes.size() * 4)));
 
+    const auto guarded_worker = [&]() {
+        try
+        {
+            worker();
+        }
+        catch (...)
+        {
+            worst_status.store(static_cast<int>(regex::Status::kFailed));
+            request_stop();
+        }
+    };
     std::vector<std::thread> workers;
     workers.reserve(worker_count > 0 ? worker_count - 1 : 0);
     for (unsigned int i = 1; i < worker_count; ++i)
     {
-        work::NameThread(workers.emplace_back(worker), L"SearchWorkerThread");
+        try
+        {
+            work::NameThread(workers.emplace_back(guarded_worker), L"SearchWorkerThread");
+        }
+        catch (const std::system_error&)
+        {
+            break;
+        }
     }
-    worker();
+    guarded_worker();
     for (auto& thread : workers)
     {
         thread.join();

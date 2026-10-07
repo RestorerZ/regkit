@@ -24,6 +24,11 @@ struct ToolbarIcon
 class Toolbar
 {
   public:
+    Toolbar() = default;
+    ~Toolbar();
+    Toolbar(const Toolbar&) = delete;
+    Toolbar& operator=(const Toolbar&) = delete;
+
     void Create(HWND parent, HINSTANCE instance, int control_id);
     HWND hwnd() const;
     void LoadIcons(const std::vector<ToolbarIcon>& icons, int size, int glyph_size);

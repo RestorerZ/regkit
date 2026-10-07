@@ -623,7 +623,10 @@ class Interpreter
                 Take();
                 continue;
             }
-            Statement();
+            if (Statement())
+            {
+                Fail(util::TrLabel(L"Unexpected token", Peek().text));
+            }
         }
         condition_ = Condition::kNone;
         Take();
@@ -717,12 +720,22 @@ class Interpreter
 
     Item Unary(bool argument_mode)
     {
+        if (++depth_ > 256)
+        {
+            Fail(util::TrLabel(L"Unexpected token", Peek().text));
+        }
+        Item item;
         if (At(Kind::kType) && !At(Kind::kPunct, L"::", 1))
         {
             const std::wstring type = Take().text;
-            return Cast(type, Unary(argument_mode));
+            item = Cast(type, Unary(argument_mode));
         }
-        return Postfix(Primary(argument_mode));
+        else
+        {
+            item = Postfix(Primary(argument_mode));
+        }
+        --depth_;
+        return item;
     }
 
     Item Primary(bool argument_mode)
@@ -865,7 +878,7 @@ class Interpreter
             const std::vector<Item> arguments = CallArguments();
             for (const RootProperty& root : kRoots)
             {
-                if (!arguments.empty() && util::EqualsInsensitive(arguments[0].text, root.property))
+                if (!arguments.empty() && util::EqualsInsensitive(arguments[0].text, root.property) && (arguments.size() == 1 || util::EqualsInsensitive(arguments[1].text, L"Default")))
                 {
                     return KeyItem(root.root);
                 }
@@ -982,7 +995,17 @@ class Interpreter
             list.cast = type;
             for (const Item& element : Elements(value))
             {
-                list.items.push_back(type == L"string[]" ? StringItem(Text(element)) : NumberItem(Bytes(element).front(), false));
+                if (type == L"string[]")
+                {
+                    list.items.push_back(StringItem(Text(element)));
+                    continue;
+                }
+                const std::vector<BYTE> bytes = Bytes(element);
+                if (bytes.size() != 1)
+                {
+                    Fail(util::Tr(L"Byte values must be numbers from 0 to 255."));
+                }
+                list.items.push_back(NumberItem(bytes[0], false));
             }
             return list;
         }
@@ -1040,7 +1063,7 @@ class Interpreter
             {
                 Fail(util::Tr(L"Expected a number."));
             }
-            if (!qword && data.type == Item::Type::kNumber && (data.number < INT_MIN || data.number > 0xFFFFFFFFll))
+            if (!qword && (data.type == Item::Type::kNumber ? data.number < INT_MIN || data.number > 0xFFFFFFFFll : number > 0xFFFFFFFFull))
             {
                 Fail(util::Tr(L"The number doesn't fit a DWORD."));
             }
@@ -1239,6 +1262,7 @@ class Interpreter
     std::unordered_map<std::wstring, Item> variables_;
     std::unordered_map<std::wstring, std::wstring> drives_;
     Condition condition_ = Condition::kNone;
+    int depth_ = 0;
 };
 
 std::wstring Hex(unsigned long long value, int width)

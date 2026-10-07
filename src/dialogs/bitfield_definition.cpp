@@ -5,6 +5,7 @@
 
 #include "records/json.h"
 #include "win32/file_text.h"
+#include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
@@ -132,7 +133,7 @@ bool ReadField(json::Reader& reader, Field* field)
                {
                    *flag = kStatesMember;
                    return reader.Array([&] {
-                       return (field->states.size() < 256 ||
+                       return (field->states.size() < kMaxStates ||
                                reader.Fail(util::Tr(L"A field lists more than 256 states."))) &&
                               ReadState(reader, &field->states.emplace_back());
                    });
@@ -266,8 +267,8 @@ std::vector<DefinitionFile> LoadBundledFiles()
     for (const wchar_t* pattern : {L"*.regkit-bitfield.jsonc", L"*.regkit-bitfield.json"})
     {
         WIN32_FIND_DATAW found = {};
-        const HANDLE search = FindFirstFileW(util::JoinPath(directory, pattern).c_str(), &found);
-        if (search == INVALID_HANDLE_VALUE)
+        const util::UniqueFind search(FindFirstFileW(util::JoinPath(directory, pattern).c_str(), &found));
+        if (!search)
         {
             continue;
         }
@@ -285,8 +286,7 @@ std::vector<DefinitionFile> LoadBundledFiles()
             {
                 files.push_back(std::move(file));
             }
-        } while (FindNextFileW(search, &found));
-        FindClose(search);
+        } while (FindNextFileW(search.get(), &found));
     }
     std::stable_sort(files.begin(), files.end(), [](const DefinitionFile& left, const DefinitionFile& right) {
         return util::CompareInsensitive(left.name, right.name) < 0;
@@ -498,6 +498,10 @@ bool Validate(Definition* definition, std::wstring* error)
             claimed[field.bits[j]] = static_cast<signed char>(i);
         }
         const uint64_t limit = WidthMask(static_cast<unsigned>(field.bits.size()));
+        if (field.states.size() > kMaxStates)
+        {
+            return fail(util::Tr(L"A field lists more than 256 states."));
+        }
         for (size_t j = 0; j < field.states.size(); ++j)
         {
             const State& state = field.states[j];
