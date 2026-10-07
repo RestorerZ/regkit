@@ -383,6 +383,7 @@ bool MainWindow::Impl::LoadTraceFromPrompt()
 
 void MainWindow::Impl::ClearTrace()
 {
+    trace_load_session_.Cancel();
     StopTraceParseSessions();
     active_traces_.clear();
     trace_selection_cache_.clear();

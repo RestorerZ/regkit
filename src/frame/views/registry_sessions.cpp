@@ -906,7 +906,7 @@ void MainWindow::Impl::NavigateToAddress()
         }
         if (value_missing)
         {
-            ui::PromptKeyChoice(hwnd_, util::Tr(L"The key was opened, but it doesn't contain this value:"), registry_path::DisplayName(value_name), util::Tr(L"Value Not Found"), util::Tr(L"OK"), L"", L"");
+            PromptMissingValue(value_name);
         }
         else
         {
@@ -914,14 +914,23 @@ void MainWindow::Impl::NavigateToAddress()
         }
         return;
     }
-    if (path.empty())
+    if (!path.empty())
     {
-        return;
+        PromptMissingPath(path);
     }
+}
+
+void MainWindow::Impl::PromptMissingValue(const std::wstring& value_name)
+{
+    ui::PromptKeyChoice(hwnd_, util::Tr(L"The key was opened, but it doesn't contain this value:"), registry_path::DisplayName(value_name), util::Tr(L"Value Not Found"), util::Tr(L"OK"), L"", L"");
+}
+
+void MainWindow::Impl::PromptMissingPath(const std::wstring& path)
+{
     std::wstring nearest;
     if (!FindNearestExistingPath(path, &nearest) || nearest.empty())
     {
-        ui::ShowWarning(hwnd_, util::Tr(L"Registry path not found."));
+        ui::ShowWarning(hwnd_, util::TrDetail(L"Registry path not found.", path));
         return;
     }
     std::wstring message = util::Tr(L"The registry key doesn't exist:");
@@ -969,81 +978,9 @@ void MainWindow::Impl::ApplyQueuedExternalJump()
 
 bool MainWindow::Impl::ResolveJumpTarget(const std::wstring& target, std::wstring* key_path, std::wstring* value_name, bool* value_missing) const
 {
-    const auto unwrap = [](std::wstring text, std::wstring_view pairs) {
-        text = util::TrimWhitespace(text);
-        for (size_t pair = 0; pair + 1 < pairs.size(); pair += 2)
-        {
-            if (text.size() >= 2 && text.front() == pairs[pair] && text.back() == pairs[pair + 1])
-            {
-                return util::TrimWhitespace(std::wstring_view(text).substr(1, text.size() - 2));
-            }
-        }
-        return text;
-    };
-    RegistryNode node;
-    RegistryValue value;
-    const auto key_exists = [&](const std::wstring& path) { return KeyPathExists(path, &node); };
-    value_name->clear();
-    *value_missing = false;
-    const std::wstring text = unwrap(target, L"\"\"''[]");
-    *key_path = NormalizeRegistryPath(text);
-    if (key_path->empty() || key_exists(*key_path))
-    {
-        return !key_path->empty();
-    }
-
-    std::wstring missing_key;
-    std::wstring existing_key;
-    std::wstring existing_name;
-    for (size_t split = 1; split < text.size(); ++split)
-    {
-        const bool colon =
-            text[split] == L':' && (iswspace(text[split - 1]) || split + 1 == text.size() || iswspace(text[split + 1]));
-        if (text[split] != L'!' && !colon)
-        {
-            continue;
-        }
-        const std::wstring key = NormalizeRegistryPath(text.substr(0, split));
-        const std::wstring name =
-            registry_path::RawName(colon ? unwrap(text.substr(split + 1), L"\"\"") : text.substr(split + 1));
-        if (!key_exists(key))
-        {
-            missing_key = missing_key.empty() ? key : missing_key;
-            continue;
-        }
-        if (name.empty() || RegistryStore::QueryValue(node, name, &value))
-        {
-            *key_path = key;
-            *value_name = name;
-            return true;
-        }
-        existing_key = key;
-        existing_name = name;
-    }
-    if (!existing_key.empty())
-    {
-        *key_path = existing_key;
-        *value_name = existing_name;
-        *value_missing = true;
-        return true;
-    }
-    const std::wstring normalized = *key_path;
-    for (size_t slash = normalized.rfind(L'\\'); slash != std::wstring::npos && slash > 0;
-         slash = normalized.rfind(L'\\', slash - 1))
-    {
-        if (key_exists(normalized.substr(0, slash)) &&
-            RegistryStore::QueryValue(node, normalized.substr(slash + 1), &value))
-        {
-            *key_path = normalized.substr(0, slash);
-            *value_name = normalized.substr(slash + 1);
-            return true;
-        }
-    }
-    if (!missing_key.empty())
-    {
-        *key_path = missing_key;
-    }
-    return false;
+    return registry_path::ResolveJumpTarget(
+        target, [this](const std::wstring& path) { return NormalizeRegistryPath(path); },
+        [this](const std::wstring& path, RegistryNode* node) { return KeyPathExists(path, node); }, key_path, value_name, value_missing);
 }
 
 bool MainWindow::Impl::ActivateLocalRegistryTab()
@@ -1111,12 +1048,23 @@ bool MainWindow::Impl::NavigateToExternalJump(const std::wstring& target)
     std::wstring key_path;
     std::wstring value_name;
     bool value_missing = false;
-    if (!ResolveJumpTarget(target, &key_path, &value_name, &value_missing) &&
-        !FindNearestExistingPath(std::wstring(key_path), &key_path))
+    if (!ResolveJumpTarget(target, &key_path, &value_name, &value_missing))
+    {
+        if (!key_path.empty())
+        {
+            PromptMissingPath(key_path);
+        }
+        return !key_path.empty();
+    }
+    if (!NavigateToResolvedExternalJump(key_path, value_missing ? std::wstring() : value_name))
     {
         return false;
     }
-    return NavigateToResolvedExternalJump(key_path, value_missing ? std::wstring() : value_name);
+    if (value_missing)
+    {
+        PromptMissingValue(value_name);
+    }
+    return true;
 }
 
 bool MainWindow::Impl::SearchResultOpensInNewTab() const

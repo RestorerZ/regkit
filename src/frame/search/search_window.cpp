@@ -47,24 +47,7 @@ std::wstring MainWindow::Impl::FormatRegistryPath(const std::wstring& path, regi
 }
 bool MainWindow::Impl::KeyPathExists(const std::wstring& path, RegistryNode* node) const
 {
-    KeyInfo info = {};
-    if (path.empty() || !ResolvePathToNode(path, node))
-    {
-        return false;
-    }
-    if (RegistryStore::QueryKeyInfo(*node, &info))
-    {
-        return true;
-    }
-    if (node->subkey.empty())
-    {
-        return false;
-    }
-    RegistryNode parent = *node;
-    parent.subkey = registry_path::Parent(node->subkey);
-    const std::wstring leaf = registry_path::Leaf(node->subkey);
-    const std::vector<std::wstring> names = RegistryStore::EnumSubKeyNames(parent, false);
-    return std::any_of(names.begin(), names.end(), [&](const std::wstring& name) { return util::EqualsInsensitive(name, leaf); });
+    return !path.empty() && ResolvePathToNode(path, node) && RegistryStore::KeyExists(*node);
 }
 
 bool MainWindow::Impl::FindNearestExistingPath(const std::wstring& path, std::wstring* nearest_path) const
@@ -1396,7 +1379,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
                 std::vector<RegistryValue> values;
                 RegistryStore::KeyEnumResult enum_result;
                 bool values_reserved = false;
-                RegistryStore::EnumKeyStreaming(node, true, true, false, &enum_result, [&](const ValueInfo& info, const BYTE* data, DWORD data_size) {
+                const bool listed = RegistryStore::EnumKeyStreaming(node, true, true, false, &enum_result, [&](const ValueInfo& info, const BYTE* data, DWORD data_size) {
                     if (!values_reserved)
                     {
                         if (enum_result.info_valid)
@@ -1416,6 +1399,10 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
                     return !cancel.load();
                 },
                                                 {});
+                if (!cancel.load() && (!listed || enum_result.error != ERROR_SUCCESS))
+                {
+                    ++payload->failures;
+                }
 
                 for (const auto& value : values)
                 {
@@ -1434,9 +1421,9 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
                         {
                             continue;
                         }
-                        std::wstring unique = MakeUniqueValueName(node, replaced_name);
+                        const std::wstring unique = MakeUniqueValueName(node, replaced_name).value_or(L"");
                         bool both_names_left = false;
-                        if (!RegistryStore::RenameValue(node, current_name, unique, &both_names_left))
+                        if (unique.empty() || !RegistryStore::RenameValue(node, current_name, unique, &both_names_left))
                         {
                             ++payload->failures;
                             if (both_names_left)

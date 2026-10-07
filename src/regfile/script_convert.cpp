@@ -57,9 +57,8 @@ bool ReadOperations(const std::wstring& path, std::vector<Operation>* operations
 bool ReadOperations(const std::wstring& path, Format format, std::vector<Operation>* operations, std::wstring* error)
 {
     std::wstring content;
-    if (!util::ReadTextFile(path, &content, nullptr, 32ull * 1024ull * 1024ull))
+    if (!ReadText(path, &content, error))
     {
-        *error = util::TrDetail(L"The file couldn't be read or is empty.", path);
         return false;
     }
     const bool parsed = format == Format::kReg     ? ParseOperations(content, operations, nullptr, nullptr, error)

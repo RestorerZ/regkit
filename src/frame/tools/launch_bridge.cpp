@@ -317,11 +317,14 @@ bool BrokerRestart(HWND owner, const wchar_t* target_arg, const wchar_t* failure
 
 } // namespace
 
-void MainWindow::Impl::PrepareSessionHandover()
+bool MainWindow::Impl::PrepareSessionHandover()
 {
-    CaptureRegistryTabState(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
-    SaveSessionTabs();
+    if (!SaveSessionForRestart())
+    {
+        return false;
+    }
     SaveSettings();
+    return true;
 }
 
 bool MainWindow::Impl::SaveSessionForRestart()
@@ -424,7 +427,10 @@ bool MainWindow::Impl::RestartAfterSettingsReset()
 
 bool MainWindow::Impl::RestartAsAdmin()
 {
-    PrepareSessionHandover();
+    if (!PrepareSessionHandover())
+    {
+        return false;
+    }
     if (util::IsProcessSystem() || util::IsProcessTrustedInstaller())
     {
         // return through the signed in shell before requesting admin access
@@ -435,13 +441,19 @@ bool MainWindow::Impl::RestartAsAdmin()
 
 bool MainWindow::Impl::RestartAsUser()
 {
-    PrepareSessionHandover();
+    if (!PrepareSessionHandover())
+    {
+        return false;
+    }
     return BrokerRestart(hwnd_, kRestartUserArg, util::Tr(L"Failed to restart as the signed-in user."), util::LaunchProcessAsShellUser);
 }
 
 bool MainWindow::Impl::RestartAsSystem()
 {
-    PrepareSessionHandover();
+    if (!PrepareSessionHandover())
+    {
+        return false;
+    }
     if (!util::IsProcessElevated())
     {
         return BeginRestart(hwnd_, kRestartSystemArg, util::Tr(L"Failed to request SYSTEM restart."));
@@ -451,7 +463,10 @@ bool MainWindow::Impl::RestartAsSystem()
 
 bool MainWindow::Impl::RestartAsTrustedInstaller()
 {
-    PrepareSessionHandover();
+    if (!PrepareSessionHandover())
+    {
+        return false;
+    }
     if (!util::IsProcessElevated())
     {
         return BeginRestart(hwnd_, kRestartTiArg, util::Tr(L"Failed to request TrustedInstaller restart."));

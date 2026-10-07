@@ -197,7 +197,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(const change
 
 bool MainWindow::Impl::SameNode(const RegistryNode& left, const RegistryNode& right) const
 {
-    if (left.root != right.root)
+    if (left.root != right.root || ViewOf(left) != ViewOf(right))
     {
         return false;
     }
@@ -208,12 +208,12 @@ bool MainWindow::Impl::SameNode(const RegistryNode& left, const RegistryNode& ri
     return EqualsInsensitive(left.root_name, right.root_name);
 }
 
-std::wstring MainWindow::Impl::MakeUniqueValueName(const RegistryNode& node, const std::wstring& base) const
+std::optional<std::wstring> MainWindow::Impl::MakeUniqueValueName(const RegistryNode& node, const std::wstring& base) const
 {
     std::unordered_set<std::wstring> value_names;
     RegistryStore::KeyEnumResult enum_result;
     bool names_reserved = false;
-    RegistryStore::EnumKeyStreaming(node, true, false, false, &enum_result, [&](const ValueInfo& value, const BYTE*, DWORD) {
+    const bool listed = RegistryStore::EnumKeyStreaming(node, true, false, false, &enum_result, [&](const ValueInfo& value, const BYTE*, DWORD) {
         if (!names_reserved)
         {
             if (enum_result.info_valid)
@@ -226,6 +226,10 @@ std::wstring MainWindow::Impl::MakeUniqueValueName(const RegistryNode& node, con
         return true;
     },
                                     {});
+    if (!listed || enum_result.error != ERROR_SUCCESS)
+    {
+        return std::nullopt;
+    }
     auto exists = [&](const std::wstring& candidate) -> bool { return value_names.contains(ToLower(candidate)); };
 
     std::wstring base_name = base;
@@ -249,7 +253,7 @@ std::wstring MainWindow::Impl::MakeUniqueValueName(const RegistryNode& node, con
             return next;
         }
     }
-    return base_name;
+    return std::nullopt;
 }
 
 std::wstring MainWindow::Impl::MakeUniqueKeyName(const RegistryNode& node, const std::wstring& base) const
@@ -294,7 +298,9 @@ bool MainWindow::Impl::ResolvePathToNode(const std::wstring& path, RegistryNode*
     }
     for (const auto& root_entry : browse_.roots())
     {
-        if (!StartsWithInsensitive(path, root_entry.path_name))
+        const size_t name_size = root_entry.path_name.size();
+        if (!StartsWithInsensitive(path, root_entry.path_name) ||
+            (path.size() > name_size && path[name_size] != L'\\' && path[name_size] != L'/'))
         {
             continue;
         }
@@ -314,7 +320,7 @@ bool MainWindow::Impl::ResolvePathToNode(const std::wstring& path, RegistryNode*
         std::wstring prefix = root_entry.subkey_prefix;
         if (!rest.empty())
         {
-            if (!StartsWithInsensitive(rest, prefix))
+            if (!registry_path::HasComponentPrefix(rest, prefix))
             {
                 rest = prefix + L"\\" + rest;
             }

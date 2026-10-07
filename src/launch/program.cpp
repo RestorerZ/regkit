@@ -34,6 +34,7 @@
 #include "win32/system_api.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 #include "workspace/settings.h"
 
 namespace regkit
@@ -127,42 +128,50 @@ std::vector<std::wstring> StripRegEditLaunchArg(const std::vector<std::wstring>&
     return stripped;
 }
 
-std::vector<std::wstring> FileArgs(const std::vector<std::wstring>& args, bool hives)
-{
-    std::vector<std::wstring> files;
-    for (const auto& arg : args)
-    {
-        if (arg.empty() || arg[0] == L'-' || arg[0] == L'/' || IsRegEditLaunchArg(arg))
-        {
-            continue;
-        }
-        if (hives ? IsHiveFile(arg) : util::HasFileExtension(arg, L".reg"))
-        {
-            files.push_back(arg);
-        }
-    }
-    return files;
-}
-
 bool LooksLikeRegistryPath(const std::wstring& arg)
 {
     RegistryNode node;
     return registry_path::ParseRoot(arg, &node);
 }
 
-std::wstring ExternalJumpTarget(const std::vector<std::wstring>& args)
+// only the win32 roots can be checked before the window exists, other paths count as found
+bool JumpTargetFound(const std::wstring& target)
 {
+    RegistryNode node;
+    if (!registry_path::ParseRoot(target, &node) || !node.root)
+    {
+        return true;
+    }
+    const std::wstring sid = util::GetCurrentUserSidString();
+    std::wstring key_path;
+    std::wstring value_name;
+    bool value_missing = false;
+    return registry_path::ResolveJumpTarget(
+               target, [&](const std::wstring& path) { return registry_path::Normalize(path, sid); },
+               [](const std::wstring& path, RegistryNode* key) { return registry_path::ParseRoot(path, key) && key->root && RegistryStore::KeyExists(*key); },
+               &key_path, &value_name, &value_missing) &&
+           !value_missing;
+}
+
+struct LaunchArgs
+{
+    std::wstring jump_target;
+    std::vector<std::wstring> reg_files;
+    std::vector<std::wstring> hive_files;
+    bool edit_reg = false;
+    std::wstring error;
+};
+
+LaunchArgs ParseLaunchArgs(const std::vector<std::wstring>& args)
+{
+    LaunchArgs launch;
     bool intercepted_regedit = false;
-    std::wstring explicit_key_path;
+    std::wstring unquoted;
     for (size_t index = 0; index < args.size(); ++index)
     {
         const std::wstring& arg = args[index];
-        if (util::EqualsInsensitive(arg, L"--goto") || util::EqualsInsensitive(arg, L"/goto"))
+        if (arg.empty())
         {
-            if (index + 1 < args.size())
-            {
-                explicit_key_path = args[++index];
-            }
             continue;
         }
         if (IsRegEditLaunchArg(arg))
@@ -170,35 +179,72 @@ std::wstring ExternalJumpTarget(const std::vector<std::wstring>& args)
             intercepted_regedit = true;
             continue;
         }
-        if (arg.empty())
+        const bool goto_arg = util::EqualsInsensitive(arg, L"--goto") || util::EqualsInsensitive(arg, L"/goto");
+        if (goto_arg || win32::ArgTakesValue(arg))
         {
+            if (++index >= args.size())
+            {
+                launch.error = util::TrLabel(L"Missing argument", arg);
+                return launch;
+            }
+            if (goto_arg)
+            {
+                launch.jump_target = args[index];
+            }
             continue;
         }
         if (arg[0] == L'-' || arg[0] == L'/')
         {
-            if (win32::ArgTakesValue(arg))
+            // RegEdit's own switches are accepted and ignored
+            const std::wstring_view name = std::wstring_view(arg).substr(1);
+            const bool regedit_switch = intercepted_regedit || util::EqualsInsensitive(name, L"m") || util::EqualsInsensitive(name, L"c") ||
+                                        util::StartsWithInsensitive(name, L"l:") || util::StartsWithInsensitive(name, L"r:");
+            launch.edit_reg = launch.edit_reg || util::EqualsInsensitive(arg, kEditRegFileArg);
+            if (!regedit_switch && !launch.edit_reg && !win32::IsInternalRestartArg(arg))
             {
-                ++index;
+                launch.error = util::TrLabel(L"Invalid option", arg);
+                return launch;
             }
             continue;
         }
         if (LooksLikeRegistryPath(arg))
         {
-            explicit_key_path = arg;
+            launch.jump_target = arg;
             continue;
         }
-        if (!explicit_key_path.empty())
+        const bool reg_file = util::HasFileExtension(arg, L".reg") && GetFileAttributesW(arg.c_str()) != INVALID_FILE_ATTRIBUTES;
+        if (reg_file || IsHiveFile(arg))
         {
-            return explicit_key_path + L"\\" + arg;
+            (reg_file ? launch.reg_files : launch.hive_files).push_back(arg);
+            continue;
         }
+        if (!launch.jump_target.empty())
+        {
+            unquoted = (unquoted.empty() ? launch.jump_target : unquoted) + L" " + arg;
+            continue;
+        }
+        launch.error = util::StartsWithInsensitive(arg, L"HK")                      ? util::TrDetail(L"Registry path not found.", arg)
+                       : GetFileAttributesW(arg.c_str()) == INVALID_FILE_ATTRIBUTES ? util::TrDetail(L"Registry file not found.", arg)
+                                                                                   : util::TrLabel(L"Invalid argument", arg);
+        return launch;
     }
-    std::wstring target = std::move(explicit_key_path);
-    if (target.empty() && intercepted_regedit &&
-        util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit", L"LastKey", &target) != ERROR_SUCCESS)
+    if (!unquoted.empty())
     {
-        target.clear();
+        launch.error = util::TrDetail(L"Registry paths with spaces must be in quotes.", unquoted);
     }
-    return target;
+    else if (launch.edit_reg && launch.reg_files.empty() && launch.hive_files.empty())
+    {
+        launch.error = util::TrLabel(L"Missing argument", kEditRegFileArg);
+    }
+    std::wstring last_key;
+    // RegEdit opens its last key, unless it was deleted since
+    if (launch.jump_target.empty() && intercepted_regedit &&
+        util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit", L"LastKey", &last_key) == ERROR_SUCCESS &&
+        JumpTargetFound(last_key))
+    {
+        launch.jump_target = std::move(last_key);
+    }
+    return launch;
 }
 
 bool IsOwnRegKitWindow(HWND hwnd)
@@ -315,6 +361,14 @@ constexpr RestartTarget kTrustedInstallerTarget = {
     L"Failed to restart with TrustedInstaller rights."
 };
 
+void ShowStartupError(const std::wstring& message)
+{
+    if (!cli::PrintErrorToTerminal(message))
+    {
+        ui::ShowError(nullptr, message);
+    }
+}
+
 bool RestartAs(const RestartTarget& target, DWORD parent_pid, const std::vector<std::wstring>& original_args, int* exit_code)
 {
     if (target.is_current())
@@ -324,7 +378,7 @@ bool RestartAs(const RestartTarget& target, DWORD parent_pid, const std::vector<
     const std::wstring exe_path = util::GetModulePath();
     if (exe_path.empty())
     {
-        ui::ShowError(nullptr, L"Failed to locate the executable path.");
+        ShowStartupError(util::Tr(L"Failed to locate the executable path."));
         return false;
     }
     // keep user arguments while replacing old internal restart flags
@@ -336,7 +390,7 @@ bool RestartAs(const RestartTarget& target, DWORD parent_pid, const std::vector<
         {
             return true;
         }
-        ui::ShowError(nullptr, target.request_failure);
+        ShowStartupError(util::Tr(target.request_failure));
         return false;
     }
     DWORD error = 0;
@@ -344,14 +398,14 @@ bool RestartAs(const RestartTarget& target, DWORD parent_pid, const std::vector<
     const bool launched = target.launch(L"\"" + exe_path + L"\" " + arguments, L"", &error, &impersonation_lost);
     if (impersonation_lost)
     {
-        ui::ShowError(nullptr, L"RegKit couldn't restore its own security context and must close now.");
+        ShowStartupError(util::Tr(L"RegKit couldn't restore its own security context and must close now."));
         *exit_code = launched ? 0 : 1;
         return true;
     }
     if (!launched)
     {
         const std::wstring detail = util::FormatWin32Error(error);
-        ui::ShowError(nullptr, detail.empty() ? target.launch_failure : std::wstring(target.launch_failure) + L"\n" + detail);
+        ShowStartupError(detail.empty() ? util::Tr(target.launch_failure) : util::TrDetail(target.launch_failure, detail));
     }
     return launched;
 }
@@ -450,7 +504,7 @@ int RunMessageLoop(MainWindow& window)
     {
         if (available == -1)
         {
-            ui::ShowError(nullptr, L"Message loop failed unexpectedly.");
+            ui::ShowError(nullptr, util::Tr(L"Message loop failed unexpectedly."));
             return 1;
         }
         if (!window.TranslateAccelerator(msg))
@@ -487,7 +541,7 @@ int Run(HINSTANCE instance, int cmd_show)
     util::ComInit com;
     if (!com.ok())
     {
-        ui::ShowError(nullptr, L"COM initialization failed.");
+        ShowStartupError(L"COM initialization failed.");
         return 1;
     }
 
@@ -505,10 +559,20 @@ int Run(HINSTANCE instance, int cmd_show)
         return cli_exit;
     }
     const workspace::Settings startup_settings = LoadStartupSettings();
+    util::LoadLanguage(startup_settings.language);
     ApplyStartupTheme(startup_settings);
-    const std::wstring jump_target = ExternalJumpTarget(args);
-    const bool edit_reg_file_requested = HasCommandLineArg(args, kEditRegFileArg);
-    const std::vector<std::wstring> reg_files = FileArgs(args, false);
+    LaunchArgs launch = ParseLaunchArgs(args);
+    if (!launch.error.empty())
+    {
+        ShowStartupError(launch.error);
+        return 1;
+    }
+    // without a terminal the window offers the nearest key instead
+    if (!launch.jump_target.empty() && !JumpTargetFound(launch.jump_target) &&
+        cli::PrintErrorToTerminal(util::TrDetail(L"Registry path not found.", launch.jump_target)))
+    {
+        return 1;
+    }
     const bool stay_as_user = HasCommandLineArg(args, kRestartUserArg);
     const DWORD restart_parent_pid = win32::RestartParentPid(args);
     const DWORD handoff_pid = restart_parent_pid != 0 ? restart_parent_pid : GetCurrentProcessId();
@@ -535,20 +599,20 @@ int Run(HINSTANCE instance, int cmd_show)
         {
             return 0;
         }
-        ui::ShowError(nullptr, L"Administrator restart was cancelled.");
+        ShowStartupError(util::Tr(L"Administrator restart was cancelled."));
     }
 
-    if (!edit_reg_file_requested && !reg_files.empty())
+    if (!launch.edit_reg && !launch.reg_files.empty())
     {
-        return MergeRegFiles(reg_files);
+        return MergeRegFiles(launch.reg_files);
     }
 
     win32::WaitForParentExit(restart_parent_pid);
 
-    std::vector<std::wstring> edit_files = FileArgs(args, true);
-    if (edit_reg_file_requested)
+    std::vector<std::wstring>& edit_files = launch.hive_files;
+    if (launch.edit_reg)
     {
-        edit_files.insert(edit_files.begin(), reg_files.begin(), reg_files.end());
+        edit_files.insert(edit_files.begin(), launch.reg_files.begin(), launch.reg_files.end());
     }
     util::UniqueHandle instance_mutex;
     if (startup_settings.single_instance)
@@ -556,7 +620,7 @@ int Run(HINSTANCE instance, int cmd_show)
         instance_mutex.reset(CreateMutexW(nullptr, TRUE, L"RegKit.SingleInstance"));
         const DWORD mutex_error = GetLastError();
         if ((mutex_error == ERROR_ALREADY_EXISTS || mutex_error == ERROR_ACCESS_DENIED) &&
-            HandOffToRunningInstance(instance, jump_target, edit_files))
+            HandOffToRunningInstance(instance, launch.jump_target, edit_files))
         {
             return 0;
         }
@@ -565,12 +629,12 @@ int Run(HINSTANCE instance, int cmd_show)
     MainWindow window;
     if (!window.Create(instance))
     {
-        ui::ShowError(nullptr, L"Failed to create the main window.");
+        ShowStartupError(util::Tr(L"Failed to create the main window."));
         return 1;
     }
-    if (!jump_target.empty())
+    if (!launch.jump_target.empty())
     {
-        window.QueueExternalJump(jump_target);
+        window.QueueExternalJump(launch.jump_target);
     }
     for (const auto& path : edit_files)
     {

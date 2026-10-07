@@ -26,7 +26,6 @@ bool MainWindow::Impl::OnCreate()
     icon_font_ = CreateIconFont(10);
     custom_font_ = DefaultLogFont();
     LoadSettings();
-    util::LoadLanguage(settings_.language);
     if (theme_mode_ == ThemeMode::kCustom)
     {
         LoadThemePresets();
@@ -355,10 +354,10 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
             payload->default_comments.clear();
         }
         const std::wstring comments_path = CommentsPath();
-        if (!comments_path.empty() &&
-            util::ReadTextFile(comments_path, &comments_content, nullptr, util::kMaxCommentFileBytes))
+        if (!comments_path.empty() && GetFileAttributesW(comments_path.c_str()) != INVALID_FILE_ATTRIBUTES)
         {
-            payload->comments_unreadable = !changes::ParseComments(comments_content, &payload->user_comments);
+            payload->comments_unreadable = !util::ReadTextFile(comments_path, &comments_content, nullptr, util::kMaxCommentFileBytes) ||
+                                           !changes::ParseComments(comments_content, &payload->user_comments);
         }
         payload->comments_loaded = true;
         if (cancel.load())
@@ -437,6 +436,7 @@ void MainWindow::Impl::ApplyStartupCachePayload(std::unique_ptr<StartupCachePayl
         loaded.Merge(value_comments_.rules());
         value_comments_ = std::move(loaded);
         comments_unreadable_ = owned->comments_unreadable;
+        comments_loaded_ = true;
         if (comments_unreadable_)
         {
             ui::PromptKeyChoice(

@@ -671,9 +671,12 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds)
     std::unordered_set<std::wstring> reserved_files;
     for (const auto& search_tab : search_tabs_)
     {
-        if (!search_tab.cache_file.empty())
+        for (const std::wstring* name : {&search_tab.cache_file, &search_tab.compare_cache_file})
         {
-            reserved_files.insert(search_tab.cache_file);
+            if (!name->empty())
+            {
+                reserved_files.insert(*name);
+            }
         }
     }
     workspace::TabState state;
@@ -820,7 +823,11 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds)
         saved_active_index = 0;
     }
     state.active_index = saved_active_index;
-    const bool saved = workspace::SaveTabs(path, state) && saved_all;
+    // the old metadata still references the old caches when it can't be replaced
+    if (!workspace::SaveTabs(path, state))
+    {
+        return false;
+    }
 
     for (const auto& search_tab : search_tabs_)
     {
@@ -857,7 +864,7 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds)
         } while (FindNextFileW(find, &data) != 0);
         FindClose(find);
     }
-    return saved;
+    return saved_all;
 }
 
 std::wstring MainWindow::Impl::CommentsPath() const
@@ -883,7 +890,19 @@ std::wstring MainWindow::Impl::CommentKeyPath(const RegistryNode& node) const
 
 bool MainWindow::Impl::SaveComments() const
 {
-    return !comments_unreadable_ && value_comments_.Save(CommentsPath());
+    if (comments_loaded_)
+    {
+        return !comments_unreadable_ && value_comments_.Save(CommentsPath());
+    }
+    // the startup load hasn't merged the file yet, so add to it instead of replacing it
+    const std::wstring path = CommentsPath();
+    changes::ValueComments merged;
+    if (!merged.Load(path) && GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES)
+    {
+        return false;
+    }
+    merged.Merge(value_comments_.rules());
+    return merged.Save(path);
 }
 
 bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path, size_t* imported)

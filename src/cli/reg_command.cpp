@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <memory>
+#include <numeric>
 #include <optional>
 
 namespace regkit::cli
@@ -211,25 +212,10 @@ std::wstring FormatData(DWORD type, const BYTE* data, DWORD size, const std::wst
         }
     case REG_DWORD:
     case REG_DWORD_BIG_ENDIAN:
-        {
-            DWORD value = 0;
-            if (size >= sizeof(value))
-            {
-                memcpy(&value, data, sizeof(value));
-            }
-            wchar_t buffer[24] = {};
-            swprintf_s(buffer, L"0x%x", value);
-            return buffer;
-        }
     case REG_QWORD:
         {
-            unsigned long long value = 0;
-            if (size >= sizeof(value))
-            {
-                memcpy(&value, data, sizeof(value));
-            }
             wchar_t buffer[32] = {};
-            swprintf_s(buffer, L"0x%llx", value);
+            swprintf_s(buffer, L"0x%llx", value_format::ReadUnsigned({data, size}, type == REG_QWORD ? 8 : 4, type == REG_DWORD_BIG_ENDIAN));
             return buffer;
         }
     default:
@@ -364,6 +350,11 @@ int QueryKey(const KeyRef& key, Query& query, bool name_matched)
         return (!query.types.empty() && std::find(query.types.begin(), query.types.end(), value.type) == query.types.end()) ||
                (options.has_find && !query.Matches(value));
     });
+    const bool unset_default = options.default_value && !query.search && contents.values.empty();
+    if (unset_default)
+    {
+        contents.values.push_back({L"", REG_SZ});
+    }
     const bool listing = !query.search && !options.has_value;
     if (listing || name_matched || !contents.values.empty())
     {
@@ -371,7 +362,8 @@ int QueryKey(const KeyRef& key, Query& query, bool name_matched)
         for (const RegistryValue& value : contents.values)
         {
             const std::wstring type = TypeName(value.type) + (options.verbose ? L" (" + std::to_wstring(value.type) + L")" : std::wstring());
-            Print(L"    " + ValueName(value) + L"    " + type + L"    " + FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size()), options.separator));
+            Print(L"    " + ValueName(value) + L"    " + type + L"    " +
+                  (unset_default ? L"(value not set)" : FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size()), options.separator)));
         }
         Print(L"");
     }
@@ -441,7 +433,7 @@ int CmdQuery(const std::vector<std::wstring>& args)
     query.search_keys = !scoped || options.keys_only;
     query.search_names = !scoped || options.value_names;
     query.search_data = !scoped || options.data_only;
-    query.search = options.has_find || !query.types.empty();
+    query.search = options.has_find || !query.types.empty() || (options.has_value && options.recurse);
     Print(L"");
     const int result = QueryKey(key, query, false);
     if (result != kOk)
@@ -649,6 +641,13 @@ int CmdCopy(const std::vector<std::wstring>& args)
     {
         return kFailed;
     }
+    // a recursive copy into its own subtree would keep copying what it just wrote
+    if (from.root == to.root && (util::EqualsInsensitive(from.subkey, to.subkey) ||
+                                 (options.recurse && (from.subkey.empty() || registry_path::HasComponentPrefix(to.subkey, from.subkey)))))
+    {
+        PrintError(L"The registry entry cannot be copied onto itself or into its own subkey.");
+        return kFailed;
+    }
     const LONG status = CopyTree(from, to, options.view, options.recurse);
     if (status != ERROR_SUCCESS)
     {
@@ -721,13 +720,19 @@ int CmdExport(const std::vector<std::wstring>& args)
 
 int CmdImport(const std::vector<std::wstring>& args)
 {
-    if (args.size() < 2)
+    Options options;
+    std::vector<std::wstring> positional;
+    if (!ParseOptions(args, 1, &options, &positional))
     {
-        PrintError(L"reg import requires a file name.");
+        return kFailed;
+    }
+    if (positional.size() != 1)
+    {
+        PrintError(positional.empty() ? L"reg import requires a file name." : L"Invalid syntax.");
         return kFailed;
     }
     std::wstring error;
-    if (!ImportRegFileFromPath(args[1], &error))
+    if (!ImportRegFileFromPath(positional[0], &error, options.view))
     {
         PrintError(error.empty() ? L"Import failed." : error);
         return kFailed;
@@ -844,7 +849,7 @@ struct Compare
     const Options& options;
     bool differs = false;
 
-    // = equal, < only or different on the left, > on the right; /oa /od /os /on pick which lines print
+    // = equal, < only or different on the left, > on the right, /oa /od /os /on pick which lines print
     void Line(wchar_t mark, const KeyRef& key, const RegistryValue* value)
     {
         const bool equal = mark == L'=';
@@ -867,6 +872,31 @@ struct Compare
     }
 };
 
+template <typename Item, typename Name>
+class NameIndex
+{
+  public:
+    NameIndex(const std::vector<Item>& items, Name name)
+        : items_(items), name_(name), order_(items.size())
+    {
+        std::iota(order_.begin(), order_.end(), size_t{0});
+        std::sort(order_.begin(), order_.end(), [&](size_t a, size_t b) { return util::CompareInsensitive(name_(items_[a]), name_(items_[b])) < 0; });
+    }
+
+    const Item* Find(const std::wstring& name) const
+    {
+        const auto found = std::lower_bound(order_.begin(), order_.end(), name, [&](size_t index, const std::wstring& key) {
+            return util::CompareInsensitive(name_(items_[index]), key) < 0;
+        });
+        return found != order_.end() && util::CompareInsensitive(name_(items_[*found]), name) == 0 ? &items_[*found] : nullptr;
+    }
+
+  private:
+    const std::vector<Item>& items_;
+    Name name_;
+    std::vector<size_t> order_;
+};
+
 int CompareKeys(const KeyRef& left, const KeyRef& right, Compare& compare, bool top)
 {
     const Options& options = compare.options;
@@ -887,13 +917,12 @@ int CompareKeys(const KeyRef& left, const KeyRef& right, Compare& compare, bool 
     {
         return Fail(ERROR_FILE_NOT_FOUND);
     }
-    auto find_value = [](const std::vector<RegistryValue>& list, const std::wstring& name) -> const RegistryValue* {
-        const auto found = std::find_if(list.begin(), list.end(), [&](const RegistryValue& value) { return util::EqualsInsensitive(value.name, name); });
-        return found == list.end() ? nullptr : &*found;
-    };
+    const auto value_name = [](const RegistryValue& value) -> const std::wstring& { return value.name; };
+    const NameIndex left_values(left_contents.values, value_name);
+    const NameIndex right_values(right_contents.values, value_name);
     for (const RegistryValue& value : left_contents.values)
     {
-        const RegistryValue* other = find_value(right_contents.values, value.name);
+        const RegistryValue* other = right_values.Find(value.name);
         if (other && other->type == value.type && other->data == value.data)
         {
             compare.Line(L'=', left, &value);
@@ -907,7 +936,7 @@ int CompareKeys(const KeyRef& left, const KeyRef& right, Compare& compare, bool 
     }
     for (const RegistryValue& value : right_contents.values)
     {
-        if (!find_value(left_contents.values, value.name))
+        if (!left_values.Find(value.name))
         {
             compare.Line(L'>', right, &value);
         }
@@ -916,13 +945,13 @@ int CompareKeys(const KeyRef& left, const KeyRef& right, Compare& compare, bool 
     {
         return kOk;
     }
-    auto has_child = [](const std::vector<std::wstring>& list, const std::wstring& name) {
-        return std::any_of(list.begin(), list.end(), [&](const std::wstring& item) { return util::EqualsInsensitive(item, name); });
-    };
+    const auto key_name = [](const std::wstring& name) -> const std::wstring& { return name; };
+    const NameIndex left_keys(left_contents.subkeys, key_name);
+    const NameIndex right_keys(right_contents.subkeys, key_name);
     // keys on both sides first, then keys found on one side only, which aren't descended into
     for (const std::wstring& child : left_contents.subkeys)
     {
-        if (has_child(right_contents.subkeys, child))
+        if (right_keys.Find(child))
         {
             compare.Line(L'=', ChildRef(left, child), nullptr);
             if (CompareKeys(ChildRef(left, child), ChildRef(right, child), compare, false) == kFailed)
@@ -933,14 +962,14 @@ int CompareKeys(const KeyRef& left, const KeyRef& right, Compare& compare, bool 
     }
     for (const std::wstring& child : left_contents.subkeys)
     {
-        if (!has_child(right_contents.subkeys, child))
+        if (!right_keys.Find(child))
         {
             compare.Line(L'<', ChildRef(left, child), nullptr);
         }
     }
     for (const std::wstring& child : right_contents.subkeys)
     {
-        if (!has_child(left_contents.subkeys, child))
+        if (!left_keys.Find(child))
         {
             compare.Line(L'>', ChildRef(right, child), nullptr);
         }
@@ -1044,7 +1073,8 @@ int CmdFlags(const std::vector<std::wstring>& args)
     {
         return kFailed;
     }
-    if (positional.size() < 2 || (util::EqualsInsensitive(positional[1], L"QUERY") ? positional.size() != 2 : !util::EqualsInsensitive(positional[1], L"SET")))
+    const bool set_verb = positional.size() > 1 && util::EqualsInsensitive(positional[1], L"SET");
+    if (positional.empty() || (!set_verb && positional.size() > 1 && (positional.size() > 2 || !util::EqualsInsensitive(positional[1], L"QUERY"))))
     {
         PrintError(L"Invalid syntax.");
         return kFailed;
@@ -1061,7 +1091,7 @@ int CmdFlags(const std::vector<std::wstring>& args)
         return kFailed;
     }
     std::optional<ULONG> set;
-    if (util::EqualsInsensitive(positional[1], L"SET"))
+    if (set_verb)
     {
         set = 0;
         for (size_t index = 2; index < positional.size(); ++index)
@@ -1284,6 +1314,17 @@ bool Execute(const std::vector<std::wstring>& args, int* exit_code)
         }
     }
     return false;
+}
+
+bool PrintErrorToTerminal(const std::wstring& text)
+{
+    const HANDLE error = GetStdHandle(STD_ERROR_HANDLE);
+    if ((!error || error == INVALID_HANDLE_VALUE) && !AttachConsole(ATTACH_PARENT_PROCESS))
+    {
+        return false;
+    }
+    PrintError(text);
+    return true;
 }
 
 } // namespace regkit::cli

@@ -525,6 +525,10 @@ std::wstring RenderBatch(const std::vector<Operation>& operations, bool admin_ch
         {
             reason = util::Tr(L"too long for a batch line");
         }
+        if (reason.empty() && !line.empty() && !WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, line.data(), static_cast<int>(line.size()), nullptr, 0, nullptr, nullptr))
+        {
+            reason = util::Tr(L"The text isn't valid UTF-16.");
+        }
         if (!reason.empty())
         {
             skipped->push_back(Describe(operation, reason));

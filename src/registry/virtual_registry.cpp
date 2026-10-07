@@ -29,14 +29,18 @@ std::unordered_map<HKEY, RootEntry> g_roots;
 template <typename Key>
 Key* FindKey(Key* current, const std::wstring& subkey)
 {
-    for (const auto& part : registry_path::Split(subkey))
+    std::wstring part;
+    for (size_t start = 0; current && start < subkey.size(); ++start)
     {
-        if (!current)
+        const size_t end = std::min(subkey.find(L'\\', start), subkey.size());
+        if (end > start)
         {
-            break;
+            part.assign(subkey, start, end - start);
+            CharLowerBuffW(part.data(), static_cast<DWORD>(part.size()));
+            const auto child = current->children.find(part);
+            current = child == current->children.end() ? nullptr : child->second.get();
         }
-        const auto child = current->children.find(util::ToLower(part));
-        current = child == current->children.end() ? nullptr : child->second.get();
+        start = end;
     }
     return current;
 }

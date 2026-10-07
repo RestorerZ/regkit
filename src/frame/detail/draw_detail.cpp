@@ -215,23 +215,23 @@ int FetchListViewItemText(HWND list, int index, int column, std::wstring* buffer
     {
         buffer->resize(1);
     }
+    // the returned length is what fit, so grow while the text fills the buffer
+    constexpr size_t kMaxText = 1u << 20;
     LVITEMW item = {};
     item.iSubItem = column;
-    item.pszText = buffer->data();
-    item.cchTextMax = static_cast<int>(buffer->size());
-    int length = static_cast<int>(
-        SendMessageW(list, LVM_GETITEMTEXTW, static_cast<WPARAM>(index), reinterpret_cast<LPARAM>(&item))
-    );
-    if (length >= static_cast<int>(buffer->size() - 1))
+    for (;;)
     {
-        buffer->resize(static_cast<size_t>(length) + 2);
         item.pszText = buffer->data();
         item.cchTextMax = static_cast<int>(buffer->size());
-        length = static_cast<int>(
+        const int length = static_cast<int>(
             SendMessageW(list, LVM_GETITEMTEXTW, static_cast<WPARAM>(index), reinterpret_cast<LPARAM>(&item))
         );
+        if (static_cast<size_t>(length) + 1 < buffer->size() || buffer->size() >= kMaxText)
+        {
+            return length;
+        }
+        buffer->resize(buffer->size() * 2);
     }
-    return length;
 }
 
 int CalcListViewColumnFitWidth(HWND list, int column, int min_width)

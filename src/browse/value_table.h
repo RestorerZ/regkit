@@ -51,6 +51,7 @@ struct ListRow
     DWORD value_type = 0;
     DWORD value_data_size = 0;
     bool data_ready = false;
+    bool data_preview = false;
     bool simulated = false;
     // a value the registry doesn't have (trace, or unset default)
     bool missing = false;

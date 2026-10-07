@@ -541,9 +541,17 @@ bool ParseOperations(std::wstring_view content, std::vector<Operation>* output, 
                 }
             }
         }
-        // regedit & reg export write each LF inside a string as CRLF
+        // regedit & reg export write each LF inside a string as CRLF, other exporters wrap long strings with a backslash and a two space indent
         if (quoted && has_newline)
         {
+            if (!logical.empty() && logical.back() == L'\\' && content.substr(start, 2) == L"  ")
+            {
+                logical.pop_back();
+                escaped = !escaped;
+                start += 2;
+                continuing = false;
+                continue;
+            }
             logical.push_back(L'\n');
             continuing = false;
             continue;
@@ -608,18 +616,28 @@ bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* 
     return true;
 }
 
+bool ReadText(const std::wstring& path, std::wstring* content, std::wstring* error)
+{
+    // parsing peaks at 3-8x the file size, a 32 bit process runs out above about 600 MiB
+    constexpr uint64_t kMaxBytes = sizeof(void*) == 8 ? 1024ull << 20 : 256ull << 20;
+    if (util::ReadTextFile(path, content, nullptr, kMaxBytes))
+    {
+        return true;
+    }
+    WIN32_FILE_ATTRIBUTE_DATA attributes = {};
+    const bool large = GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &attributes) &&
+                       (static_cast<uint64_t>(attributes.nFileSizeHigh) << 32 | attributes.nFileSizeLow) > kMaxBytes;
+    if (error)
+    {
+        *error = util::TrDetail(large ? L"The file is larger than RegKit can load." : L"The file couldn't be read or is empty.", path);
+    }
+    return false;
+}
+
 bool Load(const std::wstring& path, Document* output, std::wstring* error, const std::atomic_bool* cancel, bool* cancelled)
 {
     std::wstring content;
-    if (!util::ReadTextFile(path, &content, nullptr, 32ull * 1024ull * 1024ull))
-    {
-        if (error)
-        {
-            *error = util::Tr(L"Failed to read registry file.");
-        }
-        return false;
-    }
-    return Parse(content, output, cancel, cancelled, error);
+    return ReadText(path, &content, error) && Parse(content, output, cancel, cancelled, error);
 }
 
 std::wstring RenderReg(const std::vector<Operation>& operations)

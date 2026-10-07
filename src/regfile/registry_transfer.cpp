@@ -136,10 +136,9 @@ std::wstring DefaultExportPath(const std::wstring& key_path, const wchar_t* exte
     return documents.empty() ? file_name : util::JoinPath(documents, file_name);
 }
 
-bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error)
+bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error, REGSAM view)
 {
-    return !path.empty() &&
-           RunRegCommand(L"import \"" + path + L"\" " + win32::RegExeViewSwitch(win32::kDefaultRegistryView), error);
+    return !path.empty() && RunRegCommand(L"import \"" + path + L"\" " + win32::RegExeViewSwitch(view), error);
 }
 
 bool IsHiveFile(const std::wstring& path)

@@ -153,6 +153,7 @@ bool MainWindow::Impl::LoadDefaultFromPrompt()
 
 void MainWindow::Impl::ClearDefaults()
 {
+    default_load_session_.Cancel();
     StopDefaultParseSessions();
     active_defaults_.clear();
     SaveActiveDefaults();

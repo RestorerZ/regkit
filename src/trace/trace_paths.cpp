@@ -8,6 +8,7 @@
 #include "win32/process_rights.h"
 #include "win32/text_transform.h"
 
+#include <algorithm>
 #include <cstring>
 #include <cwctype>
 #include <mutex>

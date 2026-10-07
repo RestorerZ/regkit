@@ -33,7 +33,7 @@ using util::FormatWin32Error;
 
 constexpr wchar_t kRegFileFilter[] = L"Registry Files (*.reg)\0*.reg\0All Files (*.*)\0*.*\0";
 
-bool ResolveExportKey(const std::wstring& key_path, RegistryNode* node, std::wstring* display, std::wstring* error)
+bool ResolveExportKey(const std::wstring& key_path, REGSAM view, RegistryNode* node, std::wstring* display, std::wstring* error)
 {
     *display = registry_path::Normalize(key_path, util::GetCurrentUserSidString());
     if (!registry_path::ParseRoot(*display, node) || !node->root)
@@ -44,6 +44,7 @@ bool ResolveExportKey(const std::wstring& key_path, RegistryNode* node, std::wst
         }
         return false;
     }
+    node->view = view;
     return true;
 }
 
@@ -71,7 +72,7 @@ bool ReportUnreadableKey(LONG status, const std::wstring& display, std::wstring*
 
 } // namespace
 
-bool ExportRegFile(HWND owner, const std::wstring& key_path, bool allow_hive, std::wstring* error, std::wstring* saved_path, win32::OpenAfter* open_after)
+bool ExportRegFile(HWND owner, const std::wstring& key_path, REGSAM view, bool allow_hive, std::wstring* error, std::wstring* saved_path, win32::OpenAfter* open_after)
 {
     static win32::OpenAfter last_open_after = win32::OpenAfter::kNone;
     editors::ExportRequest request;
@@ -85,7 +86,7 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, bool allow_hive, st
     }
     RegistryNode node;
     std::wstring display;
-    if (!ResolveExportKey(key_path, &node, &display, error))
+    if (!ResolveExportKey(key_path, view, &node, &display, error))
     {
         return false;
     }
@@ -118,7 +119,7 @@ bool ExportRegFile(HWND owner, const std::wstring& key_path, bool allow_hive, st
     return true;
 }
 
-bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const std::vector<std::wstring>& value_names, const std::vector<std::wstring>& subkey_names, std::wstring* error, std::wstring* saved_path, win32::OpenAfter* open_after)
+bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, REGSAM view, const std::vector<std::wstring>& value_names, const std::vector<std::wstring>& subkey_names, std::wstring* error, std::wstring* saved_path, win32::OpenAfter* open_after)
 {
     if (value_names.empty() && subkey_names.empty())
     {
@@ -146,7 +147,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
     {
         RegistryNode base;
         std::wstring display;
-        if (!ResolveExportKey(base_key_path, &base, &display, error))
+        if (!ResolveExportKey(base_key_path, view, &base, &display, error))
         {
             return false;
         }
@@ -184,7 +185,7 @@ bool ExportRegFileSelection(HWND owner, const std::wstring& base_key_path, const
         }
         RegistryNode node;
         std::wstring display;
-        if (!ResolveExportKey(base_key_path.empty() ? subkey : base_key_path + L"\\" + subkey, &node, &display, error))
+        if (!ResolveExportKey(base_key_path.empty() ? subkey : base_key_path + L"\\" + subkey, view, &node, &display, error))
         {
             return false;
         }

@@ -269,6 +269,27 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
         }
     case cmd::kEditCopy:
         {
+            const auto capture_row = [this](const ListRow* row) {
+                const RegistryNode& node = *browse_.current_node();
+                clipboard_.kind = ClipboardItem::Kind::kNone;
+                if (row && row->kind == rowkind::kValue)
+                {
+                    if (!GetValueEntry(node, row->extra, &clipboard_.value))
+                    {
+                        return false;
+                    }
+                    clipboard_.kind = ClipboardItem::Kind::kValue;
+                    clipboard_.name = clipboard_.value.name;
+                }
+                else if (row && row->kind == rowkind::kKey)
+                {
+                    clipboard_.kind = ClipboardItem::Kind::kKey;
+                    clipboard_.name = row->extra;
+                    clipboard_.key_snapshot = changes::CaptureKey(ChildNode(node, row->extra), false);
+                }
+                clipboard_.source_parent = node;
+                return true;
+            };
             HWND focus = GetFocus();
             if (focus == browse_.tree().hwnd() && browse_.current_node() && !browse_.current_node()->subkey.empty())
             {
@@ -293,33 +314,13 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                     {
                         ui::CopyTextToClipboard(hwnd_, text);
                     }
-                    if (list == browse_.values().hwnd() && selected == 1 && browse_.current_node())
-                    {
-                        int index = -1;
-                        const ListRow* row = SelectedValueRow(browse_.values(), &index);
-                        if (row && row->kind == rowkind::kValue)
-                        {
-                            RegistryValue entry;
-                            if (GetValueEntry(*browse_.current_node(), row->extra, &entry))
-                            {
-                                clipboard_.kind = ClipboardItem::Kind::kValue;
-                                clipboard_.source_parent = *browse_.current_node();
-                                clipboard_.name = entry.name;
-                                clipboard_.value = entry;
-                            }
-                        }
-                        else if (row && row->kind == rowkind::kKey)
-                        {
-                            RegistryNode child = ChildNode(*browse_.current_node(), row->extra);
-                            clipboard_.kind = ClipboardItem::Kind::kKey;
-                            clipboard_.source_parent = *browse_.current_node();
-                            clipboard_.name = row->extra;
-                            clipboard_.key_snapshot = changes::CaptureKey(child, false);
-                        }
-                    }
-                    else if (list == browse_.values().hwnd())
+                    if (list == browse_.values().hwnd())
                     {
                         clipboard_.kind = ClipboardItem::Kind::kNone;
+                        if (selected == 1 && browse_.current_node())
+                        {
+                            capture_row(SelectedValueRow(browse_.values(), nullptr));
+                        }
                     }
                     return true;
                 }
@@ -328,37 +329,15 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
             {
                 return true;
             }
-            int index = -1;
-            const ListRow* row = SelectedValueRow(browse_.values(), &index);
-            if (row && row->kind == rowkind::kValue)
+            const ListRow* row = SelectedValueRow(browse_.values(), nullptr);
+            if (!capture_row(row))
             {
-                RegistryValue entry;
-                if (GetValueEntry(*browse_.current_node(), row->extra, &entry))
-                {
-                    clipboard_.kind = ClipboardItem::Kind::kValue;
-                    clipboard_.source_parent = *browse_.current_node();
-                    clipboard_.name = entry.name;
-                    clipboard_.value = entry;
-                    ui::CopyTextToClipboard(hwnd_, row->name);
-                }
-                else
-                {
-                    ui::ShowError(hwnd_, util::Tr(L"Failed to read value."));
-                }
+                ui::ShowError(hwnd_, util::Tr(L"Failed to read value."));
                 return true;
             }
-            if (row && row->kind == rowkind::kKey)
-            {
-                RegistryNode child = ChildNode(*browse_.current_node(), row->extra);
-                clipboard_.kind = ClipboardItem::Kind::kKey;
-                clipboard_.source_parent = *browse_.current_node();
-                clipboard_.name = row->extra;
-                clipboard_.key_snapshot = changes::CaptureKey(child, false);
-                ui::CopyTextToClipboard(hwnd_, registry_path::Build(child));
-                return true;
-            }
-            clipboard_.kind = ClipboardItem::Kind::kNone;
-            ui::CopyTextToClipboard(hwnd_, registry_path::Build(*browse_.current_node()));
+            const bool key_row = row && row->kind == rowkind::kKey;
+            ui::CopyTextToClipboard(hwnd_, row && row->kind == rowkind::kValue ? row->name
+                                           : registry_path::Build(key_row ? ChildNode(*browse_.current_node(), row->extra) : *browse_.current_node()));
             return true;
         }
     default:
@@ -460,10 +439,11 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                         base_name += L" - Copy";
                     }
                 }
-                std::wstring unique = MakeUniqueValueName(*browse_.current_node(), base_name);
+                const std::optional<std::wstring> free_name = MakeUniqueValueName(*browse_.current_node(), base_name);
+                const std::wstring unique = free_name.value_or(L"");
                 RegistryValue new_value = clipboard_.value;
                 new_value.name = unique;
-                if (!RegistryStore::SetValue(*browse_.current_node(), unique, new_value.type, new_value.data))
+                if (!free_name || !RegistryStore::SetValue(*browse_.current_node(), unique, new_value.type, new_value.data))
                 {
                     ui::ShowError(hwnd_, util::Tr(L"Failed to paste value."));
                 }

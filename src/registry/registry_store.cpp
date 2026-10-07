@@ -4,6 +4,10 @@
 #include "registry/registry_store.h"
 
 #include "registry/registry_backends.h"
+#include "registry/registry_path.h"
+#include "win32/text_transform.h"
+
+#include <algorithm>
 
 namespace regkit
 {
@@ -115,6 +119,24 @@ bool RegistryStore::QueryKeyInfo(const RegistryNode& node, KeyInfo* info)
         [&] { return registry_backend::offline::QueryKeyInfo(node, info); },
         [&] { return registry_backend::live::QueryKeyInfo(node, info); }
     );
+}
+
+bool RegistryStore::KeyExists(const RegistryNode& node)
+{
+    KeyInfo info = {};
+    if (QueryKeyInfo(node, &info))
+    {
+        return true;
+    }
+    if (node.subkey.empty())
+    {
+        return false;
+    }
+    RegistryNode parent = node;
+    parent.subkey = registry_path::Parent(node.subkey);
+    const std::wstring leaf = registry_path::Leaf(node.subkey);
+    const std::vector<std::wstring> names = EnumSubKeyNames(parent, false);
+    return std::any_of(names.begin(), names.end(), [&](const std::wstring& name) { return util::EqualsInsensitive(name, leaf); });
 }
 
 bool RegistryStore::QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, bool* denied)

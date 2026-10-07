@@ -391,6 +391,13 @@ bool MainWindow::Impl::OpenSearchResultRow(int item, bool new_tab)
     const search::Result* row = SearchResultAt(item);
     const bool value_row = row && !search::IsKeyRow(*row);
     const std::wstring value_name = value_row ? row->value_name : std::wstring();
+    const SearchTab& search_tab = search_tabs_[static_cast<size_t>(index)];
+    const search::Source source = row && row->source < search_tab.sources.size() ? search_tab.sources[row->source] : search::Source{};
+    if (source.kind != search::Source::Kind::kLocal)
+    {
+        OpenSourceEntry(source, path, value_name, new_tab || FindSourceTab(source) < 0);
+        return true;
+    }
     if (new_tab)
     {
         OpenLocalRegistryTab();

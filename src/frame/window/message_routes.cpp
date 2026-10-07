@@ -66,6 +66,18 @@ bool IsSiblingRegKitWindow(HWND sender)
     return !sender_image.empty() && !own_image.empty() && util::EqualsInsensitive(sender_image, own_image);
 }
 
+// entries the user added while the startup list loaded replace loaded ones with the same source
+template <typename Active>
+bool MergeAdded(std::vector<Active>* loaded, std::vector<Active>&& added)
+{
+    for (Active& entry : added)
+    {
+        std::erase_if(*loaded, [&](const Active& old) { return util::EqualsInsensitive(old.source_path, entry.source_path); });
+        loaded->push_back(std::move(entry));
+    }
+    return !added.empty();
+}
+
 } // namespace
 
 LRESULT MainWindow::Impl::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
@@ -496,7 +508,8 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
                 return 0;
             }
             SearchTab& tab = search_tabs_[static_cast<size_t>(owned->tab_index)];
-            if (tab.generation != owned->generation || tab.results.size() != owned->rows.size())
+            if (tab.generation != owned->generation || tab.results.size() != owned->rows.size() || tab.sort_column != owned->column ||
+                tab.sort_ascending != owned->ascending)
             {
                 return 0;
             }
@@ -559,8 +572,20 @@ std::optional<LRESULT> MainWindow::Impl::HandleLoadWorkerMessage(UINT message, W
                 return 0;
             }
             trace_load_session_.Join();
+            for (const ActiveTrace& added : active_traces_)
+            {
+                if (const auto cached = trace_selection_cache_.find(ToLower(added.source_path)); cached != trace_selection_cache_.end())
+                {
+                    owned->selection_cache[cached->first] = cached->second;
+                }
+            }
+            const bool edited = MergeAdded(&owned->traces, std::move(active_traces_));
             active_traces_ = std::move(owned->traces);
             trace_selection_cache_ = std::move(owned->selection_cache);
+            if (edited)
+            {
+                SaveActiveTraces();
+            }
             RefreshTreeSelection();
             UpdateValueListForNode(browse_.current_node());
             return 0;
@@ -577,7 +602,12 @@ std::optional<LRESULT> MainWindow::Impl::HandleLoadWorkerMessage(UINT message, W
                 return 0;
             }
             default_load_session_.Join();
+            const bool edited = MergeAdded(&owned->defaults, std::move(active_defaults_));
             active_defaults_ = std::move(owned->defaults);
+            if (edited)
+            {
+                SaveActiveDefaults();
+            }
             UpdateValueListForNode(browse_.current_node());
             return 0;
         }
@@ -958,6 +988,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message, 
                     row->size = std::to_wstring(item.size);
                 }
                 row->data_ready = true;
+                row->data_preview = item.size > kValuePreviewBytes || item.preview.size() >= kValuePreviewLimit;
                 browse_.values().InvalidateFilterCache(row);
                 first = first < 0 ? index : std::min(first, index);
                 last = std::max(last, index);
@@ -1410,7 +1441,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message, WPARA
                 if (needs_full_data)
                 {
                     needs_full_data =
-                        std::any_of(browse_.values().rows().begin(), browse_.values().rows().end(), [](const ListRow& row) { return row.kind == rowkind::kValue && !row.data_ready; });
+                        std::any_of(browse_.values().rows().begin(), browse_.values().rows().end(), [](const ListRow& row) { return row.kind == rowkind::kValue && (!row.data_ready || row.data_preview); });
                 }
                 browse_.values().SetFilter(buffer);
                 if (needs_full_data && browse_.current_node())

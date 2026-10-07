@@ -323,7 +323,8 @@ bool ParseColorHex(const std::wstring& text, COLORREF* color)
         unsigned int r = 0;
         unsigned int g = 0;
         unsigned int b = 0;
-        if (swscanf_s(value.c_str(), L"%u,%u,%u", &r, &g, &b) == 3)
+        int consumed = 0;
+        if (swscanf_s(value.c_str(), L"%u,%u,%u%n", &r, &g, &b, &consumed) == 3 && static_cast<size_t>(consumed) == value.size())
         {
             if (r <= 255 && g <= 255 && b <= 255)
             {

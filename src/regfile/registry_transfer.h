@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "win32/registry_view.h"
 #include "win32/windows_config.h"
 
 #include <windows.h>
@@ -14,7 +15,7 @@ namespace regkit
 
 std::wstring ExportFileName(const std::wstring& name, const wchar_t* extension);
 std::wstring DefaultExportPath(const std::wstring& key_path, const wchar_t* extension);
-bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error);
+bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error, REGSAM view = win32::kDefaultRegistryView);
 bool IsMountedHive(HKEY root, const std::wstring& subkey);
 bool IsHiveFile(const std::wstring& path);
 LONG SaveKeyToHive(HKEY root, const std::wstring& subkey, REGSAM view, const std::wstring& path);

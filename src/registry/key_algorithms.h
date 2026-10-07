@@ -251,6 +251,12 @@ bool EnumerateKey(const Key& key, bool include_values, bool include_data, bool i
                 data_length = buffer ? static_cast<DWORD>(data.size()) : 0;
                 result = key.EnumValue(index, name.data(), &name_length, &type, buffer, &data_length);
             }
+            // a larger buffer lets the api write a terminator over the last byte of an odd sized string
+            if (result == ERROR_SUCCESS && buffer && (data_length & 1) && data_length < data.size() && (type == REG_SZ || type == REG_EXPAND_SZ))
+            {
+                name_length = static_cast<DWORD>(name.size());
+                result = key.EnumValue(index, name.data(), &name_length, &type, buffer, &data_length);
+            }
             if (result != ERROR_SUCCESS)
             {
                 fail(result);

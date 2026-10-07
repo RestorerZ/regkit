@@ -323,11 +323,12 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
                 type = REG_SZ;
                 break;
             }
-            std::wstring value_name = MakeUniqueValueName(*browse_.current_node(), base_name);
-            if (value_name.empty())
+            const std::optional<std::wstring> free_name = MakeUniqueValueName(*browse_.current_node(), base_name);
+            if (!free_name)
             {
                 return true;
             }
+            const std::wstring& value_name = *free_name;
             std::vector<BYTE> data;
             if (type == REG_SZ || type == REG_EXPAND_SZ)
             {

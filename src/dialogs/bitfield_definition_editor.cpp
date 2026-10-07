@@ -598,13 +598,12 @@ void ChangeWidth(HWND dialog, Editor* state)
             SelectWidth(dialog, definition.bit_width);
             return;
         }
-        // remove out of range bits and fields left empty by the new width
+        // remove out of range bits, states that no longer fit and fields left empty by the new width
         for (Field& field : definition.fields)
         {
-            field.bits.erase(
-                std::remove_if(field.bits.begin(), field.bits.end(), [width](unsigned bit) { return bit >= width; }),
-                field.bits.end()
-            );
+            std::erase_if(field.bits, [width](unsigned bit) { return bit >= width; });
+            const uint64_t limit = bitfield::WidthMask(static_cast<unsigned>(field.bits.size()));
+            std::erase_if(field.states, [limit](const bitfield::State& value) { return value.value > limit; });
         }
         definition.fields.erase(std::remove_if(definition.fields.begin(), definition.fields.end(), [](const Field& field) { return field.bits.empty(); }), definition.fields.end());
         RefreshFieldList(dialog, state);

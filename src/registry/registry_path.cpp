@@ -503,4 +503,83 @@ bool ParseRoot(std::wstring_view input, RegistryNode* node)
     return entry || util::EqualsInsensitive(root, L"REGISTRY");
 }
 
+bool ResolveJumpTarget(std::wstring_view target, const std::function<std::wstring(const std::wstring&)>& normalize,
+                       const std::function<bool(const std::wstring&, RegistryNode*)>& key_exists, std::wstring* key_path, std::wstring* value_name, bool* value_missing)
+{
+    const auto unwrap = [](std::wstring text, std::wstring_view pairs) {
+        text = util::TrimWhitespace(text);
+        for (size_t pair = 0; pair + 1 < pairs.size(); pair += 2)
+        {
+            if (text.size() >= 2 && text.front() == pairs[pair] && text.back() == pairs[pair + 1])
+            {
+                return util::TrimWhitespace(std::wstring_view(text).substr(1, text.size() - 2));
+            }
+        }
+        return text;
+    };
+    RegistryNode node;
+    RegistryValue value;
+    value_name->clear();
+    *value_missing = false;
+    const std::wstring text = unwrap(std::wstring(target), L"\"\"''[]");
+    *key_path = normalize(text);
+    if (key_path->empty() || key_exists(*key_path, &node))
+    {
+        return !key_path->empty();
+    }
+
+    std::wstring missing_key;
+    std::wstring existing_key;
+    std::wstring existing_name;
+    for (size_t split = 1; split < text.size(); ++split)
+    {
+        const bool colon =
+            text[split] == L':' && (iswspace(text[split - 1]) || split + 1 == text.size() || iswspace(text[split + 1]));
+        if (text[split] != L'!' && !colon)
+        {
+            continue;
+        }
+        const std::wstring key = normalize(text.substr(0, split));
+        const std::wstring name =
+            registry_path::RawName(colon ? unwrap(text.substr(split + 1), L"\"\"") : text.substr(split + 1));
+        if (!key_exists(key, &node))
+        {
+            missing_key = missing_key.empty() ? key : missing_key;
+            continue;
+        }
+        if (name.empty() || RegistryStore::QueryValue(node, name, &value))
+        {
+            *key_path = key;
+            *value_name = name;
+            return true;
+        }
+        existing_key = key;
+        existing_name = name;
+    }
+    if (!existing_key.empty())
+    {
+        *key_path = existing_key;
+        *value_name = existing_name;
+        *value_missing = true;
+        return true;
+    }
+    const std::wstring normalized = *key_path;
+    for (size_t slash = normalized.rfind(L'\\'); slash != std::wstring::npos && slash > 0;
+         slash = normalized.rfind(L'\\', slash - 1))
+    {
+        if (key_exists(normalized.substr(0, slash), &node) &&
+            RegistryStore::QueryValue(node, normalized.substr(slash + 1), &value))
+        {
+            *key_path = normalized.substr(0, slash);
+            *value_name = normalized.substr(slash + 1);
+            return true;
+        }
+    }
+    if (!missing_key.empty())
+    {
+        *key_path = missing_key;
+    }
+    return false;
+}
+
 } // namespace regkit::registry_path

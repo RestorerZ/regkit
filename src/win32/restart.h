@@ -23,6 +23,7 @@ inline constexpr wchar_t kRestartSessionArg[] = L"--restore-session";
 inline constexpr wchar_t kRestartUserSidArg[] = L"--user-sid";
 
 bool ArgTakesValue(const std::wstring& arg);
+bool IsInternalRestartArg(const std::wstring& arg);
 std::wstring RestartDataDir(const std::vector<std::wstring>& args);
 bool RestoreSessionRequested();
 std::wstring RestartUserSid();

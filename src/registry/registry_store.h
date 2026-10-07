@@ -128,6 +128,8 @@ class RegistryStore
     static bool IsOfflineRoot(HKEY root);
     static bool QueryValue(const RegistryNode& node, const std::wstring& value_name, RegistryValue* out);
     static bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);
+    // also true for a key whose information can't be read but which its parent lists
+    static bool KeyExists(const RegistryNode& node);
     static KeyInspection InspectKey(const RegistryNode& node, bool want_info, bool want_source = false);
     static bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, bool* denied = nullptr);
     static bool IsBrokenLink(const RegistryNode& node, std::wstring* target = nullptr);

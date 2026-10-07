@@ -8,8 +8,10 @@
 #include "win32/file_dialog.h"
 #include "win32/file_text.h"
 #include "win32/handle_owner.h"
+#include "win32/shell_paths.h"
 #include "win32/system_api.h"
 #include "win32/system_error.h"
+#include "win32/text_transform.h"
 #include "ui/feedback.h"
 #include "win32/translation.h"
 #include "resource.h"
@@ -243,13 +245,14 @@ std::wstring SaveSetup(const std::wstring& url, const std::string& sha256, const
         return directory_error;
     }
     *path = util::JoinPath(directory, RandomName(L"RegKit-Setup-") + L".exe");
-    const util::UniqueHandle file(
+    util::UniqueHandle file(
         CreateFileW(path->c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr)
     );
     DWORD written = 0;
     const bool saved = file && WriteFile(file.get(), data.data(), static_cast<DWORD>(data.size()), &written, nullptr) &&
                        written == data.size();
     const DWORD code = saved ? ERROR_SUCCESS : GetLastError();
+    file.reset();
     if (!saved)
     {
         DeleteFileW(path->c_str());
@@ -312,15 +315,24 @@ void UpdateChecker::Check(bool silent)
     session_.Start(L"UpdateCheckThread", [owner, silent](uint64_t, std::atomic_bool& cancel) {
         auto payload = std::make_unique<UpdateCheckPayload>();
         payload->silent = silent;
-        std::string json;
-        std::wstring error = HttpGet(kLatestReleaseUrl, cancel, &json, kMaxReleaseJsonBytes);
-        std::wstring digest;
-        if (error.empty() &&
-            (!ReadRelease(json, &payload->version, &payload->download_url, &digest) || payload->version.empty()))
+        std::wstring error;
+        // the ui stays busy until a payload arrives, so a failure must still post one
+        try
         {
-            error = util::Tr(L"The response didn't contain a release.");
+            std::string json;
+            error = HttpGet(kLatestReleaseUrl, cancel, &json, kMaxReleaseJsonBytes);
+            std::wstring digest;
+            if (error.empty() &&
+                (!ReadRelease(json, &payload->version, &payload->download_url, &digest) || payload->version.empty()))
+            {
+                error = util::Tr(L"The response didn't contain a release.");
+            }
+            payload->sha256 = digest.starts_with(L"sha256:") ? util::WideToUtf8(digest.substr(7)) : std::string();
         }
-        payload->sha256 = digest.starts_with(L"sha256:") ? util::WideToUtf8(digest.substr(7)) : std::string();
+        catch (const std::exception&)
+        {
+            error = util::FormatWin32Error(ERROR_NOT_ENOUGH_MEMORY);
+        }
         if (cancel.load())
         {
             return;
@@ -348,7 +360,15 @@ void UpdateChecker::Download(const UpdateCheckPayload& release)
         [owner, url = release.download_url, sha256 = release.sha256](uint64_t, std::atomic_bool& cancel) {
             auto payload = std::make_unique<UpdateCheckPayload>();
             payload->sha256 = sha256;
-            const std::wstring error = SaveSetup(url, sha256, cancel, &payload->setup_path);
+            std::wstring error;
+            try
+            {
+                error = SaveSetup(url, sha256, cancel, &payload->setup_path);
+            }
+            catch (const std::exception&)
+            {
+                error = util::FormatWin32Error(ERROR_NOT_ENOUGH_MEMORY);
+            }
             if (cancel.load())
             {
                 return;

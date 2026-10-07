@@ -296,8 +296,8 @@ int MainWindow::Impl::FindSourceTab(const search::Source& source) const
         {
             continue;
         }
-        if (source.kind == search::Source::Kind::kLocal || source.name.empty() ||
-            EqualsInsensitive(candidate.name, source.name))
+        if (source.kind == search::Source::Kind::kLocal ? IsLocalRegistryTabIndex(static_cast<int>(i))
+                                                         : source.name.empty() || EqualsInsensitive(candidate.name, source.name))
         {
             return static_cast<int>(i);
         }

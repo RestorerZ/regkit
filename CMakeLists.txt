@@ -89,6 +89,9 @@ add_custom_command(TARGET RegKit POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${REGKIT_OFFREG_DLL}"
         "$<TARGET_FILE_DIR:RegKit>/offreg.dll"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/redist/pcre2/LICENCE.md"
+        "$<TARGET_FILE_DIR:RegKit>/licences/PCRE2-LICENCE.md"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:RegKit>/assets/records"
     COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:RegKit>/assets/icons"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:RegKit>/assets/icons"

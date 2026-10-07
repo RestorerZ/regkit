@@ -9,21 +9,53 @@ namespace regkit::record_fields
 namespace
 {
 
-constexpr std::wstring_view kSpecial = L"\\\t\r\n";
+bool IsHigh(wchar_t character)
+{
+    return character >= 0xD800 && character <= 0xDBFF;
+}
 
+bool IsLow(wchar_t character)
+{
+    return character >= 0xDC00 && character <= 0xDFFF;
+}
+
+int HexValue(wchar_t character)
+{
+    return character >= L'0' && character <= L'9'   ? character - L'0'
+           : character >= L'A' && character <= L'F' ? character - L'A' + 10
+           : character >= L'a' && character <= L'f' ? character - L'a' + 10
+                                                    : -1;
+}
+
+// lone surrogates become \uXXXX so the utf-8 files keep registry names that aren't valid utf-16
 void AppendEscaped(std::wstring* output, std::wstring_view text)
 {
     size_t start = 0;
-    for (size_t special = text.find_first_of(kSpecial); special != std::wstring_view::npos;
-         special = text.find_first_of(kSpecial, start))
+    for (size_t index = 0; index < text.size(); ++index)
     {
-        output->append(text.substr(start, special - start));
-        output->push_back(L'\\');
-        const wchar_t character = text[special];
-        output->push_back(character == L'\t' ? L't' : character == L'\r' ? L'r'
-                                                  : character == L'\n'   ? L'n'
-                                                                         : L'\\');
-        start = special + 1;
+        const wchar_t character = text[index];
+        if (character >= L' ' && character != L'\\' && (character < 0xD800 || character > 0xDFFF))
+        {
+            continue;
+        }
+        const wchar_t code = character == L'\\' ? L'\\' : character == L'\t' ? L't' : character == L'\r' ? L'r' : character == L'\n' ? L'n' : 0;
+        const bool lone = (IsHigh(character) && (index + 1 == text.size() || !IsLow(text[index + 1]))) ||
+                          (IsLow(character) && (index == 0 || !IsHigh(text[index - 1])));
+        if (!code && !lone)
+        {
+            continue;
+        }
+        output->append(text.substr(start, index - start));
+        if (code)
+        {
+            output->append({L'\\', code});
+        }
+        else
+        {
+            static constexpr wchar_t kHex[] = L"0123456789ABCDEF";
+            output->append({L'\\', L'u', kHex[character >> 12], kHex[(character >> 8) & 15], kHex[(character >> 4) & 15], kHex[character & 15]});
+        }
+        start = index + 1;
     }
     output->append(text.substr(start));
 }
@@ -42,8 +74,19 @@ void AppendUnescaped(std::wstring* output, std::wstring_view text)
                                                 : 0;
         if (!decoded)
         {
-            output->append(text.substr(start, slash + 1 - start));
-            start = slash + 1;
+            int value = next == L'u' && slash + 6 <= text.size() ? 0 : -1;
+            for (size_t index = slash + 2; index < slash + 6 && value >= 0; ++index)
+            {
+                const int digit = HexValue(text[index]);
+                value = digit < 0 ? -1 : value * 16 + digit;
+            }
+            const bool surrogate = IsHigh(static_cast<wchar_t>(value)) || IsLow(static_cast<wchar_t>(value));
+            output->append(text.substr(start, slash + (surrogate ? 0 : 1) - start));
+            if (surrogate)
+            {
+                output->push_back(static_cast<wchar_t>(value));
+            }
+            start = slash + (surrogate ? 6 : 1);
             continue;
         }
         output->append(text.substr(start, slash - start));

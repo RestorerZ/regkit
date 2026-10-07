@@ -33,6 +33,7 @@
 #include "dialogs/query_dialog.h"
 #include "dialogs/replace_dialog.h"
 #include "dialogs/trace_dialog.h"
+#include "registry/registry_path.h"
 #include "registry/registry_store.h"
 #include "registry/virtual_registry.h"
 #include "search/compare.h"
@@ -45,6 +46,7 @@
 #include "ui/toolbar.h"
 #include "win32/file_dialog.h"
 #include "win32/handle_owner.h"
+#include "win32/process_rights.h"
 #include "win32/translation.h"
 #include "work/key_watcher.h"
 #include "work/session.h"
@@ -326,6 +328,8 @@ class MainWindow::Impl
     void ShowSession(const std::shared_ptr<RegistrySession>& session);
     void UpdateUndoButtons();
     void NavigateToAddress();
+    void PromptMissingPath(const std::wstring& path);
+    void PromptMissingValue(const std::wstring& value_name);
     bool SelectTreePath(const std::wstring& path);
     std::wstring TreeNeighbourPath(HTREEITEM item);
     bool SelectChildKey(const RegistryNode& parent, const std::wstring& name);
@@ -482,7 +486,7 @@ class MainWindow::Impl
     bool RestartCurrentInstance();
     bool RestartAfterCacheClear(CacheKind kind);
     bool RestartAfterSettingsReset();
-    void PrepareSessionHandover();
+    bool PrepareSessionHandover();
     bool SaveSessionForRestart();
     bool LaunchRestart(bool restore_session);
     bool RestartAsSystem();
@@ -574,7 +578,7 @@ class MainWindow::Impl
     };
     ReplayResult ApplyUndoOperation(const changes::UndoOperation& operation, bool redo);
     bool SameNode(const RegistryNode& left, const RegistryNode& right) const;
-    std::wstring MakeUniqueValueName(const RegistryNode& node, const std::wstring& base) const;
+    std::optional<std::wstring> MakeUniqueValueName(const RegistryNode& node, const std::wstring& base) const;
     std::wstring MakeUniqueKeyName(const RegistryNode& node, const std::wstring& base) const;
     bool ResolvePathToNode(const std::wstring& path, RegistryNode* node) const;
     bool KeyPathExists(const std::wstring& path, RegistryNode* node) const;
@@ -944,6 +948,8 @@ class MainWindow::Impl
     {
         uint64_t generation = 0;
         int tab_index = -1;
+        int column = 0;
+        bool ascending = true;
         std::vector<search::Result> rows;
     };
     work::LatestTask<SearchSortTask> search_sort_loader_;
@@ -983,6 +989,7 @@ class MainWindow::Impl
     changes::ValueComments value_comments_;
     changes::ValueComments default_comments_;
     bool comments_unreadable_ = false;
+    bool comments_loaded_ = false;
     util::UniqueHKey registry_root_;
     std::vector<std::wstring> favorites_cache_;
     std::vector<workspace::NamedFavorite> regedit_favorites_;

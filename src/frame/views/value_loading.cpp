@@ -678,6 +678,8 @@ void MainWindow::Impl::StartSearchSortWorker()
         auto payload = std::make_unique<SearchSortPayload>();
         payload->generation = task->generation;
         payload->tab_index = task->tab_index;
+        payload->column = task->column;
+        payload->ascending = task->ascending;
         payload->rows = std::move(task->rows);
         work::PostPayload(task->hwnd, frame::message_id::kSearchSortReady, static_cast<WPARAM>(task->generation), payload);
     });

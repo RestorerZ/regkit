@@ -81,19 +81,11 @@ void SetComboSelection(HWND combo, const std::wstring& value)
     {
         return;
     }
-    if (!value.empty())
+    const LRESULT index = value.empty() ? CB_ERR : SendMessageW(combo, CB_FINDSTRINGEXACT, static_cast<WPARAM>(-1), reinterpret_cast<LPARAM>(value.c_str()));
+    if (index != CB_ERR)
     {
-        int count = static_cast<int>(SendMessageW(combo, CB_GETCOUNT, 0, 0));
-        for (int i = 0; i < count; ++i)
-        {
-            wchar_t buffer[256] = {};
-            SendMessageW(combo, CB_GETLBTEXT, i, reinterpret_cast<LPARAM>(buffer));
-            if (util::EqualsInsensitive(buffer, value))
-            {
-                SendMessageW(combo, CB_SETCURSEL, i, 0);
-                return;
-            }
-        }
+        SendMessageW(combo, CB_SETCURSEL, index, 0);
+        return;
     }
     if (SendMessageW(combo, CB_GETCOUNT, 0, 0) > 0)
     {

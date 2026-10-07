@@ -305,7 +305,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
                     std::wstring path = registry_path::Build(*browse_.current_node());
                     std::wstring saved_path;
                     win32::OpenAfter open_after = win32::OpenAfter::kNone;
-                    if (ExportRegFileSelection(hwnd_, path, selected_values, selected_keys, &error, &saved_path, &open_after))
+                    if (ExportRegFileSelection(hwnd_, path, ViewOf(*browse_.current_node()), selected_values, selected_keys, &error, &saved_path, &open_after))
                     {
                         HistoryEntry entry;
                         entry.action = L"Export registry selection";
@@ -327,7 +327,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             std::wstring saved_path;
             win32::OpenAfter open_after = win32::OpenAfter::kNone;
             const bool allow_hive = session_->mode == RegistryMode::kLocal && browse_.current_node()->root != HKEY_CLASSES_ROOT;
-            if (ExportRegFile(hwnd_, path, allow_hive, &error, &saved_path, &open_after))
+            if (ExportRegFile(hwnd_, path, ViewOf(*browse_.current_node()), allow_hive, &error, &saved_path, &open_after))
             {
                 HistoryEntry entry;
                 entry.action = L"Export registry key";
@@ -810,6 +810,7 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
             {
                 content = std::move(result.text);
                 std::vector<std::wstring> lines = SplitLines(content);
+                default_load_session_.Cancel();
                 active_defaults_.clear();
                 for (const auto& line : lines)
                 {
@@ -841,6 +842,7 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
                 content = std::move(result.text);
                 std::vector<std::wstring> lines = SplitLines(content);
                 LoadTraceSettings();
+                trace_load_session_.Cancel();
                 active_traces_.clear();
                 for (const auto& line : lines)
                 {

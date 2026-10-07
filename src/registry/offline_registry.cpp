@@ -243,7 +243,15 @@ class OfflineKey
     }
     LONG EnumValue(DWORD index, wchar_t* name, DWORD* name_length, DWORD* type, BYTE* data, DWORD* data_length) const
     {
-        return static_cast<LONG>(api_->enum_value(key_, index, name, name_length, type, data, data_length));
+        const DWORD capacity = *name_length;
+        DWORD result = api_->enum_value(key_, index, name, name_length, type, data, data_length);
+        // offreg answers a size only query with ERROR_MORE_DATA, RegEnumValueW with success
+        if (result == ERROR_MORE_DATA && !data && data_length)
+        {
+            *name_length = capacity;
+            result = api_->enum_value(key_, index, name, name_length, type, nullptr, nullptr);
+        }
+        return static_cast<LONG>(result);
     }
     LONG GetValue(const std::wstring& name, DWORD* type, BYTE* data, DWORD* size) const
     {

@@ -19,6 +19,19 @@ bool ArgTakesValue(const std::wstring& arg)
     return util::EqualsInsensitive(arg, kRestartParentArg) || util::EqualsInsensitive(arg, kRestartDataDirArg) || util::EqualsInsensitive(arg, kRestartUserSidArg);
 }
 
+bool IsInternalRestartArg(const std::wstring& arg)
+{
+    for (const wchar_t* flag :
+         {kRestartSystemArg, kRestartTiArg, kRestartUserArg, kRestartAdminArg, kRestartSessionArg})
+    {
+        if (util::EqualsInsensitive(arg, flag))
+        {
+            return true;
+        }
+    }
+    return ArgTakesValue(arg);
+}
+
 std::wstring RestartDataDir(const std::vector<std::wstring>& args)
 {
     for (size_t i = 0; i + 1 < args.size(); ++i)
@@ -65,19 +78,6 @@ std::wstring RestartUserSid()
 
 namespace
 {
-
-bool IsInternalRestartArg(const std::wstring& arg)
-{
-    for (const wchar_t* flag :
-         {kRestartSystemArg, kRestartTiArg, kRestartUserArg, kRestartAdminArg, kRestartSessionArg})
-    {
-        if (util::EqualsInsensitive(arg, flag))
-        {
-            return true;
-        }
-    }
-    return ArgTakesValue(arg);
-}
 
 std::wstring QuoteArgument(const std::wstring& arg)
 {
@@ -196,9 +196,8 @@ DWORD RestartParentPid(const std::vector<std::wstring>& args)
             continue;
         }
         errno = 0;
-        wchar_t* end = nullptr;
-        const unsigned long value = wcstoul(text.c_str(), &end, 10);
-        if (!end || *end != L'\0' || errno == ERANGE || value == 0 || value > MAXDWORD)
+        const unsigned long value = wcstoul(text.c_str(), nullptr, 10);
+        if (errno == ERANGE || value == 0)
         {
             continue;
         }
