@@ -59,7 +59,8 @@ using window_detail::MakeValueListRow;
 using window_detail::StartsWithInsensitive;
 using workspace::FavoritesStore;
 
-constexpr wchar_t kHelpUrl[] = L"https://discord.noverse.dev";
+constexpr wchar_t kHelpUrl[] = L"https://noverse.dev/docs/regkit";
+constexpr wchar_t kDiscordUrl[] = L"https://discord.noverse.dev";
 
 using util::ToLower;
 using util::TrimWhitespace;

@@ -163,7 +163,7 @@ std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item, int displa
             return std::wstring();
         }
         const HistoryEntry& entry = entries[static_cast<size_t>(item)];
-        switch (display_subitem)
+        switch (MappedSubItem(history_column_subitems_, display_subitem))
         {
         case 0:
             return entry.time_text;
@@ -860,7 +860,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
         auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
         if (info)
         {
-            SortValueList(info->iSubItem, true);
+            SortValueList(MappedSubItem(value_column_subitems_, info->iSubItem), true);
         }
         return 0;
     }
@@ -900,7 +900,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
             }
             if (row && row->kind == rowkind::kValue)
             {
-                if (activate->iSubItem == kValueColComment)
+                if (MappedSubItem(value_column_subitems_, activate->iSubItem) == kValueColComment)
                 {
                     HandleMenuCommand(cmd::kEditModifyComment);
                 }
@@ -1099,7 +1099,7 @@ LRESULT MainWindow::Impl::HandleHistoryNotification(NMHDR* header, LPARAM lparam
             const auto& entry = entries[static_cast<size_t>(disp->item.iItem)];
             const std::wstring* text = &entry.time_text;
             std::wstring marked;
-            switch (disp->item.iSubItem)
+            switch (MappedSubItem(history_column_subitems_, disp->item.iSubItem))
             {
             case 1:
                 if (entry.backup_mode)
@@ -1138,7 +1138,7 @@ LRESULT MainWindow::Impl::HandleHistoryNotification(NMHDR* header, LPARAM lparam
         auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
         if (info)
         {
-            SortHistoryList(info->iSubItem, true);
+            SortHistoryList(MappedSubItem(history_column_subitems_, info->iSubItem), true);
         }
         return 0;
     }
@@ -1385,7 +1385,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
         auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
         if (info)
         {
-            SortSearchResults(info->iSubItem, true);
+            SortSearchResults(MappedSubItem(search_column_subitems_, info->iSubItem), true);
         }
         return 0;
     }

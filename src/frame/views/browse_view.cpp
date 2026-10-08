@@ -232,7 +232,7 @@ void MainWindow::Impl::ApplyHistoryColumns()
     {
         return;
     }
-    RebuildListColumns(history_list_, history_columns_, nullptr);
+    RebuildListColumns(history_list_, history_columns_, &history_column_subitems_);
     appearance::UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
     AttachHeader(ListView_GetHeader(history_list_));
     FinishListColumns(history_list_);

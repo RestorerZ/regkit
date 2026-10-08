@@ -168,6 +168,7 @@ constexpr int kHelpAbout = 2500;
 constexpr int kHelpContents = 2501;
 constexpr int kHelpCheckUpdates = 2502;
 constexpr int kHelpAutoCheckUpdates = 2503;
+constexpr int kHelpDiscord = 2504;
 
 constexpr int kTraceLoad23H2 = 2700;
 constexpr int kTraceLoad24H2 = 2701;

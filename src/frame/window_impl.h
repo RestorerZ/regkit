@@ -631,6 +631,7 @@ class MainWindow::Impl
     HIMAGELIST list_images_ = nullptr;
     std::vector<int> value_column_subitems_;
     std::vector<int> search_column_subitems_;
+    std::vector<int> history_column_subitems_;
     ui::ColumnSet history_columns_;
     ui::ColumnSet search_columns_;
     ui::ColumnSet compare_columns_;

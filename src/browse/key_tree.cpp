@@ -63,8 +63,8 @@ void SetChildState(HWND tree, HTREEITEM item, RegistryNode* node, bool has_child
 
 void RegistryTree::Create(HWND parent, HINSTANCE instance, int control_id, bool show_border, bool allow_label_edit)
 {
-    DWORD style =
-        WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS;
+    // hidden until the owner places it, a visible one paints white at 0,0 first
+    DWORD style = WS_CHILD | WS_CLIPSIBLINGS | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS;
     if (show_border)
     {
         style |= WS_BORDER;

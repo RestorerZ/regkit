@@ -76,6 +76,7 @@ bool MainWindow::Impl::HandleWorkspaceAppearanceCommand(int command_id)
     case cmd::kOptionsResetSettings:
     case cmd::kHelpAbout:
     case cmd::kHelpContents:
+    case cmd::kHelpDiscord:
     case cmd::kHelpCheckUpdates:
     case cmd::kHelpAutoCheckUpdates:
         return HandleLaunchHelpCommand(command_id);
@@ -266,6 +267,9 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         return true;
     case cmd::kHelpContents:
         win32::ShellOpen(hwnd_, kHelpUrl);
+        return true;
+    case cmd::kHelpDiscord:
+        win32::ShellOpen(hwnd_, kDiscordUrl);
         return true;
     case cmd::kHelpCheckUpdates:
         updates_.Check(false);

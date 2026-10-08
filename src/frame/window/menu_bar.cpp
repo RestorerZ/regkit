@@ -556,7 +556,8 @@ void MainWindow::Impl::BuildMenus()
     append_menu(default_menu, MF_STRING, cmd::kDefaultResetEnable, util::Tr(L"Enable Context Menu (risky)"));
 
     HMENU help_menu = CreatePopupMenu();
-    append_menu(help_menu, MF_STRING, cmd::kHelpContents, util::Tr(L"Help"));
+    append_menu(help_menu, MF_STRING, cmd::kHelpContents, util::Tr(L"Documentation"));
+    AppendMenuW(help_menu, MF_STRING, cmd::kHelpDiscord, L"Discord");
     separator(help_menu);
     AppendMenuW(help_menu, MF_STRING, cmd::kHelpCheckUpdates, util::Tr(L"Check for Updates"));
     AppendMenuW(help_menu, MF_STRING, cmd::kHelpAutoCheckUpdates, util::Tr(L"Check for Updates Automatically"));
