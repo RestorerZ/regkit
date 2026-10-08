@@ -86,7 +86,7 @@ void MainWindow::Impl::AppendHistoryEntry(const std::wstring& action, const std:
     AppendHistoryEntry(std::move(entry));
 }
 
-void MainWindow::Impl::AppendValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value)
+HistoryEntry MainWindow::Impl::ValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value)
 {
     HistoryEntry entry;
     entry.action = action;
@@ -99,21 +99,35 @@ void MainWindow::Impl::AppendValueHistoryEntry(const std::wstring& action, const
     {
         entry.revert_value = *revert_value;
     }
-    AppendHistoryEntry(std::move(entry));
+    return entry;
+}
+
+void MainWindow::Impl::AppendValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value)
+{
+    AppendHistoryEntry(ValueHistoryEntry(action, old_data, new_data, node, value_name, revert_kind, revert_value));
 }
 
 void MainWindow::Impl::AppendHistoryEntry(HistoryEntry entry)
 {
-    if (!history_list_)
+    std::vector<HistoryEntry> entries;
+    entries.push_back(std::move(entry));
+    AppendHistoryEntries(std::move(entries));
+}
+
+void MainWindow::Impl::AppendHistoryEntries(std::vector<HistoryEntry> entries)
+{
+    if (!history_list_ || entries.empty())
     {
         return;
     }
-    entry.action = registry_path::DisplayName(entry.action);
-    entry.old_data = registry_path::DisplayName(entry.old_data);
-    entry.new_data = registry_path::DisplayName(entry.new_data);
-    entry.backup_mode = backup_privileges_ != nullptr;
-
-    const HistoryEntry appended = change_history_.Append(std::move(entry), static_cast<size_t>(history_max_rows_));
+    for (HistoryEntry& entry : entries)
+    {
+        entry.action = registry_path::DisplayName(entry.action);
+        entry.old_data = registry_path::DisplayName(entry.old_data);
+        entry.new_data = registry_path::DisplayName(entry.new_data);
+        entry.backup_mode = backup_privileges_ != nullptr;
+    }
+    const std::vector<HistoryEntry> appended = change_history_.Append(std::move(entries), static_cast<size_t>(history_max_rows_));
     if (history_loaded_)
     {
         AppendHistoryCache(appended);
@@ -263,13 +277,13 @@ bool MainWindow::Impl::HistoryStaysInMemory() const
     return util::IsProcessSystem() || util::IsProcessTrustedInstaller();
 }
 
-bool MainWindow::Impl::AppendHistoryCache(const HistoryEntry& entry)
+bool MainWindow::Impl::AppendHistoryCache(const std::vector<HistoryEntry>& entries)
 {
-    if (HistoryStaysInMemory())
+    if (HistoryStaysInMemory() || entries.empty())
     {
         return true;
     }
-    if (changes::AppendHistoryFile(HistoryCachePath(), entry))
+    if (changes::AppendHistoryFile(HistoryCachePath(), entries))
     {
         history_cache_failed_ = false;
         return true;
@@ -462,9 +476,7 @@ bool MainWindow::Impl::ClearCache(CacheKind kind, bool resume_tree_worker)
     if (all || kind == CacheKind::kTreeState)
     {
         KillTimer(hwnd_, kTreeStateTimerId);
-        StopTreeStateWorker();
-        saved_tree_state_.Clear();
-        tree_state_restored_ = false;
+        tree_state_saver_.Stop();
         cleared = DeleteCacheFile(TreeStatePath()) && cleared;
         restart_tree_worker = resume_tree_worker && settings_.save_tree_state;
     }
@@ -499,15 +511,29 @@ void MainWindow::Impl::LoadTabs()
     const bool restore_session = win32::RestoreSessionRequested();
     const std::wstring session_path = SessionCachePath();
     workspace::TabState state;
+    bool keep_tree_state = settings_.save_tree_state;
     if (restore_session && workspace::LoadTabs(session_path, &state))
     {
         loaded = true;
+        keep_tree_state = true;
         DeleteFileW(session_path.c_str());
     }
     else if (settings_.save_tab_kinds != 0)
     {
         loaded = workspace::LoadTabs(TabsCachePath(), &state);
     }
+    // a restart hands the whole session over, a normal start restores tree state only when it's saved
+    auto restore_tree_state = [keep_tree_state](TabEntry* entry, workspace::PersistedTab* saved) {
+        if (!keep_tree_state)
+        {
+            return;
+        }
+        entry->selected_path = std::move(saved->selected_path);
+        entry->selected_value = std::move(saved->selected_value);
+        entry->selected_values = std::move(saved->selected_values);
+        entry->value_top_index = saved->value_top_index;
+        entry->expanded_paths = std::move(saved->expanded_paths);
+    };
     if (loaded)
     {
         active_index = state.active_index;
@@ -572,11 +598,7 @@ void MainWindow::Impl::LoadTabs()
                 entry.kind = TabEntry::Kind::kRegFile;
                 entry.reg_file_path = std::move(saved.source_path);
                 entry.reg_file_label = label;
-                entry.selected_path = std::move(saved.selected_path);
-                entry.selected_value = std::move(saved.selected_value);
-                entry.selected_values = std::move(saved.selected_values);
-                entry.value_top_index = saved.value_top_index;
-                entry.expanded_paths = std::move(saved.expanded_paths);
+                restore_tree_state(&entry, &saved);
                 tabs_.push_back(std::move(entry));
                 continue;
             }
@@ -595,11 +617,7 @@ void MainWindow::Impl::LoadTabs()
             entry.offline_path =
                 entry.registry_mode == RegistryMode::kOffline ? std::move(saved.source_path) : std::wstring();
             entry.remote_machine = std::move(saved.remote_machine);
-            entry.selected_path = std::move(saved.selected_path);
-            entry.selected_value = std::move(saved.selected_value);
-            entry.selected_values = std::move(saved.selected_values);
-            entry.value_top_index = saved.value_top_index;
-            entry.expanded_paths = std::move(saved.expanded_paths);
+            restore_tree_state(&entry, &saved);
             tabs_.push_back(std::move(entry));
         }
     }
@@ -664,7 +682,10 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds)
     {
         return true;
     }
-    CaptureRegistryTabState(TabCtrl_GetCurSel(tab_));
+    for (int index = 0; index < static_cast<int>(tabs_.size()); ++index)
+    {
+        CaptureRegistryTabState(index, true);
+    }
     std::wstring folder = CacheFolderPath();
     if (folder.empty())
     {
@@ -1119,10 +1140,6 @@ void MainWindow::Impl::LoadSettings()
     browse_.columns().saved_widths = std::move(settings_.value_column_widths);
     browse_.columns().saved_visible = std::move(settings_.value_column_visible);
     browse_.columns().saved = !browse_.columns().saved_widths.empty() || !browse_.columns().saved_visible.empty();
-    if (!settings_.save_tree_state)
-    {
-        saved_tree_state_.Clear();
-    }
 }
 
 workspace::Settings MainWindow::Impl::CurrentSettings() const
@@ -1180,36 +1197,24 @@ std::wstring MainWindow::Impl::TreeStatePath() const
     return util::JoinPath(folder, L"tree_state.ini");
 }
 
-void MainWindow::Impl::LoadTreeState()
-{
-    saved_tree_state_.Clear();
-    if (!settings_.save_tree_state)
-    {
-        return;
-    }
-    workspace::LoadTreeState(TreeStatePath(), &saved_tree_state_);
-}
-
 void MainWindow::Impl::StartTreeStateWorker()
 {
     if (!settings_.save_tree_state || tree_state_saver_.running())
     {
         return;
     }
-    tree_state_saver_.Start(L"TreeStateSaverThread", std::chrono::seconds(2), [this](workspace::TreeState state) {
-        SaveTreeStateFile(state.selected_path, state.expanded_paths);
+    tree_state_saver_.Start(L"TreeStateSaverThread", std::chrono::seconds(2), [this](const workspace::TreeState& state) {
+        workspace::SaveTreeState(TreeStatePath(), state);
     });
 }
 
 void MainWindow::Impl::StopTreeStateWorker()
 {
     tree_state_saver_.Stop();
-    if (settings_.save_tree_state && browse_.tree().hwnd() && IsWindow(browse_.tree().hwnd()))
+    workspace::TreeState state;
+    if (CaptureLocalTreeState(&state, false))
     {
-        std::wstring selected;
-        std::vector<std::wstring> expanded;
-        CaptureTreeState(&selected, &expanded);
-        SaveTreeStateFile(selected, expanded);
+        workspace::SaveTreeState(TreeStatePath(), state);
     }
 }
 

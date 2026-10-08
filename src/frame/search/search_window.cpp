@@ -12,25 +12,30 @@ namespace regkit
 
 using namespace window_detail;
 
-std::wstring MainWindow::Impl::NormalizeRegistryPath(const std::wstring& input) const
+std::vector<std::wstring> MainWindow::Impl::RegistryPathContexts() const
 {
-    const std::wstring sid = util::GetCurrentUserSidString();
-    std::wstring path = registry_path::Normalize(input, sid);
-    auto strip_context = [&](const std::wstring& label) {
-        if (label.empty())
-        {
-            return;
-        }
-        const std::wstring prefix = label + L"\\";
-        if (util::StartsWithInsensitive(path, prefix))
-        {
-            path.erase(0, prefix.size());
-        }
-    };
-    strip_context(TreeRootLabel());
+    std::vector<std::wstring> contexts = {TreeRootLabel()};
     if (session_->mode == RegistryMode::kRemote)
     {
-        strip_context(StripMachinePrefix(session_->remote_machine));
+        contexts.push_back(StripMachinePrefix(session_->remote_machine));
+    }
+    return contexts;
+}
+
+std::wstring MainWindow::Impl::NormalizeRegistryPath(const std::wstring& input) const
+{
+    return NormalizeRegistryPath(input, util::GetCurrentUserSidString(), RegistryPathContexts());
+}
+
+std::wstring MainWindow::Impl::NormalizeRegistryPath(const std::wstring& input, const std::wstring& sid, const std::vector<std::wstring>& contexts)
+{
+    std::wstring path = registry_path::Normalize(input, sid);
+    for (const std::wstring& label : contexts)
+    {
+        if (!label.empty() && util::StartsWithInsensitive(path, label + L"\\"))
+        {
+            path.erase(0, label.size() + 1);
+        }
     }
     return registry_path::Normalize(path, sid);
 }
@@ -425,8 +430,16 @@ void MainWindow::Impl::SyncRegFileTabSelection()
         entry.reg_file_loading = true;
         StartRegFileParse(entry.reg_file_path, entry.reg_file_session_key);
     }
-    session_->mode = RegistryMode::kLocal;
-    std::vector<RegistryRootEntry> roots;
+    const bool fresh = ActivateTabTree(index);
+    // own session, so the tab's roots & undo never land in a registry tab's session
+    if (!entry.session)
+    {
+        entry.session = std::make_shared<RegistrySession>();
+    }
+    session_ = entry.session;
+    UpdateUndoButtons();
+    std::vector<RegistryRootEntry>& roots = session_->roots;
+    roots.clear();
     roots.reserve(entry.reg_file_roots.size());
     for (const auto& root : entry.reg_file_roots)
     {
@@ -442,8 +455,17 @@ void MainWindow::Impl::SyncRegFileTabSelection()
         reg_root.group = RegistryRootGroup::kStandard;
         roots.push_back(std::move(reg_root));
     }
-    ApplyRegistryRoots(roots);
-    RestoreRegistryTabState(index);
+    const bool shown = !fresh && roots.size() == browse_.roots().size() &&
+                       std::equal(roots.begin(), roots.end(), browse_.roots().begin(), [](const auto& left, const auto& right) { return left.root == right.root; });
+    if (shown)
+    {
+        ResumeTabTree(index);
+    }
+    else
+    {
+        ApplyRegistryRoots(roots);
+        RestoreRegistryTabState(index);
+    }
     if (!pending_compare_key_path_.empty() && !entry.reg_file_roots.empty())
     {
         const std::wstring path = std::move(pending_compare_key_path_);
@@ -1200,40 +1222,49 @@ DataReplace ReplaceValueData(const search::Replacer& matcher, DWORD type, const 
     case REG_SZ:
     case REG_EXPAND_SZ:
     case REG_LINK:
-        {
-            const std::wstring text = value_format::Data(type, data.data(), static_cast<DWORD>(data.size()));
-            std::wstring updated;
-            const DataReplace applied = ApplyReplace(matcher, text, &updated);
-            if (applied != DataReplace::kChanged)
-            {
-                return applied;
-            }
-            *out = value_format::StringData(updated);
-            return DataReplace::kChanged;
-        }
     case REG_MULTI_SZ:
         {
-            std::vector<std::wstring> parts = value_format::MultiStringItems(data);
+            const bool multi = base == REG_MULTI_SZ;
+            const std::wstring text(reinterpret_cast<const wchar_t*>(data.data()), data.size() / sizeof(wchar_t));
+            const size_t body = multi ? text.size() : text.find_last_not_of(L'\0') + 1;
+            std::wstring updated;
             bool changed = false;
-            for (auto& part : parts)
+            for (size_t start = 0; start <= body;)
             {
-                std::wstring updated;
-                const DataReplace applied = ApplyReplace(matcher, part, &updated);
+                const size_t end = multi ? std::min(text.find(L'\0', start), body) : body;
+                const std::wstring part = text.substr(start, end - start);
+                if (multi && part.empty())
+                {
+                    updated += text.substr(start);
+                    break;
+                }
+                std::wstring replaced;
+                const DataReplace applied = part.empty() ? DataReplace::kUnchanged : ApplyReplace(matcher, part, &replaced);
                 if (applied == DataReplace::kRejected)
                 {
                     return applied;
                 }
-                if (applied == DataReplace::kChanged)
+                changed = changed || applied == DataReplace::kChanged;
+                updated += applied == DataReplace::kChanged ? replaced : part;
+                if (end < body)
                 {
-                    part = std::move(updated);
-                    changed = true;
+                    updated.push_back(L'\0');
                 }
+                start = end + 1;
             }
             if (!changed)
             {
                 return DataReplace::kUnchanged;
             }
-            *out = value_format::MultiStringData(parts);
+            if (!multi)
+            {
+                updated += text.substr(body);
+            }
+            out->assign(reinterpret_cast<const BYTE*>(updated.data()), reinterpret_cast<const BYTE*>(updated.data() + updated.size()));
+            if (data.size() % sizeof(wchar_t))
+            {
+                out->push_back(data.back());
+            }
             return DataReplace::kChanged;
         }
     case REG_DWORD:
@@ -1362,9 +1393,10 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
     replace_result_pending_ = true;
     replace_session_.Start(
         L"ReplaceThread",
-        [this, start, options, matcher, hwnd](uint64_t generation, std::atomic_bool& cancel) mutable {
+        [this, start, options, matcher, hwnd, session = std::weak_ptr<RegistrySession>(session_)](uint64_t generation, std::atomic_bool& cancel) mutable {
             auto payload = std::make_unique<ReplacePayload>();
             payload->generation = generation;
+            payload->session = session;
             std::vector<RegistryNode> stack;
             std::vector<std::pair<RegistryNode, std::wstring>> key_renames;
             stack.push_back(start);
@@ -1571,14 +1603,34 @@ void MainWindow::Impl::CommitReplacePayload(std::unique_ptr<ReplacePayload> payl
     {
         return;
     }
+    std::vector<changes::UndoOperation> steps;
+    std::vector<HistoryEntry> history;
+    const bool renamed_keys = std::any_of(payload->changes.begin(), payload->changes.end(), [](const ReplacePayload::Change& change) {
+        return change.undo.type == changes::UndoOperation::Type::kRenameKey;
+    });
+    steps.reserve(payload->changes.size());
+    history.reserve(payload->changes.size());
     for (auto& change : payload->changes)
     {
-        PushUndo(std::move(change.undo));
-        AppendHistoryEntry(std::move(change.history));
+        steps.push_back(std::move(change.undo));
+        history.push_back(std::move(change.history));
     }
-    if (!payload->changes.empty() || payload->partial_renames > 0)
+    AppendHistoryEntries(std::move(history));
+    const auto session = payload->session.lock();
+    if (session)
     {
-        MarkOfflineDirty();
+        session->undo.Push(std::move(steps));
+        UpdateUndoButtons();
+    }
+    // the session the replace ran in, a closed source has nothing left to mark
+    if (session && (!payload->changes.empty() || payload->partial_renames > 0))
+    {
+        MarkSessionDirty(*session);
+    }
+    // renamed keys can be anywhere in the shown tree, not only at the selection
+    if (renamed_keys)
+    {
+        RefreshWholeTree();
     }
     if (browse_.current_node())
     {

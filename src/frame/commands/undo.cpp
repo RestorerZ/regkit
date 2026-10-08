@@ -21,11 +21,18 @@ void MainWindow::Impl::UpdateUndoButtons()
 
 void MainWindow::Impl::PushUndo(changes::UndoOperation operation)
 {
+    std::vector<changes::UndoOperation> steps;
+    steps.push_back(std::move(operation));
+    PushUndo(std::move(steps));
+}
+
+void MainWindow::Impl::PushUndo(std::vector<changes::UndoOperation> steps)
+{
     if (is_replaying_)
     {
         return;
     }
-    session_->undo.Push(std::move(operation));
+    session_->undo.Push(std::move(steps));
     UpdateUndoButtons();
 }
 
@@ -35,146 +42,136 @@ void MainWindow::Impl::ClearRedo()
     UpdateUndoButtons();
 }
 
-MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(const changes::UndoOperation& operation, bool redo)
+namespace
+{
+
+using Type = changes::UndoOperation::Type;
+
+bool TouchesKeys(const changes::UndoOperation& operation)
+{
+    return operation.type == Type::kCreateKey || operation.type == Type::kDeleteKey || operation.type == Type::kRenameKey || operation.type == Type::kReplaceKey ||
+           std::any_of(operation.steps.begin(), operation.steps.end(), TouchesKeys);
+}
+
+// the registry side of one step, the caller refreshes the view once
+bool ReplayStep(const changes::UndoOperation& operation, bool redo, bool* rename_left_both_names, size_t* replayed = nullptr)
+{
+    switch (operation.type)
+    {
+    case Type::kCreateKey:
+        if (!redo)
+        {
+            return RegistryStore::DeleteKey(ChildNode(operation.node, operation.name));
+        }
+        return operation.key_snapshot.name.empty() ? RegistryStore::CreateKey(operation.node, operation.name) : changes::RestoreKey(operation.node, operation.key_snapshot);
+    case Type::kDeleteKey:
+        return redo ? RegistryStore::DeleteKey(ChildNode(operation.node, operation.name)) : changes::RestoreKey(operation.node, operation.key_snapshot);
+    case Type::kRenameKey:
+        return RegistryStore::RenameKey(ChildNode(operation.node, redo ? operation.name : operation.new_name), redo ? operation.new_name : operation.name);
+    case Type::kCreateValue:
+        return redo ? RegistryStore::SetValue(operation.node, operation.new_value.name, operation.new_value.type, operation.new_value.data)
+                    : RegistryStore::DeleteValue(operation.node, operation.name);
+    case Type::kDeleteValue:
+        return redo ? RegistryStore::DeleteValue(operation.node, operation.old_value.name)
+                    : RegistryStore::SetValue(operation.node, operation.old_value.name, operation.old_value.type, operation.old_value.data);
+    case Type::kModifyValue:
+        {
+            const RegistryValue& value = redo ? operation.new_value : operation.old_value;
+            return RegistryStore::SetValue(operation.node, value.name, value.type, value.data);
+        }
+    case Type::kReplaceKey:
+        return changes::ReplaceKey(operation.node, redo ? operation.new_key_snapshot : operation.key_snapshot);
+    case Type::kRenameValue:
+        return RegistryStore::RenameValue(operation.node, redo ? operation.name : operation.new_name, redo ? operation.new_name : operation.name, rename_left_both_names);
+    case Type::kGroup:
+        {
+            // undo walks the steps backwards and stops at a failing one, a later step may depend on it
+            const size_t count = operation.steps.size();
+            size_t index = 0;
+            while (index < count && ReplayStep(operation.steps[redo ? index : count - 1 - index], redo, rename_left_both_names))
+            {
+                ++index;
+            }
+            if (replayed)
+            {
+                *replayed = index;
+            }
+            return index == count;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(const changes::UndoOperation& operation, bool redo, size_t* replayed, bool* left_both_names)
 {
     if (!browse_.current_node())
     {
         return ReplayResult::kUnchanged;
     }
-    bool ok = false;
     bool rename_left_both_names = false;
     std::optional<std::wstring> restored_value;
+    size_t steps = 0;
     is_replaying_ = true;
-    switch (operation.type)
-    {
-    case changes::UndoOperation::Type::kCreateKey:
-        {
-            if (redo)
-            {
-                if (!operation.key_snapshot.name.empty())
-                {
-                    ok = changes::RestoreKey(operation.node, operation.key_snapshot);
-                }
-                else
-                {
-                    ok = RegistryStore::CreateKey(operation.node, operation.name);
-                }
-                if (ok)
-                {
-                    RefreshTreeSelection();
-                    SelectChildKey(operation.node, operation.name);
-                }
-            }
-            else
-            {
-                RegistryNode child = ChildNode(operation.node, operation.name);
-                ok = RegistryStore::DeleteKey(child);
-                if (ok)
-                {
-                    RefreshTreeSelection();
-                }
-            }
-            break;
-        }
-    case changes::UndoOperation::Type::kDeleteKey:
-        {
-            if (redo)
-            {
-                RegistryNode child = ChildNode(operation.node, operation.name);
-                ok = RegistryStore::DeleteKey(child);
-                if (ok)
-                {
-                    RefreshTreeSelection();
-                }
-            }
-            else
-            {
-                ok = changes::RestoreKey(operation.node, operation.key_snapshot);
-                if (ok)
-                {
-                    RefreshTreeSelection();
-                    SelectChildKey(operation.node, operation.key_snapshot.name);
-                }
-            }
-            break;
-        }
-    case changes::UndoOperation::Type::kRenameKey:
-        {
-            std::wstring from = redo ? operation.name : operation.new_name;
-            std::wstring to = redo ? operation.new_name : operation.name;
-            RegistryNode child = ChildNode(operation.node, from);
-            ok = RegistryStore::RenameKey(child, to);
-            if (ok)
-            {
-                RefreshTreeSelection();
-                std::wstring path = registry_path::Build(operation.node);
-                if (!path.empty())
-                {
-                    path.append(L"\\");
-                    path.append(to);
-                    SelectTreePath(path);
-                }
-            }
-            break;
-        }
-    case changes::UndoOperation::Type::kCreateValue:
-        {
-            if (redo)
-            {
-                ok = RegistryStore::SetValue(operation.node, operation.new_value.name, operation.new_value.type, operation.new_value.data);
-                restored_value = operation.new_value.name;
-            }
-            else
-            {
-                ok = RegistryStore::DeleteValue(operation.node, operation.name);
-            }
-            break;
-        }
-    case changes::UndoOperation::Type::kDeleteValue:
-        {
-            if (redo)
-            {
-                ok = RegistryStore::DeleteValue(operation.node, operation.old_value.name);
-            }
-            else
-            {
-                ok = RegistryStore::SetValue(operation.node, operation.old_value.name, operation.old_value.type, operation.old_value.data);
-                restored_value = operation.old_value.name;
-            }
-            break;
-        }
-    case changes::UndoOperation::Type::kModifyValue:
-        {
-            const RegistryValue& value = redo ? operation.new_value : operation.old_value;
-            ok = RegistryStore::SetValue(operation.node, value.name, value.type, value.data);
-            break;
-        }
-    case changes::UndoOperation::Type::kReplaceKey:
-        {
-            ok = changes::ReplaceKey(operation.node, redo ? operation.new_key_snapshot : operation.key_snapshot);
-            if (ok)
-            {
-                RefreshTreeSelection();
-            }
-            break;
-        }
-    case changes::UndoOperation::Type::kRenameValue:
-        {
-            std::wstring from = redo ? operation.name : operation.new_name;
-            std::wstring to = redo ? operation.new_name : operation.name;
-            ok = RegistryStore::RenameValue(operation.node, from, to, &rename_left_both_names);
-            break;
-        }
-    default:
-        break;
-    }
+    const bool ok = ReplayStep(operation, redo, &rename_left_both_names, &steps);
     is_replaying_ = false;
+    if (replayed)
+    {
+        *replayed = steps;
+    }
 
-    if (ok || rename_left_both_names)
+    const bool changed_some = operation.type == Type::kGroup && steps > 0;
+    if (TouchesKeys(operation) && (ok || changed_some))
+    {
+        // a group's keys can be anywhere in the tree, not only at the selection
+        if (operation.type == Type::kGroup)
+        {
+            RefreshWholeTree();
+        }
+        else
+        {
+            RefreshTreeSelection();
+        }
+    }
+    if (left_both_names)
+    {
+        *left_both_names = rename_left_both_names;
+    }
+    if (ok)
+    {
+        switch (operation.type)
+        {
+        case Type::kCreateKey:
+        case Type::kDeleteKey:
+            if (redo == (operation.type == Type::kCreateKey))
+            {
+                SelectChildKey(operation.node, operation.type == Type::kCreateKey ? operation.name : operation.key_snapshot.name);
+            }
+            break;
+        case Type::kRenameKey:
+            if (std::wstring path = registry_path::Build(operation.node); !path.empty())
+            {
+                SelectTreePath(path + L"\\" + (redo ? operation.new_name : operation.name));
+            }
+            break;
+        case Type::kCreateValue:
+        case Type::kDeleteValue:
+            if (redo == (operation.type == Type::kCreateValue))
+            {
+                restored_value = redo ? operation.new_value.name : operation.old_value.name;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (ok || rename_left_both_names || changed_some)
     {
         MarkOfflineDirty();
     }
-    if ((ok || rename_left_both_names) && browse_.current_node())
+    if ((ok || rename_left_both_names || changed_some) && browse_.current_node())
     {
         UpdateValueListForNode(browse_.current_node());
         if (ok && restored_value)
@@ -188,8 +185,13 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(const change
                                       L"couldn't be removed. Both names now exist."));
     }
     UpdateUndoButtons();
-    if (rename_left_both_names)
+    // a group that partly replayed is split by the caller, one that changed nothing stays as it was
+    if (rename_left_both_names || (changed_some && !ok))
     {
+        if (!rename_left_both_names)
+        {
+            ui::ShowError(hwnd_, redo ? util::Tr(L"The change couldn't be redone.") : util::Tr(L"The change couldn't be undone."));
+        }
         return ReplayResult::kPartial;
     }
     return ok ? ReplayResult::kSuccess : ReplayResult::kUnchanged;

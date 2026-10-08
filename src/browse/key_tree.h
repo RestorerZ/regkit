@@ -41,6 +41,20 @@ class RegistryTree
     }
 
     void PopulateRoots(const std::vector<RegistryRootEntry>& roots);
+    void Clear();
+    RegistryNode* current_node() const noexcept
+    {
+        return current_node_;
+    }
+    void set_current_node(RegistryNode* node) noexcept
+    {
+        current_node_ = node;
+    }
+    std::vector<RegistryRootEntry>& roots() noexcept
+    {
+        return roots_;
+    }
+    uint64_t synced_revision = 0;
     RegistryNode* NodeFromItem(HTREEITEM item);
     HTREEITEM InsertChild(HTREEITEM parent, const std::wstring& name);
     void Resync(HTREEITEM item, bool load = true);
@@ -63,6 +77,8 @@ class RegistryTree
     HTREEITEM standard_group_item_ = nullptr;
     HTREEITEM real_group_item_ = nullptr;
     std::unordered_map<RegistryNode*, std::unique_ptr<RegistryNode>> nodes_;
+    std::vector<RegistryRootEntry> roots_;
+    RegistryNode* current_node_ = nullptr;
     std::function<int(const RegistryNode&)> icon_resolver_;
     std::function<void(const RegistryNode&, const std::unordered_set<std::wstring>&, std::vector<std::wstring>*)>
         virtual_child_provider_;

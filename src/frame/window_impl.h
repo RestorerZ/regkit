@@ -126,8 +126,7 @@ class MainWindow::Impl
         std::vector<changes::CommentRule> user_comments;
         std::vector<changes::CommentRule> default_comments;
         bool comments_unreadable = false;
-        std::wstring tree_selected_path;
-        std::vector<std::wstring> tree_expanded_paths;
+        workspace::TreeState tree_state;
         bool history_loaded = false;
         bool comments_loaded = false;
         bool tree_state_loaded = false;
@@ -141,11 +140,22 @@ class MainWindow::Impl
         };
 
         uint64_t generation = 0;
+        // the tab session the replace ran in, its undo goes there even after a tab switch
+        std::weak_ptr<RegistrySession> session;
         std::vector<Change> changes;
         int failures = 0;
         int partial_renames = 0;
         int rejected = 0;
         bool cancelled = false;
+    };
+    struct ComparePayload : work::MoveOnly
+    {
+        uint64_t generation = 0;
+        std::wstring error;
+        std::vector<search::compare::Row> rows;
+        search::compare::RowFilter filter = search::compare::RowFilter::kDifferences;
+        std::vector<search::Source> sources;
+        std::wstring unreadable;
     };
 
     static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
@@ -291,7 +301,7 @@ class MainWindow::Impl
     std::wstring TreeRootLabel() const;
     int TreeRootIcon() const;
     void SelectDefaultTreeItem();
-    void CaptureRegistryTabState(int index);
+    void CaptureRegistryTabState(int index, bool tree_state);
     void ResetRegistryTreeState();
     void SuspendTreeRedraw();
     void FlushTreeRedraw();
@@ -307,7 +317,12 @@ class MainWindow::Impl
     bool ConfirmCloseTab(int tab_index);
     bool ConfirmOfflineChanges(RegistrySession& session, const wchar_t* message);
     void MarkOfflineDirty();
+    void MarkSessionDirty(RegistrySession& session);
     int AddRegistryTab(RegistryMode mode, const wchar_t* label);
+    bool ActivateTabTree(int index);
+    void ResumeTabTree(int index);
+    void RestoreValueSelection(const TabEntry& entry);
+    void ConfigureTree(RegistryTree& tree);
     void OpenLocalRegistryTab(REGSAM view = 0);
     void GoToOtherView();
     std::wstring VirtualStoreTarget() const;
@@ -398,6 +413,9 @@ class MainWindow::Impl
     void ApplyColumns(HWND list);
     void AppendHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data);
     void AppendHistoryEntry(HistoryEntry entry);
+    // one cache write, sort & list update for a whole mass change
+    void AppendHistoryEntries(std::vector<HistoryEntry> entries);
+    static HistoryEntry ValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value = nullptr);
     void AppendValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value = nullptr);
     bool PrepareHistoryRevert(const HistoryEntry& entry, HistoryEntry* prepared) const;
     bool OpenHistoryTarget(const HistoryEntry& entry);
@@ -440,10 +458,14 @@ class MainWindow::Impl
     int KeyIconIndex(const RegistryNode& node, bool* is_link, bool* is_hive_root);
     void AppendRealRegistryRoot(std::vector<RegistryRootEntry>* roots);
     std::vector<RegistryRootEntry> LocalRoots(REGSAM view);
+    void ReloadLocalRoots();
     std::shared_ptr<RegistrySession> LocalViewSession(REGSAM view) const;
     void HandleTypeToSelectTree(wchar_t ch);
     void HandleTypeToSelectList(wchar_t ch);
     std::wstring NormalizeRegistryPath(const std::wstring& path) const;
+    // the tree labels NormalizeRegistryPath strips, so a worker can normalize without the UI state
+    std::vector<std::wstring> RegistryPathContexts() const;
+    static std::wstring NormalizeRegistryPath(const std::wstring& path, const std::wstring& sid, const std::vector<std::wstring>& contexts);
     std::wstring FormatRegistryPath(const std::wstring& path, registry_path::Style style) const;
     bool FindNearestExistingPath(const std::wstring& path, std::wstring* nearest_path) const;
     bool CreateRegistryPath(const std::wstring& path);
@@ -453,9 +475,10 @@ class MainWindow::Impl
     bool InvertSelectionInFocusedList();
     bool IsCompareTabSelected() const;
     void StartCompareRegistries();
+    void ApplyComparePayload(std::unique_ptr<ComparePayload> payload);
     void OpenSourceEntry(const search::Source& source, const std::wstring& path, const std::wstring& value_name, bool new_tab);
     int FindSourceTab(const search::Source& source) const;
-    bool AppendHistoryCache(const HistoryEntry& entry);
+    bool AppendHistoryCache(const std::vector<HistoryEntry>& entries);
     bool HistoryStaysInMemory() const;
     std::wstring CacheFolderPath() const;
     std::wstring HistoryCachePath() const;
@@ -526,14 +549,13 @@ class MainWindow::Impl
     HMENU BuildResetDefaultMenu(const std::vector<DefaultValueChoice>& choices) const;
     void RefreshResetDefaultMenu(HMENU menu);
     std::wstring TreeStatePath() const;
-    void LoadTreeState();
     void StartTreeStateWorker();
     void StopTreeStateWorker();
     void MarkTreeStateDirty();
     void CaptureTreeStateNow();
-    void SaveTreeStateFile(const std::wstring& selected, const std::vector<std::wstring>& expanded) const;
-    void CaptureTreeState(std::wstring* selected_path, std::vector<std::wstring>* expanded_paths) const;
-    void RestoreTreeState();
+    bool CaptureLocalTreeState(workspace::TreeState* state, bool shown_only) const;
+    void CaptureTreeState(const RegistryTree& tree, std::wstring* selected_path, std::vector<std::wstring>* expanded_paths) const;
+    void RestoreTreeState(workspace::TreeState state);
     void ExpandTreePaths(const std::vector<std::wstring>& paths);
     HTREEITEM FindTreeItem(const std::wstring& path);
     void RefreshTreeItem(HTREEITEM item);
@@ -570,6 +592,7 @@ class MainWindow::Impl
     };
 
     void PushUndo(changes::UndoOperation operation);
+    void PushUndo(std::vector<changes::UndoOperation> steps);
     void ClearRedo();
     enum class ReplayResult
     {
@@ -577,7 +600,7 @@ class MainWindow::Impl
         kUnchanged,
         kPartial,
     };
-    ReplayResult ApplyUndoOperation(const changes::UndoOperation& operation, bool redo);
+    ReplayResult ApplyUndoOperation(const changes::UndoOperation& operation, bool redo, size_t* replayed = nullptr, bool* left_both_names = nullptr);
     bool SameNode(const RegistryNode& left, const RegistryNode& right) const;
     std::optional<std::wstring> MakeUniqueValueName(const RegistryNode& node, const std::wstring& base) const;
     std::wstring MakeUniqueKeyName(const RegistryNode& node, const std::wstring& base) const;
@@ -615,7 +638,7 @@ class MainWindow::Impl
     bool compare_columns_active_ = false;
     bool compare_result_column_active_ = false;
     int history_sort_column_ = 0;
-    bool history_sort_ascending_ = true;
+    bool history_sort_ascending_ = false;
     int history_max_rows_ = 500;
     changes::ChangeHistory change_history_;
     std::shared_ptr<RegistrySession> local_session_ = std::make_shared<RegistrySession>();
@@ -676,6 +699,8 @@ class MainWindow::Impl
     bool flushing_external_navigation_ = false;
     bool jump_ui_batch_active_ = false;
     bool tree_redraw_pending_ = false;
+    // set when the tree state cache is cleared for a restart, saved tabs then carry none
+    bool drop_tree_state_ = false;
     bool status_update_pending_ = false;
     bool tree_painted_ = false;
     int pending_show_cmd_ = SW_SHOWNORMAL;
@@ -685,8 +710,6 @@ class MainWindow::Impl
     std::wstring pending_external_value_name_;
     std::unordered_map<std::wstring, std::wstring> hive_list_;
     std::shared_ptr<const std::unordered_set<std::wstring>> hive_roots_;
-    workspace::TreeState saved_tree_state_;
-    bool tree_state_restored_ = false;
     bool deferred_startup_complete_ = false;
     work::Session startup_cache_session_;
     bool startup_tree_restore_pending_ = false;
@@ -765,6 +788,8 @@ class MainWindow::Impl
         int value_top_index = 0;
         std::vector<std::wstring> expanded_paths;
         std::shared_ptr<RegistrySession> session;
+        // owned by browse_, created the first time the tab is shown
+        RegistryTree* tree = nullptr;
         std::wstring reg_file_path;
         std::wstring reg_file_label;
         std::wstring reg_file_session_key;
@@ -791,6 +816,7 @@ class MainWindow::Impl
     uint64_t search_generation_ = 0;
     work::Session replace_session_;
     bool replace_result_pending_ = false;
+    work::Session compare_session_;
     int active_search_tab_index_ = -1;
     int search_results_view_tab_index_ = -1;
     ui::TabStrip tab_strip_;

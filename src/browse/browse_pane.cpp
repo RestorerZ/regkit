@@ -28,9 +28,10 @@ bool Pane::Create(const CreateRequest& request)
     go_button_ =
         CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW, 0, 0, 0, 0, request.parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.go_id)), request.instance, nullptr);
     filter_ = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE, 0, 0, 0, 0, request.parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(request.filter_id)), request.instance, nullptr);
-    tree_.Create(request.parent, request.instance, request.tree_id, false, true);
+    tree_request_ = request;
+    tree_ = AddTree();
     values_.Create(request.parent, request.instance, request.values_id);
-    if (!address_ || !go_button_ || !filter_ || !tree_.hwnd() || !values_.hwnd())
+    if (!address_ || !go_button_ || !filter_ || !tree_ || !values_.hwnd())
     {
         return false;
     }
@@ -42,11 +43,6 @@ bool Pane::Create(const CreateRequest& request)
     }
     if (request.filter_proc &&
         !SetWindowSubclass(filter_, request.filter_proc, request.filter_subclass_id, request.callback_context))
-    {
-        return false;
-    }
-    if (request.tree_proc &&
-        !SetWindowSubclass(tree_.hwnd(), request.tree_proc, request.tree_subclass_id, request.callback_context))
     {
         return false;
     }
@@ -72,11 +68,50 @@ HWND Pane::filter() const noexcept
 }
 RegistryTree& Pane::tree() noexcept
 {
-    return tree_;
+    return *tree_;
 }
 const RegistryTree& Pane::tree() const noexcept
 {
-    return tree_;
+    return *tree_;
+}
+
+// every tab keeps its own tree, so switching tabs only swaps windows
+RegistryTree* Pane::AddTree()
+{
+    auto tree = std::make_unique<RegistryTree>();
+    tree->Create(tree_request_.parent, tree_request_.instance, tree_request_.tree_id, false, true);
+    if (!tree->hwnd() || (tree_request_.tree_proc &&
+                          !SetWindowSubclass(tree->hwnd(), tree_request_.tree_proc, tree_request_.tree_subclass_id, tree_request_.callback_context)))
+    {
+        if (tree->hwnd())
+        {
+            DestroyWindow(tree->hwnd());
+        }
+        return nullptr;
+    }
+    trees_.push_back(std::move(tree));
+    return trees_.back().get();
+}
+
+void Pane::SetActiveTree(RegistryTree* tree) noexcept
+{
+    tree_ = tree;
+}
+
+void Pane::RemoveTree(RegistryTree* tree)
+{
+    auto it = std::find_if(trees_.begin(), trees_.end(), [tree](const auto& owned) { return owned.get() == tree; });
+    if (it == trees_.end() || tree == tree_)
+    {
+        return;
+    }
+    DestroyWindow(tree->hwnd());
+    trees_.erase(it);
+}
+
+const std::vector<std::unique_ptr<RegistryTree>>& Pane::trees() const noexcept
+{
+    return trees_;
 }
 ValueList& Pane::values() noexcept
 {
@@ -88,19 +123,19 @@ const ValueList& Pane::values() const noexcept
 }
 RegistryNode* Pane::current_node() const noexcept
 {
-    return current_node_;
+    return tree_->current_node();
 }
 void Pane::set_current_node(RegistryNode* node) noexcept
 {
-    current_node_ = node;
+    tree_->set_current_node(node);
 }
 std::vector<RegistryRootEntry>& Pane::roots() noexcept
 {
-    return roots_;
+    return tree_->roots();
 }
 const std::vector<RegistryRootEntry>& Pane::roots() const noexcept
 {
-    return roots_;
+    return tree_->roots();
 }
 ColumnState& Pane::columns() noexcept
 {
@@ -160,12 +195,13 @@ std::optional<std::wstring> Pane::Forward()
 
 std::optional<std::wstring> Pane::Up()
 {
-    if (!current_node_ || current_node_->subkey.empty())
+    const RegistryNode* node = current_node();
+    if (!node || node->subkey.empty())
     {
         return std::nullopt;
     }
     programmatic_navigation_ = true;
-    return registry_path::Parent(registry_path::Build(*current_node_));
+    return registry_path::Parent(registry_path::Build(*node));
 }
 
 void Pane::UndoNavigation(int delta)
@@ -183,7 +219,7 @@ NavigationAvailability Pane::navigation() const noexcept
     NavigationAvailability available;
     available.back = navigation_index_ > 0;
     available.forward = navigation_index_ + 1 < static_cast<int>(navigation_history_.size());
-    available.up = current_node_ && !current_node_->subkey.empty();
+    available.up = current_node() && !current_node()->subkey.empty();
     return available;
 }
 
@@ -286,7 +322,7 @@ void Pane::TypeSelectValues(wchar_t ch, DWORD now)
 
 void Pane::TypeSelectTree(wchar_t ch, DWORD now)
 {
-    if (!tree_.hwnd())
+    if (!tree_->hwnd())
     {
         return;
     }
@@ -295,14 +331,14 @@ void Pane::TypeSelectTree(wchar_t ch, DWORD now)
     {
         return;
     }
-    const HTREEITEM selected = TreeView_GetSelection(tree_.hwnd());
+    const HTREEITEM selected = TreeView_GetSelection(tree_->hwnd());
     if (!selected)
     {
         return;
     }
 
     auto load_children = [&](HTREEITEM item) {
-        RegistryNode* node = tree_.NodeFromItem(item);
+        RegistryNode* node = tree_->NodeFromItem(item);
         if (!node || node->children_loaded)
         {
             return;
@@ -310,20 +346,20 @@ void Pane::TypeSelectTree(wchar_t ch, DWORD now)
         NMTREEVIEWW info = {};
         info.action = TVE_EXPAND;
         info.itemNew.hItem = item;
-        tree_.OnItemExpanding(&info);
+        tree_->OnItemExpanding(&info);
     };
     auto children = [&](HTREEITEM parent) {
         std::vector<HTREEITEM> items;
-        HTREEITEM item = parent ? TreeView_GetChild(tree_.hwnd(), parent) : TreeView_GetRoot(tree_.hwnd());
-        for (; item; item = TreeView_GetNextSibling(tree_.hwnd(), item))
+        HTREEITEM item = parent ? TreeView_GetChild(tree_->hwnd(), parent) : TreeView_GetRoot(tree_->hwnd());
+        for (; item; item = TreeView_GetNextSibling(tree_->hwnd(), item))
         {
             items.push_back(item);
-            if (!tree_.IsGroupItem(item))
+            if (!tree_->IsGroupItem(item))
             {
                 continue;
             }
-            for (HTREEITEM sub = TreeView_GetChild(tree_.hwnd(), item); sub;
-                 sub = TreeView_GetNextSibling(tree_.hwnd(), sub))
+            for (HTREEITEM sub = TreeView_GetChild(tree_->hwnd(), item); sub;
+                 sub = TreeView_GetNextSibling(tree_->hwnd(), sub))
             {
                 items.push_back(sub);
             }
@@ -337,7 +373,7 @@ void Pane::TypeSelectTree(wchar_t ch, DWORD now)
         value.mask = TVIF_TEXT;
         value.pszText = buffer;
         value.cchTextMax = static_cast<int>(_countof(buffer));
-        return TreeView_GetItem(tree_.hwnd(), &value) ? std::wstring(buffer) : std::wstring();
+        return TreeView_GetItem(tree_->hwnd(), &value) ? std::wstring(buffer) : std::wstring();
     };
     auto find = [&](const std::vector<HTREEITEM>& items) -> HTREEITEM {
         if (items.empty())
@@ -373,7 +409,7 @@ void Pane::TypeSelectTree(wchar_t ch, DWORD now)
         load_children(selected);
         target = find(children(selected));
     }
-    const HTREEITEM parent = TreeView_GetParent(tree_.hwnd(), selected);
+    const HTREEITEM parent = TreeView_GetParent(tree_->hwnd(), selected);
     if (!target)
     {
         if (parent)
@@ -390,8 +426,8 @@ void Pane::TypeSelectTree(wchar_t ch, DWORD now)
     if (target)
     {
         tree_type_select_descend_ = false;
-        TreeView_SelectItem(tree_.hwnd(), target);
-        TreeView_EnsureVisible(tree_.hwnd(), target);
+        TreeView_SelectItem(tree_->hwnd(), target);
+        TreeView_EnsureVisible(tree_->hwnd(), target);
     }
 }
 

@@ -125,6 +125,8 @@ void MainWindow::Impl::RefreshMatchingTreeNodes(HTREEITEM selected)
 
 void MainWindow::Impl::RefreshTreeSelection()
 {
+    // other tabs trees resync when shown
+    RegistryStore::NoteKeyChange();
     if (!browse_.tree().hwnd())
     {
         return;
@@ -150,7 +152,10 @@ void MainWindow::Impl::RefreshWholeTree()
 {
     if (browse_.tree().hwnd())
     {
+        // sampled first, a change during the resync keeps the tree marked as behind
+        const uint64_t revision = RegistryStore::KeyRevision();
         RefreshTreeItem(TreeView_GetRoot(browse_.tree().hwnd()));
+        browse_.tree().synced_revision = revision;
     }
 }
 
@@ -182,7 +187,7 @@ void MainWindow::Impl::UpdateSimulatedChain(HTREEITEM item)
     }
 }
 
-void MainWindow::Impl::CaptureTreeState(std::wstring* selected_path, std::vector<std::wstring>* expanded_paths) const
+void MainWindow::Impl::CaptureTreeState(const RegistryTree& tree, std::wstring* selected_path, std::vector<std::wstring>* expanded_paths) const
 {
     if (selected_path)
     {
@@ -192,22 +197,23 @@ void MainWindow::Impl::CaptureTreeState(std::wstring* selected_path, std::vector
     {
         expanded_paths->clear();
     }
-    if (!browse_.tree().hwnd())
+    const HWND hwnd = tree.hwnd();
+    if (!hwnd)
     {
         return;
     }
     if (selected_path)
     {
-        RegistryNode* node = browse_.current_node();
+        RegistryNode* node = tree.current_node();
         if (!node)
         {
-            HTREEITEM selected = TreeView_GetSelection(browse_.tree().hwnd());
+            HTREEITEM selected = TreeView_GetSelection(hwnd);
             if (selected)
             {
                 TVITEMW tvi = {};
                 tvi.hItem = selected;
                 tvi.mask = TVIF_PARAM;
-                if (TreeView_GetItem(browse_.tree().hwnd(), &tvi))
+                if (TreeView_GetItem(hwnd, &tvi))
                 {
                     node = reinterpret_cast<RegistryNode*>(tvi.lParam);
                 }
@@ -222,7 +228,7 @@ void MainWindow::Impl::CaptureTreeState(std::wstring* selected_path, std::vector
     {
         return;
     }
-    HTREEITEM root = TreeView_GetRoot(browse_.tree().hwnd());
+    HTREEITEM root = TreeView_GetRoot(hwnd);
     if (!root)
     {
         return;
@@ -234,7 +240,7 @@ void MainWindow::Impl::CaptureTreeState(std::wstring* selected_path, std::vector
             tvi.hItem = item;
             tvi.mask = TVIF_STATE | TVIF_PARAM;
             tvi.stateMask = TVIS_EXPANDED;
-            if (TreeView_GetItem(browse_.tree().hwnd(), &tvi))
+            if (TreeView_GetItem(hwnd, &tvi))
             {
                 bool expanded = (tvi.state & TVIS_EXPANDED) != 0;
                 if (ancestors_expanded && expanded)
@@ -246,7 +252,7 @@ void MainWindow::Impl::CaptureTreeState(std::wstring* selected_path, std::vector
                     }
                 }
             }
-            HTREEITEM child = TreeView_GetChild(browse_.tree().hwnd(), item);
+            HTREEITEM child = TreeView_GetChild(hwnd, item);
             if (child)
             {
                 bool expanded = (tvi.state & TVIS_EXPANDED) != 0;
@@ -255,29 +261,32 @@ void MainWindow::Impl::CaptureTreeState(std::wstring* selected_path, std::vector
                     walk(child, true);
                 }
             }
-            item = TreeView_GetNextSibling(browse_.tree().hwnd(), item);
+            item = TreeView_GetNextSibling(hwnd, item);
         }
     };
     walk(root, true);
 }
 
-void MainWindow::Impl::RestoreTreeState()
+// the global state belongs to the plain local tab, the tab a start without saved tabs opens
+void MainWindow::Impl::RestoreTreeState(workspace::TreeState state)
 {
-    if (tree_state_restored_)
+    const int local = FindLocalRegistryTabIndex();
+    if (local < 0 || !browse_.tree().hwnd())
     {
         return;
     }
-    if (!settings_.save_tree_state)
+    TabEntry& entry = tabs_[static_cast<size_t>(local)];
+    if (!entry.selected_path.empty() || !entry.expanded_paths.empty())
     {
         return;
     }
-    tree_state_restored_ = true;
-    if (!browse_.tree().hwnd())
-    {
-        return;
-    }
-    workspace::TreeState state = saved_tree_state_;
     state.Normalize();
+    if (local != TabCtrl_GetCurSel(tab_))
+    {
+        entry.selected_path = std::move(state.selected_path);
+        entry.expanded_paths = std::move(state.expanded_paths);
+        return;
+    }
     ExpandTreePaths(state.expanded_paths);
     if (!state.selected_path.empty())
     {
@@ -394,25 +403,30 @@ void MainWindow::Impl::MarkTreeStateDirty()
 
 void MainWindow::Impl::CaptureTreeStateNow()
 {
-    if (!settings_.save_tree_state || !browse_.tree().hwnd() || !IsWindow(browse_.tree().hwnd()))
-    {
-        return;
-    }
-    std::wstring selected;
-    std::vector<std::wstring> expanded;
-    CaptureTreeState(&selected, &expanded);
     workspace::TreeState state;
-    state.selected_path = std::move(selected);
-    state.expanded_paths = std::move(expanded);
-    tree_state_saver_.Submit(std::move(state));
+    if (CaptureLocalTreeState(&state, true))
+    {
+        tree_state_saver_.Submit(std::move(state));
+    }
 }
 
-void MainWindow::Impl::SaveTreeStateFile(const std::wstring& selected, const std::vector<std::wstring>& expanded) const
+// shown_only skips the capture while another tab is shown, the local tab's state can't change then
+bool MainWindow::Impl::CaptureLocalTreeState(workspace::TreeState* state, bool shown_only) const
 {
-    workspace::TreeState state;
-    state.selected_path = selected;
-    state.expanded_paths = expanded;
-    workspace::SaveTreeState(TreeStatePath(), state);
+    const int local = FindLocalRegistryTabIndex();
+    if (!settings_.save_tree_state || local < 0 || (shown_only && local != TabCtrl_GetCurSel(tab_)))
+    {
+        return false;
+    }
+    const TabEntry& entry = tabs_[static_cast<size_t>(local)];
+    if (entry.tree && IsWindow(entry.tree->hwnd()))
+    {
+        CaptureTreeState(*entry.tree, &state->selected_path, &state->expanded_paths);
+        return true;
+    }
+    state->selected_path = entry.selected_path;
+    state->expanded_paths = entry.expanded_paths;
+    return true;
 }
 
 } // namespace regkit

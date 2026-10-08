@@ -153,7 +153,7 @@ void MainWindow::Impl::SortValueList(int column, bool toggle)
         bool needs_data = false;
         for (const auto& row : rows)
         {
-            if (row.kind == rowkind::kValue && !row.data_ready)
+            if (row.kind == rowkind::kValue && (!row.data_ready || row.data_preview))
             {
                 needs_data = true;
                 break;
@@ -344,10 +344,6 @@ void MainWindow::Impl::RebuildHistoryList()
     const int count = static_cast<int>(change_history_.entries().size());
     ListView_SetItemCountEx(history_list_, count, LVSICF_NOINVALIDATEALL | LVSICF_NOSCROLL);
     RedrawWindow(history_list_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
-    if (history_sort_column_ == 0 && history_sort_ascending_ && count > 0)
-    {
-        ListView_EnsureVisible(history_list_, count - 1, FALSE);
-    }
 }
 
 void MainWindow::Impl::RefreshHistory()
@@ -408,6 +404,23 @@ void MainWindow::Impl::MarkOfflineDirty()
     if (session_->mode == RegistryMode::kOffline)
     {
         session_->offline_dirty = true;
+    }
+}
+
+// .reg tab or hive a change went to, which may not be the tab shown when it lands
+void MainWindow::Impl::MarkSessionDirty(RegistrySession& session)
+{
+    for (TabEntry& entry : tabs_)
+    {
+        if (entry.kind == TabEntry::Kind::kRegFile && entry.session.get() == &session)
+        {
+            entry.reg_file_dirty = true;
+            return;
+        }
+    }
+    if (session.mode == RegistryMode::kOffline)
+    {
+        session.offline_dirty = true;
     }
 }
 
@@ -504,9 +517,9 @@ void MainWindow::Impl::CloseTab(int tab_index)
                 reg_file_parse_sessions_.erase(it);
             }
         }
-        ReleaseRegFileRoots(&entry);
     }
     const int previous_index = TabCtrl_GetCurSel(tab_);
+    TabEntry closed = std::move(tabs_[static_cast<size_t>(tab_index)]);
     tabs_.erase(tabs_.begin() + tab_index);
     TabCtrl_DeleteItem(tab_, tab_index);
 
@@ -520,6 +533,32 @@ void MainWindow::Impl::CloseTab(int tab_index)
     }
 
     SelectTabAfterClose(tab_index, previous_index);
+    if (closed.tree && std::none_of(tabs_.begin(), tabs_.end(), [&](const TabEntry& tab) { return tab.tree == closed.tree; }))
+    {
+        // search tab shown next keeps a tree active, a registry tab's own takes over so paths still resolve
+        if (closed.tree == &browse_.tree())
+        {
+            const auto owner = std::find_if(tabs_.begin(), tabs_.end(), [](const TabEntry& tab) { return tab.tree != nullptr; });
+            if (owner != tabs_.end())
+            {
+                const auto owner_session = owner->session;
+                ActivateTabTree(static_cast<int>(owner - tabs_.begin()));
+                if (owner_session)
+                {
+                    session_ = owner_session;
+                }
+            }
+            else
+            {
+                // no tab has a tree yet, the next one shown takes this one over
+                closed.tree->Clear();
+            }
+        }
+        browse_.RemoveTree(closed.tree);
+    }
+    closed.tree = nullptr;
+    // released once no tree shows them, a released root would reach the live registry
+    ReleaseRegFileRoots(&closed);
     RefreshRegistryTabLabels();
     ApplyViewVisibility();
     UpdateSearchResultsView();
@@ -557,7 +596,7 @@ void MainWindow::Impl::SelectTabIndex(int index)
     const int current = TabCtrl_GetCurSel(tab_);
     if (current != index)
     {
-        CaptureRegistryTabState(current);
+        CaptureRegistryTabState(current, false);
     }
     TabCtrl_SetCurSel(tab_, index);
 }
@@ -577,6 +616,7 @@ int MainWindow::Impl::AddRegistryTab(RegistryMode mode, const wchar_t* label)
     suppress_tab_change_ = true;
     SelectTabIndex(index);
     suppress_tab_change_ = false;
+    ActivateTabTree(index);
     return index;
 }
 

@@ -82,6 +82,7 @@ bool CaptureRegistry(const std::wstring& base_path, const RegistryNode& base_nod
     snapshot->label = base_path;
     snapshot->base_path = base_path;
     snapshot->keys.clear();
+    snapshot->unreadable.clear();
 
     std::vector<std::pair<RegistryNode, std::wstring>> stack;
     stack.emplace_back(base_node, L"");
@@ -139,11 +140,16 @@ bool CaptureRegistry(const std::wstring& base_path, const RegistryNode& base_nod
         {
             return false;
         }
+        if (!enumerated && !relative.empty())
+        {
+            snapshot->unreadable.push_back(std::move(relative));
+            continue;
+        }
         if (!enumerated)
         {
             if (error)
             {
-                *error = util::TrDetail(L"Couldn't read the registry key.", relative.empty() ? base_path : base_path + L"\\" + relative);
+                *error = util::TrDetail(L"Couldn't read the registry key.", base_path);
             }
             return false;
         }
@@ -157,15 +163,9 @@ bool CaptureRegistry(const std::wstring& base_path, const RegistryNode& base_nod
     return true;
 }
 
-bool LoadRegFile(const std::wstring& file_path, const std::wstring& base_path, bool recursive, const NormalizePath& normalize, Snapshot* snapshot, std::wstring* error, std::atomic_bool* cancel)
+bool LoadRegFile(const std::wstring& file_path, const regfile::Document& document, const std::wstring& base_path, bool recursive, const NormalizePath& normalize, Snapshot* snapshot, std::wstring* error, std::atomic_bool* cancel)
 {
     if (!snapshot || !normalize)
-    {
-        return false;
-    }
-    regfile::Document document;
-    bool cancelled = false;
-    if (!regfile::Load(file_path, &document, error, cancel, &cancelled))
     {
         return false;
     }
@@ -217,6 +217,15 @@ bool LoadRegFile(const std::wstring& file_path, const std::wstring& base_path, b
             key.values = source->second.values;
         }
         snapshot->keys[util::ToLower(relative)] = std::move(key);
+        // importing the file creates the keys above each listed one
+        for (std::wstring parent = relative; !parent.empty();)
+        {
+            parent = registry_path::Parent(parent);
+            if (!snapshot->keys.try_emplace(util::ToLower(parent), Key{parent, {}}).second)
+            {
+                break;
+            }
+        }
     }
 
     if (!matched)
@@ -266,38 +275,54 @@ std::vector<Row> BuildRows(const Snapshot& first, const Snapshot& second, RowFil
 {
     const bool include_differences = filter != RowFilter::kMatches;
     const bool include_matches = filter != RowFilter::kDifferences;
-    std::vector<std::wstring> keys;
+    // key union once, each with its display path, so sorting needs no map lookups
+    std::vector<std::pair<const std::wstring*, const std::wstring*>> keys;
     keys.reserve(first.keys.size() + second.keys.size());
-    std::unordered_set<std::wstring> seen;
-    seen.reserve(keys.capacity());
-    // get key union once so each shared key is compared once
-    AppendKeys(first.keys, &seen, &keys);
-    AppendKeys(second.keys, &seen, &keys);
-
-    auto key_display = [&](const std::wstring& lower) -> const std::wstring& {
-        const auto first_key = first.keys.find(lower);
-        if (first_key != first.keys.end())
+    for (const auto& [name, key] : first.keys)
+    {
+        keys.emplace_back(&name, &key.relative_path);
+    }
+    for (const auto& [name, key] : second.keys)
+    {
+        if (!first.keys.contains(name))
         {
-            return first_key->second.relative_path;
+            keys.emplace_back(&name, &key.relative_path);
         }
-        return second.keys.find(lower)->second.relative_path;
-    };
-    std::sort(keys.begin(), keys.end(), [&](const std::wstring& left, const std::wstring& right) {
-        return util::CompareInsensitive(key_display(left), key_display(right)) < 0;
+    }
+    std::sort(keys.begin(), keys.end(), [](const auto& left, const auto& right) {
+        return util::CompareInsensitive(*left.second, *right.second) < 0;
     });
 
+    auto unread = [&](const std::wstring& key_name) {
+        for (const Snapshot* side : {&first, &second})
+        {
+            for (const std::wstring& path : side->unreadable)
+            {
+                if (IsWithin(key_name, path, true))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
     std::vector<Row> results;
-    for (const auto& key_name : keys)
+    for (const auto& [name, display] : keys)
     {
+        const std::wstring& key_name = *name;
         if (Cancelled(cancel))
         {
             break;
+        }
+        if (unread(key_name))
+        {
+            continue;
         }
         const auto first_it = first.keys.find(key_name);
         const auto second_it = second.keys.find(key_name);
         const Key* first_key = first_it == first.keys.end() ? nullptr : &first_it->second;
         const Key* second_key = second_it == second.keys.end() ? nullptr : &second_it->second;
-        const std::wstring relative = key_display(key_name);
+        const std::wstring& relative = *display;
         const std::wstring first_path = Combine(first.base_path, relative);
         const std::wstring second_path = Combine(second.base_path, relative);
 

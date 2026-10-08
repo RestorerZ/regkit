@@ -87,7 +87,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     if (message == WM_INITDIALOG)
     {
         state = reinterpret_cast<State*>(lparam);
-        state->text = util::ToHex(state->request->data, L' ', true);
+        state->text = util::ToHexLines(state->request->data);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
         SetWindowTextW(dialog, util::Tr(L"Edit Value"));
         SetDlgItemTextW(dialog, IDC_LABEL, util::Tr(L"Hex bytes:"));
@@ -174,7 +174,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             {
                 return TRUE;
             }
-            SetDlgItemTextW(dialog, IDC_EDIT, util::ToHex(result.data, L' ', true).c_str());
+            SetDlgItemTextW(dialog, IDC_EDIT, util::ToHexLines(result.data).c_str());
             UpdatePreview(dialog, state);
             return TRUE;
         }

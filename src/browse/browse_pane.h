@@ -11,6 +11,7 @@
 
 #include <commctrl.h>
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -64,6 +65,10 @@ class Pane
     HWND filter() const noexcept;
     RegistryTree& tree() noexcept;
     const RegistryTree& tree() const noexcept;
+    RegistryTree* AddTree();
+    void SetActiveTree(RegistryTree* tree) noexcept;
+    void RemoveTree(RegistryTree* tree);
+    const std::vector<std::unique_ptr<RegistryTree>>& trees() const noexcept;
     ValueList& values() noexcept;
     const ValueList& values() const noexcept;
 
@@ -93,10 +98,12 @@ class Pane
     HWND address_ = nullptr;
     HWND go_button_ = nullptr;
     HWND filter_ = nullptr;
-    RegistryTree tree_;
+    CreateRequest tree_request_;
+    std::vector<std::unique_ptr<RegistryTree>> trees_;
+    // stands in until Create, the window is laid out before the pane exists
+    RegistryTree no_tree_;
+    RegistryTree* tree_ = &no_tree_;
     ValueList values_;
-    RegistryNode* current_node_ = nullptr;
-    std::vector<RegistryRootEntry> roots_;
     ColumnState columns_;
     std::vector<std::wstring> navigation_history_;
     int navigation_index_ = -1;

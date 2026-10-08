@@ -190,6 +190,11 @@ void MainWindow::Impl::ApplyTabSelection(int index)
     const TabEntry& entry = tabs_[static_cast<size_t>(index)];
     if (entry.kind == TabEntry::Kind::kRegistry)
     {
+        if (!ActivateTabTree(index))
+        {
+            ResumeTabTree(index);
+            return;
+        }
         SuspendTreeRedraw();
         // a tab restored at startup connects the first time it is shown
         bool shown = false;
@@ -526,9 +531,9 @@ void MainWindow::Impl::ReloadThemeIcons()
     );
 
     BuildImageLists();
-    if (browse_.tree().hwnd())
+    for (const auto& tree : browse_.trees())
     {
-        browse_.tree().SetImageList(tree_images_);
+        tree->SetImageList(tree_images_);
     }
     if (browse_.values().hwnd())
     {
@@ -656,6 +661,10 @@ void MainWindow::Impl::LayoutControls(int width, int height)
     bool show_tabs = settings_.show_tab_control && tab_;
     bool show_filter = show_value && settings_.show_filter_bar && browse_.filter();
     bool show_tab_row = show_tabs || show_filter;
+    // tabs wrap into rows at their width, the filter stays beside the first row;
+    // past a quarter of the window they fall back to one scrolling row so the panes keep their room
+    int rows_height = tabs_height;
+    const int max_tabs_height = std::max(tabs_height, height / 4);
     if (show_tab_row)
     {
         if (show_tabs && show_filter)
@@ -670,7 +679,8 @@ void MainWindow::Impl::LayoutControls(int width, int height)
                 tabs_width = std::max(kTabMinWidth, available - filter_width - filter_gap);
                 int filter_y = y + std::max(0, (tabs_height - filter_height) / 2);
                 int edit_width = std::max(filter_min_width / 2, filter_width - address_btn_width);
-                place(tab_, padding, y, tabs_width, tabs_height);
+                rows_height = tab_strip_.Fit(tabs_width, tabs_height, max_tabs_height);
+                place(tab_, padding, y, tabs_width, rows_height);
                 place(browse_.filter(), padding + tabs_width + filter_gap, filter_y, edit_width, filter_height);
                 place(filter_clear_btn_, padding + tabs_width + filter_gap + edit_width, filter_y, address_btn_width, filter_height);
                 SetEditMargins(browse_.filter(), 6, 6);
@@ -686,7 +696,8 @@ void MainWindow::Impl::LayoutControls(int width, int height)
         }
         if (show_tabs && !show_filter)
         {
-            place(tab_, padding, y, tabs_width, tabs_height);
+            rows_height = tab_strip_.Fit(tabs_width, tabs_height, max_tabs_height);
+            place(tab_, padding, y, tabs_width, rows_height);
             if (browse_.filter())
             {
                 ShowWindow(browse_.filter(), SW_HIDE);
@@ -707,7 +718,7 @@ void MainWindow::Impl::LayoutControls(int width, int height)
             ShowWindow(browse_.filter(), SW_SHOW);
             ShowWindow(filter_clear_btn_, SW_SHOW);
         }
-        y += tabs_height + kMainVerticalGap;
+        y += rows_height + kMainVerticalGap;
     }
     else
     {

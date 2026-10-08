@@ -8,6 +8,7 @@
 #include "win32/text_transform.h"
 
 #include <algorithm>
+#include <atomic>
 
 namespace regkit
 {
@@ -29,6 +30,8 @@ decltype(auto) Dispatch(const RegistryNode& node, VirtualCall&& virtual_call, Of
     }
     return live_call();
 }
+
+std::atomic<uint64_t> g_key_revision{0};
 
 } // namespace
 
@@ -85,6 +88,13 @@ void RegistryStore::UnregisterVirtualRoot(HKEY root)
     registry_backend::virtual_store::UnregisterRoot(root);
 }
 
+HKEY RegistryStore::DuplicateVirtualRoot(HKEY root)
+{
+    std::wstring name;
+    const auto data = FindRoot(root, &name);
+    return data ? registry_backend::virtual_store::RegisterRoot(name, data) : nullptr;
+}
+
 bool RegistryStore::IsVirtualRoot(HKEY root)
 {
     return static_cast<bool>(FindRoot(root));
@@ -93,6 +103,16 @@ bool RegistryStore::IsVirtualRoot(HKEY root)
 bool RegistryStore::GetVirtualRootName(HKEY root, std::wstring* root_name)
 {
     return static_cast<bool>(FindRoot(root, root_name));
+}
+
+uint64_t RegistryStore::KeyRevision() noexcept
+{
+    return g_key_revision.load();
+}
+
+void RegistryStore::NoteKeyChange() noexcept
+{
+    ++g_key_revision;
 }
 
 bool RegistryStore::HasSubKeys(const RegistryNode& node)
@@ -241,6 +261,7 @@ bool RegistryStore::QueryValue(const RegistryNode& node, const std::wstring& val
 
 LONG RegistryStore::SetKeyControlFlags(const RegistryNode& node, ULONG flags)
 {
+    NoteKeyChange();
     util::UniqueHKey key;
     const LONG status = util::OpenRegistryPath(node.root, node.subkey, KEY_SET_VALUE | ViewOf(node), false, &key);
     return status == ERROR_SUCCESS ? util::SetKeyControlFlags(key.get(), flags) : status;
@@ -271,6 +292,7 @@ std::wstring RegistryStore::OfflineControlSet(const RegistryNode& node)
 
 bool RegistryStore::CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCreateOptions& options, bool* created_volatile)
 {
+    NoteKeyChange();
     if (created_volatile)
     {
         *created_volatile = false;
@@ -289,6 +311,7 @@ bool RegistryStore::CreateKey(const RegistryNode& node, const std::wstring& name
 
 bool RegistryStore::CreateKeyLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target, const KeyCreateOptions& options)
 {
+    NoteKeyChange();
     return Dispatch(
         node,
         [&](VirtualRegistryData&) { return false; },
@@ -323,6 +346,7 @@ bool RegistryStore::ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATI
 
 bool RegistryStore::WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor, const FILETIME* last_write)
 {
+    NoteKeyChange();
     return Dispatch(
         node,
         [&](VirtualRegistryData&) { return descriptor.empty(); },
@@ -333,6 +357,7 @@ bool RegistryStore::WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMAT
 
 bool RegistryStore::DeleteKey(const RegistryNode& node)
 {
+    NoteKeyChange();
     if (node.subkey.empty())
     {
         return false;
@@ -347,6 +372,7 @@ bool RegistryStore::DeleteKey(const RegistryNode& node)
 
 bool RegistryStore::RenameKey(const RegistryNode& node, const std::wstring& new_name)
 {
+    NoteKeyChange();
     if (node.subkey.empty() || new_name.empty())
     {
         return false;

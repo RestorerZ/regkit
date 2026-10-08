@@ -8,6 +8,8 @@
 #include "ui/list_header.h"
 #include "win32/translation.h"
 
+#include <dwmapi.h>
+
 namespace regkit
 {
 using namespace window_detail;
@@ -119,7 +121,7 @@ bool MainWindow::Impl::OnCreate()
     }
 
     tab_ =
-        CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_TABS | TCS_FOCUSNEVER, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTabId)), instance_, nullptr);
+        CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_BUTTONS | TCS_MULTILINE | TCS_RAGGEDRIGHT | TCS_FOCUSNEVER, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTabId)), instance_, nullptr);
     ApplyFont(tab_, ui_font_);
     tab_strip_.Attach(tab_, [](void* context, int index) { static_cast<MainWindow::Impl*>(context)->CloseTab(index); }, this);
 
@@ -130,10 +132,7 @@ bool MainWindow::Impl::OnCreate()
         CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_CLIPSIBLINGS | BS_OWNERDRAW, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kFilterClearId)), instance_, nullptr);
     SetWindowPos(tree_close_btn_, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
-    browse_.tree().SetIconResolver([this](const RegistryNode& node) { return KeyIconIndex(node, nullptr, nullptr); });
-    browse_.tree().SetVirtualChildProvider(
-        [this](const RegistryNode& node, const std::unordered_set<std::wstring>& existing_lower, std::vector<std::wstring>* out) { AppendTraceChildren(node, existing_lower, out); }
-    );
+    ConfigureTree(browse_.tree());
     search_results_list_ = CreateWindowExW(
         0,
         WC_LISTVIEWW,
@@ -216,7 +215,6 @@ bool MainWindow::Impl::OnCreate()
     SetWindowSubclass(search_results_list_, ListViewProc, kListViewSubclassId, reinterpret_cast<DWORD_PTR>(this));
 
     appearance::AttachThemedBorder(tree_header_);
-    appearance::AttachThemedBorder(browse_.tree().hwnd());
     appearance::AttachThemedBorder(history_label_);
     appearance::AttachThemedBorder(browse_.address());
     appearance::AttachThemedBorder(browse_.go_button());
@@ -278,6 +276,24 @@ bool MainWindow::Impl::OnCreate()
     return true;
 }
 
+void MainWindow::Impl::ConfigureTree(RegistryTree& tree)
+{
+    tree.SetIconResolver([this](const RegistryNode& node) { return KeyIconIndex(node, nullptr, nullptr); });
+    tree.SetVirtualChildProvider(
+        [this](const RegistryNode& node, const std::unordered_set<std::wstring>& existing_lower, std::vector<std::wstring>* out) { AppendTraceChildren(node, existing_lower, out); }
+    );
+    appearance::AttachThemedBorder(tree.hwnd());
+    Theme::Current().ApplyToTreeView(tree.hwnd());
+    if (tree_images_)
+    {
+        tree.SetImageList(tree_images_);
+    }
+    if (ui_font_)
+    {
+        ApplyFont(tree.hwnd(), ui_font_);
+    }
+}
+
 void MainWindow::Impl::RunDeferredStartup()
 {
     if (deferred_startup_complete_)
@@ -287,38 +303,21 @@ void MainWindow::Impl::RunDeferredStartup()
     deferred_startup_complete_ = true;
     const bool has_external_jump = !queued_external_jump_target_.empty();
     // external jumps & saved tab state take priority over the global tree state
-    bool use_global_tree_state = (!has_external_jump && settings_.save_tree_state);
-    if (use_global_tree_state && tab_)
-    {
-        int active_tab = TabCtrl_GetCurSel(tab_);
-        if (active_tab >= 0 && static_cast<size_t>(active_tab) < tabs_.size())
-        {
-            const TabEntry& entry = tabs_[static_cast<size_t>(active_tab)];
-            if (entry.kind == TabEntry::Kind::kRegistry &&
-                (!entry.selected_path.empty() || !entry.expanded_paths.empty()))
-            {
-                use_global_tree_state = false;
-            }
-        }
-    }
-    startup_tree_restore_pending_ = use_global_tree_state;
+    startup_tree_restore_pending_ = !has_external_jump && settings_.save_tree_state;
 
     EnableAddressAutoComplete();
     ReloadThemeIcons();
     FlushTreeRedraw();
+    // shown cloaked until every child has painted, the first frame would show unpainted panes white
+    BOOL cloak = TRUE;
+    DwmSetWindowAttribute(hwnd_, DWMWA_CLOAK, &cloak, sizeof(cloak));
     ShowWindow(hwnd_, pending_show_cmd_);
-    UpdateWindow(hwnd_);
+    RedrawWindow(hwnd_, nullptr, nullptr, RDW_UPDATENOW | RDW_ALLCHILDREN);
+    cloak = FALSE;
+    DwmSetWindowAttribute(hwnd_, DWMWA_CLOAK, &cloak, sizeof(cloak));
 
     UpdateSearchResultsView();
-    if (has_external_jump)
-    {
-        tree_state_restored_ = true;
-    }
-    else if (!use_global_tree_state)
-    {
-        tree_state_restored_ = true;
-    }
-    StartStartupCacheLoad(use_global_tree_state);
+    StartStartupCacheLoad(startup_tree_restore_pending_);
     ApplyQueuedExternalJump();
     StartTreeStateWorker();
     MarkTreeStateDirty();
@@ -334,12 +333,11 @@ void MainWindow::Impl::RunDeferredStartup()
 void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
 {
     StopStartupCacheLoad();
-    const bool load_tree_state = include_tree_state && settings_.save_tree_state;
     int history_max_rows = history_max_rows_;
     int history_sort_column = history_sort_column_;
     bool history_sort_ascending = history_sort_ascending_;
     const HWND hwnd = hwnd_;
-    startup_cache_session_.Start(L"StartupCacheThread", [this, load_tree_state, history_max_rows, history_sort_column, history_sort_ascending, hwnd](uint64_t generation, const std::atomic_bool& cancel) {
+    startup_cache_session_.Start(L"StartupCacheThread", [this, include_tree_state, history_max_rows, history_sort_column, history_sort_ascending, hwnd](uint64_t generation, const std::atomic_bool& cancel) {
         auto payload = std::make_unique<StartupCachePayload>();
         payload->generation = generation;
 
@@ -383,16 +381,9 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
             return;
         }
 
-        if (load_tree_state)
+        if (include_tree_state)
         {
-            std::wstring tree_path = TreeStatePath();
-            std::wstring tree_content;
-            if (!tree_path.empty() && util::ReadTextFile(tree_path, &tree_content, nullptr, util::kMaxStateFileBytes))
-            {
-                workspace::TreeState state = workspace::ParseTreeState(tree_content);
-                payload->tree_selected_path = std::move(state.selected_path);
-                payload->tree_expanded_paths = std::move(state.expanded_paths);
-            }
+            workspace::LoadTreeState(TreeStatePath(), &payload->tree_state);
             payload->tree_state_loaded = true;
         }
 
@@ -466,27 +457,15 @@ void MainWindow::Impl::ApplyStartupCachePayload(std::unique_ptr<StartupCachePayl
         change_history_.Replace(std::move(owned->history_entries), static_cast<size_t>(history_max_rows_));
         change_history_.Sort(history_sort_column_, history_sort_ascending_);
         history_loaded_ = true;
-        for (const auto& entry : pending_session_entries)
-        {
-            AppendHistoryCache(entry);
-        }
+        AppendHistoryCache(pending_session_entries);
         RebuildHistoryList();
     }
 
-    if (owned->tree_state_loaded)
+    if (owned->tree_state_loaded && startup_tree_restore_pending_)
     {
-        saved_tree_state_.selected_path = std::move(owned->tree_selected_path);
-        saved_tree_state_.expanded_paths = std::move(owned->tree_expanded_paths);
-        if (startup_tree_restore_pending_ && !tree_state_restored_)
-        {
-            applying_startup_tree_restore_ = true;
-            RestoreTreeState();
-            applying_startup_tree_restore_ = false;
-        }
-        else if (!tree_state_restored_)
-        {
-            tree_state_restored_ = true;
-        }
+        applying_startup_tree_restore_ = true;
+        RestoreTreeState(std::move(owned->tree_state));
+        applying_startup_tree_restore_ = false;
         startup_tree_restore_pending_ = false;
     }
 }
@@ -508,6 +487,7 @@ void MainWindow::Impl::OnDestroy()
     // stop workers before releasing controls & resources they may still reference
     StopStartupCacheLoad();
     StopReplace();
+    compare_session_.CancelAndJoin();
     StopTraceParseSessions();
     StopDefaultParseSessions();
     StopRegFileParseSessions();
@@ -530,13 +510,6 @@ void MainWindow::Impl::OnDestroy()
     }
     updates_.Cancel();
     DiscardWorkerMessages();
-    for (auto& entry : tabs_)
-    {
-        if (entry.kind == TabEntry::Kind::kRegFile)
-        {
-            ReleaseRegFileRoots(&entry);
-        }
-    }
     if (!restart_on_close_ && !reset_settings_on_close_)
     {
         if (settings_.clear_tabs_on_exit)
@@ -546,6 +519,14 @@ void MainWindow::Impl::OnDestroy()
         else if (settings_.save_tab_kinds != 0 && !SaveTabs())
         {
             ui::ShowError(hwnd_, util::Tr(L"The open tabs couldn't be saved for the next session."));
+        }
+    }
+    // after the save, releasing clears the hidden .reg trees it captures from
+    for (auto& entry : tabs_)
+    {
+        if (entry.kind == TabEntry::Kind::kRegFile)
+        {
+            ReleaseRegFileRoots(&entry);
         }
     }
     ClearHistoryItems(false);
@@ -598,7 +579,7 @@ void MainWindow::Impl::DiscardWorkerMessages()
         return;
     }
     MSG message = {};
-    const UINT payload_messages[] = {frame::message_id::kTraceLoadReady, frame::message_id::kDefaultLoadReady, frame::message_id::kStartupCacheReady, frame::message_id::kRegFileLoadReady, frame::message_id::kTraceParseBatch, frame::message_id::kDefaultParseBatch, frame::message_id::kValueListReady, frame::message_id::kReplaceReady, frame::message_id::kValuePreviewReady, frame::message_id::kSearchPreviewReady, frame::message_id::kSearchSortReady, frame::message_id::kSearchTabLoadReady, frame::message_id::kUpdateCheckReady};
+    const UINT payload_messages[] = {frame::message_id::kTraceLoadReady, frame::message_id::kDefaultLoadReady, frame::message_id::kStartupCacheReady, frame::message_id::kRegFileLoadReady, frame::message_id::kTraceParseBatch, frame::message_id::kDefaultParseBatch, frame::message_id::kValueListReady, frame::message_id::kReplaceReady, frame::message_id::kCompareReady, frame::message_id::kValuePreviewReady, frame::message_id::kSearchPreviewReady, frame::message_id::kSearchSortReady, frame::message_id::kSearchTabLoadReady, frame::message_id::kUpdateCheckReady};
     for (const UINT id : payload_messages)
     {
         while (PeekMessageW(&message, hwnd_, id, id, PM_REMOVE))

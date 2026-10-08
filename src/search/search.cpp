@@ -458,7 +458,6 @@ struct HexQuery
 {
     bool hex_only = false;
     bool parsed = false;
-    bool digits_only = false;
     std::vector<BYTE> bytes;
 };
 HexQuery ParseHexQuery(const std::wstring& query)
@@ -466,7 +465,6 @@ HexQuery ParseHexQuery(const std::wstring& query)
     HexQuery result;
     std::wstring digits;
     digits.reserve(query.size());
-    bool digits_only = true;
     size_t start = 0;
     if (query.size() >= 2 && query[0] == L'0' && (query[1] == L'x' || query[1] == L'X'))
     {
@@ -478,10 +476,6 @@ HexQuery ParseHexQuery(const std::wstring& query)
         if (util::HexDigitValue(ch) >= 0)
         {
             digits.push_back(ch);
-            if (ch > L'9')
-            {
-                digits_only = false;
-            }
         }
         else if (ch == L' ' || ch == L'\t' || ch == L',' || ch == L';' || ch == L'-' || ch == L':')
         {
@@ -493,7 +487,6 @@ HexQuery ParseHexQuery(const std::wstring& query)
         }
     }
     result.hex_only = true;
-    result.digits_only = digits_only;
     if (digits.empty())
     {
         return result;
@@ -643,10 +636,6 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
                     return result;
                 }
             }
-            if (!hex_query.digits_only)
-            {
-                return result;
-            }
         }
 
         auto accept_bytes = [&](size_t byte_start, size_t byte_length) {
@@ -660,14 +649,16 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
             }
         };
 
+        // text views drop trailing NULs, as string values do
+        DWORD bytes = size;
+        while (bytes > 0 && data[bytes - 1] == 0)
+        {
+            --bytes;
+        }
         if (scratch)
         {
             // reuse each worker buffer
-            scratch->assign(size, L'\0');
-            for (DWORD i = 0; i < size; ++i)
-            {
-                (*scratch)[i] = static_cast<wchar_t>(data[i]);
-            }
+            scratch->assign(data, data + bytes);
             const Match match = matcher.Find(*scratch);
             if (match.matched)
             {
@@ -680,7 +671,7 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
         if (size >= sizeof(wchar_t) && (size % sizeof(wchar_t)) == 0 &&
             (reinterpret_cast<uintptr_t>(data) % alignof(wchar_t)) == 0)
         {
-            const std::wstring_view wide(reinterpret_cast<const wchar_t*>(data), size / sizeof(wchar_t));
+            const std::wstring_view wide(reinterpret_cast<const wchar_t*>(data), (bytes + 1) / sizeof(wchar_t));
             const Match match = matcher.Find(wide);
             if (match.matched)
             {

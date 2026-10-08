@@ -292,6 +292,12 @@ std::optional<LRESULT> MainWindow::Impl::HandleLayoutInputMessage(UINT message, 
                     return TRUE;
                 }
             }
+            // compare runs in the background
+            if (compare_session_.running() && LOWORD(lparam) == HTCLIENT)
+            {
+                SetCursor(LoadCursorW(nullptr, IDC_APPSTARTING));
+                return TRUE;
+            }
             break;
         }
     default:
@@ -312,6 +318,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleWorkerMessage(UINT message, WPARA
     case frame::message_id::kSearchProgress:
     case frame::message_id::kSearchFailed:
     case frame::message_id::kReplaceReady:
+    case frame::message_id::kCompareReady:
         return HandleSearchWorkerMessage(message, wparam, lparam);
     case frame::message_id::kLoadTraces:
     case frame::message_id::kLoadDefaults:
@@ -552,6 +559,9 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
         return 0;
     case frame::message_id::kReplaceReady:
         ApplyReplacePayload(work::TakePayload<ReplacePayload>(lparam));
+        return 0;
+    case frame::message_id::kCompareReady:
+        ApplyComparePayload(work::TakePayload<ComparePayload>(lparam));
         return 0;
     default:
         return std::nullopt;
@@ -1161,6 +1171,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
         }
         if (wparam == kStatusMessageTimerId)
         {
+            // compare message stays until its result replaces it
+            if (compare_session_.running())
+            {
+                return 0;
+            }
             KillTimer(hwnd_, kStatusMessageTimerId);
             status_message_.clear();
             UpdateStatus();

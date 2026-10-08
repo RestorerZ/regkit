@@ -20,6 +20,8 @@ namespace regkit::registry_backend
 inline constexpr REGSAM kKeyReadAccess = KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS;
 inline constexpr size_t kMaxKeyNameLength = 255;
 inline constexpr size_t kMaxValueNameLength = 16383;
+// RegEnumValueW costs time per byte of the buffer it's handed, so values start with this much & only bigger ones retry
+inline constexpr DWORD kValueDataProbe = 64 * 1024;
 inline constexpr SECURITY_INFORMATION kKeySecurityInformation =
     OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
 
@@ -228,13 +230,13 @@ bool EnumerateKey(const Key& key, bool include_values, bool include_data, bool i
         name.resize(static_cast<size_t>(max_value_name_length) + 1);
         if (include_data)
         {
-            data.resize(std::min(max_value_data_length, max_data_size));
+            data.resize(std::min({max_value_data_length, max_data_size, kValueDataProbe}));
         }
         ValueInfo value;
         for (DWORD index = 0; index < info.value_count; ++index)
         {
             DWORD name_length = static_cast<DWORD>(name.size());
-            DWORD data_length = include_data ? static_cast<DWORD>(data.size()) : 0;
+            DWORD data_length = include_data ? static_cast<DWORD>(std::min<size_t>(data.size(), kValueDataProbe)) : 0;
             DWORD type = 0;
             BYTE* buffer = include_data && !data.empty() ? data.data() : nullptr;
             LONG result = key.EnumValue(index, name.data(), &name_length, &type, buffer, &data_length);

@@ -103,6 +103,21 @@ bool IsPadded(std::wstring_view text)
     return !text.empty() && (iswspace(text.front()) || iswspace(text.back()));
 }
 
+// reg.exe refuses key names of 255 characters, the registry's maximum
+bool HasLongName(std::wstring_view path)
+{
+    for (size_t start = 0; start <= path.size();)
+    {
+        const size_t end = std::min(path.find(L'\\', start), path.size());
+        if (end - start > 254)
+        {
+            return true;
+        }
+        start = end + 1;
+    }
+    return false;
+}
+
 bool BatchData(const Value& value, std::wstring* type, std::wstring* text, std::wstring* separator)
 {
     switch (value.type)
@@ -146,7 +161,7 @@ bool BatchData(const Value& value, std::wstring* type, std::wstring* text, std::
                 return false;
             }
             wchar_t number[24] = {};
-            swprintf_s(number, L"0x%llx", value_format::ReadUnsigned(value.data, width, value.type == REG_DWORD_BIG_ENDIAN));
+            swprintf_s(number, L"0x%llx", value_format::ReadUnsigned(value.data, width));
             *text = number;
             break;
         }
@@ -472,6 +487,8 @@ bool ParseBatch(std::wstring_view content, std::vector<Operation>* output, std::
 std::wstring RenderBatch(const std::vector<Operation>& operations, bool admin_check, std::vector<std::wstring>* skipped)
 {
     std::wstring body;
+    // a key line left out because the next line creates the key, written after all when that line is skipped
+    std::wstring pending_key;
     for (size_t index = 0; index < operations.size(); ++index)
     {
         const Operation& operation = operations[index];
@@ -488,14 +505,19 @@ std::wstring RenderBatch(const std::vector<Operation>& operations, bool admin_ch
         {
             reason = util::Tr(L"reg.exe trims leading and trailing spaces");
         }
+        else if (HasLongName(operation.path))
+        {
+            reason = util::Tr(L"Invalid key name.");
+        }
         else if (operation.kind == Operation::Kind::kKey)
         {
             const Operation* next = index + 1 < operations.size() ? &operations[index + 1] : nullptr;
+            line = L"reg query " + key + L" >nul 2>&1 || (reg add " + key + L" /f >nul && reg delete " + key + L" /ve /f >nul)";
             if (next && next->kind != Operation::Kind::kRemoveKey && next->kind != Operation::Kind::kRemoveValue && IsUnderKey(next->path, operation.path))
             {
+                pending_key = line + L"\r\n";
                 continue;
             }
-            line = L"reg query " + key + L" >nul 2>&1 || (reg add " + key + L" /f >nul && reg delete " + key + L" /ve /f >nul)";
         }
         else if (operation.kind == Operation::Kind::kRemoveKey)
         {
@@ -532,8 +554,11 @@ std::wstring RenderBatch(const std::vector<Operation>& operations, bool admin_ch
         if (!reason.empty())
         {
             skipped->push_back(Describe(operation, reason));
+            body.append(pending_key);
+            pending_key.clear();
             continue;
         }
+        pending_key.clear();
         body.append(line).append(L"\r\n");
     }
     const bool ascii = std::all_of(body.begin(), body.end(), [](wchar_t character) { return character < 0x80; });

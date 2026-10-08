@@ -433,7 +433,7 @@ LRESULT MainWindow::Impl::HandleTabNotification(NMHDR* header, LPARAM lparam)
         if (!suppress_tab_change_ && tab_)
         {
             int current = TabCtrl_GetCurSel(tab_);
-            CaptureRegistryTabState(current);
+            CaptureRegistryTabState(current, false);
         }
         return 0;
     }
@@ -587,7 +587,6 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
             if (startup_tree_restore_pending_ && !applying_startup_tree_restore_)
             {
                 startup_tree_restore_pending_ = false;
-                tree_state_restored_ = true;
             }
             browse_.set_current_node(node);
             if (previous_node && node && SameNode(*previous_node, *node))

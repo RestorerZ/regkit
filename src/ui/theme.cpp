@@ -1068,6 +1068,8 @@ void Theme::ApplyToTabControl(HWND hwnd) const
         return;
     }
     SetDarkWindowTheme(hwnd, is_dark_);
+    // scroll arrows of the one row fallback
+    SetDarkWindowTheme(FindWindowExW(hwnd, nullptr, UPDOWN_CLASSW, nullptr), is_dark_);
     InvalidateRect(hwnd, nullptr, TRUE);
 }
 

@@ -171,7 +171,12 @@ bool ParseKey(const std::wstring& text, KeyRef* key)
 
 using reg_exe::IsSwitch;
 using reg_exe::Options;
-using reg_exe::TypeName;
+
+// reg.exe shows the types it has no name for as REG_NONE
+std::wstring TypeName(DWORD type)
+{
+    return type > REG_QWORD || type == REG_RESOURCE_REQUIREMENTS_LIST ? L"REG_NONE" : reg_exe::TypeName(type);
+}
 
 // switches outside the verb's reg.exe syntax are rejected, not ignored
 bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, std::initializer_list<std::wstring_view> allowed, reg_exe::Verb verb = reg_exe::Verb::kOther)
@@ -199,7 +204,6 @@ std::wstring FormatData(DWORD type, const BYTE* data, DWORD size, const std::wst
     {
     case REG_SZ:
     case REG_EXPAND_SZ:
-    case REG_LINK:
         {
             std::wstring text(reinterpret_cast<const wchar_t*>(data), size / sizeof(wchar_t));
             while (!text.empty() && text.back() == L'\0')
@@ -226,7 +230,8 @@ std::wstring FormatData(DWORD type, const BYTE* data, DWORD size, const std::wst
     case REG_QWORD:
         {
             wchar_t buffer[32] = {};
-            swprintf_s(buffer, L"0x%llx", value_format::ReadUnsigned({data, size}, type == REG_QWORD ? 8 : 4, type == REG_DWORD_BIG_ENDIAN));
+            // reg.exe shows REG_DWORD_BIG_ENDIAN little-endian like a REG_DWORD
+            swprintf_s(buffer, L"0x%llx", value_format::ReadUnsigned({data, size}, type == REG_QWORD ? 8 : 4));
             return buffer;
         }
     default:
@@ -358,7 +363,8 @@ LONG QueryKey(const KeyRef& key, Query& query, bool name_matched)
     {
         return status;
     }
-    if (!std::exchange(query.started, true))
+    const bool root = !std::exchange(query.started, true);
+    if (root)
     {
         Print(L"");
     }
@@ -373,12 +379,13 @@ LONG QueryKey(const KeyRef& key, Query& query, bool name_matched)
         contents.values.push_back({L"", REG_SZ});
     }
     const bool listing = !query.search && !options.has_value;
-    if (listing || name_matched || !contents.values.empty())
+    // reg.exe lists the queried key itself only when it has values
+    if ((listing && !root) || name_matched || !contents.values.empty())
     {
         Print(key.display);
         for (const RegistryValue& value : contents.values)
         {
-            const std::wstring type = TypeName(value.type) + (options.verbose ? L" (" + std::to_wstring(value.type) + L")" : std::wstring());
+            const std::wstring type = TypeName(value.type) + (options.verbose ? L" (" + std::to_wstring(static_cast<LONG>(value.type)) + L")" : std::wstring());
             Print(L"    " + ValueName(value) + L"    " + type + L"    " + (unset_default ? L"(value not set)" : FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size()), options.separator)));
         }
         Print(L"");
@@ -507,6 +514,11 @@ int CmdAdd(const std::vector<std::wstring>& args)
         return kFailed;
     }
 
+    // reg.exe writes /d or /t without /v to the default value
+    if (!options.has_value && (options.has_data || !options.type_text.empty()))
+    {
+        options.has_value = options.default_value = true;
+    }
     DWORD value_type = REG_SZ;
     std::vector<BYTE> value_data;
     if (options.has_value)
@@ -1189,8 +1201,12 @@ int CmdConvert(const std::vector<std::wstring>& args)
         PrintError(L"Failed to write " + positional[1]);
         return kFailed;
     }
+    if (!skipped.empty())
+    {
+        return kFailed;
+    }
     PrintSuccess();
-    return skipped.empty() ? kOk : kFailed;
+    return kOk;
 }
 
 void PrintUsage()

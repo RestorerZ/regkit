@@ -358,6 +358,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                         ui::ShowError(dlg, util::Tr(L"The selected key path wasn't found in the .reg file."));
                         return false;
                     }
+                    out->document = std::make_shared<const regfile::Document>(std::move(data));
                     return true;
                 };
                 if (!read_side(true, &result.left))

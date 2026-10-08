@@ -32,6 +32,8 @@ std::wstring FormatLocalTime(const SYSTEMTIME& time, bool with_seconds = false);
 bool IsBlank(std::wstring_view text);
 std::wstring ExpandEnvironmentStringsDynamic(const std::wstring& text);
 std::wstring ToHex(std::span<const BYTE> data, wchar_t separator = L' ', bool uppercase = false, size_t max_bytes = 0);
+// 16 bytes per line for edit controls, which wrap one huge line very slowly
+std::wstring ToHexLines(std::span<const BYTE> data);
 
 int CompareInsensitive(std::wstring_view left, std::wstring_view right);
 int CompareListText(std::wstring_view left, std::wstring_view right);

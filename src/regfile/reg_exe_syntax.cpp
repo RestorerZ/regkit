@@ -32,7 +32,6 @@ constexpr ValueType kTypes[] = {
     {L"REG_BINARY", REG_BINARY},
     {L"REG_NONE", REG_NONE},
     {L"REG_LINK", REG_LINK},
-    {L"REG_FULL_RESOURCE_DESCRIPTOR", REG_FULL_RESOURCE_DESCRIPTOR},
 };
 
 bool Fail(std::wstring* error, const std::wstring& message)
@@ -55,6 +54,8 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* 
 {
     auto is_switch = [](const std::wstring& text) { return !text.empty() && (text[0] == L'/' || text[0] == L'-'); };
     int selectors = 0;
+    int views = 0;
+    int outputs = 0;
     for (size_t i = first; i < args.size(); ++i)
     {
         const std::wstring& arg = args[i];
@@ -69,7 +70,8 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* 
         if (is_switch(arg))
         {
             std::wstring name = util::ToLower(std::wstring_view(arg).substr(1));
-            if (std::find(options->switches.begin(), options->switches.end(), name) != options->switches.end() || ((name == L"v" || name == L"ve" || name == L"va") && ++selectors > 1))
+            if (std::find(options->switches.begin(), options->switches.end(), name) != options->switches.end() || ((name == L"v" || name == L"ve" || name == L"va") && ++selectors > 1) ||
+                (name.starts_with(L"reg:") && ++views > 1) || ((name == L"oa" || name == L"od" || name == L"os" || name == L"on") && ++outputs > 1))
             {
                 return Fail(error, util::TrLabel(L"Invalid option", arg));
             }
@@ -170,6 +172,12 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* 
             positional->push_back(arg);
         }
     }
+    DWORD type = REG_SZ;
+    if (verb == Verb::kAdd && std::find(options->switches.begin(), options->switches.end(), L"s") != options->switches.end() &&
+        (options->type_text.empty() || ParseType(options->type_text, &type)) && type != REG_MULTI_SZ)
+    {
+        return Fail(error, util::TrLabel(L"Invalid option", L"/s"));
+    }
     return true;
 }
 
@@ -183,7 +191,23 @@ bool ParseType(std::wstring_view text, DWORD* type)
             return true;
         }
     }
-    return false;
+    // reg.exe also takes a signed 32-bit decimal type number
+    const bool negative = text.starts_with(L'-');
+    const std::wstring_view digits = text.substr(negative || text.starts_with(L'+') ? 1 : 0);
+    long long number = 0;
+    for (wchar_t digit : digits)
+    {
+        if (digit < L'0' || digit > L'9' || (number = number * 10 + (digit - L'0')) > 0x80000000ll)
+        {
+            return false;
+        }
+    }
+    if (digits.empty() || number > (negative ? 0x80000000ll : 0x7FFFFFFFll))
+    {
+        return false;
+    }
+    *type = static_cast<DWORD>(negative ? -number : number);
+    return true;
 }
 
 std::wstring TypeName(DWORD type)
@@ -203,10 +227,7 @@ bool BuildData(DWORD type, std::wstring_view text, std::wstring_view separator, 
     data->clear();
     switch (type)
     {
-    case REG_SZ:
-    case REG_EXPAND_SZ:
-    case REG_LINK:
-    case REG_NONE: // REG_NONE uses text
+    default: // REG_NONE & unknown types take text, as in reg.exe
         *data = value_format::StringData(text);
         return true;
     case REG_MULTI_SZ:
@@ -254,10 +275,11 @@ bool BuildData(DWORD type, std::wstring_view text, std::wstring_view separator, 
             {
                 return Fail(error, util::TrLabel(L"Numeric data out of range for a DWORD", text));
             }
-            *data = value_format::UnsignedBytes(value, type == REG_QWORD ? sizeof(ULONGLONG) : sizeof(DWORD), type == REG_DWORD_BIG_ENDIAN);
+            // reg.exe stores REG_DWORD_BIG_ENDIAN little-endian like a REG_DWORD
+            *data = value_format::UnsignedBytes(value, type == REG_QWORD ? sizeof(ULONGLONG) : sizeof(DWORD));
             return true;
         }
-    default:
+    case REG_BINARY:
         {
             std::wstring digits(text);
             for (wchar_t character : digits)

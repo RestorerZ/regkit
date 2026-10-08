@@ -80,7 +80,10 @@ void MainWindow::Impl::ApplyThemeToChildren()
     const Theme& theme = Theme::Current();
 
     theme.ApplyToToolbar(toolbar_.hwnd());
-    theme.ApplyToTreeView(browse_.tree().hwnd());
+    for (const auto& tree : browse_.trees())
+    {
+        theme.ApplyToTreeView(tree->hwnd());
+    }
     appearance::RefreshListView(browse_.values().hwnd());
     appearance::RefreshListView(history_list_);
     appearance::RefreshListView(search_results_list_);
@@ -258,7 +261,10 @@ void MainWindow::Impl::ApplyUIFontToControls()
     ApplyFont(tab_, ui_font_);
     ApplyFont(tree_header_, ui_font_);
     ApplyFont(tree_close_btn_, ui_font_);
-    ApplyFont(browse_.tree().hwnd(), ui_font_);
+    for (const auto& tree : browse_.trees())
+    {
+        ApplyFont(tree->hwnd(), ui_font_);
+    }
     ApplyFont(browse_.values().hwnd(), ui_font_);
     ApplyFont(history_close_btn_, ui_font_);
     ApplyFont(history_label_, ui_font_);

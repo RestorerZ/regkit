@@ -329,7 +329,6 @@ bool MainWindow::Impl::PrepareSessionHandover()
 
 bool MainWindow::Impl::SaveSessionForRestart()
 {
-    CaptureRegistryTabState(tab_ ? TabCtrl_GetCurSel(tab_) : -1);
     if (SaveSessionTabs())
     {
         return true;
@@ -363,16 +362,10 @@ bool MainWindow::Impl::RestartAfterCacheClear(CacheKind kind)
     // dont restore tab data when its cache was cleared
     const bool restore_session = kind != CacheKind::kAll && kind != CacheKind::kTabs;
     // tabs carry their own tree state
-    if (kind == CacheKind::kTreeState)
-    {
-        for (TabEntry& entry : tabs_)
-        {
-            entry.selected_path.clear();
-            entry.expanded_paths.clear();
-        }
-        ResetRegistryTreeState();
-    }
-    if (restore_session && !SaveSessionForRestart())
+    drop_tree_state_ = kind == CacheKind::kTreeState;
+    const bool saved = !restore_session || SaveSessionForRestart();
+    drop_tree_state_ = false;
+    if (!saved)
     {
         return false;
     }

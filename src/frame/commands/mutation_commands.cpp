@@ -911,6 +911,12 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                     ui::ShowWarning(hwnd_, util::Tr(L"Bulk deletion only supports registry values."));
                     return true;
                 }
+                // an unset (Default) or trace only row has nothing to delete
+                std::erase_if(selected_rows, [](const ListRow& selected) { return selected.missing; });
+                if (selected_rows.empty())
+                {
+                    return true;
+                }
 
                 std::vector<RegistryValue> entries;
                 entries.reserve(selected_rows.size());
@@ -936,7 +942,10 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                     return true;
                 }
 
-                size_t deleted = 0;
+                std::vector<changes::UndoOperation> steps;
+                std::vector<HistoryEntry> history;
+                steps.reserve(entries.size());
+                history.reserve(entries.size());
                 for (auto& entry : entries)
                 {
                     if (!RegistryStore::DeleteValue(*browse_.current_node(), entry.name))
@@ -944,14 +953,16 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                         continue;
                     }
                     std::wstring display_name = entry.name.empty() ? L"(Default)" : entry.name;
-                    AppendValueHistoryEntry(L"Delete value " + display_name, display_name, L"", *browse_.current_node(), entry.name, HistoryEntry::RevertKind::kSetValue, &entry);
+                    history.push_back(ValueHistoryEntry(L"Delete value " + display_name, display_name, L"", *browse_.current_node(), entry.name, HistoryEntry::RevertKind::kSetValue, &entry));
                     changes::UndoOperation op;
                     op.type = changes::UndoOperation::Type::kDeleteValue;
                     op.node = *browse_.current_node();
                     op.old_value = std::move(entry);
-                    PushUndo(std::move(op));
-                    ++deleted;
+                    steps.push_back(std::move(op));
                 }
+                const size_t deleted = steps.size();
+                AppendHistoryEntries(std::move(history));
+                PushUndo(std::move(steps));
 
                 if (deleted > 0)
                 {

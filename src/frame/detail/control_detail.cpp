@@ -155,7 +155,7 @@ bool UseBinaryValueIcon(DWORD type)
     }
 }
 
-ListRow MakeValueListRow(const std::wstring& name, DWORD type, const BYTE* data, DWORD data_size)
+ListRow MakeValueListRow(const std::wstring& name, DWORD type, const BYTE* data, DWORD data_size, bool preview)
 {
     ListRow row;
     row.name = name.empty() ? util::Tr(L"(Default)") : registry_path::DisplayName(name);
@@ -163,7 +163,13 @@ ListRow MakeValueListRow(const std::wstring& name, DWORD type, const BYTE* data,
     row.data_ready = data_size == 0 || data != nullptr;
     if (row.data_ready && data_size > 0)
     {
-        row.data = value_format::DisplayData(type, data, data_size);
+        // a preview keeps what a cell shows, a filter reloads the whole data
+        row.data_preview = preview && data_size > kValuePreviewBytes;
+        row.data = value_format::DisplayData(type, data, row.data_preview ? kValuePreviewBytes : data_size);
+        if (row.data_preview && row.data.size() > kValuePreviewLimit)
+        {
+            row.data.resize(kValuePreviewLimit);
+        }
     }
     row.image_index = UseBinaryValueIcon(type) ? kBinaryIconIndex : kValueIconIndex;
     row.kind = rowkind::kValue;

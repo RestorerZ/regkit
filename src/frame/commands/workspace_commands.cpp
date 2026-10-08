@@ -222,12 +222,7 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         settings_.hkcu_follows_shell_user = !settings_.hkcu_follows_shell_user;
         util::SetCurrentUserFollowsShell(settings_.hkcu_follows_shell_user);
         SaveSettings();
-        if (session_->mode == RegistryMode::kLocal)
-        {
-            std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(settings_.show_extra_hives);
-            AppendRealRegistryRoot(&roots);
-            ApplyRegistryRoots(roots);
-        }
+        ReloadLocalRoots();
         UpdateStatus();
         return true;
     case cmd::kOptionsBackupRestore:
@@ -246,6 +241,7 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
             }
         }
         util::SetBackupRestoreMode(backup_privileges_ != nullptr);
+        RegistryStore::NoteKeyChange();
         RefreshWholeTree();
         UpdateValueListForNode(browse_.current_node());
         UpdateStatus();

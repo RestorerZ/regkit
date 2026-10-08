@@ -467,10 +467,11 @@ void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt)
     LVHITTESTINFO hit = {};
     hit.pt = client_pt;
     int index = ListView_HitTest(history_list_, &hit);
-    const HistoryEntry* entry = nullptr;
+    // a copy, entries can be appended & sorted while the menu runs its message loop
+    std::optional<HistoryEntry> entry;
     if (index >= 0 && static_cast<size_t>(index) < change_history_.entries().size())
     {
-        entry = &change_history_.entries()[static_cast<size_t>(index)];
+        entry = change_history_.entries()[static_cast<size_t>(index)];
     }
 
     HMENU menu = CreatePopupMenu();

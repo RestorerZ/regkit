@@ -153,6 +153,12 @@ void MainWindow::Impl::ReleaseRegFileRoots(TabEntry* entry)
         root.data.reset();
     }
     entry->reg_file_roots.clear();
+    // its undo & hidden tree point at the released roots, a released root would reach the live registry
+    entry->session.reset();
+    if (entry->tree && entry->tree != &browse_.tree())
+    {
+        entry->tree->Clear();
+    }
 }
 
 void MainWindow::Impl::StartRegFileParse(const std::wstring& path, const std::wstring& session_key)

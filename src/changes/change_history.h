@@ -50,7 +50,8 @@ using PathExists = std::function<bool(const std::wstring&)>;
 class ChangeHistory
 {
   public:
-    HistoryEntry Append(HistoryEntry entry, size_t maximum);
+    // returns the entries as stamped, for the cache file
+    std::vector<HistoryEntry> Append(std::vector<HistoryEntry> entries, size_t maximum);
     void Replace(std::vector<HistoryEntry> entries, size_t maximum);
     void Clear();
     void Sort(int column, bool ascending);
@@ -64,7 +65,7 @@ class ChangeHistory
 
 HistoryDocument ParseHistory(const std::wstring& content);
 std::wstring SerializeHistoryEntry(const HistoryEntry& entry);
-bool AppendHistoryFile(const std::wstring& path, const HistoryEntry& entry);
+bool AppendHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>& entries);
 bool WriteHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>& entries);
 bool PrepareRevert(const HistoryEntry& entry, const QueryValue& query_value, HistoryEntry* prepared);
 bool FindNearestExistingPath(const std::wstring& path, const PathExists& path_exists, std::wstring* nearest_path);

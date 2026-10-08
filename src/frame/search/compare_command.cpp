@@ -7,6 +7,8 @@
 #include "win32/system_error.h"
 #include "win32/translation.h"
 
+#include <array>
+
 namespace regkit
 {
 using namespace command_detail;
@@ -75,146 +77,49 @@ void MainWindow::Impl::StartCompareRegistries()
         return;
     }
 
-    auto normalize_base = [&](const CompareDialogSelection& sel, std::wstring* out_base) -> bool {
-        if (!out_base)
-        {
-            return false;
-        }
-        std::wstring base = NormalizeRegistryPath(sel.key_path);
-        if (sel.type == CompareSourceType::kOfflineHive)
-        {
-            *out_base = std::move(base);
-            return true;
-        }
-        if (base.empty())
-        {
-            return false;
-        }
-        *out_base = base;
-        return true;
-    };
-
-    auto build_snapshot = [&](const CompareDialogSelection& source, search::compare::Snapshot* snapshot, std::wstring* error) -> bool {
+    // paths & the shown tab's keys resolve here, the worker only reads
+    struct Side
+    {
+        CompareDialogSelection source;
         std::wstring base;
-        if (!normalize_base(source, &base))
-        {
-            if (error)
-            {
-                *error = util::Tr(L"Invalid registry path.");
-            }
-            return false;
-        }
-        if (source.type == CompareSourceType::kRegFile)
-        {
-            return search::compare::LoadRegFile(
-                source.file_path,
-                base,
-                source.recursive,
-                [this](const std::wstring& path) { return NormalizeRegistryPath(path); },
-                snapshot,
-                error
-            );
-        }
-        if (source.type == CompareSourceType::kOfflineHive)
-        {
-            HKEY hive = nullptr;
-            if (!RegistryStore::OpenOfflineHive(source.file_path, &hive, error))
-            {
-                return false;
-            }
-            RegistryStore::AddOfflineRoot(hive);
-            RegistryNode hive_node;
-            hive_node.root = hive;
-            hive_node.root_name = util::FileName(source.file_path);
-            hive_node.subkey = base;
-            const bool ok = search::compare::CaptureRegistry(base.empty() ? hive_node.root_name : base, hive_node, source.recursive, snapshot, error);
-            RegistryStore::RemoveOfflineRoot(hive);
-            RegistryStore::CloseOfflineHive(hive, nullptr);
-            if (!ok && error && error->empty())
-            {
-                *error = util::TrDetail(L"Failed to read the hive file.", source.file_path);
-            }
-            return ok;
-        }
-
         RegistryNode node;
-        if (source.type == CompareSourceType::kNetwork)
+    };
+    std::array<Side, 2> sides = {Side{selection.left}, Side{selection.right}};
+    for (Side& side : sides)
+    {
+        side.base = NormalizeRegistryPath(side.source.key_path);
+        if (side.base.empty() && side.source.type != CompareSourceType::kOfflineHive)
         {
-            const std::wstring machine = TrimWhitespace(source.file_path);
-            if (machine.empty())
-            {
-                if (error)
-                {
-                    *error = util::Tr(L"Select a computer to compare against.");
-                }
-                return false;
-            }
-            HKEY hklm = nullptr;
-            const LONG connected = RegConnectRegistryW(machine.c_str(), HKEY_LOCAL_MACHINE, &hklm);
-            if (connected != ERROR_SUCCESS)
-            {
-                if (error)
-                {
-                    *error = util::FormatWin32Error(connected);
-                }
-                return false;
-            }
-            HKEY hku = nullptr;
-            RegConnectRegistryW(machine.c_str(), HKEY_USERS, &hku);
-            bool ok = ResolveRemoteNode(machine, hklm, hku, base, &node);
-            if (!ok && error)
-            {
-                *error = util::TrDetail(L"Network registry path not found.", base);
-            }
-            if (ok)
-            {
-                ok = search::compare::CaptureRegistry(base, node, source.recursive, snapshot, error);
-            }
-            if (hku)
-            {
-                RegCloseKey(hku);
-            }
-            RegCloseKey(hklm);
-            return ok;
+            ui::ShowError(hwnd_, util::Tr(L"Invalid registry path."));
+            return;
         }
         KeyInfo info = {};
-        if (!ResolvePathToNode(base, &node) || !RegistryStore::QueryKeyInfo(node, &info))
+        if (side.source.type == CompareSourceType::kRegistry &&
+            (!ResolvePathToNode(side.base, &side.node) || !RegistryStore::QueryKeyInfo(side.node, &info)))
         {
-            if (error)
-            {
-                *error = util::TrDetail(L"Registry path not found.", base);
-            }
-            return false;
+            ui::ShowError(hwnd_, util::TrDetail(L"Registry path not found.", side.base));
+            return;
         }
-        return search::compare::CaptureRegistry(base, node, source.recursive, snapshot, error);
-    };
-
-    search::compare::Snapshot left_snapshot;
-    search::compare::Snapshot right_snapshot;
-    std::wstring error;
-    if (!build_snapshot(selection.left, &left_snapshot, &error))
-    {
-        if (!error.empty())
-        {
-            ui::ShowError(hwnd_, error);
-        }
-        return;
     }
-    error.clear();
-    if (!build_snapshot(selection.right, &right_snapshot, &error))
-    {
-        if (!error.empty())
+    // a .reg tab can close while the worker reads it, the worker reads its own registration of the file
+    // released with the task, also when the worker throws or never starts
+    std::shared_ptr<std::vector<HKEY>> owned_roots(new std::vector<HKEY>(), [](std::vector<HKEY>* roots) {
+        for (HKEY root : *roots)
         {
-            ui::ShowError(hwnd_, error);
+            RegistryStore::UnregisterVirtualRoot(root);
         }
-        return;
+        delete roots;
+    });
+    for (Side& side : sides)
+    {
+        if (side.source.type == CompareSourceType::kRegistry && RegistryStore::IsVirtualRoot(side.node.root))
+        {
+            side.node.root = RegistryStore::DuplicateVirtualRoot(side.node.root);
+            owned_roots->push_back(side.node.root);
+        }
     }
 
-    std::vector<search::compare::Row> rows =
-        search::compare::BuildRows(left_snapshot, right_snapshot, selection.filter);
-    std::wstring tab_label = util::Tr(L"Registry Comparison");
-
-    auto source_ref = [this](const CompareDialogSelection& sel) {
+    auto source_ref = [](const CompareDialogSelection& sel) {
         switch (sel.type)
         {
         case CompareSourceType::kRegFile:
@@ -228,13 +133,166 @@ void MainWindow::Impl::StartCompareRegistries()
         }
         return search::Source{};
     };
+    std::vector<search::Source> sources = {source_ref(selection.left), source_ref(selection.right)};
+
+    SetStatusMessage(util::Tr(L"Compare Registries..."));
+    // the session keeps a remote or offline tabs handles open while the worker reads them
+    compare_session_.Start(
+        L"CompareThread",
+        [hwnd = hwnd_, sides, owned_roots, filter = selection.filter, sources, keep = session_, sid = util::GetCurrentUserSidString(), contexts = RegistryPathContexts()](
+            uint64_t generation,
+            std::atomic_bool& cancel
+        ) {
+            auto payload = std::make_unique<ComparePayload>();
+            payload->generation = generation;
+            payload->filter = filter;
+            payload->sources = sources;
+            auto build_snapshot = [&](const Side& side, search::compare::Snapshot* snapshot, std::wstring* error) -> bool {
+                const CompareDialogSelection& source = side.source;
+                if (source.type == CompareSourceType::kRegFile)
+                {
+                    if (!source.document)
+                    {
+                        *error = util::Tr(L"Failed to read registry file.");
+                        return false;
+                    }
+                    return search::compare::LoadRegFile(
+                        source.file_path,
+                        *source.document,
+                        side.base,
+                        source.recursive,
+                        [&](const std::wstring& path) { return NormalizeRegistryPath(path, sid, contexts); },
+                        snapshot,
+                        error,
+                        &cancel
+                    );
+                }
+                if (source.type == CompareSourceType::kOfflineHive)
+                {
+                    HKEY hive = nullptr;
+                    if (!RegistryStore::OpenOfflineHive(source.file_path, &hive, error))
+                    {
+                        return false;
+                    }
+                    RegistryStore::AddOfflineRoot(hive);
+                    RegistryNode hive_node;
+                    hive_node.root = hive;
+                    hive_node.root_name = util::FileName(source.file_path);
+                    hive_node.subkey = side.base;
+                    const bool ok = search::compare::CaptureRegistry(side.base.empty() ? hive_node.root_name : side.base, hive_node, source.recursive, snapshot, error, &cancel);
+                    RegistryStore::RemoveOfflineRoot(hive);
+                    RegistryStore::CloseOfflineHive(hive, nullptr);
+                    if (!ok && error->empty())
+                    {
+                        *error = util::TrDetail(L"Failed to read the hive file.", source.file_path);
+                    }
+                    return ok;
+                }
+                if (source.type == CompareSourceType::kNetwork)
+                {
+                    const std::wstring machine = TrimWhitespace(source.file_path);
+                    if (machine.empty())
+                    {
+                        *error = util::Tr(L"Select a computer to compare against.");
+                        return false;
+                    }
+                    HKEY hklm = nullptr;
+                    const LONG connected = RegConnectRegistryW(machine.c_str(), HKEY_LOCAL_MACHINE, &hklm);
+                    if (connected != ERROR_SUCCESS)
+                    {
+                        *error = util::FormatWin32Error(connected);
+                        return false;
+                    }
+                    HKEY hku = nullptr;
+                    RegConnectRegistryW(machine.c_str(), HKEY_USERS, &hku);
+                    RegistryNode node;
+                    bool ok = ResolveRemoteNode(machine, hklm, hku, side.base, &node);
+                    if (!ok)
+                    {
+                        *error = util::TrDetail(L"Network registry path not found.", side.base);
+                    }
+                    if (ok)
+                    {
+                        ok = search::compare::CaptureRegistry(side.base, node, source.recursive, snapshot, error, &cancel);
+                    }
+                    if (hku)
+                    {
+                        RegCloseKey(hku);
+                    }
+                    RegCloseKey(hklm);
+                    return ok;
+                }
+                return search::compare::CaptureRegistry(side.base, side.node, source.recursive, snapshot, error, &cancel);
+            };
+
+            search::compare::Snapshot left_snapshot;
+            search::compare::Snapshot right_snapshot;
+            std::wstring left_error;
+            std::wstring right_error;
+            bool right_ok = false;
+            // both sides are read at once, registry reads scale with readers
+            std::jthread right_reader([&]() noexcept {
+                try
+                {
+                    right_ok = build_snapshot(sides[1], &right_snapshot, &right_error);
+                }
+                catch (...)
+                {
+                }
+            });
+            const bool left_ok = build_snapshot(sides[0], &left_snapshot, &left_error);
+            right_reader.join();
+            if (cancel.load())
+            {
+                return;
+            }
+            if (!left_ok || !right_ok)
+            {
+                payload->error = left_ok ? right_error : left_error;
+            }
+            else
+            {
+                payload->rows = search::compare::BuildRows(left_snapshot, right_snapshot, filter, &cancel);
+                for (const search::compare::Snapshot* side : {&left_snapshot, &right_snapshot})
+                {
+                    if (!side->unreadable.empty())
+                    {
+                        payload->unreadable = util::TrDetail(L"Couldn't read the registry key.", side->base_path + L"\\" + side->unreadable.front() + L"\n" + util::TrLabel(L"Skipped", std::to_wstring(side->unreadable.size())));
+                        break;
+                    }
+                }
+            }
+            // freed before the post, the UI thread joins this thread when the result arrives
+            left_snapshot = {};
+            right_snapshot = {};
+            if (!cancel.load())
+            {
+                work::PostPayload(hwnd, frame::message_id::kCompareReady, static_cast<WPARAM>(generation), payload);
+            }
+        }
+    );
+}
+
+void MainWindow::Impl::ApplyComparePayload(std::unique_ptr<ComparePayload> payload)
+{
+    if (!payload || !compare_session_.IsCurrent(payload->generation))
+    {
+        return;
+    }
+    compare_session_.Join();
+    SetStatusMessage(L"");
+    if (!payload->error.empty())
+    {
+        ui::ShowError(hwnd_, payload->error);
+        return;
+    }
 
     SearchTab tab;
-    tab.label = std::move(tab_label);
-    tab.compare_rows = std::move(rows);
+    tab.label = util::Tr(L"Registry Comparison");
+    tab.compare_rows = std::move(payload->rows);
     tab.is_compare = true;
-    tab.compare_filter = selection.filter;
-    tab.sources = {source_ref(selection.left), source_ref(selection.right)};
+    tab.compare_filter = payload->filter;
+    tab.sources = std::move(payload->sources);
     search_tabs_.push_back(std::move(tab));
     int search_index = static_cast<int>(search_tabs_.size() - 1);
     TCITEMW item = {};
@@ -250,6 +308,10 @@ void MainWindow::Impl::StartCompareRegistries()
     UpdateSearchResultsView();
     ApplyViewVisibility();
     UpdateStatus();
+    if (!payload->unreadable.empty())
+    {
+        ui::ShowWarning(hwnd_, payload->unreadable);
+    }
 }
 
 search::Source MainWindow::Impl::TabSource(int index) const

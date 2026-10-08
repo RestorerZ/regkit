@@ -11,6 +11,7 @@
 
 #include <windows.h>
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -113,6 +114,9 @@ class RegistryStore
   public:
     static std::vector<RegistryRootEntry> DefaultRoots(bool include_extra = false);
     static bool HasSubKeys(const RegistryNode& node);
+    // counts key creates, deletes, renames & access changes, so other views know they're stale
+    static uint64_t KeyRevision() noexcept;
+    static void NoteKeyChange() noexcept;
     static std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node, bool sorted = true);
     using ValueStreamCallback = std::function<bool(const ValueInfo& info, const BYTE* data, DWORD data_size)>;
     using SubkeyStreamCallback = std::function<bool(const std::wstring& name)>;
@@ -140,6 +144,8 @@ class RegistryStore
     static void RemoveOfflineRoot(HKEY root);
     static HKEY RegisterVirtualRoot(const std::wstring& root_name, const std::shared_ptr<VirtualRegistryData>& data);
     static void UnregisterVirtualRoot(HKEY root);
+    // a second registration of the same data, it stays valid when the first one is released
+    static HKEY DuplicateVirtualRoot(HKEY root);
     static bool IsVirtualRoot(HKEY root);
     static bool GetVirtualRootName(HKEY root, std::wstring* root_name);
     static bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details, bool open_link = false);

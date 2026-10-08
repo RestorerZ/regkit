@@ -524,7 +524,9 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
             {
                 return true;
             }
-            switch (ApplyUndoOperation(*operation, false))
+            size_t replayed = 0;
+            bool left_both_names = false;
+            switch (ApplyUndoOperation(*operation, false, &replayed, &left_both_names))
             {
             case ReplayResult::kSuccess:
                 session_->undo.CompleteUndo(std::move(*operation));
@@ -534,6 +536,10 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                 ui::ShowError(hwnd_, util::Tr(L"The change couldn't be undone."));
                 break;
             case ReplayResult::kPartial:
+                if (operation->type == changes::UndoOperation::Type::kGroup)
+                {
+                    session_->undo.CompletePartial(std::move(*operation), replayed, false, left_both_names);
+                }
                 break;
             }
             UpdateUndoButtons();
@@ -550,7 +556,9 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
             {
                 return true;
             }
-            switch (ApplyUndoOperation(*operation, true))
+            size_t replayed = 0;
+            bool left_both_names = false;
+            switch (ApplyUndoOperation(*operation, true, &replayed, &left_both_names))
             {
             case ReplayResult::kSuccess:
                 session_->undo.CompleteRedo(std::move(*operation));
@@ -560,6 +568,10 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                 ui::ShowError(hwnd_, util::Tr(L"The change couldn't be redone."));
                 break;
             case ReplayResult::kPartial:
+                if (operation->type == changes::UndoOperation::Type::kGroup)
+                {
+                    session_->undo.CompletePartial(std::move(*operation), replayed, true, left_both_names);
+                }
                 break;
             }
             UpdateUndoButtons();

@@ -95,7 +95,10 @@ void Stamp(HistoryEntry* entry)
     ULARGE_INTEGER value = {};
     value.LowPart = now.dwLowDateTime;
     value.HighPart = now.dwHighDateTime;
-    entry->timestamp = value.QuadPart;
+    // strictly increasing, a batch stamped within one clock tick still sorts in the order it was made
+    static uint64_t last = 0;
+    last = std::max<uint64_t>(value.QuadPart, last + 1);
+    entry->timestamp = last;
     entry->time_text = util::FormatLocalTime(local, true);
 }
 
@@ -118,13 +121,15 @@ void DecodeRevert(const std::vector<std::wstring>& fields, HistoryEntry* entry)
 
 } // namespace
 
-HistoryEntry ChangeHistory::Append(HistoryEntry entry, size_t maximum)
+std::vector<HistoryEntry> ChangeHistory::Append(std::vector<HistoryEntry> entries, size_t maximum)
 {
-    Stamp(&entry);
-    HistoryEntry appended = entry;
-    entries_.push_back(std::move(entry));
+    for (HistoryEntry& entry : entries)
+    {
+        Stamp(&entry);
+    }
+    entries_.insert(entries_.end(), entries.begin(), entries.end());
     Trim(&entries_, maximum);
-    return appended;
+    return entries;
 }
 
 void ChangeHistory::Replace(std::vector<HistoryEntry> entries, size_t maximum)
@@ -216,9 +221,14 @@ bool WriteHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>&
     return util::WriteTextFile(path, content, false);
 }
 
-bool AppendHistoryFile(const std::wstring& path, const HistoryEntry& entry)
+bool AppendHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>& entries)
 {
-    const std::string bytes = util::WideToUtf8(SerializeHistoryEntry(entry));
+    std::wstring lines;
+    for (const HistoryEntry& entry : entries)
+    {
+        lines += SerializeHistoryEntry(entry);
+    }
+    const std::string bytes = util::WideToUtf8(lines);
     util::UniqueHandle file(path.empty() ? INVALID_HANDLE_VALUE : CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
     DWORD written = 0;
     return file && !bytes.empty() &&

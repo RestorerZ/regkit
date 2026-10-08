@@ -128,7 +128,7 @@ std::wstring LeafName(const RegistryNode& node);
 
 bool UseBinaryValueIcon(DWORD type);
 
-ListRow MakeValueListRow(const std::wstring& name, DWORD type, const BYTE* data, DWORD data_size);
+ListRow MakeValueListRow(const std::wstring& name, DWORD type, const BYTE* data, DWORD data_size, bool preview = false);
 
 void UpdateLeafName(RegistryNode* node, const std::wstring& new_name);
 

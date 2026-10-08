@@ -19,29 +19,19 @@ namespace regkit::ui
 namespace
 {
 
-constexpr int kInsetX = 2;
-constexpr int kInsetY = 2;
+// button tabs keep their own gaps between tabs & rows and a taller frame, so no insets and less padding
+constexpr int kPadY = 2;
 constexpr int kTextPaddingX = 10;
 constexpr int kCloseSize = 14;
 constexpr int kCloseGap = 6;
 
-RECT DrawRect(const RECT& item_rect, int header_bottom, bool selected)
+bool CloseButtonRect(const RECT& item_rect, UINT dpi, RECT* close_rect)
 {
-    RECT rect = item_rect;
-    rect.left += kInsetX;
-    rect.right -= kInsetX;
-    rect.top += kInsetY - (selected ? 1 : 0);
-    rect.bottom = header_bottom - (selected ? 0 : 1);
-    return rect;
-}
-
-bool CloseButtonRect(const RECT& item_rect, const RECT& draw_rect, UINT dpi, RECT* close_rect)
-{
-    const int height = draw_rect.bottom - draw_rect.top;
+    const int height = item_rect.bottom - item_rect.top;
     const int size = std::min(appearance::ScaleForDpi(kCloseSize, dpi), std::max(8, height - 6));
     close_rect->right = item_rect.right - appearance::ScaleForDpi(kCloseGap, dpi);
     close_rect->left = close_rect->right - size;
-    close_rect->top = draw_rect.top + (height - size) / 2;
+    close_rect->top = item_rect.top + (height - size) / 2;
     close_rect->bottom = close_rect->top + size;
     return close_rect->left < close_rect->right;
 }
@@ -67,15 +57,14 @@ void TabStrip::Attach(HWND tab, CloseCallback on_close, void* context)
     tab_ = tab;
     on_close_ = on_close;
     context_ = context;
-    TabCtrl_SetPadding(tab_, kTextPaddingX, kInsetY);
+    TabCtrl_SetPadding(tab_, kTextPaddingX, kPadY);
     SetWindowSubclass(tab_, Proc, 0, reinterpret_cast<DWORD_PTR>(this));
 }
 
 int TabStrip::Refit(int min_width) const
 {
-    const int pad_y = kInsetY + 2;
     const UINT dpi = win32::DpiForWindow(tab_);
-    TabCtrl_SetPadding(tab_, appearance::ScaleForDpi(kTextPaddingX + (TabCtrl_GetItemCount(tab_) > 1 ? kCloseSize + kCloseGap : 0), dpi), pad_y);
+    TabCtrl_SetPadding(tab_, appearance::ScaleForDpi(kTextPaddingX + (TabCtrl_GetItemCount(tab_) > 1 ? kCloseSize + kCloseGap : 0), dpi), kPadY);
     SendMessageW(tab_, TCM_SETMINTABWIDTH, 0, min_width);
     TEXTMETRICW metrics = {};
     if (HDC hdc = GetDC(tab_))
@@ -86,9 +75,77 @@ int TabStrip::Refit(int min_width) const
         ReleaseDC(tab_, hdc);
     }
     InvalidateRect(tab_, nullptr, FALSE);
-    const int min_height = std::max<int>(24, metrics.tmHeight + pad_y * 2 + 2);
+    const int min_height = std::max<int>(24, metrics.tmHeight + kPadY * 2 + 2);
     RECT item_rect = {};
     return TabCtrl_GetItemRect(tab_, 0, &item_rect) ? std::max<int>(min_height, item_rect.bottom - item_rect.top) : min_height;
+}
+
+int TabStrip::Fit(int width, int row_height, int max_height)
+{
+    const int count = TabCtrl_GetItemCount(tab_);
+    int widths = 0;
+    for (int i = 0; i < count; ++i)
+    {
+        RECT item_rect = {};
+        if (TabCtrl_GetItemRect(tab_, i, &item_rect))
+        {
+            widths += item_rect.right - item_rect.left;
+        }
+    }
+    const std::array<int, 5> inputs = {width, row_height, max_height, count, widths};
+    if (inputs == fit_inputs_)
+    {
+        return fit_height_;
+    }
+    fit_inputs_ = inputs;
+    SetMultiline(true);
+    fit_height_ = RowsHeight(width, row_height);
+    if (fit_height_ > max_height)
+    {
+        // more rows than the window can spare, the rest of the window stays for the panes
+        SetMultiline(false);
+        fit_height_ = row_height;
+        // reselect scrolls the one row to the selected tab, TCM_SETCURSEL sends no change notifications
+        if (const int current = TabCtrl_GetCurSel(tab_); current > 0)
+        {
+            TabCtrl_SetCurSel(tab_, 0);
+            TabCtrl_SetCurSel(tab_, current);
+        }
+    }
+    return fit_height_;
+}
+
+void TabStrip::SetMultiline(bool multiline) const
+{
+    const LONG_PTR style = GetWindowLongPtrW(tab_, GWL_STYLE);
+    const LONG_PTR wanted = multiline ? style | TCS_MULTILINE : style & ~static_cast<LONG_PTR>(TCS_MULTILINE);
+    if (wanted != style)
+    {
+        SetWindowLongPtrW(tab_, GWL_STYLE, wanted);
+        SetWindowPos(tab_, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    }
+}
+
+int TabStrip::RowsHeight(int width, int row_height) const
+{
+    RECT window = {};
+    GetWindowRect(tab_, &window);
+    if (window.right - window.left != width)
+    {
+        SetWindowPos(tab_, nullptr, 0, 0, width, window.bottom - window.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW);
+    }
+    // button rows keep a gap between them, the last row's bottom border sits on its rects' bottom edge
+    int last_bottom = -1;
+    const int count = TabCtrl_GetItemCount(tab_);
+    for (int i = 0; i < count; ++i)
+    {
+        RECT item_rect = {};
+        if (TabCtrl_GetItemRect(tab_, i, &item_rect))
+        {
+            last_bottom = std::max<int>(last_bottom, item_rect.bottom);
+        }
+    }
+    return std::max(row_height, last_bottom + 1);
 }
 
 void TabStrip::UpdateHot(POINT point)
@@ -113,33 +170,30 @@ bool TabStrip::CloseRect(int index, RECT* rect) const
     {
         return false;
     }
-    return CloseButtonRect(item_rect, DrawRect(item_rect, item_rect.bottom + 1, false), win32::DpiForWindow(tab_), rect);
+    return CloseButtonRect(item_rect, win32::DpiForWindow(tab_), rect);
 }
 
-void TabStrip::DrawItem(HDC hdc, int index, const RECT& item_rect, int header_bottom, bool selected) const
+// a closed box per tab, button tabs stand apart and the selected one differs only by its colors
+void TabStrip::DrawItem(HDC hdc, int index, const RECT& item_rect, bool selected) const
 {
     const Theme& theme = Theme::Current();
-    const RECT draw_rect = DrawRect(item_rect, header_bottom, selected);
     const bool hot = index == hot_;
-    FillRect(hdc, &draw_rect, appearance::CachedBrush(hot ? theme.HoverColor() : selected ? theme.SurfaceColor()
+    FillRect(hdc, &item_rect, appearance::CachedBrush(hot ? theme.HoverColor() : selected ? theme.SurfaceColor()
                                                                                           : theme.PanelColor()));
 
     HGDIOBJ old_pen = SelectObject(hdc, appearance::CachedPen(theme.BorderColor(), 1));
-    MoveToEx(hdc, draw_rect.left, draw_rect.bottom, nullptr);
-    LineTo(hdc, draw_rect.left, draw_rect.top);
-    LineTo(hdc, draw_rect.right, draw_rect.top);
-    LineTo(hdc, draw_rect.right, draw_rect.bottom);
-    if (!selected)
-    {
-        LineTo(hdc, draw_rect.left, draw_rect.bottom);
-    }
+    MoveToEx(hdc, item_rect.left, item_rect.bottom, nullptr);
+    LineTo(hdc, item_rect.left, item_rect.top);
+    LineTo(hdc, item_rect.right, item_rect.top);
+    LineTo(hdc, item_rect.right, item_rect.bottom);
+    LineTo(hdc, item_rect.left, item_rect.bottom);
     SelectObject(hdc, old_pen);
 
     const UINT dpi = win32::DpiForWindow(tab_);
     const int text_padding = appearance::ScaleForDpi(kTextPaddingX, dpi);
     RECT close_rect = {};
-    const bool has_close = TabCtrl_GetItemCount(tab_) > 1 && CloseButtonRect(item_rect, draw_rect, dpi, &close_rect);
-    RECT text_rect = draw_rect;
+    const bool has_close = TabCtrl_GetItemCount(tab_) > 1 && CloseButtonRect(item_rect, dpi, &close_rect);
+    RECT text_rect = item_rect;
     text_rect.left = item_rect.left + text_padding;
     text_rect.right = has_close ? std::max(text_rect.left, close_rect.left - appearance::ScaleForDpi(kCloseGap, dpi)) : item_rect.right - text_padding;
     SetTextColor(hdc, selected || hot ? theme.TextColor() : theme.MutedTextColor());
@@ -176,29 +230,13 @@ void TabStrip::Paint(HDC hdc) const
 
     const int count = TabCtrl_GetItemCount(tab_);
     const int current = TabCtrl_GetCurSel(tab_);
-    int header_bottom = client.top;
-    RECT first_rect = {};
-    if (count > 0 && TabCtrl_GetItemRect(tab_, 0, &first_rect))
-    {
-        header_bottom = first_rect.top + (first_rect.bottom - first_rect.top) * std::max(1, TabCtrl_GetRowCount(tab_)) + 1;
-        HGDIOBJ old_pen = SelectObject(hdc, appearance::CachedPen(theme.BorderColor(), 1));
-        MoveToEx(hdc, client.left, header_bottom, nullptr);
-        LineTo(hdc, client.right, header_bottom);
-        SelectObject(hdc, old_pen);
-    }
-    // the selected tab last, so it overlaps its neighbours
     for (int i = 0; i < count; ++i)
     {
         RECT item_rect = {};
-        if (i != current && TabCtrl_GetItemRect(tab_, i, &item_rect))
+        if (TabCtrl_GetItemRect(tab_, i, &item_rect))
         {
-            DrawItem(hdc, i, item_rect, header_bottom, false);
+            DrawItem(hdc, i, item_rect, i == current);
         }
-    }
-    RECT item_rect = {};
-    if (current >= 0 && TabCtrl_GetItemRect(tab_, current, &item_rect))
-    {
-        DrawItem(hdc, current, item_rect, header_bottom, true);
     }
     if (old_font)
     {
@@ -268,6 +306,13 @@ LRESULT CALLBACK TabStrip::Proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
         {
             self->close_down_ = -1;
             InvalidateRect(hwnd, nullptr, FALSE);
+        }
+        break;
+    case WM_PARENTNOTIFY:
+        // the one row fallback creates its scroll arrows, they take the current theme
+        if (LOWORD(wparam) == WM_CREATE)
+        {
+            Theme::Current().ApplyToTabControl(hwnd);
         }
         break;
     case WM_PAINT:

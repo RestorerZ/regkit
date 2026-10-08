@@ -339,7 +339,7 @@ void MainWindow::Impl::StartValueListWorker()
             {
                 has_symbolic_value = true;
             }
-            ListRow row = MakeValueListRow(value.name, value.type, data, data_size);
+            ListRow row = MakeValueListRow(value.name, value.type, data, data_size, !task->include_all_value_data);
             row.default_data = resolve_default_data(value.name);
             if (!have_traces)
             {

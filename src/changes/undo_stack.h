@@ -24,6 +24,7 @@ struct UndoOperation
         kModifyValue,
         kRenameValue,
         kReplaceKey,
+        kGroup,
     };
 
     Type type = Type::kCreateKey;
@@ -34,12 +35,16 @@ struct UndoOperation
     RegistryValue new_value;
     KeySnapshot key_snapshot;
     KeySnapshot new_key_snapshot;
+    // kGroup, one undo step for a mass change, in the order it was made
+    std::vector<UndoOperation> steps;
 };
 
 class UndoStack
 {
   public:
     void Push(UndoOperation operation);
+    void Push(std::vector<UndoOperation> steps);
+    void CompletePartial(UndoOperation group, size_t replayed, bool redo, bool drop_failed = false);
     void ClearRedo();
     std::optional<UndoOperation> TakeUndo();
     std::optional<UndoOperation> TakeRedo();

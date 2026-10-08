@@ -191,6 +191,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
             }
             std::wstring error;
             const bool imported = ImportRegFileFromPath(path, &error);
+            RegistryStore::NoteKeyChange();
             RefreshWholeTree();
             UpdateValueListForNode(browse_.current_node());
             if (!imported)
@@ -507,6 +508,7 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
     switch (command_id)
     {
     case cmd::kViewRefresh:
+        RegistryStore::NoteKeyChange();
         RefreshWholeTree();
         UpdateValueListForNode(browse_.current_node());
         return true;
@@ -656,29 +658,18 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
     case cmd::kViewExtraHives:
         settings_.show_extra_hives = !settings_.show_extra_hives;
         SaveSettings();
-        if (session_->mode == RegistryMode::kLocal)
-        {
-            std::vector<RegistryRootEntry> roots = RegistryStore::DefaultRoots(settings_.show_extra_hives);
-            AppendRealRegistryRoot(&roots);
-            ApplyRegistryRoots(roots);
-        }
+        ReloadLocalRoots();
         return true;
     case cmd::kViewSaveTreeState:
+        settings_.save_tree_state = !settings_.save_tree_state;
         if (settings_.save_tree_state)
         {
-            StopTreeStateWorker();
-            settings_.save_tree_state = false;
-            saved_tree_state_.selected_path.clear();
-            saved_tree_state_.expanded_paths.clear();
+            StartTreeStateWorker();
+            MarkTreeStateDirty();
         }
         else
         {
-            settings_.save_tree_state = true;
-            LoadTreeState();
-            tree_state_restored_ = false;
-            RestoreTreeState();
-            StartTreeStateWorker();
-            MarkTreeStateDirty();
+            tree_state_saver_.Stop();
         }
         SaveSettings();
         return true;

@@ -7,6 +7,7 @@
 
 #include <windows.h>
 
+#include <memory>
 #include <string>
 
 namespace regkit::command_detail
@@ -26,6 +27,8 @@ struct CompareDialogSelection
     std::wstring file_path;
     std::wstring key_path;
     bool recursive = true;
+    // the .reg file as the dialog already parsed it
+    std::shared_ptr<const regfile::Document> document;
 };
 
 struct CompareDialogDefaults

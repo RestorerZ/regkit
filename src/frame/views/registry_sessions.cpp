@@ -82,7 +82,7 @@ void MainWindow::Impl::ShowSession(const std::shared_ptr<RegistrySession>& sessi
     {
         tabs_[static_cast<size_t>(index)].session = session;
     }
-    const bool shown = session_ == session && !browse_.roots().empty() && !RegistryStore::IsVirtualRoot(browse_.roots().front().root);
+    const bool shown = session_ == session && !browse_.roots().empty();
     session_ = session;
     if (session_->mode == RegistryMode::kLocal)
     {
@@ -276,18 +276,31 @@ void MainWindow::Impl::SelectDefaultTreeItem()
     }
 }
 
-void MainWindow::Impl::CaptureRegistryTabState(int index)
+// the tree keeps its own state while hidden, tree_state also captures the expansion for saving
+void MainWindow::Impl::CaptureRegistryTabState(int index, bool tree_state)
 {
-    if (!browse_.tree().hwnd() || index < 0 || static_cast<size_t>(index) >= tabs_.size())
+    if (index < 0 || static_cast<size_t>(index) >= tabs_.size())
     {
         return;
     }
     TabEntry& entry = tabs_[static_cast<size_t>(index)];
-    if (entry.kind == TabEntry::Kind::kSearch)
+    if (entry.kind == TabEntry::Kind::kSearch || !entry.tree)
     {
         return;
     }
-    CaptureTreeState(&entry.selected_path, &entry.expanded_paths);
+    if (drop_tree_state_)
+    {
+        entry.selected_path.clear();
+        entry.expanded_paths.clear();
+    }
+    else
+    {
+        CaptureTreeState(*entry.tree, &entry.selected_path, tree_state ? &entry.expanded_paths : nullptr);
+    }
+    if (entry.tree != &browse_.tree())
+    {
+        return;
+    }
     entry.selected_value.clear();
     entry.selected_values.clear();
     entry.value_top_index = 0;
@@ -334,7 +347,11 @@ void MainWindow::Impl::ResetRegistryTreeState()
             {
                 collapse(child);
             }
-            TreeView_Expand(browse_.tree().hwnd(), item, TVE_COLLAPSE);
+            // groups stay expanded as after PopulateRoots, tab state only holds key paths
+            if (browse_.tree().NodeFromItem(item))
+            {
+                TreeView_Expand(browse_.tree().hwnd(), item, TVE_COLLAPSE);
+            }
             item = TreeView_GetNextSibling(browse_.tree().hwnd(), item);
         }
     };
@@ -385,17 +402,84 @@ void MainWindow::Impl::RestoreRegistryTabState(int index)
     ExpandTreePaths(entry.expanded_paths);
     if (!entry.selected_path.empty() && SelectTreePath(entry.selected_path))
     {
-        pending_value_selection_ = entry.selected_values;
-        if (pending_value_selection_.empty() && !entry.selected_value.empty())
-        {
-            pending_value_selection_.push_back(entry.selected_value);
-        }
-        pending_value_top_index_ = entry.value_top_index;
-        pending_value_selection_key_ =
-            pending_value_selection_.empty() && pending_value_top_index_ == 0 ? std::wstring() : entry.selected_path;
+        RestoreValueSelection(entry);
         return;
     }
     SelectDefaultTreeItem();
+}
+
+void MainWindow::Impl::RestoreValueSelection(const TabEntry& entry)
+{
+    pending_value_selection_ = entry.selected_values;
+    if (pending_value_selection_.empty() && !entry.selected_value.empty())
+    {
+        pending_value_selection_.push_back(entry.selected_value);
+    }
+    pending_value_top_index_ = entry.value_top_index;
+    pending_value_selection_key_ =
+        pending_value_selection_.empty() && pending_value_top_index_ == 0 ? std::wstring() : entry.selected_path;
+}
+
+// tab gets its own tree the first time it's shown, true when that tree still needs its roots
+bool MainWindow::Impl::ActivateTabTree(int index)
+{
+    TabEntry& entry = tabs_[static_cast<size_t>(index)];
+    const bool fresh = !entry.tree;
+    if (fresh)
+    {
+        // startup tree & a closed tab's cleared tree belong to no tab
+        RegistryTree* shown = &browse_.tree();
+        const bool owned = std::any_of(tabs_.begin(), tabs_.end(), [shown](const TabEntry& tab) { return tab.tree == shown; });
+        entry.tree = owned ? browse_.AddTree() : shown;
+        if (!entry.tree)
+        {
+            entry.tree = shown;
+        }
+        else if (owned)
+        {
+            ConfigureTree(*entry.tree);
+        }
+        entry.tree->synced_revision = RegistryStore::KeyRevision();
+    }
+    RegistryTree& previous = browse_.tree();
+    if (entry.tree == &previous)
+    {
+        return fresh;
+    }
+    FlushTreeRedraw();
+    RECT rect = {};
+    GetWindowRect(previous.hwnd(), &rect);
+    MapWindowPoints(nullptr, hwnd_, reinterpret_cast<POINT*>(&rect), 2);
+    const bool focused = GetFocus() == previous.hwnd();
+    browse_.SetActiveTree(entry.tree);
+    SetWindowPos(entry.tree->hwnd(), nullptr, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER | SWP_NOACTIVATE);
+    // the style, not IsWindowVisible, as the main window may not be shown yet
+    ShowWindow(entry.tree->hwnd(), (GetWindowLongPtrW(previous.hwnd(), GWL_STYLE) & WS_VISIBLE) ? SW_SHOW : SW_HIDE);
+    ShowWindow(previous.hwnd(), SW_HIDE);
+    if (focused)
+    {
+        SetFocus(entry.tree->hwnd());
+    }
+    ResetNavigationState();
+    return fresh;
+}
+
+// shows a tab whose tree was built before, only keys changed elsewhere need a resync
+void MainWindow::Impl::ResumeTabTree(int index)
+{
+    const TabEntry& entry = tabs_[static_cast<size_t>(index)];
+    if (entry.session)
+    {
+        session_ = entry.session;
+    }
+    if (browse_.tree().synced_revision != RegistryStore::KeyRevision())
+    {
+        RefreshWholeTree();
+    }
+    RestoreValueSelection(entry);
+    ApplyTreeSelectionEffects(browse_.current_node());
+    RefreshRegistryTabLabels();
+    UpdateUndoButtons();
 }
 
 std::wstring MainWindow::Impl::LocalRegistryTabLabel(int index) const
@@ -495,6 +579,15 @@ std::vector<RegistryRootEntry> MainWindow::Impl::LocalRoots(REGSAM view)
         AppendRealRegistryRoot(&roots);
     }
     return roots;
+}
+
+void MainWindow::Impl::ReloadLocalRoots()
+{
+    if (session_->mode == RegistryMode::kLocal && !IsRegFileTabIndex(tab_ ? TabCtrl_GetCurSel(tab_) : -1))
+    {
+        session_->roots = LocalRoots(session_->view);
+        ApplyRegistryRoots(session_->roots);
+    }
 }
 
 std::shared_ptr<MainWindow::Impl::RegistrySession> MainWindow::Impl::LocalViewSession(REGSAM view) const

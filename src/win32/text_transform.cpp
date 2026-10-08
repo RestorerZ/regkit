@@ -182,6 +182,21 @@ std::wstring ToHex(std::span<const BYTE> data, wchar_t separator, bool uppercase
     return output;
 }
 
+std::wstring ToHexLines(std::span<const BYTE> data)
+{
+    std::wstring output;
+    output.reserve(data.size() * 3 + data.size() / 16 * 2);
+    for (size_t start = 0; start < data.size(); start += 16)
+    {
+        if (start != 0)
+        {
+            output += L"\r\n";
+        }
+        output += ToHex(data.subspan(start, std::min<size_t>(16, data.size() - start)), L' ', true);
+    }
+    return output;
+}
+
 int CompareInsensitive(std::wstring_view left, std::wstring_view right)
 {
     if (left.empty() || right.empty())

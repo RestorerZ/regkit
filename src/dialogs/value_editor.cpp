@@ -576,11 +576,11 @@ void PopulateTraceValueEditors(HWND dlg, TraceValueDialogState* state)
         );
         break;
     case REG_NONE:
-        SetDlgItemTextW(dlg, IDC_REG_NONE_EDIT, util::ToHex(data, L' ', true).c_str());
+        SetDlgItemTextW(dlg, IDC_REG_NONE_EDIT, util::ToHexLines(data).c_str());
         UpdateBinaryPreviewEx(dlg, &state->none, kNoneIds);
         break;
     default:
-        SetDlgItemTextW(dlg, IDC_REG_BINARY_EDIT, util::ToHex(data, L' ', true).c_str());
+        SetDlgItemTextW(dlg, IDC_REG_BINARY_EDIT, util::ToHexLines(data).c_str());
         UpdateBinaryPreviewEx(dlg, &state->binary, kBinaryIds);
         break;
     }
@@ -1195,6 +1195,8 @@ INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPAR
             if (state)
             {
                 SetDlgItemTextW(dlg, IDC_EDIT, state->initial_text.c_str());
+                // compare OK against what the control holds
+                state->initial_text = util::DialogText(dlg, IDC_EDIT);
                 ConfigureReadOnlyNameField(dlg, state->value_name);
             }
 

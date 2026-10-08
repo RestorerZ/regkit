@@ -140,6 +140,17 @@ void RegistryTree::ResumeRedraw()
     }
 }
 
+void RegistryTree::Clear()
+{
+    TreeView_DeleteAllItems(hwnd_);
+    nodes_.clear();
+    roots_.clear();
+    current_node_ = nullptr;
+    root_item_ = nullptr;
+    standard_group_item_ = nullptr;
+    real_group_item_ = nullptr;
+}
+
 void RegistryTree::PopulateRoots(const std::vector<RegistryRootEntry>& roots)
 {
     TreeView_DeleteAllItems(hwnd_);
@@ -422,9 +433,17 @@ bool RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node)
     }
     std::vector<RegistryNode*> released;
     HTREEITEM child = TreeView_GetChild(hwnd_, parent);
+    // inserting after a handle walks the siblings
+    const bool fresh = !child;
+    for (auto it = entries.rbegin(); fresh && it != entries.rend(); ++it)
+    {
+        auto added = std::make_unique<RegistryNode>(registry_path::ChildNode(*node, it->name));
+        added->simulated = it->simulated;
+        InsertNodeItem(hwnd_, parent, TVI_FIRST, it->label, StoreNode(std::move(added)));
+    }
     HTREEITEM after = TVI_FIRST;
     wchar_t text[512] = {};
-    for (size_t index = 0; child || index < entries.size();)
+    for (size_t index = fresh ? entries.size() : 0; child || index < entries.size();)
     {
         int order = 1;
         if (child)
