@@ -23,7 +23,6 @@ bool MainWindow::Impl::OnCreate()
         return ui::PromptKeyChoice(owner, util::Tr(L"SYSTEM has no Desktop folder, so Windows reports \"Location is not available\" in file dialogs. Create this folder to prevent the error?"), path, util::Tr(L"Create Folder"), util::Tr(L"Create"), L"", util::Tr(L"Cancel")) == IDYES;
     });
     ui_font_ = CreateUIFont();
-    icon_font_ = CreateIconFont(10);
     custom_font_ = DefaultLogFont();
     LoadSettings();
     if (theme_mode_ == ThemeMode::kCustom)
@@ -354,7 +353,7 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
             payload->default_comments.clear();
         }
         const std::wstring comments_path = CommentsPath();
-        if (!comments_path.empty() && GetFileAttributesW(comments_path.c_str()) != INVALID_FILE_ATTRIBUTES)
+        if (!comments_path.empty() && !util::IsMissing(comments_path))
         {
             payload->comments_unreadable = !util::ReadTextFile(comments_path, &comments_content, nullptr, util::kMaxCommentFileBytes) ||
                                            !changes::ParseComments(comments_content, &payload->user_comments);
@@ -569,11 +568,6 @@ void MainWindow::Impl::OnDestroy()
     }
     ui_font_ = nullptr;
     ui_font_owned_ = false;
-    if (icon_font_)
-    {
-        DeleteObject(icon_font_);
-        icon_font_ = nullptr;
-    }
     if (tree_images_)
     {
         ImageList_Destroy(tree_images_);

@@ -356,7 +356,7 @@ void MainWindow::Impl::RefreshHistory()
     const std::wstring path = HistoryCachePath();
     std::wstring content;
     if (history_loaded_ && !history_cache_failed_ && !HistoryStaysInMemory() && !path.empty() &&
-        (util::ReadTextFile(path, &content) || GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES))
+        (util::ReadTextFile(path, &content) || util::IsMissing(path)))
     {
         change_history_.Replace(std::move(changes::ParseHistory(content).entries), static_cast<size_t>(history_max_rows_));
         change_history_.Sort(history_sort_column_, history_sort_ascending_);

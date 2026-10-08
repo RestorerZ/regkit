@@ -273,6 +273,7 @@ search::Source MainWindow::Impl::TabSource(int index) const
         {
             return {search::Source::Kind::kRemote, entry.remote_machine};
         }
+        return {search::Source::Kind::kLocal, {}, entry.registry_view};
     }
     return {};
 }
@@ -296,8 +297,8 @@ int MainWindow::Impl::FindSourceTab(const search::Source& source) const
         {
             continue;
         }
-        if (source.kind == search::Source::Kind::kLocal ? IsLocalRegistryTabIndex(static_cast<int>(i))
-                                                         : source.name.empty() || EqualsInsensitive(candidate.name, source.name))
+        if (source.kind == search::Source::Kind::kLocal ? entry.registry_mode == RegistryMode::kLocal && candidate.view == source.view
+                                                        : source.name.empty() || EqualsInsensitive(candidate.name, source.name))
         {
             return static_cast<int>(i);
         }
@@ -398,7 +399,7 @@ void MainWindow::Impl::OpenSourceEntry(const search::Source& source, const std::
     default:
         if (new_tab)
         {
-            OpenLocalRegistryTab();
+            OpenLocalRegistryTab(source.view);
         }
         else
         {

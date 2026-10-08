@@ -393,7 +393,7 @@ bool MainWindow::Impl::OpenSearchResultRow(int item, bool new_tab)
     const std::wstring value_name = value_row ? row->value_name : std::wstring();
     const SearchTab& search_tab = search_tabs_[static_cast<size_t>(index)];
     const search::Source source = row && row->source < search_tab.sources.size() ? search_tab.sources[row->source] : search::Source{};
-    if (source.kind != search::Source::Kind::kLocal)
+    if (source.kind != search::Source::Kind::kLocal || source.view)
     {
         OpenSourceEntry(source, path, value_name, new_tab || FindSourceTab(source) < 0);
         return true;
@@ -848,9 +848,11 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
     if (header->hwndFrom == browse_.values().hwnd() && header->code == LVN_ITEMCHANGED)
     {
         auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
-        if (!updating_value_list_ && info && ((info->uOldState ^ info->uNewState) & LVIS_SELECTED) != 0)
+        // one status update for a burst of selection changes
+        if (!updating_value_list_ && info && ((info->uOldState ^ info->uNewState) & LVIS_SELECTED) != 0 && !status_update_pending_ &&
+            PostMessageW(hwnd_, frame::message_id::kStatusUpdate, 0, 0))
         {
-            UpdateStatus();
+            status_update_pending_ = true;
         }
         return 0;
     }

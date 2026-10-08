@@ -42,7 +42,6 @@ class UpdateChecker
 
     HWND owner_ = nullptr;
     StatusCallback status_;
-    bool running_ = false;
     work::Session session_;
 };
 

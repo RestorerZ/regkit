@@ -228,7 +228,7 @@ void MainWindow::Impl::ApplyAlwaysOnTop()
 void MainWindow::Impl::UpdateUIFont()
 {
     ui::SetCustomFont(settings_.use_custom_font ? &custom_font_ : nullptr);
-    const LOGFONTW lf = ui::DefaultUIFontLogFont();
+    const LOGFONTW lf = ui::DefaultUIFontLogFont(win32::DpiForWindow(hwnd_));
     HFONT next_font = CreateFontIndirectW(&lf);
     bool next_owned = next_font != nullptr;
     if (!next_font)
@@ -265,7 +265,15 @@ void MainWindow::Impl::ApplyUIFontToControls()
     ApplyFont(history_list_, ui_font_);
     ApplyFont(status_bar_, ui_font_);
     ApplyFont(search_results_list_, ui_font_);
-    UpdateTabWidth();
+    if (tab_)
+    {
+        tab_height_ = tab_strip_.Refit(kTabMinWidth);
+    }
+    if (status_bar_)
+    {
+        SendMessageW(status_bar_, SB_SETMINHEIGHT, TextRowHeight(0, 0), 0);
+        SendMessageW(status_bar_, WM_SIZE, 0, 0);
+    }
     if (hwnd_)
     {
         DrawMenuBar(hwnd_);

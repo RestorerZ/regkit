@@ -590,7 +590,7 @@ HWND ShowKeyHandlesWindow(HWND owner, KeyHandlesNavigate navigate)
 {
     auto* state = new State;
     state->navigate = std::move(navigate);
-    HWND dialog = CreateDialogParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_KEY_HANDLES), nullptr, DialogProc, reinterpret_cast<LPARAM>(state));
+    HWND dialog = editors::dialog_support::Modeless(nullptr, IDD_KEY_HANDLES, DialogProc, reinterpret_cast<LPARAM>(state));
     if (!dialog)
     {
         return nullptr;

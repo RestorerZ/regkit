@@ -4,6 +4,7 @@
 #include "browse/value_table.h"
 
 #include <algorithm>
+#include <numeric>
 
 #include "win32/text_transform.h"
 
@@ -79,6 +80,7 @@ void ValueList::SetRows(std::vector<ListRow> rows)
     filter_cache_valid_.clear();
     filter_cache_.resize(rows_.size());
     filter_cache_valid_.resize(rows_.size(), false);
+    visible_indices_.clear();
     RebuildFilter();
 }
 
@@ -157,6 +159,28 @@ void ValueList::SetFilter(const std::wstring& text)
 
 void ValueList::RebuildFilter()
 {
+    // selection follows its rows, with native calls only when their positions change
+    const std::vector<int> previous = std::move(visible_indices_);
+    const int count = static_cast<int>(previous.size());
+    std::vector<int> selected;
+    int focused = -1;
+    if (hwnd_)
+    {
+        if (ListView_GetSelectedCount(hwnd_) == static_cast<UINT>(count))
+        {
+            selected.resize(previous.size());
+            std::iota(selected.begin(), selected.end(), 0);
+        }
+        else
+        {
+            for (int i = -1; (i = ListView_GetNextItem(hwnd_, i, LVNI_SELECTED)) >= 0 && i < count;)
+            {
+                selected.push_back(i);
+            }
+        }
+        focused = ListView_GetNextItem(hwnd_, -1, LVNI_FOCUSED);
+        focused = focused < count ? focused : -1;
+    }
     visible_indices_.clear();
     visible_indices_.reserve(rows_.size());
     if (filter_text_.empty())
@@ -188,6 +212,36 @@ void ValueList::RebuildFilter()
         }
     }
     ListView_SetItemCountEx(hwnd_, static_cast<int>(visible_indices_.size()), LVSICF_NOINVALIDATEALL | LVSICF_NOSCROLL);
+    auto position = [&](int old_index) {
+        const auto it = std::lower_bound(visible_indices_.begin(), visible_indices_.end(), previous[static_cast<size_t>(old_index)]);
+        return it != visible_indices_.end() && *it == previous[static_cast<size_t>(old_index)] ? static_cast<int>(it - visible_indices_.begin()) : -1;
+    };
+    const int focus = focused >= 0 ? position(focused) : -1;
+    bool moved = focus != focused;
+    size_t kept = 0;
+    for (int& index : selected)
+    {
+        const int next = position(index);
+        moved |= next != index;
+        kept += next >= 0;
+        index = next;
+    }
+    if (moved)
+    {
+        const bool all = kept > 0 && kept == visible_indices_.size();
+        ListView_SetItemState(hwnd_, -1, all ? LVIS_SELECTED : 0, LVIS_SELECTED | LVIS_FOCUSED);
+        for (const int index : selected)
+        {
+            if (index >= 0 && !all)
+            {
+                ListView_SetItemState(hwnd_, index, LVIS_SELECTED, LVIS_SELECTED);
+            }
+        }
+        if (focus >= 0)
+        {
+            ListView_SetItemState(hwnd_, focus, LVIS_FOCUSED, LVIS_FOCUSED);
+        }
+    }
     RedrawWindow(hwnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
 }
 

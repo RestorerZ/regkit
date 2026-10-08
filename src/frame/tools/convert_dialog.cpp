@@ -298,7 +298,7 @@ void ShowConvertDialog(HWND owner, ConvertSettings* settings)
 {
     State state;
     state.settings = settings;
-    DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_CONVERT), owner, DialogProc, reinterpret_cast<LPARAM>(&state));
+    editors::dialog_support::Modal(owner, IDD_CONVERT, DialogProc, reinterpret_cast<LPARAM>(&state));
 }
 
 } // namespace regkit

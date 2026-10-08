@@ -116,6 +116,12 @@ bool IsDirectory(const std::wstring& path)
     return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
+bool IsMissing(const std::wstring& path)
+{
+    const DWORD error = GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES ? GetLastError() : ERROR_SUCCESS;
+    return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+}
+
 std::wstring GetAppDataFolder()
 {
     const DWORD override_size = GetEnvironmentVariableW(L"REGKIT_DATA_DIR", nullptr, 0);

@@ -151,7 +151,7 @@ bool ChooseExport(HWND owner, const ExportRequest& request, ExportResult* result
     }
     State state;
     state.value = request;
-    const INT_PTR dialog_result = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_EXPORT_OPTIONS), owner, DialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = dialog_support::Modal(owner, IDD_EXPORT_OPTIONS, DialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;

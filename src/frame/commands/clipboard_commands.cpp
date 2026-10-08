@@ -336,8 +336,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                 return true;
             }
             const bool key_row = row && row->kind == rowkind::kKey;
-            ui::CopyTextToClipboard(hwnd_, row && row->kind == rowkind::kValue ? row->name
-                                           : registry_path::Build(key_row ? ChildNode(*browse_.current_node(), row->extra) : *browse_.current_node()));
+            ui::CopyTextToClipboard(hwnd_, row && row->kind == rowkind::kValue ? row->name : registry_path::Build(key_row ? ChildNode(*browse_.current_node(), row->extra) : *browse_.current_node()));
             return true;
         }
     default:

@@ -514,6 +514,7 @@ void MainWindow::Impl::QueueValuePreviews(int first, int last)
         return;
     }
     auto task = std::make_unique<ValuePreviewTask>();
+    bool emptied = false;
     for (int i = first; i <= last; ++i)
     {
         ListRow* row = browse_.values().MutableRowAt(i);
@@ -526,12 +527,16 @@ void MainWindow::Impl::QueueValuePreviews(int first, int last)
             row->data.clear();
             row->data_ready = true;
             browse_.values().InvalidateFilterCache(row);
+            emptied = true;
             continue;
         }
         task->indices.push_back(i);
         task->names.push_back(row->extra);
     }
-    browse_.values().RefreshFilter();
+    if (emptied)
+    {
+        browse_.values().RefreshFilter();
+    }
     if (task->indices.empty())
     {
         return;

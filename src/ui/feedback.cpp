@@ -797,7 +797,7 @@ bool ConfirmDelete(HWND owner, const std::wstring& title, const std::vector<std:
 
 bool ConfirmOverwrite(HWND owner, const std::wstring& path, const std::wstring& confirmed_path)
 {
-    return GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES || util::EqualsInsensitive(path, confirmed_path) ||
+    return util::IsMissing(path) || util::EqualsInsensitive(path, confirmed_path) ||
            PromptKeyChoice(owner, util::Tr(L"The file already exists. Replace it?"), path, kAppTitle, util::Tr(L"Replace"), L"", util::Tr(L"Cancel")) == IDYES;
 }
 

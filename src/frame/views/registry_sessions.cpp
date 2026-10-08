@@ -979,8 +979,13 @@ void MainWindow::Impl::ApplyQueuedExternalJump()
 bool MainWindow::Impl::ResolveJumpTarget(const std::wstring& target, std::wstring* key_path, std::wstring* value_name, bool* value_missing) const
 {
     return registry_path::ResolveJumpTarget(
-        target, [this](const std::wstring& path) { return NormalizeRegistryPath(path); },
-        [this](const std::wstring& path, RegistryNode* node) { return KeyPathExists(path, node); }, key_path, value_name, value_missing);
+        target,
+        [this](const std::wstring& path) { return NormalizeRegistryPath(path); },
+        [this](const std::wstring& path, RegistryNode* node) { return KeyPathExists(path, node); },
+        key_path,
+        value_name,
+        value_missing
+    );
 }
 
 bool MainWindow::Impl::ActivateLocalRegistryTab()

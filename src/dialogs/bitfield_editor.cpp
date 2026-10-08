@@ -1015,7 +1015,7 @@ bool EditBitfield(HWND owner, const BitfieldRequest& request, BitfieldResult* re
         WriteWindow(&editor);
     }
 
-    const INT_PTR outcome = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_BITFIELD), owner, DialogProc, reinterpret_cast<LPARAM>(&editor));
+    const INT_PTR outcome = dialog_support::Modal(owner, IDD_BITFIELD, DialogProc, reinterpret_cast<LPARAM>(&editor));
     if (outcome != IDOK || !editor.accepted)
     {
         return false;

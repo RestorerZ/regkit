@@ -27,8 +27,13 @@ struct ListColumn
     int width = 100;
 };
 
+// resource dialog, laid out in the UI font
+INT_PTR Modal(HWND owner, int id, DLGPROC proc, LPARAM param);
+HWND Modeless(HWND owner, int id, DLGPROC proc, LPARAM param);
 void Initialize(HWND dialog, HFONT* owned_font, std::initializer_list<int> bordered_edits);
 void AllowNewlines(HWND dialog, int control_id);
+// 9pt Consolas for hex & decoded text, released by the caller
+HFONT ApplyMonoFont(HWND dialog, std::initializer_list<int> controls);
 void ReleaseFont(HFONT* font);
 bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam, INT_PTR* result, const appearance::DialogResizer* resizer = nullptr);
 inline std::wstring ReadText(HWND dialog, int control_id)

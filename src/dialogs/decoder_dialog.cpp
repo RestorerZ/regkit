@@ -207,12 +207,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         state->transforms = value_decoder::AvailableTransforms(state->request->type, state->request->data);
         FillCombo(dialog, IDC_DECODE_ENCODING, state->transforms, 0);
         dialog_support::Initialize(dialog, &state->ui_font, {IDC_VALUE_NAME, IDC_EDIT});
-        state->mono_font =
-            CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_MODERN, L"Consolas");
-        if (state->mono_font)
-        {
-            SendDlgItemMessageW(dialog, IDC_EDIT, WM_SETFONT, reinterpret_cast<WPARAM>(state->mono_font), TRUE);
-        }
+        state->mono_font = dialog_support::ApplyMonoFont(dialog, {IDC_EDIT});
         dialog_support::SetupListView(GetDlgItem(dialog, IDC_DECODE_FIELDS), 0, {{util::Tr(L"Property"), 140}, {util::Tr(L"Value"), 200}});
         using namespace appearance;
         state->resizer.Attach(dialog, {
@@ -296,7 +291,7 @@ void ShowValueDecoder(HWND owner, const DecodeRequest& request)
 {
     State state;
     state.request = &request;
-    DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_DECODE_VALUE), owner, DialogProc, reinterpret_cast<LPARAM>(&state));
+    dialog_support::Modal(owner, IDD_DECODE_VALUE, DialogProc, reinterpret_cast<LPARAM>(&state));
 }
 
 } // namespace regkit::editors

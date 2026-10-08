@@ -153,7 +153,7 @@ bool ShowReplaceDialog(HWND owner, ReplaceDialogResult* result)
 {
     State state;
     state.out = result;
-    return result && DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_REPLACE), owner, DialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
+    return result && dialog_support::Modal(owner, IDD_REPLACE, DialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
 }
 
 } // namespace regkit

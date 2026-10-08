@@ -35,11 +35,11 @@ RECT DrawRect(const RECT& item_rect, int header_bottom, bool selected)
     return rect;
 }
 
-bool CloseButtonRect(const RECT& item_rect, const RECT& draw_rect, RECT* close_rect)
+bool CloseButtonRect(const RECT& item_rect, const RECT& draw_rect, UINT dpi, RECT* close_rect)
 {
     const int height = draw_rect.bottom - draw_rect.top;
-    const int size = std::min(kCloseSize, std::max(8, height - 6));
-    close_rect->right = item_rect.right - kCloseGap;
+    const int size = std::min(appearance::ScaleForDpi(kCloseSize, dpi), std::max(8, height - 6));
+    close_rect->right = item_rect.right - appearance::ScaleForDpi(kCloseGap, dpi);
     close_rect->left = close_rect->right - size;
     close_rect->top = draw_rect.top + (height - size) / 2;
     close_rect->bottom = close_rect->top + size;
@@ -74,7 +74,8 @@ void TabStrip::Attach(HWND tab, CloseCallback on_close, void* context)
 int TabStrip::Refit(int min_width) const
 {
     const int pad_y = kInsetY + 2;
-    TabCtrl_SetPadding(tab_, kTextPaddingX + (TabCtrl_GetItemCount(tab_) > 1 ? kCloseSize + kCloseGap : 0), pad_y);
+    const UINT dpi = win32::DpiForWindow(tab_);
+    TabCtrl_SetPadding(tab_, appearance::ScaleForDpi(kTextPaddingX + (TabCtrl_GetItemCount(tab_) > 1 ? kCloseSize + kCloseGap : 0), dpi), pad_y);
     SendMessageW(tab_, TCM_SETMINTABWIDTH, 0, min_width);
     TEXTMETRICW metrics = {};
     if (HDC hdc = GetDC(tab_))
@@ -112,7 +113,7 @@ bool TabStrip::CloseRect(int index, RECT* rect) const
     {
         return false;
     }
-    return CloseButtonRect(item_rect, DrawRect(item_rect, item_rect.bottom + 1, false), rect);
+    return CloseButtonRect(item_rect, DrawRect(item_rect, item_rect.bottom + 1, false), win32::DpiForWindow(tab_), rect);
 }
 
 void TabStrip::DrawItem(HDC hdc, int index, const RECT& item_rect, int header_bottom, bool selected) const
@@ -134,11 +135,13 @@ void TabStrip::DrawItem(HDC hdc, int index, const RECT& item_rect, int header_bo
     }
     SelectObject(hdc, old_pen);
 
+    const UINT dpi = win32::DpiForWindow(tab_);
+    const int text_padding = appearance::ScaleForDpi(kTextPaddingX, dpi);
     RECT close_rect = {};
-    const bool has_close = TabCtrl_GetItemCount(tab_) > 1 && CloseButtonRect(item_rect, draw_rect, &close_rect);
+    const bool has_close = TabCtrl_GetItemCount(tab_) > 1 && CloseButtonRect(item_rect, draw_rect, dpi, &close_rect);
     RECT text_rect = draw_rect;
-    text_rect.left = item_rect.left + kTextPaddingX;
-    text_rect.right = has_close ? std::max(text_rect.left, close_rect.left - kCloseGap) : item_rect.right - kTextPaddingX;
+    text_rect.left = item_rect.left + text_padding;
+    text_rect.right = has_close ? std::max(text_rect.left, close_rect.left - appearance::ScaleForDpi(kCloseGap, dpi)) : item_rect.right - text_padding;
     SetTextColor(hdc, selected || hot ? theme.TextColor() : theme.MutedTextColor());
     SetBkMode(hdc, TRANSPARENT);
     wchar_t text[256] = {};
@@ -159,7 +162,7 @@ void TabStrip::DrawItem(HDC hdc, int index, const RECT& item_rect, int header_bo
     {
         FillRect(hdc, &close_rect, appearance::CachedBrush(down ? theme.SelectionColor() : theme.HoverColor()));
     }
-    DrawCloseGlyph(hdc, close_rect, down ? theme.SelectionTextColor() : theme.TextColor(), win32::DpiForWindow(tab_));
+    DrawCloseGlyph(hdc, close_rect, down ? theme.SelectionTextColor() : theme.TextColor(), dpi);
 }
 
 void TabStrip::Paint(HDC hdc) const

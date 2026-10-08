@@ -136,7 +136,7 @@ bool ChooseHiveToLoad(HWND owner, LoadHiveResult* result)
     }
     State state;
     state.value = *result;
-    const INT_PTR dialog_result = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_LOAD_HIVE), owner, DialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = dialog_support::Modal(owner, IDD_LOAD_HIVE, DialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;
@@ -245,7 +245,7 @@ bool PromptSymbolicLink(HWND owner, const std::wstring& suggested_name, const Br
     SymbolicLinkDialogState dialog;
     dialog.result = result;
     dialog.browse = &browse;
-    return DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_NEW_SYMLINK), owner, SymbolicLinkDialogProc, reinterpret_cast<LPARAM>(&dialog)) == IDOK;
+    return dialog_support::Modal(owner, IDD_NEW_SYMLINK, SymbolicLinkDialogProc, reinterpret_cast<LPARAM>(&dialog)) == IDOK;
 }
 
 } // namespace regkit::editors

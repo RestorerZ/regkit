@@ -161,8 +161,6 @@ bool ListViewScrolledHorizontally(HWND list);
 
 HFONT CreateUIFont();
 
-HFONT CreateIconFont(int point_size);
-
 void ApplyFont(HWND hwnd, HFONT font);
 
 HTREEITEM FindChildByText(HWND tree, HTREEITEM parent, const std::wstring& text);

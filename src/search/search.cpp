@@ -34,7 +34,7 @@ namespace regkit::search
 
 bool SameSource(const Source& first, const Source& second) noexcept
 {
-    return first.kind == second.kind && util::EqualsInsensitive(first.name, second.name);
+    return first.kind == second.kind && first.view == second.view && util::EqualsInsensitive(first.name, second.name);
 }
 
 std::wstring SourceLabel(const Source& source)
@@ -49,7 +49,7 @@ std::wstring SourceLabel(const Source& source)
     default:
         break;
     }
-    return util::Tr(L"Local Registry");
+    return source.view ? util::Tr(L"Local Registry (32-bit)") : util::Tr(L"Local Registry");
 }
 
 const wchar_t* MatchFieldLabel(MatchField field) noexcept

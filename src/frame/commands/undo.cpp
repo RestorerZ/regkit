@@ -225,7 +225,7 @@ std::optional<std::wstring> MainWindow::Impl::MakeUniqueValueName(const Registry
         value_names.insert(ToLower(value.name));
         return true;
     },
-                                    {});
+                                                        {});
     if (!listed || enum_result.error != ERROR_SUCCESS)
     {
         return std::nullopt;

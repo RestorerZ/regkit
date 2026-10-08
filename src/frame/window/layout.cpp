@@ -14,13 +14,28 @@ namespace regkit
 {
 using namespace window_detail;
 
+// single line controls get taller when the UI font needs it
+int MainWindow::Impl::TextRowHeight(int nominal, int padding) const
+{
+    const UINT dpi = win32::DpiForWindow(hwnd_);
+    TEXTMETRICW metrics = {};
+    if (HDC hdc = GetDC(hwnd_))
+    {
+        const HGDIOBJ old_font = SelectObject(hdc, ui_font_);
+        GetTextMetricsW(hdc, &metrics);
+        SelectObject(hdc, old_font);
+        ReleaseDC(hwnd_, hdc);
+    }
+    return std::max(appearance::ScaleForDpi(nominal, dpi), static_cast<int>(metrics.tmHeight) + appearance::ScaleForDpi(padding, dpi));
+}
+
 void MainWindow::Impl::LayoutContent(bool dragging)
 {
     const bool show_search = IsSearchTabSelected();
     const bool show_tree = settings_.show_tree && !show_search;
     const bool show_history = settings_.show_history && !show_search;
     const UINT dpi = win32::DpiForWindow(hwnd_);
-    const int header_height = appearance::ScaleForDpi(kPanelHeaderHeight, dpi);
+    const int header_height = TextRowHeight(kPanelHeaderHeight);
     const int close_size = appearance::ScaleForDpi(kPanelCloseSize, dpi);
     const int close_inset = appearance::ScaleForDpi(kPanelCloseInset, dpi);
     const int left = content_rect_.left;
@@ -89,17 +104,19 @@ void MainWindow::Impl::LayoutContent(bool dragging)
             UnionRect(&dirty, &dirty, &old_rect);
             UnionRect(&dirty, &dirty, &p.rect);
         }
-        const int w = p.rect.right - p.rect.left;
-        const int h = p.rect.bottom - p.rect.top;
-        batch = batch ? DeferWindowPos(batch, p.hwnd, nullptr, p.rect.left, p.rect.top, w, h, flags) : nullptr;
-        if (!batch)
+        if (batch)
         {
-            SetWindowPos(p.hwnd, nullptr, p.rect.left, p.rect.top, w, h, flags);
+            batch = DeferWindowPos(batch, p.hwnd, nullptr, p.rect.left, p.rect.top, p.rect.right - p.rect.left, p.rect.bottom - p.rect.top, flags);
         }
     }
-    if (batch)
+    // a failed batch is abandoned, so every control is placed again
+    if (!batch || !EndDeferWindowPos(batch))
     {
-        EndDeferWindowPos(batch);
+        for (int i = 0; i < count; ++i)
+        {
+            const Placement& p = placements[i];
+            SetWindowPos(p.hwnd, nullptr, p.rect.left, p.rect.top, p.rect.right - p.rect.left, p.rect.bottom - p.rect.top, flags);
+        }
     }
     LayoutValueGridToolbar();
     if (dragging)
@@ -567,7 +584,7 @@ void MainWindow::Impl::LayoutControls(int width, int height)
 
     const int padding = 8;
     UINT dpi = win32::DpiForWindow(hwnd_);
-    const int address_height = appearance::ScaleForDpi(appearance::metrics::kControlHeight, dpi);
+    const int address_height = TextRowHeight(appearance::metrics::kControlHeight);
     const int address_btn_width = std::max(appearance::ScaleForDpi(18, dpi), address_height);
     const int tabs_height = std::max(20, tab_height_);
     const int filter_height = address_height;

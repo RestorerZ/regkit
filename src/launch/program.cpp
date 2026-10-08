@@ -147,9 +147,13 @@ bool JumpTargetFound(const std::wstring& target)
     std::wstring value_name;
     bool value_missing = false;
     return registry_path::ResolveJumpTarget(
-               target, [&](const std::wstring& path) { return registry_path::Normalize(path, sid); },
+               target,
+               [&](const std::wstring& path) { return registry_path::Normalize(path, sid); },
                [](const std::wstring& path, RegistryNode* key) { return registry_path::ParseRoot(path, key) && key->root && RegistryStore::KeyExists(*key); },
-               &key_path, &value_name, &value_missing) &&
+               &key_path,
+               &value_name,
+               &value_missing
+           ) &&
            !value_missing;
 }
 
@@ -225,7 +229,7 @@ LaunchArgs ParseLaunchArgs(const std::vector<std::wstring>& args)
         }
         launch.error = util::StartsWithInsensitive(arg, L"HK")                      ? util::TrDetail(L"Registry path not found.", arg)
                        : GetFileAttributesW(arg.c_str()) == INVALID_FILE_ATTRIBUTES ? util::TrDetail(L"Registry file not found.", arg)
-                                                                                   : util::TrLabel(L"Invalid argument", arg);
+                                                                                    : util::TrLabel(L"Invalid argument", arg);
         return launch;
     }
     if (!unquoted.empty())

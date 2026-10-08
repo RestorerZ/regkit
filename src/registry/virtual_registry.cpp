@@ -272,13 +272,13 @@ bool RenameKey(VirtualRegistryData& data, const RegistryNode& node, const std::w
         return false;
     }
     std::wstring new_lower = util::ToLower(new_name);
+    parent->children.reserve(parent->children.size() + 1);
     auto source = parent->children.find(util::ToLower(old_name));
     if (source == parent->children.end() || !source->second || parent->children.find(new_lower) != parent->children.end())
     {
         return false;
     }
     std::wstring name = new_name;
-    parent->children.reserve(parent->children.size() + 1);
     auto node_handle = parent->children.extract(source);
     node_handle.key() = std::move(new_lower);
     node_handle.mapped()->name.swap(name);
@@ -321,13 +321,13 @@ bool RenameValue(VirtualRegistryData& data, const RegistryNode& node, const std:
         return false;
     }
     std::wstring new_lower = util::ToLower(new_name);
+    key->values.reserve(key->values.size() + 1);
     auto source = key->values.find(util::ToLower(old_name));
     if (source == key->values.end() || key->values.find(new_lower) != key->values.end())
     {
         return false;
     }
     std::wstring name = new_name;
-    key->values.reserve(key->values.size() + 1);
     auto node_handle = key->values.extract(source);
     node_handle.key() = std::move(new_lower);
     node_handle.mapped().name.swap(name);

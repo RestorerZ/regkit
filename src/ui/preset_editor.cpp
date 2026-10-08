@@ -709,7 +709,7 @@ void appearance::ShowThemePresetEditor(HWND owner, const std::vector<ThemePreset
     state.presets = presets;
     state.templates = ThemePresetStore::BuiltInPresets();
     state.active_name = active_name;
-    DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_THEME_PRESETS), owner, ThemePresetDialogProc, reinterpret_cast<LPARAM>(&state));
+    editors::dialog_support::Modal(owner, IDD_THEME_PRESETS, ThemePresetDialogProc, reinterpret_cast<LPARAM>(&state));
 }
 
 } // namespace regkit

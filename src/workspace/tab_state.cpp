@@ -185,6 +185,10 @@ void ParseTaggedFields(const std::vector<std::wstring>& fields, PersistedTab* ta
         {
             tab->source_names.push_back(value);
         }
+        else if (key == L"srcv")
+        {
+            tab->source_views.push_back(Number(value));
+        }
     }
 }
 
@@ -278,6 +282,7 @@ std::wstring SerializeTabs(const TabState& state)
         {
             fields.push_back(L"srck=" + std::to_wstring(tab.source_kinds[i]));
             fields.push_back(L"srcn=" + (i < tab.source_names.size() ? tab.source_names[i] : std::wstring()));
+            fields.push_back(L"srcv=" + std::to_wstring(i < tab.source_views.size() ? tab.source_views[i] : 0));
         }
         record_fields::AppendRecord(&content, fields);
     }

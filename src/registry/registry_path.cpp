@@ -503,8 +503,7 @@ bool ParseRoot(std::wstring_view input, RegistryNode* node)
     return entry || util::EqualsInsensitive(root, L"REGISTRY");
 }
 
-bool ResolveJumpTarget(std::wstring_view target, const std::function<std::wstring(const std::wstring&)>& normalize,
-                       const std::function<bool(const std::wstring&, RegistryNode*)>& key_exists, std::wstring* key_path, std::wstring* value_name, bool* value_missing)
+bool ResolveJumpTarget(std::wstring_view target, const std::function<std::wstring(const std::wstring&)>& normalize, const std::function<bool(const std::wstring&, RegistryNode*)>& key_exists, std::wstring* key_path, std::wstring* value_name, bool* value_missing)
 {
     const auto unwrap = [](std::wstring text, std::wstring_view pairs) {
         text = util::TrimWhitespace(text);

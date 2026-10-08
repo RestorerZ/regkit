@@ -65,20 +65,10 @@ LOGFONTW DefaultUIFontLogFont(UINT dpi)
     return lf;
 }
 
-LOGFONTW DefaultUIFontLogFont()
-{
-    return DefaultUIFontLogFont(static_cast<UINT>(appearance::SystemFontDpi()));
-}
-
 HFONT DefaultUIFont(UINT dpi)
 {
     LOGFONTW lf = DefaultUIFontLogFont(dpi);
     return CreateFontIndirectW(&lf);
-}
-
-HFONT DefaultUIFont()
-{
-    return DefaultUIFont(static_cast<UINT>(appearance::SystemFontDpi()));
 }
 
 } // namespace regkit::ui

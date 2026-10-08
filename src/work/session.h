@@ -17,6 +17,7 @@
 #include <optional>
 #include <system_error>
 #include <thread>
+#include <type_traits>
 #include <utility>
 
 namespace regkit::work
@@ -209,6 +210,9 @@ class LatestTask
 template <typename Task>
 class DebouncedTask
 {
+    // the worker takes the pending task outside its catch
+    static_assert(std::is_nothrow_move_constructible_v<Task>);
+
   public:
     using Handler = std::function<void(Task)>;
 

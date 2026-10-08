@@ -201,6 +201,7 @@ class MainWindow::Impl
     void ApplyUIFontToControls();
     void LayoutControls(int width, int height);
     void LayoutContent(bool dragging);
+    int TextRowHeight(int nominal, int padding = 6) const;
     void DragSplitter(ui::Splitter* splitter, int* size, POINT point);
     void BuildImageLists();
     void ReloadThemeIcons();
@@ -586,7 +587,6 @@ class MainWindow::Impl
     HINSTANCE instance_ = nullptr;
     HWND hwnd_ = nullptr;
     HFONT ui_font_ = nullptr;
-    HFONT icon_font_ = nullptr;
     bool ui_font_owned_ = false;
     LOGFONTW custom_font_ = {};
     workspace::Settings settings_;
@@ -676,6 +676,7 @@ class MainWindow::Impl
     bool flushing_external_navigation_ = false;
     bool jump_ui_batch_active_ = false;
     bool tree_redraw_pending_ = false;
+    bool status_update_pending_ = false;
     bool tree_painted_ = false;
     int pending_show_cmd_ = SW_SHOWNORMAL;
     std::wstring pending_compare_key_path_;

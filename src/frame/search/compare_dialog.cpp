@@ -405,7 +405,7 @@ bool ShowCompareDialog(HWND owner, const CompareDialogDefaults& defaults, Compar
     }
     CompareDialogState state;
     state.data = defaults;
-    INT_PTR result = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_COMPARE), owner, CompareDialogProc, reinterpret_cast<LPARAM>(&state));
+    INT_PTR result = editors::dialog_support::Modal(owner, IDD_COMPARE, CompareDialogProc, reinterpret_cast<LPARAM>(&state));
     if (result != IDOK)
     {
         return false;

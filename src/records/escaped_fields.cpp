@@ -38,7 +38,10 @@ void AppendEscaped(std::wstring* output, std::wstring_view text)
         {
             continue;
         }
-        const wchar_t code = character == L'\\' ? L'\\' : character == L'\t' ? L't' : character == L'\r' ? L'r' : character == L'\n' ? L'n' : 0;
+        const wchar_t code = character == L'\\' ? L'\\' : character == L'\t' ? L't'
+                                                      : character == L'\r'   ? L'r'
+                                                      : character == L'\n'   ? L'n'
+                                                                             : 0;
         const bool lone = (IsHigh(character) && (index + 1 == text.size() || !IsLow(text[index + 1]))) ||
                           (IsLow(character) && (index == 0 || !IsHigh(text[index - 1])));
         if (!code && !lone)

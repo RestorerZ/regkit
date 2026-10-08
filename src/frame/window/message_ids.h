@@ -36,6 +36,7 @@ constexpr UINT kUpdateCheckReady = WM_APP + 43;
 constexpr UINT kExternalHandoff = WM_APP + 44;
 constexpr UINT kRegistryChanged = WM_APP + 45;
 constexpr UINT kTreeRedraw = WM_APP + 46;
+constexpr UINT kStatusUpdate = WM_APP + 47;
 constexpr ULONG_PTR kExternalJumpCopyDataId = 0x52474A54;
 constexpr ULONG_PTR kEditRegFileCopyDataId = 0x5247464F;
 constexpr DWORD kExternalMessageMaxBytes = 64u * 1024u;

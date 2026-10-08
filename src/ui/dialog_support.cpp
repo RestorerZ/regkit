@@ -9,6 +9,7 @@
 #include "ui/dialog_fit.h"
 #include "ui/dialog_layout.h"
 #include "ui/feedback.h"
+#include "ui/font_metrics.h"
 #include "ui/list_view_support.h"
 #include "ui/theme.h"
 
@@ -32,6 +33,55 @@ constexpr UINT_PTR kSingleLineSubclassId = 2;
 constexpr UINT_PTR kListViewSubclassId = 3;
 constexpr int kTooltipMaxWidth = 600;
 constexpr int kGridToggleId = 4200;
+
+std::vector<BYTE> LoadTemplate(int id)
+{
+    const HINSTANCE instance = GetModuleHandleW(nullptr);
+    const HRSRC resource = FindResourceW(instance, MAKEINTRESOURCEW(id), RT_DIALOG);
+    const HGLOBAL loaded = resource ? LoadResource(instance, resource) : nullptr;
+    const auto* data = loaded ? static_cast<const BYTE*>(LockResource(loaded)) : nullptr;
+    if (!data)
+    {
+        return {};
+    }
+    const size_t size = SizeofResource(instance, resource);
+    const auto word = [&](size_t offset) { return offset + 2 <= size ? *reinterpret_cast<const WORD*>(data + offset) : WORD{0}; };
+    if (size < 26 || word(2) != 0xFFFF || !(*reinterpret_cast<const DWORD*>(data + 12) & DS_SETFONT))
+    {
+        return std::vector<BYTE>(data, data + size);
+    }
+    size_t offset = 26;
+    for (int field = 0; field < 3; ++field)
+    {
+        if (word(offset) == 0xFFFF)
+        {
+            offset += 4;
+            continue;
+        }
+        while (word(offset))
+        {
+            offset += 2;
+        }
+        offset += 2;
+    }
+    const size_t font = offset;
+    for (offset += 6; word(offset); offset += 2)
+    {
+    }
+    const size_t items = (offset + 2 + 3) & ~size_t{3};
+    if (items > size)
+    {
+        return std::vector<BYTE>(data, data + size);
+    }
+    const LOGFONTW lf = ui::DefaultUIFontLogFont(USER_DEFAULT_SCREEN_DPI);
+    const WORD header[] = {static_cast<WORD>(MulDiv(std::abs(lf.lfHeight), 72, USER_DEFAULT_SCREEN_DPI)), static_cast<WORD>(lf.lfWeight), static_cast<WORD>(lf.lfItalic | (lf.lfCharSet << 8))};
+    std::vector<BYTE> patched(data, data + font);
+    patched.insert(patched.end(), reinterpret_cast<const BYTE*>(header), reinterpret_cast<const BYTE*>(header) + sizeof(header));
+    patched.insert(patched.end(), reinterpret_cast<const BYTE*>(lf.lfFaceName), reinterpret_cast<const BYTE*>(lf.lfFaceName + wcslen(lf.lfFaceName) + 1));
+    patched.resize((patched.size() + 3) & ~size_t{3});
+    patched.insert(patched.end(), data + items, data + size);
+    return patched;
+}
 
 LRESULT CALLBACK SingleLineProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR)
 {
@@ -181,9 +231,14 @@ void Initialize(HWND dialog, HFONT* owned_font, std::initializer_list<int> borde
                 wchar_t class_name[16] = {};
                 GetClassNameW(child, class_name, _countof(class_name));
                 const LONG_PTR style = GetWindowLongPtrW(child, GWL_STYLE);
-                if (util::EqualsInsensitive(class_name, L"Edit") && (style & ES_MULTILINE) && !(style & ES_READONLY))
+                if (util::EqualsInsensitive(class_name, L"Edit"))
                 {
-                    SetWindowSubclass(child, SingleLineProc, kSingleLineSubclassId, 0);
+                    // typed & pasted values aren't cut at the 30000 character default
+                    SendMessageW(child, EM_SETLIMITTEXT, 0, 0);
+                    if ((style & ES_MULTILINE) && !(style & ES_READONLY))
+                    {
+                        SetWindowSubclass(child, SingleLineProc, kSingleLineSubclassId, 0);
+                    }
                 }
                 return TRUE;
             },
@@ -201,6 +256,31 @@ void AllowNewlines(HWND dialog, int control_id)
     {
         RemoveWindowSubclass(edit, SingleLineProc, kSingleLineSubclassId);
     }
+}
+
+INT_PTR Modal(HWND owner, int id, DLGPROC proc, LPARAM param)
+{
+    const std::vector<BYTE> dialog = LoadTemplate(id);
+    return dialog.empty() ? -1 : DialogBoxIndirectParamW(GetModuleHandleW(nullptr), reinterpret_cast<const DLGTEMPLATE*>(dialog.data()), owner, proc, param);
+}
+
+HWND Modeless(HWND owner, int id, DLGPROC proc, LPARAM param)
+{
+    const std::vector<BYTE> dialog = LoadTemplate(id);
+    return dialog.empty() ? nullptr : CreateDialogIndirectParamW(GetModuleHandleW(nullptr), reinterpret_cast<const DLGTEMPLATE*>(dialog.data()), owner, proc, param);
+}
+
+HFONT ApplyMonoFont(HWND dialog, std::initializer_list<int> controls)
+{
+    const HFONT font = CreateFontW(appearance::FontHeight(9, win32::DpiForWindow(dialog)), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_MODERN, L"Consolas");
+    for (const int id : controls)
+    {
+        if (font)
+        {
+            SendDlgItemMessageW(dialog, id, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
+        }
+    }
+    return font;
 }
 
 void ReleaseFont(HFONT* font)

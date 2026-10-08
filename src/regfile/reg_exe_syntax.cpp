@@ -54,7 +54,6 @@ bool IsSwitch(std::wstring_view text, std::wstring_view name)
 bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, Verb verb, std::wstring* error)
 {
     auto is_switch = [](const std::wstring& text) { return !text.empty() && (text[0] == L'/' || text[0] == L'-'); };
-    std::vector<std::wstring> seen;
     int selectors = 0;
     for (size_t i = first; i < args.size(); ++i)
     {
@@ -70,11 +69,11 @@ bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* 
         if (is_switch(arg))
         {
             std::wstring name = util::ToLower(std::wstring_view(arg).substr(1));
-            if (std::find(seen.begin(), seen.end(), name) != seen.end() || ((name == L"v" || name == L"ve" || name == L"va") && ++selectors > 1))
+            if (std::find(options->switches.begin(), options->switches.end(), name) != options->switches.end() || ((name == L"v" || name == L"ve" || name == L"va") && ++selectors > 1))
             {
                 return Fail(error, util::TrLabel(L"Invalid option", arg));
             }
-            seen.push_back(std::move(name));
+            options->switches.push_back(std::move(name));
         }
         if (IsSwitch(arg, L"v") && verb == Verb::kQuery && (i + 1 >= args.size() || is_switch(args[i + 1])))
         {

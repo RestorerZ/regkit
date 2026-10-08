@@ -45,6 +45,7 @@ struct Options
     bool verbose = false;
     wchar_t compare_output = L'd';
     REGSAM view = win32::kDefaultRegistryView;
+    std::vector<std::wstring> switches;
 };
 
 bool IsSwitch(std::wstring_view text, std::wstring_view name);

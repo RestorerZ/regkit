@@ -40,6 +40,7 @@ MessageArea ClassifyMessage(UINT message) noexcept
     case WM_TIMER:
     case message_id::kRegistryChanged:
     case message_id::kTreeRedraw:
+    case message_id::kStatusUpdate:
     case message_id::kExternalHandoff:
     case WM_COPYDATA:
     case WM_SETFOCUS:

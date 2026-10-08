@@ -17,6 +17,7 @@ std::wstring FileBaseName(std::wstring_view path);
 std::wstring TrimTrailingSeparators(std::wstring path);
 bool IsFile(const std::wstring& path);
 bool IsDirectory(const std::wstring& path);
+bool IsMissing(const std::wstring& path);
 std::wstring GetAppDataFolder();
 std::wstring GetCacheFolder();
 bool HasFileExtension(std::wstring_view path, std::wstring_view extension);

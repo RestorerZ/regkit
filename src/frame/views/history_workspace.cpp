@@ -536,6 +536,10 @@ void MainWindow::Impl::LoadTabs()
                     {
                         source.name = std::move(saved.source_names[s]);
                     }
+                    if (s < saved.source_views.size() && win32::HasAlternateView())
+                    {
+                        source.view = static_cast<REGSAM>(saved.source_views[s]) & win32::kAlternateRegistryView;
+                    }
                     search_tab.sources.push_back(std::move(source));
                 }
                 if (search_tab.sources.empty() && search_tab.is_compare)
@@ -760,6 +764,7 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds)
             {
                 saved.source_kinds.push_back(static_cast<int>(source.kind));
                 saved.source_names.push_back(source.name);
+                saved.source_views.push_back(static_cast<int>(source.view));
             }
             if (search_tab.is_compare)
             {
@@ -897,7 +902,7 @@ bool MainWindow::Impl::SaveComments() const
     // the startup load hasn't merged the file yet, so add to it instead of replacing it
     const std::wstring path = CommentsPath();
     changes::ValueComments merged;
-    if (!merged.Load(path) && GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES)
+    if (!merged.Load(path) && !util::IsMissing(path))
     {
         return false;
     }

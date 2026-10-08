@@ -58,7 +58,7 @@ std::wstring FavoritesStore::FavoritesPath()
 bool FavoritesStore::Load(std::vector<std::wstring>* favorites)
 {
     const std::wstring path = FavoritesPath();
-    return LoadFromFile(path, favorites) || (!path.empty() && GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES);
+    return LoadFromFile(path, favorites) || (!path.empty() && util::IsMissing(path));
 }
 
 bool FavoritesStore::Save(const std::vector<std::wstring>& favorites)

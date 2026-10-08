@@ -519,8 +519,7 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
     std::vector<search::StartNode>& start_nodes = *out_nodes;
     std::vector<search::Source>& sources = *out_sources;
     bool& remote_nodes = *out_remote;
-    auto source_index = [&](search::Source::Kind kind, const std::wstring& name) -> uint16_t {
-        const search::Source wanted{kind, name};
+    auto source_index = [&](const search::Source& wanted) -> uint16_t {
         for (size_t i = 0; i < sources.size(); ++i)
         {
             if (search::SameSource(sources[i], wanted))
@@ -533,8 +532,7 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
     };
     if (options.scope == SearchScope::kCurrentKey)
     {
-        const search::Source current = CurrentTabSource();
-        const uint16_t source = source_index(current.kind, current.name);
+        const uint16_t source = source_index(CurrentTabSource());
         if (!registry_scope_path.empty())
         {
             RegistryNode node;
@@ -637,7 +635,7 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
                     break;
                 }
             }
-            const uint16_t source = source_index(search::Source::Kind::kOffline, offline_path);
+            const uint16_t source = source_index({search::Source::Kind::kOffline, offline_path});
             for (size_t i = 0; i < session_->offline_roots.size(); ++i)
             {
                 RegistryRootEntry entry;
@@ -655,7 +653,7 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
                 {
                     continue;
                 }
-                const uint16_t source = source_index(search::Source::Kind::kRegFile, tab.reg_file_path);
+                const uint16_t source = source_index({search::Source::Kind::kRegFile, tab.reg_file_path});
                 for (const auto& root : tab.reg_file_roots)
                 {
                     if (!root.root)
@@ -673,7 +671,7 @@ bool MainWindow::Impl::CollectSearchStartNodes(const SearchDialogResult& options
         if (options.search_remote_registry && session_->remote_hklm)
         {
             const std::wstring prefix = session_->remote_machine + L"\\";
-            const uint16_t source = source_index(search::Source::Kind::kRemote, session_->remote_machine);
+            const uint16_t source = source_index({search::Source::Kind::kRemote, session_->remote_machine});
             remote_nodes = true;
             add_root({session_->remote_hklm, L"HKEY_LOCAL_MACHINE", prefix + L"HKEY_LOCAL_MACHINE", L""}, source);
             if (session_->remote_hku)
@@ -1398,7 +1396,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
                     values.push_back(std::move(value));
                     return !cancel.load();
                 },
-                                                {});
+                                                                    {});
                 if (!cancel.load() && (!listed || enum_result.error != ERROR_SUCCESS))
                 {
                     ++payload->failures;

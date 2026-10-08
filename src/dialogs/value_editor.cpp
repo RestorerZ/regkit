@@ -341,6 +341,33 @@ void UpdateBinaryPreviewEx(HWND dlg, BinaryGroupState* state, const BinaryGroupI
     SetDlgItemTextW(dlg, ids.preview_id, preview.c_str());
 }
 
+void SelectBinaryMode(HWND dlg, BinaryGroupState* state, const BinaryGroupIds& ids, int control_id)
+{
+    if (control_id == ids.text_ansi_id || control_id == ids.text_unicode_id)
+    {
+        const bool unicode = control_id == ids.text_unicode_id;
+        if (state->unicode == unicode)
+        {
+            return;
+        }
+        state->unicode = unicode;
+        SetBinaryTextSelection(dlg, ids, control_id);
+    }
+    else
+    {
+        const int group = control_id == ids.format_word_id ? 2 : control_id == ids.format_dword_id ? 4
+                                                             : control_id == ids.format_qword_id   ? 8
+                                                                                                   : 1;
+        if (state->group_bytes == group)
+        {
+            return;
+        }
+        state->group_bytes = group;
+        SetBinaryGroupSelection(dlg, ids, control_id);
+    }
+    UpdateBinaryPreviewEx(dlg, state, ids);
+}
+
 std::wstring FormatNumberValue(unsigned long long value, int base)
 {
     wchar_t buffer[64] = {};
@@ -810,16 +837,7 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
                                            {IDOK, kAnchorRight | kAnchorBottom},
                                            {IDCANCEL, kAnchorRight | kAnchorBottom},
                                        });
-            // keep hex bytes & previews aligned
-            state->mono_font =
-                CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_MODERN, L"Consolas");
-            if (state->mono_font)
-            {
-                SendDlgItemMessageW(dlg, IDC_REG_BINARY_EDIT, WM_SETFONT, reinterpret_cast<WPARAM>(state->mono_font), TRUE);
-                SendDlgItemMessageW(dlg, IDC_REG_BINARY_PREVIEW, WM_SETFONT, reinterpret_cast<WPARAM>(state->mono_font), TRUE);
-                SendDlgItemMessageW(dlg, IDC_REG_NONE_EDIT, WM_SETFONT, reinterpret_cast<WPARAM>(state->mono_font), TRUE);
-                SendDlgItemMessageW(dlg, IDC_REG_NONE_PREVIEW, WM_SETFONT, reinterpret_cast<WPARAM>(state->mono_font), TRUE);
-            }
+            state->mono_font = dialog_support::ApplyMonoFont(dlg, {IDC_REG_BINARY_EDIT, IDC_REG_BINARY_PREVIEW, IDC_REG_NONE_EDIT, IDC_REG_NONE_PREVIEW});
             UpdateBinaryPreviewEx(dlg, state ? &state->binary : nullptr, kBinaryIds);
             UpdateBinaryPreviewEx(dlg, state ? &state->none : nullptr, kNoneIds);
             return TRUE;
@@ -965,64 +983,20 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
                     }
                     return TRUE;
                 case IDC_REG_BINARY_FORMAT_BYTE:
-                    state->binary.group_bytes = 1;
-                    SetBinaryGroupSelection(dlg, kBinaryIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->binary, kBinaryIds);
-                    return TRUE;
                 case IDC_REG_BINARY_FORMAT_WORD:
-                    state->binary.group_bytes = 2;
-                    SetBinaryGroupSelection(dlg, kBinaryIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->binary, kBinaryIds);
-                    return TRUE;
                 case IDC_REG_BINARY_FORMAT_DWORD:
-                    state->binary.group_bytes = 4;
-                    SetBinaryGroupSelection(dlg, kBinaryIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->binary, kBinaryIds);
-                    return TRUE;
                 case IDC_REG_BINARY_FORMAT_QWORD:
-                    state->binary.group_bytes = 8;
-                    SetBinaryGroupSelection(dlg, kBinaryIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->binary, kBinaryIds);
-                    return TRUE;
                 case IDC_REG_BINARY_TEXT_ANSI:
-                    state->binary.unicode = false;
-                    SetBinaryTextSelection(dlg, kBinaryIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->binary, kBinaryIds);
-                    return TRUE;
                 case IDC_REG_BINARY_TEXT_UNICODE:
-                    state->binary.unicode = true;
-                    SetBinaryTextSelection(dlg, kBinaryIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->binary, kBinaryIds);
+                    SelectBinaryMode(dlg, &state->binary, kBinaryIds, id);
                     return TRUE;
                 case IDC_REG_NONE_FORMAT_BYTE:
-                    state->none.group_bytes = 1;
-                    SetBinaryGroupSelection(dlg, kNoneIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->none, kNoneIds);
-                    return TRUE;
                 case IDC_REG_NONE_FORMAT_WORD:
-                    state->none.group_bytes = 2;
-                    SetBinaryGroupSelection(dlg, kNoneIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->none, kNoneIds);
-                    return TRUE;
                 case IDC_REG_NONE_FORMAT_DWORD:
-                    state->none.group_bytes = 4;
-                    SetBinaryGroupSelection(dlg, kNoneIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->none, kNoneIds);
-                    return TRUE;
                 case IDC_REG_NONE_FORMAT_QWORD:
-                    state->none.group_bytes = 8;
-                    SetBinaryGroupSelection(dlg, kNoneIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->none, kNoneIds);
-                    return TRUE;
                 case IDC_REG_NONE_TEXT_ANSI:
-                    state->none.unicode = false;
-                    SetBinaryTextSelection(dlg, kNoneIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->none, kNoneIds);
-                    return TRUE;
                 case IDC_REG_NONE_TEXT_UNICODE:
-                    state->none.unicode = true;
-                    SetBinaryTextSelection(dlg, kNoneIds, id);
-                    UpdateBinaryPreviewEx(dlg, &state->none, kNoneIds);
+                    SelectBinaryMode(dlg, &state->none, kNoneIds, id);
                     return TRUE;
                 default:
                     break;
@@ -1437,7 +1411,7 @@ bool EditText(HWND owner, const TextRequest& request, TextResult* result)
     state.text = request.text;
     state.browse = request.browse;
     const int dialog_id = request.multiline ? IDD_MULTI_TEXT : IDD_INPUT;
-    const INT_PTR dialog_result = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(dialog_id), owner, TextDialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = dialog_support::Modal(owner, dialog_id, TextDialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK)
     {
         return false;
@@ -1516,7 +1490,7 @@ bool EditCustomValue(HWND owner, const CustomValueRequest& request, CustomValueR
     state.type = request.type;
     state.data = request.data;
     state.read_only = request.read_only;
-    const INT_PTR dialog_result = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_CUSTOM_VALUE), owner, CustomValueDialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = dialog_support::Modal(owner, IDD_CUSTOM_VALUE, CustomValueDialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;
@@ -1591,7 +1565,7 @@ bool EditFlaggedValue(HWND owner, const FlaggedValueRequest& request, FlaggedVal
         dialog_id = IDD_NUMBER_BINARY;
     }
 
-    const INT_PTR dialog_result = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(dialog_id), owner, ExtendedValueDialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = dialog_support::Modal(owner, dialog_id, ExtendedValueDialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;

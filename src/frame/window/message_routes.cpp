@@ -138,6 +138,15 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
             {
                 info->ptMinTrackSize.x = std::max<LONG>(info->ptMinTrackSize.x, 400);
                 info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, 200);
+                // room for everything above and below the panels + history minimum
+                RECT window = {};
+                if (content_rect_.right > 0 && GetWindowRect(hwnd_, &window))
+                {
+                    const int panels = TextRowHeight(kPanelHeaderHeight) +
+                                       (settings_.show_history && !IsSearchTabSelected() ? kMinHistoryHeight + kHistoryGap + kHistorySplitterHeight : 0);
+                    const int chrome = (window.bottom - window.top) - (content_rect_.bottom - content_rect_.top);
+                    info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, chrome + panels);
+                }
             }
             return 0;
         }
@@ -1132,6 +1141,10 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
         }
     case frame::message_id::kTreeRedraw:
         FlushTreeRedraw();
+        return 0;
+    case frame::message_id::kStatusUpdate:
+        status_update_pending_ = false;
+        UpdateStatus();
         return 0;
     case frame::message_id::kRegistryChanged:
         if (wparam == key_watcher_.generation())

@@ -348,7 +348,7 @@ void ShowTables(HWND owner, const TablesRequest& request)
 {
     State state;
     state.request = &request;
-    DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_TABLES), owner, DialogProc, reinterpret_cast<LPARAM>(&state));
+    dialog_support::Modal(owner, IDD_TABLES, DialogProc, reinterpret_cast<LPARAM>(&state));
 }
 
 } // namespace regkit::editors

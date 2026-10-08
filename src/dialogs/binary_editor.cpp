@@ -105,13 +105,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             }
         }
         dialog_support::Initialize(dialog, &state->ui_font, {IDC_VALUE_NAME, IDC_EDIT, IDC_BINARY_PREVIEW});
-        state->mono_font =
-            CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_MODERN, L"Consolas");
-        if (state->mono_font)
-        {
-            SendDlgItemMessageW(dialog, IDC_EDIT, WM_SETFONT, reinterpret_cast<WPARAM>(state->mono_font), TRUE);
-            SendDlgItemMessageW(dialog, IDC_BINARY_PREVIEW, WM_SETFONT, reinterpret_cast<WPARAM>(state->mono_font), TRUE);
-        }
+        state->mono_font = dialog_support::ApplyMonoFont(dialog, {IDC_EDIT, IDC_BINARY_PREVIEW});
         using namespace appearance;
         state->resizer.Attach(dialog, {
                                           {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
@@ -188,17 +182,26 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     case IDC_FORMAT_WORD:
     case IDC_FORMAT_DWORD:
     case IDC_FORMAT_QWORD:
-        state->group_bytes = id == IDC_FORMAT_BYTE ? 1 : id == IDC_FORMAT_WORD ? 2
-                                                     : id == IDC_FORMAT_DWORD  ? 4
-                                                                               : 8;
-        SelectGroup(dialog, id);
-        UpdatePreview(dialog, state);
-        return TRUE;
+        {
+            const int group = id == IDC_FORMAT_BYTE ? 1 : id == IDC_FORMAT_WORD ? 2
+                                                      : id == IDC_FORMAT_DWORD  ? 4
+                                                                                : 8;
+            if (group != state->group_bytes)
+            {
+                state->group_bytes = group;
+                SelectGroup(dialog, id);
+                UpdatePreview(dialog, state);
+            }
+            return TRUE;
+        }
     case IDC_TEXT_ANSI:
     case IDC_TEXT_UNICODE:
-        state->unicode = id == IDC_TEXT_UNICODE;
-        SelectTextMode(dialog, id);
-        UpdatePreview(dialog, state);
+        if ((id == IDC_TEXT_UNICODE) != state->unicode)
+        {
+            state->unicode = id == IDC_TEXT_UNICODE;
+            SelectTextMode(dialog, id);
+            UpdatePreview(dialog, state);
+        }
         return TRUE;
     case IDOK:
         {
@@ -234,7 +237,7 @@ bool EditBinary(HWND owner, const BinaryRequest& request, BinaryResult* result)
     }
     State state;
     state.request = &request;
-    const INT_PTR dialog_result = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_BINARY), owner, DialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = dialog_support::Modal(owner, IDD_BINARY, DialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;

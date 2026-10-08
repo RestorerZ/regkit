@@ -799,7 +799,7 @@ bool ShowSearchDialog(HWND owner, SearchDialogResult* result, const SearchSource
     SearchDialogState state;
     state.out = result;
     state.sources = available;
-    return result && DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_FIND), owner, SearchDialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
+    return result && dialog_support::Modal(owner, IDD_FIND, SearchDialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
 }
 
 } // namespace regkit

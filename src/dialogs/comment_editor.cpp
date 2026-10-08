@@ -99,10 +99,10 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     {
         state = reinterpret_cast<State*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
+        InitControls(dialog, state);
         dialog_support::Initialize(dialog, &state->font, {IDC_EDIT, IDC_COMMENT_KEY_PATH});
         appearance::AttachAutoComplete(GetDlgItem(dialog, IDC_COMMENT_KEY_PATH), appearance::SuggestKeys);
         dialog_support::AllowNewlines(dialog, IDC_EDIT);
-        InitControls(dialog, state);
         using namespace appearance;
         state->resizer.Attach(
             dialog,
@@ -177,7 +177,7 @@ bool EditComment(HWND owner, const CommentRequest& request, CommentResult* resul
     State state;
     state.request = &request;
     const INT_PTR dialog_result =
-        DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(request.key ? IDD_KEY_COMMENT : IDD_COMMENT), owner, DialogProc, reinterpret_cast<LPARAM>(&state));
+        dialog_support::Modal(owner, request.key ? IDD_KEY_COMMENT : IDD_COMMENT, DialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;

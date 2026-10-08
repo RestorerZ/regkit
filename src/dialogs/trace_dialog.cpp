@@ -574,7 +574,7 @@ bool ShowTraceDialog(HWND owner, const TraceDialogOptions& options, trace::Selec
     state.show_values = options.show_values;
     state.on_ready = on_ready;
     state.on_ready_context = context;
-    return selection && DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_TRACE_SELECT), owner, TraceDialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
+    return selection && dialog_support::Modal(owner, IDD_TRACE_SELECT, TraceDialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
 }
 void TraceDialogPostEntries(HWND dialog, std::vector<KeyValueDialogEntry>* entries)
 {

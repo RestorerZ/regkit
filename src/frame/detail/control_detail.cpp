@@ -4,7 +4,6 @@
 #include "frame/detail/control_detail.h"
 
 #include "frame/window_impl.h"
-#include "ui/font_metrics.h"
 #include "ui/list_view_support.h"
 #include <algorithm>
 #include <chrono>
@@ -423,12 +422,6 @@ bool ListViewScrolledHorizontally(HWND list)
 HFONT CreateUIFont()
 {
     return static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
-}
-
-HFONT CreateIconFont(int point_size)
-{
-    int height = appearance::FontHeight(point_size);
-    return CreateFontW(height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe MDL2 Assets");
 }
 
 void ApplyFont(HWND hwnd, HFONT font)

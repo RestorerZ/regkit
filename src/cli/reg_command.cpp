@@ -15,6 +15,7 @@
 #include "win32/process_rights.h"
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
+#include "win32/shell_paths.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
 
@@ -23,6 +24,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <utility>
 
 namespace regkit::cli
 {
@@ -171,13 +173,22 @@ using reg_exe::IsSwitch;
 using reg_exe::Options;
 using reg_exe::TypeName;
 
-bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, reg_exe::Verb verb = reg_exe::Verb::kOther)
+// switches outside the verb's reg.exe syntax are rejected, not ignored
+bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, std::initializer_list<std::wstring_view> allowed, reg_exe::Verb verb = reg_exe::Verb::kOther)
 {
     std::wstring error;
     if (!reg_exe::ParseOptions(args, first, options, positional, verb, &error))
     {
         PrintError(error);
         return false;
+    }
+    for (const std::wstring& name : options->switches)
+    {
+        if (std::find(allowed.begin(), allowed.end(), name) == allowed.end())
+        {
+            PrintError(L"Invalid option: /" + name);
+            return false;
+        }
     }
     return true;
 }
@@ -300,6 +311,8 @@ struct Query
     size_t matches = 0;
     bool found_value = false;
     bool search = false;
+    bool started = false;
+    bool skipped = false;
 
     bool Matches(const std::wstring& text) const
     {
@@ -336,14 +349,18 @@ void PrintHeader(const KeyRef& key)
     Print(key.display);
 }
 
-int QueryKey(const KeyRef& key, Query& query, bool name_matched)
+LONG QueryKey(const KeyRef& key, Query& query, bool name_matched)
 {
     const Options& options = query.options;
     KeyContents contents;
     const LONG status = ReadKey(key, options.view, true, &contents);
     if (status != ERROR_SUCCESS)
     {
-        return Fail(status);
+        return status;
+    }
+    if (!std::exchange(query.started, true))
+    {
+        Print(L"");
     }
     SelectValue(options, &contents.values);
     std::erase_if(contents.values, [&](const RegistryValue& value) {
@@ -362,8 +379,7 @@ int QueryKey(const KeyRef& key, Query& query, bool name_matched)
         for (const RegistryValue& value : contents.values)
         {
             const std::wstring type = TypeName(value.type) + (options.verbose ? L" (" + std::to_wstring(value.type) + L")" : std::wstring());
-            Print(L"    " + ValueName(value) + L"    " + type + L"    " +
-                  (unset_default ? L"(value not set)" : FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size()), options.separator)));
+            Print(L"    " + ValueName(value) + L"    " + type + L"    " + (unset_default ? L"(value not set)" : FormatData(value.type, value.data.data(), static_cast<DWORD>(value.data.size()), options.separator)));
         }
         Print(L"");
     }
@@ -375,29 +391,43 @@ int QueryKey(const KeyRef& key, Query& query, bool name_matched)
         {
             Print(ChildRef(key, child).display);
         }
-        return kOk;
+        return ERROR_SUCCESS;
     }
     for (const auto& child : contents.subkeys)
     {
         const bool child_matched = options.has_find && query.search_keys && query.Matches(child);
-        if (options.recurse)
+        const KeyRef child_key = ChildRef(key, child);
+        if (!options.recurse)
         {
-            QueryKey(ChildRef(key, child), query, child_matched);
+            if (child_matched)
+            {
+                Print(child_key.display);
+                ++query.matches;
+            }
+            continue;
         }
-        else if (child_matched)
+        // reg.exe skips unreadable subkeys silently, the skip is reported & fails the exit code here
+        const LONG child_status = QueryKey(child_key, query, child_matched);
+        if (child_status != ERROR_SUCCESS)
         {
-            Print(ChildRef(key, child).display);
-            ++query.matches;
+            if (child_matched)
+            {
+                Print(child_key.display);
+                Print(L"");
+                ++query.matches;
+            }
+            PrintError(L"Skipped " + regfile::Describe({regfile::Operation::Kind::kKey, child_key.display}, util::FormatWin32Error(static_cast<DWORD>(child_status))));
+            query.skipped = true;
         }
     }
-    return kOk;
+    return ERROR_SUCCESS;
 }
 
 int CmdQuery(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional, reg_exe::Verb::kQuery))
+    if (!ParseOptions(args, 1, &options, &positional, {L"v", L"ve", L"s", L"se", L"f", L"k", L"d", L"c", L"e", L"t", L"z", L"reg:32", L"reg:64"}, reg_exe::Verb::kQuery))
     {
         return kFailed;
     }
@@ -434,16 +464,15 @@ int CmdQuery(const std::vector<std::wstring>& args)
     query.search_names = !scoped || options.value_names;
     query.search_data = !scoped || options.data_only;
     query.search = options.has_find || !query.types.empty() || (options.has_value && options.recurse);
-    Print(L"");
-    const int result = QueryKey(key, query, false);
-    if (result != kOk)
+    const LONG status = QueryKey(key, query, false);
+    if (status != ERROR_SUCCESS)
     {
-        return result;
+        return Fail(status);
     }
     if (query.search)
     {
         Print(L"End of search: " + std::to_wstring(query.matches) + L" match(es) found.");
-        return query.matches ? kOk : kFailed;
+        return query.matches && !query.skipped ? kOk : kFailed;
     }
     // key can exist even when the value requested with /v or /ve doesn't
     if (options.has_value && !query.found_value)
@@ -451,14 +480,14 @@ int CmdQuery(const std::vector<std::wstring>& args)
         Print(L"");
         return Fail(ERROR_FILE_NOT_FOUND);
     }
-    return kOk;
+    return query.skipped ? kFailed : kOk;
 }
 
 int CmdAdd(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional, reg_exe::Verb::kAdd))
+    if (!ParseOptions(args, 1, &options, &positional, {L"v", L"ve", L"t", L"s", L"d", L"f", L"reg:32", L"reg:64"}, reg_exe::Verb::kAdd))
     {
         return kFailed;
     }
@@ -524,7 +553,7 @@ int CmdDelete(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional))
+    if (!ParseOptions(args, 1, &options, &positional, {L"v", L"ve", L"va", L"f", L"reg:32", L"reg:64"}))
     {
         return kFailed;
     }
@@ -626,7 +655,7 @@ int CmdCopy(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional))
+    if (!ParseOptions(args, 1, &options, &positional, {L"s", L"f", L"reg:32", L"reg:64"}))
     {
         return kFailed;
     }
@@ -657,7 +686,8 @@ int CmdCopy(const std::vector<std::wstring>& args)
     return kOk;
 }
 
-bool ExportKeyToFile(const KeyRef& key, const std::wstring& path, REGSAM view, std::wstring* error)
+// the readable part is still written when subkeys were skipped, the exit code reports the gap
+int ExportKeyToFile(const KeyRef& key, const std::wstring& path, REGSAM view)
 {
     regfile::Writer writer;
     std::vector<std::wstring> skipped;
@@ -668,28 +698,22 @@ bool ExportKeyToFile(const KeyRef& key, const std::wstring& path, REGSAM view, s
     }
     if (status != ERROR_SUCCESS)
     {
-        if (error)
-        {
-            *error = L"The key doesn't exist: " + key.display;
-        }
-        return false;
+        PrintError(status == ERROR_FILE_NOT_FOUND ? L"The key doesn't exist: " + key.display : util::FormatWin32Error(static_cast<DWORD>(status)));
+        return kFailed;
     }
     if (!util::WriteTextFile(path, std::move(writer).Finish(), true))
     {
-        if (error)
-        {
-            *error = L"Failed to write " + path;
-        }
-        return false;
+        PrintError(L"Failed to write " + path);
+        return kFailed;
     }
-    return true;
+    return skipped.empty() ? kOk : kFailed;
 }
 
 int CmdExport(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional))
+    if (!ParseOptions(args, 1, &options, &positional, {L"y", L"reg:32", L"reg:64"}))
     {
         return kFailed;
     }
@@ -703,26 +727,24 @@ int CmdExport(const std::vector<std::wstring>& args)
     {
         return kFailed;
     }
-    if (!options.force && GetFileAttributesW(positional[1].c_str()) != INVALID_FILE_ATTRIBUTES)
+    if (!options.force && !util::IsMissing(positional[1]))
     {
         PrintError(positional[1] + L" already exists. Use /y to overwrite.");
         return kFailed;
     }
-    std::wstring error;
-    if (!ExportKeyToFile(key, positional[1], options.view, &error))
+    const int result = ExportKeyToFile(key, positional[1], options.view);
+    if (result == kOk)
     {
-        PrintError(error.empty() ? L"Export failed." : error);
-        return kFailed;
+        PrintSuccess();
     }
-    PrintSuccess();
-    return kOk;
+    return result;
 }
 
 int CmdImport(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional))
+    if (!ParseOptions(args, 1, &options, &positional, {L"reg:32", L"reg:64"}))
     {
         return kFailed;
     }
@@ -745,7 +767,7 @@ int CmdSave(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional))
+    if (!ParseOptions(args, 1, &options, &positional, {L"y", L"reg:32", L"reg:64"}))
     {
         return kFailed;
     }
@@ -759,7 +781,7 @@ int CmdSave(const std::vector<std::wstring>& args)
     {
         return kFailed;
     }
-    if (!options.force && GetFileAttributesW(positional[1].c_str()) != INVALID_FILE_ATTRIBUTES)
+    if (!options.force && !util::IsMissing(positional[1]))
     {
         PrintError(positional[1] + L" already exists. Use /y to overwrite.");
         return kFailed;
@@ -777,7 +799,7 @@ int CmdRestore(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional))
+    if (!ParseOptions(args, 1, &options, &positional, {L"reg:32", L"reg:64"}))
     {
         return kFailed;
     }
@@ -802,18 +824,24 @@ int CmdRestore(const std::vector<std::wstring>& args)
 
 int CmdLoad(const std::vector<std::wstring>& args)
 {
-    if (args.size() < 3)
+    Options options;
+    std::vector<std::wstring> positional;
+    if (!ParseOptions(args, 1, &options, &positional, {L"reg:32", L"reg:64"}))
     {
-        PrintError(L"reg load requires a key name and a file name.");
+        return kFailed;
+    }
+    if (positional.size() != 2)
+    {
+        PrintError(positional.size() < 2 ? L"reg load requires a key name and a file name." : L"Invalid syntax.");
         return kFailed;
     }
     KeyRef key;
-    if (!ParseKey(args[1], &key))
+    if (!ParseKey(positional[0], &key))
     {
         return kFailed;
     }
     const util::PrivilegeScope privileges({SE_RESTORE_NAME, SE_BACKUP_NAME});
-    const LONG status = RegLoadKeyW(key.root, key.subkey.c_str(), args[2].c_str());
+    const LONG status = RegLoadKeyW(key.root, key.subkey.c_str(), positional[1].c_str());
     if (status != ERROR_SUCCESS)
     {
         return Fail(status);
@@ -824,13 +852,19 @@ int CmdLoad(const std::vector<std::wstring>& args)
 
 int CmdUnload(const std::vector<std::wstring>& args)
 {
-    if (args.size() < 2)
+    Options options;
+    std::vector<std::wstring> positional;
+    if (!ParseOptions(args, 1, &options, &positional, {}))
     {
-        PrintError(L"reg unload requires a key name.");
+        return kFailed;
+    }
+    if (positional.size() != 1)
+    {
+        PrintError(positional.empty() ? L"reg unload requires a key name." : L"Invalid syntax.");
         return kFailed;
     }
     KeyRef key;
-    if (!ParseKey(args[1], &key))
+    if (!ParseKey(positional[0], &key))
     {
         return kFailed;
     }
@@ -981,7 +1015,7 @@ int CmdCompare(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional))
+    if (!ParseOptions(args, 1, &options, &positional, {L"v", L"ve", L"oa", L"od", L"os", L"on", L"s", L"reg:32", L"reg:64"}))
     {
         return kFailed;
     }
@@ -1069,7 +1103,7 @@ int CmdFlags(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional))
+    if (!ParseOptions(args, 1, &options, &positional, {L"reg:32", L"reg:64"}))
     {
         return kFailed;
     }
@@ -1122,7 +1156,7 @@ int CmdConvert(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional))
+    if (!ParseOptions(args, 1, &options, &positional, {L"y"}))
     {
         return kFailed;
     }
@@ -1132,7 +1166,7 @@ int CmdConvert(const std::vector<std::wstring>& args)
         PrintError(L"Usage: convert <input> <output> [/y], both .reg, .bat, .cmd or .ps1.");
         return kFailed;
     }
-    if (!options.force && GetFileAttributesW(positional[1].c_str()) != INVALID_FILE_ATTRIBUTES)
+    if (!options.force && !util::IsMissing(positional[1]))
     {
         PrintError(positional[1] + L" already exists. Use /y to overwrite.");
         return kFailed;
@@ -1293,7 +1327,6 @@ bool Execute(const std::vector<std::wstring>& args, int* exit_code)
         if ((IsSwitch(args[i], L"e") || IsSwitch(args[i], L"a")) && i + 1 < args.size())
         {
             KeyRef key;
-            std::wstring error;
             *exit_code = kFailed;
             if (i + 2 >= args.size())
             {
@@ -1301,14 +1334,7 @@ bool Execute(const std::vector<std::wstring>& args, int* exit_code)
             }
             else if (ParseKey(args[i + 2], &key))
             {
-                if (ExportKeyToFile(key, args[i + 1], win32::kDefaultRegistryView, &error))
-                {
-                    *exit_code = kOk;
-                }
-                else
-                {
-                    PrintError(error.empty() ? L"Export failed." : error);
-                }
+                *exit_code = ExportKeyToFile(key, args[i + 1], win32::kDefaultRegistryView);
             }
             return true;
         }

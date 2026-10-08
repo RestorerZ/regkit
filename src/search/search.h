@@ -91,6 +91,7 @@ struct Source
     };
     Kind kind = Kind::kLocal;
     std::wstring name;
+    REGSAM view = 0;
 };
 
 bool SameSource(const Source& first, const Source& second) noexcept;

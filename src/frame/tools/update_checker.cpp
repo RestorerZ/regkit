@@ -301,22 +301,16 @@ void UpdateChecker::SetStatus(const std::wstring& text) const
 void UpdateChecker::Cancel()
 {
     session_.CancelAndJoin();
-    running_ = false;
 }
 
 void UpdateChecker::Check(bool silent)
 {
-    if (running_)
-    {
-        return;
-    }
-    running_ = true;
     HWND owner = owner_;
-    session_.Start(L"UpdateCheckThread", [owner, silent](uint64_t, std::atomic_bool& cancel) {
+    session_.StartIfIdle(L"UpdateCheckThread", [owner, silent](uint64_t, std::atomic_bool& cancel) {
         auto payload = std::make_unique<UpdateCheckPayload>();
         payload->silent = silent;
         std::wstring error;
-        // the ui stays busy until a payload arrives, so a failure must still post one
+        // a failure still posts a payload, so the error is shown
         try
         {
             std::string json;
@@ -348,14 +342,8 @@ void UpdateChecker::Check(bool silent)
 
 void UpdateChecker::Download(const UpdateCheckPayload& release)
 {
-    if (running_)
-    {
-        return;
-    }
-    running_ = true;
-    SetStatus(util::TrLabel(L"Downloading", L"RegKit " + release.version));
     HWND owner = owner_;
-    session_.Start(
+    const bool started = session_.StartIfIdle(
         L"UpdateDownloadThread",
         [owner, url = release.download_url, sha256 = release.sha256](uint64_t, std::atomic_bool& cancel) {
             auto payload = std::make_unique<UpdateCheckPayload>();
@@ -382,11 +370,14 @@ void UpdateChecker::Download(const UpdateCheckPayload& release)
             work::PostPayload(owner, frame::message_id::kUpdateCheckReady, 0, payload);
         }
     );
+    if (started)
+    {
+        SetStatus(util::TrLabel(L"Downloading", L"RegKit " + release.version));
+    }
 }
 
 void UpdateChecker::Apply(UpdateCheckPayload* payload)
 {
-    running_ = false;
     SetStatus(std::wstring());
     if (!payload)
     {

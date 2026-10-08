@@ -1009,7 +1009,7 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
 
 INT_PTR RunDefinitionDialog(HWND owner, Editor* state)
 {
-    return DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_BITFIELD_DEFINITION), owner, DefinitionDialogProc, reinterpret_cast<LPARAM>(state));
+    return dialog_support::Modal(owner, IDD_BITFIELD_DEFINITION, DefinitionDialogProc, reinterpret_cast<LPARAM>(state));
 }
 
 } // namespace
@@ -1020,7 +1020,7 @@ bool EditBitfieldField(HWND owner, const Definition& parent, int editing, Field*
     state.parent = &parent;
     state.editing = editing;
     state.field = *field;
-    const INT_PTR outcome = DialogBoxParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDD_BITFIELD_FIELD), owner, FieldDialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR outcome = dialog_support::Modal(owner, IDD_BITFIELD_FIELD, FieldDialogProc, reinterpret_cast<LPARAM>(&state));
     if (outcome != IDOK || !state.accepted)
     {
         return false;
