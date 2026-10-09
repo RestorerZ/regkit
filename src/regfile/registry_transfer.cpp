@@ -145,8 +145,17 @@ bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error, REGSAM
     // HKEY_CURRENT_USER keys go to the hive shown as HKEY_CURRENT_USER, reg.exe alone would use its own tokens
     std::wstring text;
     std::wstring mapped;
-    if (!current_user_sid.empty() && util::ReadTextFile(path, &text))
+    if (!current_user_sid.empty())
     {
+        // unmapped import would write to another hive than the one shown
+        if (!util::ReadTextFile(path, &text))
+        {
+            if (error)
+            {
+                *error = util::Tr(L"Failed to read registry file.");
+            }
+            return false;
+        }
         bool changed = false;
         size_t line = 0;
         while (line < text.size())
@@ -169,8 +178,17 @@ bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error, REGSAM
         wchar_t temp_dir[MAX_PATH + 1] = {};
         const DWORD length = GetTempPathW(_countof(temp_dir), temp_dir);
         const std::wstring temp = util::JoinPath(std::wstring(temp_dir, length), L"regkit-import" + util::RandomFileSuffix(L".reg"));
-        if (changed && length && length < _countof(temp_dir) && util::WriteTextFile(temp, text, true))
+        if (changed)
         {
+            if (!length || length >= _countof(temp_dir) || !util::WriteTextFile(temp, text, true))
+            {
+                if (error)
+                {
+                    *error = util::FormatWin32Error(GetLastError());
+                }
+                DeleteFileW(temp.c_str());
+                return false;
+            }
             mapped = temp;
         }
     }

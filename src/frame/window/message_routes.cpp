@@ -185,6 +185,11 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
         break;
     case WM_CLOSE:
         {
+            // the save prompts need a running replace's changes committed
+            if (replace_result_pending_ && replace_target_.lock() != local_session_)
+            {
+                StopReplace();
+            }
             for (int index = static_cast<int>(tabs_.size()) - 1; index >= 0; --index)
             {
                 if (!ConfirmCloseTab(index))

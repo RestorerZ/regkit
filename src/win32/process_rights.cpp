@@ -712,7 +712,7 @@ LONG QueryRemoteRegistryService(const std::wstring& machine, ServiceState* state
 LONG StartRemoteRegistryService(const std::wstring& machine, bool enable)
 {
     LONG error = ERROR_SUCCESS;
-    const UniqueService service = OpenRemoteRegistry(machine, SERVICE_QUERY_STATUS | SERVICE_START | SERVICE_CHANGE_CONFIG, &error);
+    const UniqueService service = OpenRemoteRegistry(machine, SERVICE_QUERY_STATUS | SERVICE_START | SERVICE_STOP | SERVICE_CHANGE_CONFIG, &error);
     if (!service)
     {
         return error;
@@ -723,7 +723,8 @@ LONG StartRemoteRegistryService(const std::wstring& machine, bool enable)
     }
     SERVICE_STATUS_PROCESS status = {};
     LONG result = ERROR_SUCCESS;
-    if ((!StartServiceW(service.get(), 0, nullptr) && GetLastError() != ERROR_SERVICE_ALREADY_RUNNING) || !QueryServiceProcess(service.get(), &status) ||
+    const bool accepted = StartServiceW(service.get(), 0, nullptr) != FALSE;
+    if ((!accepted && GetLastError() != ERROR_SERVICE_ALREADY_RUNNING) || !QueryServiceProcess(service.get(), &status) ||
         !WaitWhileServicePending(service.get(), SERVICE_START_PENDING, &status))
     {
         result = static_cast<LONG>(GetLastError());
@@ -732,7 +733,12 @@ LONG StartRemoteRegistryService(const std::wstring& machine, bool enable)
     {
         result = ERROR_SERVICE_NOT_ACTIVE;
     }
-    // a service that was disabled is disabled again when it didn't start
+    // a start that never came up is stopped again and a service that was disabled is disabled again
+    if (result != ERROR_SUCCESS && accepted)
+    {
+        SERVICE_STATUS stopped = {};
+        ControlService(service.get(), SERVICE_CONTROL_STOP, &stopped);
+    }
     if (result != ERROR_SUCCESS && enable)
     {
         ChangeServiceConfigW(service.get(), SERVICE_NO_CHANGE, SERVICE_DISABLED, SERVICE_NO_CHANGE, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);

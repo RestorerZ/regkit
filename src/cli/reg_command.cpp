@@ -146,7 +146,8 @@ bool ParseKey(const std::wstring& text, KeyRef* key, bool local_only = false)
     key->hive = root;
     wchar_t local[MAX_COMPUTERNAME_LENGTH + 1] = {};
     DWORD local_size = static_cast<DWORD>(_countof(local));
-    key->machine = !machine.empty() && machine != L"." && !util::EqualsInsensitive(machine, L"localhost") ? machine : GetComputerNameW(local, &local_size) ? std::wstring(local, local_size) : std::wstring();
+    key->machine = !machine.empty() && machine != L"." && !util::EqualsInsensitive(machine, L"localhost") ? machine : GetComputerNameW(local, &local_size) ? std::wstring(local, local_size)
+                                                                                                                                                           : std::wstring();
     key->subkey = split == std::wstring_view::npos ? std::wstring() : std::wstring(view.substr(split + 1));
     key->path = registry_path::RootName(root);
     if (!key->subkey.empty())
@@ -690,8 +691,7 @@ int CmdCopy(const std::vector<std::wstring>& args)
         return kFailed;
     }
     // a recursive copy into its own subtree would keep copying what it just wrote
-    if (from.hive == to.hive && util::EqualsInsensitive(from.machine, to.machine) && (util::EqualsInsensitive(from.subkey, to.subkey) ||
-                                 (options.recurse && (from.subkey.empty() || registry_path::HasComponentPrefix(to.subkey, from.subkey)))))
+    if (from.hive == to.hive && util::EqualsInsensitive(from.machine, to.machine) && (util::EqualsInsensitive(from.subkey, to.subkey) || (options.recurse && (from.subkey.empty() || registry_path::HasComponentPrefix(to.subkey, from.subkey)))))
     {
         PrintError(L"The registry entry cannot be copied onto itself or into its own subkey.");
         return kFailed;

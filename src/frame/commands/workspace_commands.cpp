@@ -223,7 +223,6 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         settings_.hkcu_follows_shell_user = !settings_.hkcu_follows_shell_user;
         util::SetCurrentUserFollowsShell(settings_.hkcu_follows_shell_user);
         SaveSettings();
-        key_watcher_.Stop();
         ReloadLocalRoots();
         UpdateStatus();
         return true;
@@ -243,7 +242,6 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
             }
         }
         util::SetBackupRestoreMode(backup_privileges_ != nullptr);
-        key_watcher_.Stop();
         RegistryStore::NoteKeyChange();
         RefreshWholeTree();
         UpdateValueListForNode(browse_.current_node());

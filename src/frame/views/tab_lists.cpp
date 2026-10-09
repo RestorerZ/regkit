@@ -488,19 +488,19 @@ void MainWindow::Impl::CloseTab(int tab_index)
     {
         return;
     }
+    const auto& closing = tabs_[static_cast<size_t>(tab_index)].session;
+    // the closed tab's session takes its hive or .reg roots with it and the save prompt needs the replace's changes committed
+    if (replace_result_pending_ && closing && closing != local_session_ && replace_target_.lock() == closing)
+    {
+        StopReplace();
+    }
     if (!ConfirmCloseTab(tab_index))
     {
         return;
     }
-    const auto& closing = tabs_[static_cast<size_t>(tab_index)].session;
     if (closing)
     {
         OfferRemoteServiceRestore(*closing);
-    }
-    // the closed tab's session takes its hive or .reg roots with it, a replace must not write through them afterwards
-    if (replace_result_pending_ && closing && closing != local_session_ && replace_target_.lock() == closing)
-    {
-        StopReplace();
     }
 
     if (IsRegFileTabIndex(tab_index))
