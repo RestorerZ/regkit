@@ -320,7 +320,8 @@ inline LONG ReadKeyContents(HKEY root, const std::wstring& subkey, REGSAM view, 
     }
     if (is_volatile)
     {
-        *is_volatile = util::IsLocalRoot(root) && (util::QueryKeyFlags(handle.get()).value_or(0) & util::kKeyFlagVolatile);
+        *is_volatile = util::IsLocalRoot(root) && ((util::QueryKeyFlags(handle.get()).value_or(0) & util::kKeyFlagVolatile) ||
+                                                   (root == HKEY_LOCAL_MACHINE && registry_path::InVolatileHive(L"\\REGISTRY\\MACHINE\\" + subkey)));
     }
     RegistryStore::KeyEnumResult result;
     EnumerateKey(
@@ -455,7 +456,7 @@ bool WriteSecurity(const Key& key, SECURITY_INFORMATION parts, const std::vector
     {
         if (request && key.SetSecurity(request, const_cast<BYTE*>(descriptor.data())) == ERROR_SUCCESS)
         {
-            return request == parts;
+            return true;
         }
     }
     return false;

@@ -33,6 +33,11 @@ decltype(auto) Dispatch(const RegistryNode& node, VirtualCall&& virtual_call, Of
 
 std::atomic<uint64_t> g_key_revision{0};
 
+std::wstring CaseRenameStep(std::wstring_view old_name, std::wstring_view new_name)
+{
+    return old_name != new_name && util::EqualsInsensitive(old_name, new_name) ? std::wstring(new_name) + L"~" + std::to_wstring(GetTickCount64()) : std::wstring();
+}
+
 } // namespace
 
 std::vector<RegistryRootEntry> RegistryStore::DefaultRoots(bool include_extra)
@@ -377,6 +382,14 @@ bool RegistryStore::RenameKey(const RegistryNode& node, const std::wstring& new_
     {
         return false;
     }
+    const std::wstring old_name = registry_path::Leaf(node.subkey);
+    if (const std::wstring step = CaseRenameStep(old_name, new_name); !step.empty())
+    {
+        RegistryNode moved = node;
+        moved.subkey = registry_path::Parent(node.subkey);
+        moved = registry_path::ChildNode(moved, step);
+        return RenameKey(node, step) && (RenameKey(moved, new_name) || (RenameKey(moved, old_name), false));
+    }
     return Dispatch(
         node,
         [&](VirtualRegistryData& data) { return registry_backend::virtual_store::RenameKey(data, node, new_name); },
@@ -416,6 +429,10 @@ bool RegistryStore::RenameValue(const RegistryNode& node, const std::wstring& ol
     if (new_name.empty())
     {
         return false;
+    }
+    if (const std::wstring step = CaseRenameStep(old_name, new_name); !step.empty())
+    {
+        return RenameValue(node, old_name, step, both_names_left) && (RenameValue(node, step, new_name, both_names_left) || (RenameValue(node, step, old_name, nullptr), false));
     }
     return Dispatch(
         node,

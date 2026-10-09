@@ -472,7 +472,14 @@ void MainWindow::Impl::ResumeTabTree(int index)
     {
         session_ = entry.session;
     }
-    if (browse_.tree().synced_revision != RegistryStore::KeyRevision())
+    const auto same_root = [](const RegistryRootEntry& left, const RegistryRootEntry& right) {
+        return left.root == right.root && left.view == right.view && left.display_name == right.display_name;
+    };
+    if (entry.session && !std::equal(browse_.roots().begin(), browse_.roots().end(), session_->roots.begin(), session_->roots.end(), same_root))
+    {
+        ReapplyRoots();
+    }
+    else if (browse_.tree().synced_revision != RegistryStore::KeyRevision())
     {
         RefreshWholeTree();
     }
@@ -583,11 +590,34 @@ std::vector<RegistryRootEntry> MainWindow::Impl::LocalRoots(REGSAM view)
 
 void MainWindow::Impl::ReloadLocalRoots()
 {
-    if (session_->mode == RegistryMode::kLocal && !IsRegFileTabIndex(tab_ ? TabCtrl_GetCurSel(tab_) : -1))
+    local_session_->roots = LocalRoots(local_session_->view);
+    for (const TabEntry& entry : tabs_)
     {
-        session_->roots = LocalRoots(session_->view);
-        ApplyRegistryRoots(session_->roots);
+        if (entry.kind == TabEntry::Kind::kRegistry && entry.session && entry.session->mode == RegistryMode::kLocal)
+        {
+            entry.session->roots = LocalRoots(entry.session->view);
+        }
     }
+    RegistryStore::NoteKeyChange();
+    const int index = tab_ ? TabCtrl_GetCurSel(tab_) : -1;
+    if (session_->mode == RegistryMode::kLocal && (index < 0 || (static_cast<size_t>(index) < tabs_.size() && tabs_[static_cast<size_t>(index)].kind == TabEntry::Kind::kRegistry)))
+    {
+        ReapplyRoots();
+    }
+}
+
+void MainWindow::Impl::ReapplyRoots()
+{
+    std::wstring selected;
+    std::vector<std::wstring> expanded;
+    CaptureTreeState(browse_.tree(), &selected, &expanded);
+    ApplyRegistryRoots(session_->roots);
+    ExpandTreePaths(expanded);
+    if (!selected.empty())
+    {
+        SelectTreePath(selected);
+    }
+    browse_.tree().synced_revision = RegistryStore::KeyRevision();
 }
 
 std::shared_ptr<MainWindow::Impl::RegistrySession> MainWindow::Impl::LocalViewSession(REGSAM view) const
@@ -715,6 +745,7 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
     if (result != ERROR_SUCCESS)
     {
         ui::ShowError(hwnd_, FormatWin32Error(result));
+        OfferRemoteServiceRestore(*session);
         return false;
     }
     const LONG hku_result = RegConnectRegistryW(machine.c_str(), HKEY_USERS, &session->remote_hku);
@@ -722,6 +753,7 @@ bool MainWindow::Impl::ConnectRemoteRegistry(const std::wstring& name, bool open
     if (!open_new_tab && current && !ConfirmOfflineChanges(*current, util::Tr(L"The offline registry has unsaved changes.\n"
                                                                               L"Save before switching?")))
     {
+        OfferRemoteServiceRestore(*session);
         return false;
     }
     if (!open_new_tab && current)
@@ -775,13 +807,24 @@ bool MainWindow::Impl::OfferRemoteServiceStart(const std::wstring& machine, Regi
     return true;
 }
 
-void MainWindow::Impl::OfferRemoteServiceRestore(RegistrySession& session)
+void MainWindow::Impl::OfferRemoteServiceRestore(RegistrySession& session, bool hand_over)
 {
     if (session.mode != RegistryMode::kRemote || !session.remote_service_started)
     {
         return;
     }
     session.remote_service_started = false;
+    // another tab on that machine still needs the service and offers the restore when it goes
+    for (TabEntry& entry : tabs_)
+    {
+        if (hand_over && entry.session && entry.session.get() != &session && entry.session->mode == RegistryMode::kRemote &&
+            util::EqualsInsensitive(entry.session->remote_machine, session.remote_machine))
+        {
+            entry.session->remote_service_started = true;
+            entry.session->remote_service_start_type = session.remote_service_start_type;
+            return;
+        }
+    }
     const wchar_t* message = session.remote_service_start_type == SERVICE_DISABLED
                                  ? util::Tr(L"RegKit started the Remote Registry service on this computer. Stop it and disable it again?")
                                  : util::Tr(L"RegKit started the Remote Registry service on this computer. Stop it again?");

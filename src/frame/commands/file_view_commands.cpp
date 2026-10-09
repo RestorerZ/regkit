@@ -171,7 +171,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
         return true;
     case cmd::kFileImport:
         {
-            if (!EnsureWritable())
+            if (session_->mode != RegistryMode::kLocal || ShowsRegFile() || !EnsureWritable())
             {
                 return true;
             }
@@ -190,7 +190,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
                 return true;
             }
             std::wstring error;
-            const bool imported = ImportRegFileFromPath(path, &error);
+            const bool imported = ImportRegFileFromPath(path, &error, session_->view, util::CurrentUserFollowsShell() ? util::GetCurrentUserSidString() : std::wstring());
             RegistryStore::NoteKeyChange();
             RefreshWholeTree();
             UpdateValueListForNode(browse_.current_node());

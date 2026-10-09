@@ -713,15 +713,31 @@ LONG StartRemoteRegistryService(const std::wstring& machine, bool enable)
 {
     LONG error = ERROR_SUCCESS;
     const UniqueService service = OpenRemoteRegistry(machine, SERVICE_QUERY_STATUS | SERVICE_START | SERVICE_CHANGE_CONFIG, &error);
+    if (!service)
+    {
+        return error;
+    }
+    if (enable && !ChangeServiceConfigW(service.get(), SERVICE_NO_CHANGE, SERVICE_DEMAND_START, SERVICE_NO_CHANGE, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr))
+    {
+        return static_cast<LONG>(GetLastError());
+    }
     SERVICE_STATUS_PROCESS status = {};
-    if (!service ||
-        (enable && !ChangeServiceConfigW(service.get(), SERVICE_NO_CHANGE, SERVICE_DEMAND_START, SERVICE_NO_CHANGE, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
-        (!StartServiceW(service.get(), 0, nullptr) && GetLastError() != ERROR_SERVICE_ALREADY_RUNNING) || !QueryServiceProcess(service.get(), &status) ||
+    LONG result = ERROR_SUCCESS;
+    if ((!StartServiceW(service.get(), 0, nullptr) && GetLastError() != ERROR_SERVICE_ALREADY_RUNNING) || !QueryServiceProcess(service.get(), &status) ||
         !WaitWhileServicePending(service.get(), SERVICE_START_PENDING, &status))
     {
-        return service ? static_cast<LONG>(GetLastError()) : error;
+        result = static_cast<LONG>(GetLastError());
     }
-    return status.dwCurrentState == SERVICE_RUNNING ? ERROR_SUCCESS : ERROR_SERVICE_NOT_ACTIVE;
+    else if (status.dwCurrentState != SERVICE_RUNNING)
+    {
+        result = ERROR_SERVICE_NOT_ACTIVE;
+    }
+    // a service that was disabled is disabled again when it didn't start
+    if (result != ERROR_SUCCESS && enable)
+    {
+        ChangeServiceConfigW(service.get(), SERVICE_NO_CHANGE, SERVICE_DISABLED, SERVICE_NO_CHANGE, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    }
+    return result;
 }
 
 LONG StopRemoteRegistryService(const std::wstring& machine, DWORD start_type)

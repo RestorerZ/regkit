@@ -180,6 +180,11 @@ bool MainWindow::Impl::EnsureWritable()
     return false;
 }
 
+bool MainWindow::Impl::ShowsRegFile() const
+{
+    return std::any_of(session_->roots.begin(), session_->roots.end(), [](const RegistryRootEntry& root) { return RegistryStore::IsVirtualRoot(root.root); });
+}
+
 void MainWindow::Impl::RefreshStorageMenuState(HMENU menu)
 {
     if (!menu)
@@ -622,6 +627,11 @@ void MainWindow::Impl::UpdateMenuState(HMENU menu)
     {
         enable(cmd::kOptionsHiveFileDir, !ResolveSelectedHiveFilePath().empty());
     }
+    // .reg files and hives have no volatile keys
+    // only the local registry has native paths
+    enable(cmd::kNewVolatileKey, session_->mode != RegistryMode::kOffline && !ShowsRegFile());
+    enable(cmd::kEditCopyKeyPathNative, session_->mode == RegistryMode::kLocal && !ShowsRegFile());
+    enable(cmd::kEditCopyKeyPathNativeResolved, session_->mode == RegistryMode::kLocal && !ShowsRegFile());
     if (!IsMenuInside(GetMenu(hwnd_), menu))
     {
         return;
@@ -629,10 +639,12 @@ void MainWindow::Impl::UpdateMenuState(HMENU menu)
 
     const bool can_modify = !settings_.read_only;
     const RegistryMode mode = session_->mode;
-    for (int id : {cmd::kFileImport, cmd::kEditUndo, cmd::kEditRedo, cmd::kEditPaste, cmd::kEditReplace})
+    for (int id : {cmd::kEditUndo, cmd::kEditRedo, cmd::kEditPaste, cmd::kEditReplace})
     {
         enable(id, can_modify);
     }
+    // reg.exe imports into the local registry only
+    enable(cmd::kFileImport, can_modify && mode == RegistryMode::kLocal && !ShowsRegFile());
     const bool value_focused = can_open_value && GetFocus() == values;
     enable(cmd::kEditRename, can_modify && !(value_focused && (selected_row->extra.empty() || selected_row->missing)));
     enable(cmd::kEditDelete, can_modify && !(value_focused && selected_row->missing));
@@ -651,7 +663,6 @@ void MainWindow::Impl::UpdateMenuState(HMENU menu)
     check(cmd::kRegistryNetwork, mode == RegistryMode::kRemote);
     check(cmd::kRegistryOffline, mode == RegistryMode::kOffline);
     enable(cmd::kFileSaveOfflineHive, mode == RegistryMode::kOffline && !session_->offline_mount.empty());
-    enable(cmd::kNewVolatileKey, mode != RegistryMode::kOffline);
     const int new_position = SubMenuPosition(menu, cmd::kNewKey);
     if (new_position >= 0)
     {

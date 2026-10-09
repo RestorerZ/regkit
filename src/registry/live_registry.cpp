@@ -164,15 +164,14 @@ bool QueryValue(const RegistryNode& node, const std::wstring& value_name, Regist
 bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details, bool open_link)
 {
     LiveKey key(node, kKeyReadAccess, open_link);
-    if (!key || registry_backend::QueryKeyDetails(key, details) != ERROR_SUCCESS)
+    const bool read = key && registry_backend::QueryKeyDetails(key, details) == ERROR_SUCCESS;
+    // native name needs no access, so a key that denies queries still has one
+    const LiveKey named = key ? LiveKey() : LiveKey(node, MAXIMUM_ALLOWED, open_link);
+    if (KernelHandle(node) && (key || named))
     {
-        return false;
+        details->native = util::QueryNativeKeyInfo((key ? key : named).get());
     }
-    if (KernelHandle(node))
-    {
-        details->native = util::QueryNativeKeyInfo(key.get());
-    }
-    return true;
+    return read;
 }
 
 bool CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCreateOptions& options, bool* created_volatile)
@@ -208,6 +207,10 @@ bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, cons
     {
         const DWORD flags = (options.is_volatile ? REG_OPTION_VOLATILE : REG_OPTION_NON_VOLATILE) | REG_OPTION_CREATE_LINK;
         result = util::CreateRegistryKey(parent.get(), name, KEY_SET_VALUE | KEY_CREATE_LINK | DELETE, flags, &created, &disposition, options.class_name);
+        if (result == ERROR_CHILD_MUST_BE_VOLATILE)
+        {
+            result = util::CreateRegistryKey(parent.get(), name, KEY_SET_VALUE | KEY_CREATE_LINK | DELETE, flags | REG_OPTION_VOLATILE, &created, &disposition, options.class_name);
+        }
         if (result == ERROR_SUCCESS && disposition != REG_CREATED_NEW_KEY)
         {
             result = ERROR_ALREADY_EXISTS;
@@ -260,8 +263,12 @@ bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, cons
         parts = requested;
         key = OpenSecurity(node, WRITE_DAC | WRITE_OWNER, &parts);
     }
-    const bool written = key && (descriptor.empty() || (WriteSecurity(key, parts, descriptor) && parts == requested));
-    return written && (!last_write || !KernelHandle(node) || util::SetKeyLastWriteTime(key.get(), *last_write) == ERROR_SUCCESS);
+    const bool written = key && (descriptor.empty() || WriteSecurity(key, parts, descriptor));
+    if (written && last_write && KernelHandle(node))
+    {
+        util::SetKeyLastWriteTime(key.get(), *last_write);
+    }
+    return written;
 }
 
 bool DeleteKey(const RegistryNode& node)

@@ -190,13 +190,14 @@ void MainWindow::Impl::ApplyTabSelection(int index)
     const TabEntry& entry = tabs_[static_cast<size_t>(index)];
     if (entry.kind == TabEntry::Kind::kRegistry)
     {
-        if (!ActivateTabTree(index))
+        // a remote or offline tab without a session connects whenever it is shown, restored at startup or disconnected
+        const bool connect = !entry.session && entry.registry_mode != RegistryMode::kLocal;
+        if (!ActivateTabTree(index) && !connect)
         {
             ResumeTabTree(index);
             return;
         }
         SuspendTreeRedraw();
-        // a tab restored at startup connects the first time it is shown
         bool shown = false;
         if (entry.session)
         {
@@ -216,7 +217,16 @@ void MainWindow::Impl::ApplyTabSelection(int index)
         {
             shown = LoadOfflineRegistryFromPath(std::wstring(entry.offline_path), false);
         }
-        if (!shown)
+        if (!shown && entry.registry_mode != RegistryMode::kLocal)
+        {
+            // disconnected (empty tree under its own label)
+            auto disconnected = std::make_shared<RegistrySession>();
+            disconnected->mode = entry.registry_mode;
+            disconnected->remote_machine = entry.remote_machine;
+            ShowSession(disconnected);
+            tabs_[static_cast<size_t>(index)].session = nullptr;
+        }
+        else if (!shown)
         {
             ShowSession(local_session_);
         }

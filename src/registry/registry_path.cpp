@@ -202,6 +202,17 @@ std::wstring VirtualStorePath(std::wstring_view native_path)
     {
         return {};
     }
+    // windows never virtualizes these subtrees
+    for (const std::wstring_view software : {L"\\REGISTRY\\MACHINE\\SOFTWARE\\", L"\\REGISTRY\\MACHINE\\SOFTWARE\\WOW6432Node\\"})
+    {
+        for (const std::wstring_view excluded : {L"Classes", L"Microsoft\\Windows", L"Microsoft\\Windows NT"})
+        {
+            if (HasComponentPrefix(native_path, std::wstring(software) + std::wstring(excluded)))
+            {
+                return {};
+            }
+        }
+    }
     return std::wstring(kVirtualStore) + std::wstring(native_path.substr(kMachine.size()));
 }
 

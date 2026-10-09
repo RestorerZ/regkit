@@ -139,11 +139,13 @@ struct FlagSet
     std::initializer_list<std::pair<unsigned, const wchar_t*>> bits;
 };
 
+constexpr USHORT kDmaV3 = 0x80;
+
 // wdm.h names without CM_RESOURCE_
 const FlagSet kPortFlags = {L"PORT_MEMORY", 0x1, {{0x1, L"PORT_IO"}, {0x4, L"PORT_10_BIT_DECODE"}, {0x8, L"PORT_12_BIT_DECODE"}, {0x10, L"PORT_16_BIT_DECODE"}, {0x20, L"PORT_POSITIVE_DECODE"}, {0x40, L"PORT_PASSIVE_DECODE"}, {0x80, L"PORT_WINDOW_DECODE"}, {0x100, L"PORT_BAR"}}};
 const FlagSet kMemoryFlags = {L"MEMORY_READ_WRITE", 0x3, {{0x1, L"MEMORY_READ_ONLY"}, {0x2, L"MEMORY_WRITE_ONLY"}, {0x4, L"MEMORY_PREFETCHABLE"}, {0x8, L"MEMORY_COMBINEDWRITE"}, {0x10, L"MEMORY_24"}, {0x20, L"MEMORY_CACHEABLE"}, {0x40, L"MEMORY_WINDOW_DECODE"}, {0x80, L"MEMORY_BAR"}, {0x100, L"MEMORY_COMPAT_FOR_INACCESSIBLE_RANGE"}, {kMemoryLarge40, L"MEMORY_LARGE_40"}, {kMemoryLarge48, L"MEMORY_LARGE_48"}, {kMemoryLarge64, L"MEMORY_LARGE_64"}}};
 const FlagSet kInterruptFlags = {L"INTERRUPT_LEVEL_SENSITIVE", kInterruptLatched, {{kInterruptLatched, L"INTERRUPT_LATCHED"}, {kInterruptMessage, L"INTERRUPT_MESSAGE"}, {0x4, L"INTERRUPT_POLICY_INCLUDED"}, {0x10, L"INTERRUPT_SECONDARY_INTERRUPT"}, {0x20, L"INTERRUPT_WAKE_HINT"}}};
-const FlagSet kDmaFlags = {L"DMA_8", 0x7, {{0x1, L"DMA_16"}, {0x2, L"DMA_32"}, {0x4, L"DMA_8_AND_16"}, {0x8, L"DMA_BUS_MASTER"}, {0x10, L"DMA_TYPE_A"}, {0x20, L"DMA_TYPE_B"}, {0x40, L"DMA_TYPE_F"}, {0x100, L"DMA_V3"}}};
+const FlagSet kDmaFlags = {L"DMA_8", 0x7, {{0x1, L"DMA_16"}, {0x2, L"DMA_32"}, {0x4, L"DMA_8_AND_16"}, {0x8, L"DMA_BUS_MASTER"}, {0x10, L"DMA_TYPE_A"}, {0x20, L"DMA_TYPE_B"}, {0x40, L"DMA_TYPE_F"}, {kDmaV3, L"DMA_V3"}}};
 
 std::wstring Flags(USHORT flags, const FlagSet& set)
 {
@@ -334,7 +336,21 @@ void DecodeRequirement(Reader& reader, size_t offset, size_t width, Tables& out)
         {2, util::TrNoop(L"Default")},
         {8, util::TrNoop(L"Alternative")},
     };
-    const std::wstring option = NameOrNumber(kOptions, reader.At<BYTE>(offset));
+    // IO_RESOURCE_PREFERRED, _DEFAULT, _ALTERNATIVE are bits, none of them is required
+    const BYTE option_bits = reader.At<BYTE>(offset);
+    std::wstring option;
+    for (const auto& [bit, name] : kOptions)
+    {
+        if (option_bits & bit)
+        {
+            option.append(option.empty() ? L"" : L", ").append(util::Tr(name));
+        }
+    }
+    if (option_bits & ~0x0B)
+    {
+        option.append(option.empty() ? L"" : L", ").append(Hex(option_bits & ~0x0B, 2));
+    }
+    option = option.empty() ? std::wstring(util::Tr(kOptions[0].second)) : option;
     const BYTE type = reader.At<BYTE>(offset + 1);
     const std::wstring share = Share(reader.At<BYTE>(offset + 2));
     const USHORT flags = reader.At<USHORT>(offset + 4);
@@ -353,7 +369,11 @@ void DecodeRequirement(Reader& reader, size_t offset, size_t width, Tables& out)
         out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Minimum vector"), util::TrNoop(L"Maximum vector"), util::TrNoop(L"Group"), util::TrNoop(L"Targeted processors"), util::TrNoop(L"Flags"), util::TrNoop(L"Share")}, {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Number(reader.At<USHORT>(u + 10)), Hex(reader.Affinity(u + 16, width), static_cast<int>(width * 2)), Flags(flags, kInterruptFlags), share});
         break;
     case kDma:
-        out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Minimum channel"), util::TrNoop(L"Maximum channel"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")}, {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), share, Flags(flags, kDmaFlags)});
+        {
+            // a DmaV3 requirement is {RequestLine, Reserved, Channel, TransferWidth}, one channel
+            const bool v3 = flags & kDmaV3;
+            out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Minimum channel"), util::TrNoop(L"Maximum channel"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")}, {option, Number(reader.At<ULONG>(v3 ? u + 8 : u)), Number(reader.At<ULONG>(v3 ? u + 8 : u + 4)), share, Flags(flags, kDmaFlags)});
+        }
         break;
     case kBusNumber:
         out.Add(kind, {util::TrNoop(L"Option"), util::TrNoop(L"Length"), util::TrNoop(L"Minimum bus number"), util::TrNoop(L"Maximum bus number"), util::TrNoop(L"Share")}, {option, Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Number(reader.At<ULONG>(u + 8)), share});

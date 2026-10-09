@@ -224,7 +224,7 @@ inline std::wstring BuildSelectedListViewText(HWND list)
         {
             continue;
         }
-        subitems.push_back(subitem);
+        subitems.push_back(i);
     }
     if (subitems.empty())
     {

@@ -113,10 +113,13 @@ struct KeyRef
     std::wstring path;
     std::wstring display;
     std::shared_ptr<util::UniqueHKey> connection;
+    // root becomes the connection on a remote key
+    HKEY hive = nullptr;
+    std::wstring machine;
 };
 
-// [\\machine\]ROOT\subkey, remote machines expose HKLM and HKU only
-bool ParseKey(const std::wstring& text, KeyRef* key)
+// [\\machine\]ROOT\subkey, remote machines expose HKLM and HKU only, reg.exe save, restore, load, unload and flags take local keys only
+bool ParseKey(const std::wstring& text, KeyRef* key, bool local_only = false)
 {
     std::wstring_view view = text;
     std::wstring machine;
@@ -134,12 +137,16 @@ bool ParseKey(const std::wstring& text, KeyRef* key)
     const size_t split = view.find(L'\\');
     const std::wstring_view root_name = split == std::wstring_view::npos ? view : view.substr(0, split);
     const HKEY root = registry_path::RootFromName(root_name);
-    if (!root)
+    if (!root || (local_only && !machine.empty() && machine != L"."))
     {
         PrintError(L"Invalid key name: " + text);
         return false;
     }
     key->root = root;
+    key->hive = root;
+    wchar_t local[MAX_COMPUTERNAME_LENGTH + 1] = {};
+    DWORD local_size = static_cast<DWORD>(_countof(local));
+    key->machine = !machine.empty() && machine != L"." && !util::EqualsInsensitive(machine, L"localhost") ? machine : GetComputerNameW(local, &local_size) ? std::wstring(local, local_size) : std::wstring();
     key->subkey = split == std::wstring_view::npos ? std::wstring() : std::wstring(view.substr(split + 1));
     key->path = registry_path::RootName(root);
     if (!key->subkey.empty())
@@ -683,7 +690,7 @@ int CmdCopy(const std::vector<std::wstring>& args)
         return kFailed;
     }
     // a recursive copy into its own subtree would keep copying what it just wrote
-    if (from.root == to.root && (util::EqualsInsensitive(from.subkey, to.subkey) ||
+    if (from.hive == to.hive && util::EqualsInsensitive(from.machine, to.machine) && (util::EqualsInsensitive(from.subkey, to.subkey) ||
                                  (options.recurse && (from.subkey.empty() || registry_path::HasComponentPrefix(to.subkey, from.subkey)))))
     {
         PrintError(L"The registry entry cannot be copied onto itself or into its own subkey.");
@@ -789,7 +796,7 @@ int CmdSave(const std::vector<std::wstring>& args)
         return kFailed;
     }
     KeyRef key;
-    if (!ParseKey(positional[0], &key))
+    if (!ParseKey(positional[0], &key, true))
     {
         return kFailed;
     }
@@ -821,7 +828,7 @@ int CmdRestore(const std::vector<std::wstring>& args)
         return kFailed;
     }
     KeyRef key;
-    if (!ParseKey(positional[0], &key))
+    if (!ParseKey(positional[0], &key, true))
     {
         return kFailed;
     }
@@ -848,7 +855,7 @@ int CmdLoad(const std::vector<std::wstring>& args)
         return kFailed;
     }
     KeyRef key;
-    if (!ParseKey(positional[0], &key))
+    if (!ParseKey(positional[0], &key, true))
     {
         return kFailed;
     }
@@ -876,7 +883,7 @@ int CmdUnload(const std::vector<std::wstring>& args)
         return kFailed;
     }
     KeyRef key;
-    if (!ParseKey(positional[0], &key))
+    if (!ParseKey(positional[0], &key, true))
     {
         return kFailed;
     }
@@ -1115,7 +1122,7 @@ int CmdFlags(const std::vector<std::wstring>& args)
 {
     Options options;
     std::vector<std::wstring> positional;
-    if (!ParseOptions(args, 1, &options, &positional, {L"reg:32", L"reg:64"}))
+    if (!ParseOptions(args, 1, &options, &positional, {L"s", L"reg:32", L"reg:64"}))
     {
         return kFailed;
     }
@@ -1126,7 +1133,7 @@ int CmdFlags(const std::vector<std::wstring>& args)
         return kFailed;
     }
     KeyRef key;
-    if (!ParseKey(positional[0], &key))
+    if (!ParseKey(positional[0], &key, true))
     {
         return kFailed;
     }

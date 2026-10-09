@@ -195,6 +195,14 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
                     return 0;
                 }
             }
+            // services are stopped only once every tab agreed to close
+            for (TabEntry& entry : tabs_)
+            {
+                if (entry.session)
+                {
+                    OfferRemoteServiceRestore(*entry.session, false);
+                }
+            }
             if (reset_settings_on_close_)
             {
                 if (!RestartAfterSettingsReset())

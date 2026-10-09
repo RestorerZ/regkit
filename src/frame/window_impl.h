@@ -292,11 +292,12 @@ class MainWindow::Impl
     bool SwitchToRemoteRegistry();
     bool ConnectRemoteRegistry(const std::wstring& machine, bool open_new_tab = false);
     bool OfferRemoteServiceStart(const std::wstring& machine, RegistrySession* session);
-    void OfferRemoteServiceRestore(RegistrySession& session);
+    void OfferRemoteServiceRestore(RegistrySession& session, bool hand_over = true);
     bool SwitchToOfflineRegistry();
     bool SaveOfflineRegistry(RegistrySession& session, bool choose_path = false);
     bool LoadOfflineRegistryFromPath(const std::wstring& path, bool open_new_tab);
     void ApplyRegistryRoots(const std::vector<RegistryRootEntry>& roots);
+    void ReapplyRoots();
     std::vector<std::wstring> BuildVisibleTreePathParts(const std::wstring& path) const;
     std::wstring TreeRootLabel() const;
     int TreeRootIcon() const;
@@ -404,6 +405,7 @@ class MainWindow::Impl
     bool HandleRenameCommand(int command_id);
     bool HandleDeleteCommand(int command_id);
     bool EnsureWritable();
+    bool ShowsRegFile() const;
     void PrepareMenusForOwnerDraw(HMENU menu);
     void OnMeasureMenuItem(MEASUREITEMSTRUCT* info);
     void OnDrawMenuItem(const DRAWITEMSTRUCT* info);
@@ -817,6 +819,7 @@ class MainWindow::Impl
     uint64_t search_generation_ = 0;
     work::Session replace_session_;
     bool replace_result_pending_ = false;
+    std::weak_ptr<RegistrySession> replace_target_;
     work::Session compare_session_;
     int active_search_tab_index_ = -1;
     int search_results_view_tab_index_ = -1;

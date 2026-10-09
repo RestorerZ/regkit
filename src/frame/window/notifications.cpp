@@ -543,15 +543,15 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
             {
                 return FALSE;
             }
-            std::wstring new_name = registry_path::RawName(TrimWhitespace(disp->item.pszText));
+            std::wstring new_name = registry_path::RawName(disp->item.pszText);
             std::wstring old_name = LeafName(*node);
-            if (new_name.empty() || EqualsInsensitive(new_name, old_name))
+            if (new_name.empty() || new_name == old_name)
             {
                 return FALSE;
             }
             RegistryNode rename_parent = *node;
             rename_parent.subkey = registry_path::Parent(node->subkey);
-            if (KeyNameExists(rename_parent, new_name))
+            if (!EqualsInsensitive(new_name, old_name) && KeyNameExists(rename_parent, new_name))
             {
                 ReportNameTaken(hwnd_, util::Tr(L"A key with this name already exists:"), util::Tr(L"Rename Key"), new_name);
                 return FALSE;
@@ -763,16 +763,17 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
         {
             return FALSE;
         }
-        std::wstring new_name = registry_path::RawName(TrimWhitespace(disp->item.pszText));
+        std::wstring new_name = registry_path::RawName(disp->item.pszText);
         std::wstring old_name = row->extra;
-        if (new_name.empty() || EqualsInsensitive(new_name, old_name))
+        if (new_name.empty() || new_name == old_name)
         {
             return FALSE;
         }
+        const bool case_only = EqualsInsensitive(new_name, old_name);
         if (row->kind == rowkind::kKey)
         {
             RegistryNode child = ChildNode(*browse_.current_node(), old_name);
-            if (KeyNameExists(*browse_.current_node(), new_name))
+            if (!case_only && KeyNameExists(*browse_.current_node(), new_name))
             {
                 ReportNameTaken(hwnd_, util::Tr(L"A key with this name already exists:"), util::Tr(L"Rename Key"), new_name);
                 return FALSE;
@@ -794,7 +795,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
             UpdateValueListForNode(browse_.current_node());
             return TRUE;
         }
-        if (ValueNameExists(*browse_.current_node(), new_name))
+        if (!case_only && ValueNameExists(*browse_.current_node(), new_name))
         {
             ReportNameTaken(hwnd_, util::Tr(L"A value with this name already exists:"), util::Tr(L"Rename Value"), new_name);
             return FALSE;

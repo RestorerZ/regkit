@@ -351,11 +351,11 @@ std::vector<std::wstring> MultiStringItems(std::span<const BYTE> data)
     while (remaining > 0 && *current)
     {
         const size_t length = wcsnlen_s(current, remaining);
+        items.emplace_back(current, length);
         if (length == remaining)
         {
             break;
         }
-        items.emplace_back(current, length);
         current += length + 1;
         remaining -= length + 1;
     }

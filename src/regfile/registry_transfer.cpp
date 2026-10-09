@@ -136,9 +136,50 @@ std::wstring DefaultExportPath(const std::wstring& key_path, const wchar_t* exte
     return documents.empty() ? file_name : util::JoinPath(documents, file_name);
 }
 
-bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error, REGSAM view)
+bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error, REGSAM view, const std::wstring& current_user_sid)
 {
-    return !path.empty() && RunRegCommand(L"import \"" + path + L"\" " + win32::RegExeViewSwitch(view), error);
+    if (path.empty())
+    {
+        return false;
+    }
+    // HKEY_CURRENT_USER keys go to the hive shown as HKEY_CURRENT_USER, reg.exe alone would use its own tokens
+    std::wstring text;
+    std::wstring mapped;
+    if (!current_user_sid.empty() && util::ReadTextFile(path, &text))
+    {
+        bool changed = false;
+        size_t line = 0;
+        while (line < text.size())
+        {
+            // [HKEY_CURRENT_USER\...] or [-HKEY_CURRENT_USER\...]
+            const size_t root = line + (text.compare(line, 2, L"[-") == 0 ? 2 : 1);
+            const size_t end = text.find_first_of(L"\\]\r\n", root);
+            if (text[line] == L'[' && end != std::wstring::npos)
+            {
+                const std::wstring_view name = std::wstring_view(text).substr(root, end - root);
+                if (util::EqualsInsensitive(name, L"HKEY_CURRENT_USER") || util::EqualsInsensitive(name, L"HKCU"))
+                {
+                    text.replace(root, end - root, L"HKEY_USERS\\" + current_user_sid);
+                    changed = true;
+                }
+            }
+            const size_t next = text.find(L'\n', line);
+            line = next == std::wstring::npos ? text.size() : next + 1;
+        }
+        wchar_t temp_dir[MAX_PATH + 1] = {};
+        const DWORD length = GetTempPathW(_countof(temp_dir), temp_dir);
+        const std::wstring temp = util::JoinPath(std::wstring(temp_dir, length), L"regkit-import" + util::RandomFileSuffix(L".reg"));
+        if (changed && length && length < _countof(temp_dir) && util::WriteTextFile(temp, text, true))
+        {
+            mapped = temp;
+        }
+    }
+    const bool imported = RunRegCommand(L"import \"" + (mapped.empty() ? path : mapped) + L"\" " + win32::RegExeViewSwitch(view), error);
+    if (!mapped.empty())
+    {
+        DeleteFileW(mapped.c_str());
+    }
+    return imported;
 }
 
 bool IsHiveFile(const std::wstring& path)

@@ -64,8 +64,10 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
     editors::TablesRequest request;
     request.title = util::Tr(L"Key Information");
     request.identifier = registry_path::DisplayName(registry_path::Build(node));
+    // a link key describes itself, a key that denies queries keeps the rows that need no access
     KeyDetails details;
-    if (!RegistryStore::QueryKeyDetails(node, &details))
+    const bool readable = RegistryStore::QueryKeyDetails(node, &details, true);
+    if (!readable && details.native.native_name.empty())
     {
         ui::ShowError(hwnd_, util::Tr(L"The key information couldn't be read.") + std::wstring(L"\n") + request.identifier);
         return;
@@ -105,29 +107,32 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
         add(general, util::Tr(L"Hive file"), hive);
         add(general, util::Tr(L"Hive root"), yes_no(hive_root));
     }
-    std::wstring class_name = details.class_name.empty() ? std::wstring(util::Tr(L"None")) : registry_path::DisplayName(details.class_name);
-    if (std::any_of(details.class_name.begin(), details.class_name.end(), [](wchar_t ch) { return !iswprint(ch); }))
+    if (readable)
     {
-        class_name.append(L" (").append(util::ToHex(std::span(reinterpret_cast<const BYTE*>(details.class_name.data()), details.class_name.size() * sizeof(wchar_t)), L' ', true)).append(L")");
-    }
-    add(general, util::Tr(L"Class name"), class_name);
-    FILETIME local = {};
-    SYSTEMTIME time = {};
-    if (FileTimeToLocalFileTime(&details.info.last_write, &local) && FileTimeToSystemTime(&local, &time))
-    {
-        add(general, util::Tr(L"Last write time"), util::FormatLocalTime(time, true));
-    }
-    if (FileTimeToSystemTime(&details.info.last_write, &time))
-    {
-        add(general, util::Tr(L"Last write time (UTC)"), util::FormatLocalTime(time, true));
-    }
+        std::wstring class_name = details.class_name.empty() ? std::wstring(util::Tr(L"None")) : registry_path::DisplayName(details.class_name);
+        if (std::any_of(details.class_name.begin(), details.class_name.end(), [](wchar_t ch) { return !iswprint(ch); }))
+        {
+            class_name.append(L" (").append(util::ToHex(std::span(reinterpret_cast<const BYTE*>(details.class_name.data()), details.class_name.size() * sizeof(wchar_t)), L' ', true)).append(L")");
+        }
+        add(general, util::Tr(L"Class name"), class_name);
+        FILETIME local = {};
+        SYSTEMTIME time = {};
+        if (FileTimeToLocalFileTime(&details.info.last_write, &local) && FileTimeToSystemTime(&local, &time))
+        {
+            add(general, util::Tr(L"Last write time"), util::FormatLocalTime(time, true));
+        }
+        if (FileTimeToSystemTime(&details.info.last_write, &time))
+        {
+            add(general, util::Tr(L"Last write time (UTC)"), util::FormatLocalTime(time, true));
+        }
 
-    add(contents, util::Tr(L"Subkeys"), std::to_wstring(details.info.subkey_count));
-    add(contents, util::Tr(L"Values"), std::to_wstring(details.info.value_count));
-    add(contents, util::Tr(L"Longest subkey name"), std::to_wstring(details.max_subkey_name));
-    add(contents, util::Tr(L"Longest class name"), std::to_wstring(details.max_class));
-    add(contents, util::Tr(L"Longest value name"), std::to_wstring(details.max_value_name));
-    add(contents, util::Tr(L"Largest value data"), value_format::ByteCount(details.max_value_data));
+        add(contents, util::Tr(L"Subkeys"), std::to_wstring(details.info.subkey_count));
+        add(contents, util::Tr(L"Values"), std::to_wstring(details.info.value_count));
+        add(contents, util::Tr(L"Longest subkey name"), std::to_wstring(details.max_subkey_name));
+        add(contents, util::Tr(L"Longest class name"), std::to_wstring(details.max_class));
+        add(contents, util::Tr(L"Longest value name"), std::to_wstring(details.max_value_name));
+        add(contents, util::Tr(L"Largest value data"), value_format::ByteCount(details.max_value_data));
+    }
 
     if (native.key_flags || !native.native_name.empty())
     {
@@ -142,7 +147,8 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
         other.view = node.view ? 0 : win32::kAlternateRegistryView;
         KeyDetails other_details;
         std::wstring wow64 = util::Tr(L"Not in the other view");
-        if (RegistryStore::QueryKeyDetails(other, &other_details) && !other_details.native.native_name.empty())
+        RegistryStore::QueryKeyDetails(other, &other_details, true);
+        if (!other_details.native.native_name.empty())
         {
             const std::wstring& path32 = node.view ? native.native_name : other_details.native.native_name;
             wow64 = util::EqualsInsensitive(native.native_name, other_details.native.native_name) ? std::wstring(util::Tr(L"Shared by both views")) : util::TrLabel(L"32-bit view", registry_path::DisplayName(path32));

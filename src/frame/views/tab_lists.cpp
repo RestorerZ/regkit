@@ -390,21 +390,10 @@ void MainWindow::Impl::UpdateTabText(const std::wstring& text)
     InvalidateRect(tab_, nullptr, FALSE);
 }
 
+// session_ stays on the last registry tab while a search tab is shown
 void MainWindow::Impl::MarkOfflineDirty()
 {
-    if (IsRegFileTabSelected())
-    {
-        int index = TabCtrl_GetCurSel(tab_);
-        if (index >= 0 && static_cast<size_t>(index) < tabs_.size() && IsRegFileTabIndex(index))
-        {
-            tabs_[static_cast<size_t>(index)].reg_file_dirty = true;
-        }
-        return;
-    }
-    if (session_->mode == RegistryMode::kOffline)
-    {
-        session_->offline_dirty = true;
-    }
+    MarkSessionDirty(*session_);
 }
 
 // .reg tab or hive a change went to, which may not be the tab shown when it lands
@@ -461,7 +450,6 @@ bool MainWindow::Impl::ConfirmCloseTab(int tab_index)
     {
         return false;
     }
-    OfferRemoteServiceRestore(*entry.session);
     return true;
 }
 
@@ -503,6 +491,16 @@ void MainWindow::Impl::CloseTab(int tab_index)
     if (!ConfirmCloseTab(tab_index))
     {
         return;
+    }
+    const auto& closing = tabs_[static_cast<size_t>(tab_index)].session;
+    if (closing)
+    {
+        OfferRemoteServiceRestore(*closing);
+    }
+    // the closed tab's session takes its hive or .reg roots with it, a replace must not write through them afterwards
+    if (replace_result_pending_ && closing && closing != local_session_ && replace_target_.lock() == closing)
+    {
+        StopReplace();
     }
 
     if (IsRegFileTabIndex(tab_index))

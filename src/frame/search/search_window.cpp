@@ -1391,6 +1391,7 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
 
     const HWND hwnd = hwnd_;
     replace_result_pending_ = true;
+    replace_target_ = session_;
     replace_session_.Start(
         L"ReplaceThread",
         [this, start, options, matcher, hwnd, session = std::weak_ptr<RegistrySession>(session_)](uint64_t generation, std::atomic_bool& cancel) mutable {

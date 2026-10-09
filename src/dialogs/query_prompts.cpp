@@ -211,6 +211,7 @@ LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
             appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
         state->tree.Create(hwnd, GetModuleHandleW(nullptr), 1);
         state->tree.PopulateRoots(RegistryStore::DefaultRoots());
+        ShowWindow(state->tree.hwnd(), SW_SHOW);
         state->focus = state->tree.hwnd();
         appearance::SetDialogFont(hwnd, state->font);
         return 0;

@@ -58,9 +58,11 @@ LONG DosError(NTSTATUS status)
     return NT_SUCCESS(status) ? ERROR_SUCCESS : static_cast<LONG>(convert ? convert(status) : ERROR_GEN_FAILURE);
 }
 
+// bit 0 tags a remote rpc handle that native calls must never see, bit 1 an hkcr one
 HANDLE RootHandle(HKEY key)
 {
-    return reinterpret_cast<HANDLE>(reinterpret_cast<ULONG_PTR>(key) & ~static_cast<ULONG_PTR>(3));
+    const ULONG_PTR value = reinterpret_cast<ULONG_PTR>(key);
+    return (value & 1) ? nullptr : reinterpret_cast<HANDLE>(value & ~static_cast<ULONG_PTR>(3));
 }
 
 bool CountedName(const std::wstring& text, UNICODE_STRING* name)
@@ -236,20 +238,20 @@ LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWO
 
 LONG RenameRegistryKey(HKEY parent, const std::wstring& old_name, const std::wstring& new_name)
 {
-    if (old_name.find(L'\0') == std::wstring::npos && new_name.find(L'\0') == std::wstring::npos)
-    {
-        return RegRenameKey(parent, old_name.c_str(), new_name.c_str());
-    }
-    // use NtRenameKey as RegRenameKey cuts names at embedded nulls
+    // NtRenameKey on the link key itself, RegRenameKey follows a link and renames its target and cuts names at embedded nulls
     static const auto rename_key = win32::ImportProc<NtRenameKeyFn>(L"ntdll.dll", "NtRenameKey");
     UniqueHKey key;
-    LONG result = OpenRegistryPath(parent, old_name, KEY_WRITE, false, &key);
+    LONG result = OpenRegistryPath(parent, old_name, KEY_WRITE, true, &key);
+    if (result == ERROR_SUCCESS && !RootHandle(key.get()))
+    {
+        return new_name.find(L'\0') == std::wstring::npos ? RegRenameKey(key.get(), nullptr, new_name.c_str()) : ERROR_INVALID_PARAMETER;
+    }
     UNICODE_STRING counted = {};
     if (result == ERROR_SUCCESS && (!rename_key || !CountedName(new_name, &counted)))
     {
         result = ERROR_INVALID_PARAMETER;
     }
-    return result == ERROR_SUCCESS ? DosError(rename_key(reinterpret_cast<HANDLE>(key.get()), &counted)) : result;
+    return result == ERROR_SUCCESS ? DosError(rename_key(RootHandle(key.get()), &counted)) : result;
 }
 
 LONG DeleteRegistryTree(HKEY key)
@@ -283,13 +285,14 @@ LONG DeleteRegistryTree(HKEY key)
             return removed;
         }
     }
-    return DosError(delete_key(reinterpret_cast<HANDLE>(key)));
+    // empty subkey deletes the key behind a remote handle
+    return RootHandle(key) ? DosError(delete_key(RootHandle(key))) : RegDeleteKeyExW(key, L"", 0, 0);
 }
 
 bool DeleteNativeRegistryKey(HKEY key)
 {
     static const auto delete_key = win32::ImportProc<NtDeleteKeyFn>(L"ntdll.dll", "NtDeleteKey");
-    return key && delete_key && NT_SUCCESS(delete_key(reinterpret_cast<HANDLE>(key)));
+    return key && delete_key && NT_SUCCESS(delete_key(RootHandle(key)));
 }
 
 std::optional<ULONG> QueryKeyFlags(HKEY key)

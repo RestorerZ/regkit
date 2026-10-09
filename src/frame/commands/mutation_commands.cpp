@@ -189,7 +189,7 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
             {
                 return true;
             }
-            if (!browse_.current_node())
+            if (!browse_.current_node() || (command_id == cmd::kNewVolatileKey && (session_->mode == RegistryMode::kOffline || ShowsRegFile())))
             {
                 return true;
             }
