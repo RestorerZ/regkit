@@ -136,7 +136,7 @@ void RegistryTree::ResumeRedraw()
     if (redraw_suspended_ > 0 && --redraw_suspended_ == 0)
     {
         SendMessageW(hwnd_, WM_SETREDRAW, TRUE, 0);
-        RedrawWindow(hwnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+        RedrawWindow(hwnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
     }
 }
 

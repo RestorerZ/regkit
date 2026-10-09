@@ -270,7 +270,7 @@ size_t DecodePartial(Reader& reader, size_t offset, size_t width, size_t descrip
     case kMemory:
         {
             const ULONG length = reader.At<ULONG>(u + 8);
-            out.Add(kind, {util::TrNoop(L"Start"), util::TrNoop(L"Length"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")}, {Hex(reader.At<unsigned long long>(u), 16), type == 7 ? Hex(LargeLength(flags, length), 16) : Hex(length, 8), Share(share), Flags(flags, kind == kPort ? kPortFlags : kMemoryFlags)});
+            out.Add(kind, {util::TrNoop(L"Start address"), util::TrNoop(L"Length"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")}, {Hex(reader.At<unsigned long long>(u), 16), type == 7 ? Hex(LargeLength(flags, length), 16) : Hex(length, 8), Share(share), Flags(flags, kind == kPort ? kPortFlags : kMemoryFlags)});
             break;
         }
     case kInterrupt:
@@ -289,7 +289,7 @@ size_t DecodePartial(Reader& reader, size_t offset, size_t width, size_t descrip
         out.Add(kind, {util::TrNoop(L"Channel"), util::TrNoop(L"Port / request line"), util::TrNoop(L"Share"), util::TrNoop(L"Flags")}, {Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Share(share), Flags(flags, kDmaFlags)});
         break;
     case kBusNumber:
-        out.Add(kind, {util::TrNoop(L"Start"), util::TrNoop(L"Length"), util::TrNoop(L"Share")}, {Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Share(share)});
+        out.Add(kind, {util::TrNoop(L"Start bus number"), util::TrNoop(L"Length"), util::TrNoop(L"Share")}, {Number(reader.At<ULONG>(u)), Number(reader.At<ULONG>(u + 4)), Share(share)});
         break;
     case kDeviceSpecific:
         {

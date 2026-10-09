@@ -139,6 +139,7 @@ void MainWindow::Impl::DragSplitter(ui::Splitter* splitter, int* size, POINT poi
 
 void MainWindow::Impl::ApplyViewVisibility()
 {
+    FlushTreeRedraw();
     bool show_search = IsSearchTabSelected();
     bool show_tree = settings_.show_tree && !show_search;
     bool show_value = show_value_ && !show_search;

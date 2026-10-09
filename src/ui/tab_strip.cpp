@@ -130,11 +130,11 @@ int TabStrip::RowsHeight(int width, int row_height) const
 {
     RECT window = {};
     GetWindowRect(tab_, &window);
-    if (window.right - window.left != width)
+    const int height = std::max<int>(row_height, window.bottom - window.top);
+    if (window.right - window.left != width || window.bottom - window.top != height)
     {
-        SetWindowPos(tab_, nullptr, 0, 0, width, window.bottom - window.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW);
+        SetWindowPos(tab_, nullptr, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW);
     }
-    // button rows keep a gap between them, the last row's bottom border sits on its rects' bottom edge
     int last_bottom = -1;
     const int count = TabCtrl_GetItemCount(tab_);
     for (int i = 0; i < count; ++i)
