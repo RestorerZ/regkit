@@ -26,6 +26,7 @@ constexpr int kFileClearCacheHistory = 2022;
 constexpr int kFileClearCacheSearchHistory = 2023;
 constexpr int kFileClearCacheTreeState = 2024;
 constexpr int kFileClearCacheTemporary = 2025;
+constexpr int kFileClearCacheDialogState = 2028;
 constexpr int kFileRestart = 2026;
 
 constexpr int kNewKey = 2010;

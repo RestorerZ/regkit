@@ -32,7 +32,6 @@ DialogState LoadDialogState()
     }
     for (const std::wstring_view line : record_fields::Lines(content))
     {
-        // values stay untrimmed so texts keep their edge spaces
         const size_t separator = line.find(L'=');
         if (separator != std::wstring_view::npos)
         {

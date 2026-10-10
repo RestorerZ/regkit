@@ -112,6 +112,7 @@ class MainWindow::Impl
         kTabs,
         kHistory,
         kSearchHistory,
+        kDialogState,
         kTreeState,
         kTemporary,
     };

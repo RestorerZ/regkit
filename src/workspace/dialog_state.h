@@ -11,13 +11,12 @@
 namespace regkit::workspace
 {
 
-// last used dialog options, kept in the cache folder
+// last used dialog options
 using DialogState = std::map<std::wstring, std::wstring, std::less<>>;
 
 DialogState LoadDialogState();
 void SaveDialogState(const DialogState& state);
 
-// one key list both reads the options into a dialog result and writes them back
 class DialogFields
 {
   public:

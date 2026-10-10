@@ -472,6 +472,9 @@ bool MainWindow::Impl::ClearCache(CacheKind kind, bool resume_tree_worker)
     if (all || kind == CacheKind::kSearchHistory)
     {
         cleared = DeleteCacheFile(util::JoinPath(folder, L"search_history.txt")) && cleared;
+    }
+    if (all || kind == CacheKind::kDialogState)
+    {
         cleared = DeleteCacheFile(util::JoinPath(folder, L"dialog_state.ini")) && cleared;
     }
     if (all || kind == CacheKind::kTreeState)

@@ -28,6 +28,7 @@ struct CacheAvailability
     bool tabs = false;
     bool history = false;
     bool search_history = false;
+    bool dialog_state = false;
     bool tree_state = false;
     bool temporary = false;
 };
@@ -67,8 +68,8 @@ CacheAvailability InspectCacheFiles(const std::wstring& folder)
                          util::EqualsInsensitive(name, L"session.ini") || HasCachePattern(name, L"search_", L".tsv") ||
                          HasCachePattern(name, L"compare_", L".tsv");
         available.history = available.history || util::EqualsInsensitive(name, L"history.tsv");
-        available.search_history = available.search_history || util::EqualsInsensitive(name, L"search_history.txt") ||
-                                   util::EqualsInsensitive(name, L"dialog_state.ini");
+        available.search_history = available.search_history || util::EqualsInsensitive(name, L"search_history.txt");
+        available.dialog_state = available.dialog_state || util::EqualsInsensitive(name, L"dialog_state.ini");
         available.tree_state = available.tree_state || util::EqualsInsensitive(name, L"tree_state.ini");
         available.temporary = available.temporary || HasCachePattern(name, L"export_", L".reg");
     } while (FindNextFileW(find, &data) != 0);
@@ -206,6 +207,7 @@ void MainWindow::Impl::RefreshStorageMenuState(HMENU menu)
         EnableMenuItem(clear_menu, cmd::kFileClearCacheTabs, MF_BYCOMMAND | (cache.tabs ? MF_ENABLED : MF_GRAYED));
         EnableMenuItem(clear_menu, cmd::kFileClearCacheHistory, MF_BYCOMMAND | (cache.history ? MF_ENABLED : MF_GRAYED));
         EnableMenuItem(clear_menu, cmd::kFileClearCacheSearchHistory, MF_BYCOMMAND | (cache.search_history ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(clear_menu, cmd::kFileClearCacheDialogState, MF_BYCOMMAND | (cache.dialog_state ? MF_ENABLED : MF_GRAYED));
         EnableMenuItem(clear_menu, cmd::kFileClearCacheTreeState, MF_BYCOMMAND | (cache.tree_state ? MF_ENABLED : MF_GRAYED));
         EnableMenuItem(clear_menu, cmd::kFileClearCacheTemporary, MF_BYCOMMAND | (cache.temporary ? MF_ENABLED : MF_GRAYED));
         if (clear_position >= 0)
@@ -428,6 +430,7 @@ void MainWindow::Impl::BuildMenus()
     AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTabs, util::Tr(L"Tab Sessions"));
     AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheHistory, util::Tr(L"Change History"));
     AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheSearchHistory, util::Tr(L"Search History"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheDialogState, util::Tr(L"Dialog Options"));
     AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTreeState, util::Tr(L"Tree State"));
     AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTemporary, util::Tr(L"Temporary Files"));
     append_popup(options_menu, clear_cache_menu, util::Tr(L"Clear Caches"));
