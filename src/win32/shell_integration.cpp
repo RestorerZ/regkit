@@ -128,7 +128,15 @@ LONG DeleteOwnedRegEditDebugger(const std::wstring& exe_path)
     {
         return result;
     }
-    RegDeleteKeyW(HKEY_LOCAL_MACHINE, kRegEditImageOptionsKey);
+    util::UniqueHKey key;
+    DWORD subkeys = 0;
+    DWORD values = 0;
+    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, kRegEditImageOptionsKey, 0, KEY_QUERY_VALUE, key.put()) == ERROR_SUCCESS &&
+        RegQueryInfoKeyW(key.get(), nullptr, nullptr, nullptr, &subkeys, nullptr, nullptr, &values, nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS &&
+        subkeys == 0 && values == 0)
+    {
+        RegDeleteKeyW(HKEY_LOCAL_MACHINE, kRegEditImageOptionsKey);
+    }
     return ERROR_SUCCESS;
 }
 
