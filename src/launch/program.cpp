@@ -241,12 +241,19 @@ LaunchArgs ParseLaunchArgs(const std::vector<std::wstring>& args)
         launch.error = util::TrLabel(L"Missing argument", kEditRegFileArg);
     }
     std::wstring last_key;
-    // RegEdit opens its last key, unless it was deleted since
+    // RegEdit opens its last key, unless it was deleted
     if (launch.jump_target.empty() && intercepted_regedit &&
-        util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit", L"LastKey", &last_key) == ERROR_SUCCESS &&
-        JumpTargetFound(last_key))
+        util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit", L"LastKey", &last_key) == ERROR_SUCCESS)
     {
-        launch.jump_target = std::move(last_key);
+        const size_t root_end = last_key.find(L'\\');
+        if (!LooksLikeRegistryPath(last_key) && root_end != std::wstring::npos)
+        {
+            last_key.erase(0, root_end + 1);
+        }
+        if (LooksLikeRegistryPath(last_key) && JumpTargetFound(last_key))
+        {
+            launch.jump_target = std::move(last_key);
+        }
     }
     return launch;
 }
