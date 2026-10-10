@@ -9,12 +9,30 @@
 namespace regkit::util
 {
 
+namespace
+{
+
+std::wstring LocaleText(LCTYPE type)
+{
+    wchar_t text[80] = {};
+    GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, type, text, static_cast<int>(std::size(text)));
+    return text;
+}
+
+} // namespace
+
+std::wstring LocalTimeFormat()
+{
+    return LocaleText(LOCALE_SSHORTDATE) + L' ' + LocaleText(LOCALE_SSHORTTIME);
+}
+
 std::wstring FormatLocalTime(const SYSTEMTIME& time, bool with_seconds)
 {
     wchar_t date[80] = {};
     wchar_t clock[80] = {};
+    const std::wstring clock_format = LocaleText(with_seconds ? LOCALE_STIMEFORMAT : LOCALE_SSHORTTIME);
     if (!GetDateFormatEx(LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE, &time, nullptr, date, static_cast<int>(std::size(date)), nullptr) ||
-        !GetTimeFormatEx(LOCALE_NAME_USER_DEFAULT, with_seconds ? 0 : TIME_NOSECONDS, &time, nullptr, clock, static_cast<int>(std::size(clock))))
+        !GetTimeFormatEx(LOCALE_NAME_USER_DEFAULT, 0, &time, clock_format.c_str(), clock, static_cast<int>(std::size(clock))))
     {
         return L"";
     }

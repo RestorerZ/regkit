@@ -655,9 +655,10 @@ INT_PTR CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
         state = reinterpret_cast<SearchDialogState*>(lparam);
         SetWindowLongPtrW(hwnd, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
         state->dialog = hwnd;
+        const std::wstring time_format = util::LocalTimeFormat();
         for (const int id : {IDC_FIND_MODIFIED_FROM, IDC_FIND_MODIFIED_TO})
         {
-            SendDlgItemMessageW(hwnd, id, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(L"M/d/yyyy HH:mm"));
+            SendDlgItemMessageW(hwnd, id, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(time_format.c_str()));
             SendDlgItemMessageW(hwnd, id, DTM_SETSYSTEMTIME, GDT_NONE, 0);
         }
         appearance::AttachAutoComplete(Item(state, IDC_FIND_SCOPE_EDIT), appearance::SuggestKeys);
