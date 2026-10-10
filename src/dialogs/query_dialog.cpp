@@ -662,6 +662,16 @@ INT_PTR CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
             SendDlgItemMessageW(hwnd, id, DTM_SETSYSTEMTIME, GDT_NONE, 0);
         }
         appearance::AttachAutoComplete(Item(state, IDC_FIND_SCOPE_EDIT), appearance::SuggestKeys);
+        appearance::AttachAutoComplete(Item(state, IDC_FIND_EXCLUDE_EDIT), [](const std::wstring& text) {
+            const size_t split = text.find_first_not_of(L' ', std::min(text.size(), text.find_last_of(L",;") + 1));
+            const std::wstring head = text.substr(0, std::min(split, text.size()));
+            std::vector<std::wstring> items = appearance::SuggestKeys(text.substr(head.size()));
+            for (auto& item : items)
+            {
+                item.insert(0, head);
+            }
+            return items;
+        });
         ui::AddTooltip(
             hwnd,
             Item(state, IDC_FIND_REGEX),

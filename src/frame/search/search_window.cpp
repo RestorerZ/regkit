@@ -811,6 +811,14 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
     search::Criteria criteria = options.criteria;
     criteria.matcher = matcher;
     criteria.start_nodes = start_nodes;
+    for (std::wstring& path : criteria.exclude_paths)
+    {
+        path = NormalizeRegistryPath(path);
+        while (path.ends_with(L'\\'))
+        {
+            path.pop_back();
+        }
+    }
     if (criteria.search_comments)
     {
         const auto comments = std::make_shared<const std::pair<changes::ValueComments, changes::ValueComments>>(value_comments_, default_comments_);
