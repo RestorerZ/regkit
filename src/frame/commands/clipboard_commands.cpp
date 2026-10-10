@@ -386,7 +386,10 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id)
         return true;
     case cmd::kEditFind:
         {
-            SearchDialogResult options = last_search_;
+            SearchDialogResult options;
+            options.criteria.search_keys = false;
+            workspace::DialogFields last(&settings_, false);
+            SearchDialogFields(last, &options);
             SearchSources sources;
             sources.traces = HasActiveTraces();
             sources.defaults = !active_defaults_.empty();
@@ -399,7 +402,9 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id)
             sources.extra_hives = settings_.show_extra_hives;
             if (ShowSearchDialog(hwnd_, &options, sources))
             {
-                last_search_ = options;
+                workspace::DialogFields store(&settings_, true);
+                SearchDialogFields(store, &options);
+                SaveSettings();
                 StartSearch(options);
             }
             return true;
@@ -501,14 +506,18 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
             {
                 return true;
             }
-            ReplaceDialogResult options = last_replace_;
+            ReplaceDialogResult options;
+            workspace::DialogFields last(&settings_, false);
+            ReplaceDialogFields(last, &options);
             if (options.start_key.empty() && browse_.current_node())
             {
                 options.start_key = registry_path::Build(*browse_.current_node());
             }
             if (ShowReplaceDialog(hwnd_, &options))
             {
-                last_replace_ = options;
+                workspace::DialogFields store(&settings_, true);
+                ReplaceDialogFields(store, &options);
+                SaveSettings();
                 StartReplace(options);
             }
             return true;

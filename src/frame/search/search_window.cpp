@@ -811,6 +811,17 @@ void MainWindow::Impl::StartSearch(const SearchDialogResult& options)
     search::Criteria criteria = options.criteria;
     criteria.matcher = matcher;
     criteria.start_nodes = start_nodes;
+    // dialog keeps unticked filters for next time
+    if (!options.use_exclude)
+    {
+        criteria.exclude_paths.clear();
+    }
+    if (!criteria.search_data)
+    {
+        criteria.allowed_types.clear();
+        criteria.use_min_size = false;
+        criteria.use_max_size = false;
+    }
     for (std::wstring& path : criteria.exclude_paths)
     {
         path = NormalizeRegistryPath(path);

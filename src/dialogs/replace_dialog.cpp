@@ -9,6 +9,7 @@
 #include "ui/dialog_support.h"
 #include "ui/feedback.h"
 #include "win32/translation.h"
+#include "workspace/settings.h"
 
 namespace regkit
 {
@@ -27,17 +28,18 @@ struct State
 constexpr struct
 {
     int id;
+    const wchar_t* key;
     bool ReplaceDialogResult::* field;
 } kChecks[] = {
-    {IDC_REPLACE_RECURSIVE, &ReplaceDialogResult::recursive},
-    {IDC_REPLACE_CASE, &ReplaceDialogResult::match_case},
-    {IDC_REPLACE_WHOLE, &ReplaceDialogResult::match_whole},
-    {IDC_REPLACE_REGEX, &ReplaceDialogResult::use_regex},
-    {IDC_REPLACE_KEYS, &ReplaceDialogResult::replace_keys},
-    {IDC_REPLACE_VALUES, &ReplaceDialogResult::replace_values},
-    {IDC_REPLACE_DATA, &ReplaceDialogResult::replace_data},
-    {IDC_REPLACE_DECIMAL, &ReplaceDialogResult::number_decimal},
-    {IDC_REPLACE_HEX, &ReplaceDialogResult::number_hex},
+    {IDC_REPLACE_RECURSIVE, L"replace_recursive", &ReplaceDialogResult::recursive},
+    {IDC_REPLACE_CASE, L"replace_match_case", &ReplaceDialogResult::match_case},
+    {IDC_REPLACE_WHOLE, L"replace_match_whole", &ReplaceDialogResult::match_whole},
+    {IDC_REPLACE_REGEX, L"replace_regex", &ReplaceDialogResult::use_regex},
+    {IDC_REPLACE_KEYS, L"replace_keys", &ReplaceDialogResult::replace_keys},
+    {IDC_REPLACE_VALUES, L"replace_values", &ReplaceDialogResult::replace_values},
+    {IDC_REPLACE_DATA, L"replace_data", &ReplaceDialogResult::replace_data},
+    {IDC_REPLACE_DECIMAL, L"replace_decimal", &ReplaceDialogResult::number_decimal},
+    {IDC_REPLACE_HEX, L"replace_hex", &ReplaceDialogResult::number_hex},
 };
 
 void UpdateValueDataOptions(HWND dialog)
@@ -154,6 +156,17 @@ bool ShowReplaceDialog(HWND owner, ReplaceDialogResult* result)
     State state;
     state.out = result;
     return result && dialog_support::Modal(owner, IDD_REPLACE, DialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
+}
+
+void ReplaceDialogFields(workspace::DialogFields& fields, ReplaceDialogResult* result)
+{
+    for (const auto& check : kChecks)
+    {
+        fields.Field(check.key, &(result->*check.field));
+    }
+    fields.Field(L"replace_find", &result->find_text);
+    fields.Field(L"replace_with", &result->replace_text);
+    fields.Field(L"replace_start_key", &result->start_key);
 }
 
 } // namespace regkit

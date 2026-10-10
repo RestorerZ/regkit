@@ -9,6 +9,7 @@
 #include "win32/file_dialog.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
+#include "workspace/settings.h"
 
 #include "resource.h"
 
@@ -299,6 +300,18 @@ void ShowConvertDialog(HWND owner, ConvertSettings* settings)
     State state;
     state.settings = settings;
     editors::dialog_support::Modal(owner, IDD_CONVERT, DialogProc, reinterpret_cast<LPARAM>(&state));
+}
+
+void ConvertDialogFields(workspace::DialogFields& fields, ConvertSettings* settings)
+{
+    fields.Field(L"convert_source", &settings->source, ConvertSource::kPowerShell);
+    fields.Field(L"convert_input", &settings->input_path);
+    fields.Field(L"convert_key", &settings->key_path);
+    fields.Field(L"convert_recursive", &settings->recursive);
+    fields.Field(L"convert_format", &settings->format, regfile::Format::kPowerShell);
+    fields.Field(L"convert_output", &settings->output_path);
+    fields.Field(L"convert_admin_check", &settings->admin_check);
+    fields.Field(L"convert_open_in_editor", &settings->open_in_editor);
 }
 
 } // namespace regkit

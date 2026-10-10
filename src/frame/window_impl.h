@@ -719,8 +719,6 @@ class MainWindow::Impl
     bool applying_startup_tree_restore_ = false;
     bool window_placement_loaded_ = false;
     ClipboardItem clipboard_;
-    ReplaceDialogResult last_replace_;
-    SearchDialogResult last_search_;
 
     struct SearchRun
     {

@@ -86,6 +86,8 @@ constexpr TextField kTextFields[] = {
     {L"language", &Settings::language},         // Options > Language
 };
 
+constexpr std::wstring_view kDialogPrefixes[] = {L"find_", L"replace_", L"compare_", L"convert_"};
+
 template <typename Field>
 const Field* FindField(const std::wstring& key, std::span<const Field> fields)
 {
@@ -196,6 +198,10 @@ Settings ParseSettings(const std::wstring& content, Settings settings)
         {
             SetIndexed(&settings.value_column_visible, index, util::ParseBool(value), true);
         }
+        else if (std::ranges::any_of(kDialogPrefixes, [&](std::wstring_view prefix) { return util::StartsWithInsensitive(key, prefix); }))
+        {
+            settings.dialog_state.insert_or_assign(util::ToLower(key), std::wstring(line.substr(separator + 1)));
+        }
     }
     if (settings.always_run_as_trustedinstaller)
     {
@@ -259,6 +265,10 @@ std::wstring SerializeSettings(const Settings& settings)
         Line(&content, L"value_column_width_" + std::to_wstring(index), std::to_wstring(index < settings.value_column_widths.size() ? settings.value_column_widths[index] : 0));
         Line(&content, L"value_column_visible_" + std::to_wstring(index), visible ? L"1" : L"0");
     }
+    for (const auto& [key, value] : settings.dialog_state)
+    {
+        Line(&content, key, value);
+    }
     return content;
 }
 
@@ -277,6 +287,7 @@ Settings DefaultOptions(const Settings& settings)
     reset.recent_defaults = settings.recent_defaults;
     reset.value_column_widths = settings.value_column_widths;
     reset.value_column_visible = settings.value_column_visible;
+    reset.dialog_state = settings.dialog_state;
     if (!settings.use_custom_font)
     {
         reset.font_face = settings.font_face;
@@ -301,6 +312,32 @@ bool LoadSettings(const std::wstring& path, Settings* settings)
 bool SaveSettings(const std::wstring& path, const Settings& settings)
 {
     return !path.empty() && util::WriteTextFile(path, SerializeSettings(settings), false);
+}
+
+void DialogFields::Field(std::wstring_view key, std::wstring* value)
+{
+    if (write_)
+    {
+        state_->insert_or_assign(std::wstring(key), *value);
+    }
+    else if (const auto found = state_->find(key); found != state_->end())
+    {
+        *value = found->second;
+    }
+}
+
+void DialogFields::Field(std::wstring_view key, bool* value)
+{
+    std::wstring text = *value ? L"1" : L"0";
+    Field(key, &text);
+    *value = util::ParseBool(text);
+}
+
+void DialogFields::Field(std::wstring_view key, uint64_t* value)
+{
+    std::wstring text = std::to_wstring(*value);
+    Field(key, &text);
+    record_fields::ParseUnsigned(text, UINT64_MAX, value);
 }
 
 } // namespace regkit::workspace

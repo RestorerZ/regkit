@@ -16,6 +16,7 @@
 #include "ui/feedback.h"
 #include "win32/file_dialog.h"
 #include "win32/translation.h"
+#include "workspace/settings.h"
 
 namespace regkit::command_detail
 {
@@ -415,6 +416,18 @@ bool ShowCompareDialog(HWND owner, const CompareDialogDefaults& defaults, Compar
     out->right = state.data.right;
     out->filter = state.data.filter;
     return true;
+}
+
+void CompareDialogFields(workspace::DialogFields& fields, CompareDialogDefaults* data)
+{
+    for (const auto& [prefix, side] : {std::pair{std::wstring(L"compare_left_"), &data->left}, std::pair{std::wstring(L"compare_right_"), &data->right}})
+    {
+        fields.Field(prefix + L"source", &side->type, CompareSourceType::kNetwork);
+        fields.Field(prefix + L"file", &side->file_path);
+        fields.Field(prefix + L"key", &side->key_path);
+        fields.Field(prefix + L"recursive", &side->recursive);
+    }
+    fields.Field(L"compare_filter", &data->filter, search::compare::RowFilter::kAll);
 }
 
 } // namespace regkit::command_detail

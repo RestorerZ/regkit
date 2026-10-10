@@ -12,6 +12,11 @@
 
 #include "search/search.h"
 
+namespace regkit::workspace
+{
+class DialogFields;
+}
+
 namespace regkit
 {
 
@@ -53,9 +58,11 @@ struct SearchDialogResult
     SearchScope scope = SearchScope::kEntireRegistry;
     SearchResultMode result_mode = SearchResultMode::kNewTab;
     bool open_in_new_tab = false;
+    bool use_exclude = false;
 };
 
 bool ShowSearchDialog(HWND owner, SearchDialogResult* result, const SearchSources& available);
+void SearchDialogFields(workspace::DialogFields& fields, SearchDialogResult* result);
 bool ShowBrowseKeyDialog(HWND owner, std::wstring* selected_path);
 
 } // namespace regkit
