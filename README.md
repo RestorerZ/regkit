@@ -4,10 +4,10 @@ RegKit is a feature rich registry editor replacement, which includes several imp
 
 ## Verify Binaries
 
-All releases have a detached GPG sig, import the [public key](https://noverse.dev/public.asc) and verify the file next to its sig:
+All releases have a detached GPG sig, import the [public key](https://pgp.noverse.dev) and verify the file next to its sig:
 
 ```powershell
-curl.exe -sO https://noverse.dev/public.asc
+curl.exe -fsSL https://pgp.noverse.dev -o public.asc
 gpg --import public.asc
 
 gpg --verify RegKit-Setup-<version>-x64.exe.sig RegKit-Setup-<version>-x64.exe
