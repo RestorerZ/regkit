@@ -16,7 +16,7 @@
 #include "ui/feedback.h"
 #include "win32/file_dialog.h"
 #include "win32/translation.h"
-#include "workspace/settings.h"
+#include "workspace/dialog_state.h"
 
 namespace regkit::command_detail
 {

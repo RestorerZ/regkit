@@ -24,7 +24,7 @@
 #include "win32/file_text.h"
 #include "win32/shell_paths.h"
 #include "win32/translation.h"
-#include "workspace/settings.h"
+#include "workspace/dialog_state.h"
 
 namespace regkit
 {

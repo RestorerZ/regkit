@@ -9,7 +9,7 @@
 #include "ui/dialog_support.h"
 #include "ui/feedback.h"
 #include "win32/translation.h"
-#include "workspace/settings.h"
+#include "workspace/dialog_state.h"
 
 namespace regkit
 {

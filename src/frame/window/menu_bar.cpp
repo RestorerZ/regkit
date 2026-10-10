@@ -67,7 +67,8 @@ CacheAvailability InspectCacheFiles(const std::wstring& folder)
                          util::EqualsInsensitive(name, L"session.ini") || HasCachePattern(name, L"search_", L".tsv") ||
                          HasCachePattern(name, L"compare_", L".tsv");
         available.history = available.history || util::EqualsInsensitive(name, L"history.tsv");
-        available.search_history = available.search_history || util::EqualsInsensitive(name, L"search_history.txt");
+        available.search_history = available.search_history || util::EqualsInsensitive(name, L"search_history.txt") ||
+                                   util::EqualsInsensitive(name, L"dialog_state.ini");
         available.tree_state = available.tree_state || util::EqualsInsensitive(name, L"tree_state.ini");
         available.temporary = available.temporary || HasCachePattern(name, L"export_", L".reg");
     } while (FindNextFileW(find, &data) != 0);

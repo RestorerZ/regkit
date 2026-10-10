@@ -50,6 +50,7 @@
 #include "win32/translation.h"
 #include "work/key_watcher.h"
 #include "work/session.h"
+#include "workspace/dialog_state.h"
 #include "workspace/favorites.h"
 #include "workspace/recent_items.h"
 #include "workspace/settings.h"

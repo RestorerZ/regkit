@@ -3,10 +3,7 @@
 
 #pragma once
 
-#include <cstdint>
-#include <map>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace regkit::workspace
@@ -78,34 +75,6 @@ struct Settings
     std::vector<std::wstring> recent_defaults;
     std::vector<int> value_column_widths;
     std::vector<bool> value_column_visible;
-    std::map<std::wstring, std::wstring, std::less<>> dialog_state;
-};
-
-// last used dialog options
-class DialogFields
-{
-  public:
-    DialogFields(Settings* settings, bool write)
-        : state_(&settings->dialog_state), write_(write)
-    {
-    }
-    void Field(std::wstring_view key, std::wstring* value);
-    void Field(std::wstring_view key, bool* value);
-    void Field(std::wstring_view key, uint64_t* value);
-    template <typename T>
-    void Field(std::wstring_view key, T* value, T last)
-    {
-        uint64_t number = static_cast<uint64_t>(*value);
-        Field(key, &number);
-        if (number <= static_cast<uint64_t>(last))
-        {
-            *value = static_cast<T>(number);
-        }
-    }
-
-  private:
-    std::map<std::wstring, std::wstring, std::less<>>* state_;
-    bool write_;
 };
 
 Settings ParseSettings(const std::wstring& content, Settings settings = {});

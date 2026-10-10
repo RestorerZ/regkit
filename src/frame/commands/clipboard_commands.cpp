@@ -388,7 +388,8 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id)
         {
             SearchDialogResult options;
             options.criteria.search_keys = false;
-            workspace::DialogFields last(&settings_, false);
+            workspace::DialogState state = workspace::LoadDialogState();
+            workspace::DialogFields last(&state, false);
             SearchDialogFields(last, &options);
             SearchSources sources;
             sources.traces = HasActiveTraces();
@@ -402,9 +403,9 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id)
             sources.extra_hives = settings_.show_extra_hives;
             if (ShowSearchDialog(hwnd_, &options, sources))
             {
-                workspace::DialogFields store(&settings_, true);
+                workspace::DialogFields store(&state, true);
                 SearchDialogFields(store, &options);
-                SaveSettings();
+                workspace::SaveDialogState(state);
                 StartSearch(options);
             }
             return true;
@@ -507,7 +508,8 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                 return true;
             }
             ReplaceDialogResult options;
-            workspace::DialogFields last(&settings_, false);
+            workspace::DialogState state = workspace::LoadDialogState();
+            workspace::DialogFields last(&state, false);
             ReplaceDialogFields(last, &options);
             if (options.start_key.empty() && browse_.current_node())
             {
@@ -515,9 +517,9 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
             }
             if (ShowReplaceDialog(hwnd_, &options))
             {
-                workspace::DialogFields store(&settings_, true);
+                workspace::DialogFields store(&state, true);
                 ReplaceDialogFields(store, &options);
-                SaveSettings();
+                workspace::SaveDialogState(state);
                 StartReplace(options);
             }
             return true;

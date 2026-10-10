@@ -70,7 +70,8 @@ void MainWindow::Impl::StartCompareRegistries()
     right.key_path = left.key_path;
     defaults.left = left;
     defaults.right = right;
-    workspace::DialogFields last(&settings_, false);
+    workspace::DialogState state = workspace::LoadDialogState();
+    workspace::DialogFields last(&state, false);
     CompareDialogFields(last, &defaults);
     for (CompareDialogSelection* side : {&defaults.left, &defaults.right})
     {
@@ -86,9 +87,9 @@ void MainWindow::Impl::StartCompareRegistries()
         return;
     }
     CompareDialogDefaults used{selection.left, selection.right, selection.filter};
-    workspace::DialogFields store(&settings_, true);
+    workspace::DialogFields store(&state, true);
     CompareDialogFields(store, &used);
-    SaveSettings();
+    workspace::SaveDialogState(state);
 
     // paths & the shown tab's keys resolve here, the worker only reads
     struct Side
