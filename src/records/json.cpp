@@ -210,27 +210,13 @@ bool Reader::String(std::wstring* out, size_t limit)
             break;
         case L'u':
             {
-                unsigned first = 0;
-                if (!Hex4(&ptr_, end_, &first))
+                unsigned unit = 0;
+                if (!Hex4(&ptr_, end_, &unit))
                 {
                     return Fail(util::Tr(L"A string contains a malformed escape."));
                 }
-                if (first >= 0xDC00 && first <= 0xDFFF)
-                {
-                    return Fail(util::Tr(L"A string contains a lone surrogate."));
-                }
-                out->push_back(static_cast<wchar_t>(first));
-                if (first < 0xD800 || first > 0xDBFF)
-                {
-                    break;
-                }
-                unsigned second = 0;
-                if (end_ - ptr_ < 2 || ptr_[0] != L'\\' || ptr_[1] != L'u' || (ptr_ += 2, !Hex4(&ptr_, end_, &second)) ||
-                    second < 0xDC00 || second > 0xDFFF)
-                {
-                    return Fail(util::Tr(L"A string contains a lone surrogate."));
-                }
-                out->push_back(static_cast<wchar_t>(second));
+                // each escape is one utf-16 unit, registry names may hold lone surrogates and AppendString writes them this way
+                out->push_back(static_cast<wchar_t>(unit));
                 break;
             }
         default:

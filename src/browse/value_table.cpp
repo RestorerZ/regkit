@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <numeric>
+#include <set>
 
 #include "win32/text_transform.h"
 
@@ -86,9 +87,33 @@ void ValueList::SetRows(std::vector<ListRow> rows)
 
 bool ValueList::MergeRows(std::vector<ListRow> rows)
 {
-    if (rows.size() != rows_.size() || HasFilter())
+    auto same = [](const ListRow& left, const ListRow& right) { return left.kind == right.kind && left.extra == right.extra; };
+    if (HasFilter() || !std::equal(rows.begin(), rows.end(), rows_.begin(), rows_.end(), same))
     {
+        // rows moved, so selection and focus follow their names instead of their positions
+        using Identity = std::pair<LPARAM, std::wstring>;
+        std::set<Identity> selected;
+        for (int i = -1; (i = ListView_GetNextItem(hwnd_, i, LVNI_SELECTED)) >= 0;)
+        {
+            if (const ListRow* row = RowAt(i))
+            {
+                selected.emplace(row->kind, row->extra);
+            }
+        }
+        const ListRow* focused_row = RowAt(ListView_GetNextItem(hwnd_, -1, LVNI_FOCUSED));
+        const Identity focused = focused_row ? Identity(focused_row->kind, focused_row->extra) : Identity(-1, {});
         SetRows(std::move(rows));
+        ListView_SetItemState(hwnd_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+        for (int i = 0; i < static_cast<int>(visible_indices_.size()); ++i)
+        {
+            const ListRow& row = rows_[static_cast<size_t>(visible_indices_[static_cast<size_t>(i)])];
+            const Identity identity(row.kind, row.extra);
+            const UINT state = (selected.count(identity) ? LVIS_SELECTED : 0) | (focused == identity ? LVIS_FOCUSED : 0);
+            if (state)
+            {
+                ListView_SetItemState(hwnd_, i, state, state);
+            }
+        }
         return false;
     }
     for (size_t i = 0; i < rows.size(); ++i)

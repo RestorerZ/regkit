@@ -32,6 +32,10 @@ struct HistoryEntry
     RevertKind revert_kind = RevertKind::kNone;
     RegistryValue revert_value;
     bool backup_mode = false;
+    // search::Source of the tab that made the change, kind -1 when unknown
+    int source_kind = -1;
+    std::wstring source_name;
+    REGSAM source_view = 0;
 };
 
 namespace changes

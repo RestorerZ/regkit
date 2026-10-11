@@ -242,6 +242,20 @@ void MainWindow::Impl::LoadTraceSettings()
 
     for (const std::wstring_view raw : record_fields::Lines(content))
     {
+        if (raw.starts_with(L"pair="))
+        {
+            const std::vector<std::wstring> fields = record_fields::DecodeRecord(raw.substr(5));
+            if (!fields.empty() && !fields[0].empty() && fields.size() <= 2)
+            {
+                auto& values = selection.values_by_key[fields[0]];
+                if (fields.size() == 2)
+                {
+                    values.insert(fields[1]);
+                }
+                has_entry = true;
+            }
+            continue;
+        }
         const std::wstring line = TrimWhitespace(raw);
         if (line.empty())
         {
@@ -371,25 +385,14 @@ void MainWindow::Impl::SaveTraceSettings() const
             }
             if (entry.second.empty())
             {
-                content.append(L"values=");
-                content.append(entry.first);
-                content.push_back(L'\n');
+                content.append(L"pair=");
+                record_fields::AppendRecord(&content, {entry.first});
                 continue;
             }
             for (const auto& value_name : entry.second)
             {
-                content.append(L"value=");
-                content.append(entry.first);
-                content.push_back(L'|');
-                if (value_name.empty())
-                {
-                    content.append(L"@");
-                }
-                else
-                {
-                    content.append(value_name);
-                }
-                content.push_back(L'\n');
+                content.append(L"pair=");
+                record_fields::AppendRecord(&content, {entry.first, value_name});
             }
         }
         content.push_back(L'\n');

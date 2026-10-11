@@ -25,8 +25,8 @@ namespace
 class RegistrySecurityInformation : public ISecurityInformation, public IEffectivePermission
 {
   public:
-    RegistrySecurityInformation(HKEY key, std::wstring object_name, bool read_only, bool audits)
-        : key_(key), object_name_(std::move(object_name)), read_only_(read_only), audits_(audits)
+    RegistrySecurityInformation(HKEY key, std::wstring object_name, REGSAM granted, bool audits)
+        : key_(key), object_name_(std::move(object_name)), granted_(granted), audits_(audits)
     {
     }
 
@@ -70,9 +70,13 @@ class RegistrySecurityInformation : public ISecurityInformation, public IEffecti
             return E_POINTER;
         }
         DWORD flags = SI_ADVANCED | SI_EDIT_OWNER | SI_EDIT_PERMS | SI_CONTAINER | SI_EDIT_EFFECTIVE | (audits_ ? SI_EDIT_AUDITS : 0);
-        if (read_only_)
+        if (!(granted_ & WRITE_DAC))
         {
-            flags |= SI_READONLY | SI_OWNER_READONLY;
+            flags |= SI_READONLY;
+        }
+        if (!(granted_ & WRITE_OWNER))
+        {
+            flags |= SI_OWNER_READONLY;
         }
         info->dwFlags = flags;
         info->hInstance = nullptr;
@@ -201,7 +205,7 @@ class RegistrySecurityInformation : public ISecurityInformation, public IEffecti
   private:
     HKEY key_ = nullptr;
     std::wstring object_name_;
-    bool read_only_ = false;
+    REGSAM granted_ = 0;
     bool audits_ = false;
     LONG references_ = 1;
 };
@@ -224,7 +228,7 @@ bool ShowRegistryPermissions(HWND owner, const RegistryNode& node)
     util::UniqueHKey key;
     LONG result = ERROR_ACCESS_DENIED;
     REGSAM granted = 0;
-    for (const REGSAM access : {READ_CONTROL | WRITE_DAC | WRITE_OWNER | audits, REGSAM(READ_CONTROL | WRITE_DAC | WRITE_OWNER), READ_CONTROL | audits, REGSAM(READ_CONTROL), REGSAM(MAXIMUM_ALLOWED)})
+    for (const REGSAM access : {READ_CONTROL | WRITE_DAC | WRITE_OWNER | audits, REGSAM(READ_CONTROL | WRITE_DAC | WRITE_OWNER), READ_CONTROL | WRITE_DAC | audits, REGSAM(READ_CONTROL | WRITE_DAC), READ_CONTROL | WRITE_OWNER | audits, REGSAM(READ_CONTROL | WRITE_OWNER), READ_CONTROL | audits, REGSAM(READ_CONTROL), REGSAM(MAXIMUM_ALLOWED)})
     {
         result = util::OpenRegistryPath(node.root, node.subkey, access | ViewOf(node), true, &key);
         if (result != ERROR_ACCESS_DENIED && result != ERROR_PRIVILEGE_NOT_HELD)
@@ -237,7 +241,7 @@ bool ShowRegistryPermissions(HWND owner, const RegistryNode& node)
     bool ok = false;
     if (result == ERROR_SUCCESS && key.get())
     {
-        RegistrySecurityInformation info(key.get(), path, !(granted & WRITE_DAC), audits && (granted & ACCESS_SYSTEM_SECURITY));
+        RegistrySecurityInformation info(key.get(), path, granted, audits && (granted & ACCESS_SYSTEM_SECURITY));
         ok = SUCCEEDED(EditSecurity(owner, &info));
     }
     return ok;

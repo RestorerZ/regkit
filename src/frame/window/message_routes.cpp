@@ -1073,7 +1073,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message, 
             value_list_loading_ = false;
             UpdateStatus();
             StartPendingValueListRename();
-            if (!merged && !retained_value_key_path_.empty() && browse_.current_node() &&
+            if (!merge && !retained_value_key_path_.empty() && browse_.current_node() &&
                 EqualsInsensitive(registry_path::Build(*browse_.current_node()), retained_value_key_path_) &&
                 !SelectValueByName(retained_value_name_))
             {

@@ -9,6 +9,7 @@
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace regkit
 {
@@ -18,6 +19,9 @@ struct VirtualRegistryKey
     std::wstring name;
     std::unordered_map<std::wstring, RegistryValue> values;
     std::unordered_map<std::wstring, std::unique_ptr<VirtualRegistryKey>> children;
+    std::vector<std::wstring> removed_values;
+    bool removed = false;
+    bool recreated = false;
 };
 
 struct VirtualRegistryData

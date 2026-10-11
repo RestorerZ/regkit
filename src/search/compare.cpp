@@ -194,8 +194,17 @@ bool LoadRegFile(const std::wstring& file_path, const regfile::Document& documen
             return false;
         }
         const std::wstring normalized = normalize(original_path);
-        if (normalized.empty() || !IsWithin(normalized, base_path, recursive))
+        if (normalized.empty())
         {
+            continue;
+        }
+        if (!IsWithin(normalized, base_path, recursive))
+        {
+            if (!recursive && IsWithin(normalized, base_path, true))
+            {
+                snapshot->keys.try_emplace(L"", Key{L"", {}});
+                matched = true;
+            }
             continue;
         }
         matched = true;

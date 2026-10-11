@@ -129,6 +129,8 @@ bool PromptPresetName(ThemePresetWindowState* state, HWND owner, const wchar_t* 
     {
         return false;
     }
+    // preset file trims names on load
+    name = util::TrimWhitespace(name);
     if (name.empty())
     {
         ui::ShowError(owner, util::Tr(L"Preset name can't be empty."));

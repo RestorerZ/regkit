@@ -133,7 +133,7 @@ void MainWindow::Impl::StartCompareRegistries()
         }
     }
 
-    auto source_ref = [](const CompareDialogSelection& sel) {
+    auto source_ref = [shown = CurrentTabSource()](const CompareDialogSelection& sel) {
         switch (sel.type)
         {
         case CompareSourceType::kRegFile:
@@ -145,7 +145,7 @@ void MainWindow::Impl::StartCompareRegistries()
         default:
             break;
         }
-        return search::Source{};
+        return shown;
     };
     std::vector<search::Source> sources = {source_ref(selection.left), source_ref(selection.right)};
 

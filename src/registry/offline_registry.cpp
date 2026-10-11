@@ -181,11 +181,20 @@ std::wstring SelectedControlSet(OffregApi* api, ORHKEY root)
     return control_set;
 }
 
-// currentcontrolset is a volatile link windows builds at boot, offline it maps through Select\Current
+// currentcontrolset is a volatile link windows builds at boot, offline it maps through Select\Current unless the hive has a real key of that name
 std::wstring ResolveControlSet(OffregApi* api, ORHKEY root, const std::wstring& subkey)
 {
     constexpr std::wstring_view kLink = L"CurrentControlSet";
-    const std::wstring current = registry_path::HasComponentPrefix(subkey, kLink) ? SelectedControlSet(api, root) : std::wstring();
+    ORHKEY real = nullptr;
+    if (!registry_path::HasComponentPrefix(subkey, kLink) || api->open_key(root, kLink.data(), &real) == ERROR_SUCCESS)
+    {
+        if (real)
+        {
+            api->close_key(real);
+        }
+        return subkey;
+    }
+    const std::wstring current = SelectedControlSet(api, root);
     return current.empty() ? subkey : current + subkey.substr(kLink.size());
 }
 

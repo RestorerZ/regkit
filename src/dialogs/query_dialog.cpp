@@ -243,34 +243,58 @@ std::vector<std::wstring> SplitExcludePaths(const std::wstring& text)
 {
     std::vector<std::wstring> items;
     std::wstring current;
-    for (wchar_t ch : text)
-    {
-        if (ch == L'\r' || ch == L'\n' || ch == L';' || ch == L',')
+    bool quoted = false;
+    bool kept = false;
+    auto finish = [&] {
+        if (!kept)
         {
-            if (!current.empty())
+            current.erase(current.begin(), std::find_if(current.begin(), current.end(), [](wchar_t c) { return c != L' '; }));
+            while (!current.empty() && current.back() == L' ')
             {
-                items.push_back(current);
-                current.clear();
+                current.pop_back();
             }
         }
-        else
+        if (!current.empty())
+        {
+            items.push_back(std::move(current));
+        }
+        current.clear();
+        kept = false;
+    };
+    for (size_t i = 0; i < text.size(); ++i)
+    {
+        const wchar_t ch = text[i];
+        if (quoted)
+        {
+            if (ch != L'"')
+            {
+                current.push_back(ch);
+            }
+            else if (i + 1 < text.size() && text[i + 1] == L'"')
+            {
+                current.push_back(L'"');
+                ++i;
+            }
+            else
+            {
+                quoted = false;
+            }
+        }
+        else if (ch == L'\r' || ch == L'\n' || ch == L';' || ch == L',')
+        {
+            finish();
+        }
+        else if (ch == L'"' && !kept && std::all_of(current.begin(), current.end(), [](wchar_t c) { return c == L' '; }))
+        {
+            current.clear();
+            quoted = kept = true;
+        }
+        else if (!kept || ch != L' ')
         {
             current.push_back(ch);
         }
     }
-    if (!current.empty())
-    {
-        items.push_back(current);
-    }
-    for (auto& item : items)
-    {
-        item.erase(item.begin(), std::find_if(item.begin(), item.end(), [](wchar_t c) { return c != L' '; }));
-        while (!item.empty() && item.back() == L' ')
-        {
-            item.pop_back();
-        }
-    }
-    items.erase(std::remove_if(items.begin(), items.end(), [](const std::wstring& value) { return value.empty(); }), items.end());
+    finish();
     return items;
 }
 
@@ -287,7 +311,21 @@ std::wstring JoinExcludePaths(const std::vector<std::wstring>& items)
         {
             out.append(L", ");
         }
-        out.append(item);
+        if (item.find_first_of(L",;\"\r\n") == std::wstring::npos && !item.starts_with(L' ') && !item.ends_with(L' '))
+        {
+            out.append(item);
+            continue;
+        }
+        out.push_back(L'"');
+        for (const wchar_t ch : item)
+        {
+            if (ch == L'"')
+            {
+                out.push_back(L'"');
+            }
+            out.push_back(ch);
+        }
+        out.push_back(L'"');
     }
     return out;
 }
@@ -751,7 +789,7 @@ INT_PTR CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                     editors::TextResult result;
                     if (editors::EditText(hwnd, request, &result))
                     {
-                        SetWindowTextW(Item(state, IDC_FIND_EXCLUDE_EDIT), JoinExcludePaths(SplitExcludePaths(result.text)).c_str());
+                        SetWindowTextW(Item(state, IDC_FIND_EXCLUDE_EDIT), JoinExcludePaths(util::SplitLines(result.text)).c_str());
                     }
                     return TRUE;
                 }

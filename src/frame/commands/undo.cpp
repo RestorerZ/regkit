@@ -294,11 +294,16 @@ std::wstring MainWindow::Impl::MakeUniqueKeyName(const RegistryNode& node, const
 
 bool MainWindow::Impl::ResolvePathToNode(const std::wstring& path, RegistryNode* node) const
 {
+    return ResolvePathInRoots(browse_.roots(), path, node);
+}
+
+bool MainWindow::Impl::ResolvePathInRoots(const std::vector<RegistryRootEntry>& roots, const std::wstring& path, RegistryNode* node)
+{
     if (!node || path.empty())
     {
         return false;
     }
-    for (const auto& root_entry : browse_.roots())
+    for (const auto& root_entry : roots)
     {
         const size_t name_size = root_entry.path_name.size();
         if (!StartsWithInsensitive(path, root_entry.path_name) ||
@@ -306,35 +311,33 @@ bool MainWindow::Impl::ResolvePathToNode(const std::wstring& path, RegistryNode*
         {
             continue;
         }
-        std::wstring rest = registry_path::RawName(std::wstring_view(path).substr(root_entry.path_name.size()));
-        if (!rest.empty() && (rest.front() == L'\\' || rest.front() == L'/'))
-        {
-            rest.erase(rest.begin());
-        }
-        if (root_entry.subkey_prefix.empty())
-        {
-            node->root = root_entry.root;
-            node->view = root_entry.view;
-            node->root_name = root_entry.path_name;
-            node->subkey = rest;
-            return true;
-        }
-        std::wstring prefix = root_entry.subkey_prefix;
-        if (!rest.empty())
-        {
-            if (!registry_path::HasComponentPrefix(rest, prefix))
+        const std::wstring_view tail = std::wstring_view(path).substr(name_size);
+        const auto subkey = [&root_entry](std::wstring rest) {
+            if (!rest.empty() && (rest.front() == L'\\' || rest.front() == L'/'))
             {
-                rest = prefix + L"\\" + rest;
+                rest.erase(rest.begin());
             }
-        }
-        else
-        {
-            rest = prefix;
-        }
+            const std::wstring& prefix = root_entry.subkey_prefix;
+            if (rest.empty())
+            {
+                return prefix;
+            }
+            return prefix.empty() || registry_path::HasComponentPrefix(rest, prefix) ? rest : prefix + L"\\" + rest;
+        };
         node->root = root_entry.root;
         node->view = root_entry.view;
         node->root_name = root_entry.path_name;
-        node->subkey = rest;
+        node->subkey = subkey(registry_path::RawName(tail));
+        // U+2400 shows an embedded nul but is also a legal character, existing literal name > missing nul one
+        if (tail.find(L'\x2400') != std::wstring_view::npos && !RegistryStore::KeyExists(*node))
+        {
+            RegistryNode literal = *node;
+            literal.subkey = subkey(std::wstring(tail));
+            if (RegistryStore::KeyExists(literal))
+            {
+                node->subkey = std::move(literal.subkey);
+            }
+        }
         return true;
     }
     return false;

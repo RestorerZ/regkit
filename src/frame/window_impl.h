@@ -144,6 +144,7 @@ class MainWindow::Impl
         uint64_t generation = 0;
         // the tab session the replace ran in, its undo goes there even after a tab switch
         std::weak_ptr<RegistrySession> session;
+        std::optional<search::Source> source;
         std::vector<Change> changes;
         int failures = 0;
         int partial_renames = 0;
@@ -246,6 +247,7 @@ class MainWindow::Impl
     void ApplySearchTabLoad(std::unique_ptr<SearchTabLoadPayload> owned);
     void FinishSearch(SearchTab* tab);
     SearchTab* SearchTabByGeneration(uint64_t generation);
+    SearchTab* SearchTabByLoadGeneration(uint64_t generation);
     SearchTab* ShownSearchTab();
     void StartSearchPreviewWorker();
     void StartValueListWorker();
@@ -419,6 +421,8 @@ class MainWindow::Impl
     void AppendHistoryEntry(HistoryEntry entry);
     // one cache write, sort & list update for a whole mass change
     void AppendHistoryEntries(std::vector<HistoryEntry> entries);
+    void AppendHistoryEntries(std::vector<HistoryEntry> entries, const std::optional<search::Source>& source);
+    std::optional<search::Source> HistorySource() const;
     static HistoryEntry ValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value = nullptr);
     void AppendValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value = nullptr);
     bool PrepareHistoryRevert(const HistoryEntry& entry, HistoryEntry* prepared) const;
@@ -609,6 +613,8 @@ class MainWindow::Impl
     std::optional<std::wstring> MakeUniqueValueName(const RegistryNode& node, const std::wstring& base) const;
     std::wstring MakeUniqueKeyName(const RegistryNode& node, const std::wstring& base) const;
     bool ResolvePathToNode(const std::wstring& path, RegistryNode* node) const;
+    static bool ResolvePathInRoots(const std::vector<RegistryRootEntry>& roots, const std::wstring& path, RegistryNode* node);
+    std::vector<std::vector<RegistryRootEntry>> SearchSourceRoots(const SearchTab& tab);
     bool KeyPathExists(const std::wstring& path, RegistryNode* node) const;
 
     HINSTANCE instance_ = nullptr;

@@ -25,7 +25,9 @@ struct Key
     std::wstring path;
     std::unordered_map<std::wstring, Value> values;
     std::vector<std::wstring> removed_values;
+    // removed when the file deletes the key, recreated when a section follows that deletion
     bool removed = false;
+    bool recreated = false;
 };
 
 struct Operation

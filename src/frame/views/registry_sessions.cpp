@@ -1016,6 +1016,14 @@ bool MainWindow::Impl::SaveOfflineRegistry(RegistrySession& session, bool choose
     {
         session.offline_root_paths.front() = path;
     }
+    // the tab reopens the file it was saved to
+    for (TabEntry& tab : tabs_)
+    {
+        if (tab.session.get() == &session)
+        {
+            tab.offline_path = path;
+        }
+    }
     session.offline_dirty = false;
     HistoryEntry history;
     history.action = L"Save offline registry";

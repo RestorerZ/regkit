@@ -33,7 +33,7 @@ class PrivilegeScope
 
   private:
     UniqueHandle token_;
-    std::vector<TOKEN_PRIVILEGES> previous_;
+    std::vector<LUID> enabled_;
     bool held_ = false;
 };
 

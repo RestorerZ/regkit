@@ -172,7 +172,8 @@ void MainWindow::Impl::LoadThemePresets()
         return;
     }
     settings_.theme_preset = FindThemePreset(theme_presets_, settings_.theme_preset)->name;
-    if (!loaded || updated_builtins)
+    // file that failed to parse stays as it is until the user saves presets
+    if ((!loaded && load_error.empty()) || updated_builtins)
     {
         SaveThemePresets();
     }

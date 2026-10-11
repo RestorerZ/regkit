@@ -269,7 +269,18 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
         }
     case cmd::kEditCopy:
         {
-            const auto capture_row = [this](const ListRow* row) {
+            // key that can't be read completely would paste without its unreadable part
+            const auto capture_key = [this](const RegistryNode& key) {
+                changes::KeySnapshot snapshot = changes::CaptureKey(key, false);
+                if (!snapshot.complete)
+                {
+                    ui::ShowError(hwnd_, util::Tr(L"The key information couldn't be read."));
+                    return false;
+                }
+                clipboard_.key_snapshot = std::move(snapshot);
+                return true;
+            };
+            const auto capture_row = [this, &capture_key](const ListRow* row) {
                 const RegistryNode& node = *browse_.current_node();
                 clipboard_.kind = ClipboardItem::Kind::kNone;
                 if (row && row->kind == rowkind::kValue)
@@ -283,9 +294,12 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                 }
                 else if (row && row->kind == rowkind::kKey)
                 {
+                    if (!capture_key(ChildNode(node, row->extra)))
+                    {
+                        return true;
+                    }
                     clipboard_.kind = ClipboardItem::Kind::kKey;
                     clipboard_.name = row->extra;
-                    clipboard_.key_snapshot = changes::CaptureKey(ChildNode(node, row->extra), false);
                 }
                 clipboard_.source_parent = node;
                 return true;
@@ -296,10 +310,9 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                 const RegistryNode& node = *browse_.current_node();
                 RegistryNode parent = node;
                 parent.subkey = registry_path::Parent(node.subkey);
-                clipboard_.kind = ClipboardItem::Kind::kKey;
+                clipboard_.kind = capture_key(node) ? ClipboardItem::Kind::kKey : ClipboardItem::Kind::kNone;
                 clipboard_.source_parent = parent;
                 clipboard_.name = LeafName(node);
-                clipboard_.key_snapshot = changes::CaptureKey(node, false);
                 ui::CopyTextToClipboard(hwnd_, registry_path::Build(node));
                 return true;
             }

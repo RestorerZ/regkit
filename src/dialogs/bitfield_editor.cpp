@@ -352,7 +352,7 @@ void ApplyChoice(HWND dialog, Editor* editor, int choice)
     editor->choice = choice;
     RefreshCombo(dialog, editor);
     const Definition& definition = editor->definition();
-    if (editor->binary_mode && !definition.value_name.empty())
+    if (editor->binary_mode && choice != 0)
     {
         editor->width = definition.bit_width;
         editor->offset = definition.byte_offset;

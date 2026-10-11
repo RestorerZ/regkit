@@ -612,9 +612,10 @@ int CmdDelete(const std::vector<std::wstring>& args)
         {
             contents.values.push_back({options.default_value ? std::wstring() : options.value_name});
         }
+        const registry_backend::RegistryKeyHandle target(std::move(handle));
         for (size_t index = 0; status == ERROR_SUCCESS && index < contents.values.size(); ++index)
         {
-            status = RegDeleteValueW(handle.get(), contents.values[index].name.c_str());
+            status = target.DeleteValue(contents.values[index].name);
         }
         if (status != ERROR_SUCCESS)
         {
@@ -649,24 +650,25 @@ int CmdDelete(const std::vector<std::wstring>& args)
     return kOk;
 }
 
-LONG CopyTree(const KeyRef& from, const KeyRef& to, REGSAM view, bool recurse)
+// children are created under their parents handle
+LONG CopyTree(const KeyRef& from, HKEY to_parent, const std::wstring& to_name, REGSAM view, bool recurse)
 {
     KeyContents contents;
     LONG status = ReadKey(from, view, true, &contents);
-    util::UniqueHKey target;
+    util::UniqueHKey created;
     if (status == ERROR_SUCCESS)
     {
-        status = RegCreateKeyExW(to.root, to.subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE | view, nullptr, target.put(), nullptr);
+        status = util::CreateRegistryKey(to_parent, to_name, KEY_WRITE | view, REG_OPTION_NON_VOLATILE, &created, nullptr);
     }
+    const registry_backend::RegistryKeyHandle target(std::move(created));
     for (size_t index = 0; status == ERROR_SUCCESS && index < contents.values.size(); ++index)
     {
         const RegistryValue& value = contents.values[index];
-        status = RegSetValueExW(target.get(), value.name.c_str(), 0, value.type, value.data.data(), static_cast<DWORD>(value.data.size()));
+        status = target.SetValue(value.name, value.type, value.data.data(), static_cast<DWORD>(value.data.size()));
     }
-    target.reset();
     for (size_t index = 0; recurse && status == ERROR_SUCCESS && index < contents.subkeys.size(); ++index)
     {
-        status = CopyTree(ChildRef(from, contents.subkeys[index]), ChildRef(to, contents.subkeys[index]), view, true);
+        status = CopyTree(ChildRef(from, contents.subkeys[index]), target.get(), contents.subkeys[index], view, true);
     }
     return status;
 }
@@ -696,7 +698,7 @@ int CmdCopy(const std::vector<std::wstring>& args)
         PrintError(L"The registry entry cannot be copied onto itself or into its own subkey.");
         return kFailed;
     }
-    const LONG status = CopyTree(from, to, options.view, options.recurse);
+    const LONG status = CopyTree(from, to.root, to.subkey, options.view, options.recurse);
     if (status != ERROR_SUCCESS)
     {
         return Fail(status);

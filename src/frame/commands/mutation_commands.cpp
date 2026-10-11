@@ -781,7 +781,7 @@ bool MainWindow::Impl::HandleResetDefaultCommand(int command_id)
             ui::ShowError(hwnd_, util::Tr(L"Failed to delete value."));
             return true;
         }
-        AppendValueHistoryEntry(L"Reset value " + display_name, display_name, L"", *browse_.current_node(), name, HistoryEntry::RevertKind::kSetValue, &entry);
+        AppendValueHistoryEntry(L"Delete value " + display_name, display_name, L"", *browse_.current_node(), name, HistoryEntry::RevertKind::kSetValue, &entry);
         changes::UndoOperation op;
         op.type = changes::UndoOperation::Type::kDeleteValue;
         op.node = *browse_.current_node();

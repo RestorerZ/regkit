@@ -397,6 +397,8 @@ bool ParseBatch(std::wstring_view content, std::vector<Operation>* output, std::
     }
 
     std::unordered_map<std::wstring, std::wstring> variables;
+    bool delayed = false;
+    std::vector<std::pair<std::unordered_map<std::wstring, std::wstring>, bool>> scopes;
     for (size_t index = 0; index < lines.size(); ++index)
     {
         const size_t number = index + 1;
@@ -434,7 +436,13 @@ bool ParseBatch(std::wstring_view content, std::vector<Operation>* output, std::
             const size_t space = command.find_first_of(L" \t");
             const std::wstring verb = util::ToLower(command.substr(0, space));
             const std::wstring rest = space == std::wstring::npos ? std::wstring() : command.substr(space + 1);
-            if (verb == L"reg" || verb == L"reg.exe" || util::EndsWithInsensitive(verb, L"\\reg.exe"))
+            const bool reg = verb == L"reg" || verb == L"reg.exe" || util::EndsWithInsensitive(verb, L"\\reg.exe");
+            // delayed expansion rewrites every ! at run time
+            if (delayed && (reg || verb == L"set") && command.find(L'!') != std::wstring::npos)
+            {
+                return fail(util::TrLabel(L"Unsupported command", L"setlocal EnableDelayedExpansion"));
+            }
+            if (reg)
             {
                 const std::vector<std::wstring> args = SplitArguments(rest);
                 if (!args.empty() && util::EqualsInsensitive(args[0], L"query"))
@@ -469,12 +477,26 @@ bool ParseBatch(std::wstring_view content, std::vector<Operation>* output, std::
                     variables[util::ToLower(assignment.substr(0, equals))] = assignment.substr(equals + 1);
                 }
             }
+            else if (verb == L"setlocal")
+            {
+                scopes.emplace_back(variables, delayed);
+                delayed = util::ContainsInsensitive(rest, L"enabledelayedexpansion") || (delayed && !util::ContainsInsensitive(rest, L"disabledelayedexpansion"));
+            }
+            else if (verb == L"endlocal")
+            {
+                if (!scopes.empty())
+                {
+                    variables = std::move(scopes.back().first);
+                    delayed = scopes.back().second;
+                    scopes.pop_back();
+                }
+            }
             else if (verb == L"exit")
             {
                 return true;
             }
             else if (!util::StartsWithInsensitive(verb, L"echo") && verb != L"title" && verb != L"cls" && verb != L"color" &&
-                     verb != L"pause" && verb != L"chcp" && verb != L"setlocal" && verb != L"endlocal" && verb != L"timeout" &&
+                     verb != L"pause" && verb != L"chcp" && verb != L"timeout" &&
                      !(verb == L"net" && util::EqualsInsensitive(util::TrimWhitespace(rest), L"session")) && !verb.empty())
             {
                 return fail(util::TrLabel(L"Unsupported command", verb));

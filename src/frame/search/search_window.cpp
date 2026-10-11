@@ -1413,10 +1413,11 @@ void MainWindow::Impl::StartReplace(const ReplaceDialogResult& options)
     replace_target_ = session_;
     replace_session_.Start(
         L"ReplaceThread",
-        [this, start, options, matcher, hwnd, session = std::weak_ptr<RegistrySession>(session_)](uint64_t generation, std::atomic_bool& cancel) mutable {
+        [this, start, options, matcher, hwnd, session = std::weak_ptr<RegistrySession>(session_), source = HistorySource()](uint64_t generation, std::atomic_bool& cancel) mutable {
             auto payload = std::make_unique<ReplacePayload>();
             payload->generation = generation;
             payload->session = session;
+            payload->source = std::move(source);
             std::vector<RegistryNode> stack;
             std::vector<std::pair<RegistryNode, std::wstring>> key_renames;
             stack.push_back(start);
@@ -1635,7 +1636,7 @@ void MainWindow::Impl::CommitReplacePayload(std::unique_ptr<ReplacePayload> payl
         steps.push_back(std::move(change.undo));
         history.push_back(std::move(change.history));
     }
-    AppendHistoryEntries(std::move(history));
+    AppendHistoryEntries(std::move(history), payload->source);
     const auto session = payload->session.lock();
     if (session)
     {

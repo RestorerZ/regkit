@@ -57,6 +57,9 @@ struct TraceValueDialogState
     std::wstring value_name;
     DWORD type = REG_SZ;
     std::vector<BYTE> data;
+    std::wstring shown_text;
+    int shown_dword_base = 16;
+    int shown_qword_base = 16;
     bool accepted = false;
     bool read_only = false;
     int dword_base = 16;
@@ -84,6 +87,7 @@ struct ExtendedValueDialogState
 };
 
 std::wstring RegDataToString(const std::vector<BYTE>& data);
+int TraceEditorId(DWORD type);
 
 void ConfigureReadOnlyNameField(HWND dlg, const std::wstring& name)
 {
@@ -584,6 +588,15 @@ void PopulateTraceValueEditors(HWND dlg, TraceValueDialogState* state)
         UpdateBinaryPreviewEx(dlg, &state->binary, kBinaryIds);
         break;
     }
+    state->shown_text = util::DialogText(dlg, TraceEditorId(state->type));
+    state->shown_dword_base = state->dword_base;
+    state->shown_qword_base = state->qword_base;
+}
+
+bool TraceEditorUntouched(HWND dlg, const TraceValueDialogState& state, DWORD type)
+{
+    return type == state.type && state.dword_base == state.shown_dword_base && state.qword_base == state.shown_qword_base &&
+           util::DialogText(dlg, TraceEditorId(type)) == state.shown_text;
 }
 
 int TraceEditorId(DWORD type)
@@ -867,9 +880,10 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
                 {
                     return TRUE;
                 }
-                const bool empty_editor = util::DialogText(dlg, TraceEditorId(previous)).empty();
-                std::vector<BYTE> current;
-                if (!empty_editor && !SerializeTraceEditor(dlg, state, previous, &current))
+                const bool untouched = TraceEditorUntouched(dlg, *state, previous);
+                const bool empty_editor = !untouched && util::DialogText(dlg, TraceEditorId(previous)).empty();
+                std::vector<BYTE> current = state->data;
+                if (!untouched && !empty_editor && !SerializeTraceEditor(dlg, state, previous, &current))
                 {
                     ui::ShowError(dlg, util::Tr(L"The current data isn't valid, so the type can't be changed."));
                     SelectTraceType(dlg, state, previous);
@@ -1020,9 +1034,8 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
             if (id == IDOK)
             {
                 DWORD type = ReadTraceType(dlg, state);
-                std::vector<BYTE> data;
-                const bool ok = SerializeTraceEditor(dlg, state, type, &data);
-                if (!ok)
+                std::vector<BYTE> data = state->data;
+                if (!TraceEditorUntouched(dlg, *state, type) && !SerializeTraceEditor(dlg, state, type, &data))
                 {
                     ui::ShowError(dlg, util::Tr(L"Invalid value data."));
                     return TRUE;
@@ -1434,17 +1447,17 @@ bool EditValueBits(HWND owner, const BitsRequest& request, std::vector<BYTE>* da
     bits.read_only = request.read_only;
     std::vector<BYTE> source(request.data.begin(), request.data.end());
 
-    if (request.base_type == REG_DWORD && source.size() >= sizeof(DWORD))
+    if (request.base_type == REG_DWORD && source.size() == sizeof(DWORD))
     {
         bits.bit_count = 32;
         bits.value = value_format::ReadUnsigned(source, sizeof(DWORD));
     }
-    else if (request.base_type == REG_QWORD && source.size() >= sizeof(unsigned long long))
+    else if (request.base_type == REG_QWORD && source.size() == sizeof(unsigned long long))
     {
         bits.bit_count = 64;
         bits.value = value_format::ReadUnsigned(source, sizeof(unsigned long long));
     }
-    else if (request.base_type == REG_DWORD_BIG_ENDIAN && source.size() >= sizeof(DWORD))
+    else if (request.base_type == REG_DWORD_BIG_ENDIAN && source.size() == sizeof(DWORD))
     {
         bits.bit_count = 32;
         bits.value = value_format::ReadUnsigned(source, sizeof(DWORD), true);

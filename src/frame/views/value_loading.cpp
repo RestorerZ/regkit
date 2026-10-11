@@ -593,6 +593,42 @@ void MainWindow::Impl::StartSearchPreviewWorker()
     });
 }
 
+std::vector<std::vector<RegistryRootEntry>> MainWindow::Impl::SearchSourceRoots(const SearchTab& tab)
+{
+    std::vector<std::vector<RegistryRootEntry>> roots(tab.sources.size());
+    for (size_t i = 0; i < tab.sources.size(); ++i)
+    {
+        const search::Source& source = tab.sources[i];
+        if (source.kind == search::Source::Kind::kLocal)
+        {
+            roots[i] = LocalRoots(source.view);
+            continue;
+        }
+        // closed or disconnected source has no roots, its rows show no data
+        const int index = FindSourceTab(source);
+        if (index < 0)
+        {
+            continue;
+        }
+        const TabEntry& entry = tabs_[static_cast<size_t>(index)];
+        if (entry.kind == TabEntry::Kind::kRegFile)
+        {
+            for (const auto& root : entry.reg_file_roots)
+            {
+                if (root.root)
+                {
+                    roots[i].push_back({root.root, root.name, root.name});
+                }
+            }
+        }
+        else if (entry.session)
+        {
+            roots[i] = entry.session->roots;
+        }
+    }
+    return roots;
+}
+
 void MainWindow::Impl::QueueSearchPreviews(int first, int last)
 {
     const int index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
@@ -607,6 +643,7 @@ void MainWindow::Impl::QueueSearchPreviews(int first, int last)
     }
     auto task = std::make_unique<SearchPreviewTask>();
     const size_t count = tab.results.size();
+    const auto source_roots = SearchSourceRoots(tab);
     for (int i = first; i <= last && static_cast<size_t>(i) < count; ++i)
     {
         search::Result& row = tab.results[static_cast<size_t>(i)];
@@ -615,7 +652,7 @@ void MainWindow::Impl::QueueSearchPreviews(int first, int last)
             continue;
         }
         SearchPreviewRequest request;
-        if (!ResolvePathToNode(row.key_path, &request.node))
+        if (!ResolvePathInRoots(row.source < source_roots.size() ? source_roots[row.source] : browse_.roots(), row.key_path, &request.node))
         {
             row.data_text.clear();
             row.data_state = search::DataState::kLoaded;
@@ -712,12 +749,14 @@ void MainWindow::Impl::QueueSearchSort(SearchTab* tab)
     auto task = std::make_unique<SearchSortTask>();
     task->rows = tab->results;
     task->nodes.resize(task->rows.size());
+    const auto source_roots = SearchSourceRoots(*tab);
     for (size_t i = 0; i < task->rows.size(); ++i)
     {
         if (task->rows[i].data_state == search::DataState::kNotLoaded)
         {
             RegistryNode node;
-            if (ResolvePathToNode(task->rows[i].key_path, &node))
+            const uint16_t source = task->rows[i].source;
+            if (ResolvePathInRoots(source < source_roots.size() ? source_roots[source] : browse_.roots(), task->rows[i].key_path, &node))
             {
                 task->nodes[i] = std::move(node);
             }
