@@ -1,0 +1,102 @@
+// Copyright (C) 2026 nohuto
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+#include "ui/icon_loader.h"
+
+#include "win32/system_api.h"
+#include "win32/window_metrics.h"
+
+#include <commctrl.h>
+
+namespace regkit::appearance
+{
+
+namespace
+{
+
+HICON LoadScaledDown(HINSTANCE instance, PCWSTR name, int size)
+{
+    static const auto load = win32::ImportProc<HRESULT(WINAPI*)(HINSTANCE, PCWSTR, int, int, HICON*)>(L"comctl32.dll", "LoadIconWithScaleDown");
+    HICON icon = nullptr;
+    return load && SUCCEEDED(load(instance, name, size, size, &icon)) ? icon : nullptr;
+}
+
+} // namespace
+
+int ScaleForDpi(int size, UINT dpi)
+{
+    if (size <= 0)
+    {
+        return size;
+    }
+    dpi = dpi != 0 ? dpi : win32::DpiForWindow(nullptr);
+    if (dpi <= 96)
+    {
+        return size;
+    }
+    int scaled = MulDiv(size, static_cast<int>(dpi), 96);
+    return scaled > 0 ? scaled : size;
+}
+
+HICON LoadIconResource(int resource_id, int size, UINT dpi)
+{
+    if (resource_id == 0 || size <= 0)
+    {
+        return nullptr;
+    }
+    HINSTANCE instance = GetModuleHandleW(nullptr);
+    int scaled = ScaleForDpi(size, dpi);
+    HICON icon = LoadScaledDown(instance, MAKEINTRESOURCEW(resource_id), scaled);
+    if (!icon)
+    {
+        icon = static_cast<HICON>(
+            LoadImageW(instance, MAKEINTRESOURCEW(resource_id), IMAGE_ICON, scaled, scaled, LR_DEFAULTCOLOR)
+        );
+    }
+    return icon;
+}
+
+HICON LoadIconFromFile(const std::wstring& path, int size, UINT dpi)
+{
+    if (path.empty() || size <= 0)
+    {
+        return nullptr;
+    }
+    int scaled = ScaleForDpi(size, dpi);
+    HICON icon = LoadScaledDown(nullptr, path.c_str(), scaled);
+    if (!icon)
+    {
+        icon = static_cast<HICON>(
+            LoadImageW(nullptr, path.c_str(), IMAGE_ICON, scaled, scaled, LR_LOADFROMFILE | LR_DEFAULTCOLOR)
+        );
+    }
+    return icon;
+}
+
+void ImageListAddOrBlank(HIMAGELIST list, HICON icon, int size)
+{
+    if (!list)
+    {
+        return;
+    }
+    if (icon)
+    {
+        ImageList_AddIcon(list, icon);
+        return;
+    }
+    BITMAPINFO info = {};
+    info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth = size;
+    info.bmiHeader.biHeight = -size;
+    info.bmiHeader.biPlanes = 1;
+    info.bmiHeader.biBitCount = 32;
+    info.bmiHeader.biCompression = BI_RGB;
+    void* bits = nullptr;
+    if (HBITMAP blank = CreateDIBSection(nullptr, &info, DIB_RGB_COLORS, &bits, nullptr, 0))
+    {
+        ImageList_Add(list, blank, nullptr);
+        DeleteObject(blank);
+    }
+}
+
+} // namespace regkit::appearance

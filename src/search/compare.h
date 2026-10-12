@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "regfile/reg_file.h"
 #include "registry/registry_store.h"
 #include "search/search.h"
 
@@ -12,48 +13,50 @@
 #include <unordered_map>
 #include <vector>
 
-namespace regkit::search::compare {
+namespace regkit::search::compare
+{
 
-struct Row {
-  std::wstring key_path;
-  std::wstring first_key_path;
-  std::wstring second_key_path;
-  std::wstring value_name;
-  std::wstring first_text;
-  std::wstring second_text;
-  bool is_key = false;
-  bool matches = false;
+struct Row
+{
+    std::wstring key_path;
+    std::wstring first_key_path;
+    std::wstring second_key_path;
+    std::wstring value_name;
+    std::wstring first_text;
+    std::wstring second_text;
+    bool is_key = false;
+    bool matches = false;
 };
 
-struct Value {
-  std::wstring name;
-  DWORD type = REG_NONE;
-  std::vector<BYTE> data;
+using Value = RegistryValue;
+
+struct Key
+{
+    std::wstring relative_path;
+    std::unordered_map<std::wstring, Value> values;
 };
 
-struct Key {
-  std::wstring relative_path;
-  std::unordered_map<std::wstring, Value> values;
+struct Snapshot
+{
+    std::wstring label;
+    std::wstring base_path;
+    std::unordered_map<std::wstring, Key> keys;
+    // keys below the base that couldn't be read, left out on both sides
+    std::vector<std::wstring> unreadable;
 };
 
-struct Snapshot {
-  std::wstring label;
-  std::wstring base_path;
-  std::unordered_map<std::wstring, Key> keys;
+enum class RowFilter
+{
+    kDifferences,
+    kMatches,
+    kAll,
 };
 
-enum class RowFilter {
-  kDifferences,
-  kMatches,
-  kAll,
-};
-
-using NormalizePath =
-    std::function<std::wstring(const std::wstring& path)>;
+using NormalizePath = std::function<std::wstring(const std::wstring& path)>;
 
 bool CaptureRegistry(const std::wstring& base_path, const RegistryNode& base_node, bool recursive, Snapshot* snapshot, std::wstring* error = nullptr, std::atomic_bool* cancel = nullptr);
 
-bool LoadRegFile(const std::wstring& file_path, const std::wstring& base_path, bool recursive, const NormalizePath& normalize, Snapshot* snapshot, std::wstring* error, std::atomic_bool* cancel = nullptr);
+bool LoadRegFile(const std::wstring& file_path, const regfile::Document& document, const std::wstring& base_path, bool recursive, const NormalizePath& normalize, Snapshot* snapshot, std::wstring* error, std::atomic_bool* cancel = nullptr);
 
 void SortRows(std::vector<Row>* rows, int column, bool ascending);
 

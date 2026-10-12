@@ -10,8 +10,11 @@
 #include <string>
 #include <vector>
 
-namespace regkit::cli {
+namespace regkit::cli
+{
 
 bool Execute(const std::vector<std::wstring>& args, int* exit_code);
+// false when regkit wasnt started from a terminal
+bool PrintErrorToTerminal(const std::wstring& text);
 
 } // namespace regkit::cli

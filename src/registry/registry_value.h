@@ -10,12 +10,14 @@
 #include <string>
 #include <vector>
 
-namespace regkit {
+namespace regkit
+{
 
-struct RegistryValue {
-  std::wstring name;
-  DWORD type = REG_NONE;
-  std::vector<BYTE> data;
+struct RegistryValue
+{
+    std::wstring name;
+    DWORD type = REG_NONE;
+    std::vector<BYTE> data;
 };
 
 } // namespace regkit

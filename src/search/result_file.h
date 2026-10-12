@@ -8,7 +8,8 @@
 #include <string>
 #include <vector>
 
-namespace regkit::search {
+namespace regkit::search
+{
 
 bool ParseResults(const std::wstring& content, std::vector<Result>* out);
 std::wstring SerializeResults(const std::vector<Result>& results);

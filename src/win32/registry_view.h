@@ -7,20 +7,27 @@
 
 #include <windows.h>
 
-namespace regkit::win32 {
+namespace regkit::win32
+{
 
 inline constexpr REGSAM kDefaultRegistryView = KEY_WOW64_64KEY;
 inline constexpr REGSAM kAlternateRegistryView = KEY_WOW64_32KEY;
 
-inline const wchar_t* RegExeViewSwitch(
-    REGSAM view
-) {
-  SYSTEM_INFO info = {};
-  GetNativeSystemInfo(&info);
-  if (info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL) {
-    return L"";
-  }
-  return view == kAlternateRegistryView ? L"/reg:32" : L"/reg:64";
+// 64-bit windows keeps a separate registry view for 32-bit programs
+inline bool HasAlternateView()
+{
+    SYSTEM_INFO info = {};
+    GetNativeSystemInfo(&info);
+    return info.wProcessorArchitecture != PROCESSOR_ARCHITECTURE_INTEL;
+}
+
+inline const wchar_t* RegExeViewSwitch(REGSAM view)
+{
+    if (!HasAlternateView())
+    {
+        return L"";
+    }
+    return view == kAlternateRegistryView ? L"/reg:32" : L"/reg:64";
 }
 
 } // namespace regkit::win32

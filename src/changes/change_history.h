@@ -9,56 +9,67 @@
 #include <string>
 #include <vector>
 
-namespace regkit {
+namespace regkit
+{
 
-struct HistoryEntry {
-  enum class RevertKind {
-    kNone,
-    kSetValue,
-    kDeleteValue,
-    kDeleteKey,
-  };
+struct HistoryEntry
+{
+    enum class RevertKind
+    {
+        kNone,
+        kSetValue,
+        kDeleteValue,
+        kDeleteKey,
+    };
 
-  uint64_t timestamp = 0;
-  std::wstring time_text;
-  std::wstring action;
-  std::wstring old_data;
-  std::wstring new_data;
-  std::wstring key_path;
-  std::wstring value_name;
-  RevertKind revert_kind = RevertKind::kNone;
-  ValueEntry revert_value;
+    uint64_t timestamp = 0;
+    std::wstring time_text;
+    std::wstring action;
+    std::wstring old_data;
+    std::wstring new_data;
+    std::wstring key_path;
+    std::wstring value_name;
+    RevertKind revert_kind = RevertKind::kNone;
+    RegistryValue revert_value;
+    bool backup_mode = false;
+    // search::Source of the tab that made the change, kind -1 when unknown
+    int source_kind = -1;
+    std::wstring source_name;
+    REGSAM source_view = 0;
 };
 
-namespace changes {
+namespace changes
+{
 
-struct HistoryDocument {
-  static constexpr int kCurrentVersion = 2;
-  int source_version = 1;
-  std::vector<HistoryEntry> entries;
+struct HistoryDocument
+{
+    static constexpr int kCurrentVersion = 2;
+    int source_version = 1;
+    std::vector<HistoryEntry> entries;
 };
 
-using QueryValue =
-    std::function<bool(const std::wstring&, const std::wstring&, ValueEntry*)>;
+using QueryValue = std::function<bool(const std::wstring&, const std::wstring&, RegistryValue*)>;
 using PathExists = std::function<bool(const std::wstring&)>;
 
-class ChangeHistory {
-public:
-  HistoryEntry Append(HistoryEntry entry, size_t maximum);
-  void Replace(std::vector<HistoryEntry> entries, size_t maximum);
-  void Clear();
-  void Sort(int column, bool ascending);
+class ChangeHistory
+{
+  public:
+    // returns the entries as stamped, for the cache file
+    std::vector<HistoryEntry> Append(std::vector<HistoryEntry> entries, size_t maximum);
+    void Replace(std::vector<HistoryEntry> entries, size_t maximum);
+    void Clear();
+    void Sort(int column, bool ascending);
 
-  const std::vector<HistoryEntry>& entries() const noexcept;
-  std::vector<HistoryEntry>& entries() noexcept;
+    const std::vector<HistoryEntry>& entries() const noexcept;
+    std::vector<HistoryEntry>& entries() noexcept;
 
-private:
-  std::vector<HistoryEntry> entries_;
+  private:
+    std::vector<HistoryEntry> entries_;
 };
 
 HistoryDocument ParseHistory(const std::wstring& content);
 std::wstring SerializeHistoryEntry(const HistoryEntry& entry);
-bool AppendHistoryFile(const std::wstring& path, const HistoryEntry& entry);
+bool AppendHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>& entries);
 bool WriteHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>& entries);
 bool PrepareRevert(const HistoryEntry& entry, const QueryValue& query_value, HistoryEntry* prepared);
 bool FindNearestExistingPath(const std::wstring& path, const PathExists& path_exists, std::wstring* nearest_path);

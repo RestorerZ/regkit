@@ -1,41 +1,52 @@
 regkit_add_library(regkit_frame
-    address_complete.cpp
-    browse_view.cpp
-    clipboard_commands.cpp
-    command_dispatch.cpp
-    compare_command.cpp
-    control_lifetime.cpp
-    context_menus.cpp
-    default_commands.cpp
-    file_view_commands.cpp
-    history_workspace.cpp
-    launch_bridge.cpp
+    commands/clipboard_commands.cpp
+    commands/context_menus.cpp
+    commands/file_view_commands.cpp
+    commands/mutation_commands.cpp
+    commands/tools_commands.cpp
+    commands/undo.cpp
+    commands/workspace_commands.cpp
+    detail/control_detail.cpp
+    detail/draw_detail.cpp
+    detail/file_detail.cpp
     main_window.cpp
-    menu_bar.cpp
-    menu_rendering.cpp
-    message_dispatch.cpp
-    message_routes.cpp
-    mutation_commands.cpp
-    parse_sessions.cpp
-    regfile_commands.cpp
-    registry_sessions.cpp
-    research_links.cpp
-    search_window.cpp
-    stored_records.cpp
-    tab_lists.cpp
-    toolbar.cpp
-    tools_commands.cpp
-    trace_commands.cpp
-    trace_loading.cpp
-    tree_restore.cpp
-    undo_menus.cpp
-    update_check.cpp
-    value_loading.cpp
-    window_appearance.cpp
-    window_events.cpp
-    window_layout.cpp
-    window_paint.cpp
-    workspace_commands.cpp
+    search/compare_command.cpp
+    search/compare_dialog.cpp
+    search/search_window.cpp
+    sources/default_commands.cpp
+    sources/parse_sessions.cpp
+    sources/regfile_commands.cpp
+    sources/source_lists.cpp
+    sources/trace_commands.cpp
+    sources/trace_loading.cpp
+    tools/convert_dialog.cpp
+    tools/key_handles_window.cpp
+    tools/launch_bridge.cpp
+    tools/research_links.cpp
+    tools/update_checker.cpp
+    views/address_complete.cpp
+    views/browse_view.cpp
+    views/column_menus.cpp
+    views/history_workspace.cpp
+    views/registry_sessions.cpp
+    views/selection.cpp
+    views/tab_lists.cpp
+    views/tree_restore.cpp
+    views/value_loading.cpp
+    window/appearance.cpp
+    window/events.cpp
+    window/layout.cpp
+    window/lifetime.cpp
+    window/menu_bar.cpp
+    window/menu_rendering.cpp
+    window/message_dispatch.cpp
+    window/message_routes.cpp
+    window/notifications.cpp
+    window/owner_draw.cpp
+    window/paint.cpp
+)
+target_precompile_headers(regkit_frame PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/window_detail.h"
 )
 target_include_directories(regkit_frame PRIVATE
     "${PROJECT_SOURCE_DIR}/resources"
@@ -47,16 +58,13 @@ target_link_libraries(regkit_frame PRIVATE
     regkit_browse
     regkit_changes
     regkit_workspace
-    regkit_appearance
-    regkit_editors
-    regkit_registry_io
-    regkit_search_dialogs
-    regkit_trace_dialog
-    regkit_security
+    regkit_dialogs
+    regkit_ui
     regkit_search
     regkit_trace
     regkit_defaults
     regkit_regfile
+    regkit_records
     regkit_registry
     regkit_win32
     advapi32

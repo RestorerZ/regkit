@@ -13,24 +13,28 @@
 #include <string_view>
 #include <vector>
 
-namespace util {
+namespace regkit::util
+{
 
-inline constexpr int HexDigitValue(
-    wchar_t character
-) {
-  return character >= L'0' && character <= L'9'   ? character - L'0'
-         : character >= L'a' && character <= L'f' ? character - L'a' + 10
-         : character >= L'A' && character <= L'F' ? character - L'A' + 10
-                                                  : -1;
+inline constexpr int HexDigitValue(wchar_t character)
+{
+    return character >= L'0' && character <= L'9'   ? character - L'0'
+           : character >= L'a' && character <= L'f' ? character - L'a' + 10
+           : character >= L'A' && character <= L'F' ? character - L'A' + 10
+                                                    : -1;
 }
 std::wstring WindowText(HWND window);
 std::wstring DialogText(HWND dialog, int control_id);
 bool ParseUnsignedNumber(std::wstring_view text, int base, unsigned long long* value);
 std::wstring ToLower(std::wstring_view text);
 std::wstring TrimWhitespace(std::wstring_view text);
+std::wstring FormatLocalTime(const SYSTEMTIME& time, bool with_seconds = false);
+std::wstring LocalTimeFormat();
 bool IsBlank(std::wstring_view text);
 std::wstring ExpandEnvironmentStringsDynamic(const std::wstring& text);
 std::wstring ToHex(std::span<const BYTE> data, wchar_t separator = L' ', bool uppercase = false, size_t max_bytes = 0);
+// 16 bytes per line for edit controls, which wrap one huge line very slowly
+std::wstring ToHexLines(std::span<const BYTE> data);
 
 int CompareInsensitive(std::wstring_view left, std::wstring_view right);
 int CompareListText(std::wstring_view left, std::wstring_view right);
@@ -44,4 +48,4 @@ bool ParseBool(std::wstring_view text);
 std::vector<std::wstring> SplitLines(std::wstring_view text);
 std::wstring JoinLines(const std::vector<std::wstring>& lines);
 
-} // namespace util
+} // namespace regkit::util

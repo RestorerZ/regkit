@@ -5,7 +5,8 @@
 
 #include "trace/trace_parser.h"
 
-namespace regkit::trace {
+namespace regkit::trace
+{
 
 bool LoadEntries(const std::wstring& path, const Normalizers& normalizers, const EntryCallback& callback, std::wstring* error, const std::atomic_bool* cancel = nullptr);
 

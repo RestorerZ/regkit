@@ -10,11 +10,13 @@
 #include <string>
 #include <string_view>
 
-namespace regkit::trace {
+namespace regkit::trace
+{
 
-struct Normalizers {
-  std::function<std::wstring(const std::wstring&)> key;
-  std::function<std::wstring(const std::wstring&)> display;
+struct Normalizers
+{
+    std::function<std::wstring(const std::wstring&)> key;
+    std::function<std::wstring(const std::wstring&)> display;
 };
 
 using EntryCallback = std::function<bool(Entry&& entry)>;

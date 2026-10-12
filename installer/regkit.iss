@@ -1,7 +1,6 @@
-﻿#define AppId "4678f42c-c6a2-4df9-bc2a-dddbd2613045"
+#define AppId "4678f42c-c6a2-4df9-bc2a-dddbd2613045"
 #define AppName "RegKit"
 #define AppExeName "regkit.exe"
-#define AppVersion "0.0.1.2"
 #define AppPublisher "nohuto"
 #define AppCopyright "(C) 2026 nohuto"
 #define AppURL "https://github.com/nohuto/regkit"
@@ -13,11 +12,13 @@
 #else
   #define BuildDir "..\\build\\Release"
 #endif
+#define AppVersion GetVersionNumbersString(AddBackslash(BuildDir) + AppExeName)
 
 [Setup]
 AppId={#AppId}
 AppName={#AppName}
 AppVersion={#AppVersion}
+AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}
@@ -32,6 +33,10 @@ DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 SetupIconFile=..\assets\icons\regkit.ico
 UninstallDisplayIcon={app}\{#AppExeName}
+WizardSmallImageFile=images\small-55.png,images\small-69.png,images\small-83.png,images\small-97.png,images\small-110.png,images\small-138.png
+WizardImageFile=images\large-100.png,images\large-125.png,images\large-150.png,images\large-175.png,images\large-200.png,images\large-250.png
+WizardSmallImageFileDynamicDark=images\small-55.png,images\small-69.png,images\small-83.png,images\small-97.png,images\small-110.png,images\small-138.png
+WizardImageFileDynamicDark=images\large-100.png,images\large-125.png,images\large-150.png,images\large-175.png,images\large-200.png,images\large-250.png
 Compression=lzma2
 SolidCompression=yes
 ChangesAssociations=yes
@@ -41,28 +46,73 @@ ArchitecturesInstallIn64BitMode=x64os
 #endif
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
-WizardStyle=modern
+WizardStyle=modern dynamic
 OutputDir=dist
 OutputBaseFilename=RegKit-Setup-{#AppVersion}-{#Arch}
+
+[Messages]
+PrivilegesRequiredOverrideTitle=Install Mode
+PrivilegesRequiredOverrideInstruction=Select install mode
+PrivilegesRequiredOverrideText1=Install %1 for:
+PrivilegesRequiredOverrideAllUsersRecommended=&All users
+PrivilegesRequiredOverrideCurrentUser=&Only me
+
+[Types]
+Name: "full"; Description: "Full installation"
+Name: "minimal"; Description: "Minimal installation"
+Name: "custom"; Description: "Custom installation"; Flags: iscustom
+
+[Components]
+Name: "main"; Description: "RegKit"; Types: full minimal custom; Flags: fixed
+Name: "icons"; Description: "Classic toolbar icon set"; Types: full
+Name: "comments"; Description: "Default comments"; Types: full
+Name: "traces"; Description: "Trace files for the Trace menu"; Types: full
+Name: "bitfields"; Description: "Bitfield definitions"; Types: full
+Name: "defaults"; Description: "Registry exports for the Default menu"; Types: full
+Name: "lang"; Description: "Languages"
+Name: "lang\de"; Description: "Deutsch"; Types: full; Check: SystemLanguage(7)
+Name: "lang\de_other"; Description: "Deutsch"; Check: not SystemLanguage(7)
+Name: "lang\fr"; Description: "Français"; Types: full; Check: SystemLanguage(12)
+Name: "lang\fr_other"; Description: "Français"; Check: not SystemLanguage(12)
+Name: "lang\ru"; Description: "Русский"; Types: full; Check: SystemLanguage(25)
+Name: "lang\ru_other"; Description: "Русский"; Check: not SystemLanguage(25)
+Name: "lang\es"; Description: "Español"; Types: full; Check: SystemLanguage(10)
+Name: "lang\es_other"; Description: "Español"; Check: not SystemLanguage(10)
+Name: "lang\it"; Description: "Italiano"; Types: full; Check: SystemLanguage(16)
+Name: "lang\it_other"; Description: "Italiano"; Check: not SystemLanguage(16)
+Name: "lang\ja"; Description: "日本語"; Types: full; Check: SystemLanguage(17)
+Name: "lang\ja_other"; Description: "日本語"; Check: not SystemLanguage(17)
+Name: "lang\pt_BR"; Description: "Português (Brasil)"; Types: full; Check: SystemLanguage(22)
+Name: "lang\pt_BR_other"; Description: "Português (Brasil)"; Check: not SystemLanguage(22)
+Name: "lang\zh_CN"; Description: "简体中文"; Types: full; Check: SystemLanguage(4)
+Name: "lang\zh_CN_other"; Description: "简体中文"; Check: not SystemLanguage(4)
+Name: "lang\ko"; Description: "한국어"; Types: full; Check: SystemLanguage(18)
+Name: "lang\ko_other"; Description: "한국어"; Check: not SystemLanguage(18)
 
 [Tasks]
 Name: "startmenu"; Description: "Start Menu shortcut"; GroupDescription: "Shortcuts:"; Flags: checkedonce
 Name: "desktopicon"; Description: "Desktop shortcut"; GroupDescription: "Shortcuts:"
 Name: "replace_regedit"; Description: "Replace RegEdit"; GroupDescription: "Integration:"; Check: IsAdminInstallMode
 Name: "edit_context_menu"; Description: "Add ""Edit"" Context Menu"; GroupDescription: "Integration:"; Flags: checkedonce
-Name: "defaults"; Description: "Install registry exports used by the Default menu (~200 MB)"; GroupDescription: "Optional data:"
-Name: "bitfields"; Description: "Install bitfield definitions"; GroupDescription: "Optional data:"
 
 [Files]
-Source: "{#BuildDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BuildDir}\offreg.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\redist\pcre2\LICENCE.md"; DestDir: "{app}\licences"; DestName: "PCRE2-LICENCE.md"; Flags: ignoreversion
-Source: "{#BuildDir}\assets\*"; DestDir: "{app}\assets"; Excludes: "bitfields\*,defaults\*,records\*"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#BuildDir}\assets\defaults\*"; DestDir: "{app}\assets\defaults"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: defaults
-Source: "{#BuildDir}\assets\bitfields\*"; DestDir: "{app}\assets\bitfields"; Flags: ignoreversion recursesubdirs createallsubdirs; Tasks: bitfields
-Source: "{#BuildDir}\assets\records\23H2.txt"; DestDir: "{app}\assets\records"; Flags: ignoreversion
-Source: "{#BuildDir}\assets\records\24H2.txt"; DestDir: "{app}\assets\records"; Flags: ignoreversion
-Source: "{#BuildDir}\assets\records\25H2.txt"; DestDir: "{app}\assets\records"; Flags: ignoreversion
+Source: "{#BuildDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Components: main
+Source: "{#BuildDir}\offreg.dll"; DestDir: "{app}"; Flags: ignoreversion; Components: main
+Source: "..\redist\pcre2\LICENCE.md"; DestDir: "{app}\licences"; DestName: "PCRE2-LICENCE.md"; Flags: ignoreversion; Components: main
+Source: "{#BuildDir}\assets\icons\classic\*"; DestDir: "{app}\assets\icons\classic"; Flags: ignoreversion; Components: icons
+Source: "{#BuildDir}\assets\comments\*"; DestDir: "{app}\assets\comments"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: comments
+Source: "{#BuildDir}\assets\records\*"; DestDir: "{app}\assets\records"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: traces
+Source: "{#BuildDir}\assets\bitfields\*"; DestDir: "{app}\assets\bitfields"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: bitfields
+Source: "{#BuildDir}\assets\lang\de.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\de lang\de_other
+Source: "{#BuildDir}\assets\lang\fr.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\fr lang\fr_other
+Source: "{#BuildDir}\assets\lang\ru.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\ru lang\ru_other
+Source: "{#BuildDir}\assets\lang\es.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\es lang\es_other
+Source: "{#BuildDir}\assets\lang\it.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\it lang\it_other
+Source: "{#BuildDir}\assets\lang\ja.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\ja lang\ja_other
+Source: "{#BuildDir}\assets\lang\pt-BR.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\pt_BR lang\pt_BR_other
+Source: "{#BuildDir}\assets\lang\zh-CN.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\zh_CN lang\zh_CN_other
+Source: "{#BuildDir}\assets\lang\ko.po"; DestDir: "{app}\assets\lang"; Flags: ignoreversion; Components: lang\ko lang\ko_other
+Source: "{#BuildDir}\assets\defaults\*"; DestDir: "{app}\assets\defaults"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: defaults
 
 [Icons]
 Name: "{autoprograms}\RegKit\RegKit"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: startmenu
@@ -74,15 +124,75 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\DefaultIcon"; Va
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\SupportedTypes"; ValueType: string; ValueName: ".reg"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\shell\open\command"; ValueType: string; ValueData: """{app}\{#AppExeName}"" ""%1"""
 [Code]
+// full installs only the pack of the Windows display language
+function SystemLanguage(PrimaryLanguage: Integer): Boolean;
+begin
+  Result := (GetUILanguage and $3FF) = PrimaryLanguage;
+end;
+
+function ConfirmOverride: Boolean;
+var
+  Form: TSetupForm;
+  Text: TNewStaticText;
+  OverrideButton, CancelButton: TNewButton;
+  W: Integer;
+begin
+  Result := False;
+  if WizardSilent then
+    exit;
+  Form := CreateCustomForm(ScaleX(380), ScaleY(100), False, False);
+  try
+    Form.Caption := 'Replace RegEdit';
+    Text := TNewStaticText.Create(Form);
+    Text.Parent := Form;
+    Text.AutoSize := False;
+    Text.WordWrap := True;
+    Text.Left := ScaleX(12);
+    Text.Top := ScaleY(12);
+    Text.Width := Form.ClientWidth - ScaleX(24);
+    Text.Height := Form.ClientHeight - ScaleY(12 + 23 + 24);
+    Text.Caption := 'RegEdit already has a Debugger entry owned by another program.'#13#10#13#10'Override the existing entry?';
+
+    OverrideButton := TNewButton.Create(Form);
+    OverrideButton.Parent := Form;
+    OverrideButton.Caption := 'Override';
+    OverrideButton.ModalResult := mrOk;
+
+    CancelButton := TNewButton.Create(Form);
+    CancelButton.Parent := Form;
+    CancelButton.Caption := 'Cancel';
+    CancelButton.ModalResult := mrCancel;
+    CancelButton.Cancel := True;
+    CancelButton.Default := True;
+
+    W := Form.CalculateButtonWidth([OverrideButton.Caption, CancelButton.Caption]);
+    CancelButton.SetBounds(Form.ClientWidth - ScaleX(12) - W, Form.ClientHeight - ScaleY(12 + 23), W, ScaleY(23));
+    OverrideButton.SetBounds(CancelButton.Left - ScaleX(6) - W, CancelButton.Top, W, ScaleY(23));
+
+    Form.ActiveControl := CancelButton;
+    Form.FlipAndCenterIfNeeded(True, WizardForm, False);
+    Result := Form.ShowModal = mrOk;
+  finally
+    Form.Free;
+  end;
+end;
+
 procedure InstallRegEditReplacement;
 var
   ResultCode: Integer;
 begin
   if not WizardIsTaskSelected('replace_regedit') then
     exit;
-  if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--install-regedit-replacement', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then begin
-    RaiseException('RegEdit replacement couldn''t be installed. Another program may already own its Debugger entry, or non administrators can modify the install folder.');
+  if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--install-regedit-replacement', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    ResultCode := 1;
+  if ResultCode = 2 then begin
+    if not ConfirmOverride then
+      exit;
+    if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--install-regedit-replacement --override', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+      ResultCode := 1;
   end;
+  if ResultCode <> 0 then
+    SuppressibleMsgBox('RegEdit replacement couldn''t be installed. Non administrators may be able to modify the install folder.', mbError, MB_OK, IDOK);
 end;
 
 procedure RemoveRegEditReplacement;

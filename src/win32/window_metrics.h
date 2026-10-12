@@ -7,7 +7,8 @@
 
 #include <windows.h>
 
-namespace regkit::win32 {
+namespace regkit::win32
+{
 
 UINT DpiForWindow(HWND window);
 

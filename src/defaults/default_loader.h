@@ -9,11 +9,13 @@
 #include <functional>
 #include <vector>
 
-namespace regkit::defaults {
+namespace regkit::defaults
+{
 
-using NormalizePath =
-    std::function<std::wstring(const std::wstring& path)>;
+using NormalizePath = std::function<std::wstring(const std::wstring& path)>;
 
 bool Load(const std::wstring& path, const NormalizePath& normalize, Data* data, std::vector<Entry>* entries, std::wstring* error, const std::atomic_bool* cancel = nullptr);
+// a short menu label for a defaults file: "Windows 11 24H2" from its folder, else the label without hive words
+std::wstring ShortLabel(const std::wstring& label, const std::wstring& source_path);
 
 } // namespace regkit::defaults

@@ -7,49 +7,80 @@
 
 #include <windows.h>
 
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-namespace regkit::changes {
+namespace regkit::changes
+{
 
-struct CommentEntry {
-  std::wstring path;
-  std::wstring name;
-  DWORD type = 0;
-  std::wstring text;
+enum class CommentKeyScope
+{
+    kAny,
+    kExact,
+    kRecursive,
 };
 
-struct CommentDocument {
-  static constexpr int kCurrentVersion = 1;
-  int source_version = 1;
-  std::vector<CommentEntry> value_entries;
-  std::vector<CommentEntry> name_entries;
+enum class CommentSource
+{
+    kNone,
+    kUser,
+    kDefault,
 };
 
-class ValueComments {
-public:
-  bool Load(const std::wstring& path);
-  bool Save(const std::wstring& path) const;
-  void Clear();
-  void Merge(const CommentDocument& document);
-
-  const std::unordered_map<std::wstring, CommentEntry>&
-  value_entries() const noexcept;
-  std::unordered_map<std::wstring, CommentEntry>& value_entries() noexcept;
-  const std::unordered_map<std::wstring, CommentEntry>&
-  name_entries() const noexcept;
-  std::unordered_map<std::wstring, CommentEntry>& name_entries() noexcept;
-
-  static std::wstring ValueKey(const std::wstring& path, const std::wstring& name, DWORD type);
-  static std::wstring NameKey(const std::wstring& name, DWORD type);
-
-private:
-  std::unordered_map<std::wstring, CommentEntry> value_entries_;
-  std::unordered_map<std::wstring, CommentEntry> name_entries_;
+struct CommentRule
+{
+    std::wstring name;
+    std::optional<DWORD> type;
+    std::optional<uint64_t> data_size;
+    CommentKeyScope key_scope = CommentKeyScope::kAny;
+    std::wstring key_path;
+    std::wstring text;
+    bool key = false;
 };
 
-bool ParseComments(const std::wstring& content, CommentDocument* out);
+struct CommentTarget
+{
+    std::wstring path;
+    std::wstring name;
+    DWORD type = 0;
+    uint64_t data_size = 0;
+    bool key = false;
+};
+
+struct ResolvedComment
+{
+    std::wstring text;
+    CommentSource source = CommentSource::kNone;
+    CommentRule rule;
+};
+
+class ValueComments
+{
+  public:
+    bool Load(const std::wstring& path);
+    bool Save(const std::wstring& path) const;
+    void Clear();
+    void Merge(const std::vector<CommentRule>& rules);
+    const CommentRule* Match(const CommentTarget& target) const;
+    void Set(CommentRule rule);
+    void Erase(const CommentRule& rule);
+    const std::vector<CommentRule>& rules() const noexcept;
+
+  private:
+    void Reindex();
+
+    std::vector<CommentRule> rules_;
+    std::unordered_map<std::wstring, std::vector<size_t>> index_;
+    std::unordered_map<std::wstring, size_t> key_index_;
+};
+
+bool ParseComments(const std::wstring& content, std::vector<CommentRule>* out, std::wstring* error = nullptr);
+bool ValidateCatalog(const std::vector<CommentRule>& rules);
 std::wstring SerializeComments(const ValueComments& comments);
+CommentRule ValueRule(const CommentTarget& target);
+ResolvedComment ResolveComment(const ValueComments& user, const ValueComments& defaults, const CommentTarget& target);
 
 } // namespace regkit::changes

@@ -8,24 +8,29 @@
 #include <windows.h>
 
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
 
-namespace regkit {
+namespace regkit
+{
 
 struct RegistryNode;
+enum class ClassSource : unsigned char;
 
-namespace registry_path {
+namespace registry_path
+{
 
-enum class Style {
-  kFull,
-  kAbbreviated,
-  kRegEditAddress,
-  kRegFileHeader,
-  kPowerShellDrive,
-  kPowerShellProvider,
-  kEscaped,
+enum class Style
+{
+    kFull,
+    kAbbreviated,
+    kRegEditAddress,
+    kRegFileHeader,
+    kPowerShellDrive,
+    kPowerShellProvider,
+    kEscaped,
 };
 
 inline constexpr wchar_t kNullSymbol = 0x2400;
@@ -36,11 +41,20 @@ HKEY RootFromName(std::wstring_view name);
 std::wstring RootName(HKEY root);
 std::wstring Build(const RegistryNode& node);
 std::wstring BuildNative(const RegistryNode& node);
+bool InVolatileHive(std::wstring_view native_path);
+ClassSource ClassesSource(std::wstring_view native_path);
+std::wstring ClassesSourcePath(std::wstring_view native_path, std::wstring_view current_user_sid);
+// uac virtualization keeps per-user copies of HKLM\SOFTWARE keys in the virtual store, empty when the key has no such place
+std::wstring VirtualStorePath(std::wstring_view native_path);
+std::wstring GlobalKeyPath(std::wstring_view path);
 
 std::wstring Clean(std::wstring_view path);
+bool HasComponentPrefix(std::wstring_view path, std::wstring_view prefix);
 std::wstring Normalize(std::wstring_view path, std::wstring_view current_user_sid = {});
 std::wstring Format(std::wstring_view normalized_path, Style style, std::wstring_view tree_root = L"Computer");
 bool ParseRoot(std::wstring_view path, RegistryNode* node);
+// a key path, optionally naming a value as key!value, key: value or a trailing value name
+bool ResolveJumpTarget(std::wstring_view target, const std::function<std::wstring(const std::wstring&)>& normalize, const std::function<bool(const std::wstring&, RegistryNode*)>& key_exists, std::wstring* key_path, std::wstring* value_name, bool* value_missing);
 std::vector<std::wstring> Split(std::wstring_view path);
 std::wstring Join(const std::vector<std::wstring>& parts, size_t first_part = 0);
 std::wstring JoinPrefix(const std::vector<std::wstring>& parts, size_t part_count);

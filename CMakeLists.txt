@@ -56,9 +56,8 @@ target_include_directories(RegKit PRIVATE
 target_link_libraries(RegKit PRIVATE
     regkit_frame
     regkit_cli
-    regkit_registry_io
-    regkit_editors
-    regkit_appearance
+    regkit_dialogs
+    regkit_ui
     regkit_win32
     advapi32
     comctl32
@@ -84,11 +83,17 @@ if (NOT EXISTS "${REGKIT_OFFREG_DLL}")
     message(FATAL_ERROR "Missing ${REGKIT_OFFREG_DLL}. Offline Registry requires the Microsoft offreg.dll redistributable for this architecture.")
 endif()
 
+file(GLOB REGKIT_LANGUAGE_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/assets/lang/*.po")
+
 add_custom_command(TARGET RegKit POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${REGKIT_OFFREG_DLL}"
         "$<TARGET_FILE_DIR:RegKit>/offreg.dll"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/redist/pcre2/LICENCE.md"
+        "$<TARGET_FILE_DIR:RegKit>/licences/PCRE2-LICENCE.md"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:RegKit>/assets/records"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:RegKit>/assets/icons"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:RegKit>/assets/icons"
     COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:RegKit>/assets/defaults"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:RegKit>/assets/defaults"
@@ -111,7 +116,19 @@ add_custom_command(TARGET RegKit POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/assets/bitfields"
         "$<TARGET_FILE_DIR:RegKit>/assets/bitfields"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:RegKit>/assets/lang"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:RegKit>/assets/lang"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:RegKit>/assets/comments"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/assets/comments"
+        "$<TARGET_FILE_DIR:RegKit>/assets/comments"
 )
+
+if (REGKIT_LANGUAGE_FILES)
+    add_custom_command(TARGET RegKit POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${REGKIT_LANGUAGE_FILES} "$<TARGET_FILE_DIR:RegKit>/assets/lang"
+    )
+endif()
 
 if (MSVC)
     target_link_options(RegKit PRIVATE "/MANIFEST:NO")
@@ -121,21 +138,19 @@ regkit_verify_dependency_order(
     regkit_win32
     regkit_records
     regkit_work
+    regkit_ui
     regkit_registry
     regkit_regfile
     regkit_search
     regkit_trace
     regkit_defaults
     regkit_changes
-    regkit_browse
     regkit_workspace
-    regkit_appearance
-    regkit_editors
-    regkit_registry_io
-    regkit_search_dialogs
-    regkit_trace_dialog
-    regkit_security
+    regkit_browse
+    regkit_dialogs
     regkit_frame
     regkit_cli
     RegKit
 )
+
+regkit_verify_include_order(win32 records work ui registry regfile search trace defaults changes workspace browse dialogs frame cli launch)

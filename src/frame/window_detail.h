@@ -3,5 +3,5 @@
 
 #pragma once
 
-#include "frame/window_control_detail.h"
+#include "frame/detail/control_detail.h"
 #include "win32/window_metrics.h"

@@ -9,43 +9,54 @@
 #include <string>
 #include <vector>
 
-namespace regkit::changes {
+namespace regkit::changes
+{
 
-struct UndoOperation {
-  enum class Type {
-    kCreateKey,
-    kDeleteKey,
-    kRenameKey,
-    kCreateValue,
-    kDeleteValue,
-    kModifyValue,
-    kRenameValue,
-  };
+struct UndoOperation
+{
+    enum class Type
+    {
+        kCreateKey,
+        kDeleteKey,
+        kRenameKey,
+        kCreateValue,
+        kDeleteValue,
+        kModifyValue,
+        kRenameValue,
+        kReplaceKey,
+        kGroup,
+    };
 
-  Type type = Type::kCreateKey;
-  RegistryNode node;
-  std::wstring name;
-  std::wstring new_name;
-  ValueEntry old_value;
-  ValueEntry new_value;
-  KeySnapshot key_snapshot;
+    Type type = Type::kCreateKey;
+    RegistryNode node;
+    std::wstring name;
+    std::wstring new_name;
+    RegistryValue old_value;
+    RegistryValue new_value;
+    KeySnapshot key_snapshot;
+    KeySnapshot new_key_snapshot;
+    // kGroup, one undo step for a mass change, in the order it was made
+    std::vector<UndoOperation> steps;
 };
 
-class UndoStack {
-public:
-  void Push(UndoOperation operation);
-  void ClearRedo();
-  std::optional<UndoOperation> TakeUndo();
-  std::optional<UndoOperation> TakeRedo();
-  void CompleteUndo(UndoOperation operation);
-  void CompleteRedo(UndoOperation operation);
+class UndoStack
+{
+  public:
+    void Push(UndoOperation operation);
+    void Push(std::vector<UndoOperation> steps);
+    void CompletePartial(UndoOperation group, size_t replayed, bool redo, bool drop_failed = false);
+    void ClearRedo();
+    std::optional<UndoOperation> TakeUndo();
+    std::optional<UndoOperation> TakeRedo();
+    void CompleteUndo(UndoOperation operation);
+    void CompleteRedo(UndoOperation operation);
 
-  bool CanUndo() const noexcept;
-  bool CanRedo() const noexcept;
+    bool CanUndo() const noexcept;
+    bool CanRedo() const noexcept;
 
-private:
-  std::vector<UndoOperation> undo_;
-  std::vector<UndoOperation> redo_;
+  private:
+    std::vector<UndoOperation> undo_;
+    std::vector<UndoOperation> redo_;
 };
 
 } // namespace regkit::changes
