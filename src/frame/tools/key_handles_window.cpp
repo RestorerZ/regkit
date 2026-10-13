@@ -93,6 +93,7 @@ struct State
     bool scanning = false;
     int sort_column = kPid;
     bool ascending = true;
+    util::SortKeys sort_earlier;
 };
 
 std::wstring DecodeAccess(ACCESS_MASK mask)
@@ -271,8 +272,7 @@ void RebuildView(HWND dialog, State* state)
         }
     }
     std::stable_sort(state->view.begin(), state->view.end(), [state](size_t left, size_t right) {
-        const int order = CompareRows(state->rows[left], state->rows[right], state->sort_column);
-        return state->ascending ? order < 0 : order > 0;
+        return util::CompareSorted(state->sort_column, state->ascending, state->sort_earlier, [&](int key) { return CompareRows(state->rows[left], state->rows[right], key); }) < 0;
     });
     appearance::UpdateListViewSort(state->list, state->sort_column, state->ascending);
     ListView_SetItemState(state->list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
@@ -443,9 +443,7 @@ INT_PTR HandleNotify(HWND dialog, State* state, NMHDR* header)
         }
     case LVN_COLUMNCLICK:
         {
-            const int column = reinterpret_cast<NMLISTVIEW*>(header)->iSubItem;
-            state->ascending = column == state->sort_column ? !state->ascending : true;
-            state->sort_column = column;
+            appearance::UpdateListSortState(reinterpret_cast<NMLISTVIEW*>(header)->iSubItem, true, &state->sort_column, &state->ascending, &state->sort_earlier);
             RebuildView(dialog, state);
             return TRUE;
         }

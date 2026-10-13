@@ -135,7 +135,11 @@ void MainWindow::Impl::SortValueList(int column, bool toggle)
     {
         return;
     }
-    appearance::UpdateListSortState(column, toggle, &browse_.columns().sort_column, &browse_.columns().sort_ascending);
+    appearance::UpdateListSortState(column, toggle, &browse_.columns().sort_column, &browse_.columns().sort_ascending, &browse_.columns().sort_earlier);
+    // names are unique, so nothing after Name decides a tie or needs loading
+    auto& earlier = browse_.columns().sort_earlier;
+    const auto name = std::find_if(earlier.begin(), earlier.end(), [](const auto& key) { return key.first == kValueColName; });
+    earlier.erase(name == earlier.end() ? name : name + 1, earlier.end());
 
     if (value_list_loading_ && browse_.current_node())
     {
@@ -171,7 +175,7 @@ void MainWindow::Impl::SortValueList(int column, bool toggle)
     }
     const bool was_updating = updating_value_list_;
     updating_value_list_ = true;
-    SortValueRows(&rows, browse_.columns().sort_column, browse_.columns().sort_ascending);
+    SortValueRows(&rows, browse_.columns().sort_column, browse_.columns().sort_ascending, {});
     browse_.values().RebuildFilter();
     RestoreListSelection(browse_.values().hwnd(), selection, [this](int index) {
         const ListRow* row = browse_.values().RowAt(index);
@@ -192,7 +196,7 @@ void MainWindow::Impl::SortHistoryList(int column, bool toggle)
     {
         return;
     }
-    appearance::UpdateListSortState(column, toggle, &history_sort_column_, &history_sort_ascending_);
+    appearance::UpdateListSortState(column, toggle, &history_sort_column_, &history_sort_ascending_, &history_sort_earlier_);
 
     auto history_key_at = [this](int index) {
         const auto& entries = change_history_.entries();
@@ -210,7 +214,7 @@ void MainWindow::Impl::SortHistoryList(int column, bool toggle)
     appearance::UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
 }
 
-void MainWindow::Impl::SortSearchTabResults(SearchTab* tab)
+void MainWindow::Impl::SortSearchTabResults(SearchTab* tab, bool keep_order)
 {
     if (!tab)
     {
@@ -235,27 +239,29 @@ void MainWindow::Impl::SortSearchTabResults(SearchTab* tab)
         return static_cast<size_t>(row) < tab->results.size() ? SearchResultIdentity(tab->results[static_cast<size_t>(row)]) : std::wstring();
     };
     const StableListSelection selection = shown ? CaptureListSelection(search_results_list_, key_at) : StableListSelection();
+    // a click keeps the shown order for ties, new or reloaded rows use the earlier columns
+    const util::SortKeys earlier = keep_order ? util::SortKeys() : tab->sort_earlier;
     if (!tab->is_compare && tab->max_results > 0 && tab->results.size() > tab->max_results)
     {
-        search::SortResults(&tab->results, 0, true);
+        search::SortResults(&tab->results, -1, true);
         tab->results.resize(static_cast<size_t>(tab->max_results));
     }
     if (tab->is_compare)
     {
-        search::compare::SortRows(&tab->compare_rows, tab->sort_column, tab->sort_ascending);
+        search::compare::SortRows(&tab->compare_rows, tab->sort_column, tab->sort_ascending, earlier);
     }
     else if (tab->sort_column < 0)
     {
-        search::SortResults(&tab->results, 0, true);
+        search::SortResults(&tab->results, -1, true);
     }
     else if (tab->sort_column == 3 && std::any_of(tab->results.begin(), tab->results.end(), [](const search::Result& result) { return result.data_state == search::DataState::kNotLoaded; }))
     {
-        QueueSearchSort(tab);
+        QueueSearchSort(tab, earlier);
         return;
     }
     else
     {
-        search::SortResults(&tab->results, tab->sort_column, tab->sort_ascending);
+        search::SortResults(&tab->results, tab->sort_column, tab->sort_ascending, earlier, tab->sources);
     }
     if (shown)
     {
@@ -278,8 +284,9 @@ void MainWindow::Impl::SortSearchResults(int column, bool toggle)
     }
     EnsureSearchTabResultsLoaded(index);
     auto& tab = search_tabs_[static_cast<size_t>(index)];
-    appearance::UpdateListSortState(column, toggle, &tab.sort_column, &tab.sort_ascending);
-    SortSearchTabResults(&tab);
+    appearance::UpdateListSortState(column, toggle, &tab.sort_column, &tab.sort_ascending, &tab.sort_earlier);
+    ++tab.sort_revision;
+    SortSearchTabResults(&tab, true);
     appearance::UpdateListViewSort(search_results_list_, tab.sort_column, tab.sort_ascending);
 }
 
@@ -355,7 +362,7 @@ void MainWindow::Impl::RefreshHistory()
         (util::ReadTextFile(path, &content) || util::IsMissing(path)))
     {
         change_history_.Replace(std::move(changes::ParseHistory(content).entries), static_cast<size_t>(history_max_rows_));
-        change_history_.Sort(history_sort_column_, history_sort_ascending_);
+        change_history_.Sort(history_sort_column_, history_sort_ascending_, history_sort_earlier_);
         ListView_SetItemState(history_list_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
     }
     RebuildHistoryList();

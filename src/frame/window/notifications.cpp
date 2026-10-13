@@ -1348,12 +1348,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
             case 6:
                 if (buffer && capacity > 0 && result.source < tab->sources.size())
                 {
-                    std::wstring label = search::SourceLabel(tab->sources[result.source]);
-                    if (const wchar_t* field = search::MatchFieldLabel(result.match_field))
-                    {
-                        label.append(L" (").append(field).append(L")");
-                    }
-                    lstrcpynW(buffer, label.c_str(), capacity);
+                    lstrcpynW(buffer, search::SourceText(result, tab->sources).c_str(), capacity);
                 }
                 break;
             default:

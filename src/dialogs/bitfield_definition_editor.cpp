@@ -43,6 +43,7 @@ struct FieldEditor
     bool accepted = false;
     int sort_column = 0;
     bool sort_ascending = true;
+    util::SortKeys sort_earlier;
     HFONT ui_font = nullptr;
     appearance::DialogResizer resizer;
 };
@@ -61,6 +62,7 @@ struct Editor
     bool updating_combo = false;
     int field_sort_column = 0;
     bool field_sort_ascending = true;
+    util::SortKeys field_sort_earlier;
     HFONT ui_font = nullptr;
     appearance::DialogResizer resizer;
 
@@ -93,8 +95,7 @@ int CALLBACK CompareFieldBits(LPARAM left_data, LPARAM right_data, int column, v
             right_owner >= 0 ? state->parent->fields[static_cast<size_t>(right_owner)].name : std::wstring();
         result = util::CompareListText(left_name, right_name);
     }
-    return result != 0 ? result : (left < right ? -1 : left > right ? 1
-                                                                    : 0);
+    return result;
 }
 
 int CALLBACK CompareDefinitionFields(LPARAM left_data, LPARAM right_data, int column, void* context)
@@ -135,8 +136,7 @@ int CALLBACK CompareDefinitionFields(LPARAM left_data, LPARAM right_data, int co
     default:
         break;
     }
-    return result != 0 ? result : (left_index < right_index ? -1 : left_index > right_index ? 1
-                                                                                            : 0);
+    return result;
 }
 
 std::wstring BitsText(const Field& field)
@@ -205,7 +205,7 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
                 std::find(state->field.bits.begin(), state->field.bits.end(), bit) != state->field.bits.end();
             ListView_SetCheckState(list, item.iItem, checked);
         }
-        appearance::SortListViewItems(list, state->sort_column, false, &state->sort_column, &state->sort_ascending, CompareFieldBits, state);
+        appearance::SortListViewItems(list, state->sort_column, false, &state->sort_column, &state->sort_ascending, &state->sort_earlier, CompareFieldBits, state);
         if (!state->field.states.empty())
         {
             SetDlgItemTextW(dialog, IDC_FIELD_STATES, dialog_support::ToDisplayText(StatesText(state->field)).c_str());
@@ -250,7 +250,7 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
         if (header->idFrom == IDC_FIELD_BITS && header->code == LVN_COLUMNCLICK)
         {
             auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
-            appearance::SortListViewItems(GetDlgItem(dialog, IDC_FIELD_BITS), info->iSubItem, true, &state->sort_column, &state->sort_ascending, CompareFieldBits, state);
+            appearance::SortListViewItems(GetDlgItem(dialog, IDC_FIELD_BITS), info->iSubItem, true, &state->sort_column, &state->sort_ascending, &state->sort_earlier, CompareFieldBits, state);
             return TRUE;
         }
         INT_PTR drawn = 0;
@@ -357,7 +357,7 @@ void RefreshFieldList(HWND dialog, Editor* state)
         const std::wstring meaning = dialog_support::SingleLine(field.meaning);
         ListView_SetItemText(list, item.iItem, 3, const_cast<wchar_t*>(meaning.c_str()));
     }
-    appearance::SortListViewItems(list, state->field_sort_column, false, &state->field_sort_column, &state->field_sort_ascending, CompareDefinitionFields, state);
+    appearance::SortListViewItems(list, state->field_sort_column, false, &state->field_sort_column, &state->field_sort_ascending, &state->field_sort_earlier, CompareDefinitionFields, state);
     SendMessageW(list, WM_SETREDRAW, TRUE, 0);
     RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
 }
@@ -890,7 +890,7 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
         if (header->idFrom == IDC_DEF_LIST && header->code == LVN_COLUMNCLICK)
         {
             auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
-            appearance::SortListViewItems(GetDlgItem(dialog, IDC_DEF_LIST), info->iSubItem, true, &state->field_sort_column, &state->field_sort_ascending, CompareDefinitionFields, state);
+            appearance::SortListViewItems(GetDlgItem(dialog, IDC_DEF_LIST), info->iSubItem, true, &state->field_sort_column, &state->field_sort_ascending, &state->field_sort_earlier, CompareDefinitionFields, state);
             return TRUE;
         }
         if (header->idFrom == IDC_DEF_LIST && header->code == NM_DBLCLK)

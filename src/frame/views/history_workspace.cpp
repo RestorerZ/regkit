@@ -148,7 +148,7 @@ void MainWindow::Impl::AppendHistoryEntries(std::vector<HistoryEntry> entries, c
     {
         AppendHistoryCache(appended);
     }
-    change_history_.Sort(history_sort_column_, history_sort_ascending_);
+    change_history_.Sort(history_sort_column_, history_sort_ascending_, history_sort_earlier_);
     RebuildHistoryList();
 }
 
@@ -435,6 +435,9 @@ bool MainWindow::Impl::EnsureSearchTabResultsLoaded(int search_index)
     task->path = SearchTabCachePath(tab.cache_file);
     task->sort_column = tab.sort_column;
     task->sort_ascending = tab.sort_ascending;
+    task->sort_earlier = tab.sort_earlier;
+    task->sort_revision = tab.sort_revision;
+    task->sources = tab.sources;
     task->hwnd = hwnd_;
     tab.load_generation = task->generation;
 
@@ -472,6 +475,10 @@ void MainWindow::Impl::ApplySearchTabLoad(std::unique_ptr<SearchTabLoadPayload> 
     }
     tab.sort_dirty = false;
     tab.results_loaded = true;
+    if (tab.sort_revision != owned->sort_revision)
+    {
+        SortSearchTabResults(&tab);
+    }
     if (SearchIndexFromTab(TabCtrl_GetCurSel(tab_)) == owned->tab_index)
     {
         UpdateSearchResultsView();
@@ -1055,9 +1062,9 @@ bool MainWindow::Impl::ApplyValueComments(std::vector<ListRow>* rows) const
             changed = true;
         }
     }
-    if (browse_.columns().sort_column == kValueColComment)
+    if (browse_.columns().SortsBy(kValueColComment))
     {
-        SortValueRows(rows, browse_.columns().sort_column, browse_.columns().sort_ascending);
+        SortValueRows(rows, browse_.columns().sort_column, browse_.columns().sort_ascending, browse_.columns().sort_earlier);
         changed = true;
     }
     return changed;

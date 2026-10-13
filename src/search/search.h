@@ -12,6 +12,7 @@
 
 #include "registry/registry_store.h"
 #include "search/regex.h"
+#include "win32/text_transform.h"
 
 namespace regkit::search
 {
@@ -182,6 +183,7 @@ bool IsExcludedPath(const std::wstring& path, const std::vector<std::wstring>& e
 bool IsKeyRow(const Result& result) noexcept;
 std::wstring_view DisplayName(const Result& result) noexcept;
 std::wstring TypeText(const Result& result);
+std::wstring SourceText(const Result& result, const std::vector<Source>& sources);
 
 using ProgressCallback = std::function<void(uint64_t searched, uint64_t total)>;
 using ResultBatch = std::vector<Result>;
@@ -189,6 +191,7 @@ using BatchCallback = std::function<bool(ResultBatch&&)>;
 
 bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCallback& publish, const ProgressCallback& progress, regex::Status* status = nullptr);
 
-void SortResults(std::vector<Result>* results, int column, bool ascending);
+// column -1 is the location order
+void SortResults(std::vector<Result>* results, int column, bool ascending, const util::SortKeys& earlier = {}, const std::vector<Source>& sources = {});
 
 } // namespace regkit::search

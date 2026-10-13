@@ -67,6 +67,7 @@ struct ThemePresetWindowState
     int selected_index = -1;
     int color_sort_column = -1;
     bool color_sort_ascending = true;
+    util::SortKeys color_sort_earlier;
     COLORREF custom_colors[16] = {};
 };
 
@@ -297,7 +298,7 @@ void FillColorList(ThemePresetWindowState* state, const ThemePreset* preset)
     }
     if (state->color_sort_column >= 0)
     {
-        appearance::SortListViewItems(list, state->color_sort_column, false, &state->color_sort_column, &state->color_sort_ascending, CompareColorListItems, const_cast<ThemePreset*>(preset));
+        appearance::SortListViewItems(list, state->color_sort_column, false, &state->color_sort_column, &state->color_sort_ascending, &state->color_sort_earlier, CompareColorListItems, const_cast<ThemePreset*>(preset));
     }
     if (selected_field >= 0)
     {
@@ -686,7 +687,7 @@ INT_PTR CALLBACK ThemePresetDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
             else if (hdr->hwndFrom == state->color_list && hdr->code == LVN_COLUMNCLICK)
             {
                 auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
-                appearance::SortListViewItems(state->color_list, info->iSubItem, true, &state->color_sort_column, &state->color_sort_ascending, CompareColorListItems, CurrentPreset(state));
+                appearance::SortListViewItems(state->color_list, info->iSubItem, true, &state->color_sort_column, &state->color_sort_ascending, &state->color_sort_earlier, CompareColorListItems, CurrentPreset(state));
             }
             return FALSE;
         }

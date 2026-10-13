@@ -11,6 +11,8 @@
 
 #include <string>
 
+#include "win32/text_transform.h"
+
 namespace regkit::appearance
 {
 
@@ -36,8 +38,8 @@ LRESULT HandleListGridCustomDraw(HWND list, NMLVCUSTOMDRAW* draw, LRESULT result
 
 bool ShowListColumnMenu(HWND list, POINT screen);
 void UpdateListViewSort(HWND list, int column, bool ascending);
-void UpdateListSortState(int column, bool toggle, int* sort_column, bool* ascending);
-void SortListViewItems(HWND list, int column, bool toggle, int* sort_column, bool* ascending, ListItemCompareCallback compare, void* context);
+void UpdateListSortState(int column, bool toggle, int* sort_column, bool* ascending, util::SortKeys* earlier);
+void SortListViewItems(HWND list, int column, bool toggle, int* sort_column, bool* ascending, util::SortKeys* earlier, ListItemCompareCallback compare, void* context);
 int ListViewItemData(HWND list, int row, LPARAM* data);
 int SelectedListViewData(HWND list);
 int FindListViewItemByData(HWND list, LPARAM data);

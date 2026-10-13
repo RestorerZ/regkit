@@ -6,11 +6,13 @@
 #include "browse/key_tree.h"
 #include "browse/value_table.h"
 #include "ui/column_set.h"
+#include "win32/text_transform.h"
 
 #include <windows.h>
 
 #include <commctrl.h>
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
@@ -46,6 +48,12 @@ struct ColumnState : ui::ColumnSet
     bool saved = false;
     int sort_column = 0;
     bool sort_ascending = true;
+    util::SortKeys sort_earlier;
+
+    bool SortsBy(int column) const
+    {
+        return sort_column == column || std::any_of(sort_earlier.begin(), sort_earlier.end(), [column](const auto& key) { return key.first == column; });
+    }
 };
 
 struct NavigationAvailability

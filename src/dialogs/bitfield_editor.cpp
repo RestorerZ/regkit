@@ -67,6 +67,7 @@ struct Editor
     bool accepted = false;
     int sort_column = 0;
     bool sort_ascending = false;
+    util::SortKeys sort_earlier;
     std::vector<Definition> choices;
     int choice = 0;
     HFONT ui_font = nullptr;
@@ -142,13 +143,12 @@ int CALLBACK CompareBitRows(LPARAM left_data, LPARAM right_data, int column, voi
             result = util::CompareListText(left_field ? RowMeaning(*left_field, editor->value) : std::wstring(), right_field ? RowMeaning(*right_field, editor->value) : std::wstring());
         }
     }
-    return result != 0 ? result : (left < right ? -1 : left > right ? 1
-                                                                    : 0);
+    return result;
 }
 
 void SortBitRows(HWND list, Editor* editor, int column, bool toggle)
 {
-    appearance::SortListViewItems(list, column, toggle, &editor->sort_column, &editor->sort_ascending, CompareBitRows, editor);
+    appearance::SortListViewItems(list, column, toggle, &editor->sort_column, &editor->sort_ascending, &editor->sort_earlier, CompareBitRows, editor);
 }
 
 uint64_t ReadWindow(const Editor& editor)

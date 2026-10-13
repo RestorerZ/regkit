@@ -452,7 +452,7 @@ void MainWindow::Impl::StartValueListWorker()
 
         if (task->sort_column != kValueColComment)
         {
-            SortValueRows(&payload->rows, task->sort_column, task->sort_ascending);
+            SortValueRows(&payload->rows, task->sort_column, task->sort_ascending, task->sort_earlier);
         }
         if (stopping.load() || task->generation != value_list_generation_.load())
         {
@@ -716,18 +716,17 @@ void MainWindow::Impl::StartSearchSortWorker()
         {
             return;
         }
-        search::SortResults(&task->rows, task->column, task->ascending);
+        search::SortResults(&task->rows, task->column, task->ascending, task->earlier, task->sources);
         auto payload = std::make_unique<SearchSortPayload>();
         payload->generation = task->generation;
         payload->tab_index = task->tab_index;
-        payload->column = task->column;
-        payload->ascending = task->ascending;
+        payload->sort_revision = task->sort_revision;
         payload->rows = std::move(task->rows);
         work::PostPayload(task->hwnd, frame::message_id::kSearchSortReady, static_cast<WPARAM>(task->generation), payload);
     });
 }
 
-void MainWindow::Impl::QueueSearchSort(SearchTab* tab)
+void MainWindow::Impl::QueueSearchSort(SearchTab* tab, const util::SortKeys& earlier)
 {
     if (!tab)
     {
@@ -771,6 +770,9 @@ void MainWindow::Impl::QueueSearchSort(SearchTab* tab)
     task->tab_index = tab_index;
     task->column = tab->sort_column;
     task->ascending = tab->sort_ascending;
+    task->earlier = earlier;
+    task->sort_revision = tab->sort_revision;
+    task->sources = tab->sources;
     task->hwnd = hwnd_;
     search_sort_loader_.Submit(std::move(task));
 }
@@ -789,11 +791,12 @@ void MainWindow::Impl::StartSearchTabLoadWorker()
         auto payload = std::make_unique<SearchTabLoadPayload>();
         payload->generation = task->generation;
         payload->tab_index = task->tab_index;
+        payload->sort_revision = task->sort_revision;
 
         payload->ok = search::LoadResults(task->path, &payload->rows);
         if (payload->ok && task->sort_column >= 0)
         {
-            search::SortResults(&payload->rows, task->sort_column, task->sort_ascending);
+            search::SortResults(&payload->rows, task->sort_column, task->sort_ascending, task->sort_earlier, task->sources);
         }
         if (stopping.load())
         {

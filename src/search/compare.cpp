@@ -248,21 +248,14 @@ bool LoadRegFile(const std::wstring& file_path, const regfile::Document& documen
     return true;
 }
 
-void SortRows(std::vector<Row>* rows, int column, bool ascending)
+void SortRows(std::vector<Row>* rows, int column, bool ascending, const util::SortKeys& earlier)
 {
     if (!rows || rows->size() < 2)
     {
         return;
     }
-    if (column == 4)
-    {
-        std::stable_sort(rows->begin(), rows->end(), [ascending](const Row& left, const Row& right) {
-            return left.matches != right.matches && (ascending ? !left.matches : left.matches);
-        });
-        return;
-    }
-    auto field = [column](const Row& row) -> const std::wstring& {
-        switch (column)
+    auto field = [](const Row& row, int key) -> const std::wstring& {
+        switch (key)
         {
         case 1:
             return row.value_name;
@@ -275,8 +268,9 @@ void SortRows(std::vector<Row>* rows, int column, bool ascending)
         }
     };
     std::stable_sort(rows->begin(), rows->end(), [&](const Row& left, const Row& right) {
-        const int result = util::CompareListText(field(left), field(right));
-        return result != 0 && (ascending ? result < 0 : result > 0);
+        return util::CompareSorted(column, ascending, earlier, [&](int key) {
+                   return key == 4 ? static_cast<int>(left.matches) - static_cast<int>(right.matches) : util::CompareListText(field(left, key), field(right, key));
+               }) < 0;
     });
 }
 

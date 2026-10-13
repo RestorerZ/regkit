@@ -293,7 +293,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             if (list != state->lists.end() && header->code == LVN_COLUMNCLICK)
             {
                 bool ascending = state->sort_ascending[index];
-                appearance::SortListViewItems(*list, change->iSubItem, true, &state->sort_columns[index], &ascending, CompareRows, const_cast<records::Table*>(&state->request->tables[index]));
+                appearance::SortListViewItems(*list, change->iSubItem, true, &state->sort_columns[index], &ascending, nullptr, CompareRows, const_cast<records::Table*>(&state->request->tables[index]));
                 state->sort_ascending[index] = ascending;
                 return TRUE;
             }

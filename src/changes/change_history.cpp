@@ -143,11 +143,10 @@ void ChangeHistory::Clear()
     entries_.clear();
 }
 
-void ChangeHistory::Sort(int column, bool ascending)
+void ChangeHistory::Sort(int column, bool ascending, const util::SortKeys& earlier)
 {
-    std::stable_sort(entries_.begin(), entries_.end(), [column, ascending](const HistoryEntry& left, const HistoryEntry& right) {
-        const int comparison = CompareEntry(left, right, column);
-        return comparison != 0 && (ascending ? comparison < 0 : comparison > 0);
+    std::stable_sort(entries_.begin(), entries_.end(), [&](const HistoryEntry& left, const HistoryEntry& right) {
+        return util::CompareSorted(column, ascending, earlier, [&](int key) { return CompareEntry(left, right, key); }) < 0;
     });
 }
 

@@ -537,8 +537,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleSearchWorkerMessage(UINT message,
                 return 0;
             }
             SearchTab& tab = search_tabs_[static_cast<size_t>(owned->tab_index)];
-            if (tab.generation != owned->generation || tab.results.size() != owned->rows.size() || tab.sort_column != owned->column ||
-                tab.sort_ascending != owned->ascending)
+            if (tab.generation != owned->generation || tab.results.size() != owned->rows.size() || tab.sort_revision != owned->sort_revision)
             {
                 return 0;
             }

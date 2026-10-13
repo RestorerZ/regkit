@@ -50,6 +50,7 @@ struct SortContext
     void* context = nullptr;
     int column = 0;
     bool ascending = true;
+    util::SortKeys earlier;
 };
 
 std::vector<ListRegistration> registrations;
@@ -276,8 +277,7 @@ int CALLBACK CompareItems(LPARAM left, LPARAM right, LPARAM parameter)
     {
         return 0;
     }
-    const int result = sort->compare(left, right, sort->column, sort->context);
-    return sort->ascending ? result : -result;
+    return util::CompareSorted(sort->column, sort->ascending, sort->earlier, [&](int column) { return sort->compare(left, right, column, sort->context); });
 }
 
 } // namespace
@@ -597,7 +597,7 @@ void UpdateListViewSort(HWND list, int column, bool ascending)
     }
 }
 
-void UpdateListSortState(int column, bool toggle, int* sort_column, bool* ascending)
+void UpdateListSortState(int column, bool toggle, int* sort_column, bool* ascending, util::SortKeys* earlier)
 {
     if (!sort_column || !ascending || column < 0)
     {
@@ -609,6 +609,11 @@ void UpdateListSortState(int column, bool toggle, int* sort_column, bool* ascend
     }
     else
     {
+        if (earlier && *sort_column != column)
+        {
+            std::erase_if(*earlier, [&](const auto& key) { return key.first == column || key.first == *sort_column; });
+            earlier->insert(earlier->begin(), {*sort_column, *ascending});
+        }
         *sort_column = column;
         if (toggle)
         {
@@ -617,7 +622,7 @@ void UpdateListSortState(int column, bool toggle, int* sort_column, bool* ascend
     }
 }
 
-void SortListViewItems(HWND list, int column, bool toggle, int* sort_column, bool* ascending, ListItemCompareCallback compare, void* context)
+void SortListViewItems(HWND list, int column, bool toggle, int* sort_column, bool* ascending, util::SortKeys* earlier, ListItemCompareCallback compare, void* context)
 {
     if (!list || !sort_column || !ascending || !compare || column < 0)
     {
@@ -631,8 +636,9 @@ void SortListViewItems(HWND list, int column, bool toggle, int* sort_column, boo
     const int focused_row = ListView_GetNextItem(list, -1, LVNI_FOCUSED);
     has_selected = ListViewItemData(list, selected_row, &selected) >= 0;
     has_focused = ListViewItemData(list, focused_row, &focused) >= 0;
-    UpdateListSortState(column, toggle, sort_column, ascending);
-    SortContext sort = {compare, context, *sort_column, *ascending};
+    UpdateListSortState(column, toggle, sort_column, ascending, earlier);
+    // a click keeps the shown order for ties, a refill rebuilds it from the earlier columns
+    SortContext sort = {compare, context, *sort_column, *ascending, earlier && !toggle ? *earlier : util::SortKeys()};
     ListView_SortItems(list, CompareItems, reinterpret_cast<LPARAM>(&sort));
     if (has_selected)
     {

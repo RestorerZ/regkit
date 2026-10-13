@@ -248,6 +248,20 @@ std::wstring TypeText(const Result& result)
     return value_format::TypeName(result.type);
 }
 
+std::wstring SourceText(const Result& result, const std::vector<Source>& sources)
+{
+    if (result.source >= sources.size())
+    {
+        return {};
+    }
+    std::wstring label = SourceLabel(sources[result.source]);
+    if (const wchar_t* field = MatchFieldLabel(result.match_field))
+    {
+        label.append(L" (").append(field).append(L")");
+    }
+    return label;
+}
+
 namespace
 {
 
@@ -260,19 +274,22 @@ int CompareNumeric(uint64_t left, uint64_t right)
     return left < right ? -1 : 1;
 }
 
+int CompareLocation(const Result& left, const Result& right)
+{
+    int result = util::CompareListText(left.key_path, right.key_path);
+    if (result == 0)
+    {
+        result = CompareNumeric(!IsKeyRow(left), !IsKeyRow(right));
+    }
+    return result != 0 ? result : util::CompareInsensitive(left.value_name, right.value_name);
+}
+
 int CompareResult(const Result& left, const Result& right, int column)
 {
     switch (column)
     {
-    case 0:
-        {
-            int result = util::CompareListText(left.key_path, right.key_path);
-            if (result == 0)
-            {
-                result = CompareNumeric(!IsKeyRow(left), !IsKeyRow(right));
-            }
-            return result != 0 ? result : util::CompareInsensitive(left.value_name, right.value_name);
-        }
+    case -1:
+        return CompareLocation(left, right);
     case 1:
         return util::CompareListText(DisplayName(left), DisplayName(right));
     case 3:
@@ -286,49 +303,41 @@ int CompareResult(const Result& left, const Result& right, int column)
     }
 }
 
-bool SortsBefore(int result, bool ascending, const Result& left, const Result& right)
-{
-    return result != 0 ? (ascending ? result < 0 : result > 0) : CompareResult(left, right, 0) < 0;
-}
-
 } // namespace
 
-void SortResults(std::vector<Result>* results, int column, bool ascending)
+void SortResults(std::vector<Result>* results, int column, bool ascending, const util::SortKeys& earlier, const std::vector<Source>& sources)
 {
     if (!results || results->size() < 2)
     {
         return;
     }
-    if (column == 2)
-    {
-        // cache type labels as sorting calls the comparator many times
-        std::map<std::pair<ResultKind, DWORD>, std::wstring> labels;
-        auto label_of = [&labels](const Result& row) -> const std::wstring& {
-            const auto key = std::make_pair(row.kind, row.type);
-            auto found = labels.find(key);
-            if (found == labels.end())
-            {
-                found = labels.emplace(key, TypeText(row)).first;
-            }
-            return found->second;
-        };
-        for (const auto& row : *results)
+    // cache type and source labels as sorting calls the comparator many times
+    std::map<std::pair<ResultKind, DWORD>, std::wstring> labels;
+    auto label_of = [&labels](const Result& row) -> const std::wstring& {
+        const auto key = std::make_pair(row.kind, row.type);
+        auto found = labels.find(key);
+        if (found == labels.end())
         {
-            label_of(row);
+            found = labels.emplace(key, TypeText(row)).first;
         }
-        std::stable_sort(
-            results->begin(),
-            results->end(),
-            [&labels, ascending](const Result& left, const Result& right) {
-                const std::wstring& left_text = labels.find(std::make_pair(left.kind, left.type))->second;
-                const std::wstring& right_text = labels.find(std::make_pair(right.kind, right.type))->second;
-                return SortsBefore(util::CompareListText(left_text, right_text), ascending, left, right);
-            }
-        );
-        return;
-    }
-    std::stable_sort(results->begin(), results->end(), [column, ascending](const Result& left, const Result& right) {
-        return SortsBefore(CompareResult(left, right, column), ascending, left, right);
+        return found->second;
+    };
+    std::map<std::pair<uint16_t, MatchField>, std::wstring> source_labels;
+    auto source_of = [&](const Result& row) -> const std::wstring& {
+        const auto key = std::make_pair(row.source, row.match_field);
+        auto found = source_labels.find(key);
+        if (found == source_labels.end())
+        {
+            found = source_labels.emplace(key, SourceText(row, sources)).first;
+        }
+        return found->second;
+    };
+    std::stable_sort(results->begin(), results->end(), [&](const Result& left, const Result& right) {
+        return util::CompareSorted(column, ascending, earlier, [&](int key) {
+                   return key == 2   ? util::CompareListText(label_of(left), label_of(right))
+                          : key == 6 ? util::CompareListText(source_of(left), source_of(right))
+                                     : CompareResult(left, right, key);
+               }) < 0;
     });
 }
 
@@ -1046,7 +1055,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
     };
 
     const uint64_t max_results = criteria.max_results;
-    const auto rank_less = [](const Result& left, const Result& right) { return CompareResult(left, right, 0) < 0; };
+    const auto rank_less = [](const Result& left, const Result& right) { return CompareLocation(left, right) < 0; };
     std::vector<Result> ranked;
     std::mutex cutoff_mutex;
     std::atomic<uint64_t> cutoff_version{0};

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "registry/registry_store.h"
+#include "win32/text_transform.h"
 
 #include <functional>
 #include <string>
@@ -58,7 +59,7 @@ class ChangeHistory
     std::vector<HistoryEntry> Append(std::vector<HistoryEntry> entries, size_t maximum);
     void Replace(std::vector<HistoryEntry> entries, size_t maximum);
     void Clear();
-    void Sort(int column, bool ascending);
+    void Sort(int column, bool ascending, const util::SortKeys& earlier = {});
 
     const std::vector<HistoryEntry>& entries() const noexcept;
     std::vector<HistoryEntry>& entries() noexcept;

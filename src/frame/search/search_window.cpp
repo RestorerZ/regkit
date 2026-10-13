@@ -511,7 +511,7 @@ void MainWindow::Impl::UpdateSearchResultsView()
     {
         RefreshCompareColumnTitles();
     }
-    int max_sort_col = compare ? (show_result ? 4 : 3) : 5;
+    int max_sort_col = compare ? (show_result ? 4 : 3) : 6;
     if (tab.sort_column > max_sort_col)
     {
         tab.sort_column = -1;
