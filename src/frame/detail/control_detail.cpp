@@ -293,10 +293,6 @@ bool CellTextIsClipped(HWND list, const std::wstring& text, int available)
 
 static int CompareValueRow(const ListRow& left, const ListRow& right, int column)
 {
-    if (left.kind != right.kind)
-    {
-        return (left.kind == rowkind::kKey) ? -1 : 1;
-    }
     switch (column)
     {
     case kValueColName:
@@ -345,10 +341,14 @@ void SortValueRows(std::vector<ListRow>* rows, int column, bool ascending)
         return;
     }
     std::stable_sort(rows->begin(), rows->end(), [column, ascending](const ListRow& left, const ListRow& right) {
-        int result = CompareValueRow(left, right, column);
+        if (left.kind != right.kind)
+        {
+            return left.kind == rowkind::kKey;
+        }
+        const int result = CompareValueRow(left, right, column);
         if (result == 0)
         {
-            return false;
+            return util::CompareListText(left.name, right.name) < 0;
         }
         return ascending ? (result < 0) : (result > 0);
     });

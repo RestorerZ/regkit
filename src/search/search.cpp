@@ -286,6 +286,11 @@ int CompareResult(const Result& left, const Result& right, int column)
     }
 }
 
+bool SortsBefore(int result, bool ascending, const Result& left, const Result& right)
+{
+    return result != 0 ? (ascending ? result < 0 : result > 0) : CompareResult(left, right, 0) < 0;
+}
+
 } // namespace
 
 void SortResults(std::vector<Result>* results, int column, bool ascending)
@@ -317,15 +322,13 @@ void SortResults(std::vector<Result>* results, int column, bool ascending)
             [&labels, ascending](const Result& left, const Result& right) {
                 const std::wstring& left_text = labels.find(std::make_pair(left.kind, left.type))->second;
                 const std::wstring& right_text = labels.find(std::make_pair(right.kind, right.type))->second;
-                const int result = util::CompareListText(left_text, right_text);
-                return result != 0 && (ascending ? result < 0 : result > 0);
+                return SortsBefore(util::CompareListText(left_text, right_text), ascending, left, right);
             }
         );
         return;
     }
     std::stable_sort(results->begin(), results->end(), [column, ascending](const Result& left, const Result& right) {
-        const int result = CompareResult(left, right, column);
-        return result != 0 && (ascending ? result < 0 : result > 0);
+        return SortsBefore(CompareResult(left, right, column), ascending, left, right);
     });
 }
 

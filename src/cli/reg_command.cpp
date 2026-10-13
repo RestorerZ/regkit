@@ -39,6 +39,12 @@ bool g_console_ready = false;
 HANDLE g_out = nullptr;
 HANDLE g_err = nullptr;
 
+// W7 hands a GUI child the parents console pseudo handles, they stay invalid until it attaches
+bool Usable(HANDLE handle)
+{
+    return handle && handle != INVALID_HANDLE_VALUE && GetFileType(handle) != FILE_TYPE_UNKNOWN;
+}
+
 void EnsureConsole()
 {
     if (g_console_ready)
@@ -48,17 +54,15 @@ void EnsureConsole()
     g_console_ready = true;
     g_out = GetStdHandle(STD_OUTPUT_HANDLE);
     g_err = GetStdHandle(STD_ERROR_HANDLE);
-    const bool have_out = g_out && g_out != INVALID_HANDLE_VALUE;
-    if (!have_out && !AttachConsole(ATTACH_PARENT_PROCESS))
+    if (!Usable(g_out))
     {
-        AllocConsole();
+        if (!AttachConsole(ATTACH_PARENT_PROCESS))
+        {
+            AllocConsole();
+        }
+        g_out = CreateFileW(L"CONOUT$", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
     }
-    if (!have_out)
-    {
-        g_out = GetStdHandle(STD_OUTPUT_HANDLE);
-        g_err = GetStdHandle(STD_ERROR_HANDLE);
-    }
-    if (!g_err || g_err == INVALID_HANDLE_VALUE)
+    if (!Usable(g_err))
     {
         g_err = g_out;
     }
@@ -1369,8 +1373,7 @@ bool Execute(const std::vector<std::wstring>& args, int* exit_code)
 
 bool PrintErrorToTerminal(const std::wstring& text)
 {
-    const HANDLE error = GetStdHandle(STD_ERROR_HANDLE);
-    if ((!error || error == INVALID_HANDLE_VALUE) && !AttachConsole(ATTACH_PARENT_PROCESS))
+    if (!Usable(GetStdHandle(STD_ERROR_HANDLE)) && !AttachConsole(ATTACH_PARENT_PROCESS))
     {
         return false;
     }
