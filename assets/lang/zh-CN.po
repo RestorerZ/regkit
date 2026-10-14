@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-09 20:50+0200\n"
+"POT-Creation-Date: 2026-10-14 13:24+0200\n"
 "PO-Revision-Date: 2026-10-09 20:51+0200\n"
 "Last-Translator: nohuto contact@noverse.dev\n"
 "Language-Team: none\n"
@@ -57,7 +57,7 @@ msgid "Default file contains no usable entries."
 msgstr "默认值文件中没有可用的条目。"
 
 #: dialogs/binary_editor.cpp:65 dialogs/binary_editor.cpp:165
-#: dialogs/binary_editor.cpp:212 dialogs/value_editor.cpp:337
+#: dialogs/binary_editor.cpp:212 dialogs/value_editor.cpp:341
 msgid "Invalid hex input."
 msgstr "十六进制输入无效。"
 
@@ -65,20 +65,20 @@ msgstr "十六进制输入无效。"
 msgid "Invalid"
 msgstr "无效"
 
-#: dialogs/binary_editor.cpp:77 dialogs/bitfield_editor.cpp:386
-#: dialogs/bitfield_editor.cpp:788 dialogs/decoder_dialog.cpp:184
-#: dialogs/trace_dialog.cpp:205 dialogs/value_editor.cpp:758
-#: frame/detail/control_detail.cpp:161 frame/search/search_window.cpp:1071
-#: frame/tools/launch_bridge.cpp:243 frame/views/history_workspace.cpp:1057
+#: dialogs/binary_editor.cpp:77 dialogs/bitfield_editor.cpp:387
+#: dialogs/bitfield_editor.cpp:782 dialogs/decoder_dialog.cpp:184
+#: dialogs/trace_dialog.cpp:205 dialogs/value_editor.cpp:771
+#: frame/detail/control_detail.cpp:161 frame/search/search_window.cpp:1090
+#: frame/tools/launch_bridge.cpp:243 frame/views/history_workspace.cpp:1117
 #: frame/views/value_loading.cpp:388 frame/views/value_loading.cpp:435
-#: frame/window/notifications.cpp:144 frame/window/notifications.cpp:1239
+#: frame/window/notifications.cpp:145 frame/window/notifications.cpp:1239
 #: frame/window/notifications.cpp:1311 regfile/script_convert.cpp:188
-#: search/search.cpp:235 search/search.cpp:1269 ui/feedback.cpp:786
+#: search/search.cpp:235 search/search.cpp:1281 ui/feedback.cpp:786
 msgid "(Default)"
 msgstr "(默认)"
 
-#: dialogs/binary_editor.cpp:92 dialogs/value_editor.cpp:754
-#: dialogs/value_editor.cpp:1086 dialogs/value_editor.cpp:1194
+#: dialogs/binary_editor.cpp:92 dialogs/value_editor.cpp:767
+#: dialogs/value_editor.cpp:1099 dialogs/value_editor.cpp:1207
 #: frame/tools/launch_bridge.cpp:242
 msgid "Edit Value"
 msgstr "编辑值"
@@ -116,6 +116,7 @@ msgid "A field lists no bits."
 msgstr "字段未列出任何位。"
 
 #: dialogs/bitfield_definition.cpp:137 dialogs/bitfield_definition.cpp:503
+#: dialogs/bitfield_definition_editor.cpp:360
 msgid "A field lists more than 256 states."
 msgstr "字段列出的状态超过 256 个。"
 
@@ -188,18 +189,23 @@ msgid "Two fields claim the same bit."
 msgstr "两个字段使用了同一个位。"
 
 #: dialogs/bitfield_definition.cpp:510
+#: dialogs/bitfield_definition_editor.cpp:333
 msgid "Every state needs a name of at most 256 characters."
 msgstr "每个状态都必须有名称，且不超过 256 个字符。"
 
 #: dialogs/bitfield_definition.cpp:514
+#: dialogs/bitfield_definition_editor.cpp:337
 msgid "A state meaning is longer than the format allows."
 msgstr "状态含义的长度超出格式允许的范围。"
 
 #: dialogs/bitfield_definition.cpp:518
+#: dialogs/bitfield_definition_editor.cpp:323
+#: dialogs/bitfield_definition_editor.cpp:598
 msgid "A state value doesn't fit the bits of its field."
 msgstr "状态值无法用其字段的位表示。"
 
 #: dialogs/bitfield_definition.cpp:524
+#: dialogs/bitfield_definition_editor.cpp:329
 msgid "Two states of one field share the same value."
 msgstr "同一字段的两个状态具有相同的值。"
 
@@ -223,190 +229,239 @@ msgstr "定义文件不是有效的 JSON。"
 msgid "The definition file couldn't be read."
 msgstr "无法读取定义文件。"
 
-#: dialogs/bitfield_definition.cpp:748
+#: dialogs/bitfield_definition.cpp:750 regfile/reg_file.cpp:647
+msgid "The file is larger than RegKit can load."
+msgstr "文件大小超出 RegKit 的加载能力。"
+
+#: dialogs/bitfield_definition.cpp:758
 msgid "The definition file couldn't be written."
 msgstr "无法写入定义文件。"
 
-#: dialogs/bitfield_definition_editor.cpp:177
+#: dialogs/bitfield_definition_editor.cpp:199
+#: dialogs/bitfield_definition_editor.cpp:423 dialogs/bitfield_editor.cpp:684
+#: ui/preset_editor.cpp:466
+msgid "Copy Row"
+msgstr "复制行"
+
+#: dialogs/bitfield_definition_editor.cpp:258
+msgid "Add State"
+msgstr "添加状态"
+
+#: dialogs/bitfield_definition_editor.cpp:258
+msgid "Edit State"
+msgstr "编辑状态"
+
+#: dialogs/bitfield_definition_editor.cpp:319 dialogs/value_editor.cpp:1349
+msgid "Invalid number."
+msgstr "数字无效。"
+
+#: dialogs/bitfield_definition_editor.cpp:369
+#: dialogs/bitfield_definition_editor.cpp:592
+msgid "Select at least one bit."
+msgstr "选择至少一个位。"
+
+#: dialogs/bitfield_definition_editor.cpp:419 dialogs/bitfield_editor.cpp:677
+#: dialogs/query_prompts.cpp:122 frame/commands/context_menus.cpp:214
+#: frame/window/menu_bar.cpp:303
+msgid "Select All"
+msgstr "全选"
+
+#: dialogs/bitfield_definition_editor.cpp:420 dialogs/bitfield_editor.cpp:678
+#: dialogs/query_prompts.cpp:124 frame/window/menu_bar.cpp:407
+msgid "Clear All"
+msgstr "全部清除"
+
+#: dialogs/bitfield_definition_editor.cpp:422 dialogs/bitfield_editor.cpp:683
+msgid "Copy Mask"
+msgstr "复制掩码"
+
+#: dialogs/bitfield_definition_editor.cpp:451
 msgid "Add Field"
 msgstr "添加字段"
 
-#: dialogs/bitfield_definition_editor.cpp:177
+#: dialogs/bitfield_definition_editor.cpp:451
 msgid "Edit Field"
 msgstr "编辑字段"
 
-#: dialogs/bitfield_definition_editor.cpp:181 dialogs/bitfield_editor.cpp:802
+#: dialogs/bitfield_definition_editor.cpp:455 dialogs/bitfield_editor.cpp:796
 msgid "Bit"
 msgstr "位"
 
-#: dialogs/bitfield_definition_editor.cpp:181 dialogs/bitfield_editor.cpp:802
+#: dialogs/bitfield_definition_editor.cpp:455 dialogs/bitfield_editor.cpp:796
 msgid "Mask"
 msgstr "掩码"
 
-#: dialogs/bitfield_definition_editor.cpp:181
-#: dialogs/bitfield_definition_editor.cpp:812 dialogs/bitfield_editor.cpp:802
+#: dialogs/bitfield_definition_editor.cpp:455
+#: dialogs/bitfield_definition_editor.cpp:1043 dialogs/bitfield_editor.cpp:796
 #: ui/preset_editor.cpp:41
 msgid "Field"
 msgstr "字段"
 
-#: dialogs/bitfield_definition_editor.cpp:288
+#: dialogs/bitfield_definition_editor.cpp:483 dialogs/bitfield_editor.cpp:796
+#: dialogs/decoder_dialog.cpp:211 frame/tools/launch_bridge.cpp:87
+#: frame/views/browse_view.cpp:249 frame/views/browse_view.cpp:258
+#: search/search.cpp:62
+msgid "Value"
+msgstr "值"
+
+#: dialogs/bitfield_definition_editor.cpp:483 frame/tools/launch_bridge.cpp:94
+#: frame/views/browse_view.cpp:59
+msgid "Name"
+msgstr "名称"
+
+#: dialogs/bitfield_definition_editor.cpp:483
+#: dialogs/bitfield_definition_editor.cpp:1043 dialogs/bitfield_editor.cpp:796
+msgid "Meaning"
+msgstr "含义"
+
+#: dialogs/bitfield_definition_editor.cpp:528
+msgid "Add State..."
+msgstr "添加状态..."
+
+#: dialogs/bitfield_definition_editor.cpp:528
+msgid "Edit State..."
+msgstr "编辑状态..."
+
+#: dialogs/bitfield_definition_editor.cpp:528
+msgid "Remove State"
+msgstr "移除状态"
+
+#: dialogs/bitfield_definition_editor.cpp:577
 msgid "Enter a field name."
 msgstr "输入字段名称。"
 
-#: dialogs/bitfield_definition_editor.cpp:296
+#: dialogs/bitfield_definition_editor.cpp:585
 msgid "Another field already uses that name."
 msgstr "另一个字段已使用该名称。"
 
-#: dialogs/bitfield_definition_editor.cpp:313
-msgid "Select at least one bit."
-msgstr "选择至少一个位。"
-
-#: dialogs/bitfield_definition_editor.cpp:529
+#: dialogs/bitfield_definition_editor.cpp:813
 msgid "This definition file has unsaved changes."
 msgstr "此定义文件有未保存的更改。"
 
-#: dialogs/bitfield_definition_editor.cpp:529
-#: dialogs/bitfield_definition_editor.cpp:595
-#: dialogs/bitfield_definition_editor.cpp:805 frame/window/menu_bar.cpp:464
+#: dialogs/bitfield_definition_editor.cpp:813
+#: dialogs/bitfield_definition_editor.cpp:879
+#: dialogs/bitfield_definition_editor.cpp:1036 frame/window/menu_bar.cpp:447
 msgid "Bit Definitions"
 msgstr "位定义"
 
-#: dialogs/bitfield_definition_editor.cpp:529 frame/views/tab_lists.cpp:428
-#: frame/views/tab_lists.cpp:462 frame/window/menu_bar.cpp:147
-#: frame/window/menu_bar.cpp:271
+#: dialogs/bitfield_definition_editor.cpp:813 frame/views/tab_lists.cpp:435
+#: frame/views/tab_lists.cpp:469 frame/window/menu_bar.cpp:137
+#: frame/window/menu_bar.cpp:253
 msgid "Save"
 msgstr "保存"
 
-#: dialogs/bitfield_definition_editor.cpp:529
+#: dialogs/bitfield_definition_editor.cpp:813
 msgid "Discard"
 msgstr "放弃"
 
-#: dialogs/bitfield_definition_editor.cpp:529
-#: dialogs/bitfield_definition_editor.cpp:595 dialogs/bitfield_editor.cpp:387
+#: dialogs/bitfield_definition_editor.cpp:813
+#: dialogs/bitfield_definition_editor.cpp:879 dialogs/bitfield_editor.cpp:388
 #: dialogs/query_prompts.cpp:127 dialogs/query_prompts.cpp:211
-#: dialogs/value_editor.cpp:898 frame/commands/file_view_commands.cpp:50
+#: dialogs/value_editor.cpp:912 frame/commands/file_view_commands.cpp:50
 #: frame/commands/file_view_commands.cpp:435
 #: frame/commands/workspace_commands.cpp:259
-#: frame/tools/key_handles_window.cpp:358 frame/tools/launch_bridge.cpp:498
-#: frame/tools/launch_bridge.cpp:515 frame/views/history_workspace.cpp:210
+#: frame/tools/key_handles_window.cpp:356 frame/tools/launch_bridge.cpp:498
+#: frame/tools/launch_bridge.cpp:515 frame/views/history_workspace.cpp:260
 #: frame/views/registry_sessions.cpp:793 frame/views/registry_sessions.cpp:844
-#: frame/views/registry_sessions.cpp:1076
-#: frame/views/registry_sessions.cpp:1083 frame/views/tab_lists.cpp:428
-#: frame/views/tab_lists.cpp:462 frame/window/lifetime.cpp:25
+#: frame/views/registry_sessions.cpp:1084
+#: frame/views/registry_sessions.cpp:1091 frame/views/tab_lists.cpp:435
+#: frame/views/tab_lists.cpp:469 frame/window/lifetime.cpp:25
 #: frame/window/message_routes.cpp:54 ui/feedback.cpp:791 ui/feedback.cpp:801
 #: ui/feedback.cpp:814
 msgid "Cancel"
 msgstr "取消"
 
-#: dialogs/bitfield_definition_editor.cpp:565 dialogs/bitfield_editor.cpp:377
+#: dialogs/bitfield_definition_editor.cpp:849 dialogs/bitfield_editor.cpp:378
 msgid "The definition was made for a different value width."
 msgstr "此定义适用于不同的值宽度。"
 
-#: dialogs/bitfield_definition_editor.cpp:595
+#: dialogs/bitfield_definition_editor.cpp:879
 msgid "Some fields use bits outside the new width. Remove those bits?"
 msgstr "部分字段使用了新宽度以外的位。要移除这些位吗?"
 
-#: dialogs/bitfield_definition_editor.cpp:595
+#: dialogs/bitfield_definition_editor.cpp:879
 msgid "Remove"
 msgstr "移除"
 
-#: dialogs/bitfield_definition_editor.cpp:737
-msgid "Add Field..."
-msgstr "添加字段..."
-
-#: dialogs/bitfield_definition_editor.cpp:738 dialogs/bitfield_editor.cpp:655
-msgid "Edit Field..."
-msgstr "编辑字段..."
-
-#: dialogs/bitfield_definition_editor.cpp:739 dialogs/bitfield_editor.cpp:656
-msgid "Remove Field"
-msgstr "移除字段"
-
-#: dialogs/bitfield_definition_editor.cpp:741 dialogs/bitfield_editor.cpp:659
-msgid "Copy Row"
-msgstr "复制行"
-
-#: dialogs/bitfield_definition_editor.cpp:812
+#: dialogs/bitfield_definition_editor.cpp:1043
 msgid "Bits"
 msgstr "位"
 
-#: dialogs/bitfield_definition_editor.cpp:812
+#: dialogs/bitfield_definition_editor.cpp:1043
 msgid "States"
 msgstr "状态"
 
-#: dialogs/bitfield_definition_editor.cpp:812 dialogs/bitfield_editor.cpp:802
-msgid "Meaning"
-msgstr "含义"
+#: dialogs/bitfield_definition_editor.cpp:1091
+msgid "Add Field..."
+msgstr "添加字段..."
 
-#: dialogs/bitfield_editor.cpp:302
+#: dialogs/bitfield_definition_editor.cpp:1091 dialogs/bitfield_editor.cpp:680
+msgid "Edit Field..."
+msgstr "编辑字段..."
+
+#: dialogs/bitfield_definition_editor.cpp:1091 dialogs/bitfield_editor.cpp:681
+msgid "Remove Field"
+msgstr "移除字段"
+
+#: dialogs/bitfield_editor.cpp:303
 msgid "(none)"
 msgstr "(无)"
 
-#: dialogs/bitfield_editor.cpp:377
+#: dialogs/bitfield_editor.cpp:378
 msgid "The definition describes bytes outside this value."
 msgstr "此定义描述的字节超出此值的范围。"
 
-#: dialogs/bitfield_editor.cpp:382
+#: dialogs/bitfield_editor.cpp:383
 msgid "This definition was made for a different value. Use it anyway?"
 msgstr "此定义适用于不同的值。仍要使用吗?"
 
-#: dialogs/bitfield_editor.cpp:384
+#: dialogs/bitfield_editor.cpp:385
 msgid "Definition"
 msgstr "定义"
 
-#: dialogs/bitfield_editor.cpp:386
+#: dialogs/bitfield_editor.cpp:387
 msgid "This value"
 msgstr "此值"
 
-#: dialogs/bitfield_editor.cpp:387
+#: dialogs/bitfield_editor.cpp:388
 msgid "Bit Definition"
 msgstr "位定义"
 
-#: dialogs/bitfield_editor.cpp:387
+#: dialogs/bitfield_editor.cpp:388
 msgid "Use"
 msgstr "使用"
 
-#: dialogs/bitfield_editor.cpp:430
+#: dialogs/bitfield_editor.cpp:431
 msgid "No definition in that file fits this value."
 msgstr "文件中没有适用于此值的定义。"
 
-#: dialogs/bitfield_editor.cpp:430
+#: dialogs/bitfield_editor.cpp:431
 msgid "No definition in that file was made for this value width."
 msgstr "文件中没有适用于此值宽度的定义。"
 
-#: dialogs/bitfield_editor.cpp:640
+#: dialogs/bitfield_editor.cpp:662
 msgid "Enable Bit"
 msgstr "启用位"
 
-#: dialogs/bitfield_editor.cpp:641
+#: dialogs/bitfield_editor.cpp:663
 msgid "Disable Bit"
 msgstr "禁用位"
 
-#: dialogs/bitfield_editor.cpp:652
+#: dialogs/bitfield_editor.cpp:674
 msgid "Set Field To"
 msgstr "将字段设为"
 
-#: dialogs/bitfield_editor.cpp:655
+#: dialogs/bitfield_editor.cpp:680
 msgid "Describe Bit..."
 msgstr "描述位..."
 
-#: dialogs/bitfield_editor.cpp:658
-msgid "Copy Mask"
-msgstr "复制掩码"
-
-#: dialogs/bitfield_editor.cpp:787
+#: dialogs/bitfield_editor.cpp:781
 msgid "Edit Bits"
 msgstr "编辑位"
 
-#: dialogs/bitfield_editor.cpp:802
+#: dialogs/bitfield_editor.cpp:796
 msgid "State"
 msgstr "状态"
-
-#: dialogs/bitfield_editor.cpp:802 dialogs/decoder_dialog.cpp:211
-#: frame/tools/launch_bridge.cpp:87 frame/views/browse_view.cpp:249
-#: frame/views/browse_view.cpp:258 search/search.cpp:62
-msgid "Value"
-msgstr "值"
 
 #: dialogs/comment_editor.cpp:74
 msgid "Selected values only"
@@ -443,6 +498,11 @@ msgstr "解释为:"
 #: dialogs/decoder_dialog.cpp:211 frame/tools/launch_bridge.cpp:87
 msgid "Property"
 msgstr "属性"
+
+#: dialogs/decoder_dialog.cpp:261 dialogs/table_dialog.cpp:114
+#: frame/tools/key_handles_window.cpp:384
+msgid "Copy Rows"
+msgstr "复制多行"
 
 #: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:168
 msgid "Don't open"
@@ -488,59 +548,59 @@ msgstr "输入链接名称和目标项。"
 msgid "The link name can't contain a backslash."
 msgstr "链接名称不能包含反斜杠。"
 
-#: dialogs/query_dialog.cpp:145
+#: dialogs/query_dialog.cpp:146
 msgid "No top level keys"
 msgstr "不选顶层项"
 
-#: dialogs/query_dialog.cpp:149
+#: dialogs/query_dialog.cpp:150
 msgid "All top level keys"
 msgstr "所有顶层项"
 
-#: dialogs/query_dialog.cpp:157
+#: dialogs/query_dialog.cpp:158
 msgid "Multiple keys"
 msgstr "多个项"
 
-#: dialogs/query_dialog.cpp:482
+#: dialogs/query_dialog.cpp:523
 msgid "Enter a search term."
 msgstr "输入搜索词。"
 
-#: dialogs/query_dialog.cpp:487
+#: dialogs/query_dialog.cpp:528
 msgid "The regular expression is too long."
 msgstr "正则表达式过长。"
 
-#: dialogs/query_dialog.cpp:497
+#: dialogs/query_dialog.cpp:538
 msgid "Select at least one search option."
 msgstr "选择至少一个搜索选项。"
 
-#: dialogs/query_dialog.cpp:516
+#: dialogs/query_dialog.cpp:557
 msgid "Select at least one search source."
 msgstr "选择至少一个搜索源。"
 
-#: dialogs/query_dialog.cpp:541
+#: dialogs/query_dialog.cpp:578
 msgid "Enter a valid minimum data size."
 msgstr "输入有效的最小数据大小。"
 
-#: dialogs/query_dialog.cpp:554
+#: dialogs/query_dialog.cpp:583
 msgid "Enter a valid maximum data size."
 msgstr "输入有效的最大数据大小。"
 
-#: dialogs/query_dialog.cpp:578
+#: dialogs/query_dialog.cpp:603
 msgid "Minimum data size can't exceed maximum data size."
 msgstr "最小数据大小不能超过最大数据大小。"
 
-#: dialogs/query_dialog.cpp:583
+#: dialogs/query_dialog.cpp:608
 msgid "Modified date range is invalid."
 msgstr "修改日期范围无效。"
 
-#: dialogs/query_dialog.cpp:607
+#: dialogs/query_dialog.cpp:632
 msgid "Enter a valid result limit."
 msgstr "输入有效的结果数量上限。"
 
-#: dialogs/query_dialog.cpp:637
+#: dialogs/query_dialog.cpp:660
 msgid "Select at least one top level key."
 msgstr "选择至少一个顶层项。"
 
-#: dialogs/query_dialog.cpp:667
+#: dialogs/query_dialog.cpp:701
 msgid ""
 "PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
 "(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, \\X.\n"
@@ -550,26 +610,17 @@ msgstr ""
 "(?<name>...) 组、环视 (?=...) (?<=...)、向后引用 \\1 和 Unicode 类 \\p{L}、\\w、\\X。\n"
 "匹配支持 Unicode，除非设置了'区分大小写'，否则忽略大小写。"
 
-#: dialogs/query_dialog.cpp:750
+#: dialogs/query_dialog.cpp:784
 msgid "Exclude Keys"
 msgstr "排除项"
 
-#: dialogs/query_dialog.cpp:751 frame/commands/clipboard_commands.cpp:54
+#: dialogs/query_dialog.cpp:785 frame/commands/clipboard_commands.cpp:54
 msgid "Each line should include one key."
 msgstr "每行应包含一个项。"
 
-#: dialogs/query_prompts.cpp:122 frame/commands/context_menus.cpp:217
-#: frame/window/menu_bar.cpp:321
-msgid "Select All"
-msgstr "全选"
-
-#: dialogs/query_prompts.cpp:124 frame/window/menu_bar.cpp:425
-msgid "Clear All"
-msgstr "全部清除"
-
 #: dialogs/query_prompts.cpp:125 dialogs/query_prompts.cpp:209
-#: frame/views/registry_sessions.cpp:1061 frame/window/lifetime.cpp:437
-#: frame/window/notifications.cpp:32 ui/feedback.cpp:405 ui/feedback.cpp:447
+#: frame/views/registry_sessions.cpp:1069 frame/window/lifetime.cpp:437
+#: frame/window/notifications.cpp:33 ui/feedback.cpp:405 ui/feedback.cpp:447
 #: ui/feedback.cpp:728 ui/feedback.cpp:748 ui/feedback.cpp:821
 msgid "OK"
 msgstr "确定"
@@ -590,15 +641,15 @@ msgstr "选择一个项。"
 msgid "Browse Key"
 msgstr "浏览项"
 
-#: dialogs/replace_dialog.cpp:58 frame/search/search_window.cpp:748
+#: dialogs/replace_dialog.cpp:60 frame/search/search_window.cpp:748
 msgid "Enter text to find."
 msgstr "输入要查找的文本。"
 
-#: dialogs/replace_dialog.cpp:69
+#: dialogs/replace_dialog.cpp:71
 msgid "Select what should be replaced."
 msgstr "选择要替换的内容。"
 
-#: dialogs/replace_dialog.cpp:96
+#: dialogs/replace_dialog.cpp:98
 msgid ""
 "PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
 "(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, \\X.\n"
@@ -608,35 +659,35 @@ msgstr ""
 "(?<name>...) 组、环视 (?=...) (?<=...)、向后引用 \\1 和 Unicode 类 \\p{L}、\\w、\\X。\n"
 "替换为: $1 或 ${1} 表示组，$<name> 或 ${name} 表示命名组，$& 表示整个匹配，$$ 表示美元符号。"
 
-#: dialogs/security_dialog.cpp:126 frame/window/lifetime.cpp:25
+#: dialogs/security_dialog.cpp:130 frame/window/lifetime.cpp:25
 msgid "Create"
 msgstr "创建"
 
-#: dialogs/security_dialog.cpp:127
+#: dialogs/security_dialog.cpp:131
 msgid "Enumerate"
 msgstr "枚举"
 
-#: dialogs/security_dialog.cpp:128
+#: dialogs/security_dialog.cpp:132
 msgid "Set Value"
 msgstr "设置值"
 
-#: dialogs/security_dialog.cpp:129
+#: dialogs/security_dialog.cpp:133
 msgid "Query Value"
 msgstr "查询值"
 
-#: dialogs/security_dialog.cpp:130 registry/key_access.cpp:139
+#: dialogs/security_dialog.cpp:134 registry/key_access.cpp:139
 msgid "Write"
 msgstr "写入"
 
-#: dialogs/security_dialog.cpp:131 registry/key_access.cpp:139
+#: dialogs/security_dialog.cpp:135 registry/key_access.cpp:139
 msgid "Read"
 msgstr "读取"
 
-#: dialogs/security_dialog.cpp:166
+#: dialogs/security_dialog.cpp:170
 msgid "This key only"
 msgstr "仅此项"
 
-#: dialogs/security_dialog.cpp:167
+#: dialogs/security_dialog.cpp:171
 msgid "This key and subkeys"
 msgstr "此项及其子项"
 
@@ -666,7 +717,7 @@ msgid "Failed to write the exported registry file."
 msgstr "无法写入导出的注册表文件。"
 
 #: dialogs/transfer_dialogs.cpp:113 dialogs/transfer_dialogs.cpp:198
-#: frame/window/menu_bar.cpp:149
+#: frame/window/menu_bar.cpp:139
 msgid "Export"
 msgstr "导出"
 
@@ -698,39 +749,35 @@ msgstr "必须指定项名称。"
 msgid "Unloading a hive needs the backup and restore privileges. Run RegKit elevated."
 msgstr "卸载配置单元需要备份和还原特权。请以提升的权限运行 RegKit。"
 
-#: dialogs/value_editor.cpp:420
+#: dialogs/value_editor.cpp:424
 msgid "Enter a valid number before editing its bits."
 msgstr "编辑位之前，请输入有效的数字。"
 
-#: dialogs/value_editor.cpp:874
+#: dialogs/value_editor.cpp:888
 msgid "The current data isn't valid, so the type can't be changed."
 msgstr "当前数据无效，因此无法更改类型。"
 
-#: dialogs/value_editor.cpp:898
+#: dialogs/value_editor.cpp:912
 msgid "The current data can't be represented in this type. Continue and start with an empty value?"
 msgstr "当前数据无法以此类型表示。要继续并从空值开始吗?"
 
-#: dialogs/value_editor.cpp:898
+#: dialogs/value_editor.cpp:912
 msgid "Change Data Type"
 msgstr "更改数据类型"
 
-#: dialogs/value_editor.cpp:898
+#: dialogs/value_editor.cpp:912
 msgid "Continue"
 msgstr "继续"
 
-#: dialogs/value_editor.cpp:1027 dialogs/value_editor.cpp:1363
+#: dialogs/value_editor.cpp:1040 dialogs/value_editor.cpp:1376
 msgid "Invalid value data."
 msgstr "值数据无效。"
 
-#: dialogs/value_editor.cpp:1336
-msgid "Invalid number."
-msgstr "数字无效。"
-
-#: dialogs/value_editor.cpp:1342
+#: dialogs/value_editor.cpp:1355
 msgid "Number is out of range."
 msgstr "数字超出范围。"
 
-#: dialogs/value_editor.cpp:1456
+#: dialogs/value_editor.cpp:1469
 msgid "This value has no data to edit as bits."
 msgstr "此值没有可按位编辑的数据。"
 
@@ -746,7 +793,7 @@ msgstr "没有可导入的新收藏夹项。"
 msgid "Edit Favorites"
 msgstr "编辑收藏夹"
 
-#: frame/commands/clipboard_commands.cpp:64 workspace/favorites.cpp:136
+#: frame/commands/clipboard_commands.cpp:64 workspace/favorites.cpp:158
 msgid "Failed to save favorites."
 msgstr "无法保存收藏夹。"
 
@@ -754,7 +801,7 @@ msgstr "无法保存收藏夹。"
 msgid "Failed to import favorites."
 msgstr "无法导入收藏夹。"
 
-#: frame/commands/clipboard_commands.cpp:98 workspace/favorites.cpp:127
+#: frame/commands/clipboard_commands.cpp:98 workspace/favorites.cpp:149
 msgid "Failed to import RegEdit favorites."
 msgstr "无法导入 RegEdit 收藏夹。"
 
@@ -763,31 +810,35 @@ msgid "Failed to export favorites."
 msgstr "无法导出收藏夹。"
 
 #: frame/commands/clipboard_commands.cpp:239
-#: frame/commands/clipboard_commands.cpp:335
+#: frame/commands/clipboard_commands.cpp:348
 #: frame/commands/mutation_commands.cpp:405
 #: frame/commands/mutation_commands.cpp:513
 #: frame/commands/mutation_commands.cpp:1030
-#: frame/commands/tools_commands.cpp:92
+#: frame/commands/tools_commands.cpp:102
 msgid "Failed to read value."
 msgstr "无法读取值。"
 
-#: frame/commands/clipboard_commands.cpp:382
+#: frame/commands/clipboard_commands.cpp:277 frame/tools/launch_bridge.cpp:72
+msgid "The key information couldn't be read."
+msgstr "无法读取项信息。"
+
+#: frame/commands/clipboard_commands.cpp:395
 msgid "The source key couldn't be opened."
 msgstr "无法打开源项。"
 
-#: frame/commands/clipboard_commands.cpp:447
+#: frame/commands/clipboard_commands.cpp:466
 msgid "Failed to paste value."
 msgstr "无法粘贴值。"
 
-#: frame/commands/clipboard_commands.cpp:479
+#: frame/commands/clipboard_commands.cpp:498
 msgid "Failed to paste key."
 msgstr "无法粘贴项。"
 
-#: frame/commands/clipboard_commands.cpp:536 frame/commands/undo.cpp:193
+#: frame/commands/clipboard_commands.cpp:560 frame/commands/undo.cpp:193
 msgid "The change couldn't be undone."
 msgstr "无法撤消更改。"
 
-#: frame/commands/clipboard_commands.cpp:568 frame/commands/undo.cpp:193
+#: frame/commands/clipboard_commands.cpp:592 frame/commands/undo.cpp:193
 msgid "The change couldn't be redone."
 msgstr "无法重做更改。"
 
@@ -823,7 +874,7 @@ msgstr "本机格式"
 msgid "Native (Resolved)"
 msgstr "本机格式 (已解析)"
 
-#: frame/commands/command_detail.h:84 frame/tools/key_handles_window.cpp:494
+#: frame/commands/command_detail.h:84 frame/tools/key_handles_window.cpp:476
 #: frame/views/value_loading.cpp:231 frame/views/value_loading.cpp:264
 #: frame/window/notifications.cpp:1321 search/search.cpp:60
 #: search/search.cpp:242
@@ -862,23 +913,23 @@ msgstr "可扩充字符串值"
 msgid "Symbolic Link"
 msgstr "符号链接"
 
-#: frame/commands/context_menus.cpp:81 frame/commands/context_menus.cpp:419
-#: frame/commands/context_menus.cpp:664
+#: frame/commands/context_menus.cpp:81 frame/commands/context_menus.cpp:403
+#: frame/commands/context_menus.cpp:632
 msgid "Copy Key Name"
 msgstr "复制项名称"
 
-#: frame/commands/context_menus.cpp:82 frame/commands/context_menus.cpp:420
-#: frame/commands/context_menus.cpp:665
+#: frame/commands/context_menus.cpp:82 frame/commands/context_menus.cpp:404
+#: frame/commands/context_menus.cpp:633
 msgid "Copy Key Path"
 msgstr "复制项路径"
 
-#: frame/commands/context_menus.cpp:83 frame/commands/context_menus.cpp:421
-#: frame/commands/context_menus.cpp:666
+#: frame/commands/context_menus.cpp:83 frame/commands/context_menus.cpp:405
+#: frame/commands/context_menus.cpp:634
 msgid "Copy Key Path As"
 msgstr "将项路径复制为"
 
-#: frame/commands/context_menus.cpp:84 frame/commands/context_menus.cpp:376
-#: frame/commands/context_menus.cpp:661 frame/window/menu_bar.cpp:305
+#: frame/commands/context_menus.cpp:84 frame/commands/context_menus.cpp:360
+#: frame/commands/context_menus.cpp:629 frame/window/menu_bar.cpp:287
 msgid "Modify Comment..."
 msgstr "修改注释..."
 
@@ -886,7 +937,7 @@ msgstr "修改注释..."
 msgid "Open in Source Hive"
 msgstr "在源配置单元中打开"
 
-#: frame/commands/context_menus.cpp:91 frame/commands/context_menus.cpp:668
+#: frame/commands/context_menus.cpp:91 frame/commands/context_menus.cpp:636
 msgid "On-Disk Hive File"
 msgstr "磁盘上的配置单元文件"
 
@@ -894,163 +945,163 @@ msgstr "磁盘上的配置单元文件"
 msgid "Expand All Subkeys"
 msgstr "展开所有子项"
 
-#: frame/commands/context_menus.cpp:99 frame/commands/context_menus.cpp:425
-#: frame/views/registry_sessions.cpp:1083
+#: frame/commands/context_menus.cpp:99 frame/commands/context_menus.cpp:409
+#: frame/views/registry_sessions.cpp:1091
 msgid "Create Key"
 msgstr "创建项"
 
 #: frame/commands/context_menus.cpp:101 frame/commands/context_menus.cpp:108
-#: frame/commands/context_menus.cpp:437 frame/commands/context_menus.cpp:490
-#: frame/tools/key_handles_window.cpp:399 frame/window/menu_bar.cpp:161
-#: frame/window/menu_bar.cpp:339
+#: frame/commands/context_menus.cpp:421 frame/commands/context_menus.cpp:468
+#: frame/tools/key_handles_window.cpp:386 frame/window/menu_bar.cpp:151
+#: frame/window/menu_bar.cpp:321
 msgid "Refresh"
 msgstr "刷新"
 
-#: frame/commands/context_menus.cpp:104 frame/commands/context_menus.cpp:429
-#: frame/window/menu_bar.cpp:298
+#: frame/commands/context_menus.cpp:104 frame/commands/context_menus.cpp:413
+#: frame/window/menu_bar.cpp:280
 msgid "New"
 msgstr "新建"
 
-#: frame/commands/context_menus.cpp:106 frame/commands/context_menus.cpp:408
-#: frame/commands/context_menus.cpp:434 frame/commands/context_menus.cpp:671
-#: frame/window/menu_bar.cpp:274
+#: frame/commands/context_menus.cpp:106 frame/commands/context_menus.cpp:392
+#: frame/commands/context_menus.cpp:418 frame/commands/context_menus.cpp:639
+#: frame/window/menu_bar.cpp:256 ui/preset_editor.cpp:460
 msgid "Export..."
 msgstr "导出..."
 
-#: frame/commands/context_menus.cpp:110 frame/commands/context_menus.cpp:410
-#: frame/commands/context_menus.cpp:675 frame/window/menu_bar.cpp:318
+#: frame/commands/context_menus.cpp:110 frame/commands/context_menus.cpp:394
+#: frame/commands/context_menus.cpp:643 frame/window/menu_bar.cpp:300
 msgid "Rename"
 msgstr "重命名"
 
-#: frame/commands/context_menus.cpp:111 frame/commands/context_menus.cpp:215
-#: frame/commands/context_menus.cpp:411 frame/commands/context_menus.cpp:676
-#: frame/window/menu_bar.cpp:159 frame/window/menu_bar.cpp:319
-#: ui/feedback.cpp:791
+#: frame/commands/context_menus.cpp:111 frame/commands/context_menus.cpp:212
+#: frame/commands/context_menus.cpp:395 frame/commands/context_menus.cpp:644
+#: frame/window/menu_bar.cpp:149 frame/window/menu_bar.cpp:301
+#: ui/feedback.cpp:791 ui/preset_editor.cpp:457
 msgid "Delete"
 msgstr "删除"
 
-#: frame/commands/context_menus.cpp:113 frame/commands/context_menus.cpp:441
-#: frame/commands/context_menus.cpp:679 frame/tools/launch_bridge.cpp:231
-#: frame/window/menu_bar.cpp:334
+#: frame/commands/context_menus.cpp:113 frame/commands/context_menus.cpp:425
+#: frame/commands/context_menus.cpp:647 frame/tools/launch_bridge.cpp:231
+#: frame/window/menu_bar.cpp:316
 msgid "Permissions..."
 msgstr "权限..."
 
-#: frame/commands/context_menus.cpp:114 frame/commands/context_menus.cpp:442
-#: frame/window/menu_bar.cpp:335
+#: frame/commands/context_menus.cpp:114 frame/commands/context_menus.cpp:426
+#: frame/window/menu_bar.cpp:317
 msgid "Key Information..."
 msgstr "项信息..."
 
-#: frame/commands/context_menus.cpp:209 frame/window/menu_bar.cpp:151
-#: frame/window/menu_bar.cpp:295
+#: frame/commands/context_menus.cpp:206 frame/window/menu_bar.cpp:141
+#: frame/window/menu_bar.cpp:277
 msgid "Undo"
 msgstr "撤消"
 
-#: frame/commands/context_menus.cpp:211
+#: frame/commands/context_menus.cpp:208
 msgid "Cut"
 msgstr "剪切"
 
-#: frame/commands/context_menus.cpp:212 frame/commands/context_menus.cpp:484
-#: frame/window/menu_bar.cpp:155 frame/window/menu_bar.cpp:308
+#: frame/commands/context_menus.cpp:209 frame/commands/context_menus.cpp:462
+#: frame/window/menu_bar.cpp:145 frame/window/menu_bar.cpp:290
 msgid "Copy"
 msgstr "复制"
 
-#: frame/commands/context_menus.cpp:213 frame/window/menu_bar.cpp:157
-#: frame/window/menu_bar.cpp:317
+#: frame/commands/context_menus.cpp:210 frame/window/menu_bar.cpp:147
+#: frame/window/menu_bar.cpp:299
 msgid "Paste"
 msgstr "粘贴"
 
-#: frame/commands/context_menus.cpp:214
+#: frame/commands/context_menus.cpp:211
 msgid "Paste and Go"
 msgstr "粘贴并转到"
 
-#: frame/commands/context_menus.cpp:294
+#: frame/commands/context_menus.cpp:284
 msgid "Collapse Key"
 msgstr "折叠项"
 
-#: frame/commands/context_menus.cpp:294 frame/commands/context_menus.cpp:341
+#: frame/commands/context_menus.cpp:284 frame/commands/context_menus.cpp:325
 msgid "Expand Key"
 msgstr "展开项"
 
-#: frame/commands/context_menus.cpp:371 frame/commands/context_menus.cpp:657
-#: frame/window/menu_bar.cpp:300
+#: frame/commands/context_menus.cpp:355 frame/commands/context_menus.cpp:625
+#: frame/window/menu_bar.cpp:282
 msgid "Modify..."
 msgstr "修改..."
 
-#: frame/commands/context_menus.cpp:372 frame/commands/context_menus.cpp:658
-#: frame/window/menu_bar.cpp:301
+#: frame/commands/context_menus.cpp:356 frame/commands/context_menus.cpp:626
+#: frame/window/menu_bar.cpp:283
 msgid "Modify Binary Data..."
 msgstr "修改二进制数据..."
 
-#: frame/commands/context_menus.cpp:373 frame/window/menu_bar.cpp:302
+#: frame/commands/context_menus.cpp:357 frame/window/menu_bar.cpp:284
 msgid "Change Data Type..."
 msgstr "更改数据类型..."
 
-#: frame/commands/context_menus.cpp:374 frame/window/menu_bar.cpp:303
+#: frame/commands/context_menus.cpp:358 frame/window/menu_bar.cpp:285
 msgid "Edit Bits..."
 msgstr "编辑位..."
 
-#: frame/commands/context_menus.cpp:375 frame/commands/context_menus.cpp:660
-#: frame/window/menu_bar.cpp:304
+#: frame/commands/context_menus.cpp:359 frame/commands/context_menus.cpp:628
+#: frame/window/menu_bar.cpp:286
 msgid "Decode Value..."
 msgstr "解码值..."
 
-#: frame/commands/context_menus.cpp:377 frame/window/menu_bar.cpp:306
+#: frame/commands/context_menus.cpp:361 frame/window/menu_bar.cpp:288
 msgid "Reset to Default"
 msgstr "重置为默认值"
 
-#: frame/commands/context_menus.cpp:379
+#: frame/commands/context_menus.cpp:363
 msgid "Copy Value Name"
 msgstr "复制值名称"
 
-#: frame/commands/context_menus.cpp:380
+#: frame/commands/context_menus.cpp:364
 msgid "Copy Value Data"
 msgstr "复制值数据"
 
-#: frame/commands/context_menus.cpp:396 frame/commands/context_menus.cpp:405
+#: frame/commands/context_menus.cpp:380 frame/commands/context_menus.cpp:389
 msgid "Open Link"
 msgstr "打开链接"
 
-#: frame/commands/context_menus.cpp:481
+#: frame/commands/context_menus.cpp:459
 msgid "Open Entry"
 msgstr "打开条目"
 
-#: frame/commands/context_menus.cpp:482 frame/views/history_workspace.cpp:210
+#: frame/commands/context_menus.cpp:460 frame/views/history_workspace.cpp:260
 msgid "Revert"
 msgstr "撤消更改"
 
-#: frame/commands/context_menus.cpp:486
+#: frame/commands/context_menus.cpp:464
 msgid "Remove from History"
 msgstr "从历史记录中移除"
 
-#: frame/commands/context_menus.cpp:493
+#: frame/commands/context_menus.cpp:471
 msgid "Clear History"
 msgstr "清除历史记录"
 
-#: frame/commands/context_menus.cpp:502
+#: frame/commands/context_menus.cpp:479
 msgid "Failed to open history target."
 msgstr "无法打开历史记录的目标。"
 
-#: frame/commands/context_menus.cpp:643
+#: frame/commands/context_menus.cpp:611
 msgid "Open First Entry"
 msgstr "打开第一个条目"
 
-#: frame/commands/context_menus.cpp:644
+#: frame/commands/context_menus.cpp:612
 msgid "Open First Entry in New Tab"
 msgstr "在新选项卡中打开第一个条目"
 
-#: frame/commands/context_menus.cpp:645
+#: frame/commands/context_menus.cpp:613
 msgid "Open Second Entry"
 msgstr "打开第二个条目"
 
-#: frame/commands/context_menus.cpp:646
+#: frame/commands/context_menus.cpp:614
 msgid "Open Second Entry in New Tab"
 msgstr "在新选项卡中打开第二个条目"
 
-#: frame/commands/context_menus.cpp:651 frame/tools/key_handles_window.cpp:388
+#: frame/commands/context_menus.cpp:619 frame/tools/key_handles_window.cpp:375
 msgid "Open Key"
 msgstr "打开项"
 
-#: frame/commands/context_menus.cpp:652 frame/tools/key_handles_window.cpp:389
+#: frame/commands/context_menus.cpp:620 frame/tools/key_handles_window.cpp:376
 msgid "Open Key in New Tab"
 msgstr "在新选项卡中打开项"
 
@@ -1106,37 +1157,37 @@ msgstr "要卸载此项及其所有子项吗?"
 msgid "Unload"
 msgstr "卸载"
 
-#: frame/commands/file_view_commands.cpp:602
+#: frame/commands/file_view_commands.cpp:606
 msgid "Expanded keys"
 msgstr "展开的项"
 
-#: frame/commands/file_view_commands.cpp:602
+#: frame/commands/file_view_commands.cpp:606
 msgid "This key has too many subkeys to expand at once."
 msgstr "此项的子项过多，无法一次全部展开。"
 
-#: frame/commands/file_view_commands.cpp:795
+#: frame/commands/file_view_commands.cpp:799
 msgid "Edit Active Defaults"
 msgstr "编辑活动默认值"
 
-#: frame/commands/file_view_commands.cpp:796
-#: frame/commands/file_view_commands.cpp:858
+#: frame/commands/file_view_commands.cpp:800
+#: frame/commands/file_view_commands.cpp:862
 msgid "One default path per line."
 msgstr "每行一个默认值文件路径。"
 
-#: frame/commands/file_view_commands.cpp:826
+#: frame/commands/file_view_commands.cpp:830
 msgid "Edit Active Traces"
 msgstr "编辑活动 Trace"
 
-#: frame/commands/file_view_commands.cpp:827
-#: frame/commands/file_view_commands.cpp:878
+#: frame/commands/file_view_commands.cpp:831
+#: frame/commands/file_view_commands.cpp:882
 msgid "One trace path per line."
 msgstr "每行一个 Trace 文件路径。"
 
-#: frame/commands/file_view_commands.cpp:857
+#: frame/commands/file_view_commands.cpp:861
 msgid "Edit Recent Defaults"
 msgstr "编辑最近的默认值"
 
-#: frame/commands/file_view_commands.cpp:877
+#: frame/commands/file_view_commands.cpp:881
 msgid "Edit Recent Traces"
 msgstr "编辑最近的 Trace"
 
@@ -1216,7 +1267,7 @@ msgstr "删除多个值"
 msgid "Some of the selected values couldn't be deleted."
 msgstr "无法删除部分选中的值。"
 
-#: frame/commands/tools_commands.cpp:71
+#: frame/commands/tools_commands.cpp:81
 msgid "The key couldn't be found."
 msgstr "找不到此项。"
 
@@ -1228,11 +1279,11 @@ msgstr "值已复制到新名称，但无法移除旧名称。现在两个名称
 msgid "Restart RegKit now to apply the language?"
 msgstr "要立即重启 RegKit 以应用语言吗?"
 
-#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:380
+#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:362
 msgid "Language"
 msgstr "语言"
 
-#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:391
+#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:373
 msgid "Restart"
 msgstr "重启"
 
@@ -1256,96 +1307,96 @@ msgstr "重置设置"
 msgid "Reset"
 msgstr "重置"
 
-#: frame/search/compare_command.cpp:93
+#: frame/search/compare_command.cpp:107
 msgid "Invalid registry path."
 msgstr "注册表路径无效。"
 
-#: frame/search/compare_command.cpp:100 frame/views/registry_sessions.cpp:1069
-#: frame/views/registry_sessions.cpp:1111 frame/window/message_routes.cpp:1260
-#: launch/program.cpp:230 launch/program.cpp:576
+#: frame/search/compare_command.cpp:114 frame/views/registry_sessions.cpp:1077
+#: frame/views/registry_sessions.cpp:1119 frame/window/message_routes.cpp:1259
+#: launch/program.cpp:230 launch/program.cpp:583
 msgid "Registry path not found."
 msgstr "找不到注册表路径。"
 
-#: frame/search/compare_command.cpp:138 frame/window/menu_bar.cpp:459
+#: frame/search/compare_command.cpp:152 frame/window/menu_bar.cpp:442
 msgid "Compare Registries..."
 msgstr "比较注册表..."
 
-#: frame/search/compare_command.cpp:156 frame/search/compare_dialog.cpp:328
-#: frame/sources/regfile_commands.cpp:188 regfile/registry_transfer.cpp:155
+#: frame/search/compare_command.cpp:170 frame/search/compare_dialog.cpp:329
+#: frame/sources/regfile_commands.cpp:199 regfile/registry_transfer.cpp:155
 msgid "Failed to read registry file."
 msgstr "无法读取注册表文件。"
 
-#: frame/search/compare_command.cpp:187
+#: frame/search/compare_command.cpp:201
 msgid "Failed to read the hive file."
 msgstr "无法读取配置单元文件。"
 
-#: frame/search/compare_command.cpp:196
+#: frame/search/compare_command.cpp:210
 msgid "Select a computer to compare against."
 msgstr "选择要比较的计算机。"
 
-#: frame/search/compare_command.cpp:212
+#: frame/search/compare_command.cpp:226
 msgid "Network registry path not found."
 msgstr "找不到网络注册表路径。"
 
-#: frame/search/compare_command.cpp:260 frame/search/search_window.cpp:1649
+#: frame/search/compare_command.cpp:274 frame/search/search_window.cpp:1669
 msgid "Skipped"
 msgstr "已跳过"
 
-#: frame/search/compare_command.cpp:260 search/compare.cpp:152
+#: frame/search/compare_command.cpp:274 search/compare.cpp:152
 msgid "Couldn't read the registry key."
 msgstr "无法读取注册表项。"
 
-#: frame/search/compare_command.cpp:291
+#: frame/search/compare_command.cpp:305
 msgid "Registry Comparison"
 msgstr "注册表比较"
 
-#: frame/search/compare_dialog.cpp:33 frame/tools/convert_dialog.cpp:222
-#: frame/tools/convert_dialog.cpp:223
+#: frame/search/compare_dialog.cpp:34 frame/tools/convert_dialog.cpp:223
+#: frame/tools/convert_dialog.cpp:224
 msgid "Reg File"
 msgstr "Reg 文件"
 
-#: frame/search/compare_dialog.cpp:35 search/search.cpp:45
+#: frame/search/compare_dialog.cpp:36 search/search.cpp:45
 msgid "Network Registry"
 msgstr "网络注册表"
 
-#: frame/search/compare_dialog.cpp:37
+#: frame/search/compare_dialog.cpp:38
 msgid "Offline Hive"
 msgstr "脱机配置单元"
 
-#: frame/search/compare_dialog.cpp:39 frame/tools/convert_dialog.cpp:222
+#: frame/search/compare_dialog.cpp:40 frame/tools/convert_dialog.cpp:223
 msgid "Registry"
 msgstr "注册表"
 
-#: frame/search/compare_dialog.cpp:105
+#: frame/search/compare_dialog.cpp:106
 msgid "Computer:"
 msgstr "计算机:"
 
-#: frame/search/compare_dialog.cpp:105
+#: frame/search/compare_dialog.cpp:106
 msgid "File:"
 msgstr "文件:"
 
-#: frame/search/compare_dialog.cpp:266 frame/search/compare_dialog.cpp:334
+#: frame/search/compare_dialog.cpp:267 frame/search/compare_dialog.cpp:335
 #: search/compare.cpp:176
 msgid "No registry keys were found in the .reg file."
 msgstr ".reg 文件中未找到注册表项。"
 
-#: frame/search/compare_dialog.cpp:297 frame/tools/convert_dialog.cpp:123
+#: frame/search/compare_dialog.cpp:298 frame/tools/convert_dialog.cpp:124
 msgid "Registry key is required."
 msgstr "必须指定注册表项。"
 
-#: frame/search/compare_dialog.cpp:307 frame/views/registry_sessions.cpp:734
+#: frame/search/compare_dialog.cpp:308 frame/views/registry_sessions.cpp:734
 msgid "Computer name is required."
 msgstr "必须指定计算机名称。"
 
-#: frame/search/compare_dialog.cpp:317
+#: frame/search/compare_dialog.cpp:318
 msgid "Hive file path is required."
 msgstr "必须指定配置单元文件路径。"
 
-#: frame/search/compare_dialog.cpp:317
+#: frame/search/compare_dialog.cpp:318
 msgid "Registry file path is required."
 msgstr "必须指定注册表文件路径。"
 
-#: frame/search/compare_dialog.cpp:358
+#: frame/search/compare_dialog.cpp:359
 msgid "The selected key path wasn't found in the .reg file."
 msgstr ".reg 文件中未找到所选项路径。"
 
@@ -1381,7 +1432,7 @@ msgstr ""
 msgid "HKCR"
 msgstr ""
 
-#: frame/search/search_window.cpp:240 frame/window/notifications.cpp:42
+#: frame/search/search_window.cpp:240 frame/window/notifications.cpp:43
 msgid "Backup/restore mode"
 msgstr "备份/还原模式"
 
@@ -1400,12 +1451,12 @@ msgstr "值: %d"
 msgid "Selected: %d"
 msgstr "已选: %d"
 
-#: frame/search/search_window.cpp:574 frame/search/search_window.cpp:1365
+#: frame/search/search_window.cpp:574 frame/search/search_window.cpp:1384
 msgid "Starting key path wasn't found."
 msgstr "找不到起始项路径。"
 
 #: frame/search/search_window.cpp:585 frame/search/search_window.cpp:784
-#: frame/search/search_window.cpp:1375
+#: frame/search/search_window.cpp:1394
 msgid "Select a starting key first."
 msgstr "请先选择起始项。"
 
@@ -1413,44 +1464,44 @@ msgstr "请先选择起始项。"
 msgid "No keys to search in the selected sources."
 msgstr "所选源中没有可搜索的项。"
 
-#: frame/search/search_window.cpp:826
+#: frame/search/search_window.cpp:845
 msgid "Anomalies"
 msgstr "异常"
 
-#: frame/search/search_window.cpp:826 frame/search/search_window.cpp:829
-#: frame/views/history_workspace.cpp:546 frame/window/menu_bar.cpp:143
+#: frame/search/search_window.cpp:845 frame/search/search_window.cpp:848
+#: frame/views/history_workspace.cpp:606 frame/window/menu_bar.cpp:133
 msgid "Find"
 msgstr "查找"
 
-#: frame/search/search_window.cpp:1352 frame/window/menu_bar.cpp:179
+#: frame/search/search_window.cpp:1371 frame/window/menu_bar.cpp:169
 msgid "Read only mode is enabled."
 msgstr "已启用只读模式。"
 
-#: frame/search/search_window.cpp:1388
+#: frame/search/search_window.cpp:1407
 msgid "Replace is already running."
 msgstr "替换操作已在运行。"
 
-#: frame/search/search_window.cpp:1642 frame/search/search_window.cpp:1659
+#: frame/search/search_window.cpp:1662 frame/search/search_window.cpp:1679
 msgid "Replaced"
 msgstr "已替换"
 
-#: frame/search/search_window.cpp:1645 frame/search/search_window.cpp:1660
+#: frame/search/search_window.cpp:1665 frame/search/search_window.cpp:1680
 msgid "Failed"
 msgstr "失败"
 
-#: frame/search/search_window.cpp:1653
+#: frame/search/search_window.cpp:1673
 msgid "cancelled"
 msgstr "已取消"
 
-#: frame/search/search_window.cpp:1659
+#: frame/search/search_window.cpp:1679
 msgid "Replace finished with some failures."
 msgstr "替换已完成，但部分操作失败。"
 
-#: frame/search/search_window.cpp:1663
+#: frame/search/search_window.cpp:1683
 msgid "Skipped, the replacement isn't valid for the value type"
 msgstr "已跳过，替换结果不适用于此值类型"
 
-#: frame/search/search_window.cpp:1667
+#: frame/search/search_window.cpp:1687
 msgid "Copied to the new name, the old name couldn't be removed"
 msgstr "已复制到新名称，但无法移除旧名称"
 
@@ -1470,67 +1521,67 @@ msgstr "无法保存注册表文件。"
 msgid "Failed to export registry file."
 msgstr "无法导出注册表文件。"
 
-#: frame/sources/regfile_commands.cpp:228 launch/program.cpp:231
+#: frame/sources/regfile_commands.cpp:239 launch/program.cpp:231
 msgid "Registry file not found."
 msgstr "找不到注册表文件。"
 
-#: frame/sources/regfile_commands.cpp:234
+#: frame/sources/regfile_commands.cpp:245
 msgid "Registry File"
 msgstr "注册表文件"
 
-#: frame/sources/trace_commands.cpp:249
+#: frame/sources/trace_commands.cpp:250
 msgid "Trace file not found."
 msgstr "找不到 Trace 文件。"
 
-#: frame/sources/trace_commands.cpp:307
+#: frame/sources/trace_commands.cpp:308
 msgid "Trace entries"
 msgstr "Trace 条目"
 
-#: frame/tools/convert_dialog.cpp:123
+#: frame/tools/convert_dialog.cpp:124
 msgid "Input file path is required."
 msgstr "必须指定输入文件路径。"
 
-#: frame/tools/convert_dialog.cpp:128
+#: frame/tools/convert_dialog.cpp:129
 msgid "Output file path is required."
 msgstr "必须指定输出文件路径。"
 
-#: frame/tools/convert_dialog.cpp:133
+#: frame/tools/convert_dialog.cpp:134
 msgid "The output file can't be the input file."
 msgstr "输出文件不能与输入文件相同。"
 
-#: frame/tools/convert_dialog.cpp:161
+#: frame/tools/convert_dialog.cpp:162
 msgid "The output file couldn't be written."
 msgstr "无法写入输出文件。"
 
-#: frame/tools/convert_dialog.cpp:222 frame/tools/convert_dialog.cpp:223
+#: frame/tools/convert_dialog.cpp:223 frame/tools/convert_dialog.cpp:224
 msgid "Batch File"
 msgstr "批处理文件"
 
-#: frame/tools/convert_dialog.cpp:222 frame/tools/convert_dialog.cpp:223
+#: frame/tools/convert_dialog.cpp:223 frame/tools/convert_dialog.cpp:224
 msgid "PowerShell Script"
 msgstr "PowerShell 脚本"
 
-#: frame/tools/key_handles_window.cpp:223
+#: frame/tools/key_handles_window.cpp:222
 msgid "Scanning handles..."
 msgstr "正在扫描句柄..."
 
-#: frame/tools/key_handles_window.cpp:227
+#: frame/tools/key_handles_window.cpp:226
 msgid "Handles couldn't be enumerated."
 msgstr "无法枚举句柄。"
 
-#: frame/tools/key_handles_window.cpp:231
+#: frame/tools/key_handles_window.cpp:230
 msgid "Handles"
 msgstr "句柄"
 
-#: frame/tools/key_handles_window.cpp:232
+#: frame/tools/key_handles_window.cpp:231
 msgid "Shown"
 msgstr "显示数量"
 
-#: frame/tools/key_handles_window.cpp:233
+#: frame/tools/key_handles_window.cpp:232
 msgid "Inaccessible processes"
 msgstr "无法访问的进程"
 
-#: frame/tools/key_handles_window.cpp:355
+#: frame/tools/key_handles_window.cpp:353
 msgid ""
 "Closing a handle owned by another process can make that process malfunction or crash.\n"
 "\n"
@@ -1540,83 +1591,79 @@ msgstr ""
 "\n"
 "每个句柄都会先与最新快照核对，但在核对后、关闭前，句柄仍可能被关闭并重新使用。"
 
-#: frame/tools/key_handles_window.cpp:358
+#: frame/tools/key_handles_window.cpp:356
 msgid "Close Handle"
 msgstr "关闭句柄"
 
-#: frame/tools/key_handles_window.cpp:358
+#: frame/tools/key_handles_window.cpp:356
 msgid "Close Handles"
 msgstr "关闭多个句柄"
 
-#: frame/tools/key_handles_window.cpp:358 frame/tools/update_checker.cpp:425
+#: frame/tools/key_handles_window.cpp:356 frame/tools/update_checker.cpp:425
 msgid "Close"
 msgstr "关闭"
 
-#: frame/tools/key_handles_window.cpp:366
+#: frame/tools/key_handles_window.cpp:364
 msgid "Not all handles were closed."
 msgstr "部分句柄未关闭。"
 
-#: frame/tools/key_handles_window.cpp:391
+#: frame/tools/key_handles_window.cpp:378
 msgid "Copy Key"
 msgstr "复制项"
 
-#: frame/tools/key_handles_window.cpp:392
+#: frame/tools/key_handles_window.cpp:379
 msgid "Copy Native Name"
 msgstr "复制本机名称"
 
-#: frame/tools/key_handles_window.cpp:393
+#: frame/tools/key_handles_window.cpp:380
 msgid "Copy Process"
 msgstr "复制进程"
 
-#: frame/tools/key_handles_window.cpp:394
+#: frame/tools/key_handles_window.cpp:381
 msgid "Copy PID"
 msgstr "复制 PID"
 
-#: frame/tools/key_handles_window.cpp:395
+#: frame/tools/key_handles_window.cpp:382
 msgid "Copy Handle"
 msgstr "复制句柄"
 
-#: frame/tools/key_handles_window.cpp:396
+#: frame/tools/key_handles_window.cpp:383
 msgid "Copy Access"
 msgstr "复制访问权限"
 
-#: frame/tools/key_handles_window.cpp:397
-msgid "Copy Rows"
-msgstr "复制多行"
-
-#: frame/tools/key_handles_window.cpp:401
+#: frame/tools/key_handles_window.cpp:388
 msgid "Close Handle..."
 msgstr "关闭句柄..."
 
-#: frame/tools/key_handles_window.cpp:493
+#: frame/tools/key_handles_window.cpp:475
 msgid "Filter"
 msgstr "筛选"
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "Process"
 msgstr "进程"
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "PID"
 msgstr ""
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "Handle"
 msgstr "句柄"
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "Object Address"
 msgstr "对象地址"
 
-#: frame/tools/key_handles_window.cpp:494 frame/tools/launch_bridge.cpp:224
+#: frame/tools/key_handles_window.cpp:476 frame/tools/launch_bridge.cpp:224
 msgid "Access"
 msgstr "访问权限"
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "Attributes"
 msgstr "属性"
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "Native Name"
 msgstr "本机名称"
 
@@ -1640,7 +1687,7 @@ msgstr "中"
 msgid "High"
 msgstr "高"
 
-#: frame/tools/launch_bridge.cpp:45 frame/window/menu_bar.cpp:359
+#: frame/tools/launch_bridge.cpp:45 frame/window/menu_bar.cpp:341
 msgid "System"
 msgstr "系统"
 
@@ -1651,10 +1698,6 @@ msgstr "受保护的进程"
 #: frame/tools/launch_bridge.cpp:65
 msgid "Key Information"
 msgstr "项信息"
-
-#: frame/tools/launch_bridge.cpp:72
-msgid "The key information couldn't be read."
-msgstr "无法读取项信息。"
 
 #: frame/tools/launch_bridge.cpp:75 frame/views/value_loading.cpp:315
 #: ui/feedback.cpp:711
@@ -1667,7 +1710,7 @@ msgid "No"
 msgstr "否"
 
 #: frame/tools/launch_bridge.cpp:85 frame/tools/launch_bridge.cpp:112
-#: frame/tools/launch_bridge.cpp:174 registry/value_decoder.cpp:740
+#: frame/tools/launch_bridge.cpp:174 registry/value_decoder.cpp:733
 msgid "None"
 msgstr "无"
 
@@ -1686,10 +1729,6 @@ msgstr "内容"
 #: registry/resource_list.cpp:382
 msgid "Flags"
 msgstr "标志"
-
-#: frame/tools/launch_bridge.cpp:94 frame/views/browse_view.cpp:59
-msgid "Name"
-msgstr "名称"
 
 #: frame/tools/launch_bridge.cpp:97
 msgid "Native name"
@@ -1783,7 +1822,7 @@ msgstr "递归"
 msgid "Virtualization flags"
 msgstr "虚拟化标志"
 
-#: frame/tools/launch_bridge.cpp:174 search/search.cpp:1421
+#: frame/tools/launch_bridge.cpp:174 search/search.cpp:1433
 msgid "Virtual store copy"
 msgstr "虚拟存储副本"
 
@@ -1864,11 +1903,11 @@ msgid "Edit Binary..."
 msgstr "编辑二进制数据..."
 
 #: frame/tools/launch_bridge.cpp:266 frame/tools/launch_bridge.cpp:481
-#: launch/program.cpp:385
+#: launch/program.cpp:392
 msgid "Failed to locate the executable path."
 msgstr "无法找到可执行文件路径。"
 
-#: frame/tools/launch_bridge.cpp:312 launch/program.cpp:405
+#: frame/tools/launch_bridge.cpp:312 launch/program.cpp:412
 msgid "RegKit couldn't restore its own security context and must close now."
 msgstr "RegKit 无法还原自身的安全上下文，必须立即关闭。"
 
@@ -1931,7 +1970,7 @@ msgstr ""
 "选择仍然替换可从此位置应用替换。"
 
 #: frame/tools/launch_bridge.cpp:495 frame/tools/launch_bridge.cpp:512
-#: frame/window/menu_bar.cpp:404
+#: frame/window/menu_bar.cpp:386
 msgid "Replace RegEdit"
 msgstr "替换 RegEdit"
 
@@ -2040,8 +2079,8 @@ msgstr "类型"
 msgid "Data"
 msgstr "数据"
 
-#: frame/views/browse_view.cpp:62 frame/window/menu_bar.cpp:548
-#: frame/window/menu_bar.cpp:871 registry/resource_list.cpp:336
+#: frame/views/browse_view.cpp:62 frame/window/menu_bar.cpp:531
+#: frame/window/menu_bar.cpp:854 registry/resource_list.cpp:336
 #: search/search.cpp:68
 msgid "Default"
 msgstr "默认值"
@@ -2107,47 +2146,47 @@ msgstr "调整列宽以适应内容"
 msgid "Size all columns to fit"
 msgstr "调整所有列宽以适应内容"
 
-#: frame/views/history_workspace.cpp:210
+#: frame/views/history_workspace.cpp:260
 msgid "Revert this change with elevated rights?"
 msgstr "要以提升的权限撤消此更改吗?"
 
-#: frame/views/history_workspace.cpp:243
+#: frame/views/history_workspace.cpp:293
 msgid "Revert Key Creation"
 msgstr "撤消项创建"
 
-#: frame/views/history_workspace.cpp:257
+#: frame/views/history_workspace.cpp:307
 msgid "Failed to revert history entry."
 msgstr "无法撤消历史记录条目的更改。"
 
-#: frame/views/history_workspace.cpp:294
+#: frame/views/history_workspace.cpp:344
 msgid "The history couldn't be written to disk. It is kept for this session only."
 msgstr "无法将历史记录写入磁盘。历史记录仅在本次会话中保留。"
 
-#: frame/views/history_workspace.cpp:607 frame/views/history_workspace.cpp:629
-#: frame/views/history_workspace.cpp:828 frame/views/registry_sessions.cpp:496
-#: frame/views/registry_sessions.cpp:499 frame/views/tab_lists.cpp:627
-#: frame/window/menu_bar.cpp:137 frame/window/menu_bar.cpp:279
+#: frame/views/history_workspace.cpp:667 frame/views/history_workspace.cpp:689
+#: frame/views/history_workspace.cpp:888 frame/views/registry_sessions.cpp:496
+#: frame/views/registry_sessions.cpp:499 frame/views/tab_lists.cpp:634
+#: frame/window/menu_bar.cpp:127 frame/window/menu_bar.cpp:261
 #: search/search.cpp:52
 msgid "Local Registry"
 msgstr "本地注册表"
 
-#: frame/views/history_workspace.cpp:947
+#: frame/views/history_workspace.cpp:1007
 msgid "Comments were imported but couldn't be saved."
 msgstr "注释已导入，但无法保存。"
 
-#: frame/views/history_workspace.cpp:1058
+#: frame/views/history_workspace.cpp:1118
 msgid "Different types"
 msgstr "类型不同"
 
-#: frame/views/history_workspace.cpp:1060
+#: frame/views/history_workspace.cpp:1120
 msgid "Different lengths"
 msgstr "长度不同"
 
-#: frame/views/history_workspace.cpp:1108
+#: frame/views/history_workspace.cpp:1168
 msgid "The comment couldn't be saved."
 msgstr "无法保存注释。"
 
-#: frame/views/registry_sessions.cpp:499 frame/window/menu_bar.cpp:282
+#: frame/views/registry_sessions.cpp:499 frame/window/menu_bar.cpp:264
 #: search/search.cpp:52
 msgid "Local Registry (32-bit)"
 msgstr "本地注册表 (32 位)"
@@ -2171,7 +2210,7 @@ msgstr "计算机名称 (例如 \\\\MACHINE):"
 
 #: frame/views/registry_sessions.cpp:771 frame/views/registry_sessions.cpp:774
 #: frame/views/registry_sessions.cpp:793 frame/views/registry_sessions.cpp:831
-#: frame/window/menu_bar.cpp:139
+#: frame/window/menu_bar.cpp:129
 msgid "Remote Registry"
 msgstr "远程注册表"
 
@@ -2220,7 +2259,7 @@ msgid "Load the offline registry from a single hive file, or from a folder of hi
 msgstr "要从单个配置单元文件还是配置单元文件夹加载脱机注册表?"
 
 #: frame/views/registry_sessions.cpp:844 frame/views/registry_sessions.cpp:945
-#: frame/views/registry_sessions.cpp:948 frame/window/menu_bar.cpp:141
+#: frame/views/registry_sessions.cpp:948 frame/window/menu_bar.cpp:131
 msgid "Offline Registry"
 msgstr "脱机注册表"
 
@@ -2252,33 +2291,33 @@ msgstr "无法解析用于保存的脱机配置单元路径。"
 msgid "Failed to save offline hive."
 msgstr "无法保存脱机配置单元。"
 
-#: frame/views/registry_sessions.cpp:1061
+#: frame/views/registry_sessions.cpp:1069
 msgid "The key was opened, but it doesn't contain this value:"
 msgstr "项已打开，但其中没有此值:"
 
-#: frame/views/registry_sessions.cpp:1061
+#: frame/views/registry_sessions.cpp:1069
 msgid "Value Not Found"
 msgstr "找不到值"
 
-#: frame/views/registry_sessions.cpp:1072
+#: frame/views/registry_sessions.cpp:1080
 msgid "The registry key doesn't exist:"
 msgstr "注册表项不存在:"
 
-#: frame/views/registry_sessions.cpp:1076
-#: frame/views/registry_sessions.cpp:1083
+#: frame/views/registry_sessions.cpp:1084
+#: frame/views/registry_sessions.cpp:1091
 msgid "Registry Path Not Found"
 msgstr "找不到注册表路径"
 
-#: frame/views/registry_sessions.cpp:1076
-#: frame/views/registry_sessions.cpp:1083
+#: frame/views/registry_sessions.cpp:1084
+#: frame/views/registry_sessions.cpp:1091
 msgid "Go to Nearest Key"
 msgstr "转到最近的项"
 
-#: frame/views/registry_sessions.cpp:1093
+#: frame/views/registry_sessions.cpp:1101
 msgid "Failed to create registry key."
 msgstr "无法创建注册表项。"
 
-#: frame/views/tab_lists.cpp:425
+#: frame/views/tab_lists.cpp:432
 msgid ""
 "The registry file has unsaved changes.\n"
 "Save before closing the tab?"
@@ -2286,15 +2325,15 @@ msgstr ""
 "注册表文件有未保存的更改。\n"
 "要在关闭选项卡前保存吗?"
 
-#: frame/views/tab_lists.cpp:428 frame/views/tab_lists.cpp:462
+#: frame/views/tab_lists.cpp:435 frame/views/tab_lists.cpp:469
 msgid "Unsaved Changes"
 msgstr "未保存的更改"
 
-#: frame/views/tab_lists.cpp:428 frame/views/tab_lists.cpp:462
+#: frame/views/tab_lists.cpp:435 frame/views/tab_lists.cpp:469
 msgid "Don't Save"
 msgstr "不保存"
 
-#: frame/views/tab_lists.cpp:448
+#: frame/views/tab_lists.cpp:455
 msgid ""
 "The offline registry has unsaved changes.\n"
 "Save before closing the tab?"
@@ -2302,12 +2341,12 @@ msgstr ""
 "脱机注册表有未保存的更改。\n"
 "要在关闭选项卡前保存吗?"
 
-#: frame/views/value_loading.cpp:124 frame/window/menu_bar.cpp:497
+#: frame/views/value_loading.cpp:124 frame/window/menu_bar.cpp:480
 msgid "Trace"
 msgstr "Trace"
 
-#: frame/views/value_loading.cpp:181 frame/window/menu_bar.cpp:874
-#: search/compare.cpp:55 search/compare.cpp:340 search/compare.cpp:341
+#: frame/views/value_loading.cpp:181 frame/window/menu_bar.cpp:857
+#: search/compare.cpp:55 search/compare.cpp:343 search/compare.cpp:344
 msgid "(Missing)"
 msgstr "(缺失)"
 
@@ -2323,7 +2362,7 @@ msgstr "(数值未设置)"
 msgid "Preset name:"
 msgstr "预设名称:"
 
-#: frame/window/events.cpp:44 registry/key_access.cpp:119
+#: frame/window/events.cpp:43 registry/key_access.cpp:119
 msgid "Administrator"
 msgstr "管理员"
 
@@ -2339,11 +2378,11 @@ msgstr "创建文件夹"
 msgid "Go"
 msgstr "转到"
 
-#: frame/window/lifetime.cpp:128 frame/window/menu_bar.cpp:348
+#: frame/window/lifetime.cpp:128 frame/window/menu_bar.cpp:330
 msgid "Key Tree"
 msgstr "项树"
 
-#: frame/window/lifetime.cpp:155 frame/window/menu_bar.cpp:349
+#: frame/window/lifetime.cpp:155 frame/window/menu_bar.cpp:331
 msgid "History"
 msgstr "历史记录"
 
@@ -2359,496 +2398,500 @@ msgstr "注释"
 msgid "The open tabs couldn't be saved for the next session."
 msgstr "无法保存打开的选项卡以供下次会话使用。"
 
-#: frame/window/menu_bar.cpp:145 ui/feedback.cpp:801
+#: frame/window/menu_bar.cpp:135 ui/feedback.cpp:801
 msgid "Replace"
 msgstr "替换"
 
-#: frame/window/menu_bar.cpp:153 frame/window/menu_bar.cpp:296
+#: frame/window/menu_bar.cpp:143 frame/window/menu_bar.cpp:278
 msgid "Redo"
 msgstr "重做"
 
-#: frame/window/menu_bar.cpp:163
+#: frame/window/menu_bar.cpp:153
 msgid "Back"
 msgstr "后退"
 
-#: frame/window/menu_bar.cpp:165
+#: frame/window/menu_bar.cpp:155
 msgid "Forward"
 msgstr "前进"
 
-#: frame/window/menu_bar.cpp:167
+#: frame/window/menu_bar.cpp:157
 msgid "Up"
 msgstr "向上"
 
-#: frame/window/menu_bar.cpp:270
+#: frame/window/menu_bar.cpp:252
 msgid "Open .reg File..."
 msgstr "打开 .reg 文件..."
 
-#: frame/window/menu_bar.cpp:273
+#: frame/window/menu_bar.cpp:255 ui/preset_editor.cpp:459
 msgid "Import..."
 msgstr "导入..."
 
-#: frame/window/menu_bar.cpp:276
+#: frame/window/menu_bar.cpp:258
 msgid "Import Comments..."
 msgstr "导入注释..."
 
-#: frame/window/menu_bar.cpp:277
+#: frame/window/menu_bar.cpp:259
 msgid "Export Comments..."
 msgstr "导出注释..."
 
-#: frame/window/menu_bar.cpp:284
+#: frame/window/menu_bar.cpp:266
 msgid "Remote Registry..."
 msgstr "远程注册表..."
 
-#: frame/window/menu_bar.cpp:285
+#: frame/window/menu_bar.cpp:267
 msgid "Offline Registry..."
 msgstr "脱机注册表..."
 
-#: frame/window/menu_bar.cpp:286
+#: frame/window/menu_bar.cpp:268
 msgid "Save Offline Hive..."
 msgstr "保存脱机配置单元..."
 
-#: frame/window/menu_bar.cpp:288
+#: frame/window/menu_bar.cpp:270
 msgid "Load Hive..."
 msgstr "加载配置单元..."
 
-#: frame/window/menu_bar.cpp:289
+#: frame/window/menu_bar.cpp:271
 msgid "Unload Hive..."
 msgstr "卸载配置单元..."
 
-#: frame/window/menu_bar.cpp:291
+#: frame/window/menu_bar.cpp:273
 msgid "Exit"
 msgstr "退出"
 
-#: frame/window/menu_bar.cpp:292
+#: frame/window/menu_bar.cpp:274
 msgid "&File"
 msgstr "文件(&F)"
 
-#: frame/window/menu_bar.cpp:310
+#: frame/window/menu_bar.cpp:292
 msgid "Key Name"
 msgstr "项名称"
 
-#: frame/window/menu_bar.cpp:311
+#: frame/window/menu_bar.cpp:293
 msgid "Key Path"
 msgstr "项路径"
 
-#: frame/window/menu_bar.cpp:312
+#: frame/window/menu_bar.cpp:294
 msgid "Key Path As"
 msgstr "将项路径复制为"
 
-#: frame/window/menu_bar.cpp:314
+#: frame/window/menu_bar.cpp:296
 msgid "Value Name"
 msgstr "值名称"
 
-#: frame/window/menu_bar.cpp:315
+#: frame/window/menu_bar.cpp:297
 msgid "Value Data"
 msgstr "值数据"
 
-#: frame/window/menu_bar.cpp:316
+#: frame/window/menu_bar.cpp:298
 msgid "Copy Other"
 msgstr "复制其他内容"
 
-#: frame/window/menu_bar.cpp:322
+#: frame/window/menu_bar.cpp:304
 msgid "Invert Selection"
 msgstr "反向选择"
 
-#: frame/window/menu_bar.cpp:324
+#: frame/window/menu_bar.cpp:306
 msgid "Find..."
 msgstr "查找..."
 
-#: frame/window/menu_bar.cpp:325
+#: frame/window/menu_bar.cpp:307
 msgid "Replace..."
 msgstr "替换..."
 
-#: frame/window/menu_bar.cpp:326
+#: frame/window/menu_bar.cpp:308
 msgid "Go To..."
 msgstr "转到..."
 
-#: frame/window/menu_bar.cpp:329
+#: frame/window/menu_bar.cpp:311
 msgid "Go to Other View"
 msgstr "转到另一视图"
 
-#: frame/window/menu_bar.cpp:331
+#: frame/window/menu_bar.cpp:313
 msgid "Go to Virtual Store Copy"
 msgstr "转到虚拟存储副本"
 
-#: frame/window/menu_bar.cpp:332
+#: frame/window/menu_bar.cpp:314
 msgid "Go to Global Key"
 msgstr "转到全局项"
 
-#: frame/window/menu_bar.cpp:336
+#: frame/window/menu_bar.cpp:318
 msgid "&Edit"
 msgstr "编辑(&E)"
 
-#: frame/window/menu_bar.cpp:340
+#: frame/window/menu_bar.cpp:322
 msgid "Auto Refresh"
 msgstr "自动刷新"
 
-#: frame/window/menu_bar.cpp:342
+#: frame/window/menu_bar.cpp:324
 msgid "Toolbar"
 msgstr "工具栏"
 
-#: frame/window/menu_bar.cpp:343
+#: frame/window/menu_bar.cpp:325
 msgid "Address Bar"
 msgstr "地址栏"
 
-#: frame/window/menu_bar.cpp:344
+#: frame/window/menu_bar.cpp:326
 msgid "Filter Bar"
 msgstr "筛选栏"
 
-#: frame/window/menu_bar.cpp:345
+#: frame/window/menu_bar.cpp:327
 msgid "Tabs"
 msgstr "选项卡"
 
-#: frame/window/menu_bar.cpp:346
+#: frame/window/menu_bar.cpp:328
 msgid "Status Bar"
 msgstr "状态栏"
 
-#: frame/window/menu_bar.cpp:351
+#: frame/window/menu_bar.cpp:333
 msgid "Keys in List"
 msgstr "在列表中显示项"
 
-#: frame/window/menu_bar.cpp:352 ui/list_view_support.cpp:176
-#: ui/list_view_support.cpp:184
+#: frame/window/menu_bar.cpp:334 ui/list_view_support.cpp:177
+#: ui/list_view_support.cpp:185
 msgid "Grid Lines"
 msgstr "网格线"
 
-#: frame/window/menu_bar.cpp:353
+#: frame/window/menu_bar.cpp:335
 msgid "Simulated Keys"
 msgstr "模拟项"
 
-#: frame/window/menu_bar.cpp:354
+#: frame/window/menu_bar.cpp:336
 msgid "Show Extra Root Keys"
 msgstr "显示额外根项"
 
-#: frame/window/menu_bar.cpp:355
+#: frame/window/menu_bar.cpp:337
 msgid "&View"
 msgstr "查看(&V)"
 
-#: frame/window/menu_bar.cpp:360
+#: frame/window/menu_bar.cpp:342
 msgid "Light"
 msgstr "浅色"
 
-#: frame/window/menu_bar.cpp:361
+#: frame/window/menu_bar.cpp:343
 msgid "Dark"
 msgstr "深色"
 
-#: frame/window/menu_bar.cpp:362 frame/window/menu_bar.cpp:369
+#: frame/window/menu_bar.cpp:344 frame/window/menu_bar.cpp:351
 msgid "Custom"
 msgstr "自定义"
 
-#: frame/window/menu_bar.cpp:364
+#: frame/window/menu_bar.cpp:346
 msgid "Theme Presets..."
 msgstr "主题预设..."
 
-#: frame/window/menu_bar.cpp:365
+#: frame/window/menu_bar.cpp:347
 msgid "Theme"
 msgstr "主题"
 
-#: frame/window/menu_bar.cpp:367
+#: frame/window/menu_bar.cpp:349
 msgid "Classic"
 msgstr "经典"
 
-#: frame/window/menu_bar.cpp:368
+#: frame/window/menu_bar.cpp:350
 msgid "Phosphor"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:370
+#: frame/window/menu_bar.cpp:352
 msgid "Icons"
 msgstr "图标"
 
-#: frame/window/menu_bar.cpp:374
+#: frame/window/menu_bar.cpp:356
 msgid "Automatic"
 msgstr "自动"
 
-#: frame/window/menu_bar.cpp:381
+#: frame/window/menu_bar.cpp:363
 msgid "Font..."
 msgstr "字体..."
 
-#: frame/window/menu_bar.cpp:383
+#: frame/window/menu_bar.cpp:365
 msgid "Read Only Mode"
 msgstr "只读模式"
 
-#: frame/window/menu_bar.cpp:384
+#: frame/window/menu_bar.cpp:366
 msgid "Use Backup/Restore Privileges"
 msgstr "使用备份/还原特权"
 
-#: frame/window/menu_bar.cpp:392
+#: frame/window/menu_bar.cpp:374
 msgid "Restart as User"
 msgstr "以用户身份重启"
 
-#: frame/window/menu_bar.cpp:393
+#: frame/window/menu_bar.cpp:375
 msgid "Restart as Admin"
 msgstr "以管理员身份重启"
 
-#: frame/window/menu_bar.cpp:394
+#: frame/window/menu_bar.cpp:376
 msgid "Restart as SYSTEM"
 msgstr "以 SYSTEM 身份重启"
 
-#: frame/window/menu_bar.cpp:395
+#: frame/window/menu_bar.cpp:377
 msgid "Restart as TrustedInstaller"
 msgstr "以 TrustedInstaller 身份重启"
 
-#: frame/window/menu_bar.cpp:397
+#: frame/window/menu_bar.cpp:379
 msgid "Always Run as Admin"
 msgstr "始终以管理员身份运行"
 
-#: frame/window/menu_bar.cpp:398
+#: frame/window/menu_bar.cpp:380
 msgid "Always Run as SYSTEM"
 msgstr "始终以 SYSTEM 身份运行"
 
-#: frame/window/menu_bar.cpp:399
+#: frame/window/menu_bar.cpp:381
 msgid "Always Run as TrustedInstaller"
 msgstr "始终以 TrustedInstaller 身份运行"
 
-#: frame/window/menu_bar.cpp:401
+#: frame/window/menu_bar.cpp:383
 msgid "HKCU Follows Signed-In User"
 msgstr "HKCU 对应已登录用户"
 
-#: frame/window/menu_bar.cpp:402
+#: frame/window/menu_bar.cpp:384
 msgid "Run As"
 msgstr "运行身份"
 
-#: frame/window/menu_bar.cpp:405
+#: frame/window/menu_bar.cpp:387
 msgid "Add \"Edit\" Context Menu"
 msgstr "添加\"编辑\"上下文菜单"
 
-#: frame/window/menu_bar.cpp:406
+#: frame/window/menu_bar.cpp:388
 msgid "Single Instance"
 msgstr "单实例"
 
-#: frame/window/menu_bar.cpp:407
+#: frame/window/menu_bar.cpp:389
 msgid "Autocomplete Key Paths"
 msgstr "自动完成项路径"
 
-#: frame/window/menu_bar.cpp:409
+#: frame/window/menu_bar.cpp:391
 msgid "All Tabs"
 msgstr "所有选项卡"
 
-#: frame/window/menu_bar.cpp:411
+#: frame/window/menu_bar.cpp:393
 msgid "Local Registry Tabs"
 msgstr "本地注册表选项卡"
 
-#: frame/window/menu_bar.cpp:412
+#: frame/window/menu_bar.cpp:394
 msgid "Offline Hive Tabs"
 msgstr "脱机配置单元选项卡"
 
-#: frame/window/menu_bar.cpp:413
+#: frame/window/menu_bar.cpp:395
 msgid "Remote Registry Tabs"
 msgstr "远程注册表选项卡"
 
-#: frame/window/menu_bar.cpp:415
+#: frame/window/menu_bar.cpp:397
 msgid "Find Results"
 msgstr "查找结果"
 
-#: frame/window/menu_bar.cpp:416
+#: frame/window/menu_bar.cpp:398
 msgid "Comparison Results"
 msgstr "比较结果"
 
-#: frame/window/menu_bar.cpp:417
+#: frame/window/menu_bar.cpp:399
 msgid ".reg File Tabs"
 msgstr ".reg 文件选项卡"
 
-#: frame/window/menu_bar.cpp:419
+#: frame/window/menu_bar.cpp:401
 msgid "Save Tabs"
 msgstr "保存选项卡"
 
-#: frame/window/menu_bar.cpp:420
+#: frame/window/menu_bar.cpp:402
 msgid "Save Previous Tree State"
 msgstr "保存上次的树状态"
 
-#: frame/window/menu_bar.cpp:421
+#: frame/window/menu_bar.cpp:403
 msgid "Clear History on Exit"
 msgstr "退出时清除历史记录"
 
-#: frame/window/menu_bar.cpp:422
+#: frame/window/menu_bar.cpp:404
 msgid "Clear Tabs on Exit"
 msgstr "退出时清除选项卡"
 
-#: frame/window/menu_bar.cpp:427
+#: frame/window/menu_bar.cpp:409
 msgid "Tab Sessions"
 msgstr "选项卡会话"
 
-#: frame/window/menu_bar.cpp:428
+#: frame/window/menu_bar.cpp:410
 msgid "Change History"
 msgstr "更改历史记录"
 
-#: frame/window/menu_bar.cpp:429
+#: frame/window/menu_bar.cpp:411
 msgid "Search History"
 msgstr "搜索历史记录"
 
-#: frame/window/menu_bar.cpp:430
+#: frame/window/menu_bar.cpp:412
+msgid "Dialog Options"
+msgstr "对话框选项"
+
+#: frame/window/menu_bar.cpp:413
 msgid "Tree State"
 msgstr "树状态"
 
-#: frame/window/menu_bar.cpp:431
+#: frame/window/menu_bar.cpp:414
 msgid "Temporary Files"
 msgstr "临时文件"
 
-#: frame/window/menu_bar.cpp:432
+#: frame/window/menu_bar.cpp:415
 msgid "Clear Caches"
 msgstr "清除缓存"
 
-#: frame/window/menu_bar.cpp:433
+#: frame/window/menu_bar.cpp:416
 msgid "Reset Settings..."
 msgstr "重置设置..."
 
-#: frame/window/menu_bar.cpp:435
+#: frame/window/menu_bar.cpp:418
 msgid "Add to Favorites..."
 msgstr "添加到收藏夹..."
 
-#: frame/window/menu_bar.cpp:436
+#: frame/window/menu_bar.cpp:419
 msgid "Remove Favorite"
 msgstr "移除收藏项"
 
-#: frame/window/menu_bar.cpp:437
+#: frame/window/menu_bar.cpp:420
 msgid "Edit Favorites..."
 msgstr "编辑收藏夹..."
 
-#: frame/window/menu_bar.cpp:439
+#: frame/window/menu_bar.cpp:422
 msgid "Import Favorites..."
 msgstr "导入收藏夹..."
 
-#: frame/window/menu_bar.cpp:440
+#: frame/window/menu_bar.cpp:423
 msgid "Import RegEdit Favorites"
 msgstr "导入 RegEdit 收藏夹"
 
-#: frame/window/menu_bar.cpp:441
+#: frame/window/menu_bar.cpp:424
 msgid "Export Favorites..."
 msgstr "导出收藏夹..."
 
-#: frame/window/menu_bar.cpp:455
+#: frame/window/menu_bar.cpp:438
 msgid "F&avorites"
 msgstr "收藏夹(&A)"
 
-#: frame/window/menu_bar.cpp:456
+#: frame/window/menu_bar.cpp:439
 msgid "&Options"
 msgstr "选项(&O)"
 
-#: frame/window/menu_bar.cpp:460
+#: frame/window/menu_bar.cpp:443
 msgid "Convert File..."
 msgstr "转换文件..."
 
-#: frame/window/menu_bar.cpp:461
+#: frame/window/menu_bar.cpp:444
 msgid "Key Handles..."
 msgstr "项句柄..."
 
-#: frame/window/menu_bar.cpp:463
+#: frame/window/menu_bar.cpp:446
 msgid "New Definition File..."
 msgstr "新建定义文件..."
 
-#: frame/window/menu_bar.cpp:465
+#: frame/window/menu_bar.cpp:448
 msgid "&Tools"
 msgstr "工具(&T)"
 
-#: frame/window/menu_bar.cpp:468
+#: frame/window/menu_bar.cpp:451
 msgid "New Window"
 msgstr "新建窗口"
 
-#: frame/window/menu_bar.cpp:470
+#: frame/window/menu_bar.cpp:453
 msgid "Close Tab"
 msgstr "关闭选项卡"
 
-#: frame/window/menu_bar.cpp:471
+#: frame/window/menu_bar.cpp:454
 msgid "Close Window"
 msgstr "关闭窗口"
 
-#: frame/window/menu_bar.cpp:473
+#: frame/window/menu_bar.cpp:456
 msgid "Always on Top"
 msgstr "窗口置顶"
 
-#: frame/window/menu_bar.cpp:474
+#: frame/window/menu_bar.cpp:457
 msgid "&Window"
 msgstr "窗口(&W)"
 
-#: frame/window/menu_bar.cpp:477
+#: frame/window/menu_bar.cpp:460
 msgid "23H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:478
+#: frame/window/menu_bar.cpp:461
 msgid "24H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:479
+#: frame/window/menu_bar.cpp:462
 msgid "25H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:502
+#: frame/window/menu_bar.cpp:485
 msgid "Open Trace File..."
 msgstr "打开 Trace 文件..."
 
-#: frame/window/menu_bar.cpp:504
+#: frame/window/menu_bar.cpp:487
 msgid "Edit Active Traces..."
 msgstr "编辑活动 Trace..."
 
-#: frame/window/menu_bar.cpp:505
+#: frame/window/menu_bar.cpp:488
 msgid "Clear Active Traces"
 msgstr "清除活动 Trace"
 
-#: frame/window/menu_bar.cpp:507
+#: frame/window/menu_bar.cpp:490
 msgid "Edit Recent Traces..."
 msgstr "编辑最近的 Trace..."
 
-#: frame/window/menu_bar.cpp:508
+#: frame/window/menu_bar.cpp:491
 msgid "Clear Recent Traces"
 msgstr "清除最近的 Trace"
 
-#: frame/window/menu_bar.cpp:510
+#: frame/window/menu_bar.cpp:493
 msgid "Guide"
 msgstr "指南"
 
-#: frame/window/menu_bar.cpp:553
+#: frame/window/menu_bar.cpp:536
 msgid "Open Default File..."
 msgstr "打开默认值文件..."
 
-#: frame/window/menu_bar.cpp:555
+#: frame/window/menu_bar.cpp:538
 msgid "Edit Active Defaults..."
 msgstr "编辑活动默认值..."
 
-#: frame/window/menu_bar.cpp:556
+#: frame/window/menu_bar.cpp:539
 msgid "Clear Active Defaults"
 msgstr "清除活动默认值"
 
-#: frame/window/menu_bar.cpp:558
+#: frame/window/menu_bar.cpp:541
 msgid "Edit Recent Defaults..."
 msgstr "编辑最近的默认值..."
 
-#: frame/window/menu_bar.cpp:559
+#: frame/window/menu_bar.cpp:542
 msgid "Clear Recent Defaults"
 msgstr "清除最近的默认值"
 
-#: frame/window/menu_bar.cpp:561
+#: frame/window/menu_bar.cpp:544
 msgid "Enable Context Menu (risky)"
 msgstr "启用上下文菜单 (有风险)"
 
-#: frame/window/menu_bar.cpp:564
+#: frame/window/menu_bar.cpp:547
 msgid "Documentation"
 msgstr "文档"
 
-#: frame/window/menu_bar.cpp:567
+#: frame/window/menu_bar.cpp:550
 msgid "Check for Updates"
 msgstr "检查更新"
 
-#: frame/window/menu_bar.cpp:568
+#: frame/window/menu_bar.cpp:551
 msgid "Check for Updates Automatically"
 msgstr "自动检查更新"
 
-#: frame/window/menu_bar.cpp:570 ui/feedback.cpp:525
+#: frame/window/menu_bar.cpp:553 ui/feedback.cpp:525
 msgid "About RegKit"
 msgstr "关于 RegKit"
 
-#: frame/window/menu_bar.cpp:583
+#: frame/window/menu_bar.cpp:566
 msgid "T&race"
 msgstr "Trace(&R)"
 
-#: frame/window/menu_bar.cpp:584
+#: frame/window/menu_bar.cpp:567
 msgid "Defa&ult"
 msgstr "默认值(&U)"
 
-#: frame/window/menu_bar.cpp:585
+#: frame/window/menu_bar.cpp:568
 msgid "Re&search"
 msgstr "研究(&S)"
 
-#: frame/window/menu_bar.cpp:586
+#: frame/window/menu_bar.cpp:569
 msgid "&Help"
 msgstr "帮助(&H)"
 
@@ -2870,20 +2913,20 @@ msgstr ""
 msgid "Open .reg File"
 msgstr "打开 .reg 文件"
 
-#: frame/window/message_routes.cpp:570 search/regex.cpp:286
+#: frame/window/message_routes.cpp:569 search/regex.cpp:286
 #: search/regex.cpp:288
 msgid "The find text isn't a valid regular expression."
 msgstr "查找文本不是有效的正则表达式。"
 
-#: frame/window/notifications.cpp:143 frame/window/notifications.cpp:1235
+#: frame/window/notifications.cpp:144 frame/window/notifications.cpp:1235
 msgid "(Key)"
 msgstr "(项)"
 
-#: frame/window/notifications.cpp:150 frame/window/notifications.cpp:1253
+#: frame/window/notifications.cpp:151 frame/window/notifications.cpp:1253
 msgid "Same"
 msgstr "相同"
 
-#: frame/window/notifications.cpp:150 frame/window/notifications.cpp:1253
+#: frame/window/notifications.cpp:151 frame/window/notifications.cpp:1253
 msgid "Different"
 msgstr "不同"
 
@@ -2928,20 +2971,20 @@ msgstr "参数无效"
 msgid "Registry paths with spaces must be in quotes."
 msgstr "包含空格的注册表路径必须用引号括起来。"
 
-#: launch/program.cpp:511
+#: launch/program.cpp:518
 msgid "Message loop failed unexpectedly."
 msgstr "消息循环意外失败。"
 
-#: launch/program.cpp:606
+#: launch/program.cpp:613
 msgid "Administrator restart was cancelled."
 msgstr "以管理员身份重启已取消。"
 
-#: launch/program.cpp:636
+#: launch/program.cpp:643
 msgid "Failed to create the main window."
 msgstr "无法创建主窗口。"
 
 #: records/json.cpp:89 records/json.cpp:106 records/json.cpp:146
-#: records/json.cpp:303 records/json.cpp:314 records/json.cpp:331
+#: records/json.cpp:289 records/json.cpp:300 records/json.cpp:317
 msgid "The file isn't valid JSON."
 msgstr "此文件不是有效的 JSON。"
 
@@ -2965,31 +3008,27 @@ msgstr "字符串中有未转义的控制字符。"
 msgid "A string contains a malformed escape."
 msgstr "字符串中有格式错误的转义序列。"
 
-#: records/json.cpp:220 records/json.cpp:231
-msgid "A string contains a lone surrogate."
-msgstr "字符串中有孤立的代理项。"
-
-#: records/json.cpp:237
+#: records/json.cpp:223
 msgid "A string contains an unsupported escape."
 msgstr "字符串中有不支持的转义序列。"
 
-#: records/json.cpp:246
+#: records/json.cpp:232
 msgid "An unsigned number was expected."
 msgstr "应为无符号数字。"
 
-#: records/json.cpp:250
+#: records/json.cpp:236
 msgid "A number has a leading zero."
 msgstr "数字有前导零。"
 
-#: records/json.cpp:258
+#: records/json.cpp:244
 msgid "A number is out of range."
 msgstr "数字超出范围。"
 
-#: records/json.cpp:264
+#: records/json.cpp:250
 msgid "Only unsigned integers are supported."
 msgstr "仅支持无符号整数。"
 
-#: records/json.cpp:340
+#: records/json.cpp:326
 msgid "The file contains trailing content."
 msgstr "文件中有多余的尾随内容。"
 
@@ -2997,7 +3036,7 @@ msgstr "文件中有多余的尾随内容。"
 msgid "Unsupported reg command"
 msgstr "不支持的 reg 命令"
 
-#: regfile/batch_script.cpp:196 regfile/batch_script.cpp:510
+#: regfile/batch_script.cpp:196 regfile/batch_script.cpp:532
 #: regfile/script_convert.cpp:109
 msgid "Invalid key name."
 msgstr "项名称无效。"
@@ -3022,48 +3061,49 @@ msgstr "不支持管道。"
 msgid "Batch arguments can't be resolved."
 msgstr "无法解析批处理参数。"
 
-#: regfile/batch_script.cpp:366 regfile/powershell_script.cpp:764
-#: regfile/powershell_script.cpp:821
+#: regfile/batch_script.cpp:366 regfile/powershell_script.cpp:783
+#: regfile/powershell_script.cpp:840
 msgid "Variable can't be resolved"
 msgstr "无法解析变量"
 
-#: regfile/batch_script.cpp:404 regfile/powershell_script.cpp:1386
+#: regfile/batch_script.cpp:406 regfile/powershell_script.cpp:1423
 msgid "Line"
 msgstr "行"
 
-#: regfile/batch_script.cpp:445
-msgid "reg query is only supported in the form RegKit writes for empty keys."
-msgstr "reg query 仅支持 RegKit 为表示空项而写入的形式。"
-
-#: regfile/batch_script.cpp:460
-msgid "set /a and set /p aren't supported."
-msgstr "不支持 set /a 和 set /p。"
-
-#: regfile/batch_script.cpp:480 regfile/powershell_script.cpp:1169
+#: regfile/batch_script.cpp:443 regfile/batch_script.cpp:502
+#: regfile/powershell_script.cpp:1202
 msgid "Unsupported command"
 msgstr "不支持的命令"
 
-#: regfile/batch_script.cpp:502
+#: regfile/batch_script.cpp:453
+msgid "reg query is only supported in the form RegKit writes for empty keys."
+msgstr "reg query 仅支持 RegKit 为表示空项而写入的形式。"
+
+#: regfile/batch_script.cpp:468
+msgid "set /a and set /p aren't supported."
+msgstr "不支持 set /a 和 set /p。"
+
+#: regfile/batch_script.cpp:524
 msgid "contains a line break"
 msgstr "包含换行符"
 
-#: regfile/batch_script.cpp:506
+#: regfile/batch_script.cpp:528
 msgid "reg.exe trims leading and trailing spaces"
 msgstr "reg.exe 会去除首尾空格"
 
-#: regfile/batch_script.cpp:525 regfile/powershell_script.cpp:1417
+#: regfile/batch_script.cpp:547 regfile/powershell_script.cpp:1454
 msgid "a root key can't be deleted"
 msgstr "不能删除根项"
 
-#: regfile/batch_script.cpp:543
+#: regfile/batch_script.cpp:565
 msgid "reg.exe can't write this data type"
 msgstr "reg.exe 无法写入此数据类型"
 
-#: regfile/batch_script.cpp:548
+#: regfile/batch_script.cpp:570
 msgid "too long for a batch line"
 msgstr "超出批处理行的长度限制"
 
-#: regfile/batch_script.cpp:552 search/regex.cpp:273
+#: regfile/batch_script.cpp:574 search/regex.cpp:273
 msgid "The text isn't valid UTF-16."
 msgstr "文本不是有效的 UTF-16。"
 
@@ -3099,8 +3139,8 @@ msgstr "不支持的数字"
 msgid "Unexpected character"
 msgstr "意外的字符"
 
-#: regfile/powershell_script.cpp:506 regfile/powershell_script.cpp:628
-#: regfile/powershell_script.cpp:725 regfile/powershell_script.cpp:805
+#: regfile/powershell_script.cpp:506 regfile/powershell_script.cpp:647
+#: regfile/powershell_script.cpp:744 regfile/powershell_script.cpp:824
 msgid "Unexpected token"
 msgstr "意外的标记"
 
@@ -3108,116 +3148,118 @@ msgstr "意外的标记"
 msgid "Expected"
 msgstr "应为"
 
-#: regfile/powershell_script.cpp:600
+#: regfile/powershell_script.cpp:588 regfile/powershell_script.cpp:604
+#: regfile/powershell_script.cpp:620
 msgid "Only if conditions on Test-Path are supported."
 msgstr "仅支持以 Test-Path 为条件的 if 语句。"
 
-#: regfile/powershell_script.cpp:619
-msgid "Expected '}'."
-msgstr "应为 '}'。"
-
-#: regfile/powershell_script.cpp:635
-msgid "else blocks aren't supported."
-msgstr "不支持 else 块。"
-
-#: regfile/powershell_script.cpp:646
-msgid "Only | Out-Null pipelines are supported."
-msgstr "仅支持 | Out-Null 管道。"
-
-#: regfile/powershell_script.cpp:670
-msgid "-WhatIf makes no changes and can't be converted."
-msgstr "-WhatIf 不进行更改，无法转换。"
-
-#: regfile/powershell_script.cpp:849
-msgid "Expected a member name."
-msgstr "应为成员名称。"
-
-#: regfile/powershell_script.cpp:859
-msgid "Unexpected type"
-msgstr "意外的类型"
-
-#: regfile/powershell_script.cpp:892
-msgid "Invalid RegKit.Native call."
-msgstr "RegKit.Native 调用无效。"
-
-#: regfile/powershell_script.cpp:901 regfile/powershell_script.cpp:911
-#: regfile/powershell_script.cpp:947
-msgid "Unsupported member"
-msgstr "不支持的成员"
-
-#: regfile/powershell_script.cpp:961
-msgid "Expected text."
-msgstr "应为文本。"
-
-#: regfile/powershell_script.cpp:973 regfile/powershell_script.cpp:1006
-msgid "Byte values must be numbers from 0 to 255."
-msgstr "字节值必须是 0 到 255 之间的数字。"
-
-#: regfile/powershell_script.cpp:1020
-msgid "The number doesn't fit an [int]."
-msgstr "此数字超出 [int] 的范围。"
-
-#: regfile/powershell_script.cpp:1032
-msgid "Unsupported cast"
-msgstr "不支持的类型转换"
-
-#: regfile/powershell_script.cpp:1060
-msgid "Invalid number"
-msgstr "数字无效"
-
-#: regfile/powershell_script.cpp:1064
-msgid "Expected a number."
-msgstr "应为数字。"
-
-#: regfile/powershell_script.cpp:1068
-msgid "The number doesn't fit a DWORD."
-msgstr "此数字超出 DWORD 的范围。"
-
-#: regfile/powershell_script.cpp:1090
-msgid "The value type can't be inferred, add -Type."
-msgstr "无法推断值类型，请添加 -Type。"
-
-#: regfile/powershell_script.cpp:1090
-msgid "Unsupported value type"
-msgstr "不支持的值类型"
-
-#: regfile/powershell_script.cpp:1119 regfile/powershell_script.cpp:1135
-msgid "Not a registry path"
-msgstr "不是注册表路径"
-
-#: regfile/powershell_script.cpp:1129
-msgid "Wildcard paths can't be converted, use -LiteralPath."
-msgstr "无法转换带通配符的路径，请使用 -LiteralPath。"
-
-#: regfile/powershell_script.cpp:1162
-msgid "Only registry drives are supported."
-msgstr "仅支持注册表驱动器。"
-
-#: regfile/powershell_script.cpp:1173
-msgid "Only New-Item can follow if (-not (Test-Path)), and only removals can follow if (Test-Path)."
-msgstr "if (-not (Test-Path)) 后只能接 New-Item，if (Test-Path) 后只能接删除操作。"
-
-#: regfile/powershell_script.cpp:1180
-msgid "A -Path is required."
-msgstr "必须指定 -Path。"
-
-#: regfile/powershell_script.cpp:1190
+#: regfile/powershell_script.cpp:613 regfile/powershell_script.cpp:1213
+#: regfile/powershell_script.cpp:1221
 msgid "Unsupported parameter"
 msgstr "不支持的参数"
 
-#: regfile/powershell_script.cpp:1216
+#: regfile/powershell_script.cpp:638
+msgid "Expected '}'."
+msgstr "应为 '}'。"
+
+#: regfile/powershell_script.cpp:654
+msgid "else blocks aren't supported."
+msgstr "不支持 else 块。"
+
+#: regfile/powershell_script.cpp:665
+msgid "Only | Out-Null pipelines are supported."
+msgstr "仅支持 | Out-Null 管道。"
+
+#: regfile/powershell_script.cpp:689
+msgid "-WhatIf makes no changes and can't be converted."
+msgstr "-WhatIf 不进行更改，无法转换。"
+
+#: regfile/powershell_script.cpp:868
+msgid "Expected a member name."
+msgstr "应为成员名称。"
+
+#: regfile/powershell_script.cpp:878
+msgid "Unexpected type"
+msgstr "意外的类型"
+
+#: regfile/powershell_script.cpp:911
+msgid "Invalid RegKit.Native call."
+msgstr "RegKit.Native 调用无效。"
+
+#: regfile/powershell_script.cpp:920 regfile/powershell_script.cpp:930
+#: regfile/powershell_script.cpp:966
+msgid "Unsupported member"
+msgstr "不支持的成员"
+
+#: regfile/powershell_script.cpp:980
+msgid "Expected text."
+msgstr "应为文本。"
+
+#: regfile/powershell_script.cpp:992 regfile/powershell_script.cpp:1025
+msgid "Byte values must be numbers from 0 to 255."
+msgstr "字节值必须是 0 到 255 之间的数字。"
+
+#: regfile/powershell_script.cpp:1039
+msgid "The number doesn't fit an [int]."
+msgstr "此数字超出 [int] 的范围。"
+
+#: regfile/powershell_script.cpp:1051
+msgid "Unsupported cast"
+msgstr "不支持的类型转换"
+
+#: regfile/powershell_script.cpp:1079
+msgid "Invalid number"
+msgstr "数字无效"
+
+#: regfile/powershell_script.cpp:1083
+msgid "Expected a number."
+msgstr "应为数字。"
+
+#: regfile/powershell_script.cpp:1087
+msgid "The number doesn't fit a DWORD."
+msgstr "此数字超出 DWORD 的范围。"
+
+#: regfile/powershell_script.cpp:1109
+msgid "The value type can't be inferred, add -Type."
+msgstr "无法推断值类型，请添加 -Type。"
+
+#: regfile/powershell_script.cpp:1109
+msgid "Unsupported value type"
+msgstr "不支持的值类型"
+
+#: regfile/powershell_script.cpp:1138 regfile/powershell_script.cpp:1154
+msgid "Not a registry path"
+msgstr "不是注册表路径"
+
+#: regfile/powershell_script.cpp:1148
+msgid "Wildcard paths can't be converted, use -LiteralPath."
+msgstr "无法转换带通配符的路径，请使用 -LiteralPath。"
+
+#: regfile/powershell_script.cpp:1169
+msgid "A -Path is required."
+msgstr "必须指定 -Path。"
+
+#: regfile/powershell_script.cpp:1195
+msgid "Only registry drives are supported."
+msgstr "仅支持注册表驱动器。"
+
+#: regfile/powershell_script.cpp:1206 regfile/powershell_script.cpp:1231
+msgid "Only New-Item can follow if (-not (Test-Path)), and only removals can follow if (Test-Path)."
+msgstr "if (-not (Test-Path)) 后只能接 New-Item，if (Test-Path) 后只能接删除操作。"
+
+#: regfile/powershell_script.cpp:1252
 msgid "-Name and -Value are required."
 msgstr "必须指定 -Name 和 -Value。"
 
-#: regfile/powershell_script.cpp:1225
+#: regfile/powershell_script.cpp:1261
 msgid "-Name is required."
 msgstr "必须指定 -Name。"
 
-#: regfile/powershell_script.cpp:1233
+#: regfile/powershell_script.cpp:1269
 msgid "Wildcard value names can't be converted."
 msgstr "无法转换带通配符的值名称。"
 
-#: regfile/powershell_script.cpp:1410
+#: regfile/powershell_script.cpp:1447
 msgid "contains control characters"
 msgstr "包含控制字符"
 
@@ -3260,10 +3302,6 @@ msgstr "名称包含空字符"
 #: regfile/reg_file.cpp:427
 msgid "The file contains an entry RegKit can't parse."
 msgstr "文件中有 RegKit 无法解析的条目。"
-
-#: regfile/reg_file.cpp:632
-msgid "The file is larger than RegKit can load."
-msgstr "文件大小超出 RegKit 的加载能力。"
 
 #: regfile/script_convert.cpp:51
 msgid "Unsupported file type, use .reg, .bat, .cmd or .ps1."
@@ -3399,7 +3437,7 @@ msgstr "起始地址"
 
 #: registry/resource_list.cpp:273 registry/resource_list.cpp:292
 #: registry/resource_list.cpp:365 registry/resource_list.cpp:379
-#: registry/value_decoder.cpp:609
+#: registry/value_decoder.cpp:602
 msgid "Length"
 msgstr "长度"
 
@@ -3424,7 +3462,7 @@ msgid "Level"
 msgstr "级别"
 
 #: registry/resource_list.cpp:285 registry/resource_list.cpp:369
-#: registry/value_decoder.cpp:695
+#: registry/value_decoder.cpp:688
 msgid "Group"
 msgstr "组"
 
@@ -3570,7 +3608,7 @@ msgstr "Base64 字符无效。"
 msgid "Invalid Base64 padding bits."
 msgstr "Base64 填充位无效。"
 
-#: registry/value_decoder.cpp:169 registry/value_decoder.cpp:426
+#: registry/value_decoder.cpp:169 registry/value_decoder.cpp:419
 msgid "Input is too large to decode."
 msgstr "输入过大，无法解码。"
 
@@ -3618,235 +3656,235 @@ msgstr "百分号转义无效。"
 msgid "Percent encoded text must be ASCII."
 msgstr "百分号编码文本必须是 ASCII。"
 
-#: registry/value_decoder.cpp:360 registry/value_decoder.cpp:369
+#: registry/value_decoder.cpp:353 registry/value_decoder.cpp:362
 msgid "Invalid FILETIME."
 msgstr "FILETIME 无效。"
 
-#: registry/value_decoder.cpp:376
+#: registry/value_decoder.cpp:369
 msgid "Local"
 msgstr "本地"
 
-#: registry/value_decoder.cpp:430 registry/value_decoder.cpp:437
-#: registry/value_decoder.cpp:469 registry/value_decoder.cpp:484
+#: registry/value_decoder.cpp:423 registry/value_decoder.cpp:430
+#: registry/value_decoder.cpp:462 registry/value_decoder.cpp:477
 #: ui/preset_editor.cpp:44
 msgid "Text"
 msgstr "文本"
 
-#: registry/value_decoder.cpp:430 registry/value_decoder.cpp:437
-#: registry/value_decoder.cpp:484 registry/value_decoder.cpp:841
+#: registry/value_decoder.cpp:423 registry/value_decoder.cpp:430
+#: registry/value_decoder.cpp:477 registry/value_decoder.cpp:834
 msgid "Bytes"
 msgstr "字节"
 
-#: registry/value_decoder.cpp:435
+#: registry/value_decoder.cpp:428
 msgid "Invalid UTF-8."
 msgstr "UTF-8 无效。"
 
-#: registry/value_decoder.cpp:444
+#: registry/value_decoder.cpp:437
 msgid "UTF-16 needs an even byte count."
 msgstr "UTF-16 需要偶数字节数。"
 
-#: registry/value_decoder.cpp:467
+#: registry/value_decoder.cpp:460
 msgid "Invalid UTF-16 surrogate pair."
 msgstr "UTF-16 代理项对无效。"
 
-#: registry/value_decoder.cpp:469
+#: registry/value_decoder.cpp:462
 msgid "Code units"
 msgstr "代码单元"
 
-#: registry/value_decoder.cpp:480
+#: registry/value_decoder.cpp:473
 msgid "A byte isn't ASCII."
 msgstr "字节不是 ASCII。"
 
-#: registry/value_decoder.cpp:491
+#: registry/value_decoder.cpp:484
 msgid "A FILETIME needs exactly 8 bytes."
 msgstr "FILETIME 必须恰好为 8 字节。"
 
-#: registry/value_decoder.cpp:497
+#: registry/value_decoder.cpp:490
 msgid "Raw ticks"
 msgstr "原始刻度值"
 
-#: registry/value_decoder.cpp:511
+#: registry/value_decoder.cpp:504
 msgid "A SYSTEMTIME needs exactly 16 bytes."
 msgstr "SYSTEMTIME 必须恰好为 16 字节。"
 
-#: registry/value_decoder.cpp:521
+#: registry/value_decoder.cpp:514
 msgid "Invalid SYSTEMTIME."
 msgstr "SYSTEMTIME 无效。"
 
-#: registry/value_decoder.cpp:525
+#: registry/value_decoder.cpp:518
 msgid "Date and time"
 msgstr "日期和时间"
 
-#: registry/value_decoder.cpp:526
+#: registry/value_decoder.cpp:519
 msgid "Year"
 msgstr "年"
 
-#: registry/value_decoder.cpp:527
+#: registry/value_decoder.cpp:520
 msgid "Month"
 msgstr "月"
 
-#: registry/value_decoder.cpp:528
+#: registry/value_decoder.cpp:521
 msgid "Day"
 msgstr "日"
 
-#: registry/value_decoder.cpp:529
+#: registry/value_decoder.cpp:522
 msgid "Day of week"
 msgstr "星期"
 
-#: registry/value_decoder.cpp:530
+#: registry/value_decoder.cpp:523
 msgid "Hour"
 msgstr "时"
 
-#: registry/value_decoder.cpp:531
+#: registry/value_decoder.cpp:524
 msgid "Minute"
 msgstr "分"
 
-#: registry/value_decoder.cpp:532
+#: registry/value_decoder.cpp:525
 msgid "Second"
 msgstr "秒"
 
-#: registry/value_decoder.cpp:533 registry/value_decoder.cpp:553
+#: registry/value_decoder.cpp:526 registry/value_decoder.cpp:546
 msgid "Milliseconds"
 msgstr "毫秒"
 
-#: registry/value_decoder.cpp:541
+#: registry/value_decoder.cpp:534
 msgid "Unix time needs exactly 4 or 8 bytes."
 msgstr "Unix 时间必须恰好为 4 或 8 字节。"
 
-#: registry/value_decoder.cpp:548 registry/value_decoder.cpp:557
+#: registry/value_decoder.cpp:541 registry/value_decoder.cpp:550
 msgid "Unix time is out of range."
 msgstr "Unix 时间超出范围。"
 
-#: registry/value_decoder.cpp:553
+#: registry/value_decoder.cpp:546
 msgid "Seconds"
 msgstr "秒"
 
-#: registry/value_decoder.cpp:567
+#: registry/value_decoder.cpp:560
 msgid "A GUID needs exactly 16 bytes."
 msgstr "GUID 必须恰好为 16 字节。"
 
-#: registry/value_decoder.cpp:574
+#: registry/value_decoder.cpp:567
 msgid "The GUID couldn't be formatted."
 msgstr "无法格式化 GUID。"
 
-#: registry/value_decoder.cpp:593 registry/value_decoder.cpp:657
-#: registry/value_decoder.cpp:669
+#: registry/value_decoder.cpp:586 registry/value_decoder.cpp:650
+#: registry/value_decoder.cpp:662
 msgid "Truncated structure."
 msgstr "结构被截断。"
 
-#: registry/value_decoder.cpp:599 registry/value_decoder.cpp:604
+#: registry/value_decoder.cpp:592 registry/value_decoder.cpp:597
 msgid "Invalid SID."
 msgstr "SID 无效。"
 
-#: registry/value_decoder.cpp:623
+#: registry/value_decoder.cpp:616
 msgid "Account"
 msgstr "帐户"
 
-#: registry/value_decoder.cpp:664
+#: registry/value_decoder.cpp:657
 msgid "Not a self relative security descriptor."
 msgstr "不是自相对安全描述符。"
 
-#: registry/value_decoder.cpp:675
+#: registry/value_decoder.cpp:668
 msgid "Invalid security descriptor."
 msgstr "安全描述符无效。"
 
-#: registry/value_decoder.cpp:685
+#: registry/value_decoder.cpp:678
 msgid "The security descriptor couldn't be converted."
 msgstr "无法转换安全描述符。"
 
-#: registry/value_decoder.cpp:688
+#: registry/value_decoder.cpp:681
 msgid "absent"
 msgstr "不存在"
 
-#: registry/value_decoder.cpp:688
+#: registry/value_decoder.cpp:681
 msgid "present"
 msgstr "存在"
 
-#: registry/value_decoder.cpp:694
+#: registry/value_decoder.cpp:687
 msgid "Owner"
 msgstr "所有者"
 
-#: registry/value_decoder.cpp:706
+#: registry/value_decoder.cpp:699
 msgid "An IPv6 address needs exactly 16 bytes."
 msgstr "IPv6 地址必须恰好为 16 字节。"
 
-#: registry/value_decoder.cpp:706
+#: registry/value_decoder.cpp:699
 msgid "An IPv4 address needs exactly 4 bytes."
 msgstr "IPv4 地址必须恰好为 4 字节。"
 
-#: registry/value_decoder.cpp:713
+#: registry/value_decoder.cpp:706
 msgid "The address couldn't be formatted."
 msgstr "无法格式化地址。"
 
-#: registry/value_decoder.cpp:715
+#: registry/value_decoder.cpp:708
 msgid "Address"
 msgstr "地址"
 
-#: registry/value_decoder.cpp:745
+#: registry/value_decoder.cpp:738
 msgid "Hex bytes"
 msgstr "十六进制字节"
 
-#: registry/value_decoder.cpp:746
+#: registry/value_decoder.cpp:739
 msgid "URI percent encoding"
 msgstr "URI 百分号编码"
 
-#: registry/value_decoder.cpp:754
+#: registry/value_decoder.cpp:747
 msgid "Raw bytes"
 msgstr "原始字节"
 
-#: registry/value_decoder.cpp:755
+#: registry/value_decoder.cpp:748
 msgid "UTF-8 text"
 msgstr "UTF-8 文本"
 
-#: registry/value_decoder.cpp:758
+#: registry/value_decoder.cpp:751
 msgid "UTF-16 LE text"
 msgstr "UTF-16 LE 文本"
 
-#: registry/value_decoder.cpp:759
+#: registry/value_decoder.cpp:752
 msgid "UTF-16 BE text"
 msgstr "UTF-16 BE 文本"
 
-#: registry/value_decoder.cpp:761
+#: registry/value_decoder.cpp:754
 msgid "ASCII text"
 msgstr "ASCII 文本"
 
-#: registry/value_decoder.cpp:765
+#: registry/value_decoder.cpp:758
 msgid "Windows FILETIME"
 msgstr "Windows FILETIME"
 
-#: registry/value_decoder.cpp:769
+#: registry/value_decoder.cpp:762
 msgid "Windows SYSTEMTIME"
 msgstr "Windows SYSTEMTIME"
 
-#: registry/value_decoder.cpp:773
+#: registry/value_decoder.cpp:766
 msgid "Unix time (seconds)"
 msgstr "Unix 时间 (秒)"
 
-#: registry/value_decoder.cpp:774
+#: registry/value_decoder.cpp:767
 msgid "Unix time (milliseconds)"
 msgstr "Unix 时间 (毫秒)"
 
-#: registry/value_decoder.cpp:786
+#: registry/value_decoder.cpp:779
 msgid "Security descriptor"
 msgstr "安全描述符"
 
-#: registry/value_decoder.cpp:790
+#: registry/value_decoder.cpp:783
 msgid "IPv4 address"
 msgstr "IPv4 地址"
 
-#: registry/value_decoder.cpp:794
+#: registry/value_decoder.cpp:787
 msgid "IPv6 address"
 msgstr "IPv6 地址"
 
-#: registry/value_decoder.cpp:828
+#: registry/value_decoder.cpp:821
 msgid "Unknown encoding."
 msgstr "未知编码。"
 
-#: registry/value_decoder.cpp:836
+#: registry/value_decoder.cpp:829
 msgid "No data."
 msgstr "无数据。"
 
-#: registry/value_decoder.cpp:869
+#: registry/value_decoder.cpp:862
 msgid "Unknown interpretation."
 msgstr "未知解释方式。"
 
@@ -3858,12 +3896,12 @@ msgstr "字节"
 msgid "bytes"
 msgstr "字节"
 
-#: search/compare.cpp:235
+#: search/compare.cpp:244
 msgid "No matching keys were found for the selected path."
 msgstr "未找到与所选路径匹配的项。"
 
-#: search/compare.cpp:340 search/compare.cpp:341 search/compare.cpp:354
-#: search/compare.cpp:355
+#: search/compare.cpp:343 search/compare.cpp:344 search/compare.cpp:357
+#: search/compare.cpp:358
 msgid "Present"
 msgstr "存在"
 
@@ -3883,39 +3921,39 @@ msgstr "无法应用模式。"
 msgid "Position"
 msgstr "位置"
 
-#: search/search.cpp:703
+#: search/search.cpp:715
 msgid "Null character in the name"
 msgstr "名称中有空字符"
 
-#: search/search.cpp:708
+#: search/search.cpp:720
 msgid "Edge spaces or control characters in the name"
 msgstr "名称首尾有空格或包含控制字符"
 
-#: search/search.cpp:723
+#: search/search.cpp:735
 msgid "Unknown type"
 msgstr "未知类型"
 
-#: search/search.cpp:727
+#: search/search.cpp:739
 msgid "Unexpected size"
 msgstr "大小不符合预期"
 
-#: search/search.cpp:739
+#: search/search.cpp:751
 msgid "Odd size"
 msgstr "字节数为奇数"
 
-#: search/search.cpp:748
+#: search/search.cpp:760
 msgid "No terminating null"
 msgstr "缺少终止空字符"
 
-#: search/search.cpp:752
+#: search/search.cpp:764
 msgid "No final double null"
 msgstr "末尾缺少双空字符"
 
-#: search/search.cpp:756
+#: search/search.cpp:768
 msgid "Empty item"
 msgstr "空条目"
 
-#: search/search.cpp:1432
+#: search/search.cpp:1444
 msgid "Link target missing"
 msgstr "链接目标缺失"
 
@@ -4077,39 +4115,55 @@ msgstr "悬停"
 msgid "Focus"
 msgstr "焦点"
 
-#: ui/preset_editor.cpp:134
+#: ui/preset_editor.cpp:137
 msgid "Preset name can't be empty."
 msgstr "预设名称不能为空。"
 
-#: ui/preset_editor.cpp:208
+#: ui/preset_editor.cpp:211
 msgid "Color"
 msgstr "颜色"
 
-#: ui/preset_editor.cpp:212
+#: ui/preset_editor.cpp:215
 msgid "Hex"
 msgstr ""
 
-#: ui/preset_editor.cpp:489
+#: ui/preset_editor.cpp:454
+msgid "New..."
+msgstr "新建..."
+
+#: ui/preset_editor.cpp:455
+msgid "Duplicate"
+msgstr "创建副本"
+
+#: ui/preset_editor.cpp:456
+msgid "Rename..."
+msgstr "重命名..."
+
+#: ui/preset_editor.cpp:464
+msgid "Edit Color..."
+msgstr "编辑颜色..."
+
+#: ui/preset_editor.cpp:531
 msgid "New Preset"
 msgstr "新建预设"
 
-#: ui/preset_editor.cpp:526
+#: ui/preset_editor.cpp:568
 msgid "Rename Preset"
 msgstr "重命名预设"
 
-#: ui/preset_editor.cpp:539
+#: ui/preset_editor.cpp:581
 msgid "At least one preset must remain."
 msgstr "必须保留至少一个预设。"
 
-#: ui/preset_editor.cpp:547
+#: ui/preset_editor.cpp:589
 msgid "Delete Preset"
 msgstr "删除预设"
 
-#: ui/preset_editor.cpp:571
+#: ui/preset_editor.cpp:613
 msgid "Failed to import theme presets."
 msgstr "无法导入主题预设。"
 
-#: ui/preset_editor.cpp:598
+#: ui/preset_editor.cpp:640
 msgid "Failed to export theme presets."
 msgstr "无法导出主题预设。"
 
@@ -4240,6 +4294,7 @@ msgid "Strings (one per line):"
 msgstr "字符串 (每行一个):"
 
 #: ../resources/editor_dialogs.rc:119 ../resources/editor_dialogs.rc:263
+#: ../resources/editor_dialogs.rc:333
 msgid "Value:"
 msgstr "值:"
 
@@ -4354,12 +4409,8 @@ msgstr "定义:"
 msgid "Load..."
 msgstr "加载..."
 
-#: ../resources/editor_dialogs.rc:268 ../resources/editor_dialogs.rc:342
-msgid "New..."
-msgstr "新建..."
-
 #: ../resources/editor_dialogs.rc:269 ../resources/editor_dialogs.rc:300
-#: ../resources/search_dialogs.rc:158
+#: ../resources/editor_dialogs.rc:320 ../resources/search_dialogs.rc:158
 msgid "Edit..."
 msgstr "编辑..."
 
@@ -4395,7 +4446,7 @@ msgstr "打开..."
 msgid "Field name:"
 msgstr "字段名称:"
 
-#: ../resources/editor_dialogs.rc:315
+#: ../resources/editor_dialogs.rc:315 ../resources/editor_dialogs.rc:337
 msgid "Meaning:"
 msgstr "含义:"
 
@@ -4403,47 +4454,35 @@ msgstr "含义:"
 msgid "States:"
 msgstr "状态:"
 
-#: ../resources/editor_dialogs.rc:319
+#: ../resources/editor_dialogs.rc:322
 msgid "Bits:"
 msgstr "位:"
 
-#: ../resources/editor_dialogs.rc:338
+#: ../resources/editor_dialogs.rc:356
 msgid "Theme Presets"
 msgstr "主题预设"
 
-#: ../resources/editor_dialogs.rc:343
-msgid "Duplicate"
-msgstr "创建副本"
-
-#: ../resources/editor_dialogs.rc:344
-msgid "Rename..."
-msgstr "重命名..."
-
-#: ../resources/editor_dialogs.rc:350
-msgid "Edit Color..."
-msgstr "编辑颜色..."
-
-#: ../resources/editor_dialogs.rc:351
+#: ../resources/editor_dialogs.rc:369
 msgid "Treat as dark theme"
 msgstr "视为深色主题"
 
-#: ../resources/editor_dialogs.rc:354
+#: ../resources/editor_dialogs.rc:372
 msgid "Apply Template"
 msgstr "应用模板"
 
-#: ../resources/editor_dialogs.rc:356
+#: ../resources/editor_dialogs.rc:374
 msgid "Presets"
 msgstr "预设"
 
-#: ../resources/editor_dialogs.rc:357
+#: ../resources/editor_dialogs.rc:375
 msgid "Colors"
 msgstr "颜色设置"
 
-#: ../resources/editor_dialogs.rc:358
+#: ../resources/editor_dialogs.rc:376
 msgid "Templates"
 msgstr "模板"
 
-#: ../resources/editor_dialogs.rc:360
+#: ../resources/editor_dialogs.rc:378
 msgid "Apply"
 msgstr "应用"
 
@@ -4695,15 +4734,15 @@ msgstr "在新选项卡中打开结果"
 msgid "Limit results to"
 msgstr "结果数量上限"
 
-#: dialogs/bitfield_definition.cpp:797
+#: dialogs/bitfield_definition.cpp:807
 msgid "RegKit bitfield definitions (*.regkit-bitfield.jsonc)"
 msgstr "RegKit 位字段定义 (*.regkit-bitfield.jsonc)"
 
-#: dialogs/bitfield_definition.cpp:797
+#: dialogs/bitfield_definition.cpp:807
 msgid "JSON files (*.jsonc;*.json)"
 msgstr "JSON 文件 (*.jsonc;*.json)"
 
-#: dialogs/transfer_dialogs.cpp:34 frame/tools/convert_dialog.cpp:27
+#: dialogs/transfer_dialogs.cpp:34 frame/tools/convert_dialog.cpp:28
 #: regfile/script_convert.h:23 ui/feedback.h:50 ui/feedback.h:52
 msgid "Registry Files (*.reg)"
 msgstr "注册表文件 (*.reg)"
@@ -4712,8 +4751,8 @@ msgstr "注册表文件 (*.reg)"
 #: frame/commands/clipboard_commands.cpp:114
 #: frame/commands/file_view_commands.cpp:349
 #: frame/commands/file_view_commands.cpp:369 frame/detail/file_detail.h:75
-#: frame/sources/trace_commands.cpp:365 regfile/script_convert.h:23
-#: ui/feedback.h:50 ui/feedback.h:52 ui/preset_editor.cpp:141
+#: frame/sources/trace_commands.cpp:366 regfile/script_convert.h:23
+#: ui/feedback.h:50 ui/feedback.h:52 ui/preset_editor.cpp:144
 msgid "All Files (*.*)"
 msgstr "所有文件 (*.*)"
 
@@ -4727,20 +4766,20 @@ msgstr "收藏夹文件 (*.txt)"
 msgid "RegKit Comment Files (*.jsonc)"
 msgstr "RegKit 注释文件 (*.jsonc)"
 
-#: frame/detail/file_detail.h:75 frame/search/compare_dialog.cpp:250
+#: frame/detail/file_detail.h:75 frame/search/compare_dialog.cpp:251
 #: ui/feedback.h:52
 msgid "Registry Hive Files"
 msgstr "注册表配置单元文件"
 
-#: frame/sources/trace_commands.cpp:365
+#: frame/sources/trace_commands.cpp:366
 msgid "Trace Files (*.txt)"
 msgstr "Trace 文件 (*.txt)"
 
-#: frame/tools/convert_dialog.cpp:28 regfile/script_convert.h:23
+#: frame/tools/convert_dialog.cpp:29 regfile/script_convert.h:23
 msgid "Batch Files (*.bat;*.cmd)"
 msgstr "批处理文件 (*.bat;*.cmd)"
 
-#: frame/tools/convert_dialog.cpp:29 regfile/script_convert.h:23
+#: frame/tools/convert_dialog.cpp:30 regfile/script_convert.h:23
 msgid "PowerShell Scripts (*.ps1)"
 msgstr "PowerShell 脚本 (*.ps1)"
 
@@ -4752,6 +4791,6 @@ msgstr "注册表脚本 (*.reg;*.bat;*.cmd;*.ps1)"
 msgid "Hive Files (*.*)"
 msgstr "配置单元文件 (*.*)"
 
-#: ui/preset_editor.cpp:141
+#: ui/preset_editor.cpp:144
 msgid "RegKit Theme Presets (*.rktheme)"
 msgstr "RegKit 主题预设 (*.rktheme)"
