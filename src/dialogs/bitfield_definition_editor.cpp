@@ -16,7 +16,6 @@
 #include "win32/text_transform.h"
 
 #include <commctrl.h>
-#include <windowsx.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -167,6 +166,47 @@ std::wstring StatesText(const Field& field)
     return text;
 }
 
+constexpr int kBitsMenuSelectAll = 1;
+constexpr int kBitsMenuClearAll = 2;
+constexpr int kBitsMenuCopyMask = 3;
+constexpr int kBitsMenuCopyRow = 4;
+
+void ShowBitsMenu(HWND dialog, LPARAM lparam)
+{
+    const HWND list = GetDlgItem(dialog, IDC_FIELD_BITS);
+    POINT screen = {};
+    const int row = appearance::ContextMenuRow(list, lparam, &screen);
+    HMENU menu = CreatePopupMenu();
+    if (!menu)
+    {
+        return;
+    }
+    const UINT row_flags = MF_STRING | (row >= 0 ? 0 : MF_GRAYED);
+    AppendMenuW(menu, MF_STRING, kBitsMenuSelectAll, util::Tr(L"Select All"));
+    AppendMenuW(menu, MF_STRING, kBitsMenuClearAll, util::Tr(L"Clear All"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, row_flags, kBitsMenuCopyMask, util::Tr(L"Copy Mask"));
+    AppendMenuW(menu, row_flags, kBitsMenuCopyRow, util::Tr(L"Copy Row"));
+    const int chosen = appearance::TrackContextMenu(menu, screen, dialog);
+    if (chosen == kBitsMenuSelectAll || chosen == kBitsMenuClearAll)
+    {
+        for (int item = ListView_GetItemCount(list) - 1; item >= 0; --item)
+        {
+            ListView_SetCheckState(list, item, chosen == kBitsMenuSelectAll);
+        }
+    }
+    else if (chosen == kBitsMenuCopyMask)
+    {
+        std::wstring mask;
+        appearance::FetchListViewItemText(list, row, 1, &mask);
+        ui::CopyTextToClipboard(dialog, mask.c_str());
+    }
+    else if (chosen == kBitsMenuCopyRow)
+    {
+        ui::CopyTextToClipboard(dialog, appearance::SelectedRowsText(list));
+    }
+}
+
 INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam)
 {
     auto* state = reinterpret_cast<FieldEditor*>(GetWindowLongPtrW(dialog, DWLP_USER));
@@ -242,6 +282,11 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
     if (message == WM_GETMINMAXINFO && state)
     {
         state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
+        return TRUE;
+    }
+    if (message == WM_CONTEXTMENU && state && reinterpret_cast<HWND>(wparam) == GetDlgItem(dialog, IDC_FIELD_BITS))
+    {
+        ShowBitsMenu(dialog, lparam);
         return TRUE;
     }
     if (message == WM_NOTIFY && state)
@@ -739,9 +784,7 @@ void ShowFieldMenu(HWND dialog, Editor* state, POINT screen)
     AppendMenuW(menu, row_flags, kFieldMenuRemove, util::Tr(L"Remove Field"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, row_flags, kFieldMenuCopy, util::Tr(L"Copy Row"));
-    const int chosen =
-        TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen.x, screen.y, 0, dialog, nullptr);
-    DestroyMenu(menu);
+    const int chosen = appearance::TrackContextMenu(menu, screen, dialog);
     switch (chosen)
     {
     case kFieldMenuAdd:
@@ -754,19 +797,8 @@ void ShowFieldMenu(HWND dialog, Editor* state, POINT screen)
         RemoveField(dialog, state);
         return;
     case kFieldMenuCopy:
-        {
-            std::wstring text;
-            for (int column = 0; column < 4; ++column)
-            {
-                if (column > 0)
-                {
-                    text.push_back(L'\t');
-                }
-                text.append(dialog_support::ListViewText(list, selected, column));
-            }
-            ui::CopyTextToClipboard(dialog, text);
-            return;
-        }
+        ui::CopyTextToClipboard(dialog, appearance::SelectedRowsText(list));
+        return;
     default:
         break;
     }
@@ -855,34 +887,12 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
         state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
         return TRUE;
     }
-    if (message == WM_CONTEXTMENU && state)
+    if (message == WM_CONTEXTMENU && state && reinterpret_cast<HWND>(wparam) == GetDlgItem(dialog, IDC_DEF_LIST))
     {
-        const HWND list = GetDlgItem(dialog, IDC_DEF_LIST);
-        if (reinterpret_cast<HWND>(wparam) == list)
-        {
-            POINT screen = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-            if (screen.x != -1 || screen.y != -1)
-            {
-                POINT client = screen;
-                ScreenToClient(list, &client);
-                LVHITTESTINFO hit = {};
-                hit.pt = client;
-                const int row = ListView_HitTest(list, &hit);
-                if (row >= 0)
-                {
-                    ListView_SetItemState(list, row, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-                }
-            }
-            else
-            {
-                RECT rect = {};
-                GetWindowRect(list, &rect);
-                screen.x = rect.left + 24;
-                screen.y = rect.top + 24;
-            }
-            ShowFieldMenu(dialog, state, screen);
-            return TRUE;
-        }
+        POINT screen = {};
+        appearance::ContextMenuRow(reinterpret_cast<HWND>(wparam), lparam, &screen);
+        ShowFieldMenu(dialog, state, screen);
+        return TRUE;
     }
     if (message == WM_NOTIFY && state)
     {

@@ -1500,48 +1500,52 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message, WPARA
     case WM_CONTEXTMENU:
         {
             HWND source = reinterpret_cast<HWND>(wparam);
-            if (source != browse_.tree().hwnd() && source != browse_.values().hwnd() && source != history_list_ && source != search_results_list_)
+            POINT screen_pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+            if (source == browse_.tree().hwnd())
+            {
+                HTREEITEM item = nullptr;
+                if (screen_pt.x != -1 || screen_pt.y != -1)
+                {
+                    TVHITTESTINFO hit = {};
+                    hit.pt = screen_pt;
+                    ScreenToClient(source, &hit.pt);
+                    item = TreeView_HitTest(source, &hit);
+                }
+                else
+                {
+                    RECT rect = {};
+                    item = TreeView_GetSelection(source);
+                    if (item)
+                    {
+                        TreeView_EnsureVisible(source, item);
+                    }
+                    if (!item || !TreeView_GetItemRect(source, item, &rect, TRUE))
+                    {
+                        rect = {};
+                    }
+                    screen_pt = {rect.left, rect.bottom};
+                    ClientToScreen(source, &screen_pt);
+                }
+                ShowTreeContextMenu(item, screen_pt);
+                return 0;
+            }
+            if (source != browse_.values().hwnd() && source != history_list_ && source != search_results_list_)
             {
                 break;
             }
-            POINT screen_pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-            if (screen_pt.x == -1 && screen_pt.y == -1)
-            {
-                RECT rect = {};
-                const HTREEITEM selected = source == browse_.tree().hwnd() ? TreeView_GetSelection(source) : nullptr;
-                const int row = selected ? -1 : ListView_GetNextItem(source, -1, LVNI_FOCUSED | LVNI_SELECTED);
-                if (selected)
-                {
-                    TreeView_EnsureVisible(source, selected);
-                }
-                else if (row >= 0)
-                {
-                    ListView_EnsureVisible(source, row, FALSE);
-                }
-                if (!(selected ? TreeView_GetItemRect(source, selected, &rect, TRUE) : row >= 0 && ListView_GetItemRect(source, row, &rect, LVIR_LABEL)))
-                {
-                    GetClientRect(source, &rect);
-                    rect.bottom = rect.top + 32;
-                }
-                screen_pt = {rect.left + 8, (rect.top + rect.bottom) / 2};
-                ClientToScreen(source, &screen_pt);
-            }
-            if (source == browse_.tree().hwnd())
-            {
-                ShowTreeContextMenu(screen_pt);
-                return 0;
-            }
+            const int row = appearance::ContextMenuRow(source, lparam, &screen_pt);
             if (source == browse_.values().hwnd())
             {
-                ShowValueContextMenu(screen_pt);
-                return 0;
+                ShowValueContextMenu(row, screen_pt);
             }
-            if (source == history_list_)
+            else if (source == history_list_)
             {
-                ShowHistoryContextMenu(screen_pt);
-                return 0;
+                ShowHistoryContextMenu(row, screen_pt);
             }
-            ShowSearchResultContextMenu(screen_pt);
+            else
+            {
+                ShowSearchResultContextMenu(row, screen_pt);
+            }
             return 0;
         }
     case WM_NOTIFY:

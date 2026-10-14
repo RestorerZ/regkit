@@ -386,7 +386,6 @@ class MainWindow::Impl
     void RefreshStorageMenuState(HMENU menu);
     void FillBitfieldMenu(HMENU menu);
     void BuildAccelerators();
-    std::wstring CommandShortcutText(int command_id) const;
     std::wstring CommandTooltipText(int command_id) const;
     bool HandleMenuCommand(int command_id);
     bool HandleDynamicCommand(int command_id);
@@ -429,11 +428,11 @@ class MainWindow::Impl
     bool OpenHistoryTarget(const HistoryEntry& entry);
     bool RevertHistoryEntry(const HistoryEntry& entry);
     void ShowAddressContextMenu(HWND edit, POINT screen_pt);
-    void ShowTreeContextMenu(POINT screen_pt);
+    void ShowTreeContextMenu(HTREEITEM item, POINT screen_pt);
     bool CanOpenHiveFile(const RegistryNode& node);
-    void ShowValueContextMenu(POINT screen_pt);
-    void ShowHistoryContextMenu(POINT screen_pt);
-    void ShowSearchResultContextMenu(POINT screen_pt);
+    void ShowValueContextMenu(int index, POINT screen_pt);
+    void ShowHistoryContextMenu(int index, POINT screen_pt);
+    void ShowSearchResultContextMenu(int index, POINT screen_pt);
     void DrawPanelButton(const DRAWITEMSTRUCT* info);
     void ClearValueFilter(bool focus_values);
     void ShowPermissionsDialog(const RegistryNode& node);

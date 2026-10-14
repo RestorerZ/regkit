@@ -3,6 +3,7 @@
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
+#include "frame/window/shortcut_bindings.h"
 
 #include "ui/dialog_layout.h"
 #include "ui/list_header.h"
@@ -280,8 +281,7 @@ LRESULT MainWindow::Impl::HandleTooltipNotification(NMHDR* header, LPARAM lparam
             std::wstring tip = CommandTooltipText(command_id);
             if (!tip.empty())
             {
-                std::wstring shortcut = CommandShortcutText(command_id);
-                if (!shortcut.empty())
+                if (const wchar_t* shortcut = frame::ShortcutText(command_id))
                 {
                     tip.append(L" (");
                     tip.append(shortcut);

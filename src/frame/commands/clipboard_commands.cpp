@@ -322,7 +322,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                 int selected = ListView_GetSelectedCount(list);
                 if (selected > 0)
                 {
-                    std::wstring text = BuildSelectedListViewText(list);
+                    std::wstring text = appearance::SelectedRowsText(list);
                     if (!text.empty())
                     {
                         ui::CopyTextToClipboard(hwnd_, text);

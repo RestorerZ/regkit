@@ -43,7 +43,6 @@ inline std::wstring ReadText(HWND dialog, int control_id)
 
 void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColumn> columns);
 bool HandleListViewNotify(HWND dialog, const NMHDR* header, INT_PTR* result);
-std::wstring ListViewText(HWND list, int item, int subitem);
 std::wstring ToDisplayText(const std::wstring& text);
 std::wstring FromDisplayText(const std::wstring& text);
 std::wstring SingleLine(const std::wstring& text);

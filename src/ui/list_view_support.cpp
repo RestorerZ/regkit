@@ -521,9 +521,7 @@ bool ShowListColumnMenu(HWND list, POINT screen)
         widths[static_cast<size_t>(display)] = ListView_GetColumnWidth(list, display);
         AppendMenuW(menu, MF_STRING | (widths[static_cast<size_t>(display)] > 0 ? MF_CHECKED : 0), static_cast<UINT_PTR>(kMenuColumnBase + display), title);
     }
-    const int chosen =
-        TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen.x, screen.y, 0, list, nullptr);
-    DestroyMenu(menu);
+    const int chosen = TrackContextMenu(menu, screen, list);
     if (chosen == kMenuSizeToFit && column >= 0)
     {
         FitListColumn(list, column);
@@ -562,6 +560,47 @@ bool ShowListColumnMenu(HWND list, POINT screen)
         return true;
     }
     return true;
+}
+
+int ContextMenuRow(HWND list, LPARAM lparam, POINT* screen)
+{
+    *screen = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+    if (screen->x != -1 || screen->y != -1)
+    {
+        LVHITTESTINFO hit = {};
+        hit.pt = *screen;
+        ScreenToClient(list, &hit.pt);
+        return ListView_HitTest(list, &hit);
+    }
+    int row = ListView_GetNextItem(list, -1, LVNI_FOCUSED | LVNI_SELECTED);
+    row = row >= 0 ? row : ListView_GetNextItem(list, -1, LVNI_SELECTED);
+    RECT rect = {};
+    if (row < 0 || !ListView_EnsureVisible(list, row, FALSE) || !ListView_GetItemRect(list, row, &rect, LVIR_LABEL))
+    {
+        rect = {};
+        GetClientRect(ListView_GetHeader(list), &rect);
+    }
+    *screen = {rect.left, rect.bottom};
+    ClientToScreen(list, screen);
+    return row;
+}
+
+void AppendMenuItem(HMENU menu, UINT flags, UINT_PTR id, const wchar_t* text, const wchar_t* shortcut)
+{
+    if (!shortcut || !*shortcut)
+    {
+        AppendMenuW(menu, flags, id, text);
+        return;
+    }
+    const std::wstring label = std::wstring(text) + L'\t' + shortcut;
+    AppendMenuW(menu, flags, id, label.c_str());
+}
+
+int TrackContextMenu(HMENU menu, POINT screen, HWND owner)
+{
+    const int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen.x, screen.y, 0, owner, nullptr);
+    DestroyMenu(menu);
+    return command;
 }
 
 void UpdateListViewSort(HWND list, int column, bool ascending)
@@ -675,6 +714,63 @@ int ListViewItemData(HWND list, int row, LPARAM* data)
     }
     *data = item.lParam;
     return row;
+}
+
+int FetchListViewItemText(HWND list, int index, int column, std::wstring* buffer)
+{
+    if (!list || !buffer)
+    {
+        return 0;
+    }
+    if (buffer->empty())
+    {
+        buffer->resize(1);
+    }
+    // returned length is what fit, so grow while the text fills the buffer
+    constexpr size_t kMaxText = 1u << 20;
+    LVITEMW item = {};
+    item.iSubItem = column;
+    for (;;)
+    {
+        item.pszText = buffer->data();
+        item.cchTextMax = static_cast<int>(buffer->size());
+        const int length = static_cast<int>(
+            SendMessageW(list, LVM_GETITEMTEXTW, static_cast<WPARAM>(index), reinterpret_cast<LPARAM>(&item))
+        );
+        if (static_cast<size_t>(length) + 1 < buffer->size() || buffer->size() >= kMaxText)
+        {
+            return length;
+        }
+        buffer->resize(buffer->size() * 2);
+    }
+}
+
+std::wstring SelectedRowsText(HWND list)
+{
+    std::vector<int> subitems;
+    LVCOLUMNW column = {};
+    column.mask = LVCF_WIDTH;
+    for (int index = 0; list && ListView_GetColumn(list, index, &column); ++index)
+    {
+        if (column.cx > 0)
+        {
+            subitems.push_back(index);
+        }
+    }
+    std::wstring text;
+    std::wstring buffer(256, L'\0');
+    bool first = true;
+    for (int row = subitems.empty() ? -1 : ListView_GetNextItem(list, -1, LVNI_SELECTED); row >= 0; row = ListView_GetNextItem(list, row, LVNI_SELECTED))
+    {
+        text.append(first ? L"" : L"\r\n");
+        first = false;
+        for (size_t i = 0; i < subitems.size(); ++i)
+        {
+            const int length = FetchListViewItemText(list, row, subitems[i], &buffer);
+            text.append(i ? L"\t" : L"").append(buffer.c_str(), static_cast<size_t>(std::max(length, 0)));
+        }
+    }
+    return text;
 }
 
 int SelectedListViewData(HWND list)

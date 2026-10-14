@@ -6,6 +6,7 @@
 #include <windows.h>
 
 #include "frame/commands/command_ids.h"
+#include "ui/list_view_support.h"
 
 namespace regkit::frame
 {
@@ -50,5 +51,22 @@ inline constexpr ShortcutBinding kShortcutBindings[] = {
     {FALT, VK_RIGHT, cmd::kNavForward, L"Alt+Right"},
     {FALT, VK_UP, cmd::kNavUp, L"Alt+Up"},
 };
+
+inline const wchar_t* ShortcutText(int command)
+{
+    for (const auto& binding : kShortcutBindings)
+    {
+        if (binding.command == command)
+        {
+            return binding.text;
+        }
+    }
+    return nullptr;
+}
+
+inline void AppendCommand(HMENU menu, UINT flags, int command, const wchar_t* text)
+{
+    appearance::AppendMenuItem(menu, flags, static_cast<UINT_PTR>(command), text, ShortcutText(command));
+}
 
 } // namespace regkit::frame

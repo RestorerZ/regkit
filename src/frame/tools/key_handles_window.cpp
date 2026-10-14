@@ -18,8 +18,6 @@
 #include "win32/window_metrics.h"
 #include "work/session.h"
 
-#include <windowsx.h>
-
 #include <algorithm>
 #include <array>
 #include <memory>
@@ -371,21 +369,10 @@ void CloseHandles(HWND dialog, State* state)
 void ShowRowMenu(HWND dialog, State* state, POINT screen)
 {
     const std::vector<const Row*> rows = SelectedRows(state);
-    if (screen.x == -1 && screen.y == -1)
-    {
-        RECT rect = {};
-        const int focused = ListView_GetNextItem(state->list, -1, LVNI_FOCUSED | LVNI_SELECTED);
-        if (focused < 0 || !ListView_GetItemRect(state->list, focused, &rect, LVIR_LABEL))
-        {
-            GetClientRect(state->list, &rect);
-        }
-        screen = {rect.left, rect.bottom};
-        ClientToScreen(state->list, &screen);
-    }
     const UINT any = rows.empty() ? MF_GRAYED : 0;
     const UINT one = rows.size() == 1 && !rows.front()->text[kKey].empty() ? 0 : MF_GRAYED;
     HMENU menu = CreatePopupMenu();
-    AppendMenuW(menu, MF_STRING | one, kMenuOpen, (std::wstring(util::Tr(L"Open Key")) + L"\tEnter").c_str());
+    appearance::AppendMenuItem(menu, MF_STRING | one, kMenuOpen, util::Tr(L"Open Key"), L"Enter");
     AppendMenuW(menu, MF_STRING | one, kMenuOpenNewTab, util::Tr(L"Open Key in New Tab"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING | any, kMenuCopyKey, util::Tr(L"Copy Key"));
@@ -394,15 +381,12 @@ void ShowRowMenu(HWND dialog, State* state, POINT screen)
     AppendMenuW(menu, MF_STRING | any, kMenuCopyPid, util::Tr(L"Copy PID"));
     AppendMenuW(menu, MF_STRING | any, kMenuCopyHandle, util::Tr(L"Copy Handle"));
     AppendMenuW(menu, MF_STRING | any, kMenuCopyAccess, util::Tr(L"Copy Access"));
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyRows, (std::wstring(util::Tr(L"Copy Rows")) + L"\tCtrl+C").c_str());
+    appearance::AppendMenuItem(menu, MF_STRING | any, kMenuCopyRows, util::Tr(L"Copy Rows"), L"Ctrl+C");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, kMenuRefresh, (std::wstring(util::Tr(L"Refresh")) + L"\tF5").c_str());
+    appearance::AppendMenuItem(menu, MF_STRING, kMenuRefresh, util::Tr(L"Refresh"), L"F5");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING | any, kMenuClose, (std::wstring(util::Tr(L"Close Handle...")) + L"\tDel").c_str());
-    SetMenuDefaultItem(menu, kMenuOpen, FALSE);
-    const int chosen =
-        TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen.x, screen.y, 0, dialog, nullptr);
-    DestroyMenu(menu);
+    appearance::AppendMenuItem(menu, MF_STRING | any, kMenuClose, util::Tr(L"Close Handle..."), L"Del");
+    const int chosen = appearance::TrackContextMenu(menu, screen, dialog);
     static constexpr int kCopyColumns[] = {kKey, kNative, kProcess, kPid, kHandle, kAccess, -1};
     switch (chosen)
     {
@@ -533,7 +517,9 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     case WM_CONTEXTMENU:
         if (state && reinterpret_cast<HWND>(wparam) == state->list)
         {
-            ShowRowMenu(dialog, state, {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)});
+            POINT screen = {};
+            appearance::ContextMenuRow(state->list, lparam, &screen);
+            ShowRowMenu(dialog, state, screen);
             return TRUE;
         }
         return FALSE;

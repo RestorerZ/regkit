@@ -119,18 +119,6 @@ bool IsMenuInside(HMENU root, HMENU menu)
 
 } // namespace
 
-std::wstring MainWindow::Impl::CommandShortcutText(int command_id) const
-{
-    for (const auto& binding : frame::kShortcutBindings)
-    {
-        if (binding.command == command_id)
-        {
-            return binding.text;
-        }
-    }
-    return L"";
-}
-
 std::wstring MainWindow::Impl::CommandTooltipText(int command_id) const
 {
     switch (command_id)
@@ -254,16 +242,7 @@ void MainWindow::Impl::BuildMenus()
     }
     menu_items_.clear();
     HMENU menu = CreateMenu();
-    auto append_menu = [&](HMENU target, UINT flags, int command, const wchar_t* text) {
-        std::wstring shortcut = CommandShortcutText(command);
-        if (!shortcut.empty())
-        {
-            std::wstring combined = std::wstring(text) + L"\t" + shortcut;
-            AppendMenuW(target, flags, command, combined.c_str());
-            return;
-        }
-        AppendMenuW(target, flags, command, text);
-    };
+    const auto append_menu = frame::AppendCommand;
     auto append_popup = [&](HMENU target, HMENU popup, const wchar_t* text) {
         AppendMenuW(target, MF_POPUP, reinterpret_cast<UINT_PTR>(popup), text);
     };

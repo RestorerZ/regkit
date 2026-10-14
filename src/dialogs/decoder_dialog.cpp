@@ -249,6 +249,22 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         INT_PTR result = 0;
         return dialog_support::HandleListViewNotify(dialog, reinterpret_cast<NMHDR*>(lparam), &result) ? result : FALSE;
     }
+    if (message == WM_CONTEXTMENU && reinterpret_cast<HWND>(wparam) == GetDlgItem(dialog, IDC_DECODE_FIELDS))
+    {
+        const HWND list = reinterpret_cast<HWND>(wparam);
+        POINT screen = {};
+        if (appearance::ContextMenuRow(list, lparam, &screen) < 0)
+        {
+            return TRUE;
+        }
+        HMENU menu = CreatePopupMenu();
+        AppendMenuW(menu, MF_STRING, 1, util::Tr(L"Copy Rows"));
+        if (appearance::TrackContextMenu(menu, screen, dialog) == 1)
+        {
+            ui::CopyTextToClipboard(dialog, appearance::SelectedRowsText(list));
+        }
+        return TRUE;
+    }
     if (message != WM_COMMAND || !state)
     {
         return FALSE;

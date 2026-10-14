@@ -210,8 +210,6 @@ int SearchMatchSubItem(const search::Result& result);
 
 int FindListViewColumnBySubItem(HWND list, int subitem);
 
-int FetchListViewItemText(HWND list, int index, int column, std::wstring* buffer);
-
 int CalcListViewColumnFitWidth(HWND list, int column, int min_width);
 
 } // namespace regkit::window_detail
