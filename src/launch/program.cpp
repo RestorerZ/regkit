@@ -361,15 +361,17 @@ struct RestartTarget
     bool (*launch)(const std::wstring&, const std::wstring&, DWORD*, bool*);
     const wchar_t* request_failure;
     const wchar_t* launch_failure;
+    const wchar_t* title;
 };
 
-constexpr RestartTarget kSystemTarget = {kRestartSystemArg, util::IsProcessSystem, util::LaunchProcessAsSystem, L"Failed to request SYSTEM restart.", L"Failed to restart with SYSTEM rights."};
+constexpr RestartTarget kSystemTarget = {kRestartSystemArg, util::IsProcessSystem, util::LaunchProcessAsSystem, L"Failed to request SYSTEM restart.", L"Failed to restart with SYSTEM rights.", L"Restart as SYSTEM"};
 constexpr RestartTarget kTrustedInstallerTarget = {
     kRestartTiArg,
     util::IsProcessTrustedInstaller,
     util::LaunchProcessAsTrustedInstaller,
     L"Failed to request TrustedInstaller restart.",
-    L"Failed to restart with TrustedInstaller rights."
+    L"Failed to restart with TrustedInstaller rights.",
+    L"Restart as TrustedInstaller"
 };
 
 void ShowStartupError(const std::wstring& message)
@@ -402,6 +404,10 @@ bool RestartAs(const RestartTarget& target, DWORD parent_pid, const std::vector<
             return true;
         }
         ShowStartupError(util::Tr(target.request_failure));
+        return false;
+    }
+    if (!ui::ConfirmPrivilegedRestart(nullptr, util::Tr(target.title)))
+    {
         return false;
     }
     DWORD error = 0;

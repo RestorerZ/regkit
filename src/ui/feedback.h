@@ -43,6 +43,7 @@ struct ChoiceButtonWidths
 
 int PromptKeyChoice(HWND owner, const std::wstring& message, const std::wstring& key_path, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths = {});
 int PromptChoice(HWND owner, const std::wstring& message, const std::wstring& title, const std::wstring& yes_label, const std::wstring& no_label, const std::wstring& cancel_label, ChoiceButtonWidths widths = {}, int width = 420);
+bool ConfirmPrivilegedRestart(HWND owner, const std::wstring& title);
 bool ReportFileDialogResult(HWND owner, HRESULT hr);
 bool PromptOpenFile(HWND owner, const wchar_t* filter, std::wstring* path);
 bool PromptSaveFile(HWND owner, const wchar_t* filter, std::wstring* path, win32::OpenAfter* open_after = nullptr, bool regkit = false);

@@ -449,6 +449,10 @@ bool MainWindow::Impl::RestartAsUser()
 
 bool MainWindow::Impl::RestartAsSystem()
 {
+    if (util::IsProcessElevated() && !ui::ConfirmPrivilegedRestart(hwnd_, util::Tr(L"Restart as SYSTEM")))
+    {
+        return false;
+    }
     if (!PrepareSessionHandover())
     {
         return false;
@@ -462,6 +466,10 @@ bool MainWindow::Impl::RestartAsSystem()
 
 bool MainWindow::Impl::RestartAsTrustedInstaller()
 {
+    if (util::IsProcessElevated() && !ui::ConfirmPrivilegedRestart(hwnd_, util::Tr(L"Restart as TrustedInstaller")))
+    {
+        return false;
+    }
     if (!PrepareSessionHandover())
     {
         return false;
