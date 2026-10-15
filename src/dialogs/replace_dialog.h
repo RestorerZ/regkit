@@ -10,11 +10,17 @@
 
 #include <string>
 
+namespace regkit::workspace
+{
+class DialogFields;
+}
+
 namespace regkit
 {
 
 using ReplaceDialogResult = search::ReplaceOptions;
 
 bool ShowReplaceDialog(HWND owner, ReplaceDialogResult* result);
+void ReplaceDialogFields(workspace::DialogFields& fields, ReplaceDialogResult* result);
 
 } // namespace regkit

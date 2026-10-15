@@ -16,11 +16,11 @@
 #include "win32/text_transform.h"
 
 #include <commctrl.h>
-#include <windowsx.h>
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <optional>
 #include <utility>
 
 namespace regkit::editors
@@ -32,6 +32,7 @@ namespace
 using bitfield::Definition;
 using bitfield::DefinitionFile;
 using bitfield::Field;
+using bitfield::State;
 
 constexpr unsigned kWidths[] = {8, 16, 32, 64};
 
@@ -43,6 +44,17 @@ struct FieldEditor
     bool accepted = false;
     int sort_column = 0;
     bool sort_ascending = true;
+    util::SortKeys sort_earlier;
+    HFONT ui_font = nullptr;
+    appearance::DialogResizer resizer;
+};
+
+struct StateEditor
+{
+    State state;
+    const std::vector<State>* states = nullptr;
+    int editing = -1;
+    unsigned bit_count = 0;
     HFONT ui_font = nullptr;
     appearance::DialogResizer resizer;
 };
@@ -61,6 +73,7 @@ struct Editor
     bool updating_combo = false;
     int field_sort_column = 0;
     bool field_sort_ascending = true;
+    util::SortKeys field_sort_earlier;
     HFONT ui_font = nullptr;
     appearance::DialogResizer resizer;
 
@@ -93,8 +106,7 @@ int CALLBACK CompareFieldBits(LPARAM left_data, LPARAM right_data, int column, v
             right_owner >= 0 ? state->parent->fields[static_cast<size_t>(right_owner)].name : std::wstring();
         result = util::CompareListText(left_name, right_name);
     }
-    return result != 0 ? result : (left < right ? -1 : left > right ? 1
-                                                                    : 0);
+    return result;
 }
 
 int CALLBACK CompareDefinitionFields(LPARAM left_data, LPARAM right_data, int column, void* context)
@@ -135,8 +147,7 @@ int CALLBACK CompareDefinitionFields(LPARAM left_data, LPARAM right_data, int co
     default:
         break;
     }
-    return result != 0 ? result : (left_index < right_index ? -1 : left_index > right_index ? 1
-                                                                                            : 0);
+    return result;
 }
 
 std::wstring BitsText(const Field& field)
@@ -165,6 +176,268 @@ std::wstring StatesText(const Field& field)
         text.append(std::to_wstring(field.states[i].value)).append(L"=").append(field.states[i].name);
     }
     return text;
+}
+
+constexpr int kMenuCopyRow = 1;
+
+void ShowEditListMenu(HWND dialog, HWND list, LPARAM lparam, std::initializer_list<std::pair<int, const wchar_t*>> commands)
+{
+    POINT screen = {};
+    const int row = appearance::ContextMenuRow(list, lparam, &screen);
+    const UINT row_flags = MF_STRING | (row >= 0 ? 0 : MF_GRAYED);
+    HMENU menu = CreatePopupMenu();
+    if (!menu)
+    {
+        return;
+    }
+    for (const auto& [command, label] : commands)
+    {
+        AppendMenuW(menu, command == commands.begin()->first ? MF_STRING : row_flags, command, label);
+    }
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, row_flags, kMenuCopyRow, util::Tr(L"Copy Row"));
+    const int chosen = appearance::TrackContextMenu(menu, screen, dialog);
+    if (chosen == kMenuCopyRow)
+    {
+        ui::CopyTextToClipboard(dialog, appearance::SelectedRowsText(list));
+    }
+    else if (chosen != 0)
+    {
+        SendMessageW(dialog, WM_COMMAND, MAKEWPARAM(chosen, BN_CLICKED), 0);
+    }
+}
+
+std::vector<unsigned> CheckedBits(HWND dialog)
+{
+    const HWND list = GetDlgItem(dialog, IDC_FIELD_BITS);
+    std::vector<unsigned> bits;
+    for (int row = 0, count = ListView_GetItemCount(list); row < count; ++row)
+    {
+        LPARAM bit = 0;
+        if (ListView_GetCheckState(list, row) && appearance::ListViewItemData(list, row, &bit) >= 0)
+        {
+            bits.push_back(static_cast<unsigned>(bit));
+        }
+    }
+    std::sort(bits.begin(), bits.end());
+    return bits;
+}
+
+void FillStates(HWND dialog, const std::vector<State>& states, std::optional<uint64_t> select)
+{
+    const HWND list = GetDlgItem(dialog, IDC_FIELD_STATES);
+    ListView_DeleteAllItems(list);
+    for (size_t i = 0; i < states.size(); ++i)
+    {
+        const std::wstring value = std::to_wstring(states[i].value);
+        const std::wstring meaning = dialog_support::SingleLine(states[i].meaning);
+        LVITEMW item = {};
+        item.mask = LVIF_TEXT | LVIF_PARAM;
+        item.iItem = static_cast<int>(i);
+        item.pszText = const_cast<wchar_t*>(value.c_str());
+        item.lParam = static_cast<LPARAM>(i);
+        const int row = ListView_InsertItem(list, &item);
+        ListView_SetItemText(list, row, 1, const_cast<wchar_t*>(states[i].name.c_str()));
+        ListView_SetItemText(list, row, 2, const_cast<wchar_t*>(meaning.c_str()));
+        if (select == states[i].value)
+        {
+            ListView_SetItemState(list, row, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+            ListView_EnsureVisible(list, row, FALSE);
+        }
+    }
+}
+
+INT_PTR CALLBACK StateDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam)
+{
+    auto* state = reinterpret_cast<StateEditor*>(GetWindowLongPtrW(dialog, DWLP_USER));
+    if (message == WM_INITDIALOG)
+    {
+        state = reinterpret_cast<StateEditor*>(lparam);
+        SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
+        SetWindowTextW(dialog, state->editing < 0 ? util::Tr(L"Add State") : util::Tr(L"Edit State"));
+        if (state->editing >= 0)
+        {
+            SetDlgItemTextW(dialog, IDC_STATE_VALUE, std::to_wstring(state->state.value).c_str());
+        }
+        SetDlgItemTextW(dialog, IDC_STATE_NAME, state->state.name.c_str());
+        SetDlgItemTextW(dialog, IDC_STATE_MEANING, dialog_support::ToDisplayText(state->state.meaning).c_str());
+        dialog_support::Initialize(dialog, &state->ui_font, {IDC_STATE_VALUE, IDC_STATE_NAME, IDC_STATE_MEANING});
+        using namespace appearance;
+        state->resizer.Attach(dialog, {
+                                          {IDC_STATE_VALUE, kAnchorLeft | kAnchorTop | kAnchorRight},
+                                          {IDC_STATE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
+                                          {IDC_STATE_MEANING, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
+                                          {IDOK, kAnchorRight | kAnchorBottom},
+                                          {IDCANCEL, kAnchorRight | kAnchorBottom},
+                                      });
+        return TRUE;
+    }
+    if (message == WM_DESTROY)
+    {
+        if (state)
+        {
+            dialog_support::ReleaseFont(&state->ui_font);
+        }
+        return TRUE;
+    }
+    if (message == WM_SIZE && state)
+    {
+        state->resizer.Apply(dialog);
+        return TRUE;
+    }
+    if (message == WM_GETMINMAXINFO && state)
+    {
+        state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
+        return TRUE;
+    }
+    INT_PTR themed = 0;
+    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed))
+    {
+        return themed;
+    }
+    if (message != WM_COMMAND || !state)
+    {
+        return FALSE;
+    }
+    if (LOWORD(wparam) == IDCANCEL)
+    {
+        EndDialog(dialog, IDCANCEL);
+        return TRUE;
+    }
+    if (LOWORD(wparam) != IDOK)
+    {
+        return FALSE;
+    }
+    State result;
+    unsigned long long value = 0;
+    result.name = dialog_support::ReadText(dialog, IDC_STATE_NAME);
+    result.meaning = dialog_support::FromDisplayText(dialog_support::ReadText(dialog, IDC_STATE_MEANING));
+    const wchar_t* error = nullptr;
+    if (!util::ParseUnsignedNumber(dialog_support::ReadText(dialog, IDC_STATE_VALUE), 10, &value))
+    {
+        error = util::Tr(L"Invalid number.");
+    }
+    else if (value > bitfield::WidthMask(state->bit_count))
+    {
+        error = util::Tr(L"A state value doesn't fit the bits of its field.");
+    }
+    else if (std::any_of(state->states->begin(), state->states->end(), [&](const State& other) {
+                 return other.value == value && &other - state->states->data() != state->editing;
+             }))
+    {
+        error = util::Tr(L"Two states of one field share the same value.");
+    }
+    else if (result.name.empty() || result.name.size() > bitfield::kMaxNameLength)
+    {
+        error = util::Tr(L"Every state needs a name of at most 256 characters.");
+    }
+    else if (result.meaning.size() > bitfield::kMaxMeaningLength)
+    {
+        error = util::Tr(L"A state meaning is longer than the format allows.");
+    }
+    if (error)
+    {
+        ui::ShowError(dialog, error);
+        return TRUE;
+    }
+    result.value = value;
+    state->state = std::move(result);
+    EndDialog(dialog, IDOK);
+    return TRUE;
+}
+
+void EditState(HWND dialog, FieldEditor* state, bool create)
+{
+    std::vector<State>& states = state->field.states;
+    const int selected = create ? -1 : appearance::SelectedListViewData(GetDlgItem(dialog, IDC_FIELD_STATES));
+    if (!create && (selected < 0 || static_cast<size_t>(selected) >= states.size()))
+    {
+        return;
+    }
+    if (create && states.size() >= bitfield::kMaxStates)
+    {
+        ui::ShowError(dialog, util::Tr(L"A field lists more than 256 states."));
+        return;
+    }
+    StateEditor editor;
+    editor.states = &states;
+    editor.editing = selected;
+    editor.bit_count = static_cast<unsigned>(CheckedBits(dialog).size());
+    if (editor.bit_count == 0)
+    {
+        ui::ShowError(dialog, util::Tr(L"Select at least one bit."));
+        return;
+    }
+    if (!create)
+    {
+        editor.state = states[static_cast<size_t>(selected)];
+    }
+    if (dialog_support::Modal(dialog, IDD_BITFIELD_STATE, StateDialogProc, reinterpret_cast<LPARAM>(&editor)) != IDOK)
+    {
+        return;
+    }
+    if (create)
+    {
+        states.push_back(editor.state);
+    }
+    else
+    {
+        states[static_cast<size_t>(selected)] = editor.state;
+    }
+    std::stable_sort(states.begin(), states.end(), [](const State& left, const State& right) { return left.value < right.value; });
+    FillStates(dialog, states, editor.state.value);
+}
+
+void RemoveState(HWND dialog, FieldEditor* state)
+{
+    const int selected = appearance::SelectedListViewData(GetDlgItem(dialog, IDC_FIELD_STATES));
+    if (selected < 0 || static_cast<size_t>(selected) >= state->field.states.size())
+    {
+        return;
+    }
+    state->field.states.erase(state->field.states.begin() + selected);
+    FillStates(dialog, state->field.states, std::nullopt);
+}
+
+constexpr int kBitsMenuSelectAll = 1;
+constexpr int kBitsMenuClearAll = 2;
+constexpr int kBitsMenuCopyMask = 3;
+constexpr int kBitsMenuCopyRow = 4;
+
+void ShowBitsMenu(HWND dialog, LPARAM lparam)
+{
+    const HWND list = GetDlgItem(dialog, IDC_FIELD_BITS);
+    POINT screen = {};
+    const int row = appearance::ContextMenuRow(list, lparam, &screen);
+    HMENU menu = CreatePopupMenu();
+    if (!menu)
+    {
+        return;
+    }
+    const UINT row_flags = MF_STRING | (row >= 0 ? 0 : MF_GRAYED);
+    AppendMenuW(menu, MF_STRING, kBitsMenuSelectAll, util::Tr(L"Select All"));
+    AppendMenuW(menu, MF_STRING, kBitsMenuClearAll, util::Tr(L"Clear All"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, row_flags, kBitsMenuCopyMask, util::Tr(L"Copy Mask"));
+    AppendMenuW(menu, row_flags, kBitsMenuCopyRow, util::Tr(L"Copy Row"));
+    const int chosen = appearance::TrackContextMenu(menu, screen, dialog);
+    if (chosen == kBitsMenuSelectAll || chosen == kBitsMenuClearAll)
+    {
+        for (int item = ListView_GetItemCount(list) - 1; item >= 0; --item)
+        {
+            ListView_SetCheckState(list, item, chosen == kBitsMenuSelectAll);
+        }
+    }
+    else if (chosen == kBitsMenuCopyMask)
+    {
+        std::wstring mask;
+        appearance::FetchListViewItemText(list, row, 1, &mask);
+        ui::CopyTextToClipboard(dialog, mask.c_str());
+    }
+    else if (chosen == kBitsMenuCopyRow)
+    {
+        ui::CopyTextToClipboard(dialog, appearance::SelectedRowsText(list));
+    }
 }
 
 INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam)
@@ -205,19 +478,19 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
                 std::find(state->field.bits.begin(), state->field.bits.end(), bit) != state->field.bits.end();
             ListView_SetCheckState(list, item.iItem, checked);
         }
-        appearance::SortListViewItems(list, state->sort_column, false, &state->sort_column, &state->sort_ascending, CompareFieldBits, state);
-        if (!state->field.states.empty())
-        {
-            SetDlgItemTextW(dialog, IDC_FIELD_STATES, dialog_support::ToDisplayText(StatesText(state->field)).c_str());
-            SendDlgItemMessageW(dialog, IDC_FIELD_STATES, EM_SETREADONLY, TRUE, 0);
-        }
-        dialog_support::Initialize(dialog, &state->ui_font, {IDC_FIELD_NAME, IDC_FIELD_MEANING, IDC_FIELD_STATES});
+        appearance::SortListViewItems(list, state->sort_column, false, &state->sort_column, &state->sort_ascending, &state->sort_earlier, CompareFieldBits, state);
+        dialog_support::SetupListView(GetDlgItem(dialog, IDC_FIELD_STATES), 0, {{util::Tr(L"Value"), 60}, {util::Tr(L"Name"), 120}, {util::Tr(L"Meaning"), 200}});
+        FillStates(dialog, state->field.states, std::nullopt);
+        dialog_support::Initialize(dialog, &state->ui_font, {IDC_FIELD_NAME, IDC_FIELD_MEANING});
         appearance::RefreshListView(list);
         using namespace appearance;
         state->resizer.Attach(dialog, {
                                           {IDC_FIELD_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
                                           {IDC_FIELD_MEANING, kAnchorLeft | kAnchorTop | kAnchorRight},
                                           {IDC_FIELD_STATES, kAnchorLeft | kAnchorTop | kAnchorRight},
+                                          {IDC_FIELD_STATE_ADD, kAnchorLeft | kAnchorTop},
+                                          {IDC_FIELD_STATE_EDIT, kAnchorLeft | kAnchorTop},
+                                          {IDC_FIELD_STATE_REMOVE, kAnchorLeft | kAnchorTop},
                                           {IDC_FIELD_BITS, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
                                           {IDOK, kAnchorRight | kAnchorBottom},
                                           {IDCANCEL, kAnchorRight | kAnchorBottom},
@@ -244,13 +517,28 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
         state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
         return TRUE;
     }
+    if (message == WM_CONTEXTMENU && state && reinterpret_cast<HWND>(wparam) == GetDlgItem(dialog, IDC_FIELD_BITS))
+    {
+        ShowBitsMenu(dialog, lparam);
+        return TRUE;
+    }
+    if (message == WM_CONTEXTMENU && state && reinterpret_cast<HWND>(wparam) == GetDlgItem(dialog, IDC_FIELD_STATES))
+    {
+        ShowEditListMenu(dialog, reinterpret_cast<HWND>(wparam), lparam, {{IDC_FIELD_STATE_ADD, util::Tr(L"Add State...")}, {IDC_FIELD_STATE_EDIT, util::Tr(L"Edit State...")}, {IDC_FIELD_STATE_REMOVE, util::Tr(L"Remove State")}});
+        return TRUE;
+    }
     if (message == WM_NOTIFY && state)
     {
         auto* header = reinterpret_cast<NMHDR*>(lparam);
         if (header->idFrom == IDC_FIELD_BITS && header->code == LVN_COLUMNCLICK)
         {
             auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
-            appearance::SortListViewItems(GetDlgItem(dialog, IDC_FIELD_BITS), info->iSubItem, true, &state->sort_column, &state->sort_ascending, CompareFieldBits, state);
+            appearance::SortListViewItems(GetDlgItem(dialog, IDC_FIELD_BITS), info->iSubItem, true, &state->sort_column, &state->sort_ascending, &state->sort_earlier, CompareFieldBits, state);
+            return TRUE;
+        }
+        if (header->idFrom == IDC_FIELD_STATES && header->code == NM_DBLCLK)
+        {
+            EditState(dialog, state, false);
             return TRUE;
         }
         INT_PTR drawn = 0;
@@ -297,36 +585,31 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
                     return TRUE;
                 }
             }
-            const HWND list = GetDlgItem(dialog, IDC_FIELD_BITS);
-            const int count = ListView_GetItemCount(list);
-            for (int row = 0; row < count; ++row)
-            {
-                LPARAM bit = 0;
-                if (ListView_GetCheckState(list, row) && appearance::ListViewItemData(list, row, &bit) >= 0)
-                {
-                    result.bits.push_back(static_cast<unsigned>(bit));
-                }
-            }
-            std::sort(result.bits.begin(), result.bits.end());
+            result.bits = CheckedBits(dialog);
             if (result.bits.empty())
             {
                 ui::ShowError(dialog, util::Tr(L"Select at least one bit."));
                 return TRUE;
             }
-            // drop states that no longer fit after the field gets smaller
             const uint64_t limit = bitfield::WidthMask(static_cast<unsigned>(result.bits.size()));
-            for (const bitfield::State& value : state->field.states)
+            if (std::any_of(state->field.states.begin(), state->field.states.end(), [limit](const State& entry) { return entry.value > limit; }))
             {
-                if (value.value <= limit)
-                {
-                    result.states.push_back(value);
-                }
+                ui::ShowError(dialog, util::Tr(L"A state value doesn't fit the bits of its field."));
+                return TRUE;
             }
+            result.states = std::move(state->field.states);
             state->field = std::move(result);
             state->accepted = true;
             EndDialog(dialog, IDOK);
             return TRUE;
         }
+    case IDC_FIELD_STATE_ADD:
+    case IDC_FIELD_STATE_EDIT:
+        EditState(dialog, state, LOWORD(wparam) == IDC_FIELD_STATE_ADD);
+        return TRUE;
+    case IDC_FIELD_STATE_REMOVE:
+        RemoveState(dialog, state);
+        return TRUE;
     case IDCANCEL:
         EndDialog(dialog, IDCANCEL);
         return TRUE;
@@ -357,7 +640,7 @@ void RefreshFieldList(HWND dialog, Editor* state)
         const std::wstring meaning = dialog_support::SingleLine(field.meaning);
         ListView_SetItemText(list, item.iItem, 3, const_cast<wchar_t*>(meaning.c_str()));
     }
-    appearance::SortListViewItems(list, state->field_sort_column, false, &state->field_sort_column, &state->field_sort_ascending, CompareDefinitionFields, state);
+    appearance::SortListViewItems(list, state->field_sort_column, false, &state->field_sort_column, &state->field_sort_ascending, &state->field_sort_earlier, CompareDefinitionFields, state);
     SendMessageW(list, WM_SETREDRAW, TRUE, 0);
     RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
 }
@@ -719,59 +1002,6 @@ void RenameFromCombo(HWND dialog, Editor* state)
     RefreshDefinitionCombo(dialog, state);
 }
 
-constexpr int kFieldMenuAdd = 1;
-constexpr int kFieldMenuEdit = 2;
-constexpr int kFieldMenuRemove = 3;
-constexpr int kFieldMenuCopy = 4;
-
-void ShowFieldMenu(HWND dialog, Editor* state, POINT screen)
-{
-    const HWND list = GetDlgItem(dialog, IDC_DEF_LIST);
-    const int selected = ListView_GetNextItem(list, -1, LVNI_SELECTED);
-    HMENU menu = CreatePopupMenu();
-    if (!menu)
-    {
-        return;
-    }
-    const UINT row_flags = MF_STRING | (selected >= 0 ? 0 : MF_GRAYED);
-    AppendMenuW(menu, MF_STRING, kFieldMenuAdd, util::Tr(L"Add Field..."));
-    AppendMenuW(menu, row_flags, kFieldMenuEdit, util::Tr(L"Edit Field..."));
-    AppendMenuW(menu, row_flags, kFieldMenuRemove, util::Tr(L"Remove Field"));
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, row_flags, kFieldMenuCopy, util::Tr(L"Copy Row"));
-    const int chosen =
-        TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen.x, screen.y, 0, dialog, nullptr);
-    DestroyMenu(menu);
-    switch (chosen)
-    {
-    case kFieldMenuAdd:
-        AddOrEditField(dialog, state, true);
-        return;
-    case kFieldMenuEdit:
-        AddOrEditField(dialog, state, false);
-        return;
-    case kFieldMenuRemove:
-        RemoveField(dialog, state);
-        return;
-    case kFieldMenuCopy:
-        {
-            std::wstring text;
-            for (int column = 0; column < 4; ++column)
-            {
-                if (column > 0)
-                {
-                    text.push_back(L'\t');
-                }
-                text.append(dialog_support::ListViewText(list, selected, column));
-            }
-            ui::CopyTextToClipboard(dialog, text);
-            return;
-        }
-    default:
-        break;
-    }
-}
-
 void SelectDefinition(HWND dialog, Editor* state)
 {
     const HWND combo = GetDlgItem(dialog, IDC_DEF_SELECT);
@@ -855,34 +1085,10 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
         state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
         return TRUE;
     }
-    if (message == WM_CONTEXTMENU && state)
+    if (message == WM_CONTEXTMENU && state && reinterpret_cast<HWND>(wparam) == GetDlgItem(dialog, IDC_DEF_LIST))
     {
-        const HWND list = GetDlgItem(dialog, IDC_DEF_LIST);
-        if (reinterpret_cast<HWND>(wparam) == list)
-        {
-            POINT screen = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-            if (screen.x != -1 || screen.y != -1)
-            {
-                POINT client = screen;
-                ScreenToClient(list, &client);
-                LVHITTESTINFO hit = {};
-                hit.pt = client;
-                const int row = ListView_HitTest(list, &hit);
-                if (row >= 0)
-                {
-                    ListView_SetItemState(list, row, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-                }
-            }
-            else
-            {
-                RECT rect = {};
-                GetWindowRect(list, &rect);
-                screen.x = rect.left + 24;
-                screen.y = rect.top + 24;
-            }
-            ShowFieldMenu(dialog, state, screen);
-            return TRUE;
-        }
+        ShowEditListMenu(dialog, reinterpret_cast<HWND>(wparam), lparam, {{IDC_DEF_ADD, util::Tr(L"Add Field...")}, {IDC_DEF_EDIT, util::Tr(L"Edit Field...")}, {IDC_DEF_REMOVE, util::Tr(L"Remove Field")}});
+        return TRUE;
     }
     if (message == WM_NOTIFY && state)
     {
@@ -890,7 +1096,7 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
         if (header->idFrom == IDC_DEF_LIST && header->code == LVN_COLUMNCLICK)
         {
             auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
-            appearance::SortListViewItems(GetDlgItem(dialog, IDC_DEF_LIST), info->iSubItem, true, &state->field_sort_column, &state->field_sort_ascending, CompareDefinitionFields, state);
+            appearance::SortListViewItems(GetDlgItem(dialog, IDC_DEF_LIST), info->iSubItem, true, &state->field_sort_column, &state->field_sort_ascending, &state->field_sort_earlier, CompareDefinitionFields, state);
             return TRUE;
         }
         if (header->idFrom == IDC_DEF_LIST && header->code == NM_DBLCLK)

@@ -77,8 +77,7 @@ void MainWindow::Impl::ShowHeaderMenu(HWND list, POINT screen_pt)
         }
     }
 
-    const int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
-    DestroyMenu(menu);
+    const int command = appearance::TrackContextMenu(menu, screen_pt, hwnd_);
 
     if (command == cmd::kHeaderSizeToFit && column_hit >= 0)
     {

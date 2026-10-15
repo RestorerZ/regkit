@@ -466,6 +466,7 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
     case cmd::kFileClearCacheTabs:
     case cmd::kFileClearCacheHistory:
     case cmd::kFileClearCacheSearchHistory:
+    case cmd::kFileClearCacheDialogState:
     case cmd::kFileClearCacheTreeState:
     case cmd::kFileClearCacheTemporary:
         {
@@ -480,6 +481,9 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
                 break;
             case cmd::kFileClearCacheSearchHistory:
                 kind = CacheKind::kSearchHistory;
+                break;
+            case cmd::kFileClearCacheDialogState:
+                kind = CacheKind::kDialogState;
                 break;
             case cmd::kFileClearCacheTreeState:
                 kind = CacheKind::kTreeState;

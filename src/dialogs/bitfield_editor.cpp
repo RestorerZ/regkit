@@ -20,7 +20,6 @@
 #include "win32/text_transform.h"
 
 #include <commctrl.h>
-#include <windowsx.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -49,6 +48,8 @@ constexpr int kMenuEditField = 102;
 constexpr int kMenuRemoveField = 103;
 constexpr int kMenuCopyMask = 104;
 constexpr int kMenuCopyRow = 105;
+constexpr int kMenuSelectAll = 106;
+constexpr int kMenuClearAll = 107;
 constexpr int kMenuStateBase = 200;
 
 struct Editor
@@ -67,6 +68,7 @@ struct Editor
     bool accepted = false;
     int sort_column = 0;
     bool sort_ascending = false;
+    util::SortKeys sort_earlier;
     std::vector<Definition> choices;
     int choice = 0;
     HFONT ui_font = nullptr;
@@ -142,13 +144,12 @@ int CALLBACK CompareBitRows(LPARAM left_data, LPARAM right_data, int column, voi
             result = util::CompareListText(left_field ? RowMeaning(*left_field, editor->value) : std::wstring(), right_field ? RowMeaning(*right_field, editor->value) : std::wstring());
         }
     }
-    return result != 0 ? result : (left < right ? -1 : left > right ? 1
-                                                                    : 0);
+    return result;
 }
 
 void SortBitRows(HWND list, Editor* editor, int column, bool toggle)
 {
-    appearance::SortListViewItems(list, column, toggle, &editor->sort_column, &editor->sort_ascending, CompareBitRows, editor);
+    appearance::SortListViewItems(list, column, toggle, &editor->sort_column, &editor->sort_ascending, &editor->sort_earlier, CompareBitRows, editor);
 }
 
 uint64_t ReadWindow(const Editor& editor)
@@ -352,7 +353,7 @@ void ApplyChoice(HWND dialog, Editor* editor, int choice)
     editor->choice = choice;
     RefreshCombo(dialog, editor);
     const Definition& definition = editor->definition();
-    if (editor->binary_mode && !definition.value_name.empty())
+    if (editor->binary_mode && choice != 0)
     {
         editor->width = definition.bit_width;
         editor->offset = definition.byte_offset;
@@ -617,6 +618,27 @@ void RemoveRowField(HWND dialog, Editor* editor, unsigned bit)
     SelectRow(dialog, *editor, bit);
 }
 
+void SetAllBits(HWND dialog, Editor* editor, bool set)
+{
+    if (editor->read_only)
+    {
+        return;
+    }
+    editor->value = set ? bitfield::WidthMask(editor->width) : 0;
+    const HWND list = GetDlgItem(dialog, IDC_BITFIELD_LIST);
+    editor->updating = true;
+    SendMessageW(list, WM_SETREDRAW, FALSE, 0);
+    for (unsigned row = 0; row < editor->width; ++row)
+    {
+        ListView_SetCheckState(list, static_cast<int>(row), set);
+        SetRowText(list, *editor, static_cast<int>(row));
+    }
+    SendMessageW(list, WM_SETREDRAW, TRUE, 0);
+    RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
+    editor->updating = false;
+    UpdateValueText(dialog, *editor);
+}
+
 void ShowRowMenu(HWND dialog, Editor* editor, int row, POINT screen)
 {
     if (row < 0 || static_cast<unsigned>(row) >= editor->width)
@@ -652,17 +674,22 @@ void ShowRowMenu(HWND dialog, Editor* editor, int row, POINT screen)
         AppendMenuW(menu, MF_POPUP | edit_flags, reinterpret_cast<UINT_PTR>(states), util::Tr(L"Set Field To"));
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING | edit_flags, kMenuSelectAll, util::Tr(L"Select All"));
+    AppendMenuW(menu, MF_STRING | edit_flags, kMenuClearAll, util::Tr(L"Clear All"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kMenuEditField, field ? util::Tr(L"Edit Field...") : util::Tr(L"Describe Bit..."));
     AppendMenuW(menu, MF_STRING | (field ? 0 : MF_GRAYED), kMenuRemoveField, util::Tr(L"Remove Field"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kMenuCopyMask, util::Tr(L"Copy Mask"));
     AppendMenuW(menu, MF_STRING, kMenuCopyRow, util::Tr(L"Copy Row"));
 
-    const int chosen =
-        TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, screen.x, screen.y, 0, dialog, nullptr);
-    DestroyMenu(menu);
+    const int chosen = appearance::TrackContextMenu(menu, screen, dialog);
     switch (chosen)
     {
+    case kMenuSelectAll:
+    case kMenuClearAll:
+        SetAllBits(dialog, editor, chosen == kMenuSelectAll);
+        return;
     case kMenuEnable:
         SetBit(dialog, editor, bit, true);
         return;
@@ -679,20 +706,8 @@ void ShowRowMenu(HWND dialog, Editor* editor, int row, POINT screen)
         ui::CopyTextToClipboard(dialog, MaskText(editor->width, 1ull << bit));
         return;
     case kMenuCopyRow:
-        {
-            const HWND list = GetDlgItem(dialog, IDC_BITFIELD_LIST);
-            std::wstring text;
-            for (int column = 0; column <= kColumnMeaning; ++column)
-            {
-                if (column > 0)
-                {
-                    text.push_back(L'\t');
-                }
-                text.append(dialog_support::ListViewText(list, row, column));
-            }
-            ui::CopyTextToClipboard(dialog, text);
-            return;
-        }
+        ui::CopyTextToClipboard(dialog, appearance::SelectedRowsText(GetDlgItem(dialog, IDC_BITFIELD_LIST)));
+        return;
     default:
         break;
     }
@@ -700,27 +715,6 @@ void ShowRowMenu(HWND dialog, Editor* editor, int row, POINT screen)
     {
         ApplyState(dialog, editor, bit, static_cast<size_t>(chosen - kMenuStateBase));
     }
-}
-
-void SetAllBits(HWND dialog, Editor* editor, bool set)
-{
-    if (editor->read_only)
-    {
-        return;
-    }
-    editor->value = set ? bitfield::WidthMask(editor->width) : 0;
-    const HWND list = GetDlgItem(dialog, IDC_BITFIELD_LIST);
-    editor->updating = true;
-    SendMessageW(list, WM_SETREDRAW, FALSE, 0);
-    for (unsigned row = 0; row < editor->width; ++row)
-    {
-        ListView_SetCheckState(list, static_cast<int>(row), set);
-        SetRowText(list, *editor, static_cast<int>(row));
-    }
-    SendMessageW(list, WM_SETREDRAW, TRUE, 0);
-    RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
-    editor->updating = false;
-    UpdateValueText(dialog, *editor);
 }
 
 void HandleItemChanged(HWND dialog, Editor* editor, const NMLISTVIEW* info)
@@ -845,38 +839,12 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         editor->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
         return TRUE;
     }
-    if (message == WM_CONTEXTMENU && editor)
+    if (message == WM_CONTEXTMENU && editor && reinterpret_cast<HWND>(wparam) == GetDlgItem(dialog, IDC_BITFIELD_LIST))
     {
-        const HWND target = reinterpret_cast<HWND>(wparam);
-        const HWND list = GetDlgItem(dialog, IDC_BITFIELD_LIST);
-        POINT screen = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-        if (target == list)
-        {
-            int row = ListView_GetNextItem(list, -1, LVNI_SELECTED);
-            if (screen.x != -1 || screen.y != -1)
-            {
-                POINT client = screen;
-                ScreenToClient(list, &client);
-                LVHITTESTINFO hit = {};
-                hit.pt = client;
-                const int hit_row = ListView_HitTest(list, &hit);
-                if (hit_row >= 0)
-                {
-                    row = hit_row;
-                    ListView_SetItemState(list, row, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-                }
-            }
-            else if (row >= 0)
-            {
-                RECT rect = {};
-                ListView_GetItemRect(list, row, &rect, LVIR_BOUNDS);
-                screen.x = rect.left;
-                screen.y = rect.bottom;
-                ClientToScreen(list, &screen);
-            }
-            ShowRowMenu(dialog, editor, row, screen);
-            return TRUE;
-        }
+        POINT screen = {};
+        const int row = appearance::ContextMenuRow(reinterpret_cast<HWND>(wparam), lparam, &screen);
+        ShowRowMenu(dialog, editor, row, screen);
+        return TRUE;
     }
     if (message == WM_NOTIFY && editor)
     {

@@ -52,9 +52,18 @@ std::wstring ResolveDevicePath(const std::wstring& path)
     return path;
 }
 
+// hive file starts with regf, other files in the folder are skipped instead of failing the load
+bool HasHiveSignature(const std::wstring& path)
+{
+    const util::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+    char signature[4] = {};
+    DWORD read = 0;
+    return file && ReadFile(file.get(), signature, sizeof(signature), &read, nullptr) && read == sizeof(signature) && memcmp(signature, "regf", sizeof(signature)) == 0;
+}
+
 void AddOfflineHiveCandidate(std::vector<OfflineHiveCandidate>* out, std::unordered_set<std::wstring>* seen, const std::wstring& path, const std::wstring& label)
 {
-    if (!out || !seen || !util::IsFile(path))
+    if (!out || !seen || !util::IsFile(path) || !HasHiveSignature(path))
     {
         return;
     }
@@ -144,8 +153,16 @@ bool ShouldIncludeOfflineHiveFile(const std::wstring& name)
     {
         return true;
     }
-    std::wstring ext = name.substr(dot);
-    return util::EqualsInsensitive(ext, L".dat");
+    // old .log files also start with regf, so only hive extensions get the signature check
+    const std::wstring ext = name.substr(dot);
+    for (const wchar_t* hive_ext : {L".dat", L".hiv", L".hve", L".hive", L".sav"})
+    {
+        if (util::EqualsInsensitive(ext, hive_ext))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 void CollectLooseHivesInFolder(const std::wstring& folder, std::vector<OfflineHiveCandidate>* out, std::unordered_set<std::wstring>* seen)

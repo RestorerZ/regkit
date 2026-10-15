@@ -21,6 +21,7 @@
 #include "ui/gdi_cache.h"
 #include "ui/theme.h"
 #include "win32/file_dialog.h"
+#include "win32/process_rights.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 
@@ -847,6 +848,26 @@ int PromptChoice(HWND owner, const std::wstring& message, const std::wstring& ti
         return result;
     }
     return IDCANCEL;
+}
+
+bool ConfirmPrivilegedRestart(HWND owner, const std::wstring& title)
+{
+    // the relaunch runs whatever file is at this path by then
+    const std::wstring exe_path = util::GetModulePath();
+    return !util::IsWritableByNonAdmins(exe_path) ||
+           PromptKeyChoice(
+               owner,
+               util::Tr(L"RegKit is running from a location that non administrators can write to, so a program "
+                        L"without administrator rights could replace it before it restarts with these rights. "
+                        L"Install RegKit for all users first, or move it somewhere only administrators can write.\n\n"
+                        L"Restart anyway to continue from this location."),
+               exe_path,
+               title,
+               util::Tr(L"Restart Anyway"),
+               L"",
+               util::Tr(L"Cancel"),
+               {110, 70, 70}
+           ) == IDYES;
 }
 
 bool PromptOpenFile(HWND owner, const wchar_t* filter, std::wstring* path)

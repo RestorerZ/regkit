@@ -346,13 +346,6 @@ bool TransformPercent(const std::wstring& text, std::vector<BYTE>* out, std::wst
     return true;
 }
 
-std::wstring FormatSystemTime(const SYSTEMTIME& time)
-{
-    wchar_t buffer[64] = {};
-    swprintf_s(buffer, L"%04u-%02u-%02u %02u:%02u:%02u.%03u", time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond, time.wMilliseconds);
-    return buffer;
-}
-
 bool AppendTimeFields(uint64_t ticks, std::vector<Field>* fields, std::wstring* error)
 {
     if (ticks >= kMaxFileTime)
@@ -369,11 +362,11 @@ bool AppendTimeFields(uint64_t ticks, std::vector<Field>* fields, std::wstring* 
         *error = util::Tr(L"Invalid FILETIME.");
         return false;
     }
-    fields->push_back({L"UTC", FormatSystemTime(utc)});
+    fields->push_back({L"UTC", util::FormatLocalTime(utc, true)});
     SYSTEMTIME local = {};
     if (SystemTimeToTzSpecificLocalTime(nullptr, &utc, &local))
     {
-        fields->push_back({util::Tr(L"Local"), FormatSystemTime(local)});
+        fields->push_back({util::Tr(L"Local"), util::FormatLocalTime(local, true)});
     }
     return true;
 }
@@ -522,7 +515,7 @@ Decoded DecodeSystemTime(const BYTE* data, size_t size)
     }
     Decoded decoded;
     decoded.ok = true;
-    decoded.fields.push_back({util::Tr(L"Date and time"), FormatSystemTime(time)});
+    decoded.fields.push_back({util::Tr(L"Date and time"), util::FormatLocalTime(time, true)});
     decoded.fields.push_back({util::Tr(L"Year"), std::to_wstring(time.wYear)});
     decoded.fields.push_back({util::Tr(L"Month"), std::to_wstring(time.wMonth)});
     decoded.fields.push_back({util::Tr(L"Day"), std::to_wstring(time.wDay)});

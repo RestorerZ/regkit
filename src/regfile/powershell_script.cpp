@@ -583,6 +583,10 @@ class Interpreter
 
     void IfStatement()
     {
+        if (condition_ != Condition::kNone)
+        {
+            Fail(util::Tr(L"Only if conditions on Test-Path are supported."));
+        }
         Take();
         Expect(L"(");
         const bool negate = At(Kind::kPunct, L"!") || At(Kind::kParameter, L"not");
@@ -600,7 +604,22 @@ class Interpreter
             Fail(util::Tr(L"Only if conditions on Test-Path are supported."));
         }
         Take();
-        Arguments();
+        const std::vector<Argument> arguments = Arguments();
+        for (const Argument& argument : arguments)
+        {
+            static constexpr std::wstring_view kKnown[] = {L"", L"path", L"literalpath", L"lp", L"pspath", L"erroraction", L"ea"};
+            if (std::find(std::begin(kKnown), std::end(kKnown), argument.name) == std::end(kKnown))
+            {
+                Fail(util::TrLabel(L"Unsupported parameter", L"-" + argument.name));
+            }
+        }
+        size_t shift = 0;
+        const std::vector<std::wstring> tested = TargetKeys(arguments, false, &shift);
+        if (tested.size() != 1)
+        {
+            Fail(util::Tr(L"Only if conditions on Test-Path are supported."));
+        }
+        tested_ = tested.front();
         if (parenthesized)
         {
             Expect(L")");
@@ -1139,6 +1158,20 @@ class Interpreter
         return paths;
     }
 
+    // keys of -LiteralPath, -Path or the first positional argument, shift is 1 for a named one
+    std::vector<std::wstring> TargetKeys(const std::vector<Argument>& arguments, bool wildcards_literal, size_t* shift) const
+    {
+        const Item* literal = Find(arguments, {L"literalpath", L"lp", L"pspath"}, SIZE_MAX);
+        const Item* named = literal ? literal : Find(arguments, {L"path"}, SIZE_MAX);
+        const Item* path = named ? named : Find(arguments, {}, 0);
+        if (!path)
+        {
+            Fail(util::Tr(L"A -Path is required."));
+        }
+        *shift = named ? 1 : 0;
+        return Paths(*path, literal != nullptr, wildcards_literal);
+    }
+
     void Execute(const std::wstring& name, const std::vector<Argument>& arguments)
     {
         static constexpr std::wstring_view kIgnored[] = {L"out-null", L"write-host", L"write-output", L"write-verbose", L"write-warning", L"set-strictmode", L"add-type", L"clear-host", L"start-sleep", L"test-path"};
@@ -1172,16 +1205,14 @@ class Interpreter
         {
             Fail(util::Tr(L"Only New-Item can follow if (-not (Test-Path)), and only removals can follow if (Test-Path)."));
         }
-        const Item* literal = Find(arguments, {L"literalpath", L"lp", L"pspath"}, SIZE_MAX);
-        const Item* named = literal ? literal : Find(arguments, {L"path"}, SIZE_MAX);
-        const Item* path = named ? named : Find(arguments, {}, 0);
-        if (!path)
+        size_t shift = 0;
+        const std::vector<std::wstring> keys = TargetKeys(arguments, new_item, &shift);
+        const Item* force_value = Find(arguments, {L"force"}, SIZE_MAX);
+        if (force_value && force_value->type != Item::Type::kNull && force_value->type != Item::Type::kNumber)
         {
-            Fail(util::Tr(L"A -Path is required."));
+            Fail(util::TrLabel(L"Unsupported parameter", L"-force"));
         }
-        const size_t shift = named ? 1 : 0;
-        const std::vector<std::wstring> keys = Paths(*path, literal != nullptr, new_item);
-        const bool force = Find(arguments, {L"force"}, SIZE_MAX) != nullptr;
+        const bool force = force_value && (force_value->type == Item::Type::kNull || force_value->number != 0);
         for (const Argument& argument : arguments)
         {
             static constexpr std::wstring_view kKnown[] = {L"", L"path", L"literalpath", L"lp", L"pspath", L"name", L"value", L"type", L"propertytype", L"force", L"recurse", L"erroraction", L"ea", L"itemtype"};
@@ -1190,20 +1221,25 @@ class Interpreter
                 Fail(util::TrLabel(L"Unsupported parameter", L"-" + argument.name));
             }
         }
+        const Item* leaf = new_item ? Find(arguments, {L"name"}, 1 - shift) : nullptr;
+        const Item* default_value = new_item ? Find(arguments, {L"value"}, SIZE_MAX) : nullptr;
         for (const std::wstring& key : keys)
         {
+            const std::wstring full = leaf ? key + L"\\" + Text(*leaf) : key;
+            if (condition_ != Condition::kNone && (!util::EqualsInsensitive(full, tested_) || default_value))
+            {
+                Fail(util::Tr(L"Only New-Item can follow if (-not (Test-Path)), and only removals can follow if (Test-Path)."));
+            }
             if (new_item)
             {
-                const Item* leaf = Find(arguments, {L"name"}, 1 - shift);
-                const std::wstring full = leaf ? key + L"\\" + Text(*leaf) : key;
                 if (force && condition_ == Condition::kNone)
                 {
                     output_->push_back({Operation::Kind::kRemoveKey, full});
                 }
                 output_->push_back({Operation::Kind::kKey, full});
-                if (const Item* value = Find(arguments, {L"value"}, SIZE_MAX))
+                if (default_value)
                 {
-                    Set(full, std::wstring(), *value, L"string");
+                    Set(full, std::wstring(), *default_value, L"string");
                 }
             }
             else if (set_property)
@@ -1262,6 +1298,7 @@ class Interpreter
     std::unordered_map<std::wstring, Item> variables_;
     std::unordered_map<std::wstring, std::wstring> drives_;
     Condition condition_ = Condition::kNone;
+    std::wstring tested_;
     int depth_ = 0;
 };
 

@@ -35,13 +35,23 @@ bool MainWindow::Impl::HandleToolsCommand(int command_id)
         return true;
     case cmd::kToolsConvertFile:
         {
-            static ConvertSettings settings;
+            ConvertSettings settings;
+            workspace::DialogState state = workspace::LoadDialogState();
+            workspace::DialogFields last(&state, false);
+            ConvertDialogFields(last, &settings);
             if (settings.source == ConvertSource::kRegistry && browse_.current_node())
             {
                 settings.key_path = registry_path::Build(*browse_.current_node());
                 settings.output_path = DefaultExportPath(settings.key_path, regfile::FormatExtension(settings.format));
             }
+            const workspace::DialogState before = state;
             ShowConvertDialog(hwnd_, &settings);
+            workspace::DialogFields store(&state, true);
+            ConvertDialogFields(store, &settings);
+            if (state != before)
+            {
+                workspace::SaveDialogState(state);
+            }
         }
         return true;
     case cmd::kToolsKeyHandles:

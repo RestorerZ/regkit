@@ -70,12 +70,26 @@ void MainWindow::Impl::StartCompareRegistries()
     right.key_path = left.key_path;
     defaults.left = left;
     defaults.right = right;
+    workspace::DialogState state = workspace::LoadDialogState();
+    workspace::DialogFields last(&state, false);
+    CompareDialogFields(last, &defaults);
+    for (CompareDialogSelection* side : {&defaults.left, &defaults.right})
+    {
+        if (side->type == CompareSourceType::kRegistry)
+        {
+            side->key_path = left.key_path;
+        }
+    }
 
     CompareDialogResult selection;
     if (!ShowCompareDialog(hwnd_, defaults, &selection))
     {
         return;
     }
+    CompareDialogDefaults used{selection.left, selection.right, selection.filter};
+    workspace::DialogFields store(&state, true);
+    CompareDialogFields(store, &used);
+    workspace::SaveDialogState(state);
 
     // paths & the shown tab's keys resolve here, the worker only reads
     struct Side
@@ -119,7 +133,7 @@ void MainWindow::Impl::StartCompareRegistries()
         }
     }
 
-    auto source_ref = [](const CompareDialogSelection& sel) {
+    auto source_ref = [shown = CurrentTabSource()](const CompareDialogSelection& sel) {
         switch (sel.type)
         {
         case CompareSourceType::kRegFile:
@@ -131,7 +145,7 @@ void MainWindow::Impl::StartCompareRegistries()
         default:
             break;
         }
-        return search::Source{};
+        return shown;
     };
     std::vector<search::Source> sources = {source_ref(selection.left), source_ref(selection.right)};
 

@@ -428,13 +428,6 @@ bool HandleListViewNotify(HWND dialog, const NMHDR* header, INT_PTR* result)
     return true;
 }
 
-std::wstring ListViewText(HWND list, int item, int subitem)
-{
-    wchar_t buffer[1024] = {};
-    ListView_GetItemText(list, item, subitem, buffer, static_cast<int>(_countof(buffer)));
-    return buffer;
-}
-
 std::wstring ToDisplayText(const std::wstring& text)
 {
     std::wstring out;

@@ -52,7 +52,8 @@ void PaintListHeader(HWND header, HDC hdc)
 
     HTHEME header_theme = HeaderTheme(header);
     SIZE arrow_size = {0, 0};
-    if (header_theme)
+    const bool themed_arrow = header_theme && IsThemePartDefined(header_theme, HP_HEADERSORTARROW, 0);
+    if (themed_arrow)
     {
         GetThemePartSize(header_theme, hdc, HP_HEADERSORTARROW, HSAS_SORTEDUP, nullptr, TS_TRUE, &arrow_size);
     }
@@ -126,13 +127,26 @@ void PaintListHeader(HWND header, HDC hdc)
         SetTextColor(hdc, theme.TextColor());
         DrawTextW(hdc, text, -1, &text_rect, format);
 
-        if ((sorted_up || sorted_down) && header_theme)
+        if (themed_arrow && (sorted_up || sorted_down))
         {
             RECT arrow_rect = rect;
             arrow_rect.right -= 1;
             arrow_rect.bottom = rect.top + arrow_size.cy;
             const int arrow_state = sorted_up ? HSAS_SORTEDUP : HSAS_SORTEDDOWN;
             DrawThemeBackground(header_theme, hdc, HP_HEADERSORTARROW, arrow_state, &arrow_rect, nullptr);
+        }
+        else if (sorted_up || sorted_down)
+        {
+            // classic mode has no theme to draw it
+            const int mid = (rect.left + rect.right - 1) / 2;
+            const int base = sorted_up ? rect.top + 4 : rect.top + 1;
+            const int tip = sorted_up ? rect.top + 1 : rect.top + 4;
+            const POINT arrow[3] = {{mid - 3, base}, {mid + 3, base}, {mid, tip}};
+            HGDIOBJ old_pen = SelectObject(hdc, CachedPen(theme.MutedTextColor()));
+            HGDIOBJ old_brush = SelectObject(hdc, CachedBrush(theme.MutedTextColor()));
+            Polygon(hdc, arrow, 3);
+            SelectObject(hdc, old_brush);
+            SelectObject(hdc, old_pen);
         }
     }
 

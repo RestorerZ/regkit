@@ -455,13 +455,13 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
     auto default_data_list = is_reg_file ? std::vector<ActiveDefault>() : active_defaults_;
     bool show_simulated_keys = settings_.show_simulated_keys && !is_reg_file;
     constexpr size_t kDateColumn = static_cast<size_t>(kValueColDate);
-    bool include_dates = (browse_.columns().sort_column == static_cast<int>(kDateColumn));
+    bool include_dates = browse_.columns().SortsBy(static_cast<int>(kDateColumn));
     if (kDateColumn < browse_.columns().visible.size() && browse_.columns().visible[kDateColumn])
     {
         include_dates = true;
     }
     constexpr size_t kDetailsColumn = static_cast<size_t>(kValueColDetails);
-    bool include_details = (browse_.columns().sort_column == static_cast<int>(kDetailsColumn));
+    bool include_details = browse_.columns().SortsBy(static_cast<int>(kDetailsColumn));
     if (kDetailsColumn < browse_.columns().visible.size() && browse_.columns().visible[kDetailsColumn])
     {
         include_details = true;
@@ -498,10 +498,11 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
     task->include_dates = include_dates;
     task->sort_column = sort_column;
     task->sort_ascending = sort_ascending;
+    task->sort_earlier = browse_.columns().sort_earlier;
     task->show_keys_in_list = show_keys_in_list;
     task->include_details = include_details;
     task->show_simulated_keys = show_simulated_keys;
-    task->include_all_value_data = sort_column == kValueColData || browse_.values().HasFilter();
+    task->include_all_value_data = browse_.columns().SortsBy(kValueColData) || browse_.values().HasFilter();
     task->hwnd = hwnd_;
     task->trace_data_list = std::move(trace_data_list);
     task->default_data_list = std::move(default_data_list);

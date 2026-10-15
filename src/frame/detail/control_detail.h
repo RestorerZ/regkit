@@ -149,7 +149,7 @@ const std::wstring& ValueRowFieldText(const ListRow& row, int subitem);
 
 bool CellTextIsClipped(HWND list, const std::wstring& text, int available);
 
-void SortValueRows(std::vector<ListRow>* rows, int column, bool ascending);
+void SortValueRows(std::vector<ListRow>* rows, int column, bool ascending, const util::SortKeys& earlier);
 
 constexpr wchar_t kListScrollProp[] = L"RegKitListScrollX";
 

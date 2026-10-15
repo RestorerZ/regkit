@@ -12,6 +12,14 @@
 namespace regkit::work
 {
 
+namespace
+{
+
+// shared by all sessions, so a session made again for the same source never reuses an old completions generation
+std::atomic<uint64_t> g_generation{0};
+
+} // namespace
+
 void NameThread(std::thread& thread, const wchar_t* name) noexcept
 {
     static const auto set_description = win32::ImportProc<HRESULT(WINAPI*)(HANDLE, PCWSTR)>(L"kernel32.dll", "SetThreadDescription");
@@ -50,7 +58,7 @@ bool Session::StartIfIdle(const wchar_t* name, Task task, uint64_t* generation)
 void Session::Cancel() noexcept
 {
     cancel_.store(true);
-    generation_.fetch_add(1);
+    generation_.store(g_generation.fetch_add(1) + 1);
 }
 
 void Session::CancelAndJoin() noexcept
@@ -81,7 +89,8 @@ bool Session::running() const noexcept
 uint64_t Session::StartPrepared(const wchar_t* name, Task task)
 {
     cancel_.store(false);
-    const uint64_t generation = generation_.fetch_add(1) + 1;
+    const uint64_t generation = g_generation.fetch_add(1) + 1;
+    generation_.store(generation);
     running_.store(true);
     try
     {
@@ -96,10 +105,7 @@ uint64_t Session::StartPrepared(const wchar_t* name, Task task)
             catch (...)
             {
             }
-            if (generation_.load() == generation)
-            {
-                running_.store(false);
-            }
+            running_.store(false);
         });
         NameThread(thread_, name);
     }

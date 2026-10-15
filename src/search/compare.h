@@ -58,7 +58,7 @@ bool CaptureRegistry(const std::wstring& base_path, const RegistryNode& base_nod
 
 bool LoadRegFile(const std::wstring& file_path, const regfile::Document& document, const std::wstring& base_path, bool recursive, const NormalizePath& normalize, Snapshot* snapshot, std::wstring* error, std::atomic_bool* cancel = nullptr);
 
-void SortRows(std::vector<Row>* rows, int column, bool ascending);
+void SortRows(std::vector<Row>* rows, int column, bool ascending, const util::SortKeys& earlier);
 
 std::vector<Row> BuildRows(const Snapshot& first, const Snapshot& second, RowFilter filter = RowFilter::kDifferences, std::atomic_bool* cancel = nullptr);
 

@@ -92,10 +92,11 @@ void MainWindow::Impl::CollectTraceChildren(const std::vector<ActiveTrace>& trac
         {
             continue;
         }
+        // a child shows only when the selection includes it, IncludesKey also keeps the ancestors of a selected key
         for (const auto& child : it->second)
         {
             if (child.second.empty() || existing_lower.find(child.first) != existing_lower.end() ||
-                !seen.insert(child.first).second)
+                !trace::IncludesKey(*trace.selection, key_lower + L"\\" + child.first) || !seen.insert(child.first).second)
             {
                 continue;
             }

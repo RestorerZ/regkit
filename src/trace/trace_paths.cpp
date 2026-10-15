@@ -106,9 +106,17 @@ bool LinkTarget(const std::wstring& path, const RegistryNode& node, std::wstring
     static std::mutex mutex;
     static std::unordered_map<std::wstring, std::wstring> targets;
     static std::unordered_set<std::wstring> misses;
+    static uint64_t revision = 0;
     std::wstring key = util::ToLower(path);
     {
         std::lock_guard<std::mutex> lock(mutex);
+        // any key change or refresh can add, remove, retarget a link
+        if (const uint64_t current = RegistryStore::KeyRevision(); current != revision)
+        {
+            targets.clear();
+            misses.clear();
+            revision = current;
+        }
         if (const auto found = targets.find(key); found != targets.end())
         {
             *target = found->second;

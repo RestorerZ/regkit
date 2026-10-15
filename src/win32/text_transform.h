@@ -11,6 +11,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace regkit::util
@@ -29,6 +30,7 @@ bool ParseUnsignedNumber(std::wstring_view text, int base, unsigned long long* v
 std::wstring ToLower(std::wstring_view text);
 std::wstring TrimWhitespace(std::wstring_view text);
 std::wstring FormatLocalTime(const SYSTEMTIME& time, bool with_seconds = false);
+std::wstring LocalTimeFormat();
 bool IsBlank(std::wstring_view text);
 std::wstring ExpandEnvironmentStringsDynamic(const std::wstring& text);
 std::wstring ToHex(std::span<const BYTE> data, wchar_t separator = L' ', bool uppercase = false, size_t max_bytes = 0);
@@ -37,6 +39,20 @@ std::wstring ToHexLines(std::span<const BYTE> data);
 
 int CompareInsensitive(std::wstring_view left, std::wstring_view right);
 int CompareListText(std::wstring_view left, std::wstring_view right);
+
+// earlier sort columns newest first, rebuilt rows use them to order what the sort column ties
+using SortKeys = std::vector<std::pair<int, bool>>;
+template <typename Compare>
+int CompareSorted(int column, bool ascending, const SortKeys& earlier, Compare compare)
+{
+    int result = ascending ? compare(column) : -compare(column);
+    for (size_t i = 0; result == 0 && i < earlier.size(); ++i)
+    {
+        result = earlier[i].second ? compare(earlier[i].first) : -compare(earlier[i].first);
+    }
+    return result;
+}
+
 bool EqualsInsensitive(std::wstring_view left, std::wstring_view right);
 bool StartsWithInsensitive(std::wstring_view text, std::wstring_view prefix);
 bool EndsWithInsensitive(std::wstring_view text, std::wstring_view suffix);

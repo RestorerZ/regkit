@@ -39,6 +39,12 @@ bool g_console_ready = false;
 HANDLE g_out = nullptr;
 HANDLE g_err = nullptr;
 
+// W7 hands a GUI child the parents console pseudo handles, they stay invalid until it attaches
+bool Usable(HANDLE handle)
+{
+    return handle && handle != INVALID_HANDLE_VALUE && GetFileType(handle) != FILE_TYPE_UNKNOWN;
+}
+
 void EnsureConsole()
 {
     if (g_console_ready)
@@ -48,17 +54,15 @@ void EnsureConsole()
     g_console_ready = true;
     g_out = GetStdHandle(STD_OUTPUT_HANDLE);
     g_err = GetStdHandle(STD_ERROR_HANDLE);
-    const bool have_out = g_out && g_out != INVALID_HANDLE_VALUE;
-    if (!have_out && !AttachConsole(ATTACH_PARENT_PROCESS))
+    if (!Usable(g_out))
     {
-        AllocConsole();
+        if (!AttachConsole(ATTACH_PARENT_PROCESS))
+        {
+            AllocConsole();
+        }
+        g_out = CreateFileW(L"CONOUT$", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
     }
-    if (!have_out)
-    {
-        g_out = GetStdHandle(STD_OUTPUT_HANDLE);
-        g_err = GetStdHandle(STD_ERROR_HANDLE);
-    }
-    if (!g_err || g_err == INVALID_HANDLE_VALUE)
+    if (!Usable(g_err))
     {
         g_err = g_out;
     }
@@ -612,9 +616,10 @@ int CmdDelete(const std::vector<std::wstring>& args)
         {
             contents.values.push_back({options.default_value ? std::wstring() : options.value_name});
         }
+        const registry_backend::RegistryKeyHandle target(std::move(handle));
         for (size_t index = 0; status == ERROR_SUCCESS && index < contents.values.size(); ++index)
         {
-            status = RegDeleteValueW(handle.get(), contents.values[index].name.c_str());
+            status = target.DeleteValue(contents.values[index].name);
         }
         if (status != ERROR_SUCCESS)
         {
@@ -649,24 +654,25 @@ int CmdDelete(const std::vector<std::wstring>& args)
     return kOk;
 }
 
-LONG CopyTree(const KeyRef& from, const KeyRef& to, REGSAM view, bool recurse)
+// children are created under their parents handle
+LONG CopyTree(const KeyRef& from, HKEY to_parent, const std::wstring& to_name, REGSAM view, bool recurse)
 {
     KeyContents contents;
     LONG status = ReadKey(from, view, true, &contents);
-    util::UniqueHKey target;
+    util::UniqueHKey created;
     if (status == ERROR_SUCCESS)
     {
-        status = RegCreateKeyExW(to.root, to.subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE | view, nullptr, target.put(), nullptr);
+        status = util::CreateRegistryKey(to_parent, to_name, KEY_WRITE | view, REG_OPTION_NON_VOLATILE, &created, nullptr);
     }
+    const registry_backend::RegistryKeyHandle target(std::move(created));
     for (size_t index = 0; status == ERROR_SUCCESS && index < contents.values.size(); ++index)
     {
         const RegistryValue& value = contents.values[index];
-        status = RegSetValueExW(target.get(), value.name.c_str(), 0, value.type, value.data.data(), static_cast<DWORD>(value.data.size()));
+        status = target.SetValue(value.name, value.type, value.data.data(), static_cast<DWORD>(value.data.size()));
     }
-    target.reset();
     for (size_t index = 0; recurse && status == ERROR_SUCCESS && index < contents.subkeys.size(); ++index)
     {
-        status = CopyTree(ChildRef(from, contents.subkeys[index]), ChildRef(to, contents.subkeys[index]), view, true);
+        status = CopyTree(ChildRef(from, contents.subkeys[index]), target.get(), contents.subkeys[index], view, true);
     }
     return status;
 }
@@ -696,7 +702,7 @@ int CmdCopy(const std::vector<std::wstring>& args)
         PrintError(L"The registry entry cannot be copied onto itself or into its own subkey.");
         return kFailed;
     }
-    const LONG status = CopyTree(from, to, options.view, options.recurse);
+    const LONG status = CopyTree(from, to.root, to.subkey, options.view, options.recurse);
     if (status != ERROR_SUCCESS)
     {
         return Fail(status);
@@ -1367,8 +1373,7 @@ bool Execute(const std::vector<std::wstring>& args, int* exit_code)
 
 bool PrintErrorToTerminal(const std::wstring& text)
 {
-    const HANDLE error = GetStdHandle(STD_ERROR_HANDLE);
-    if ((!error || error == INVALID_HANDLE_VALUE) && !AttachConsole(ATTACH_PARENT_PROCESS))
+    if (!Usable(GetStdHandle(STD_ERROR_HANDLE)) && !AttachConsole(ATTACH_PARENT_PROCESS))
     {
         return false;
     }

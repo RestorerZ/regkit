@@ -10,6 +10,11 @@
 #include <memory>
 #include <string>
 
+namespace regkit::workspace
+{
+class DialogFields;
+}
+
 namespace regkit::command_detail
 {
 
@@ -45,5 +50,6 @@ struct CompareDialogResult
     search::compare::RowFilter filter = search::compare::RowFilter::kDifferences;
 };
 bool ShowCompareDialog(HWND owner, const CompareDialogDefaults& defaults, CompareDialogResult* out);
+void CompareDialogFields(workspace::DialogFields& fields, CompareDialogDefaults* data);
 
 } // namespace regkit::command_detail

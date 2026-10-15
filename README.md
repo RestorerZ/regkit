@@ -96,17 +96,21 @@ Or copy the `.po` into `assets\lang`, which would show up in `Options > Language
 
 It includes built in presets and a theme editor to customize colors, presets can also be saved, exported/imported as `.rktheme` files.
 
-### Examples
+### Previews
 
 #### Default Dark
 
 ![](https://github.com/nohuto/regkit/blob/main/assets/images/default-dark.png?raw=true)
 
+##### W7 Dark
+
+![](https://github.com/nohuto/regkit/blob/main/assets/images/default-dark-w7.png?raw=true)
+
 #### Default Light
 
 ![](https://github.com/nohuto/regkit/blob/main/assets/images/default-light.png?raw=true)
 
-#### W7 Light
+##### W7 Light
 
 ![](https://github.com/nohuto/regkit/blob/main/assets/images/default-light-w7.png?raw=true)
 

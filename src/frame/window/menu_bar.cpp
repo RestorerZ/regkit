@@ -28,6 +28,7 @@ struct CacheAvailability
     bool tabs = false;
     bool history = false;
     bool search_history = false;
+    bool dialog_state = false;
     bool tree_state = false;
     bool temporary = false;
 };
@@ -68,6 +69,7 @@ CacheAvailability InspectCacheFiles(const std::wstring& folder)
                          HasCachePattern(name, L"compare_", L".tsv");
         available.history = available.history || util::EqualsInsensitive(name, L"history.tsv");
         available.search_history = available.search_history || util::EqualsInsensitive(name, L"search_history.txt");
+        available.dialog_state = available.dialog_state || util::EqualsInsensitive(name, L"dialog_state.ini");
         available.tree_state = available.tree_state || util::EqualsInsensitive(name, L"tree_state.ini");
         available.temporary = available.temporary || HasCachePattern(name, L"export_", L".reg");
     } while (FindNextFileW(find, &data) != 0);
@@ -116,18 +118,6 @@ bool IsMenuInside(HMENU root, HMENU menu)
 }
 
 } // namespace
-
-std::wstring MainWindow::Impl::CommandShortcutText(int command_id) const
-{
-    for (const auto& binding : frame::kShortcutBindings)
-    {
-        if (binding.command == command_id)
-        {
-            return binding.text;
-        }
-    }
-    return L"";
-}
 
 std::wstring MainWindow::Impl::CommandTooltipText(int command_id) const
 {
@@ -205,6 +195,7 @@ void MainWindow::Impl::RefreshStorageMenuState(HMENU menu)
         EnableMenuItem(clear_menu, cmd::kFileClearCacheTabs, MF_BYCOMMAND | (cache.tabs ? MF_ENABLED : MF_GRAYED));
         EnableMenuItem(clear_menu, cmd::kFileClearCacheHistory, MF_BYCOMMAND | (cache.history ? MF_ENABLED : MF_GRAYED));
         EnableMenuItem(clear_menu, cmd::kFileClearCacheSearchHistory, MF_BYCOMMAND | (cache.search_history ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(clear_menu, cmd::kFileClearCacheDialogState, MF_BYCOMMAND | (cache.dialog_state ? MF_ENABLED : MF_GRAYED));
         EnableMenuItem(clear_menu, cmd::kFileClearCacheTreeState, MF_BYCOMMAND | (cache.tree_state ? MF_ENABLED : MF_GRAYED));
         EnableMenuItem(clear_menu, cmd::kFileClearCacheTemporary, MF_BYCOMMAND | (cache.temporary ? MF_ENABLED : MF_GRAYED));
         if (clear_position >= 0)
@@ -251,16 +242,7 @@ void MainWindow::Impl::BuildMenus()
     }
     menu_items_.clear();
     HMENU menu = CreateMenu();
-    auto append_menu = [&](HMENU target, UINT flags, int command, const wchar_t* text) {
-        std::wstring shortcut = CommandShortcutText(command);
-        if (!shortcut.empty())
-        {
-            std::wstring combined = std::wstring(text) + L"\t" + shortcut;
-            AppendMenuW(target, flags, command, combined.c_str());
-            return;
-        }
-        AppendMenuW(target, flags, command, text);
-    };
+    const auto append_menu = frame::AppendCommand;
     auto append_popup = [&](HMENU target, HMENU popup, const wchar_t* text) {
         AppendMenuW(target, MF_POPUP, reinterpret_cast<UINT_PTR>(popup), text);
     };
@@ -427,6 +409,7 @@ void MainWindow::Impl::BuildMenus()
     AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTabs, util::Tr(L"Tab Sessions"));
     AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheHistory, util::Tr(L"Change History"));
     AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheSearchHistory, util::Tr(L"Search History"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheDialogState, util::Tr(L"Dialog Options"));
     AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTreeState, util::Tr(L"Tree State"));
     AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTemporary, util::Tr(L"Temporary Files"));
     append_popup(options_menu, clear_cache_menu, util::Tr(L"Clear Caches"));

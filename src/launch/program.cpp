@@ -241,12 +241,19 @@ LaunchArgs ParseLaunchArgs(const std::vector<std::wstring>& args)
         launch.error = util::TrLabel(L"Missing argument", kEditRegFileArg);
     }
     std::wstring last_key;
-    // RegEdit opens its last key, unless it was deleted since
+    // RegEdit opens its last key, unless it was deleted
     if (launch.jump_target.empty() && intercepted_regedit &&
-        util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit", L"LastKey", &last_key) == ERROR_SUCCESS &&
-        JumpTargetFound(last_key))
+        util::ReadRegistryString(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Applets\\RegEdit", L"LastKey", &last_key) == ERROR_SUCCESS)
     {
-        launch.jump_target = std::move(last_key);
+        const size_t root_end = last_key.find(L'\\');
+        if (!LooksLikeRegistryPath(last_key) && root_end != std::wstring::npos)
+        {
+            last_key.erase(0, root_end + 1);
+        }
+        if (LooksLikeRegistryPath(last_key) && JumpTargetFound(last_key))
+        {
+            launch.jump_target = std::move(last_key);
+        }
     }
     return launch;
 }
@@ -354,15 +361,17 @@ struct RestartTarget
     bool (*launch)(const std::wstring&, const std::wstring&, DWORD*, bool*);
     const wchar_t* request_failure;
     const wchar_t* launch_failure;
+    const wchar_t* title;
 };
 
-constexpr RestartTarget kSystemTarget = {kRestartSystemArg, util::IsProcessSystem, util::LaunchProcessAsSystem, L"Failed to request SYSTEM restart.", L"Failed to restart with SYSTEM rights."};
+constexpr RestartTarget kSystemTarget = {kRestartSystemArg, util::IsProcessSystem, util::LaunchProcessAsSystem, L"Failed to request SYSTEM restart.", L"Failed to restart with SYSTEM rights.", L"Restart as SYSTEM"};
 constexpr RestartTarget kTrustedInstallerTarget = {
     kRestartTiArg,
     util::IsProcessTrustedInstaller,
     util::LaunchProcessAsTrustedInstaller,
     L"Failed to request TrustedInstaller restart.",
-    L"Failed to restart with TrustedInstaller rights."
+    L"Failed to restart with TrustedInstaller rights.",
+    L"Restart as TrustedInstaller"
 };
 
 void ShowStartupError(const std::wstring& message)
@@ -395,6 +404,10 @@ bool RestartAs(const RestartTarget& target, DWORD parent_pid, const std::vector<
             return true;
         }
         ShowStartupError(util::Tr(target.request_failure));
+        return false;
+    }
+    if (!ui::ConfirmPrivilegedRestart(nullptr, util::Tr(target.title)))
+    {
         return false;
     }
     DWORD error = 0;

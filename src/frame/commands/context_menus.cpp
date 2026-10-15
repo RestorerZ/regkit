@@ -78,40 +78,40 @@ void AppendKeyMenu(HMENU menu, const KeyMenu& key)
 {
     const auto flags = [](bool enabled) { return MF_STRING | (enabled ? 0u : MF_GRAYED); };
     const bool writable = key.has_node && key.can_modify;
-    AppendMenuW(menu, flags(key.has_node), cmd::kEditCopyKey, util::Tr(L"Copy Key Name"));
-    AppendMenuW(menu, flags(key.has_node), cmd::kEditCopyKeyPath, util::Tr(L"Copy Key Path"));
+    frame::AppendCommand(menu, flags(key.has_node), cmd::kEditCopyKey, util::Tr(L"Copy Key Name"));
+    frame::AppendCommand(menu, flags(key.has_node), cmd::kEditCopyKeyPath, util::Tr(L"Copy Key Path"));
     AppendMenuW(menu, MF_POPUP | (key.has_node ? 0u : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), util::Tr(L"Copy Key Path As"));
-    AppendMenuW(menu, flags(key.can_comment), cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
+    frame::AppendCommand(menu, flags(key.can_comment), cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
     if (key.source_hive)
     {
-        AppendMenuW(menu, MF_STRING, cmd::kEditOpenSourceHive, util::Tr(L"Open in Source Hive"));
+        frame::AppendCommand(menu, MF_STRING, cmd::kEditOpenSourceHive, util::Tr(L"Open in Source Hive"));
     }
     if (key.hive_file)
     {
-        AppendMenuW(menu, MF_STRING, cmd::kOptionsHiveFileDir, util::Tr(L"On-Disk Hive File"));
+        frame::AppendCommand(menu, MF_STRING, cmd::kOptionsHiveFileDir, util::Tr(L"On-Disk Hive File"));
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, flags(key.can_toggle), cmd::kTreeToggleExpand, key.expand_label.c_str());
-    AppendMenuW(menu, flags(key.has_children), cmd::kTreeExpandAll, util::Tr(L"Expand All Subkeys"));
+    frame::AppendCommand(menu, flags(key.can_toggle), cmd::kTreeToggleExpand, key.expand_label.c_str());
+    frame::AppendCommand(menu, flags(key.has_children), cmd::kTreeExpandAll, util::Tr(L"Expand All Subkeys"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     if (key.simulated)
     {
-        AppendMenuW(menu, flags(writable), cmd::kCreateSimulatedKey, util::Tr(L"Create Key"));
+        frame::AppendCommand(menu, flags(writable), cmd::kCreateSimulatedKey, util::Tr(L"Create Key"));
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
+        frame::AppendCommand(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
         return;
     }
     AppendMenuW(menu, MF_POPUP | (writable ? 0u : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildNewMenu()), util::Tr(L"New"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, flags(key.has_node), cmd::kFileExport, util::Tr(L"Export..."));
+    frame::AppendCommand(menu, flags(key.has_node), cmd::kFileExport, util::Tr(L"Export..."));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
+    frame::AppendCommand(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, flags(key.can_rename && key.can_modify), cmd::kEditRename, util::Tr(L"Rename"));
-    AppendMenuW(menu, flags(key.can_rename && key.can_modify), cmd::kEditDelete, util::Tr(L"Delete"));
+    frame::AppendCommand(menu, flags(key.can_rename && key.can_modify), cmd::kEditRename, util::Tr(L"Rename"));
+    frame::AppendCommand(menu, flags(key.can_rename && key.can_modify), cmd::kEditDelete, util::Tr(L"Delete"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, flags(writable), cmd::kEditPermissions, util::Tr(L"Permissions..."));
-    AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
+    frame::AppendCommand(menu, flags(writable), cmd::kEditPermissions, util::Tr(L"Permissions..."));
+    frame::AppendCommand(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
 }
 
 } // namespace
@@ -200,10 +200,7 @@ void MainWindow::Impl::ShowAddressContextMenu(HWND edit, POINT screen_pt)
 
     HMENU menu = CreatePopupMenu();
     auto append = [&](bool enabled, int command, const wchar_t* text, const wchar_t* shortcut) {
-        std::wstring label = text;
-        label.push_back(L'\t');
-        label.append(shortcut);
-        AppendMenuW(menu, MF_STRING | (enabled ? MF_ENABLED : MF_GRAYED), static_cast<UINT_PTR>(command), label.c_str());
+        appearance::AppendMenuItem(menu, MF_STRING | (enabled ? MF_ENABLED : MF_GRAYED), static_cast<UINT_PTR>(command), text, shortcut);
     };
 
     append(can_undo && writable, kAddressUndo, util::Tr(L"Undo"), L"Ctrl+Z");
@@ -216,9 +213,7 @@ void MainWindow::Impl::ShowAddressContextMenu(HWND edit, POINT screen_pt)
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     append(has_text, kAddressSelectAll, util::Tr(L"Select All"), L"Ctrl+A");
 
-    const int command =
-        TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
-    DestroyMenu(menu);
+    const int command = appearance::TrackContextMenu(menu, screen_pt, hwnd_);
 
     switch (command)
     {
@@ -250,17 +245,12 @@ void MainWindow::Impl::ShowAddressContextMenu(HWND edit, POINT screen_pt)
     }
 }
 
-void MainWindow::Impl::ShowTreeContextMenu(POINT screen_pt)
+void MainWindow::Impl::ShowTreeContextMenu(HTREEITEM item, POINT screen_pt)
 {
     if (!browse_.tree().hwnd())
     {
         return;
     }
-    POINT client_pt = screen_pt;
-    ScreenToClient(browse_.tree().hwnd(), &client_pt);
-    TVHITTESTINFO hit = {};
-    hit.pt = client_pt;
-    HTREEITEM item = TreeView_HitTest(browse_.tree().hwnd(), &hit);
     if (item)
     {
         TreeView_SelectItem(browse_.tree().hwnd(), item);
@@ -295,8 +285,7 @@ void MainWindow::Impl::ShowTreeContextMenu(POINT screen_pt)
     HMENU menu = CreatePopupMenu();
     AppendKeyMenu(menu, key);
 
-    int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
-    DestroyMenu(menu);
+    const int command = appearance::TrackContextMenu(menu, screen_pt, hwnd_);
 
     if (command != 0)
     {
@@ -311,17 +300,12 @@ bool MainWindow::Impl::CanOpenHiveFile(const RegistryNode& node)
     return !LookupHivePath(node, &is_root).empty() && is_root && !is_current_user_root;
 }
 
-void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
+void MainWindow::Impl::ShowValueContextMenu(int index, POINT screen_pt)
 {
     if (!browse_.values().hwnd())
     {
         return;
     }
-    POINT client_pt = screen_pt;
-    ScreenToClient(browse_.values().hwnd(), &client_pt);
-    LVHITTESTINFO hit = {};
-    hit.pt = client_pt;
-    int index = ListView_HitTest(browse_.values().hwnd(), &hit);
     const ListRow* row = nullptr;
     if (index >= 0)
     {
@@ -368,16 +352,16 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
         UINT data_flags = MF_STRING | (single_value && has_data ? 0 : MF_GRAYED);
         UINT export_flags = MF_STRING | (can_export ? 0 : MF_GRAYED);
         UINT comment_flags = MF_STRING | (can_comment ? 0 : MF_GRAYED);
-        AppendMenuW(menu, inspect_flags, cmd::kEditModify, util::Tr(L"Modify..."));
-        AppendMenuW(menu, inspect_flags, cmd::kEditModifyBinary, util::Tr(L"Modify Binary Data..."));
-        AppendMenuW(menu, data_flags, cmd::kEditChangeType, util::Tr(L"Change Data Type..."));
-        AppendMenuW(menu, data_flags, cmd::kEditBits, util::Tr(L"Edit Bits..."));
-        AppendMenuW(menu, data_flags, cmd::kEditDecodeValue, util::Tr(L"Decode Value..."));
-        AppendMenuW(menu, comment_flags, cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
-        AppendMenuW(menu, MF_STRING, cmd::kEditResetDefault, util::Tr(L"Reset to Default"));
+        appearance::AppendMenuItem(menu, inspect_flags, cmd::kEditModify, util::Tr(L"Modify..."), L"Enter");
+        frame::AppendCommand(menu, inspect_flags, cmd::kEditModifyBinary, util::Tr(L"Modify Binary Data..."));
+        frame::AppendCommand(menu, data_flags, cmd::kEditChangeType, util::Tr(L"Change Data Type..."));
+        frame::AppendCommand(menu, data_flags, cmd::kEditBits, util::Tr(L"Edit Bits..."));
+        frame::AppendCommand(menu, data_flags, cmd::kEditDecodeValue, util::Tr(L"Decode Value..."));
+        frame::AppendCommand(menu, comment_flags, cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
+        frame::AppendCommand(menu, MF_STRING, cmd::kEditResetDefault, util::Tr(L"Reset to Default"));
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        AppendMenuW(menu, single_flags, cmd::kEditCopyValueName, util::Tr(L"Copy Value Name"));
-        AppendMenuW(menu, data_flags, cmd::kEditCopyValueData, util::Tr(L"Copy Value Data"));
+        frame::AppendCommand(menu, single_flags, cmd::kEditCopyValueName, util::Tr(L"Copy Value Name"));
+        frame::AppendCommand(menu, data_flags, cmd::kEditCopyValueData, util::Tr(L"Copy Value Data"));
         if (single_value && browse_.current_node())
         {
             std::wstring text = changes::ResolveComment(value_comments_, default_comments_, {CommentKeyPath(*browse_.current_node()), row->extra, row->value_type, row->value_data_size})
@@ -405,10 +389,10 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
             AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(link_menu), util::Tr(L"Open Link"));
         }
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        AppendMenuW(menu, export_flags, cmd::kFileExport, util::Tr(L"Export..."));
+        frame::AppendCommand(menu, export_flags, cmd::kFileExport, util::Tr(L"Export..."));
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-        AppendMenuW(menu, rename_flags, cmd::kEditRename, util::Tr(L"Rename"));
-        AppendMenuW(menu, delete_flags, cmd::kEditDelete, util::Tr(L"Delete"));
+        frame::AppendCommand(menu, rename_flags, cmd::kEditRename, util::Tr(L"Rename"));
+        frame::AppendCommand(menu, delete_flags, cmd::kEditDelete, util::Tr(L"Delete"));
     }
     else
     {
@@ -416,13 +400,13 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
         bool can_modify = !settings_.read_only;
         UINT edit_flags = MF_STRING | (browse_.current_node() ? 0 : MF_GRAYED);
         UINT modify_flags = MF_STRING | ((browse_.current_node() && can_modify) ? 0 : MF_GRAYED);
-        AppendMenuW(menu, edit_flags, cmd::kEditCopyKey, util::Tr(L"Copy Key Name"));
-        AppendMenuW(menu, edit_flags, cmd::kEditCopyKeyPath, util::Tr(L"Copy Key Path"));
+        frame::AppendCommand(menu, edit_flags, cmd::kEditCopyKey, util::Tr(L"Copy Key Name"));
+        frame::AppendCommand(menu, edit_flags, cmd::kEditCopyKeyPath, util::Tr(L"Copy Key Path"));
         AppendMenuW(menu, MF_POPUP | (browse_.current_node() ? 0 : MF_GRAYED), reinterpret_cast<UINT_PTR>(BuildCopyKeyPathMenu()), util::Tr(L"Copy Key Path As"));
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         if (is_simulated)
         {
-            AppendMenuW(menu, modify_flags, cmd::kCreateSimulatedKey, util::Tr(L"Create Key"));
+            frame::AppendCommand(menu, modify_flags, cmd::kCreateSimulatedKey, util::Tr(L"Create Key"));
         }
         else
         {
@@ -431,20 +415,19 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         if (!is_simulated)
         {
-            AppendMenuW(menu, edit_flags, cmd::kFileExport, util::Tr(L"Export..."));
+            frame::AppendCommand(menu, edit_flags, cmd::kFileExport, util::Tr(L"Export..."));
             AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         }
-        AppendMenuW(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
+        frame::AppendCommand(menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
         if (!is_simulated)
         {
             AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-            AppendMenuW(menu, modify_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
-            AppendMenuW(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
+            frame::AppendCommand(menu, modify_flags, cmd::kEditPermissions, util::Tr(L"Permissions..."));
+            frame::AppendCommand(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
         }
     }
 
-    int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
-    DestroyMenu(menu);
+    const int command = appearance::TrackContextMenu(menu, screen_pt, hwnd_);
 
     if (command >= cmd::kOpenLinkBase && command < cmd::kOpenLinkBase + static_cast<int>(links.size()))
     {
@@ -456,17 +439,12 @@ void MainWindow::Impl::ShowValueContextMenu(POINT screen_pt)
     }
 }
 
-void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt)
+void MainWindow::Impl::ShowHistoryContextMenu(int index, POINT screen_pt)
 {
     if (!history_list_)
     {
         return;
     }
-    POINT client_pt = screen_pt;
-    ScreenToClient(history_list_, &client_pt);
-    LVHITTESTINFO hit = {};
-    hit.pt = client_pt;
-    int index = ListView_HitTest(history_list_, &hit);
     // a copy, entries can be appended & sorted while the menu runs its message loop
     std::optional<HistoryEntry> entry;
     if (index >= 0 && static_cast<size_t>(index) < change_history_.entries().size())
@@ -492,8 +470,7 @@ void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt)
     }
     AppendMenuW(menu, MF_STRING | (change_history_.entries().empty() ? MF_GRAYED : 0), cmd::kEditDelete, util::Tr(L"Clear History"));
 
-    int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
-    DestroyMenu(menu);
+    const int command = appearance::TrackContextMenu(menu, screen_pt, hwnd_);
 
     if (command == cmd::kHistoryOpenTarget && entry)
     {
@@ -526,18 +503,9 @@ void MainWindow::Impl::ShowHistoryContextMenu(POINT screen_pt)
     }
 }
 
-void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
+void MainWindow::Impl::ShowSearchResultContextMenu(int index, POINT screen_pt)
 {
-    if (!search_results_list_)
-    {
-        return;
-    }
-    POINT client_pt = screen_pt;
-    ScreenToClient(search_results_list_, &client_pt);
-    LVHITTESTINFO hit = {};
-    hit.pt = client_pt;
-    int index = ListView_HitTest(search_results_list_, &hit);
-    if (index < 0)
+    if (!search_results_list_ || index < 0)
     {
         return;
     }
@@ -648,8 +616,8 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
     else
     {
         const UINT open_flags = MF_STRING | (FindSourceTab(row_source) < 0 ? MF_GRAYED : 0);
-        AppendMenuW(menu, open_flags, kSearchOpenKey, util::Tr(L"Open Key"));
-        AppendMenuW(menu, MF_STRING, kSearchOpenKeyNewTab, util::Tr(L"Open Key in New Tab"));
+        appearance::AppendMenuItem(menu, open_flags, kSearchOpenKey, util::Tr(L"Open Key"), SearchResultOpensInNewTab() ? nullptr : L"Enter");
+        appearance::AppendMenuItem(menu, MF_STRING, kSearchOpenKeyNewTab, util::Tr(L"Open Key in New Tab"), L"Ctrl+Shift+G");
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     if (!is_key_row)
@@ -678,8 +646,7 @@ void MainWindow::Impl::ShowSearchResultContextMenu(POINT screen_pt)
     UINT permissions_flags = MF_STRING | (can_permissions ? 0 : MF_GRAYED);
     AppendMenuW(menu, permissions_flags, kSearchPermissions, util::Tr(L"Permissions..."));
 
-    int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen_pt.x, screen_pt.y, 0, hwnd_, nullptr);
-    DestroyMenu(menu);
+    const int command = appearance::TrackContextMenu(menu, screen_pt, hwnd_);
     if (command == 0)
     {
         return;

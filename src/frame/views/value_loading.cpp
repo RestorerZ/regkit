@@ -452,7 +452,7 @@ void MainWindow::Impl::StartValueListWorker()
 
         if (task->sort_column != kValueColComment)
         {
-            SortValueRows(&payload->rows, task->sort_column, task->sort_ascending);
+            SortValueRows(&payload->rows, task->sort_column, task->sort_ascending, task->sort_earlier);
         }
         if (stopping.load() || task->generation != value_list_generation_.load())
         {
@@ -593,6 +593,42 @@ void MainWindow::Impl::StartSearchPreviewWorker()
     });
 }
 
+std::vector<std::vector<RegistryRootEntry>> MainWindow::Impl::SearchSourceRoots(const SearchTab& tab)
+{
+    std::vector<std::vector<RegistryRootEntry>> roots(tab.sources.size());
+    for (size_t i = 0; i < tab.sources.size(); ++i)
+    {
+        const search::Source& source = tab.sources[i];
+        if (source.kind == search::Source::Kind::kLocal)
+        {
+            roots[i] = LocalRoots(source.view);
+            continue;
+        }
+        // closed or disconnected source has no roots, its rows show no data
+        const int index = FindSourceTab(source);
+        if (index < 0)
+        {
+            continue;
+        }
+        const TabEntry& entry = tabs_[static_cast<size_t>(index)];
+        if (entry.kind == TabEntry::Kind::kRegFile)
+        {
+            for (const auto& root : entry.reg_file_roots)
+            {
+                if (root.root)
+                {
+                    roots[i].push_back({root.root, root.name, root.name});
+                }
+            }
+        }
+        else if (entry.session)
+        {
+            roots[i] = entry.session->roots;
+        }
+    }
+    return roots;
+}
+
 void MainWindow::Impl::QueueSearchPreviews(int first, int last)
 {
     const int index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
@@ -607,6 +643,7 @@ void MainWindow::Impl::QueueSearchPreviews(int first, int last)
     }
     auto task = std::make_unique<SearchPreviewTask>();
     const size_t count = tab.results.size();
+    const auto source_roots = SearchSourceRoots(tab);
     for (int i = first; i <= last && static_cast<size_t>(i) < count; ++i)
     {
         search::Result& row = tab.results[static_cast<size_t>(i)];
@@ -615,7 +652,7 @@ void MainWindow::Impl::QueueSearchPreviews(int first, int last)
             continue;
         }
         SearchPreviewRequest request;
-        if (!ResolvePathToNode(row.key_path, &request.node))
+        if (!ResolvePathInRoots(row.source < source_roots.size() ? source_roots[row.source] : browse_.roots(), row.key_path, &request.node))
         {
             row.data_text.clear();
             row.data_state = search::DataState::kLoaded;
@@ -679,18 +716,17 @@ void MainWindow::Impl::StartSearchSortWorker()
         {
             return;
         }
-        search::SortResults(&task->rows, task->column, task->ascending);
+        search::SortResults(&task->rows, task->column, task->ascending, task->earlier, task->sources);
         auto payload = std::make_unique<SearchSortPayload>();
         payload->generation = task->generation;
         payload->tab_index = task->tab_index;
-        payload->column = task->column;
-        payload->ascending = task->ascending;
+        payload->sort_revision = task->sort_revision;
         payload->rows = std::move(task->rows);
         work::PostPayload(task->hwnd, frame::message_id::kSearchSortReady, static_cast<WPARAM>(task->generation), payload);
     });
 }
 
-void MainWindow::Impl::QueueSearchSort(SearchTab* tab)
+void MainWindow::Impl::QueueSearchSort(SearchTab* tab, const util::SortKeys& earlier)
 {
     if (!tab)
     {
@@ -712,12 +748,14 @@ void MainWindow::Impl::QueueSearchSort(SearchTab* tab)
     auto task = std::make_unique<SearchSortTask>();
     task->rows = tab->results;
     task->nodes.resize(task->rows.size());
+    const auto source_roots = SearchSourceRoots(*tab);
     for (size_t i = 0; i < task->rows.size(); ++i)
     {
         if (task->rows[i].data_state == search::DataState::kNotLoaded)
         {
             RegistryNode node;
-            if (ResolvePathToNode(task->rows[i].key_path, &node))
+            const uint16_t source = task->rows[i].source;
+            if (ResolvePathInRoots(source < source_roots.size() ? source_roots[source] : browse_.roots(), task->rows[i].key_path, &node))
             {
                 task->nodes[i] = std::move(node);
             }
@@ -732,6 +770,9 @@ void MainWindow::Impl::QueueSearchSort(SearchTab* tab)
     task->tab_index = tab_index;
     task->column = tab->sort_column;
     task->ascending = tab->sort_ascending;
+    task->earlier = earlier;
+    task->sort_revision = tab->sort_revision;
+    task->sources = tab->sources;
     task->hwnd = hwnd_;
     search_sort_loader_.Submit(std::move(task));
 }
@@ -750,11 +791,12 @@ void MainWindow::Impl::StartSearchTabLoadWorker()
         auto payload = std::make_unique<SearchTabLoadPayload>();
         payload->generation = task->generation;
         payload->tab_index = task->tab_index;
+        payload->sort_revision = task->sort_revision;
 
         payload->ok = search::LoadResults(task->path, &payload->rows);
         if (payload->ok && task->sort_column >= 0)
         {
-            search::SortResults(&payload->rows, task->sort_column, task->sort_ascending);
+            search::SortResults(&payload->rows, task->sort_column, task->sort_ascending, task->sort_earlier, task->sources);
         }
         if (stopping.load())
         {

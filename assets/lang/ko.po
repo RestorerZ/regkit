@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-09 20:50+0200\n"
+"POT-Creation-Date: 2026-10-14 13:24+0200\n"
 "PO-Revision-Date: 2026-10-09 20:51+0200\n"
 "Last-Translator: nohuto contact@noverse.dev\n"
 "Language-Team: none\n"
@@ -57,7 +57,7 @@ msgid "Default file contains no usable entries."
 msgstr "기본값 파일에 사용할 수 있는 항목이 없습니다."
 
 #: dialogs/binary_editor.cpp:65 dialogs/binary_editor.cpp:165
-#: dialogs/binary_editor.cpp:212 dialogs/value_editor.cpp:337
+#: dialogs/binary_editor.cpp:212 dialogs/value_editor.cpp:341
 msgid "Invalid hex input."
 msgstr "16진수 입력이 잘못되었습니다."
 
@@ -65,20 +65,20 @@ msgstr "16진수 입력이 잘못되었습니다."
 msgid "Invalid"
 msgstr "잘못됨"
 
-#: dialogs/binary_editor.cpp:77 dialogs/bitfield_editor.cpp:386
-#: dialogs/bitfield_editor.cpp:788 dialogs/decoder_dialog.cpp:184
-#: dialogs/trace_dialog.cpp:205 dialogs/value_editor.cpp:758
-#: frame/detail/control_detail.cpp:161 frame/search/search_window.cpp:1071
-#: frame/tools/launch_bridge.cpp:243 frame/views/history_workspace.cpp:1057
+#: dialogs/binary_editor.cpp:77 dialogs/bitfield_editor.cpp:387
+#: dialogs/bitfield_editor.cpp:782 dialogs/decoder_dialog.cpp:184
+#: dialogs/trace_dialog.cpp:205 dialogs/value_editor.cpp:771
+#: frame/detail/control_detail.cpp:161 frame/search/search_window.cpp:1090
+#: frame/tools/launch_bridge.cpp:243 frame/views/history_workspace.cpp:1117
 #: frame/views/value_loading.cpp:388 frame/views/value_loading.cpp:435
-#: frame/window/notifications.cpp:144 frame/window/notifications.cpp:1239
+#: frame/window/notifications.cpp:145 frame/window/notifications.cpp:1239
 #: frame/window/notifications.cpp:1311 regfile/script_convert.cpp:188
-#: search/search.cpp:235 search/search.cpp:1269 ui/feedback.cpp:786
+#: search/search.cpp:235 search/search.cpp:1281 ui/feedback.cpp:786
 msgid "(Default)"
 msgstr "(기본값)"
 
-#: dialogs/binary_editor.cpp:92 dialogs/value_editor.cpp:754
-#: dialogs/value_editor.cpp:1086 dialogs/value_editor.cpp:1194
+#: dialogs/binary_editor.cpp:92 dialogs/value_editor.cpp:767
+#: dialogs/value_editor.cpp:1099 dialogs/value_editor.cpp:1207
 #: frame/tools/launch_bridge.cpp:242
 msgid "Edit Value"
 msgstr "값 편집"
@@ -116,6 +116,7 @@ msgid "A field lists no bits."
 msgstr "필드에 비트가 없습니다."
 
 #: dialogs/bitfield_definition.cpp:137 dialogs/bitfield_definition.cpp:503
+#: dialogs/bitfield_definition_editor.cpp:360
 msgid "A field lists more than 256 states."
 msgstr "필드에 상태가 256개보다 많습니다."
 
@@ -188,18 +189,23 @@ msgid "Two fields claim the same bit."
 msgstr "두 필드가 같은 비트를 사용합니다."
 
 #: dialogs/bitfield_definition.cpp:510
+#: dialogs/bitfield_definition_editor.cpp:333
 msgid "Every state needs a name of at most 256 characters."
 msgstr "모든 상태에는 256자 이하의 이름이 필요합니다."
 
 #: dialogs/bitfield_definition.cpp:514
+#: dialogs/bitfield_definition_editor.cpp:337
 msgid "A state meaning is longer than the format allows."
 msgstr "상태 의미가 형식에서 허용하는 길이를 초과합니다."
 
 #: dialogs/bitfield_definition.cpp:518
+#: dialogs/bitfield_definition_editor.cpp:323
+#: dialogs/bitfield_definition_editor.cpp:598
 msgid "A state value doesn't fit the bits of its field."
 msgstr "상태 값이 해당 필드의 비트에 들어가지 않습니다."
 
 #: dialogs/bitfield_definition.cpp:524
+#: dialogs/bitfield_definition_editor.cpp:329
 msgid "Two states of one field share the same value."
 msgstr "한 필드의 두 상태가 같은 값을 사용합니다."
 
@@ -223,190 +229,239 @@ msgstr "정의 파일이 올바른 JSON이 아닙니다."
 msgid "The definition file couldn't be read."
 msgstr "정의 파일을 읽지 못했습니다."
 
-#: dialogs/bitfield_definition.cpp:748
+#: dialogs/bitfield_definition.cpp:750 regfile/reg_file.cpp:647
+msgid "The file is larger than RegKit can load."
+msgstr "파일 크기가 RegKit이 로드할 수 있는 범위를 초과합니다."
+
+#: dialogs/bitfield_definition.cpp:758
 msgid "The definition file couldn't be written."
 msgstr "정의 파일을 쓰지 못했습니다."
 
-#: dialogs/bitfield_definition_editor.cpp:177
+#: dialogs/bitfield_definition_editor.cpp:199
+#: dialogs/bitfield_definition_editor.cpp:423 dialogs/bitfield_editor.cpp:684
+#: ui/preset_editor.cpp:466
+msgid "Copy Row"
+msgstr "행 복사"
+
+#: dialogs/bitfield_definition_editor.cpp:258
+msgid "Add State"
+msgstr "상태 추가"
+
+#: dialogs/bitfield_definition_editor.cpp:258
+msgid "Edit State"
+msgstr "상태 편집"
+
+#: dialogs/bitfield_definition_editor.cpp:319 dialogs/value_editor.cpp:1349
+msgid "Invalid number."
+msgstr "숫자가 잘못되었습니다."
+
+#: dialogs/bitfield_definition_editor.cpp:369
+#: dialogs/bitfield_definition_editor.cpp:592
+msgid "Select at least one bit."
+msgstr "비트를 하나 이상 선택하세요."
+
+#: dialogs/bitfield_definition_editor.cpp:419 dialogs/bitfield_editor.cpp:677
+#: dialogs/query_prompts.cpp:122 frame/commands/context_menus.cpp:214
+#: frame/window/menu_bar.cpp:303
+msgid "Select All"
+msgstr "모두 선택"
+
+#: dialogs/bitfield_definition_editor.cpp:420 dialogs/bitfield_editor.cpp:678
+#: dialogs/query_prompts.cpp:124 frame/window/menu_bar.cpp:407
+msgid "Clear All"
+msgstr "모두 지우기"
+
+#: dialogs/bitfield_definition_editor.cpp:422 dialogs/bitfield_editor.cpp:683
+msgid "Copy Mask"
+msgstr "마스크 복사"
+
+#: dialogs/bitfield_definition_editor.cpp:451
 msgid "Add Field"
 msgstr "필드 추가"
 
-#: dialogs/bitfield_definition_editor.cpp:177
+#: dialogs/bitfield_definition_editor.cpp:451
 msgid "Edit Field"
 msgstr "필드 편집"
 
-#: dialogs/bitfield_definition_editor.cpp:181 dialogs/bitfield_editor.cpp:802
+#: dialogs/bitfield_definition_editor.cpp:455 dialogs/bitfield_editor.cpp:796
 msgid "Bit"
 msgstr "비트"
 
-#: dialogs/bitfield_definition_editor.cpp:181 dialogs/bitfield_editor.cpp:802
+#: dialogs/bitfield_definition_editor.cpp:455 dialogs/bitfield_editor.cpp:796
 msgid "Mask"
 msgstr "마스크"
 
-#: dialogs/bitfield_definition_editor.cpp:181
-#: dialogs/bitfield_definition_editor.cpp:812 dialogs/bitfield_editor.cpp:802
+#: dialogs/bitfield_definition_editor.cpp:455
+#: dialogs/bitfield_definition_editor.cpp:1043 dialogs/bitfield_editor.cpp:796
 #: ui/preset_editor.cpp:41
 msgid "Field"
 msgstr "필드"
 
-#: dialogs/bitfield_definition_editor.cpp:288
+#: dialogs/bitfield_definition_editor.cpp:483 dialogs/bitfield_editor.cpp:796
+#: dialogs/decoder_dialog.cpp:211 frame/tools/launch_bridge.cpp:87
+#: frame/views/browse_view.cpp:249 frame/views/browse_view.cpp:258
+#: search/search.cpp:62
+msgid "Value"
+msgstr "값"
+
+#: dialogs/bitfield_definition_editor.cpp:483 frame/tools/launch_bridge.cpp:94
+#: frame/views/browse_view.cpp:59
+msgid "Name"
+msgstr "이름"
+
+#: dialogs/bitfield_definition_editor.cpp:483
+#: dialogs/bitfield_definition_editor.cpp:1043 dialogs/bitfield_editor.cpp:796
+msgid "Meaning"
+msgstr "의미"
+
+#: dialogs/bitfield_definition_editor.cpp:528
+msgid "Add State..."
+msgstr "상태 추가..."
+
+#: dialogs/bitfield_definition_editor.cpp:528
+msgid "Edit State..."
+msgstr "상태 편집..."
+
+#: dialogs/bitfield_definition_editor.cpp:528
+msgid "Remove State"
+msgstr "상태 제거"
+
+#: dialogs/bitfield_definition_editor.cpp:577
 msgid "Enter a field name."
 msgstr "필드 이름을 입력하세요."
 
-#: dialogs/bitfield_definition_editor.cpp:296
+#: dialogs/bitfield_definition_editor.cpp:585
 msgid "Another field already uses that name."
 msgstr "다른 필드가 이미 이 이름을 사용하고 있습니다."
 
-#: dialogs/bitfield_definition_editor.cpp:313
-msgid "Select at least one bit."
-msgstr "비트를 하나 이상 선택하세요."
-
-#: dialogs/bitfield_definition_editor.cpp:529
+#: dialogs/bitfield_definition_editor.cpp:813
 msgid "This definition file has unsaved changes."
 msgstr "이 정의 파일에 저장하지 않은 변경 내용이 있습니다."
 
-#: dialogs/bitfield_definition_editor.cpp:529
-#: dialogs/bitfield_definition_editor.cpp:595
-#: dialogs/bitfield_definition_editor.cpp:805 frame/window/menu_bar.cpp:464
+#: dialogs/bitfield_definition_editor.cpp:813
+#: dialogs/bitfield_definition_editor.cpp:879
+#: dialogs/bitfield_definition_editor.cpp:1036 frame/window/menu_bar.cpp:447
 msgid "Bit Definitions"
 msgstr "비트 정의"
 
-#: dialogs/bitfield_definition_editor.cpp:529 frame/views/tab_lists.cpp:428
-#: frame/views/tab_lists.cpp:462 frame/window/menu_bar.cpp:147
-#: frame/window/menu_bar.cpp:271
+#: dialogs/bitfield_definition_editor.cpp:813 frame/views/tab_lists.cpp:435
+#: frame/views/tab_lists.cpp:469 frame/window/menu_bar.cpp:137
+#: frame/window/menu_bar.cpp:253
 msgid "Save"
 msgstr "저장"
 
-#: dialogs/bitfield_definition_editor.cpp:529
+#: dialogs/bitfield_definition_editor.cpp:813
 msgid "Discard"
 msgstr "버리기"
 
-#: dialogs/bitfield_definition_editor.cpp:529
-#: dialogs/bitfield_definition_editor.cpp:595 dialogs/bitfield_editor.cpp:387
+#: dialogs/bitfield_definition_editor.cpp:813
+#: dialogs/bitfield_definition_editor.cpp:879 dialogs/bitfield_editor.cpp:388
 #: dialogs/query_prompts.cpp:127 dialogs/query_prompts.cpp:211
-#: dialogs/value_editor.cpp:898 frame/commands/file_view_commands.cpp:50
+#: dialogs/value_editor.cpp:912 frame/commands/file_view_commands.cpp:50
 #: frame/commands/file_view_commands.cpp:435
 #: frame/commands/workspace_commands.cpp:259
-#: frame/tools/key_handles_window.cpp:358 frame/tools/launch_bridge.cpp:498
-#: frame/tools/launch_bridge.cpp:515 frame/views/history_workspace.cpp:210
+#: frame/tools/key_handles_window.cpp:356 frame/tools/launch_bridge.cpp:498
+#: frame/tools/launch_bridge.cpp:515 frame/views/history_workspace.cpp:260
 #: frame/views/registry_sessions.cpp:793 frame/views/registry_sessions.cpp:844
-#: frame/views/registry_sessions.cpp:1076
-#: frame/views/registry_sessions.cpp:1083 frame/views/tab_lists.cpp:428
-#: frame/views/tab_lists.cpp:462 frame/window/lifetime.cpp:25
+#: frame/views/registry_sessions.cpp:1084
+#: frame/views/registry_sessions.cpp:1091 frame/views/tab_lists.cpp:435
+#: frame/views/tab_lists.cpp:469 frame/window/lifetime.cpp:25
 #: frame/window/message_routes.cpp:54 ui/feedback.cpp:791 ui/feedback.cpp:801
 #: ui/feedback.cpp:814
 msgid "Cancel"
 msgstr "취소"
 
-#: dialogs/bitfield_definition_editor.cpp:565 dialogs/bitfield_editor.cpp:377
+#: dialogs/bitfield_definition_editor.cpp:849 dialogs/bitfield_editor.cpp:378
 msgid "The definition was made for a different value width."
 msgstr "정의가 다른 값 너비에 맞게 작성되었습니다."
 
-#: dialogs/bitfield_definition_editor.cpp:595
+#: dialogs/bitfield_definition_editor.cpp:879
 msgid "Some fields use bits outside the new width. Remove those bits?"
 msgstr "일부 필드가 새 너비 밖의 비트를 사용합니다. 이 비트들을 제거하시겠습니까?"
 
-#: dialogs/bitfield_definition_editor.cpp:595
+#: dialogs/bitfield_definition_editor.cpp:879
 msgid "Remove"
 msgstr "제거"
 
-#: dialogs/bitfield_definition_editor.cpp:737
-msgid "Add Field..."
-msgstr "필드 추가..."
-
-#: dialogs/bitfield_definition_editor.cpp:738 dialogs/bitfield_editor.cpp:655
-msgid "Edit Field..."
-msgstr "필드 편집..."
-
-#: dialogs/bitfield_definition_editor.cpp:739 dialogs/bitfield_editor.cpp:656
-msgid "Remove Field"
-msgstr "필드 제거"
-
-#: dialogs/bitfield_definition_editor.cpp:741 dialogs/bitfield_editor.cpp:659
-msgid "Copy Row"
-msgstr "행 복사"
-
-#: dialogs/bitfield_definition_editor.cpp:812
+#: dialogs/bitfield_definition_editor.cpp:1043
 msgid "Bits"
 msgstr "비트"
 
-#: dialogs/bitfield_definition_editor.cpp:812
+#: dialogs/bitfield_definition_editor.cpp:1043
 msgid "States"
 msgstr "상태"
 
-#: dialogs/bitfield_definition_editor.cpp:812 dialogs/bitfield_editor.cpp:802
-msgid "Meaning"
-msgstr "의미"
+#: dialogs/bitfield_definition_editor.cpp:1091
+msgid "Add Field..."
+msgstr "필드 추가..."
 
-#: dialogs/bitfield_editor.cpp:302
+#: dialogs/bitfield_definition_editor.cpp:1091 dialogs/bitfield_editor.cpp:680
+msgid "Edit Field..."
+msgstr "필드 편집..."
+
+#: dialogs/bitfield_definition_editor.cpp:1091 dialogs/bitfield_editor.cpp:681
+msgid "Remove Field"
+msgstr "필드 제거"
+
+#: dialogs/bitfield_editor.cpp:303
 msgid "(none)"
 msgstr "(없음)"
 
-#: dialogs/bitfield_editor.cpp:377
+#: dialogs/bitfield_editor.cpp:378
 msgid "The definition describes bytes outside this value."
 msgstr "정의가 이 값 밖의 바이트를 설명합니다."
 
-#: dialogs/bitfield_editor.cpp:382
+#: dialogs/bitfield_editor.cpp:383
 msgid "This definition was made for a different value. Use it anyway?"
 msgstr "정의가 다른 값에 맞게 작성되었습니다. 그래도 사용하시겠습니까?"
 
-#: dialogs/bitfield_editor.cpp:384
+#: dialogs/bitfield_editor.cpp:385
 msgid "Definition"
 msgstr "정의"
 
-#: dialogs/bitfield_editor.cpp:386
+#: dialogs/bitfield_editor.cpp:387
 msgid "This value"
 msgstr "이 값"
 
-#: dialogs/bitfield_editor.cpp:387
+#: dialogs/bitfield_editor.cpp:388
 msgid "Bit Definition"
 msgstr "비트 정의"
 
-#: dialogs/bitfield_editor.cpp:387
+#: dialogs/bitfield_editor.cpp:388
 msgid "Use"
 msgstr "사용"
 
-#: dialogs/bitfield_editor.cpp:430
+#: dialogs/bitfield_editor.cpp:431
 msgid "No definition in that file fits this value."
 msgstr "파일에 이 값에 맞는 정의가 없습니다."
 
-#: dialogs/bitfield_editor.cpp:430
+#: dialogs/bitfield_editor.cpp:431
 msgid "No definition in that file was made for this value width."
 msgstr "파일에 이 값 너비에 맞게 작성된 정의가 없습니다."
 
-#: dialogs/bitfield_editor.cpp:640
+#: dialogs/bitfield_editor.cpp:662
 msgid "Enable Bit"
 msgstr "비트 켜기"
 
-#: dialogs/bitfield_editor.cpp:641
+#: dialogs/bitfield_editor.cpp:663
 msgid "Disable Bit"
 msgstr "비트 끄기"
 
-#: dialogs/bitfield_editor.cpp:652
+#: dialogs/bitfield_editor.cpp:674
 msgid "Set Field To"
 msgstr "필드 값 설정"
 
-#: dialogs/bitfield_editor.cpp:655
+#: dialogs/bitfield_editor.cpp:680
 msgid "Describe Bit..."
 msgstr "비트 설명..."
 
-#: dialogs/bitfield_editor.cpp:658
-msgid "Copy Mask"
-msgstr "마스크 복사"
-
-#: dialogs/bitfield_editor.cpp:787
+#: dialogs/bitfield_editor.cpp:781
 msgid "Edit Bits"
 msgstr "비트 편집"
 
-#: dialogs/bitfield_editor.cpp:802
+#: dialogs/bitfield_editor.cpp:796
 msgid "State"
 msgstr "상태"
-
-#: dialogs/bitfield_editor.cpp:802 dialogs/decoder_dialog.cpp:211
-#: frame/tools/launch_bridge.cpp:87 frame/views/browse_view.cpp:249
-#: frame/views/browse_view.cpp:258 search/search.cpp:62
-msgid "Value"
-msgstr "값"
 
 #: dialogs/comment_editor.cpp:74
 msgid "Selected values only"
@@ -443,6 +498,11 @@ msgstr "해석 방식:"
 #: dialogs/decoder_dialog.cpp:211 frame/tools/launch_bridge.cpp:87
 msgid "Property"
 msgstr "속성"
+
+#: dialogs/decoder_dialog.cpp:261 dialogs/table_dialog.cpp:114
+#: frame/tools/key_handles_window.cpp:384
+msgid "Copy Rows"
+msgstr "행 복사"
 
 #: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:168
 msgid "Don't open"
@@ -488,59 +548,59 @@ msgstr "링크 이름과 대상 키를 입력하세요."
 msgid "The link name can't contain a backslash."
 msgstr "링크 이름에는 백슬래시를 사용할 수 없습니다."
 
-#: dialogs/query_dialog.cpp:145
+#: dialogs/query_dialog.cpp:146
 msgid "No top level keys"
 msgstr "최상위 키 없음"
 
-#: dialogs/query_dialog.cpp:149
+#: dialogs/query_dialog.cpp:150
 msgid "All top level keys"
 msgstr "모든 최상위 키"
 
-#: dialogs/query_dialog.cpp:157
+#: dialogs/query_dialog.cpp:158
 msgid "Multiple keys"
 msgstr "여러 키"
 
-#: dialogs/query_dialog.cpp:482
+#: dialogs/query_dialog.cpp:523
 msgid "Enter a search term."
 msgstr "검색어를 입력하세요."
 
-#: dialogs/query_dialog.cpp:487
+#: dialogs/query_dialog.cpp:528
 msgid "The regular expression is too long."
 msgstr "정규식이 너무 깁니다."
 
-#: dialogs/query_dialog.cpp:497
+#: dialogs/query_dialog.cpp:538
 msgid "Select at least one search option."
 msgstr "검색 옵션을 하나 이상 선택하세요."
 
-#: dialogs/query_dialog.cpp:516
+#: dialogs/query_dialog.cpp:557
 msgid "Select at least one search source."
 msgstr "검색 원본을 하나 이상 선택하세요."
 
-#: dialogs/query_dialog.cpp:541
+#: dialogs/query_dialog.cpp:578
 msgid "Enter a valid minimum data size."
 msgstr "올바른 최소 데이터 크기를 입력하세요."
 
-#: dialogs/query_dialog.cpp:554
+#: dialogs/query_dialog.cpp:583
 msgid "Enter a valid maximum data size."
 msgstr "올바른 최대 데이터 크기를 입력하세요."
 
-#: dialogs/query_dialog.cpp:578
+#: dialogs/query_dialog.cpp:603
 msgid "Minimum data size can't exceed maximum data size."
 msgstr "최소 데이터 크기는 최대 데이터 크기를 초과할 수 없습니다."
 
-#: dialogs/query_dialog.cpp:583
+#: dialogs/query_dialog.cpp:608
 msgid "Modified date range is invalid."
 msgstr "수정 날짜 범위가 잘못되었습니다."
 
-#: dialogs/query_dialog.cpp:607
+#: dialogs/query_dialog.cpp:632
 msgid "Enter a valid result limit."
 msgstr "올바른 결과 제한을 입력하세요."
 
-#: dialogs/query_dialog.cpp:637
+#: dialogs/query_dialog.cpp:660
 msgid "Select at least one top level key."
 msgstr "최상위 키를 하나 이상 선택하세요."
 
-#: dialogs/query_dialog.cpp:667
+#: dialogs/query_dialog.cpp:701
 msgid ""
 "PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
 "(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, \\X.\n"
@@ -550,26 +610,17 @@ msgstr ""
 "(?<name>...) 그룹, 전후방 탐색 (?=...) (?<=...), 역참조 \\1 및 Unicode 클래스 \\p{L}, \\w, \\X.\n"
 "일치 검색은 유니코드를 인식하며 '대/소문자 구분'을 설정하지 않으면 대/소문자를 구분하지 않습니다."
 
-#: dialogs/query_dialog.cpp:750
+#: dialogs/query_dialog.cpp:784
 msgid "Exclude Keys"
 msgstr "키 제외"
 
-#: dialogs/query_dialog.cpp:751 frame/commands/clipboard_commands.cpp:54
+#: dialogs/query_dialog.cpp:785 frame/commands/clipboard_commands.cpp:54
 msgid "Each line should include one key."
 msgstr "각 줄에 키를 하나씩 입력하세요."
 
-#: dialogs/query_prompts.cpp:122 frame/commands/context_menus.cpp:217
-#: frame/window/menu_bar.cpp:321
-msgid "Select All"
-msgstr "모두 선택"
-
-#: dialogs/query_prompts.cpp:124 frame/window/menu_bar.cpp:425
-msgid "Clear All"
-msgstr "모두 지우기"
-
 #: dialogs/query_prompts.cpp:125 dialogs/query_prompts.cpp:209
-#: frame/views/registry_sessions.cpp:1061 frame/window/lifetime.cpp:437
-#: frame/window/notifications.cpp:32 ui/feedback.cpp:405 ui/feedback.cpp:447
+#: frame/views/registry_sessions.cpp:1069 frame/window/lifetime.cpp:437
+#: frame/window/notifications.cpp:33 ui/feedback.cpp:405 ui/feedback.cpp:447
 #: ui/feedback.cpp:728 ui/feedback.cpp:748 ui/feedback.cpp:821
 msgid "OK"
 msgstr "확인"
@@ -590,15 +641,15 @@ msgstr "키를 선택하세요."
 msgid "Browse Key"
 msgstr "키 찾아보기"
 
-#: dialogs/replace_dialog.cpp:58 frame/search/search_window.cpp:748
+#: dialogs/replace_dialog.cpp:60 frame/search/search_window.cpp:748
 msgid "Enter text to find."
 msgstr "찾을 텍스트를 입력하세요."
 
-#: dialogs/replace_dialog.cpp:69
+#: dialogs/replace_dialog.cpp:71
 msgid "Select what should be replaced."
 msgstr "바꿀 대상을 선택하세요."
 
-#: dialogs/replace_dialog.cpp:96
+#: dialogs/replace_dialog.cpp:98
 msgid ""
 "PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
 "(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, \\X.\n"
@@ -608,35 +659,35 @@ msgstr ""
 "(?<name>...) 그룹, 전후방 탐색 (?=...) (?<=...), 역참조 \\1 및 Unicode 클래스 \\p{L}, \\w, \\X.\n"
 "바꿀 내용: 그룹은 $1 또는 ${1}, 명명된 그룹은 $<name> 또는 ${name}, 전체 일치는 $&, 달러 기호는 $$."
 
-#: dialogs/security_dialog.cpp:126 frame/window/lifetime.cpp:25
+#: dialogs/security_dialog.cpp:130 frame/window/lifetime.cpp:25
 msgid "Create"
 msgstr "만들기"
 
-#: dialogs/security_dialog.cpp:127
+#: dialogs/security_dialog.cpp:131
 msgid "Enumerate"
 msgstr "열거"
 
-#: dialogs/security_dialog.cpp:128
+#: dialogs/security_dialog.cpp:132
 msgid "Set Value"
 msgstr "값 설정"
 
-#: dialogs/security_dialog.cpp:129
+#: dialogs/security_dialog.cpp:133
 msgid "Query Value"
 msgstr "값 쿼리"
 
-#: dialogs/security_dialog.cpp:130 registry/key_access.cpp:139
+#: dialogs/security_dialog.cpp:134 registry/key_access.cpp:139
 msgid "Write"
 msgstr "쓰기"
 
-#: dialogs/security_dialog.cpp:131 registry/key_access.cpp:139
+#: dialogs/security_dialog.cpp:135 registry/key_access.cpp:139
 msgid "Read"
 msgstr "읽기"
 
-#: dialogs/security_dialog.cpp:166
+#: dialogs/security_dialog.cpp:170
 msgid "This key only"
 msgstr "이 키만"
 
-#: dialogs/security_dialog.cpp:167
+#: dialogs/security_dialog.cpp:171
 msgid "This key and subkeys"
 msgstr "이 키와 하위 키"
 
@@ -666,7 +717,7 @@ msgid "Failed to write the exported registry file."
 msgstr "내보낸 레지스트리 파일을 쓰지 못했습니다."
 
 #: dialogs/transfer_dialogs.cpp:113 dialogs/transfer_dialogs.cpp:198
-#: frame/window/menu_bar.cpp:149
+#: frame/window/menu_bar.cpp:139
 msgid "Export"
 msgstr "내보내기"
 
@@ -698,39 +749,35 @@ msgstr "키 이름이 필요합니다."
 msgid "Unloading a hive needs the backup and restore privileges. Run RegKit elevated."
 msgstr "하이브를 언로드하려면 백업 및 복원 권한이 필요합니다. RegKit을 관리자 권한으로 실행하세요."
 
-#: dialogs/value_editor.cpp:420
+#: dialogs/value_editor.cpp:424
 msgid "Enter a valid number before editing its bits."
 msgstr "비트를 편집하기 전에 올바른 숫자를 입력하세요."
 
-#: dialogs/value_editor.cpp:874
+#: dialogs/value_editor.cpp:888
 msgid "The current data isn't valid, so the type can't be changed."
 msgstr "현재 데이터가 올바르지 않아 형식을 변경할 수 없습니다."
 
-#: dialogs/value_editor.cpp:898
+#: dialogs/value_editor.cpp:912
 msgid "The current data can't be represented in this type. Continue and start with an empty value?"
 msgstr "현재 데이터를 이 형식으로 나타낼 수 없습니다. 계속하여 빈 값으로 시작하시겠습니까?"
 
-#: dialogs/value_editor.cpp:898
+#: dialogs/value_editor.cpp:912
 msgid "Change Data Type"
 msgstr "데이터 형식 변경"
 
-#: dialogs/value_editor.cpp:898
+#: dialogs/value_editor.cpp:912
 msgid "Continue"
 msgstr "계속"
 
-#: dialogs/value_editor.cpp:1027 dialogs/value_editor.cpp:1363
+#: dialogs/value_editor.cpp:1040 dialogs/value_editor.cpp:1376
 msgid "Invalid value data."
 msgstr "값 데이터가 잘못되었습니다."
 
-#: dialogs/value_editor.cpp:1336
-msgid "Invalid number."
-msgstr "숫자가 잘못되었습니다."
-
-#: dialogs/value_editor.cpp:1342
+#: dialogs/value_editor.cpp:1355
 msgid "Number is out of range."
 msgstr "숫자가 범위를 벗어났습니다."
 
-#: dialogs/value_editor.cpp:1456
+#: dialogs/value_editor.cpp:1469
 msgid "This value has no data to edit as bits."
 msgstr "이 값에는 비트로 편집할 데이터가 없습니다."
 
@@ -746,7 +793,7 @@ msgstr "가져올 새 즐겨찾기가 없습니다."
 msgid "Edit Favorites"
 msgstr "즐겨찾기 편집"
 
-#: frame/commands/clipboard_commands.cpp:64 workspace/favorites.cpp:136
+#: frame/commands/clipboard_commands.cpp:64 workspace/favorites.cpp:158
 msgid "Failed to save favorites."
 msgstr "즐겨찾기를 저장하지 못했습니다."
 
@@ -754,7 +801,7 @@ msgstr "즐겨찾기를 저장하지 못했습니다."
 msgid "Failed to import favorites."
 msgstr "즐겨찾기를 가져오지 못했습니다."
 
-#: frame/commands/clipboard_commands.cpp:98 workspace/favorites.cpp:127
+#: frame/commands/clipboard_commands.cpp:98 workspace/favorites.cpp:149
 msgid "Failed to import RegEdit favorites."
 msgstr "RegEdit 즐겨찾기를 가져오지 못했습니다."
 
@@ -763,31 +810,35 @@ msgid "Failed to export favorites."
 msgstr "즐겨찾기를 내보내지 못했습니다."
 
 #: frame/commands/clipboard_commands.cpp:239
-#: frame/commands/clipboard_commands.cpp:335
+#: frame/commands/clipboard_commands.cpp:348
 #: frame/commands/mutation_commands.cpp:405
 #: frame/commands/mutation_commands.cpp:513
 #: frame/commands/mutation_commands.cpp:1030
-#: frame/commands/tools_commands.cpp:92
+#: frame/commands/tools_commands.cpp:102
 msgid "Failed to read value."
 msgstr "값을 읽지 못했습니다."
 
-#: frame/commands/clipboard_commands.cpp:382
+#: frame/commands/clipboard_commands.cpp:277 frame/tools/launch_bridge.cpp:72
+msgid "The key information couldn't be read."
+msgstr "키 정보를 읽지 못했습니다."
+
+#: frame/commands/clipboard_commands.cpp:395
 msgid "The source key couldn't be opened."
 msgstr "원본 키를 열지 못했습니다."
 
-#: frame/commands/clipboard_commands.cpp:447
+#: frame/commands/clipboard_commands.cpp:466
 msgid "Failed to paste value."
 msgstr "값을 붙여넣지 못했습니다."
 
-#: frame/commands/clipboard_commands.cpp:479
+#: frame/commands/clipboard_commands.cpp:498
 msgid "Failed to paste key."
 msgstr "키를 붙여넣지 못했습니다."
 
-#: frame/commands/clipboard_commands.cpp:536 frame/commands/undo.cpp:193
+#: frame/commands/clipboard_commands.cpp:560 frame/commands/undo.cpp:193
 msgid "The change couldn't be undone."
 msgstr "변경 내용을 실행 취소하지 못했습니다."
 
-#: frame/commands/clipboard_commands.cpp:568 frame/commands/undo.cpp:193
+#: frame/commands/clipboard_commands.cpp:592 frame/commands/undo.cpp:193
 msgid "The change couldn't be redone."
 msgstr "변경 내용을 다시 실행하지 못했습니다."
 
@@ -823,7 +874,7 @@ msgstr "네이티브"
 msgid "Native (Resolved)"
 msgstr "네이티브 (실제 경로)"
 
-#: frame/commands/command_detail.h:84 frame/tools/key_handles_window.cpp:494
+#: frame/commands/command_detail.h:84 frame/tools/key_handles_window.cpp:476
 #: frame/views/value_loading.cpp:231 frame/views/value_loading.cpp:264
 #: frame/window/notifications.cpp:1321 search/search.cpp:60
 #: search/search.cpp:242
@@ -862,23 +913,23 @@ msgstr "확장 가능한 문자열 값"
 msgid "Symbolic Link"
 msgstr "기호 링크"
 
-#: frame/commands/context_menus.cpp:81 frame/commands/context_menus.cpp:419
-#: frame/commands/context_menus.cpp:664
+#: frame/commands/context_menus.cpp:81 frame/commands/context_menus.cpp:403
+#: frame/commands/context_menus.cpp:632
 msgid "Copy Key Name"
 msgstr "키 이름 복사"
 
-#: frame/commands/context_menus.cpp:82 frame/commands/context_menus.cpp:420
-#: frame/commands/context_menus.cpp:665
+#: frame/commands/context_menus.cpp:82 frame/commands/context_menus.cpp:404
+#: frame/commands/context_menus.cpp:633
 msgid "Copy Key Path"
 msgstr "키 경로 복사"
 
-#: frame/commands/context_menus.cpp:83 frame/commands/context_menus.cpp:421
-#: frame/commands/context_menus.cpp:666
+#: frame/commands/context_menus.cpp:83 frame/commands/context_menus.cpp:405
+#: frame/commands/context_menus.cpp:634
 msgid "Copy Key Path As"
 msgstr "키 경로 복사 형식"
 
-#: frame/commands/context_menus.cpp:84 frame/commands/context_menus.cpp:376
-#: frame/commands/context_menus.cpp:661 frame/window/menu_bar.cpp:305
+#: frame/commands/context_menus.cpp:84 frame/commands/context_menus.cpp:360
+#: frame/commands/context_menus.cpp:629 frame/window/menu_bar.cpp:287
 msgid "Modify Comment..."
 msgstr "메모 수정..."
 
@@ -886,7 +937,7 @@ msgstr "메모 수정..."
 msgid "Open in Source Hive"
 msgstr "원본 하이브에서 열기"
 
-#: frame/commands/context_menus.cpp:91 frame/commands/context_menus.cpp:668
+#: frame/commands/context_menus.cpp:91 frame/commands/context_menus.cpp:636
 msgid "On-Disk Hive File"
 msgstr "디스크의 하이브 파일"
 
@@ -894,163 +945,163 @@ msgstr "디스크의 하이브 파일"
 msgid "Expand All Subkeys"
 msgstr "모든 하위 키 확장"
 
-#: frame/commands/context_menus.cpp:99 frame/commands/context_menus.cpp:425
-#: frame/views/registry_sessions.cpp:1083
+#: frame/commands/context_menus.cpp:99 frame/commands/context_menus.cpp:409
+#: frame/views/registry_sessions.cpp:1091
 msgid "Create Key"
 msgstr "키 만들기"
 
 #: frame/commands/context_menus.cpp:101 frame/commands/context_menus.cpp:108
-#: frame/commands/context_menus.cpp:437 frame/commands/context_menus.cpp:490
-#: frame/tools/key_handles_window.cpp:399 frame/window/menu_bar.cpp:161
-#: frame/window/menu_bar.cpp:339
+#: frame/commands/context_menus.cpp:421 frame/commands/context_menus.cpp:468
+#: frame/tools/key_handles_window.cpp:386 frame/window/menu_bar.cpp:151
+#: frame/window/menu_bar.cpp:321
 msgid "Refresh"
 msgstr "새로 고침"
 
-#: frame/commands/context_menus.cpp:104 frame/commands/context_menus.cpp:429
-#: frame/window/menu_bar.cpp:298
+#: frame/commands/context_menus.cpp:104 frame/commands/context_menus.cpp:413
+#: frame/window/menu_bar.cpp:280
 msgid "New"
 msgstr "새로 만들기"
 
-#: frame/commands/context_menus.cpp:106 frame/commands/context_menus.cpp:408
-#: frame/commands/context_menus.cpp:434 frame/commands/context_menus.cpp:671
-#: frame/window/menu_bar.cpp:274
+#: frame/commands/context_menus.cpp:106 frame/commands/context_menus.cpp:392
+#: frame/commands/context_menus.cpp:418 frame/commands/context_menus.cpp:639
+#: frame/window/menu_bar.cpp:256 ui/preset_editor.cpp:460
 msgid "Export..."
 msgstr "내보내기..."
 
-#: frame/commands/context_menus.cpp:110 frame/commands/context_menus.cpp:410
-#: frame/commands/context_menus.cpp:675 frame/window/menu_bar.cpp:318
+#: frame/commands/context_menus.cpp:110 frame/commands/context_menus.cpp:394
+#: frame/commands/context_menus.cpp:643 frame/window/menu_bar.cpp:300
 msgid "Rename"
 msgstr "이름 바꾸기"
 
-#: frame/commands/context_menus.cpp:111 frame/commands/context_menus.cpp:215
-#: frame/commands/context_menus.cpp:411 frame/commands/context_menus.cpp:676
-#: frame/window/menu_bar.cpp:159 frame/window/menu_bar.cpp:319
-#: ui/feedback.cpp:791
+#: frame/commands/context_menus.cpp:111 frame/commands/context_menus.cpp:212
+#: frame/commands/context_menus.cpp:395 frame/commands/context_menus.cpp:644
+#: frame/window/menu_bar.cpp:149 frame/window/menu_bar.cpp:301
+#: ui/feedback.cpp:791 ui/preset_editor.cpp:457
 msgid "Delete"
 msgstr "삭제"
 
-#: frame/commands/context_menus.cpp:113 frame/commands/context_menus.cpp:441
-#: frame/commands/context_menus.cpp:679 frame/tools/launch_bridge.cpp:231
-#: frame/window/menu_bar.cpp:334
+#: frame/commands/context_menus.cpp:113 frame/commands/context_menus.cpp:425
+#: frame/commands/context_menus.cpp:647 frame/tools/launch_bridge.cpp:231
+#: frame/window/menu_bar.cpp:316
 msgid "Permissions..."
 msgstr "사용 권한..."
 
-#: frame/commands/context_menus.cpp:114 frame/commands/context_menus.cpp:442
-#: frame/window/menu_bar.cpp:335
+#: frame/commands/context_menus.cpp:114 frame/commands/context_menus.cpp:426
+#: frame/window/menu_bar.cpp:317
 msgid "Key Information..."
 msgstr "키 정보..."
 
-#: frame/commands/context_menus.cpp:209 frame/window/menu_bar.cpp:151
-#: frame/window/menu_bar.cpp:295
+#: frame/commands/context_menus.cpp:206 frame/window/menu_bar.cpp:141
+#: frame/window/menu_bar.cpp:277
 msgid "Undo"
 msgstr "실행 취소"
 
-#: frame/commands/context_menus.cpp:211
+#: frame/commands/context_menus.cpp:208
 msgid "Cut"
 msgstr "잘라내기"
 
-#: frame/commands/context_menus.cpp:212 frame/commands/context_menus.cpp:484
-#: frame/window/menu_bar.cpp:155 frame/window/menu_bar.cpp:308
+#: frame/commands/context_menus.cpp:209 frame/commands/context_menus.cpp:462
+#: frame/window/menu_bar.cpp:145 frame/window/menu_bar.cpp:290
 msgid "Copy"
 msgstr "복사"
 
-#: frame/commands/context_menus.cpp:213 frame/window/menu_bar.cpp:157
-#: frame/window/menu_bar.cpp:317
+#: frame/commands/context_menus.cpp:210 frame/window/menu_bar.cpp:147
+#: frame/window/menu_bar.cpp:299
 msgid "Paste"
 msgstr "붙여넣기"
 
-#: frame/commands/context_menus.cpp:214
+#: frame/commands/context_menus.cpp:211
 msgid "Paste and Go"
 msgstr "붙여넣고 바로 이동"
 
-#: frame/commands/context_menus.cpp:294
+#: frame/commands/context_menus.cpp:284
 msgid "Collapse Key"
 msgstr "키 축소"
 
-#: frame/commands/context_menus.cpp:294 frame/commands/context_menus.cpp:341
+#: frame/commands/context_menus.cpp:284 frame/commands/context_menus.cpp:325
 msgid "Expand Key"
 msgstr "키 확장"
 
-#: frame/commands/context_menus.cpp:371 frame/commands/context_menus.cpp:657
-#: frame/window/menu_bar.cpp:300
+#: frame/commands/context_menus.cpp:355 frame/commands/context_menus.cpp:625
+#: frame/window/menu_bar.cpp:282
 msgid "Modify..."
 msgstr "수정..."
 
-#: frame/commands/context_menus.cpp:372 frame/commands/context_menus.cpp:658
-#: frame/window/menu_bar.cpp:301
+#: frame/commands/context_menus.cpp:356 frame/commands/context_menus.cpp:626
+#: frame/window/menu_bar.cpp:283
 msgid "Modify Binary Data..."
 msgstr "이진 데이터 수정..."
 
-#: frame/commands/context_menus.cpp:373 frame/window/menu_bar.cpp:302
+#: frame/commands/context_menus.cpp:357 frame/window/menu_bar.cpp:284
 msgid "Change Data Type..."
 msgstr "데이터 형식 변경..."
 
-#: frame/commands/context_menus.cpp:374 frame/window/menu_bar.cpp:303
+#: frame/commands/context_menus.cpp:358 frame/window/menu_bar.cpp:285
 msgid "Edit Bits..."
 msgstr "비트 편집..."
 
-#: frame/commands/context_menus.cpp:375 frame/commands/context_menus.cpp:660
-#: frame/window/menu_bar.cpp:304
+#: frame/commands/context_menus.cpp:359 frame/commands/context_menus.cpp:628
+#: frame/window/menu_bar.cpp:286
 msgid "Decode Value..."
 msgstr "값 디코딩..."
 
-#: frame/commands/context_menus.cpp:377 frame/window/menu_bar.cpp:306
+#: frame/commands/context_menus.cpp:361 frame/window/menu_bar.cpp:288
 msgid "Reset to Default"
 msgstr "기본값으로 초기화"
 
-#: frame/commands/context_menus.cpp:379
+#: frame/commands/context_menus.cpp:363
 msgid "Copy Value Name"
 msgstr "값 이름 복사"
 
-#: frame/commands/context_menus.cpp:380
+#: frame/commands/context_menus.cpp:364
 msgid "Copy Value Data"
 msgstr "값 데이터 복사"
 
-#: frame/commands/context_menus.cpp:396 frame/commands/context_menus.cpp:405
+#: frame/commands/context_menus.cpp:380 frame/commands/context_menus.cpp:389
 msgid "Open Link"
 msgstr "링크 열기"
 
-#: frame/commands/context_menus.cpp:481
+#: frame/commands/context_menus.cpp:459
 msgid "Open Entry"
 msgstr "항목 열기"
 
-#: frame/commands/context_menus.cpp:482 frame/views/history_workspace.cpp:210
+#: frame/commands/context_menus.cpp:460 frame/views/history_workspace.cpp:260
 msgid "Revert"
 msgstr "변경 내용 되돌리기"
 
-#: frame/commands/context_menus.cpp:486
+#: frame/commands/context_menus.cpp:464
 msgid "Remove from History"
 msgstr "기록에서 제거"
 
-#: frame/commands/context_menus.cpp:493
+#: frame/commands/context_menus.cpp:471
 msgid "Clear History"
 msgstr "기록 지우기"
 
-#: frame/commands/context_menus.cpp:502
+#: frame/commands/context_menus.cpp:479
 msgid "Failed to open history target."
 msgstr "기록 대상을 열지 못했습니다."
 
-#: frame/commands/context_menus.cpp:643
+#: frame/commands/context_menus.cpp:611
 msgid "Open First Entry"
 msgstr "첫 번째 항목 열기"
 
-#: frame/commands/context_menus.cpp:644
+#: frame/commands/context_menus.cpp:612
 msgid "Open First Entry in New Tab"
 msgstr "새 탭에서 첫 번째 항목 열기"
 
-#: frame/commands/context_menus.cpp:645
+#: frame/commands/context_menus.cpp:613
 msgid "Open Second Entry"
 msgstr "두 번째 항목 열기"
 
-#: frame/commands/context_menus.cpp:646
+#: frame/commands/context_menus.cpp:614
 msgid "Open Second Entry in New Tab"
 msgstr "새 탭에서 두 번째 항목 열기"
 
-#: frame/commands/context_menus.cpp:651 frame/tools/key_handles_window.cpp:388
+#: frame/commands/context_menus.cpp:619 frame/tools/key_handles_window.cpp:375
 msgid "Open Key"
 msgstr "키 열기"
 
-#: frame/commands/context_menus.cpp:652 frame/tools/key_handles_window.cpp:389
+#: frame/commands/context_menus.cpp:620 frame/tools/key_handles_window.cpp:376
 msgid "Open Key in New Tab"
 msgstr "새 탭에서 키 열기"
 
@@ -1106,37 +1157,37 @@ msgstr "이 키와 모든 하위 키를 언로드하시겠습니까?"
 msgid "Unload"
 msgstr "언로드"
 
-#: frame/commands/file_view_commands.cpp:602
+#: frame/commands/file_view_commands.cpp:606
 msgid "Expanded keys"
 msgstr "확장된 키"
 
-#: frame/commands/file_view_commands.cpp:602
+#: frame/commands/file_view_commands.cpp:606
 msgid "This key has too many subkeys to expand at once."
 msgstr "이 키의 하위 키가 너무 많아 한 번에 확장할 수 없습니다."
 
-#: frame/commands/file_view_commands.cpp:795
+#: frame/commands/file_view_commands.cpp:799
 msgid "Edit Active Defaults"
 msgstr "활성 기본값 편집"
 
-#: frame/commands/file_view_commands.cpp:796
-#: frame/commands/file_view_commands.cpp:858
+#: frame/commands/file_view_commands.cpp:800
+#: frame/commands/file_view_commands.cpp:862
 msgid "One default path per line."
 msgstr "각 줄에 기본값 파일 경로를 하나씩 입력하세요."
 
-#: frame/commands/file_view_commands.cpp:826
+#: frame/commands/file_view_commands.cpp:830
 msgid "Edit Active Traces"
 msgstr "활성 Trace 편집"
 
-#: frame/commands/file_view_commands.cpp:827
-#: frame/commands/file_view_commands.cpp:878
+#: frame/commands/file_view_commands.cpp:831
+#: frame/commands/file_view_commands.cpp:882
 msgid "One trace path per line."
 msgstr "각 줄에 Trace 파일 경로를 하나씩 입력하세요."
 
-#: frame/commands/file_view_commands.cpp:857
+#: frame/commands/file_view_commands.cpp:861
 msgid "Edit Recent Defaults"
 msgstr "최근 기본값 편집"
 
-#: frame/commands/file_view_commands.cpp:877
+#: frame/commands/file_view_commands.cpp:881
 msgid "Edit Recent Traces"
 msgstr "최근 Trace 편집"
 
@@ -1216,7 +1267,7 @@ msgstr "값 삭제"
 msgid "Some of the selected values couldn't be deleted."
 msgstr "선택한 값 중 일부를 삭제하지 못했습니다."
 
-#: frame/commands/tools_commands.cpp:71
+#: frame/commands/tools_commands.cpp:81
 msgid "The key couldn't be found."
 msgstr "키를 찾지 못했습니다."
 
@@ -1228,11 +1279,11 @@ msgstr "값이 새 이름으로 복사되었지만 이전 이름을 제거하지
 msgid "Restart RegKit now to apply the language?"
 msgstr "언어를 적용하려면 지금 RegKit을 다시 시작하시겠습니까?"
 
-#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:380
+#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:362
 msgid "Language"
 msgstr "언어"
 
-#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:391
+#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:373
 msgid "Restart"
 msgstr "다시 시작"
 
@@ -1256,96 +1307,96 @@ msgstr "설정 초기화"
 msgid "Reset"
 msgstr "초기화"
 
-#: frame/search/compare_command.cpp:93
+#: frame/search/compare_command.cpp:107
 msgid "Invalid registry path."
 msgstr "레지스트리 경로가 잘못되었습니다."
 
-#: frame/search/compare_command.cpp:100 frame/views/registry_sessions.cpp:1069
-#: frame/views/registry_sessions.cpp:1111 frame/window/message_routes.cpp:1260
-#: launch/program.cpp:230 launch/program.cpp:576
+#: frame/search/compare_command.cpp:114 frame/views/registry_sessions.cpp:1077
+#: frame/views/registry_sessions.cpp:1119 frame/window/message_routes.cpp:1259
+#: launch/program.cpp:230 launch/program.cpp:583
 msgid "Registry path not found."
 msgstr "레지스트리 경로를 찾지 못했습니다."
 
-#: frame/search/compare_command.cpp:138 frame/window/menu_bar.cpp:459
+#: frame/search/compare_command.cpp:152 frame/window/menu_bar.cpp:442
 msgid "Compare Registries..."
 msgstr "레지스트리 비교..."
 
-#: frame/search/compare_command.cpp:156 frame/search/compare_dialog.cpp:328
-#: frame/sources/regfile_commands.cpp:188 regfile/registry_transfer.cpp:155
+#: frame/search/compare_command.cpp:170 frame/search/compare_dialog.cpp:329
+#: frame/sources/regfile_commands.cpp:199 regfile/registry_transfer.cpp:155
 msgid "Failed to read registry file."
 msgstr "레지스트리 파일을 읽지 못했습니다."
 
-#: frame/search/compare_command.cpp:187
+#: frame/search/compare_command.cpp:201
 msgid "Failed to read the hive file."
 msgstr "하이브 파일을 읽지 못했습니다."
 
-#: frame/search/compare_command.cpp:196
+#: frame/search/compare_command.cpp:210
 msgid "Select a computer to compare against."
 msgstr "비교할 컴퓨터를 선택하세요."
 
-#: frame/search/compare_command.cpp:212
+#: frame/search/compare_command.cpp:226
 msgid "Network registry path not found."
 msgstr "네트워크 레지스트리 경로를 찾지 못했습니다."
 
-#: frame/search/compare_command.cpp:260 frame/search/search_window.cpp:1649
+#: frame/search/compare_command.cpp:274 frame/search/search_window.cpp:1669
 msgid "Skipped"
 msgstr "건너뜀"
 
-#: frame/search/compare_command.cpp:260 search/compare.cpp:152
+#: frame/search/compare_command.cpp:274 search/compare.cpp:152
 msgid "Couldn't read the registry key."
 msgstr "레지스트리 키를 읽지 못했습니다."
 
-#: frame/search/compare_command.cpp:291
+#: frame/search/compare_command.cpp:305
 msgid "Registry Comparison"
 msgstr "레지스트리 비교"
 
-#: frame/search/compare_dialog.cpp:33 frame/tools/convert_dialog.cpp:222
-#: frame/tools/convert_dialog.cpp:223
+#: frame/search/compare_dialog.cpp:34 frame/tools/convert_dialog.cpp:223
+#: frame/tools/convert_dialog.cpp:224
 msgid "Reg File"
 msgstr "Reg 파일"
 
-#: frame/search/compare_dialog.cpp:35 search/search.cpp:45
+#: frame/search/compare_dialog.cpp:36 search/search.cpp:45
 msgid "Network Registry"
 msgstr "네트워크 레지스트리"
 
-#: frame/search/compare_dialog.cpp:37
+#: frame/search/compare_dialog.cpp:38
 msgid "Offline Hive"
 msgstr "오프라인 하이브"
 
-#: frame/search/compare_dialog.cpp:39 frame/tools/convert_dialog.cpp:222
+#: frame/search/compare_dialog.cpp:40 frame/tools/convert_dialog.cpp:223
 msgid "Registry"
 msgstr "레지스트리"
 
-#: frame/search/compare_dialog.cpp:105
+#: frame/search/compare_dialog.cpp:106
 msgid "Computer:"
 msgstr "컴퓨터:"
 
-#: frame/search/compare_dialog.cpp:105
+#: frame/search/compare_dialog.cpp:106
 msgid "File:"
 msgstr "파일:"
 
-#: frame/search/compare_dialog.cpp:266 frame/search/compare_dialog.cpp:334
+#: frame/search/compare_dialog.cpp:267 frame/search/compare_dialog.cpp:335
 #: search/compare.cpp:176
 msgid "No registry keys were found in the .reg file."
 msgstr ".reg 파일에서 레지스트리 키를 찾지 못했습니다."
 
-#: frame/search/compare_dialog.cpp:297 frame/tools/convert_dialog.cpp:123
+#: frame/search/compare_dialog.cpp:298 frame/tools/convert_dialog.cpp:124
 msgid "Registry key is required."
 msgstr "레지스트리 키가 필요합니다."
 
-#: frame/search/compare_dialog.cpp:307 frame/views/registry_sessions.cpp:734
+#: frame/search/compare_dialog.cpp:308 frame/views/registry_sessions.cpp:734
 msgid "Computer name is required."
 msgstr "컴퓨터 이름이 필요합니다."
 
-#: frame/search/compare_dialog.cpp:317
+#: frame/search/compare_dialog.cpp:318
 msgid "Hive file path is required."
 msgstr "하이브 파일 경로가 필요합니다."
 
-#: frame/search/compare_dialog.cpp:317
+#: frame/search/compare_dialog.cpp:318
 msgid "Registry file path is required."
 msgstr "레지스트리 파일 경로가 필요합니다."
 
-#: frame/search/compare_dialog.cpp:358
+#: frame/search/compare_dialog.cpp:359
 msgid "The selected key path wasn't found in the .reg file."
 msgstr ".reg 파일에서 선택한 키 경로를 찾지 못했습니다."
 
@@ -1381,7 +1432,7 @@ msgstr ""
 msgid "HKCR"
 msgstr ""
 
-#: frame/search/search_window.cpp:240 frame/window/notifications.cpp:42
+#: frame/search/search_window.cpp:240 frame/window/notifications.cpp:43
 msgid "Backup/restore mode"
 msgstr "백업/복원 모드"
 
@@ -1400,12 +1451,12 @@ msgstr "값: %d"
 msgid "Selected: %d"
 msgstr "선택됨: %d"
 
-#: frame/search/search_window.cpp:574 frame/search/search_window.cpp:1365
+#: frame/search/search_window.cpp:574 frame/search/search_window.cpp:1384
 msgid "Starting key path wasn't found."
 msgstr "시작 키 경로를 찾지 못했습니다."
 
 #: frame/search/search_window.cpp:585 frame/search/search_window.cpp:784
-#: frame/search/search_window.cpp:1375
+#: frame/search/search_window.cpp:1394
 msgid "Select a starting key first."
 msgstr "먼저 시작 키를 선택하세요."
 
@@ -1413,44 +1464,44 @@ msgstr "먼저 시작 키를 선택하세요."
 msgid "No keys to search in the selected sources."
 msgstr "선택한 원본에 검색할 키가 없습니다."
 
-#: frame/search/search_window.cpp:826
+#: frame/search/search_window.cpp:845
 msgid "Anomalies"
 msgstr "이상 항목"
 
-#: frame/search/search_window.cpp:826 frame/search/search_window.cpp:829
-#: frame/views/history_workspace.cpp:546 frame/window/menu_bar.cpp:143
+#: frame/search/search_window.cpp:845 frame/search/search_window.cpp:848
+#: frame/views/history_workspace.cpp:606 frame/window/menu_bar.cpp:133
 msgid "Find"
 msgstr "찾기"
 
-#: frame/search/search_window.cpp:1352 frame/window/menu_bar.cpp:179
+#: frame/search/search_window.cpp:1371 frame/window/menu_bar.cpp:169
 msgid "Read only mode is enabled."
 msgstr "읽기 전용 모드가 켜져 있습니다."
 
-#: frame/search/search_window.cpp:1388
+#: frame/search/search_window.cpp:1407
 msgid "Replace is already running."
 msgstr "바꾸기가 이미 실행 중입니다."
 
-#: frame/search/search_window.cpp:1642 frame/search/search_window.cpp:1659
+#: frame/search/search_window.cpp:1662 frame/search/search_window.cpp:1679
 msgid "Replaced"
 msgstr "바뀜"
 
-#: frame/search/search_window.cpp:1645 frame/search/search_window.cpp:1660
+#: frame/search/search_window.cpp:1665 frame/search/search_window.cpp:1680
 msgid "Failed"
 msgstr "실패"
 
-#: frame/search/search_window.cpp:1653
+#: frame/search/search_window.cpp:1673
 msgid "cancelled"
 msgstr "취소됨"
 
-#: frame/search/search_window.cpp:1659
+#: frame/search/search_window.cpp:1679
 msgid "Replace finished with some failures."
 msgstr "바꾸기가 완료되었지만 일부 작업이 실패했습니다."
 
-#: frame/search/search_window.cpp:1663
+#: frame/search/search_window.cpp:1683
 msgid "Skipped, the replacement isn't valid for the value type"
 msgstr "바꿀 내용이 값 형식에 맞지 않아 건너뜀"
 
-#: frame/search/search_window.cpp:1667
+#: frame/search/search_window.cpp:1687
 msgid "Copied to the new name, the old name couldn't be removed"
 msgstr "새 이름으로 복사되었지만 이전 이름을 제거하지 못함"
 
@@ -1470,67 +1521,67 @@ msgstr "레지스트리 파일을 저장하지 못했습니다."
 msgid "Failed to export registry file."
 msgstr "레지스트리 파일을 내보내지 못했습니다."
 
-#: frame/sources/regfile_commands.cpp:228 launch/program.cpp:231
+#: frame/sources/regfile_commands.cpp:239 launch/program.cpp:231
 msgid "Registry file not found."
 msgstr "레지스트리 파일을 찾지 못했습니다."
 
-#: frame/sources/regfile_commands.cpp:234
+#: frame/sources/regfile_commands.cpp:245
 msgid "Registry File"
 msgstr "레지스트리 파일"
 
-#: frame/sources/trace_commands.cpp:249
+#: frame/sources/trace_commands.cpp:250
 msgid "Trace file not found."
 msgstr "Trace 파일을 찾지 못했습니다."
 
-#: frame/sources/trace_commands.cpp:307
+#: frame/sources/trace_commands.cpp:308
 msgid "Trace entries"
 msgstr "Trace 항목"
 
-#: frame/tools/convert_dialog.cpp:123
+#: frame/tools/convert_dialog.cpp:124
 msgid "Input file path is required."
 msgstr "입력 파일 경로가 필요합니다."
 
-#: frame/tools/convert_dialog.cpp:128
+#: frame/tools/convert_dialog.cpp:129
 msgid "Output file path is required."
 msgstr "출력 파일 경로가 필요합니다."
 
-#: frame/tools/convert_dialog.cpp:133
+#: frame/tools/convert_dialog.cpp:134
 msgid "The output file can't be the input file."
 msgstr "출력 파일은 입력 파일과 같을 수 없습니다."
 
-#: frame/tools/convert_dialog.cpp:161
+#: frame/tools/convert_dialog.cpp:162
 msgid "The output file couldn't be written."
 msgstr "출력 파일을 쓰지 못했습니다."
 
-#: frame/tools/convert_dialog.cpp:222 frame/tools/convert_dialog.cpp:223
+#: frame/tools/convert_dialog.cpp:223 frame/tools/convert_dialog.cpp:224
 msgid "Batch File"
 msgstr "배치 파일"
 
-#: frame/tools/convert_dialog.cpp:222 frame/tools/convert_dialog.cpp:223
+#: frame/tools/convert_dialog.cpp:223 frame/tools/convert_dialog.cpp:224
 msgid "PowerShell Script"
 msgstr "PowerShell 스크립트"
 
-#: frame/tools/key_handles_window.cpp:223
+#: frame/tools/key_handles_window.cpp:222
 msgid "Scanning handles..."
 msgstr "핸들 검색 중..."
 
-#: frame/tools/key_handles_window.cpp:227
+#: frame/tools/key_handles_window.cpp:226
 msgid "Handles couldn't be enumerated."
 msgstr "핸들을 열거하지 못했습니다."
 
-#: frame/tools/key_handles_window.cpp:231
+#: frame/tools/key_handles_window.cpp:230
 msgid "Handles"
 msgstr "핸들"
 
-#: frame/tools/key_handles_window.cpp:232
+#: frame/tools/key_handles_window.cpp:231
 msgid "Shown"
 msgstr "표시됨"
 
-#: frame/tools/key_handles_window.cpp:233
+#: frame/tools/key_handles_window.cpp:232
 msgid "Inaccessible processes"
 msgstr "액세스할 수 없는 프로세스"
 
-#: frame/tools/key_handles_window.cpp:355
+#: frame/tools/key_handles_window.cpp:353
 msgid ""
 "Closing a handle owned by another process can make that process malfunction or crash.\n"
 "\n"
@@ -1540,83 +1591,79 @@ msgstr ""
 "\n"
 "각 핸들을 먼저 최신 스냅샷과 대조하지만 확인과 닫기 사이에 핸들이 닫히고 재사용될 수 있습니다."
 
-#: frame/tools/key_handles_window.cpp:358
+#: frame/tools/key_handles_window.cpp:356
 msgid "Close Handle"
 msgstr "핸들 닫기"
 
-#: frame/tools/key_handles_window.cpp:358
+#: frame/tools/key_handles_window.cpp:356
 msgid "Close Handles"
 msgstr "핸들 닫기"
 
-#: frame/tools/key_handles_window.cpp:358 frame/tools/update_checker.cpp:425
+#: frame/tools/key_handles_window.cpp:356 frame/tools/update_checker.cpp:425
 msgid "Close"
 msgstr "닫기"
 
-#: frame/tools/key_handles_window.cpp:366
+#: frame/tools/key_handles_window.cpp:364
 msgid "Not all handles were closed."
 msgstr "일부 핸들을 닫지 못했습니다."
 
-#: frame/tools/key_handles_window.cpp:391
+#: frame/tools/key_handles_window.cpp:378
 msgid "Copy Key"
 msgstr "키 복사"
 
-#: frame/tools/key_handles_window.cpp:392
+#: frame/tools/key_handles_window.cpp:379
 msgid "Copy Native Name"
 msgstr "네이티브 이름 복사"
 
-#: frame/tools/key_handles_window.cpp:393
+#: frame/tools/key_handles_window.cpp:380
 msgid "Copy Process"
 msgstr "프로세스 복사"
 
-#: frame/tools/key_handles_window.cpp:394
+#: frame/tools/key_handles_window.cpp:381
 msgid "Copy PID"
 msgstr "PID 복사"
 
-#: frame/tools/key_handles_window.cpp:395
+#: frame/tools/key_handles_window.cpp:382
 msgid "Copy Handle"
 msgstr "핸들 복사"
 
-#: frame/tools/key_handles_window.cpp:396
+#: frame/tools/key_handles_window.cpp:383
 msgid "Copy Access"
 msgstr "액세스 권한 복사"
 
-#: frame/tools/key_handles_window.cpp:397
-msgid "Copy Rows"
-msgstr "행 복사"
-
-#: frame/tools/key_handles_window.cpp:401
+#: frame/tools/key_handles_window.cpp:388
 msgid "Close Handle..."
 msgstr "핸들 닫기..."
 
-#: frame/tools/key_handles_window.cpp:493
+#: frame/tools/key_handles_window.cpp:475
 msgid "Filter"
 msgstr "필터"
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "Process"
 msgstr "프로세스"
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "PID"
 msgstr ""
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "Handle"
 msgstr "핸들"
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "Object Address"
 msgstr "개체 주소"
 
-#: frame/tools/key_handles_window.cpp:494 frame/tools/launch_bridge.cpp:224
+#: frame/tools/key_handles_window.cpp:476 frame/tools/launch_bridge.cpp:224
 msgid "Access"
 msgstr "액세스 권한"
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "Attributes"
 msgstr "특성"
 
-#: frame/tools/key_handles_window.cpp:494
+#: frame/tools/key_handles_window.cpp:476
 msgid "Native Name"
 msgstr "네이티브 이름"
 
@@ -1640,7 +1687,7 @@ msgstr "보통"
 msgid "High"
 msgstr "높음"
 
-#: frame/tools/launch_bridge.cpp:45 frame/window/menu_bar.cpp:359
+#: frame/tools/launch_bridge.cpp:45 frame/window/menu_bar.cpp:341
 msgid "System"
 msgstr "시스템"
 
@@ -1651,10 +1698,6 @@ msgstr "보호된 프로세스"
 #: frame/tools/launch_bridge.cpp:65
 msgid "Key Information"
 msgstr "키 정보"
-
-#: frame/tools/launch_bridge.cpp:72
-msgid "The key information couldn't be read."
-msgstr "키 정보를 읽지 못했습니다."
 
 #: frame/tools/launch_bridge.cpp:75 frame/views/value_loading.cpp:315
 #: ui/feedback.cpp:711
@@ -1667,7 +1710,7 @@ msgid "No"
 msgstr "아니요"
 
 #: frame/tools/launch_bridge.cpp:85 frame/tools/launch_bridge.cpp:112
-#: frame/tools/launch_bridge.cpp:174 registry/value_decoder.cpp:740
+#: frame/tools/launch_bridge.cpp:174 registry/value_decoder.cpp:733
 msgid "None"
 msgstr "없음"
 
@@ -1686,10 +1729,6 @@ msgstr "내용"
 #: registry/resource_list.cpp:382
 msgid "Flags"
 msgstr "플래그"
-
-#: frame/tools/launch_bridge.cpp:94 frame/views/browse_view.cpp:59
-msgid "Name"
-msgstr "이름"
 
 #: frame/tools/launch_bridge.cpp:97
 msgid "Native name"
@@ -1783,7 +1822,7 @@ msgstr "재귀 적용"
 msgid "Virtualization flags"
 msgstr "가상화 플래그"
 
-#: frame/tools/launch_bridge.cpp:174 search/search.cpp:1421
+#: frame/tools/launch_bridge.cpp:174 search/search.cpp:1433
 msgid "Virtual store copy"
 msgstr "가상 저장소 복사본"
 
@@ -1864,11 +1903,11 @@ msgid "Edit Binary..."
 msgstr "이진 데이터 편집..."
 
 #: frame/tools/launch_bridge.cpp:266 frame/tools/launch_bridge.cpp:481
-#: launch/program.cpp:385
+#: launch/program.cpp:392
 msgid "Failed to locate the executable path."
 msgstr "실행 파일 경로를 찾지 못했습니다."
 
-#: frame/tools/launch_bridge.cpp:312 launch/program.cpp:405
+#: frame/tools/launch_bridge.cpp:312 launch/program.cpp:412
 msgid "RegKit couldn't restore its own security context and must close now."
 msgstr "RegKit이 자체 보안 컨텍스트를 복원하지 못해 지금 종료해야 합니다."
 
@@ -1931,7 +1970,7 @@ msgstr ""
 "이 위치에서 적용하려면 그래도 대체를 선택하세요."
 
 #: frame/tools/launch_bridge.cpp:495 frame/tools/launch_bridge.cpp:512
-#: frame/window/menu_bar.cpp:404
+#: frame/window/menu_bar.cpp:386
 msgid "Replace RegEdit"
 msgstr "RegEdit 대체"
 
@@ -2040,8 +2079,8 @@ msgstr "형식"
 msgid "Data"
 msgstr "데이터"
 
-#: frame/views/browse_view.cpp:62 frame/window/menu_bar.cpp:548
-#: frame/window/menu_bar.cpp:871 registry/resource_list.cpp:336
+#: frame/views/browse_view.cpp:62 frame/window/menu_bar.cpp:531
+#: frame/window/menu_bar.cpp:854 registry/resource_list.cpp:336
 #: search/search.cpp:68
 msgid "Default"
 msgstr "기본값"
@@ -2107,47 +2146,47 @@ msgstr "내용에 맞게 열 너비 조정"
 msgid "Size all columns to fit"
 msgstr "내용에 맞게 모든 열 너비 조정"
 
-#: frame/views/history_workspace.cpp:210
+#: frame/views/history_workspace.cpp:260
 msgid "Revert this change with elevated rights?"
 msgstr "관리자 권한으로 이 변경 내용을 되돌리시겠습니까?"
 
-#: frame/views/history_workspace.cpp:243
+#: frame/views/history_workspace.cpp:293
 msgid "Revert Key Creation"
 msgstr "키 만들기 실행 취소"
 
-#: frame/views/history_workspace.cpp:257
+#: frame/views/history_workspace.cpp:307
 msgid "Failed to revert history entry."
 msgstr "기록 항목을 되돌리지 못했습니다."
 
-#: frame/views/history_workspace.cpp:294
+#: frame/views/history_workspace.cpp:344
 msgid "The history couldn't be written to disk. It is kept for this session only."
 msgstr "기록을 디스크에 쓰지 못했습니다. 현재 세션에서만 유지됩니다."
 
-#: frame/views/history_workspace.cpp:607 frame/views/history_workspace.cpp:629
-#: frame/views/history_workspace.cpp:828 frame/views/registry_sessions.cpp:496
-#: frame/views/registry_sessions.cpp:499 frame/views/tab_lists.cpp:627
-#: frame/window/menu_bar.cpp:137 frame/window/menu_bar.cpp:279
+#: frame/views/history_workspace.cpp:667 frame/views/history_workspace.cpp:689
+#: frame/views/history_workspace.cpp:888 frame/views/registry_sessions.cpp:496
+#: frame/views/registry_sessions.cpp:499 frame/views/tab_lists.cpp:634
+#: frame/window/menu_bar.cpp:127 frame/window/menu_bar.cpp:261
 #: search/search.cpp:52
 msgid "Local Registry"
 msgstr "로컬 레지스트리"
 
-#: frame/views/history_workspace.cpp:947
+#: frame/views/history_workspace.cpp:1007
 msgid "Comments were imported but couldn't be saved."
 msgstr "메모를 가져왔지만 저장하지 못했습니다."
 
-#: frame/views/history_workspace.cpp:1058
+#: frame/views/history_workspace.cpp:1118
 msgid "Different types"
 msgstr "다른 형식"
 
-#: frame/views/history_workspace.cpp:1060
+#: frame/views/history_workspace.cpp:1120
 msgid "Different lengths"
 msgstr "다른 길이"
 
-#: frame/views/history_workspace.cpp:1108
+#: frame/views/history_workspace.cpp:1168
 msgid "The comment couldn't be saved."
 msgstr "메모를 저장하지 못했습니다."
 
-#: frame/views/registry_sessions.cpp:499 frame/window/menu_bar.cpp:282
+#: frame/views/registry_sessions.cpp:499 frame/window/menu_bar.cpp:264
 #: search/search.cpp:52
 msgid "Local Registry (32-bit)"
 msgstr "로컬 레지스트리 (32비트)"
@@ -2171,7 +2210,7 @@ msgstr "컴퓨터 이름 (예: \\\\MACHINE):"
 
 #: frame/views/registry_sessions.cpp:771 frame/views/registry_sessions.cpp:774
 #: frame/views/registry_sessions.cpp:793 frame/views/registry_sessions.cpp:831
-#: frame/window/menu_bar.cpp:139
+#: frame/window/menu_bar.cpp:129
 msgid "Remote Registry"
 msgstr "원격 레지스트리"
 
@@ -2220,7 +2259,7 @@ msgid "Load the offline registry from a single hive file, or from a folder of hi
 msgstr "오프라인 레지스트리를 하이브 파일 하나에서 로드하시겠습니까, 하이브 폴더에서 로드하시겠습니까?"
 
 #: frame/views/registry_sessions.cpp:844 frame/views/registry_sessions.cpp:945
-#: frame/views/registry_sessions.cpp:948 frame/window/menu_bar.cpp:141
+#: frame/views/registry_sessions.cpp:948 frame/window/menu_bar.cpp:131
 msgid "Offline Registry"
 msgstr "오프라인 레지스트리"
 
@@ -2252,33 +2291,33 @@ msgstr "저장할 오프라인 하이브 경로를 확인하지 못했습니다.
 msgid "Failed to save offline hive."
 msgstr "오프라인 하이브를 저장하지 못했습니다."
 
-#: frame/views/registry_sessions.cpp:1061
+#: frame/views/registry_sessions.cpp:1069
 msgid "The key was opened, but it doesn't contain this value:"
 msgstr "키를 열었지만 이 값이 없습니다:"
 
-#: frame/views/registry_sessions.cpp:1061
+#: frame/views/registry_sessions.cpp:1069
 msgid "Value Not Found"
 msgstr "값을 찾을 수 없음"
 
-#: frame/views/registry_sessions.cpp:1072
+#: frame/views/registry_sessions.cpp:1080
 msgid "The registry key doesn't exist:"
 msgstr "레지스트리 키가 없습니다:"
 
-#: frame/views/registry_sessions.cpp:1076
-#: frame/views/registry_sessions.cpp:1083
+#: frame/views/registry_sessions.cpp:1084
+#: frame/views/registry_sessions.cpp:1091
 msgid "Registry Path Not Found"
 msgstr "레지스트리 경로를 찾을 수 없음"
 
-#: frame/views/registry_sessions.cpp:1076
-#: frame/views/registry_sessions.cpp:1083
+#: frame/views/registry_sessions.cpp:1084
+#: frame/views/registry_sessions.cpp:1091
 msgid "Go to Nearest Key"
 msgstr "가장 가까운 키로 이동"
 
-#: frame/views/registry_sessions.cpp:1093
+#: frame/views/registry_sessions.cpp:1101
 msgid "Failed to create registry key."
 msgstr "레지스트리 키를 만들지 못했습니다."
 
-#: frame/views/tab_lists.cpp:425
+#: frame/views/tab_lists.cpp:432
 msgid ""
 "The registry file has unsaved changes.\n"
 "Save before closing the tab?"
@@ -2286,15 +2325,15 @@ msgstr ""
 "레지스트리 파일에 저장하지 않은 변경 내용이 있습니다.\n"
 "탭을 닫기 전에 저장하시겠습니까?"
 
-#: frame/views/tab_lists.cpp:428 frame/views/tab_lists.cpp:462
+#: frame/views/tab_lists.cpp:435 frame/views/tab_lists.cpp:469
 msgid "Unsaved Changes"
 msgstr "저장하지 않은 변경 내용"
 
-#: frame/views/tab_lists.cpp:428 frame/views/tab_lists.cpp:462
+#: frame/views/tab_lists.cpp:435 frame/views/tab_lists.cpp:469
 msgid "Don't Save"
 msgstr "저장 안 함"
 
-#: frame/views/tab_lists.cpp:448
+#: frame/views/tab_lists.cpp:455
 msgid ""
 "The offline registry has unsaved changes.\n"
 "Save before closing the tab?"
@@ -2302,12 +2341,12 @@ msgstr ""
 "오프라인 레지스트리에 저장하지 않은 변경 내용이 있습니다.\n"
 "탭을 닫기 전에 저장하시겠습니까?"
 
-#: frame/views/value_loading.cpp:124 frame/window/menu_bar.cpp:497
+#: frame/views/value_loading.cpp:124 frame/window/menu_bar.cpp:480
 msgid "Trace"
 msgstr "Trace"
 
-#: frame/views/value_loading.cpp:181 frame/window/menu_bar.cpp:874
-#: search/compare.cpp:55 search/compare.cpp:340 search/compare.cpp:341
+#: frame/views/value_loading.cpp:181 frame/window/menu_bar.cpp:857
+#: search/compare.cpp:55 search/compare.cpp:343 search/compare.cpp:344
 msgid "(Missing)"
 msgstr "(누락)"
 
@@ -2323,7 +2362,7 @@ msgstr "(값 설정 안 됨)"
 msgid "Preset name:"
 msgstr "프리셋 이름:"
 
-#: frame/window/events.cpp:44 registry/key_access.cpp:119
+#: frame/window/events.cpp:43 registry/key_access.cpp:119
 msgid "Administrator"
 msgstr "관리자"
 
@@ -2339,11 +2378,11 @@ msgstr "폴더 만들기"
 msgid "Go"
 msgstr "이동"
 
-#: frame/window/lifetime.cpp:128 frame/window/menu_bar.cpp:348
+#: frame/window/lifetime.cpp:128 frame/window/menu_bar.cpp:330
 msgid "Key Tree"
 msgstr "키 트리"
 
-#: frame/window/lifetime.cpp:155 frame/window/menu_bar.cpp:349
+#: frame/window/lifetime.cpp:155 frame/window/menu_bar.cpp:331
 msgid "History"
 msgstr "기록"
 
@@ -2359,496 +2398,500 @@ msgstr "메모"
 msgid "The open tabs couldn't be saved for the next session."
 msgstr "다음 세션을 위한 열린 탭을 저장하지 못했습니다."
 
-#: frame/window/menu_bar.cpp:145 ui/feedback.cpp:801
+#: frame/window/menu_bar.cpp:135 ui/feedback.cpp:801
 msgid "Replace"
 msgstr "바꾸기"
 
-#: frame/window/menu_bar.cpp:153 frame/window/menu_bar.cpp:296
+#: frame/window/menu_bar.cpp:143 frame/window/menu_bar.cpp:278
 msgid "Redo"
 msgstr "다시 실행"
 
-#: frame/window/menu_bar.cpp:163
+#: frame/window/menu_bar.cpp:153
 msgid "Back"
 msgstr "뒤로"
 
-#: frame/window/menu_bar.cpp:165
+#: frame/window/menu_bar.cpp:155
 msgid "Forward"
 msgstr "앞으로"
 
-#: frame/window/menu_bar.cpp:167
+#: frame/window/menu_bar.cpp:157
 msgid "Up"
 msgstr "위로"
 
-#: frame/window/menu_bar.cpp:270
+#: frame/window/menu_bar.cpp:252
 msgid "Open .reg File..."
 msgstr ".reg 파일 열기..."
 
-#: frame/window/menu_bar.cpp:273
+#: frame/window/menu_bar.cpp:255 ui/preset_editor.cpp:459
 msgid "Import..."
 msgstr "가져오기..."
 
-#: frame/window/menu_bar.cpp:276
+#: frame/window/menu_bar.cpp:258
 msgid "Import Comments..."
 msgstr "메모 가져오기..."
 
-#: frame/window/menu_bar.cpp:277
+#: frame/window/menu_bar.cpp:259
 msgid "Export Comments..."
 msgstr "메모 내보내기..."
 
-#: frame/window/menu_bar.cpp:284
+#: frame/window/menu_bar.cpp:266
 msgid "Remote Registry..."
 msgstr "원격 레지스트리..."
 
-#: frame/window/menu_bar.cpp:285
+#: frame/window/menu_bar.cpp:267
 msgid "Offline Registry..."
 msgstr "오프라인 레지스트리..."
 
-#: frame/window/menu_bar.cpp:286
+#: frame/window/menu_bar.cpp:268
 msgid "Save Offline Hive..."
 msgstr "오프라인 하이브 저장..."
 
-#: frame/window/menu_bar.cpp:288
+#: frame/window/menu_bar.cpp:270
 msgid "Load Hive..."
 msgstr "하이브 로드..."
 
-#: frame/window/menu_bar.cpp:289
+#: frame/window/menu_bar.cpp:271
 msgid "Unload Hive..."
 msgstr "하이브 언로드..."
 
-#: frame/window/menu_bar.cpp:291
+#: frame/window/menu_bar.cpp:273
 msgid "Exit"
 msgstr "끝내기"
 
-#: frame/window/menu_bar.cpp:292
+#: frame/window/menu_bar.cpp:274
 msgid "&File"
 msgstr "파일(&F)"
 
-#: frame/window/menu_bar.cpp:310
+#: frame/window/menu_bar.cpp:292
 msgid "Key Name"
 msgstr "키 이름"
 
-#: frame/window/menu_bar.cpp:311
+#: frame/window/menu_bar.cpp:293
 msgid "Key Path"
 msgstr "키 경로"
 
-#: frame/window/menu_bar.cpp:312
+#: frame/window/menu_bar.cpp:294
 msgid "Key Path As"
 msgstr "키 경로 형식"
 
-#: frame/window/menu_bar.cpp:314
+#: frame/window/menu_bar.cpp:296
 msgid "Value Name"
 msgstr "값 이름"
 
-#: frame/window/menu_bar.cpp:315
+#: frame/window/menu_bar.cpp:297
 msgid "Value Data"
 msgstr "값 데이터"
 
-#: frame/window/menu_bar.cpp:316
+#: frame/window/menu_bar.cpp:298
 msgid "Copy Other"
 msgstr "기타 복사"
 
-#: frame/window/menu_bar.cpp:322
+#: frame/window/menu_bar.cpp:304
 msgid "Invert Selection"
 msgstr "선택 영역 반전"
 
-#: frame/window/menu_bar.cpp:324
+#: frame/window/menu_bar.cpp:306
 msgid "Find..."
 msgstr "찾기..."
 
-#: frame/window/menu_bar.cpp:325
+#: frame/window/menu_bar.cpp:307
 msgid "Replace..."
 msgstr "바꾸기..."
 
-#: frame/window/menu_bar.cpp:326
+#: frame/window/menu_bar.cpp:308
 msgid "Go To..."
 msgstr "이동..."
 
-#: frame/window/menu_bar.cpp:329
+#: frame/window/menu_bar.cpp:311
 msgid "Go to Other View"
 msgstr "다른 보기로 이동"
 
-#: frame/window/menu_bar.cpp:331
+#: frame/window/menu_bar.cpp:313
 msgid "Go to Virtual Store Copy"
 msgstr "가상 저장소 복사본으로 이동"
 
-#: frame/window/menu_bar.cpp:332
+#: frame/window/menu_bar.cpp:314
 msgid "Go to Global Key"
 msgstr "전역 키로 이동"
 
-#: frame/window/menu_bar.cpp:336
+#: frame/window/menu_bar.cpp:318
 msgid "&Edit"
 msgstr "편집(&E)"
 
-#: frame/window/menu_bar.cpp:340
+#: frame/window/menu_bar.cpp:322
 msgid "Auto Refresh"
 msgstr "자동 새로 고침"
 
-#: frame/window/menu_bar.cpp:342
+#: frame/window/menu_bar.cpp:324
 msgid "Toolbar"
 msgstr "도구 모음"
 
-#: frame/window/menu_bar.cpp:343
+#: frame/window/menu_bar.cpp:325
 msgid "Address Bar"
 msgstr "주소 표시줄"
 
-#: frame/window/menu_bar.cpp:344
+#: frame/window/menu_bar.cpp:326
 msgid "Filter Bar"
 msgstr "필터 표시줄"
 
-#: frame/window/menu_bar.cpp:345
+#: frame/window/menu_bar.cpp:327
 msgid "Tabs"
 msgstr "탭"
 
-#: frame/window/menu_bar.cpp:346
+#: frame/window/menu_bar.cpp:328
 msgid "Status Bar"
 msgstr "상태 표시줄"
 
-#: frame/window/menu_bar.cpp:351
+#: frame/window/menu_bar.cpp:333
 msgid "Keys in List"
 msgstr "목록에 키 표시"
 
-#: frame/window/menu_bar.cpp:352 ui/list_view_support.cpp:176
-#: ui/list_view_support.cpp:184
+#: frame/window/menu_bar.cpp:334 ui/list_view_support.cpp:177
+#: ui/list_view_support.cpp:185
 msgid "Grid Lines"
 msgstr "눈금선"
 
-#: frame/window/menu_bar.cpp:353
+#: frame/window/menu_bar.cpp:335
 msgid "Simulated Keys"
 msgstr "시뮬레이션된 키"
 
-#: frame/window/menu_bar.cpp:354
+#: frame/window/menu_bar.cpp:336
 msgid "Show Extra Root Keys"
 msgstr "추가 루트 키 표시"
 
-#: frame/window/menu_bar.cpp:355
+#: frame/window/menu_bar.cpp:337
 msgid "&View"
 msgstr "보기(&V)"
 
-#: frame/window/menu_bar.cpp:360
+#: frame/window/menu_bar.cpp:342
 msgid "Light"
 msgstr "밝게"
 
-#: frame/window/menu_bar.cpp:361
+#: frame/window/menu_bar.cpp:343
 msgid "Dark"
 msgstr "어둡게"
 
-#: frame/window/menu_bar.cpp:362 frame/window/menu_bar.cpp:369
+#: frame/window/menu_bar.cpp:344 frame/window/menu_bar.cpp:351
 msgid "Custom"
 msgstr "사용자 지정"
 
-#: frame/window/menu_bar.cpp:364
+#: frame/window/menu_bar.cpp:346
 msgid "Theme Presets..."
 msgstr "테마 프리셋..."
 
-#: frame/window/menu_bar.cpp:365
+#: frame/window/menu_bar.cpp:347
 msgid "Theme"
 msgstr "테마"
 
-#: frame/window/menu_bar.cpp:367
+#: frame/window/menu_bar.cpp:349
 msgid "Classic"
 msgstr "클래식"
 
-#: frame/window/menu_bar.cpp:368
+#: frame/window/menu_bar.cpp:350
 msgid "Phosphor"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:370
+#: frame/window/menu_bar.cpp:352
 msgid "Icons"
 msgstr "아이콘"
 
-#: frame/window/menu_bar.cpp:374
+#: frame/window/menu_bar.cpp:356
 msgid "Automatic"
 msgstr "자동"
 
-#: frame/window/menu_bar.cpp:381
+#: frame/window/menu_bar.cpp:363
 msgid "Font..."
 msgstr "글꼴..."
 
-#: frame/window/menu_bar.cpp:383
+#: frame/window/menu_bar.cpp:365
 msgid "Read Only Mode"
 msgstr "읽기 전용 모드"
 
-#: frame/window/menu_bar.cpp:384
+#: frame/window/menu_bar.cpp:366
 msgid "Use Backup/Restore Privileges"
 msgstr "백업/복원 권한 사용"
 
-#: frame/window/menu_bar.cpp:392
+#: frame/window/menu_bar.cpp:374
 msgid "Restart as User"
 msgstr "사용자로 다시 시작"
 
-#: frame/window/menu_bar.cpp:393
+#: frame/window/menu_bar.cpp:375
 msgid "Restart as Admin"
 msgstr "관리자로 다시 시작"
 
-#: frame/window/menu_bar.cpp:394
+#: frame/window/menu_bar.cpp:376
 msgid "Restart as SYSTEM"
 msgstr "SYSTEM으로 다시 시작"
 
-#: frame/window/menu_bar.cpp:395
+#: frame/window/menu_bar.cpp:377
 msgid "Restart as TrustedInstaller"
 msgstr "TrustedInstaller로 다시 시작"
 
-#: frame/window/menu_bar.cpp:397
+#: frame/window/menu_bar.cpp:379
 msgid "Always Run as Admin"
 msgstr "항상 관리자로 실행"
 
-#: frame/window/menu_bar.cpp:398
+#: frame/window/menu_bar.cpp:380
 msgid "Always Run as SYSTEM"
 msgstr "항상 SYSTEM으로 실행"
 
-#: frame/window/menu_bar.cpp:399
+#: frame/window/menu_bar.cpp:381
 msgid "Always Run as TrustedInstaller"
 msgstr "항상 TrustedInstaller로 실행"
 
-#: frame/window/menu_bar.cpp:401
+#: frame/window/menu_bar.cpp:383
 msgid "HKCU Follows Signed-In User"
 msgstr "HKCU가 로그인한 사용자를 따름"
 
-#: frame/window/menu_bar.cpp:402
+#: frame/window/menu_bar.cpp:384
 msgid "Run As"
 msgstr "실행 계정"
 
-#: frame/window/menu_bar.cpp:405
+#: frame/window/menu_bar.cpp:387
 msgid "Add \"Edit\" Context Menu"
 msgstr "\"편집\" 상황에 맞는 메뉴 추가"
 
-#: frame/window/menu_bar.cpp:406
+#: frame/window/menu_bar.cpp:388
 msgid "Single Instance"
 msgstr "단일 인스턴스"
 
-#: frame/window/menu_bar.cpp:407
+#: frame/window/menu_bar.cpp:389
 msgid "Autocomplete Key Paths"
 msgstr "키 경로 자동 완성"
 
-#: frame/window/menu_bar.cpp:409
+#: frame/window/menu_bar.cpp:391
 msgid "All Tabs"
 msgstr "모든 탭"
 
-#: frame/window/menu_bar.cpp:411
+#: frame/window/menu_bar.cpp:393
 msgid "Local Registry Tabs"
 msgstr "로컬 레지스트리 탭"
 
-#: frame/window/menu_bar.cpp:412
+#: frame/window/menu_bar.cpp:394
 msgid "Offline Hive Tabs"
 msgstr "오프라인 하이브 탭"
 
-#: frame/window/menu_bar.cpp:413
+#: frame/window/menu_bar.cpp:395
 msgid "Remote Registry Tabs"
 msgstr "원격 레지스트리 탭"
 
-#: frame/window/menu_bar.cpp:415
+#: frame/window/menu_bar.cpp:397
 msgid "Find Results"
 msgstr "찾기 결과"
 
-#: frame/window/menu_bar.cpp:416
+#: frame/window/menu_bar.cpp:398
 msgid "Comparison Results"
 msgstr "비교 결과"
 
-#: frame/window/menu_bar.cpp:417
+#: frame/window/menu_bar.cpp:399
 msgid ".reg File Tabs"
 msgstr ".reg 파일 탭"
 
-#: frame/window/menu_bar.cpp:419
+#: frame/window/menu_bar.cpp:401
 msgid "Save Tabs"
 msgstr "탭 저장"
 
-#: frame/window/menu_bar.cpp:420
+#: frame/window/menu_bar.cpp:402
 msgid "Save Previous Tree State"
 msgstr "이전 트리 상태 저장"
 
-#: frame/window/menu_bar.cpp:421
+#: frame/window/menu_bar.cpp:403
 msgid "Clear History on Exit"
 msgstr "종료 시 기록 지우기"
 
-#: frame/window/menu_bar.cpp:422
+#: frame/window/menu_bar.cpp:404
 msgid "Clear Tabs on Exit"
 msgstr "종료 시 탭 지우기"
 
-#: frame/window/menu_bar.cpp:427
+#: frame/window/menu_bar.cpp:409
 msgid "Tab Sessions"
 msgstr "탭 세션"
 
-#: frame/window/menu_bar.cpp:428
+#: frame/window/menu_bar.cpp:410
 msgid "Change History"
 msgstr "변경 기록"
 
-#: frame/window/menu_bar.cpp:429
+#: frame/window/menu_bar.cpp:411
 msgid "Search History"
 msgstr "검색 기록"
 
-#: frame/window/menu_bar.cpp:430
+#: frame/window/menu_bar.cpp:412
+msgid "Dialog Options"
+msgstr "대화 상자 옵션"
+
+#: frame/window/menu_bar.cpp:413
 msgid "Tree State"
 msgstr "트리 상태"
 
-#: frame/window/menu_bar.cpp:431
+#: frame/window/menu_bar.cpp:414
 msgid "Temporary Files"
 msgstr "임시 파일"
 
-#: frame/window/menu_bar.cpp:432
+#: frame/window/menu_bar.cpp:415
 msgid "Clear Caches"
 msgstr "캐시 지우기"
 
-#: frame/window/menu_bar.cpp:433
+#: frame/window/menu_bar.cpp:416
 msgid "Reset Settings..."
 msgstr "설정 초기화..."
 
-#: frame/window/menu_bar.cpp:435
+#: frame/window/menu_bar.cpp:418
 msgid "Add to Favorites..."
 msgstr "즐겨찾기에 추가..."
 
-#: frame/window/menu_bar.cpp:436
+#: frame/window/menu_bar.cpp:419
 msgid "Remove Favorite"
 msgstr "즐겨찾기 제거"
 
-#: frame/window/menu_bar.cpp:437
+#: frame/window/menu_bar.cpp:420
 msgid "Edit Favorites..."
 msgstr "즐겨찾기 편집..."
 
-#: frame/window/menu_bar.cpp:439
+#: frame/window/menu_bar.cpp:422
 msgid "Import Favorites..."
 msgstr "즐겨찾기 가져오기..."
 
-#: frame/window/menu_bar.cpp:440
+#: frame/window/menu_bar.cpp:423
 msgid "Import RegEdit Favorites"
 msgstr "RegEdit 즐겨찾기 가져오기"
 
-#: frame/window/menu_bar.cpp:441
+#: frame/window/menu_bar.cpp:424
 msgid "Export Favorites..."
 msgstr "즐겨찾기 내보내기..."
 
-#: frame/window/menu_bar.cpp:455
+#: frame/window/menu_bar.cpp:438
 msgid "F&avorites"
 msgstr "즐겨찾기(&A)"
 
-#: frame/window/menu_bar.cpp:456
+#: frame/window/menu_bar.cpp:439
 msgid "&Options"
 msgstr "옵션(&O)"
 
-#: frame/window/menu_bar.cpp:460
+#: frame/window/menu_bar.cpp:443
 msgid "Convert File..."
 msgstr "파일 변환..."
 
-#: frame/window/menu_bar.cpp:461
+#: frame/window/menu_bar.cpp:444
 msgid "Key Handles..."
 msgstr "키 핸들..."
 
-#: frame/window/menu_bar.cpp:463
+#: frame/window/menu_bar.cpp:446
 msgid "New Definition File..."
 msgstr "새 정의 파일..."
 
-#: frame/window/menu_bar.cpp:465
+#: frame/window/menu_bar.cpp:448
 msgid "&Tools"
 msgstr "도구(&T)"
 
-#: frame/window/menu_bar.cpp:468
+#: frame/window/menu_bar.cpp:451
 msgid "New Window"
 msgstr "새 창"
 
-#: frame/window/menu_bar.cpp:470
+#: frame/window/menu_bar.cpp:453
 msgid "Close Tab"
 msgstr "탭 닫기"
 
-#: frame/window/menu_bar.cpp:471
+#: frame/window/menu_bar.cpp:454
 msgid "Close Window"
 msgstr "창 닫기"
 
-#: frame/window/menu_bar.cpp:473
+#: frame/window/menu_bar.cpp:456
 msgid "Always on Top"
 msgstr "항상 위"
 
-#: frame/window/menu_bar.cpp:474
+#: frame/window/menu_bar.cpp:457
 msgid "&Window"
 msgstr "창(&W)"
 
-#: frame/window/menu_bar.cpp:477
+#: frame/window/menu_bar.cpp:460
 msgid "23H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:478
+#: frame/window/menu_bar.cpp:461
 msgid "24H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:479
+#: frame/window/menu_bar.cpp:462
 msgid "25H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:502
+#: frame/window/menu_bar.cpp:485
 msgid "Open Trace File..."
 msgstr "Trace 파일 열기..."
 
-#: frame/window/menu_bar.cpp:504
+#: frame/window/menu_bar.cpp:487
 msgid "Edit Active Traces..."
 msgstr "활성 Trace 편집..."
 
-#: frame/window/menu_bar.cpp:505
+#: frame/window/menu_bar.cpp:488
 msgid "Clear Active Traces"
 msgstr "활성 Trace 지우기"
 
-#: frame/window/menu_bar.cpp:507
+#: frame/window/menu_bar.cpp:490
 msgid "Edit Recent Traces..."
 msgstr "최근 Trace 편집..."
 
-#: frame/window/menu_bar.cpp:508
+#: frame/window/menu_bar.cpp:491
 msgid "Clear Recent Traces"
 msgstr "최근 Trace 지우기"
 
-#: frame/window/menu_bar.cpp:510
+#: frame/window/menu_bar.cpp:493
 msgid "Guide"
 msgstr "가이드"
 
-#: frame/window/menu_bar.cpp:553
+#: frame/window/menu_bar.cpp:536
 msgid "Open Default File..."
 msgstr "기본값 파일 열기..."
 
-#: frame/window/menu_bar.cpp:555
+#: frame/window/menu_bar.cpp:538
 msgid "Edit Active Defaults..."
 msgstr "활성 기본값 편집..."
 
-#: frame/window/menu_bar.cpp:556
+#: frame/window/menu_bar.cpp:539
 msgid "Clear Active Defaults"
 msgstr "활성 기본값 지우기"
 
-#: frame/window/menu_bar.cpp:558
+#: frame/window/menu_bar.cpp:541
 msgid "Edit Recent Defaults..."
 msgstr "최근 기본값 편집..."
 
-#: frame/window/menu_bar.cpp:559
+#: frame/window/menu_bar.cpp:542
 msgid "Clear Recent Defaults"
 msgstr "최근 기본값 지우기"
 
-#: frame/window/menu_bar.cpp:561
+#: frame/window/menu_bar.cpp:544
 msgid "Enable Context Menu (risky)"
 msgstr "상황에 맞는 메뉴 사용 (위험)"
 
-#: frame/window/menu_bar.cpp:564
+#: frame/window/menu_bar.cpp:547
 msgid "Documentation"
 msgstr "설명서"
 
-#: frame/window/menu_bar.cpp:567
+#: frame/window/menu_bar.cpp:550
 msgid "Check for Updates"
 msgstr "업데이트 확인"
 
-#: frame/window/menu_bar.cpp:568
+#: frame/window/menu_bar.cpp:551
 msgid "Check for Updates Automatically"
 msgstr "업데이트 자동 확인"
 
-#: frame/window/menu_bar.cpp:570 ui/feedback.cpp:525
+#: frame/window/menu_bar.cpp:553 ui/feedback.cpp:525
 msgid "About RegKit"
 msgstr "RegKit 정보"
 
-#: frame/window/menu_bar.cpp:583
+#: frame/window/menu_bar.cpp:566
 msgid "T&race"
 msgstr "Trace(&R)"
 
-#: frame/window/menu_bar.cpp:584
+#: frame/window/menu_bar.cpp:567
 msgid "Defa&ult"
 msgstr "기본값(&U)"
 
-#: frame/window/menu_bar.cpp:585
+#: frame/window/menu_bar.cpp:568
 msgid "Re&search"
 msgstr "자료(&S)"
 
-#: frame/window/menu_bar.cpp:586
+#: frame/window/menu_bar.cpp:569
 msgid "&Help"
 msgstr "도움말(&H)"
 
@@ -2870,20 +2913,20 @@ msgstr ""
 msgid "Open .reg File"
 msgstr ".reg 파일 열기"
 
-#: frame/window/message_routes.cpp:570 search/regex.cpp:286
+#: frame/window/message_routes.cpp:569 search/regex.cpp:286
 #: search/regex.cpp:288
 msgid "The find text isn't a valid regular expression."
 msgstr "찾을 텍스트가 올바른 정규식이 아닙니다."
 
-#: frame/window/notifications.cpp:143 frame/window/notifications.cpp:1235
+#: frame/window/notifications.cpp:144 frame/window/notifications.cpp:1235
 msgid "(Key)"
 msgstr "(키)"
 
-#: frame/window/notifications.cpp:150 frame/window/notifications.cpp:1253
+#: frame/window/notifications.cpp:151 frame/window/notifications.cpp:1253
 msgid "Same"
 msgstr "같음"
 
-#: frame/window/notifications.cpp:150 frame/window/notifications.cpp:1253
+#: frame/window/notifications.cpp:151 frame/window/notifications.cpp:1253
 msgid "Different"
 msgstr "다름"
 
@@ -2928,20 +2971,20 @@ msgstr "잘못된 인수"
 msgid "Registry paths with spaces must be in quotes."
 msgstr "공백이 포함된 레지스트리 경로는 따옴표로 묶어야 합니다."
 
-#: launch/program.cpp:511
+#: launch/program.cpp:518
 msgid "Message loop failed unexpectedly."
 msgstr "메시지 루프가 예기치 않게 실패했습니다."
 
-#: launch/program.cpp:606
+#: launch/program.cpp:613
 msgid "Administrator restart was cancelled."
 msgstr "관리자 권한으로 다시 시작하는 작업이 취소되었습니다."
 
-#: launch/program.cpp:636
+#: launch/program.cpp:643
 msgid "Failed to create the main window."
 msgstr "주 창을 만들지 못했습니다."
 
 #: records/json.cpp:89 records/json.cpp:106 records/json.cpp:146
-#: records/json.cpp:303 records/json.cpp:314 records/json.cpp:331
+#: records/json.cpp:289 records/json.cpp:300 records/json.cpp:317
 msgid "The file isn't valid JSON."
 msgstr "파일이 올바른 JSON이 아닙니다."
 
@@ -2965,31 +3008,27 @@ msgstr "문자열에 이스케이프되지 않은 제어 문자가 있습니다.
 msgid "A string contains a malformed escape."
 msgstr "문자열에 잘못된 이스케이프가 있습니다."
 
-#: records/json.cpp:220 records/json.cpp:231
-msgid "A string contains a lone surrogate."
-msgstr "문자열에 단독 서로게이트가 있습니다."
-
-#: records/json.cpp:237
+#: records/json.cpp:223
 msgid "A string contains an unsupported escape."
 msgstr "문자열에 지원되지 않는 이스케이프가 있습니다."
 
-#: records/json.cpp:246
+#: records/json.cpp:232
 msgid "An unsigned number was expected."
 msgstr "부호 없는 숫자가 필요합니다."
 
-#: records/json.cpp:250
+#: records/json.cpp:236
 msgid "A number has a leading zero."
 msgstr "숫자 앞에 0이 있습니다."
 
-#: records/json.cpp:258
+#: records/json.cpp:244
 msgid "A number is out of range."
 msgstr "숫자가 범위를 벗어났습니다."
 
-#: records/json.cpp:264
+#: records/json.cpp:250
 msgid "Only unsigned integers are supported."
 msgstr "부호 없는 정수만 지원됩니다."
 
-#: records/json.cpp:340
+#: records/json.cpp:326
 msgid "The file contains trailing content."
 msgstr "파일 끝에 불필요한 내용이 있습니다."
 
@@ -2997,7 +3036,7 @@ msgstr "파일 끝에 불필요한 내용이 있습니다."
 msgid "Unsupported reg command"
 msgstr "지원되지 않는 reg 명령"
 
-#: regfile/batch_script.cpp:196 regfile/batch_script.cpp:510
+#: regfile/batch_script.cpp:196 regfile/batch_script.cpp:532
 #: regfile/script_convert.cpp:109
 msgid "Invalid key name."
 msgstr "키 이름이 잘못되었습니다."
@@ -3022,48 +3061,49 @@ msgstr "파이프는 지원되지 않습니다."
 msgid "Batch arguments can't be resolved."
 msgstr "배치 인수를 해석할 수 없습니다."
 
-#: regfile/batch_script.cpp:366 regfile/powershell_script.cpp:764
-#: regfile/powershell_script.cpp:821
+#: regfile/batch_script.cpp:366 regfile/powershell_script.cpp:783
+#: regfile/powershell_script.cpp:840
 msgid "Variable can't be resolved"
 msgstr "변수를 해석할 수 없음"
 
-#: regfile/batch_script.cpp:404 regfile/powershell_script.cpp:1386
+#: regfile/batch_script.cpp:406 regfile/powershell_script.cpp:1423
 msgid "Line"
 msgstr "줄"
 
-#: regfile/batch_script.cpp:445
-msgid "reg query is only supported in the form RegKit writes for empty keys."
-msgstr "reg query는 RegKit이 빈 키에 대해 작성하는 형식만 지원됩니다."
-
-#: regfile/batch_script.cpp:460
-msgid "set /a and set /p aren't supported."
-msgstr "set /a 및 set /p는 지원되지 않습니다."
-
-#: regfile/batch_script.cpp:480 regfile/powershell_script.cpp:1169
+#: regfile/batch_script.cpp:443 regfile/batch_script.cpp:502
+#: regfile/powershell_script.cpp:1202
 msgid "Unsupported command"
 msgstr "지원되지 않는 명령"
 
-#: regfile/batch_script.cpp:502
+#: regfile/batch_script.cpp:453
+msgid "reg query is only supported in the form RegKit writes for empty keys."
+msgstr "reg query는 RegKit이 빈 키에 대해 작성하는 형식만 지원됩니다."
+
+#: regfile/batch_script.cpp:468
+msgid "set /a and set /p aren't supported."
+msgstr "set /a 및 set /p는 지원되지 않습니다."
+
+#: regfile/batch_script.cpp:524
 msgid "contains a line break"
 msgstr "줄 바꿈 포함"
 
-#: regfile/batch_script.cpp:506
+#: regfile/batch_script.cpp:528
 msgid "reg.exe trims leading and trailing spaces"
 msgstr "reg.exe가 앞뒤 공백을 제거함"
 
-#: regfile/batch_script.cpp:525 regfile/powershell_script.cpp:1417
+#: regfile/batch_script.cpp:547 regfile/powershell_script.cpp:1454
 msgid "a root key can't be deleted"
 msgstr "루트 키는 삭제할 수 없음"
 
-#: regfile/batch_script.cpp:543
+#: regfile/batch_script.cpp:565
 msgid "reg.exe can't write this data type"
 msgstr "reg.exe가 이 데이터 형식을 쓸 수 없음"
 
-#: regfile/batch_script.cpp:548
+#: regfile/batch_script.cpp:570
 msgid "too long for a batch line"
 msgstr "배치 줄에 넣기에 너무 김"
 
-#: regfile/batch_script.cpp:552 search/regex.cpp:273
+#: regfile/batch_script.cpp:574 search/regex.cpp:273
 msgid "The text isn't valid UTF-16."
 msgstr "텍스트가 올바른 UTF-16이 아닙니다."
 
@@ -3099,8 +3139,8 @@ msgstr "지원되지 않는 숫자"
 msgid "Unexpected character"
 msgstr "예기치 않은 문자"
 
-#: regfile/powershell_script.cpp:506 regfile/powershell_script.cpp:628
-#: regfile/powershell_script.cpp:725 regfile/powershell_script.cpp:805
+#: regfile/powershell_script.cpp:506 regfile/powershell_script.cpp:647
+#: regfile/powershell_script.cpp:744 regfile/powershell_script.cpp:824
 msgid "Unexpected token"
 msgstr "예기치 않은 토큰"
 
@@ -3108,116 +3148,118 @@ msgstr "예기치 않은 토큰"
 msgid "Expected"
 msgstr "필요한 항목"
 
-#: regfile/powershell_script.cpp:600
+#: regfile/powershell_script.cpp:588 regfile/powershell_script.cpp:604
+#: regfile/powershell_script.cpp:620
 msgid "Only if conditions on Test-Path are supported."
 msgstr "Test-Path에 대한 if 조건만 지원됩니다."
 
-#: regfile/powershell_script.cpp:619
-msgid "Expected '}'."
-msgstr "'}'가 필요합니다."
-
-#: regfile/powershell_script.cpp:635
-msgid "else blocks aren't supported."
-msgstr "else 블록은 지원되지 않습니다."
-
-#: regfile/powershell_script.cpp:646
-msgid "Only | Out-Null pipelines are supported."
-msgstr "| Out-Null 파이프라인만 지원됩니다."
-
-#: regfile/powershell_script.cpp:670
-msgid "-WhatIf makes no changes and can't be converted."
-msgstr "-WhatIf는 변경을 수행하지 않아 변환할 수 없습니다."
-
-#: regfile/powershell_script.cpp:849
-msgid "Expected a member name."
-msgstr "멤버 이름이 필요합니다."
-
-#: regfile/powershell_script.cpp:859
-msgid "Unexpected type"
-msgstr "예기치 않은 형식"
-
-#: regfile/powershell_script.cpp:892
-msgid "Invalid RegKit.Native call."
-msgstr "잘못된 RegKit.Native 호출입니다."
-
-#: regfile/powershell_script.cpp:901 regfile/powershell_script.cpp:911
-#: regfile/powershell_script.cpp:947
-msgid "Unsupported member"
-msgstr "지원되지 않는 멤버"
-
-#: regfile/powershell_script.cpp:961
-msgid "Expected text."
-msgstr "텍스트가 필요합니다."
-
-#: regfile/powershell_script.cpp:973 regfile/powershell_script.cpp:1006
-msgid "Byte values must be numbers from 0 to 255."
-msgstr "바이트 값은 0부터 255까지의 숫자여야 합니다."
-
-#: regfile/powershell_script.cpp:1020
-msgid "The number doesn't fit an [int]."
-msgstr "숫자가 [int] 범위를 벗어납니다."
-
-#: regfile/powershell_script.cpp:1032
-msgid "Unsupported cast"
-msgstr "지원되지 않는 캐스트"
-
-#: regfile/powershell_script.cpp:1060
-msgid "Invalid number"
-msgstr "잘못된 숫자"
-
-#: regfile/powershell_script.cpp:1064
-msgid "Expected a number."
-msgstr "숫자가 필요합니다."
-
-#: regfile/powershell_script.cpp:1068
-msgid "The number doesn't fit a DWORD."
-msgstr "숫자가 DWORD 범위를 벗어납니다."
-
-#: regfile/powershell_script.cpp:1090
-msgid "The value type can't be inferred, add -Type."
-msgstr "값 형식을 추론할 수 없습니다, -Type을 추가하세요."
-
-#: regfile/powershell_script.cpp:1090
-msgid "Unsupported value type"
-msgstr "지원되지 않는 값 형식"
-
-#: regfile/powershell_script.cpp:1119 regfile/powershell_script.cpp:1135
-msgid "Not a registry path"
-msgstr "레지스트리 경로가 아님"
-
-#: regfile/powershell_script.cpp:1129
-msgid "Wildcard paths can't be converted, use -LiteralPath."
-msgstr "와일드카드 경로는 변환할 수 없습니다, -LiteralPath를 사용하세요."
-
-#: regfile/powershell_script.cpp:1162
-msgid "Only registry drives are supported."
-msgstr "레지스트리 드라이브만 지원됩니다."
-
-#: regfile/powershell_script.cpp:1173
-msgid "Only New-Item can follow if (-not (Test-Path)), and only removals can follow if (Test-Path)."
-msgstr "if (-not (Test-Path)) 뒤에는 New-Item만 올 수 있으며 if (Test-Path) 뒤에는 제거 작업만 올 수 있습니다."
-
-#: regfile/powershell_script.cpp:1180
-msgid "A -Path is required."
-msgstr "-Path가 필요합니다."
-
-#: regfile/powershell_script.cpp:1190
+#: regfile/powershell_script.cpp:613 regfile/powershell_script.cpp:1213
+#: regfile/powershell_script.cpp:1221
 msgid "Unsupported parameter"
 msgstr "지원되지 않는 매개 변수"
 
-#: regfile/powershell_script.cpp:1216
+#: regfile/powershell_script.cpp:638
+msgid "Expected '}'."
+msgstr "'}'가 필요합니다."
+
+#: regfile/powershell_script.cpp:654
+msgid "else blocks aren't supported."
+msgstr "else 블록은 지원되지 않습니다."
+
+#: regfile/powershell_script.cpp:665
+msgid "Only | Out-Null pipelines are supported."
+msgstr "| Out-Null 파이프라인만 지원됩니다."
+
+#: regfile/powershell_script.cpp:689
+msgid "-WhatIf makes no changes and can't be converted."
+msgstr "-WhatIf는 변경을 수행하지 않아 변환할 수 없습니다."
+
+#: regfile/powershell_script.cpp:868
+msgid "Expected a member name."
+msgstr "멤버 이름이 필요합니다."
+
+#: regfile/powershell_script.cpp:878
+msgid "Unexpected type"
+msgstr "예기치 않은 형식"
+
+#: regfile/powershell_script.cpp:911
+msgid "Invalid RegKit.Native call."
+msgstr "잘못된 RegKit.Native 호출입니다."
+
+#: regfile/powershell_script.cpp:920 regfile/powershell_script.cpp:930
+#: regfile/powershell_script.cpp:966
+msgid "Unsupported member"
+msgstr "지원되지 않는 멤버"
+
+#: regfile/powershell_script.cpp:980
+msgid "Expected text."
+msgstr "텍스트가 필요합니다."
+
+#: regfile/powershell_script.cpp:992 regfile/powershell_script.cpp:1025
+msgid "Byte values must be numbers from 0 to 255."
+msgstr "바이트 값은 0부터 255까지의 숫자여야 합니다."
+
+#: regfile/powershell_script.cpp:1039
+msgid "The number doesn't fit an [int]."
+msgstr "숫자가 [int] 범위를 벗어납니다."
+
+#: regfile/powershell_script.cpp:1051
+msgid "Unsupported cast"
+msgstr "지원되지 않는 캐스트"
+
+#: regfile/powershell_script.cpp:1079
+msgid "Invalid number"
+msgstr "잘못된 숫자"
+
+#: regfile/powershell_script.cpp:1083
+msgid "Expected a number."
+msgstr "숫자가 필요합니다."
+
+#: regfile/powershell_script.cpp:1087
+msgid "The number doesn't fit a DWORD."
+msgstr "숫자가 DWORD 범위를 벗어납니다."
+
+#: regfile/powershell_script.cpp:1109
+msgid "The value type can't be inferred, add -Type."
+msgstr "값 형식을 추론할 수 없습니다, -Type을 추가하세요."
+
+#: regfile/powershell_script.cpp:1109
+msgid "Unsupported value type"
+msgstr "지원되지 않는 값 형식"
+
+#: regfile/powershell_script.cpp:1138 regfile/powershell_script.cpp:1154
+msgid "Not a registry path"
+msgstr "레지스트리 경로가 아님"
+
+#: regfile/powershell_script.cpp:1148
+msgid "Wildcard paths can't be converted, use -LiteralPath."
+msgstr "와일드카드 경로는 변환할 수 없습니다, -LiteralPath를 사용하세요."
+
+#: regfile/powershell_script.cpp:1169
+msgid "A -Path is required."
+msgstr "-Path가 필요합니다."
+
+#: regfile/powershell_script.cpp:1195
+msgid "Only registry drives are supported."
+msgstr "레지스트리 드라이브만 지원됩니다."
+
+#: regfile/powershell_script.cpp:1206 regfile/powershell_script.cpp:1231
+msgid "Only New-Item can follow if (-not (Test-Path)), and only removals can follow if (Test-Path)."
+msgstr "if (-not (Test-Path)) 뒤에는 New-Item만 올 수 있으며 if (Test-Path) 뒤에는 제거 작업만 올 수 있습니다."
+
+#: regfile/powershell_script.cpp:1252
 msgid "-Name and -Value are required."
 msgstr "-Name 및 -Value가 필요합니다."
 
-#: regfile/powershell_script.cpp:1225
+#: regfile/powershell_script.cpp:1261
 msgid "-Name is required."
 msgstr "-Name이 필요합니다."
 
-#: regfile/powershell_script.cpp:1233
+#: regfile/powershell_script.cpp:1269
 msgid "Wildcard value names can't be converted."
 msgstr "와일드카드 값 이름은 변환할 수 없습니다."
 
-#: regfile/powershell_script.cpp:1410
+#: regfile/powershell_script.cpp:1447
 msgid "contains control characters"
 msgstr "제어 문자 포함"
 
@@ -3260,10 +3302,6 @@ msgstr "이름에 null 문자 포함"
 #: regfile/reg_file.cpp:427
 msgid "The file contains an entry RegKit can't parse."
 msgstr "파일에 RegKit이 구문 분석할 수 없는 항목이 있습니다."
-
-#: regfile/reg_file.cpp:632
-msgid "The file is larger than RegKit can load."
-msgstr "파일 크기가 RegKit이 로드할 수 있는 범위를 초과합니다."
 
 #: regfile/script_convert.cpp:51
 msgid "Unsupported file type, use .reg, .bat, .cmd or .ps1."
@@ -3399,7 +3437,7 @@ msgstr "시작 주소"
 
 #: registry/resource_list.cpp:273 registry/resource_list.cpp:292
 #: registry/resource_list.cpp:365 registry/resource_list.cpp:379
-#: registry/value_decoder.cpp:609
+#: registry/value_decoder.cpp:602
 msgid "Length"
 msgstr "길이"
 
@@ -3424,7 +3462,7 @@ msgid "Level"
 msgstr "수준"
 
 #: registry/resource_list.cpp:285 registry/resource_list.cpp:369
-#: registry/value_decoder.cpp:695
+#: registry/value_decoder.cpp:688
 msgid "Group"
 msgstr "그룹"
 
@@ -3570,7 +3608,7 @@ msgstr "Base64 문자가 잘못되었습니다."
 msgid "Invalid Base64 padding bits."
 msgstr "Base64 패딩 비트가 잘못되었습니다."
 
-#: registry/value_decoder.cpp:169 registry/value_decoder.cpp:426
+#: registry/value_decoder.cpp:169 registry/value_decoder.cpp:419
 msgid "Input is too large to decode."
 msgstr "입력이 너무 커서 디코딩할 수 없습니다."
 
@@ -3618,235 +3656,235 @@ msgstr "퍼센트 이스케이프가 잘못되었습니다."
 msgid "Percent encoded text must be ASCII."
 msgstr "퍼센트로 인코딩된 텍스트는 ASCII여야 합니다."
 
-#: registry/value_decoder.cpp:360 registry/value_decoder.cpp:369
+#: registry/value_decoder.cpp:353 registry/value_decoder.cpp:362
 msgid "Invalid FILETIME."
 msgstr "FILETIME이 잘못되었습니다."
 
-#: registry/value_decoder.cpp:376
+#: registry/value_decoder.cpp:369
 msgid "Local"
 msgstr "로컬"
 
-#: registry/value_decoder.cpp:430 registry/value_decoder.cpp:437
-#: registry/value_decoder.cpp:469 registry/value_decoder.cpp:484
+#: registry/value_decoder.cpp:423 registry/value_decoder.cpp:430
+#: registry/value_decoder.cpp:462 registry/value_decoder.cpp:477
 #: ui/preset_editor.cpp:44
 msgid "Text"
 msgstr "텍스트"
 
-#: registry/value_decoder.cpp:430 registry/value_decoder.cpp:437
-#: registry/value_decoder.cpp:484 registry/value_decoder.cpp:841
+#: registry/value_decoder.cpp:423 registry/value_decoder.cpp:430
+#: registry/value_decoder.cpp:477 registry/value_decoder.cpp:834
 msgid "Bytes"
 msgstr "바이트"
 
-#: registry/value_decoder.cpp:435
+#: registry/value_decoder.cpp:428
 msgid "Invalid UTF-8."
 msgstr "UTF-8이 잘못되었습니다."
 
-#: registry/value_decoder.cpp:444
+#: registry/value_decoder.cpp:437
 msgid "UTF-16 needs an even byte count."
 msgstr "UTF-16에는 짝수 개의 바이트가 필요합니다."
 
-#: registry/value_decoder.cpp:467
+#: registry/value_decoder.cpp:460
 msgid "Invalid UTF-16 surrogate pair."
 msgstr "UTF-16 서로게이트 쌍이 잘못되었습니다."
 
-#: registry/value_decoder.cpp:469
+#: registry/value_decoder.cpp:462
 msgid "Code units"
 msgstr "코드 단위"
 
-#: registry/value_decoder.cpp:480
+#: registry/value_decoder.cpp:473
 msgid "A byte isn't ASCII."
 msgstr "바이트가 ASCII가 아닙니다."
 
-#: registry/value_decoder.cpp:491
+#: registry/value_decoder.cpp:484
 msgid "A FILETIME needs exactly 8 bytes."
 msgstr "FILETIME에는 정확히 8바이트가 필요합니다."
 
-#: registry/value_decoder.cpp:497
+#: registry/value_decoder.cpp:490
 msgid "Raw ticks"
 msgstr "원시 틱 수"
 
-#: registry/value_decoder.cpp:511
+#: registry/value_decoder.cpp:504
 msgid "A SYSTEMTIME needs exactly 16 bytes."
 msgstr "SYSTEMTIME에는 정확히 16바이트가 필요합니다."
 
-#: registry/value_decoder.cpp:521
+#: registry/value_decoder.cpp:514
 msgid "Invalid SYSTEMTIME."
 msgstr "SYSTEMTIME이 잘못되었습니다."
 
-#: registry/value_decoder.cpp:525
+#: registry/value_decoder.cpp:518
 msgid "Date and time"
 msgstr "날짜 및 시간"
 
-#: registry/value_decoder.cpp:526
+#: registry/value_decoder.cpp:519
 msgid "Year"
 msgstr "연도"
 
-#: registry/value_decoder.cpp:527
+#: registry/value_decoder.cpp:520
 msgid "Month"
 msgstr "월"
 
-#: registry/value_decoder.cpp:528
+#: registry/value_decoder.cpp:521
 msgid "Day"
 msgstr "일"
 
-#: registry/value_decoder.cpp:529
+#: registry/value_decoder.cpp:522
 msgid "Day of week"
 msgstr "요일"
 
-#: registry/value_decoder.cpp:530
+#: registry/value_decoder.cpp:523
 msgid "Hour"
 msgstr "시"
 
-#: registry/value_decoder.cpp:531
+#: registry/value_decoder.cpp:524
 msgid "Minute"
 msgstr "분"
 
-#: registry/value_decoder.cpp:532
+#: registry/value_decoder.cpp:525
 msgid "Second"
 msgstr "초"
 
-#: registry/value_decoder.cpp:533 registry/value_decoder.cpp:553
+#: registry/value_decoder.cpp:526 registry/value_decoder.cpp:546
 msgid "Milliseconds"
 msgstr "밀리초"
 
-#: registry/value_decoder.cpp:541
+#: registry/value_decoder.cpp:534
 msgid "Unix time needs exactly 4 or 8 bytes."
 msgstr "Unix 시간에는 정확히 4 또는 8바이트가 필요합니다."
 
-#: registry/value_decoder.cpp:548 registry/value_decoder.cpp:557
+#: registry/value_decoder.cpp:541 registry/value_decoder.cpp:550
 msgid "Unix time is out of range."
 msgstr "Unix 시간이 범위를 벗어났습니다."
 
-#: registry/value_decoder.cpp:553
+#: registry/value_decoder.cpp:546
 msgid "Seconds"
 msgstr "초"
 
-#: registry/value_decoder.cpp:567
+#: registry/value_decoder.cpp:560
 msgid "A GUID needs exactly 16 bytes."
 msgstr "GUID에는 정확히 16바이트가 필요합니다."
 
-#: registry/value_decoder.cpp:574
+#: registry/value_decoder.cpp:567
 msgid "The GUID couldn't be formatted."
 msgstr "GUID 형식을 지정하지 못했습니다."
 
-#: registry/value_decoder.cpp:593 registry/value_decoder.cpp:657
-#: registry/value_decoder.cpp:669
+#: registry/value_decoder.cpp:586 registry/value_decoder.cpp:650
+#: registry/value_decoder.cpp:662
 msgid "Truncated structure."
 msgstr "구조가 잘렸습니다."
 
-#: registry/value_decoder.cpp:599 registry/value_decoder.cpp:604
+#: registry/value_decoder.cpp:592 registry/value_decoder.cpp:597
 msgid "Invalid SID."
 msgstr "SID가 잘못되었습니다."
 
-#: registry/value_decoder.cpp:623
+#: registry/value_decoder.cpp:616
 msgid "Account"
 msgstr "계정"
 
-#: registry/value_decoder.cpp:664
+#: registry/value_decoder.cpp:657
 msgid "Not a self relative security descriptor."
 msgstr "자기 상대 보안 설명자가 아닙니다."
 
-#: registry/value_decoder.cpp:675
+#: registry/value_decoder.cpp:668
 msgid "Invalid security descriptor."
 msgstr "보안 설명자가 잘못되었습니다."
 
-#: registry/value_decoder.cpp:685
+#: registry/value_decoder.cpp:678
 msgid "The security descriptor couldn't be converted."
 msgstr "보안 설명자를 변환하지 못했습니다."
 
-#: registry/value_decoder.cpp:688
+#: registry/value_decoder.cpp:681
 msgid "absent"
 msgstr "없음"
 
-#: registry/value_decoder.cpp:688
+#: registry/value_decoder.cpp:681
 msgid "present"
 msgstr "있음"
 
-#: registry/value_decoder.cpp:694
+#: registry/value_decoder.cpp:687
 msgid "Owner"
 msgstr "소유자"
 
-#: registry/value_decoder.cpp:706
+#: registry/value_decoder.cpp:699
 msgid "An IPv6 address needs exactly 16 bytes."
 msgstr "IPv6 주소에는 정확히 16바이트가 필요합니다."
 
-#: registry/value_decoder.cpp:706
+#: registry/value_decoder.cpp:699
 msgid "An IPv4 address needs exactly 4 bytes."
 msgstr "IPv4 주소에는 정확히 4바이트가 필요합니다."
 
-#: registry/value_decoder.cpp:713
+#: registry/value_decoder.cpp:706
 msgid "The address couldn't be formatted."
 msgstr "주소 형식을 지정하지 못했습니다."
 
-#: registry/value_decoder.cpp:715
+#: registry/value_decoder.cpp:708
 msgid "Address"
 msgstr "주소"
 
-#: registry/value_decoder.cpp:745
+#: registry/value_decoder.cpp:738
 msgid "Hex bytes"
 msgstr "16진수 바이트"
 
-#: registry/value_decoder.cpp:746
+#: registry/value_decoder.cpp:739
 msgid "URI percent encoding"
 msgstr "URI 퍼센트 인코딩"
 
-#: registry/value_decoder.cpp:754
+#: registry/value_decoder.cpp:747
 msgid "Raw bytes"
 msgstr "원시 바이트"
 
-#: registry/value_decoder.cpp:755
+#: registry/value_decoder.cpp:748
 msgid "UTF-8 text"
 msgstr "UTF-8 텍스트"
 
-#: registry/value_decoder.cpp:758
+#: registry/value_decoder.cpp:751
 msgid "UTF-16 LE text"
 msgstr "UTF-16 LE 텍스트"
 
-#: registry/value_decoder.cpp:759
+#: registry/value_decoder.cpp:752
 msgid "UTF-16 BE text"
 msgstr "UTF-16 BE 텍스트"
 
-#: registry/value_decoder.cpp:761
+#: registry/value_decoder.cpp:754
 msgid "ASCII text"
 msgstr "ASCII 텍스트"
 
-#: registry/value_decoder.cpp:765
+#: registry/value_decoder.cpp:758
 msgid "Windows FILETIME"
 msgstr "Windows FILETIME"
 
-#: registry/value_decoder.cpp:769
+#: registry/value_decoder.cpp:762
 msgid "Windows SYSTEMTIME"
 msgstr "Windows SYSTEMTIME"
 
-#: registry/value_decoder.cpp:773
+#: registry/value_decoder.cpp:766
 msgid "Unix time (seconds)"
 msgstr "Unix 시간 (초)"
 
-#: registry/value_decoder.cpp:774
+#: registry/value_decoder.cpp:767
 msgid "Unix time (milliseconds)"
 msgstr "Unix 시간 (밀리초)"
 
-#: registry/value_decoder.cpp:786
+#: registry/value_decoder.cpp:779
 msgid "Security descriptor"
 msgstr "보안 설명자"
 
-#: registry/value_decoder.cpp:790
+#: registry/value_decoder.cpp:783
 msgid "IPv4 address"
 msgstr "IPv4 주소"
 
-#: registry/value_decoder.cpp:794
+#: registry/value_decoder.cpp:787
 msgid "IPv6 address"
 msgstr "IPv6 주소"
 
-#: registry/value_decoder.cpp:828
+#: registry/value_decoder.cpp:821
 msgid "Unknown encoding."
 msgstr "알 수 없는 인코딩입니다."
 
-#: registry/value_decoder.cpp:836
+#: registry/value_decoder.cpp:829
 msgid "No data."
 msgstr "데이터가 없습니다."
 
-#: registry/value_decoder.cpp:869
+#: registry/value_decoder.cpp:862
 msgid "Unknown interpretation."
 msgstr "알 수 없는 해석 방식입니다."
 
@@ -3858,12 +3896,12 @@ msgstr "바이트"
 msgid "bytes"
 msgstr "바이트"
 
-#: search/compare.cpp:235
+#: search/compare.cpp:244
 msgid "No matching keys were found for the selected path."
 msgstr "선택한 경로와 일치하는 키를 찾지 못했습니다."
 
-#: search/compare.cpp:340 search/compare.cpp:341 search/compare.cpp:354
-#: search/compare.cpp:355
+#: search/compare.cpp:343 search/compare.cpp:344 search/compare.cpp:357
+#: search/compare.cpp:358
 msgid "Present"
 msgstr "있음"
 
@@ -3883,39 +3921,39 @@ msgstr "패턴을 적용하지 못했습니다."
 msgid "Position"
 msgstr "위치"
 
-#: search/search.cpp:703
+#: search/search.cpp:715
 msgid "Null character in the name"
 msgstr "이름에 null 문자 포함"
 
-#: search/search.cpp:708
+#: search/search.cpp:720
 msgid "Edge spaces or control characters in the name"
 msgstr "이름에 앞뒤 공백 또는 제어 문자 포함"
 
-#: search/search.cpp:723
+#: search/search.cpp:735
 msgid "Unknown type"
 msgstr "알 수 없는 형식"
 
-#: search/search.cpp:727
+#: search/search.cpp:739
 msgid "Unexpected size"
 msgstr "예상과 다른 크기"
 
-#: search/search.cpp:739
+#: search/search.cpp:751
 msgid "Odd size"
 msgstr "홀수 바이트 수"
 
-#: search/search.cpp:748
+#: search/search.cpp:760
 msgid "No terminating null"
 msgstr "종료 null 문자 없음"
 
-#: search/search.cpp:752
+#: search/search.cpp:764
 msgid "No final double null"
 msgstr "끝에 이중 null 문자 없음"
 
-#: search/search.cpp:756
+#: search/search.cpp:768
 msgid "Empty item"
 msgstr "빈 항목"
 
-#: search/search.cpp:1432
+#: search/search.cpp:1444
 msgid "Link target missing"
 msgstr "링크 대상 없음"
 
@@ -4077,39 +4115,55 @@ msgstr "커서 올리기"
 msgid "Focus"
 msgstr "포커스"
 
-#: ui/preset_editor.cpp:134
+#: ui/preset_editor.cpp:137
 msgid "Preset name can't be empty."
 msgstr "프리셋 이름은 비워 둘 수 없습니다."
 
-#: ui/preset_editor.cpp:208
+#: ui/preset_editor.cpp:211
 msgid "Color"
 msgstr "색"
 
-#: ui/preset_editor.cpp:212
+#: ui/preset_editor.cpp:215
 msgid "Hex"
 msgstr ""
 
-#: ui/preset_editor.cpp:489
+#: ui/preset_editor.cpp:454
+msgid "New..."
+msgstr "새로 만들기..."
+
+#: ui/preset_editor.cpp:455
+msgid "Duplicate"
+msgstr "복제"
+
+#: ui/preset_editor.cpp:456
+msgid "Rename..."
+msgstr "이름 바꾸기..."
+
+#: ui/preset_editor.cpp:464
+msgid "Edit Color..."
+msgstr "색 편집..."
+
+#: ui/preset_editor.cpp:531
 msgid "New Preset"
 msgstr "새 프리셋"
 
-#: ui/preset_editor.cpp:526
+#: ui/preset_editor.cpp:568
 msgid "Rename Preset"
 msgstr "프리셋 이름 바꾸기"
 
-#: ui/preset_editor.cpp:539
+#: ui/preset_editor.cpp:581
 msgid "At least one preset must remain."
 msgstr "프리셋이 하나 이상 남아 있어야 합니다."
 
-#: ui/preset_editor.cpp:547
+#: ui/preset_editor.cpp:589
 msgid "Delete Preset"
 msgstr "프리셋 삭제"
 
-#: ui/preset_editor.cpp:571
+#: ui/preset_editor.cpp:613
 msgid "Failed to import theme presets."
 msgstr "테마 프리셋을 가져오지 못했습니다."
 
-#: ui/preset_editor.cpp:598
+#: ui/preset_editor.cpp:640
 msgid "Failed to export theme presets."
 msgstr "테마 프리셋을 내보내지 못했습니다."
 
@@ -4240,6 +4294,7 @@ msgid "Strings (one per line):"
 msgstr "문자열 (한 줄에 하나씩):"
 
 #: ../resources/editor_dialogs.rc:119 ../resources/editor_dialogs.rc:263
+#: ../resources/editor_dialogs.rc:333
 msgid "Value:"
 msgstr "값:"
 
@@ -4354,12 +4409,8 @@ msgstr "정의:"
 msgid "Load..."
 msgstr "로드..."
 
-#: ../resources/editor_dialogs.rc:268 ../resources/editor_dialogs.rc:342
-msgid "New..."
-msgstr "새로 만들기..."
-
 #: ../resources/editor_dialogs.rc:269 ../resources/editor_dialogs.rc:300
-#: ../resources/search_dialogs.rc:158
+#: ../resources/editor_dialogs.rc:320 ../resources/search_dialogs.rc:158
 msgid "Edit..."
 msgstr "편집..."
 
@@ -4395,7 +4446,7 @@ msgstr "열기..."
 msgid "Field name:"
 msgstr "필드 이름:"
 
-#: ../resources/editor_dialogs.rc:315
+#: ../resources/editor_dialogs.rc:315 ../resources/editor_dialogs.rc:337
 msgid "Meaning:"
 msgstr "의미:"
 
@@ -4403,47 +4454,35 @@ msgstr "의미:"
 msgid "States:"
 msgstr "상태:"
 
-#: ../resources/editor_dialogs.rc:319
+#: ../resources/editor_dialogs.rc:322
 msgid "Bits:"
 msgstr "비트:"
 
-#: ../resources/editor_dialogs.rc:338
+#: ../resources/editor_dialogs.rc:356
 msgid "Theme Presets"
 msgstr "테마 프리셋"
 
-#: ../resources/editor_dialogs.rc:343
-msgid "Duplicate"
-msgstr "복제"
-
-#: ../resources/editor_dialogs.rc:344
-msgid "Rename..."
-msgstr "이름 바꾸기..."
-
-#: ../resources/editor_dialogs.rc:350
-msgid "Edit Color..."
-msgstr "색 편집..."
-
-#: ../resources/editor_dialogs.rc:351
+#: ../resources/editor_dialogs.rc:369
 msgid "Treat as dark theme"
 msgstr "어두운 테마로 취급"
 
-#: ../resources/editor_dialogs.rc:354
+#: ../resources/editor_dialogs.rc:372
 msgid "Apply Template"
 msgstr "템플릿 적용"
 
-#: ../resources/editor_dialogs.rc:356
+#: ../resources/editor_dialogs.rc:374
 msgid "Presets"
 msgstr "프리셋"
 
-#: ../resources/editor_dialogs.rc:357
+#: ../resources/editor_dialogs.rc:375
 msgid "Colors"
 msgstr "색"
 
-#: ../resources/editor_dialogs.rc:358
+#: ../resources/editor_dialogs.rc:376
 msgid "Templates"
 msgstr "템플릿"
 
-#: ../resources/editor_dialogs.rc:360
+#: ../resources/editor_dialogs.rc:378
 msgid "Apply"
 msgstr "적용"
 
@@ -4695,15 +4734,15 @@ msgstr "새 탭에서 결과 열기"
 msgid "Limit results to"
 msgstr "결과 수 제한"
 
-#: dialogs/bitfield_definition.cpp:797
+#: dialogs/bitfield_definition.cpp:807
 msgid "RegKit bitfield definitions (*.regkit-bitfield.jsonc)"
 msgstr "RegKit 비트 필드 정의 (*.regkit-bitfield.jsonc)"
 
-#: dialogs/bitfield_definition.cpp:797
+#: dialogs/bitfield_definition.cpp:807
 msgid "JSON files (*.jsonc;*.json)"
 msgstr "JSON 파일 (*.jsonc;*.json)"
 
-#: dialogs/transfer_dialogs.cpp:34 frame/tools/convert_dialog.cpp:27
+#: dialogs/transfer_dialogs.cpp:34 frame/tools/convert_dialog.cpp:28
 #: regfile/script_convert.h:23 ui/feedback.h:50 ui/feedback.h:52
 msgid "Registry Files (*.reg)"
 msgstr "레지스트리 파일 (*.reg)"
@@ -4712,8 +4751,8 @@ msgstr "레지스트리 파일 (*.reg)"
 #: frame/commands/clipboard_commands.cpp:114
 #: frame/commands/file_view_commands.cpp:349
 #: frame/commands/file_view_commands.cpp:369 frame/detail/file_detail.h:75
-#: frame/sources/trace_commands.cpp:365 regfile/script_convert.h:23
-#: ui/feedback.h:50 ui/feedback.h:52 ui/preset_editor.cpp:141
+#: frame/sources/trace_commands.cpp:366 regfile/script_convert.h:23
+#: ui/feedback.h:50 ui/feedback.h:52 ui/preset_editor.cpp:144
 msgid "All Files (*.*)"
 msgstr "모든 파일 (*.*)"
 
@@ -4727,20 +4766,20 @@ msgstr "즐겨찾기 파일 (*.txt)"
 msgid "RegKit Comment Files (*.jsonc)"
 msgstr "RegKit 메모 파일 (*.jsonc)"
 
-#: frame/detail/file_detail.h:75 frame/search/compare_dialog.cpp:250
+#: frame/detail/file_detail.h:75 frame/search/compare_dialog.cpp:251
 #: ui/feedback.h:52
 msgid "Registry Hive Files"
 msgstr "레지스트리 하이브 파일"
 
-#: frame/sources/trace_commands.cpp:365
+#: frame/sources/trace_commands.cpp:366
 msgid "Trace Files (*.txt)"
 msgstr "Trace 파일 (*.txt)"
 
-#: frame/tools/convert_dialog.cpp:28 regfile/script_convert.h:23
+#: frame/tools/convert_dialog.cpp:29 regfile/script_convert.h:23
 msgid "Batch Files (*.bat;*.cmd)"
 msgstr "배치 파일 (*.bat;*.cmd)"
 
-#: frame/tools/convert_dialog.cpp:29 regfile/script_convert.h:23
+#: frame/tools/convert_dialog.cpp:30 regfile/script_convert.h:23
 msgid "PowerShell Scripts (*.ps1)"
 msgstr "PowerShell 스크립트 (*.ps1)"
 
@@ -4752,6 +4791,6 @@ msgstr "레지스트리 스크립트 (*.reg;*.bat;*.cmd;*.ps1)"
 msgid "Hive Files (*.*)"
 msgstr "하이브 파일 (*.*)"
 
-#: ui/preset_editor.cpp:141
+#: ui/preset_editor.cpp:144
 msgid "RegKit Theme Presets (*.rktheme)"
 msgstr "RegKit 테마 프리셋 (*.rktheme)"

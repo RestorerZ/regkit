@@ -595,13 +595,28 @@ bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* 
     {
         if (operation.kind == Operation::Kind::kKey || operation.kind == Operation::Kind::kRemoveKey)
         {
-            auto [iterator, inserted] = output->keys.try_emplace(util::ToLower(operation.path), Key{operation.path, {}});
+            const std::wstring lower = util::ToLower(operation.path);
+            auto [iterator, inserted] = output->keys.try_emplace(lower, Key{operation.path, {}});
             if (inserted)
             {
                 output->key_order.push_back(std::move(operation.path));
             }
-            iterator->second.removed = operation.kind == Operation::Kind::kRemoveKey;
             current = &iterator->second;
+            if (operation.kind == Operation::Kind::kKey)
+            {
+                current->recreated = current->removed;
+                continue;
+            }
+            // a deletion drops everything the file wrote to the key & below it so far
+            current->values.clear();
+            current->removed_values.clear();
+            current->removed = true;
+            current->recreated = false;
+            const std::wstring prefix = lower + L"\\";
+            if (std::erase_if(output->keys, [&](const auto& entry) { return entry.first.starts_with(prefix); }))
+            {
+                std::erase_if(output->key_order, [&](const std::wstring& path) { return !output->keys.contains(util::ToLower(path)); });
+            }
         }
         else if (operation.kind == Operation::Kind::kRemoveValue)
         {
@@ -717,7 +732,11 @@ bool LoadVirtualRoots(const std::wstring& path, std::vector<VirtualRoot>* roots,
             }
             target = child.get();
         }
-        target->values.insert(source->second.values.begin(), source->second.values.end());
+        const Key& key = source->second;
+        target->values.insert(key.values.begin(), key.values.end());
+        target->removed_values.insert(target->removed_values.end(), key.removed_values.begin(), key.removed_values.end());
+        target->removed |= key.removed;
+        target->recreated |= key.recreated;
     }
     return true;
 }

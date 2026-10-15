@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <mutex>
 #include <new>
 #include <vector>
 
@@ -450,31 +451,73 @@ bool EnableTokenPrivilege(HANDLE token, const wchar_t* name, TOKEN_PRIVILEGES* p
            GetLastError() == ERROR_SUCCESS;
 }
 
+namespace
+{
+
+// scopes on other threads share the process token, so the first one enables a privilege and the last one restores it
+struct PrivilegeHold
+{
+    LUID luid = {};
+    int count = 0;
+    TOKEN_PRIVILEGES previous = {};
+};
+std::mutex g_hold_mutex;
+std::vector<PrivilegeHold> g_holds;
+
+std::vector<PrivilegeHold>::iterator FindHold(const LUID& luid)
+{
+    return std::find_if(g_holds.begin(), g_holds.end(), [&luid](const PrivilegeHold& hold) {
+        return hold.luid.LowPart == luid.LowPart && hold.luid.HighPart == luid.HighPart;
+    });
+}
+
+} // namespace
+
 PrivilegeScope::PrivilegeScope(std::initializer_list<const wchar_t*> names)
 {
-    previous_.reserve(names.size());
+    enabled_.reserve(names.size());
     held_ = OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, token_.put()) != FALSE;
+    const std::lock_guard<std::mutex> lock(g_hold_mutex);
     for (const wchar_t* name : names)
     {
+        LUID luid = {};
+        held_ = held_ && LookupPrivilegeValueW(nullptr, name, &luid);
         if (!held_)
         {
             break;
         }
+        if (const auto hold = FindHold(luid); hold != g_holds.end())
+        {
+            ++hold->count;
+            enabled_.push_back(luid);
+            continue;
+        }
         TOKEN_PRIVILEGES previous = {};
         held_ = EnableTokenPrivilege(token_.get(), name, &previous);
-        previous_.push_back(previous);
+        if (held_)
+        {
+            g_holds.push_back({luid, 1, previous});
+            enabled_.push_back(luid);
+        }
     }
 }
 
 PrivilegeScope::~PrivilegeScope()
 {
-    // restore each privilege to the state captured when the scope began
-    for (auto previous = previous_.rbegin(); previous != previous_.rend(); ++previous)
+    const std::lock_guard<std::mutex> lock(g_hold_mutex);
+    for (auto luid = enabled_.rbegin(); luid != enabled_.rend(); ++luid)
     {
-        if (previous->PrivilegeCount != 0)
+        const auto hold = FindHold(*luid);
+        if (hold == g_holds.end() || --hold->count > 0)
         {
-            AdjustTokenPrivileges(token_.get(), FALSE, &*previous, sizeof(*previous), nullptr, nullptr);
+            continue;
         }
+        // restore the state from before the first scope
+        if (hold->previous.PrivilegeCount != 0)
+        {
+            AdjustTokenPrivileges(token_.get(), FALSE, &hold->previous, sizeof(hold->previous), nullptr, nullptr);
+        }
+        g_holds.erase(hold);
     }
 }
 

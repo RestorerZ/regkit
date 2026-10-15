@@ -143,11 +143,10 @@ void ChangeHistory::Clear()
     entries_.clear();
 }
 
-void ChangeHistory::Sort(int column, bool ascending)
+void ChangeHistory::Sort(int column, bool ascending, const util::SortKeys& earlier)
 {
-    std::stable_sort(entries_.begin(), entries_.end(), [column, ascending](const HistoryEntry& left, const HistoryEntry& right) {
-        const int comparison = CompareEntry(left, right, column);
-        return comparison != 0 && (ascending ? comparison < 0 : comparison > 0);
+    std::stable_sort(entries_.begin(), entries_.end(), [&](const HistoryEntry& left, const HistoryEntry& right) {
+        return util::CompareSorted(column, ascending, earlier, [&](int key) { return CompareEntry(left, right, key); }) < 0;
     });
 }
 
@@ -191,6 +190,14 @@ HistoryDocument ParseHistory(const std::wstring& content)
             DecodeRevert(fields, &entry);
         }
         entry.backup_mode = fields.size() >= 12 && fields[11] == L"1";
+        uint64_t kind = 0;
+        uint64_t view = 0;
+        if (fields.size() >= 15 && record_fields::ParseUnsigned(fields[12], 3, &kind) && record_fields::ParseUnsigned(fields[14], MAXDWORD, &view))
+        {
+            entry.source_kind = static_cast<int>(kind);
+            entry.source_name = std::move(fields[13]);
+            entry.source_view = static_cast<REGSAM>(view);
+        }
         document.entries.push_back(std::move(entry));
     }
     return document;
@@ -199,7 +206,7 @@ HistoryDocument ParseHistory(const std::wstring& content)
 std::wstring SerializeHistoryEntry(const HistoryEntry& entry)
 {
     std::wstring line;
-    record_fields::AppendRecord(&line, {std::to_wstring(entry.timestamp), entry.time_text, entry.action, entry.old_data, entry.new_data, entry.key_path, entry.value_name, std::to_wstring(static_cast<int>(entry.revert_kind)), entry.revert_value.name, std::to_wstring(entry.revert_value.type), util::ToHex(entry.revert_value.data), entry.backup_mode ? L"1" : L"0"});
+    record_fields::AppendRecord(&line, {std::to_wstring(entry.timestamp), entry.time_text, entry.action, entry.old_data, entry.new_data, entry.key_path, entry.value_name, std::to_wstring(static_cast<int>(entry.revert_kind)), entry.revert_value.name, std::to_wstring(entry.revert_value.type), util::ToHex(entry.revert_value.data), entry.backup_mode ? L"1" : L"0", std::to_wstring(entry.source_kind), entry.source_name, std::to_wstring(entry.source_view)});
     return line;
 }
 

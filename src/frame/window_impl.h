@@ -50,6 +50,7 @@
 #include "win32/translation.h"
 #include "work/key_watcher.h"
 #include "work/session.h"
+#include "workspace/dialog_state.h"
 #include "workspace/favorites.h"
 #include "workspace/recent_items.h"
 #include "workspace/settings.h"
@@ -111,6 +112,7 @@ class MainWindow::Impl
         kTabs,
         kHistory,
         kSearchHistory,
+        kDialogState,
         kTreeState,
         kTemporary,
     };
@@ -142,6 +144,7 @@ class MainWindow::Impl
         uint64_t generation = 0;
         // the tab session the replace ran in, its undo goes there even after a tab switch
         std::weak_ptr<RegistrySession> session;
+        std::optional<search::Source> source;
         std::vector<Change> changes;
         int failures = 0;
         int partial_renames = 0;
@@ -238,12 +241,13 @@ class MainWindow::Impl
     void StartValuePreviewWorker();
     void QueueValuePreviews(int first, int last);
     void QueueSearchPreviews(int first, int last);
-    void QueueSearchSort(SearchTab* tab);
+    void QueueSearchSort(SearchTab* tab, const util::SortKeys& earlier);
     void StartSearchSortWorker();
     void StartSearchTabLoadWorker();
     void ApplySearchTabLoad(std::unique_ptr<SearchTabLoadPayload> owned);
     void FinishSearch(SearchTab* tab);
     SearchTab* SearchTabByGeneration(uint64_t generation);
+    SearchTab* SearchTabByLoadGeneration(uint64_t generation);
     SearchTab* ShownSearchTab();
     void StartSearchPreviewWorker();
     void StartValueListWorker();
@@ -285,7 +289,7 @@ class MainWindow::Impl
     void CancelSearch(SearchTab* tab);
     bool IsSearchTabSelected() const;
     void UpdateSearchResultsView();
-    void SortSearchTabResults(SearchTab* tab);
+    void SortSearchTabResults(SearchTab* tab, bool keep_order = false);
     void CloseSearchTab(int tab_index);
     void SelectTabAfterClose(int closed_index, int previous_index);
     bool SwitchToLocalRegistry();
@@ -382,7 +386,6 @@ class MainWindow::Impl
     void RefreshStorageMenuState(HMENU menu);
     void FillBitfieldMenu(HMENU menu);
     void BuildAccelerators();
-    std::wstring CommandShortcutText(int command_id) const;
     std::wstring CommandTooltipText(int command_id) const;
     bool HandleMenuCommand(int command_id);
     bool HandleDynamicCommand(int command_id);
@@ -417,17 +420,19 @@ class MainWindow::Impl
     void AppendHistoryEntry(HistoryEntry entry);
     // one cache write, sort & list update for a whole mass change
     void AppendHistoryEntries(std::vector<HistoryEntry> entries);
+    void AppendHistoryEntries(std::vector<HistoryEntry> entries, const std::optional<search::Source>& source);
+    std::optional<search::Source> HistorySource() const;
     static HistoryEntry ValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value = nullptr);
     void AppendValueHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data, const RegistryNode& node, const std::wstring& value_name, HistoryEntry::RevertKind revert_kind, const RegistryValue* revert_value = nullptr);
     bool PrepareHistoryRevert(const HistoryEntry& entry, HistoryEntry* prepared) const;
     bool OpenHistoryTarget(const HistoryEntry& entry);
     bool RevertHistoryEntry(const HistoryEntry& entry);
     void ShowAddressContextMenu(HWND edit, POINT screen_pt);
-    void ShowTreeContextMenu(POINT screen_pt);
+    void ShowTreeContextMenu(HTREEITEM item, POINT screen_pt);
     bool CanOpenHiveFile(const RegistryNode& node);
-    void ShowValueContextMenu(POINT screen_pt);
-    void ShowHistoryContextMenu(POINT screen_pt);
-    void ShowSearchResultContextMenu(POINT screen_pt);
+    void ShowValueContextMenu(int index, POINT screen_pt);
+    void ShowHistoryContextMenu(int index, POINT screen_pt);
+    void ShowSearchResultContextMenu(int index, POINT screen_pt);
     void DrawPanelButton(const DRAWITEMSTRUCT* info);
     void ClearValueFilter(bool focus_values);
     void ShowPermissionsDialog(const RegistryNode& node);
@@ -607,6 +612,8 @@ class MainWindow::Impl
     std::optional<std::wstring> MakeUniqueValueName(const RegistryNode& node, const std::wstring& base) const;
     std::wstring MakeUniqueKeyName(const RegistryNode& node, const std::wstring& base) const;
     bool ResolvePathToNode(const std::wstring& path, RegistryNode* node) const;
+    static bool ResolvePathInRoots(const std::vector<RegistryRootEntry>& roots, const std::wstring& path, RegistryNode* node);
+    std::vector<std::vector<RegistryRootEntry>> SearchSourceRoots(const SearchTab& tab);
     bool KeyPathExists(const std::wstring& path, RegistryNode* node) const;
 
     HINSTANCE instance_ = nullptr;
@@ -642,6 +649,7 @@ class MainWindow::Impl
     bool compare_result_column_active_ = false;
     int history_sort_column_ = 0;
     bool history_sort_ascending_ = false;
+    util::SortKeys history_sort_earlier_;
     int history_max_rows_ = 500;
     changes::ChangeHistory change_history_;
     std::shared_ptr<RegistrySession> local_session_ = std::make_shared<RegistrySession>();
@@ -719,8 +727,6 @@ class MainWindow::Impl
     bool applying_startup_tree_restore_ = false;
     bool window_placement_loaded_ = false;
     ClipboardItem clipboard_;
-    ReplaceDialogResult last_replace_;
-    SearchDialogResult last_search_;
 
     struct SearchRun
     {
@@ -766,6 +772,8 @@ class MainWindow::Impl
         uint64_t duration_ms = 0;
         int sort_column = -1;
         bool sort_ascending = true;
+        util::SortKeys sort_earlier;
+        uint64_t sort_revision = 0;
         bool sort_dirty = false;
         bool open_in_new_tab = false;
     };
@@ -905,6 +913,7 @@ class MainWindow::Impl
         bool include_dates = false;
         int sort_column = 0;
         bool sort_ascending = true;
+        util::SortKeys sort_earlier;
         bool show_keys_in_list = false;
         bool include_details = false;
         bool show_simulated_keys = false;
@@ -971,6 +980,9 @@ class MainWindow::Impl
         int tab_index = -1;
         int column = 0;
         bool ascending = true;
+        util::SortKeys earlier;
+        uint64_t sort_revision = 0;
+        std::vector<search::Source> sources;
         std::vector<search::Result> rows;
         std::vector<RegistryNode> nodes;
         HWND hwnd = nullptr;
@@ -979,8 +991,7 @@ class MainWindow::Impl
     {
         uint64_t generation = 0;
         int tab_index = -1;
-        int column = 0;
-        bool ascending = true;
+        uint64_t sort_revision = 0;
         std::vector<search::Result> rows;
     };
     work::LatestTask<SearchSortTask> search_sort_loader_;
@@ -991,6 +1002,9 @@ class MainWindow::Impl
         std::wstring path;
         int sort_column = -1;
         bool sort_ascending = true;
+        util::SortKeys sort_earlier;
+        uint64_t sort_revision = 0;
+        std::vector<search::Source> sources;
         HWND hwnd = nullptr;
     };
     struct SearchTabLoadPayload : work::MoveOnly
@@ -998,6 +1012,7 @@ class MainWindow::Impl
         uint64_t generation = 0;
         int tab_index = -1;
         bool ok = false;
+        uint64_t sort_revision = 0;
         std::vector<search::Result> rows;
     };
     work::LatestTask<SearchTabLoadTask> search_tab_loader_;

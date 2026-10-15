@@ -455,7 +455,7 @@ void MainWindow::Impl::ApplyStartupCachePayload(std::unique_ptr<StartupCachePayl
             owned->history_entries.insert(owned->history_entries.end(), change_history_.entries().begin(), change_history_.entries().end());
         }
         change_history_.Replace(std::move(owned->history_entries), static_cast<size_t>(history_max_rows_));
-        change_history_.Sort(history_sort_column_, history_sort_ascending_);
+        change_history_.Sort(history_sort_column_, history_sort_ascending_, history_sort_earlier_);
         history_loaded_ = true;
         AppendHistoryCache(pending_session_entries);
         RebuildHistoryList();

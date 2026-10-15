@@ -67,6 +67,7 @@ struct ThemePresetWindowState
     int selected_index = -1;
     int color_sort_column = -1;
     bool color_sort_ascending = true;
+    util::SortKeys color_sort_earlier;
     COLORREF custom_colors[16] = {};
 };
 
@@ -129,6 +130,8 @@ bool PromptPresetName(ThemePresetWindowState* state, HWND owner, const wchar_t* 
     {
         return false;
     }
+    // preset file trims names on load
+    name = util::TrimWhitespace(name);
     if (name.empty())
     {
         ui::ShowError(owner, util::Tr(L"Preset name can't be empty."));
@@ -295,7 +298,7 @@ void FillColorList(ThemePresetWindowState* state, const ThemePreset* preset)
     }
     if (state->color_sort_column >= 0)
     {
-        appearance::SortListViewItems(list, state->color_sort_column, false, &state->color_sort_column, &state->color_sort_ascending, CompareColorListItems, const_cast<ThemePreset*>(preset));
+        appearance::SortListViewItems(list, state->color_sort_column, false, &state->color_sort_column, &state->color_sort_ascending, &state->color_sort_earlier, CompareColorListItems, const_cast<ThemePreset*>(preset));
     }
     if (selected_field >= 0)
     {
@@ -431,6 +434,45 @@ void ApplySelectedPreset(ThemePresetWindowState* state, bool close_dialog)
     if (close_dialog)
     {
         EndDialog(state->hwnd, IDOK);
+    }
+}
+
+void ShowListMenu(ThemePresetWindowState* state, HWND list, LPARAM lparam)
+{
+    constexpr int kMenuCopyRow = 1;
+    POINT screen = {};
+    const int row = appearance::ContextMenuRow(list, lparam, &screen);
+    const bool presets = list == state->preset_list;
+    if (!presets && row < 0)
+    {
+        return;
+    }
+    const UINT row_flags = MF_STRING | (row >= 0 ? 0 : MF_GRAYED);
+    HMENU menu = CreatePopupMenu();
+    if (presets)
+    {
+        AppendMenuW(menu, MF_STRING, IDC_PRESET_NEW, util::Tr(L"New..."));
+        AppendMenuW(menu, row_flags, IDC_PRESET_DUPLICATE, util::Tr(L"Duplicate"));
+        AppendMenuW(menu, row_flags, IDC_PRESET_RENAME, util::Tr(L"Rename..."));
+        AppendMenuW(menu, row_flags, IDC_PRESET_DELETE, util::Tr(L"Delete"));
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(menu, MF_STRING, IDC_PRESET_IMPORT, util::Tr(L"Import..."));
+        AppendMenuW(menu, MF_STRING, IDC_PRESET_EXPORT, util::Tr(L"Export..."));
+    }
+    else
+    {
+        AppendMenuW(menu, MF_STRING, IDC_PRESET_EDIT_COLOR, util::Tr(L"Edit Color..."));
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(menu, MF_STRING, kMenuCopyRow, util::Tr(L"Copy Row"));
+    }
+    const int chosen = appearance::TrackContextMenu(menu, screen, state->hwnd);
+    if (chosen == kMenuCopyRow)
+    {
+        ui::CopyTextToClipboard(state->hwnd, appearance::SelectedRowsText(list));
+    }
+    else if (chosen != 0)
+    {
+        SendMessageW(state->hwnd, WM_COMMAND, MAKEWPARAM(chosen, 0), 0);
     }
 }
 
@@ -661,6 +703,13 @@ INT_PTR CALLBACK ThemePresetDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
             }
             break;
         }
+    case WM_CONTEXTMENU:
+        if (reinterpret_cast<HWND>(wparam) == state->preset_list || reinterpret_cast<HWND>(wparam) == state->color_list)
+        {
+            ShowListMenu(state, reinterpret_cast<HWND>(wparam), lparam);
+            return TRUE;
+        }
+        break;
     case WM_NOTIFY:
         {
             auto* hdr = reinterpret_cast<NMHDR*>(lparam);
@@ -684,7 +733,7 @@ INT_PTR CALLBACK ThemePresetDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
             else if (hdr->hwndFrom == state->color_list && hdr->code == LVN_COLUMNCLICK)
             {
                 auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
-                appearance::SortListViewItems(state->color_list, info->iSubItem, true, &state->color_sort_column, &state->color_sort_ascending, CompareColorListItems, CurrentPreset(state));
+                appearance::SortListViewItems(state->color_list, info->iSubItem, true, &state->color_sort_column, &state->color_sort_ascending, &state->color_sort_earlier, CompareColorListItems, CurrentPreset(state));
             }
             return FALSE;
         }

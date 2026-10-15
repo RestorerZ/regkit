@@ -88,8 +88,8 @@ bool ParseEntries(std::string_view buffer, const Normalizers& normalizers, const
         {
             line.pop_back();
         }
-        line = util::TrimWhitespace(std::move(line));
-        if (line.empty())
+        // only the key is trimmed, a queried value name keeps its spaces, the bundled traces hold names like "DssCounter "
+        if (util::IsBlank(line))
         {
             continue;
         }
@@ -122,7 +122,7 @@ bool ParseEntries(std::string_view buffer, const Normalizers& normalizers, const
         {
             entry.key_path = entry.display_path;
         }
-        entry.value_name = util::TrimWhitespace(line.substr(separator + separator_size));
+        entry.value_name = line.substr(separator + separator_size);
         entry.has_value = true;
         if (util::EqualsInsensitive(entry.value_name, L"(Default)"))
         {

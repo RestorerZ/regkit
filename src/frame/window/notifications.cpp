@@ -3,6 +3,7 @@
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
+#include "frame/window/shortcut_bindings.h"
 
 #include "ui/dialog_layout.h"
 #include "ui/list_header.h"
@@ -280,8 +281,7 @@ LRESULT MainWindow::Impl::HandleTooltipNotification(NMHDR* header, LPARAM lparam
             std::wstring tip = CommandTooltipText(command_id);
             if (!tip.empty())
             {
-                std::wstring shortcut = CommandShortcutText(command_id);
-                if (!shortcut.empty())
+                if (const wchar_t* shortcut = frame::ShortcutText(command_id))
                 {
                     tip.append(L" (");
                     tip.append(shortcut);
@@ -1348,12 +1348,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
             case 6:
                 if (buffer && capacity > 0 && result.source < tab->sources.size())
                 {
-                    std::wstring label = search::SourceLabel(tab->sources[result.source]);
-                    if (const wchar_t* field = search::MatchFieldLabel(result.match_field))
-                    {
-                        label.append(L" (").append(field).append(L")");
-                    }
-                    lstrcpynW(buffer, label.c_str(), capacity);
+                    lstrcpynW(buffer, search::SourceText(result, tab->sources).c_str(), capacity);
                 }
                 break;
             default:

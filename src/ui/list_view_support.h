@@ -11,6 +11,8 @@
 
 #include <string>
 
+#include "win32/text_transform.h"
+
 namespace regkit::appearance
 {
 
@@ -35,10 +37,15 @@ bool HandleListViewNotify(HWND owner, const NMHDR* header, LRESULT* result);
 LRESULT HandleListGridCustomDraw(HWND list, NMLVCUSTOMDRAW* draw, LRESULT result);
 
 bool ShowListColumnMenu(HWND list, POINT screen);
+int ContextMenuRow(HWND list, LPARAM lparam, POINT* screen);
+void AppendMenuItem(HMENU menu, UINT flags, UINT_PTR id, const wchar_t* text, const wchar_t* shortcut = nullptr);
+int TrackContextMenu(HMENU menu, POINT screen, HWND owner);
 void UpdateListViewSort(HWND list, int column, bool ascending);
-void UpdateListSortState(int column, bool toggle, int* sort_column, bool* ascending);
-void SortListViewItems(HWND list, int column, bool toggle, int* sort_column, bool* ascending, ListItemCompareCallback compare, void* context);
+void UpdateListSortState(int column, bool toggle, int* sort_column, bool* ascending, util::SortKeys* earlier);
+void SortListViewItems(HWND list, int column, bool toggle, int* sort_column, bool* ascending, util::SortKeys* earlier, ListItemCompareCallback compare, void* context);
 int ListViewItemData(HWND list, int row, LPARAM* data);
+int FetchListViewItemText(HWND list, int index, int column, std::wstring* buffer);
+std::wstring SelectedRowsText(HWND list);
 int SelectedListViewData(HWND list);
 int FindListViewItemByData(HWND list, LPARAM data);
 

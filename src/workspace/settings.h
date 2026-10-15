@@ -32,7 +32,7 @@ struct Settings
     bool show_tree = true;
     bool show_history = true;
     bool show_status_bar = true;
-    bool show_keys_in_list = true;
+    bool show_keys_in_list = false;
     bool show_simulated_keys = true;
     bool show_extra_hives = false;
     bool show_value_grid = false;

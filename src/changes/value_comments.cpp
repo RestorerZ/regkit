@@ -34,7 +34,7 @@ std::wstring NormalizeKeyPath(std::wstring path)
 
 std::wstring ConditionKey(const CommentRule& rule)
 {
-    return (rule.key ? L"k\t" : L"v\t") + util::ToLower(rule.name) + L'\t' +
+    return (rule.key ? L"k\t" : L"v\t") + std::to_wstring(rule.name.size()) + L':' + util::ToLower(rule.name) + L'\t' +
            (rule.type ? std::to_wstring(*rule.type) : L"*") + L'\t' +
            (rule.data_size ? std::to_wstring(*rule.data_size) : L"*") + L'\t' +
            std::to_wstring(static_cast<int>(rule.key_scope)) + L'\t' + util::ToLower(NormalizeKeyPath(rule.key_path));

@@ -21,6 +21,7 @@
 #include "dialogs/transfer_dialogs.h"
 #include "dialogs/value_editor.h"
 #include "frame/commands/command_ids.h"
+#include "frame/window/shortcut_bindings.h"
 #include "regfile/reg_file.h"
 #include "regfile/registry_transfer.h"
 #include "registry/registry_backends.h"
@@ -49,7 +50,6 @@ namespace regkit::command_detail
 
 using window_detail::ChildNode;
 using window_detail::EqualsInsensitive;
-using window_detail::FetchListViewItemText;
 using window_detail::FindChildByText;
 using window_detail::kIconSetClassic;
 using window_detail::kIconSetCustom;
@@ -81,7 +81,7 @@ inline HMENU BuildCopyKeyPathMenu()
 inline HMENU BuildNewMenu()
 {
     HMENU menu = CreatePopupMenu();
-    AppendMenuW(menu, MF_STRING, cmd::kNewKey, util::Tr(L"Key"));
+    frame::AppendCommand(menu, MF_STRING, cmd::kNewKey, util::Tr(L"Key"));
     AppendMenuW(menu, MF_STRING, cmd::kNewVolatileKey, util::Tr(L"Volatile Key"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, cmd::kNewString, util::Tr(L"String Value"));
@@ -171,91 +171,4 @@ inline bool SelectValueByName(ValueList& list, const std::wstring& name)
     return false;
 }
 
-inline bool GetListViewColumnInfo(HWND list, int display_index, int* subitem, int* width)
-{
-    if (subitem)
-    {
-        *subitem = -1;
-    }
-    if (width)
-    {
-        *width = 0;
-    }
-    if (!list || display_index < 0)
-    {
-        return false;
-    }
-    LVCOLUMNW col = {};
-    col.mask = LVCF_SUBITEM | LVCF_WIDTH;
-    if (!ListView_GetColumn(list, display_index, &col))
-    {
-        return false;
-    }
-    if (subitem)
-    {
-        *subitem = col.iSubItem;
-    }
-    if (width)
-    {
-        *width = col.cx;
-    }
-    return true;
-}
-
-inline std::wstring BuildSelectedListViewText(HWND list)
-{
-    if (!list)
-    {
-        return L"";
-    }
-    HWND header = ListView_GetHeader(list);
-    int columns = header ? Header_GetItemCount(header) : 0;
-    std::vector<int> subitems;
-    subitems.reserve(columns);
-    for (int i = 0; i < columns; ++i)
-    {
-        int subitem = -1;
-        int width = 0;
-        if (!GetListViewColumnInfo(list, i, &subitem, &width))
-        {
-            continue;
-        }
-        if (width <= 0 || subitem < 0)
-        {
-            continue;
-        }
-        subitems.push_back(i);
-    }
-    if (subitems.empty())
-    {
-        return L"";
-    }
-
-    std::wstring output;
-    std::wstring buffer(256, L'\0');
-    int index = -1;
-    bool first_row = true;
-    while ((index = ListView_GetNextItem(list, index, LVNI_SELECTED)) >= 0)
-    {
-        if (!first_row)
-        {
-            output.append(L"\r\n");
-        }
-        first_row = false;
-        for (size_t i = 0; i < subitems.size(); ++i)
-        {
-            if (i > 0)
-            {
-                output.append(L"\t");
-            }
-            buffer.assign(256, L'\0');
-            int length = FetchListViewItemText(list, index, subitems[i], &buffer);
-            if (length > 0)
-            {
-                output.append(buffer.c_str(), static_cast<size_t>(length));
-            }
-        }
-    }
-    return output;
-}
 } // namespace regkit::command_detail

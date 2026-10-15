@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-09 20:50+0200\n"
-"PO-Revision-Date: 2026-10-13 20:27+0300\n"
+"POT-Creation-Date: 2026-10-14 13:24+0200\n"
+"PO-Revision-Date: 2026-10-15 20:40+0300\n"
 "Last-Translator: Restorer, restorer@mail2k.ru\n"
 "Language-Team: Russian\n"
 "Language: ru\n"
@@ -301,120 +301,6 @@ msgstr "Состояние"
 
 msgid "Value"
 msgstr "Значение"
-
-msgid "Selected values only"
-msgstr "К отмеченным параметрам"
-
-msgid "Values with the selected names"
-msgstr "К параметрам с такими же наименованиями"
-
-msgid "Values named"
-msgstr "К параметрам"
-
-msgid "Bytes shown"
-msgstr "Показано байт"
-
-msgid "Decode Value"
-msgstr "Декодирование параметра"
-
-msgid "Name:"
-msgstr "Параметр:"
-
-msgid "Encoding:"
-msgstr "Кодирование:"
-
-msgid "Interpret as:"
-msgstr "Интерпретация:"
-
-msgid "Property"
-msgstr "Свойство"
-
-msgid "Don't open"
-msgstr "не открывать"
-
-msgid "In text editor"
-msgstr "в текстовом редакторе"
-
-msgid "In RegKit"
-msgstr "в программе RegKit"
-
-msgid "Registry File (.reg)"
-msgstr "Файлы реестра (*.reg)"
-
-msgid "Registry Hive File"
-msgstr "Файлы кустов реестра"
-
-msgid "Select a destination file."
-msgstr "Выберите файл назначения"
-
-msgid "Select a hive file."
-msgstr "Выберите файл куста реестра"
-
-msgid "Enter a key name for the loaded hive."
-msgstr "Введите наименование раздела для загружаемого куста"
-
-msgid "The key name can't contain a backslash."
-msgstr "В наименовании раздела не допускается обратная наклонная черта"
-
-msgid "Enter a link name and a target key."
-msgstr "Введите наименование ссылки и целевой раздел"
-
-msgid "The link name can't contain a backslash."
-msgstr "В наименовании ссылки не допускается обратная наклонная черта"
-
-msgid "No top level keys"
-msgstr "Нет разделов верхнего уровня"
-
-msgid "All top level keys"
-msgstr "Все разделы верхнего уровня"
-
-msgid "Multiple keys"
-msgstr "Несколько разделов"
-
-msgid "Enter a search term."
-msgstr "Введите текст для поиска"
-
-msgid "The regular expression is too long."
-msgstr "Регулярное выражение слишком длинное"
-
-msgid "Select at least one search option."
-msgstr "Требуется указать как минимум один параметр поиска"
-
-msgid "Select at least one search source."
-msgstr "Требуется указать как минимум один источник поиска"
-
-msgid "Enter a valid minimum data size."
-msgstr "Введите допустимый минимальный размер данных"
-
-msgid "Enter a valid maximum data size."
-msgstr "Введите допустимый максимальный размер данных"
-
-msgid "Minimum data size can't exceed maximum data size."
-msgstr ""
-"Минимальный размер данных не может быть больше максимального размера данных"
-
-msgid "Modified date range is invalid."
-msgstr "Недопустимый диапазон даты изменения"
-
-msgid "Enter a valid result limit."
-msgstr "Укажите допустимое число ограничения результатов"
-
-msgid "Select at least one top level key."
-msgstr "Требуется указать как минимум один раздел верхнего уровня"
-
-msgid ""
-"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and "
-"possessive (*+) quantifiers,\n"
-"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and "
-"Unicode classes \\p{L}, \\w, \\X.\n"
-"Matching is unicode aware and ignores case unless 'Match case' is set."
-msgstr ""
-"Синтаксис PCRE: якоря ^ $, классы символов, жадные, ленивые (*?) и "
-"квантификаторы без возврата (*+),\n"
-"группы (?<name>...), проверки (?=...) (?<=...), обратные ссылки \\1 и классы "
-"Unicode \\p{L}, \\w, \\X.\n"
-"Поиск учитывает Unicode и не учитывает регистр, если не задано \"Учитывать "
-"регистр\"."
 
 msgid "Exclude Keys"
 msgstr "Исключаемые разделы"
@@ -1218,6 +1104,60 @@ msgstr "Права доступа"
 msgid "Attributes"
 msgstr "Атрибуты"
 
+msgid "Close Handle"
+msgstr "Закрытие дескриптора"
+
+msgid "Close Handles"
+msgstr "Закрытие дескрипторов"
+
+msgid "Close"
+msgstr "Закрыть"
+
+msgid "Not all handles were closed."
+msgstr "Не все дескрипторы были закрыты"
+
+msgid "Copy Key"
+msgstr "Копировать раздел"
+
+msgid "Copy Native Name"
+msgstr "Копировать формат NT"
+
+msgid "Copy Process"
+msgstr "Копировать процесс"
+
+msgid "Copy PID"
+msgstr "Копировать PID"
+
+msgid "Copy Handle"
+msgstr "Копировать дескриптор"
+
+msgid "Copy Access"
+msgstr "Копировать права доступа"
+
+msgid "Close Handle..."
+msgstr "Закрыть дескриптор..."
+
+msgid "Filter"
+msgstr "Фильтр"
+
+msgid "Process"
+msgstr "Процесс"
+
+msgid "PID"
+msgstr "PID"
+
+msgid "Handle"
+msgstr "Дескриптор"
+
+msgid "Object Address"
+msgstr "Адрес объекта"
+
+msgid "Access"
+msgstr "Права доступа"
+
+msgid "Attributes"
+msgstr "Атрибуты"
+
 msgid "Native Name"
 msgstr "Формат NT"
 
@@ -1449,6 +1389,7 @@ msgid ""
 "somewhere only administrators can write.\n"
 "\n"
 "Replace anyway to apply it from this location."
+
 msgstr ""
 "При замене RegEdit будет выполнена регистрация указанного исполняемого файла "
 "для всех учётных записей на компьютере.\n"
@@ -1488,6 +1429,7 @@ msgid "No hive file was found for this key."
 msgstr "Для этого раздела не найден файл куста реестра"
 
 msgid "The release location isn't a trusted RegKit download address."
+
 msgstr ""
 "Адрес страницы версий программы RegKit не является доверенным адресом "
 "загрузки"

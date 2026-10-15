@@ -80,7 +80,11 @@ bool MainWindow::Impl::BuildRegFileContent(const TabEntry& entry, std::wstring* 
     regfile::Writer writer;
     std::function<void(const VirtualRegistryKey&, const std::wstring&)> append_key;
     append_key = [&](const VirtualRegistryKey& key, const std::wstring& full_path) {
-        if (!full_path.empty())
+        if (key.removed)
+        {
+            writer.AppendRemovedKey(full_path);
+        }
+        if (!key.removed || key.recreated || !key.values.empty())
         {
             std::vector<const RegistryValue*> values;
             values.reserve(key.values.size());
@@ -89,6 +93,13 @@ bool MainWindow::Impl::BuildRegFileContent(const TabEntry& entry, std::wstring* 
                 values.push_back(&source.second);
             }
             writer.AppendKey(full_path, std::move(values));
+            for (const std::wstring& name : key.removed_values)
+            {
+                if (!key.values.contains(ToLower(name)))
+                {
+                    writer.AppendRemovedValue(name);
+                }
+            }
         }
         std::vector<const VirtualRegistryKey*> children;
         children.reserve(key.children.size());

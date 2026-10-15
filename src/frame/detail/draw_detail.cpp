@@ -45,6 +45,7 @@
 #include "ui/feedback.h"
 #include "ui/gdi_cache.h"
 #include "ui/icon_loader.h"
+#include "ui/list_view_support.h"
 #include "win32/file_dialog.h"
 #include "win32/file_text.h"
 #include "win32/process_rights.h"
@@ -205,35 +206,6 @@ int FindListViewColumnBySubItem(HWND list, int subitem)
     return -1;
 }
 
-int FetchListViewItemText(HWND list, int index, int column, std::wstring* buffer)
-{
-    if (!list || !buffer)
-    {
-        return 0;
-    }
-    if (buffer->empty())
-    {
-        buffer->resize(1);
-    }
-    // the returned length is what fit, so grow while the text fills the buffer
-    constexpr size_t kMaxText = 1u << 20;
-    LVITEMW item = {};
-    item.iSubItem = column;
-    for (;;)
-    {
-        item.pszText = buffer->data();
-        item.cchTextMax = static_cast<int>(buffer->size());
-        const int length = static_cast<int>(
-            SendMessageW(list, LVM_GETITEMTEXTW, static_cast<WPARAM>(index), reinterpret_cast<LPARAM>(&item))
-        );
-        if (static_cast<size_t>(length) + 1 < buffer->size() || buffer->size() >= kMaxText)
-        {
-            return length;
-        }
-        buffer->resize(buffer->size() * 2);
-    }
-}
-
 int CalcListViewColumnFitWidth(HWND list, int column, int min_width)
 {
     if (!list || column < 0)
@@ -262,7 +234,7 @@ int CalcListViewColumnFitWidth(HWND list, int column, int min_width)
     buffer.resize(256);
     for (int i = 0; i < count; ++i)
     {
-        int length = FetchListViewItemText(list, i, column, &buffer);
+        int length = appearance::FetchListViewItemText(list, i, column, &buffer);
         if (length > 0)
         {
             int text_width = ListView_GetStringWidth(list, buffer.c_str()) + 18;

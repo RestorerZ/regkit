@@ -114,7 +114,17 @@ void MainWindow::Impl::AppendHistoryEntry(HistoryEntry entry)
     AppendHistoryEntries(std::move(entries));
 }
 
+std::optional<search::Source> MainWindow::Impl::HistorySource() const
+{
+    return IsSearchTabSelected() ? std::nullopt : std::optional<search::Source>(CurrentTabSource());
+}
+
 void MainWindow::Impl::AppendHistoryEntries(std::vector<HistoryEntry> entries)
+{
+    AppendHistoryEntries(std::move(entries), HistorySource());
+}
+
+void MainWindow::Impl::AppendHistoryEntries(std::vector<HistoryEntry> entries, const std::optional<search::Source>& source)
 {
     if (!history_list_ || entries.empty())
     {
@@ -126,18 +136,32 @@ void MainWindow::Impl::AppendHistoryEntries(std::vector<HistoryEntry> entries)
         entry.old_data = registry_path::DisplayName(entry.old_data);
         entry.new_data = registry_path::DisplayName(entry.new_data);
         entry.backup_mode = backup_privileges_ != nullptr;
+        if (source)
+        {
+            entry.source_kind = static_cast<int>(source->kind);
+            entry.source_name = source->name;
+            entry.source_view = source->view;
+        }
     }
     const std::vector<HistoryEntry> appended = change_history_.Append(std::move(entries), static_cast<size_t>(history_max_rows_));
     if (history_loaded_)
     {
         AppendHistoryCache(appended);
     }
-    change_history_.Sort(history_sort_column_, history_sort_ascending_);
+    change_history_.Sort(history_sort_column_, history_sort_ascending_, history_sort_earlier_);
     RebuildHistoryList();
 }
 
 bool MainWindow::Impl::PrepareHistoryRevert(const HistoryEntry& entry, HistoryEntry* prepared) const
 {
+    const search::Source source = CurrentTabSource();
+    auto same_source = [&source](const HistoryEntry& candidate) {
+        return candidate.source_kind == static_cast<int>(source.kind) && search::SameSource({source.kind, candidate.source_name, candidate.source_view}, source);
+    };
+    if (entry.source_kind < 0 || IsSearchTabSelected() || !same_source(entry))
+    {
+        return false;
+    }
     auto query_value = [this](const std::wstring& path, const std::wstring& name, RegistryValue* value) {
         RegistryNode node;
         return ResolvePathToNode(path, &node) && RegistryStore::QueryValue(node, name, value);
@@ -146,17 +170,18 @@ bool MainWindow::Impl::PrepareHistoryRevert(const HistoryEntry& entry, HistoryEn
     {
         return false;
     }
-    if (prepared->revert_kind != HistoryEntry::RevertKind::kDeleteValue)
+    if (prepared->revert_kind != HistoryEntry::RevertKind::kDeleteValue && prepared->revert_kind != HistoryEntry::RevertKind::kSetValue)
     {
         return true;
     }
 
+    // rows without a source may have changed this tree too
     std::vector<const HistoryEntry*> later_entries;
     later_entries.reserve(change_history_.entries().size());
     for (const HistoryEntry& candidate : change_history_.entries())
     {
         if (candidate.timestamp > entry.timestamp && EqualsInsensitive(candidate.key_path, entry.key_path) &&
-            StartsWithInsensitive(candidate.action, L"Rename value "))
+            (candidate.source_kind < 0 || same_source(candidate)))
         {
             later_entries.push_back(&candidate);
         }
@@ -166,13 +191,38 @@ bool MainWindow::Impl::PrepareHistoryRevert(const HistoryEntry& entry, HistoryEn
         later_entries.end(),
         [](const HistoryEntry* left, const HistoryEntry* right) { return left->timestamp < right->timestamp; }
     );
+    const bool deleted = StartsWithInsensitive(entry.action, L"Delete value ");
     for (const HistoryEntry* candidate : later_entries)
     {
-        if (!EqualsInsensitive(candidate->old_data, prepared->value_name))
+        const std::wstring& new_name = candidate->value_name.empty() ? candidate->new_data : candidate->value_name;
+        if (StartsWithInsensitive(candidate->action, L"Rename value "))
         {
-            continue;
+            if (EqualsInsensitive(candidate->old_data, prepared->value_name))
+            {
+                if (deleted)
+                {
+                    continue;
+                }
+                if (candidate->source_kind < 0)
+                {
+                    return false;
+                }
+                prepared->value_name = new_name;
+            }
+            else if (EqualsInsensitive(new_name, prepared->value_name))
+            {
+                return false;
+            }
         }
-        prepared->value_name = candidate->value_name.empty() ? candidate->new_data : candidate->value_name;
+        else if (candidate->revert_kind == HistoryEntry::RevertKind::kDeleteValue && EqualsInsensitive(candidate->value_name, prepared->value_name))
+        {
+            return false;
+        }
+    }
+    if (prepared->revert_kind == HistoryEntry::RevertKind::kSetValue)
+    {
+        prepared->revert_value.name = prepared->value_name;
+        return true;
     }
 
     RegistryValue current;
@@ -385,36 +435,38 @@ bool MainWindow::Impl::EnsureSearchTabResultsLoaded(int search_index)
     task->path = SearchTabCachePath(tab.cache_file);
     task->sort_column = tab.sort_column;
     task->sort_ascending = tab.sort_ascending;
+    task->sort_earlier = tab.sort_earlier;
+    task->sort_revision = tab.sort_revision;
+    task->sources = tab.sources;
     task->hwnd = hwnd_;
     tab.load_generation = task->generation;
 
     std::unique_ptr<SearchTabLoadTask> displaced = search_tab_loader_.Submit(std::move(task));
-    if (displaced && displaced->tab_index >= 0 && static_cast<size_t>(displaced->tab_index) < search_tabs_.size())
+    if (displaced)
     {
-        SearchTab& stale = search_tabs_[static_cast<size_t>(displaced->tab_index)];
-        if (stale.load_generation == displaced->generation)
+        if (SearchTab* stale = SearchTabByLoadGeneration(displaced->generation))
         {
-            stale.load_pending = false;
+            stale->load_pending = false;
         }
     }
     return false;
 }
 
+MainWindow::Impl::SearchTab* MainWindow::Impl::SearchTabByLoadGeneration(uint64_t generation)
+{
+    const auto found = std::find_if(search_tabs_.begin(), search_tabs_.end(), [generation](const SearchTab& tab) { return tab.load_generation == generation; });
+    return found != search_tabs_.end() ? &*found : nullptr;
+}
+
 void MainWindow::Impl::ApplySearchTabLoad(std::unique_ptr<SearchTabLoadPayload> owned)
 {
-    if (!owned)
+    SearchTab* found = owned ? SearchTabByLoadGeneration(owned->generation) : nullptr;
+    if (!found)
     {
         return;
     }
-    if (owned->tab_index < 0 || static_cast<size_t>(owned->tab_index) >= search_tabs_.size())
-    {
-        return;
-    }
-    SearchTab& tab = search_tabs_[static_cast<size_t>(owned->tab_index)];
-    if (tab.load_generation != owned->generation)
-    {
-        return;
-    }
+    SearchTab& tab = *found;
+    owned->tab_index = static_cast<int>(found - search_tabs_.data());
     tab.load_pending = false;
     tab.results = std::move(owned->rows);
     for (auto& row : tab.results)
@@ -423,6 +475,10 @@ void MainWindow::Impl::ApplySearchTabLoad(std::unique_ptr<SearchTabLoadPayload> 
     }
     tab.sort_dirty = false;
     tab.results_loaded = true;
+    if (tab.sort_revision != owned->sort_revision)
+    {
+        SortSearchTabResults(&tab);
+    }
     if (SearchIndexFromTab(TabCtrl_GetCurSel(tab_)) == owned->tab_index)
     {
         UpdateSearchResultsView();
@@ -472,6 +528,10 @@ bool MainWindow::Impl::ClearCache(CacheKind kind, bool resume_tree_worker)
     if (all || kind == CacheKind::kSearchHistory)
     {
         cleared = DeleteCacheFile(util::JoinPath(folder, L"search_history.txt")) && cleared;
+    }
+    if (all || kind == CacheKind::kDialogState)
+    {
+        cleared = DeleteCacheFile(util::JoinPath(folder, L"dialog_state.ini")) && cleared;
     }
     if (all || kind == CacheKind::kTreeState)
     {
@@ -1002,9 +1062,9 @@ bool MainWindow::Impl::ApplyValueComments(std::vector<ListRow>* rows) const
             changed = true;
         }
     }
-    if (browse_.columns().sort_column == kValueColComment)
+    if (browse_.columns().SortsBy(kValueColComment))
     {
-        SortValueRows(rows, browse_.columns().sort_column, browse_.columns().sort_ascending);
+        SortValueRows(rows, browse_.columns().sort_column, browse_.columns().sort_ascending, browse_.columns().sort_earlier);
         changed = true;
     }
     return changed;

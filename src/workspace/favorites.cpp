@@ -4,6 +4,7 @@
 #include "win32/translation.h"
 #include "workspace/favorites.h"
 
+#include "records/escaped_fields.h"
 #include "registry/key_algorithms.h"
 #include "win32/file_text.h"
 #include "win32/shell_paths.h"
@@ -18,17 +19,38 @@ namespace regkit::workspace
 namespace
 {
 
+constexpr std::wstring_view kHeader = L"#regkit-favorites-2";
+
 bool LoadFromFile(const std::wstring& path, std::vector<std::wstring>* favorites)
 {
     std::wstring content;
     const bool loaded = !path.empty() && util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes);
-    *favorites = util::SplitLines(content);
+    const std::vector<std::wstring_view> lines = record_fields::Lines(content);
+    if (lines.empty() || lines.front() != kHeader)
+    {
+        *favorites = util::SplitLines(content);
+        return loaded;
+    }
+    favorites->clear();
+    for (size_t i = 1; i < lines.size(); ++i)
+    {
+        if (!lines[i].empty())
+        {
+            favorites->push_back(record_fields::Unescape(lines[i]));
+        }
+    }
     return loaded;
 }
 
 bool SaveToFile(const std::wstring& path, const std::vector<std::wstring>& favorites)
 {
-    return !path.empty() && util::WriteTextFile(path, util::JoinLines(favorites), false);
+    std::wstring content(kHeader);
+    content.push_back(L'\n');
+    for (const std::wstring& favorite : favorites)
+    {
+        content.append(record_fields::Escape(favorite)).push_back(L'\n');
+    }
+    return !path.empty() && util::WriteTextFile(path, content, false);
 }
 
 size_t MergeUnique(std::vector<std::wstring>* favorites, const std::vector<std::wstring>& additions)

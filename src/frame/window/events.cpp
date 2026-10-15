@@ -14,7 +14,6 @@ MainWindow::Impl::~Impl() = default;
 bool MainWindow::Impl::Create(HINSTANCE instance)
 {
     instance_ = instance;
-    last_search_.criteria.search_keys = false;
 
     WNDCLASSEXW wc = {};
     wc.cbSize = sizeof(wc);

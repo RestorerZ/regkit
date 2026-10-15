@@ -9,6 +9,7 @@
 #include "ui/feedback.h"
 #include "ui/list_view_support.h"
 #include "win32/text_transform.h"
+#include "win32/translation.h"
 #include "win32/window_metrics.h"
 
 #include "resource.h"
@@ -58,13 +59,6 @@ int CALLBACK CompareRows(LPARAM left, LPARAM right, int column, void* context)
     return util::CompareListText(a, b);
 }
 
-size_t RowOf(HWND list, int item)
-{
-    LPARAM row = 0;
-    appearance::ListViewItemData(list, item, &row);
-    return static_cast<size_t>(row);
-}
-
 std::wstring Line(const std::vector<std::wstring>& cells)
 {
     std::wstring line;
@@ -89,16 +83,43 @@ std::wstring TablesText(const TablesRequest& request)
     return text;
 }
 
-void CopySelectedRows(HWND dialog, HWND list, const records::Table& table)
+void CopySelectedRows(HWND dialog, HWND list)
 {
-    std::wstring text;
-    for (int item = ListView_GetNextItem(list, -1, LVNI_SELECTED); item >= 0; item = ListView_GetNextItem(list, item, LVNI_SELECTED))
-    {
-        text.append(Line(table.rows[RowOf(list, item)]));
-    }
+    const std::wstring text = appearance::SelectedRowsText(list);
     if (!text.empty())
     {
         ui::CopyTextToClipboard(dialog, text);
+    }
+}
+
+void ShowRowMenu(HWND dialog, HWND list, bool checks, LPARAM lparam)
+{
+    POINT screen = {};
+    const int row = appearance::ContextMenuRow(list, lparam, &screen);
+    if (row < 0)
+    {
+        return;
+    }
+    constexpr int kMenuCheck = 1;
+    constexpr int kMenuCopy = 2;
+    HMENU menu = CreatePopupMenu();
+    const bool checked = ListView_GetCheckState(list, row);
+    if (checks)
+    {
+        std::wstring name;
+        appearance::FetchListViewItemText(list, row, 0, &name);
+        appearance::AppendMenuItem(menu, MF_STRING | (checked ? MF_CHECKED : 0), kMenuCheck, name.c_str(), L"Space");
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    }
+    appearance::AppendMenuItem(menu, MF_STRING, kMenuCopy, util::Tr(L"Copy Rows"), L"Ctrl+C");
+    const int chosen = appearance::TrackContextMenu(menu, screen, dialog);
+    if (chosen == kMenuCheck)
+    {
+        ListView_SetCheckState(list, row, !checked);
+    }
+    else if (chosen == kMenuCopy)
+    {
+        CopySelectedRows(dialog, list);
     }
 }
 
@@ -293,7 +314,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             if (list != state->lists.end() && header->code == LVN_COLUMNCLICK)
             {
                 bool ascending = state->sort_ascending[index];
-                appearance::SortListViewItems(*list, change->iSubItem, true, &state->sort_columns[index], &ascending, CompareRows, const_cast<records::Table*>(&state->request->tables[index]));
+                appearance::SortListViewItems(*list, change->iSubItem, true, &state->sort_columns[index], &ascending, nullptr, CompareRows, const_cast<records::Table*>(&state->request->tables[index]));
                 state->sort_ascending[index] = ascending;
                 return TRUE;
             }
@@ -310,9 +331,19 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             }
             if (list != state->lists.end() && header->code == LVN_KEYDOWN && reinterpret_cast<const NMLVKEYDOWN*>(lparam)->wVKey == 'C' && GetKeyState(VK_CONTROL) < 0)
             {
-                CopySelectedRows(dialog, *list, state->request->tables[index]);
+                CopySelectedRows(dialog, *list);
             }
             return FALSE;
+        }
+    case WM_CONTEXTMENU:
+        {
+            const auto list = std::find(state->lists.begin(), state->lists.end(), reinterpret_cast<HWND>(wparam));
+            if (list == state->lists.end())
+            {
+                return FALSE;
+            }
+            ShowRowMenu(dialog, *list, list - state->lists.begin() == state->request->check_table, lparam);
+            return TRUE;
         }
     case WM_COMMAND:
         if (appearance::HandleListViewCommand(dialog, LOWORD(wparam)))

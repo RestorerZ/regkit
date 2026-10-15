@@ -741,7 +741,17 @@ bool Save(const std::wstring& path, const DefinitionFile& file, std::wstring* er
     {
         return false;
     }
-    if (!util::WriteTextFile(path, Serialize(copy), false))
+    // formatting can push a valid file past what Load accepts
+    const std::wstring text = Serialize(copy);
+    if (util::WideToUtf8(text).size() > kMaxFileBytes)
+    {
+        if (error)
+        {
+            *error = util::Tr(L"The file is larger than RegKit can load.");
+        }
+        return false;
+    }
+    if (!util::WriteTextFile(path, text, false))
     {
         if (error)
         {

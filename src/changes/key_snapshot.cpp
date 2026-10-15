@@ -188,6 +188,11 @@ KeySnapshot CaptureKey(const RegistryNode& node, bool exact)
 
 bool RestoreKey(const RegistryNode& parent, const KeySnapshot& snapshot)
 {
+    // partial capture would restore as if it were whole
+    if (!snapshot.complete)
+    {
+        return false;
+    }
     const util::PrivilegeScope owner({SE_RESTORE_NAME});
     const util::PrivilegeScope audit({SE_SECURITY_NAME});
     bool created = false;
