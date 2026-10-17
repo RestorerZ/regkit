@@ -438,7 +438,7 @@ void LoadInitialState(SearchDialogState* state)
         SetChecked(Item(state, IDC_FIND_SKIP_LINKS), initial->criteria.skip_links);
         for (const auto& [id, kind] : kAnomalyBoxes)
         {
-            SetChecked(Item(state, id), (initial->criteria.anomalies & kind) != 0);
+            SetChecked(Item(state, id), state->sources.anomalies && (initial->criteria.anomalies & kind) != 0);
         }
         SetChecked(Item(state, IDC_FIND_MIN_SIZE), initial->criteria.use_min_size);
         SetChecked(Item(state, IDC_FIND_MAX_SIZE), initial->criteria.use_max_size);
@@ -458,20 +458,9 @@ void LoadInitialState(SearchDialogState* state)
         {
             SetDateTimeValue(Item(state, IDC_FIND_MODIFIED_TO), initial->criteria.modified_to);
         }
-        bool standard_hives = initial->search_standard_hives;
-        bool registry_root = initial->search_registry_root;
-        bool trace_values = initial->search_trace_values;
-        if (!state->sources.registry_root)
-        {
-            registry_root = false;
-        }
-        if (!state->sources.traces)
-        {
-            trace_values = false;
-        }
-        SetChecked(Item(state, IDC_FIND_ROOT_KEYS), standard_hives);
-        SetChecked(Item(state, IDC_FIND_REGISTRY), registry_root);
-        SetChecked(Item(state, IDC_FIND_TRACE), trace_values);
+        SetChecked(Item(state, IDC_FIND_ROOT_KEYS), initial->search_standard_hives);
+        SetChecked(Item(state, IDC_FIND_REGISTRY), initial->search_registry_root && state->sources.registry_root);
+        SetChecked(Item(state, IDC_FIND_TRACE), initial->search_trace_values && state->sources.traces);
         SetChecked(Item(state, IDC_FIND_DEFAULTS), initial->search_default_data && state->sources.defaults);
         SetChecked(Item(state, IDC_FIND_OFFLINE), initial->search_offline_hives && state->sources.offline);
         SetChecked(Item(state, IDC_FIND_REG_FILES), initial->search_reg_files && state->sources.reg_files);
@@ -539,19 +528,11 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
         return false;
     }
     bool standard_hives = IsChecked(Item(state, IDC_FIND_ROOT_KEYS));
-    bool registry_root = IsChecked(Item(state, IDC_FIND_REGISTRY));
-    bool trace_values = IsChecked(Item(state, IDC_FIND_TRACE));
+    bool registry_root = state->sources.registry_root && IsChecked(Item(state, IDC_FIND_REGISTRY));
+    bool trace_values = state->sources.traces && IsChecked(Item(state, IDC_FIND_TRACE));
     bool offline_hives = state->sources.offline && IsChecked(Item(state, IDC_FIND_OFFLINE));
     bool reg_files = state->sources.reg_files && IsChecked(Item(state, IDC_FIND_REG_FILES));
     bool remote_registry = state->sources.remote && IsChecked(Item(state, IDC_FIND_REMOTE));
-    if (!state->sources.registry_root)
-    {
-        registry_root = false;
-    }
-    if (!state->sources.traces)
-    {
-        trace_values = false;
-    }
     if (!standard_hives && !registry_root && !trace_values && !offline_hives && !reg_files && !remote_registry)
     {
         ui::ShowWarning(hwnd, util::Tr(L"Select at least one search source."));
@@ -706,6 +687,10 @@ INT_PTR CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
         SetDlgItemTextW(hwnd, IDC_FIND_LIMIT_EDIT, L"1000");
         LoadInitialState(state);
         UpdateDialogEnableState(state);
+        if (!state->sources.anomalies)
+        {
+            dialog_support::CollapseSection(hwnd, IDC_FIND_NUL_NAMES);
+        }
         dialog_support::Initialize(hwnd, &state->font, {IDC_FIND_SCOPE_EDIT, IDC_FIND_MIN_SIZE_EDIT, IDC_FIND_MAX_SIZE_EDIT, IDC_FIND_EXCLUDE_EDIT, IDC_FIND_LIMIT_EDIT});
         SetFocus(Item(state, IDC_FIND_WHAT));
         SendDlgItemMessageW(hwnd, IDC_FIND_WHAT, CB_SETEDITSEL, 0, MAKELPARAM(0, -1));

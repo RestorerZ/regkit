@@ -554,4 +554,64 @@ void MatchComboHeights(HWND dialog, int edit_id, std::initializer_list<int> comb
     }
 }
 
+void CollapseSection(HWND dialog, int control_id)
+{
+    const auto for_each_child = [dialog](auto&& visit) {
+        for (HWND child = GetWindow(dialog, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
+        {
+            RECT rect = {};
+            if ((GetWindowLongPtrW(child, GWL_STYLE) & WS_VISIBLE) && GetWindowRect(child, &rect))
+            {
+                visit(child, rect);
+            }
+        }
+    };
+    RECT control = {};
+    GetWindowRect(GetDlgItem(dialog, control_id), &control);
+    RECT band = control;
+    bool grouped = false;
+    for_each_child([&](HWND child, const RECT& rect) {
+        wchar_t class_name[16] = {};
+        GetClassNameW(child, class_name, _countof(class_name));
+        if (util::EqualsInsensitive(class_name, L"Button") && (GetWindowLongPtrW(child, GWL_STYLE) & BS_TYPEMASK) == BS_GROUPBOX &&
+            rect.top <= control.top && rect.bottom >= control.bottom)
+        {
+            band = rect;
+            grouped = true;
+        }
+    });
+    if (!grouped)
+    {
+        for_each_child([&](HWND, const RECT& rect) {
+            if (rect.top < control.bottom && rect.bottom > control.top)
+            {
+                band.top = std::min(band.top, rect.top);
+                band.bottom = std::max(band.bottom, rect.bottom);
+            }
+        });
+    }
+    LONG next_top = LONG_MAX;
+    for_each_child([&](HWND, const RECT& rect) {
+        if (rect.top >= band.bottom)
+        {
+            next_top = std::min(next_top, rect.top);
+        }
+    });
+    const int shift = (next_top == LONG_MAX ? band.bottom : next_top) - band.top;
+    for_each_child([&](HWND child, RECT rect) {
+        if (rect.top >= band.top && rect.bottom <= band.bottom)
+        {
+            ShowWindow(child, SW_HIDE);
+        }
+        else if (rect.top >= band.bottom)
+        {
+            MapWindowPoints(nullptr, dialog, reinterpret_cast<POINT*>(&rect), 2);
+            SetWindowPos(child, nullptr, rect.left, rect.top - shift, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    });
+    RECT window = {};
+    GetWindowRect(dialog, &window);
+    SetWindowPos(dialog, nullptr, 0, 0, window.right - window.left, window.bottom - window.top - shift, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 } // namespace regkit::editors::dialog_support

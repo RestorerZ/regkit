@@ -50,5 +50,6 @@ bool Matches(const std::wstring& text, const std::wstring& filter);
 void SetComboItems(HWND combo, const std::vector<std::wstring>& items);
 void FitDroppedWidth(HWND combo);
 void MatchComboHeights(HWND dialog, int edit_id, std::initializer_list<int> combos);
+void CollapseSection(HWND dialog, int control_id);
 
 } // namespace regkit::editors::dialog_support

@@ -409,14 +409,10 @@ void MainWindow::Impl::BuildMenus()
     AppendMenuW(view_menu, MF_STRING, cmd::kViewSimulatedKeys, util::Tr(L"Simulated Keys"));
     AppendMenuW(view_menu, MF_STRING, cmd::kViewExtraHives, util::Tr(L"Show Extra Root Keys"));
     separator(view_menu);
-    if (settings_.simple_mode)
-    {
-        AppendMenuW(view_menu, MF_STRING, cmd::kViewFont, util::Tr(L"Font..."));
-    }
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewSimpleMode, util::Tr(L"Simple Mode"));
-    append_popup(menu, view_menu, util::Tr(L"&View"));
 
     HMENU options_menu = CreatePopupMenu();
+    // simple mode hides Options (look settings move to View)
+    HMENU look_menu = settings_.simple_mode ? view_menu : options_menu;
     HMENU theme_menu = CreatePopupMenu();
     AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemeSystem, util::Tr(L"System"));
     AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemeLight, util::Tr(L"Light"));
@@ -424,12 +420,12 @@ void MainWindow::Impl::BuildMenus()
     AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemeCustom, util::Tr(L"Custom"));
     separator(theme_menu);
     AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemePresets, util::Tr(L"Theme Presets..."));
-    append_popup(options_menu, theme_menu, util::Tr(L"Theme"));
+    append_popup(look_menu, theme_menu, util::Tr(L"Theme"));
     HMENU icon_menu = CreatePopupMenu();
     AppendMenuW(icon_menu, MF_STRING, cmd::kOptionsIconSetClassic, util::Tr(L"Classic"));
     AppendMenuW(icon_menu, MF_STRING, cmd::kOptionsIconSetPhosphor, util::Tr(L"Phosphor"));
     AppendMenuW(icon_menu, MF_STRING, cmd::kOptionsIconSetCustom, util::Tr(L"Custom"));
-    append_popup(options_menu, icon_menu, util::Tr(L"Icons"));
+    append_popup(look_menu, icon_menu, util::Tr(L"Icons"));
     HMENU language_menu = CreatePopupMenu();
     language_packs_ = util::InstalledLanguages();
     language_packs_.insert(language_packs_.begin(), {L"en", L"English"});
@@ -439,9 +435,11 @@ void MainWindow::Impl::BuildMenus()
     {
         AppendMenuW(language_menu, MF_STRING, cmd::kOptionsLanguageBase + static_cast<int>(i), language_packs_[i].name.c_str());
     }
-    append_popup(options_menu, language_menu, util::Tr(L"Language"));
-    AppendMenuW(options_menu, MF_STRING, cmd::kViewFont, util::Tr(L"Font..."));
-    separator(options_menu);
+    append_popup(look_menu, language_menu, util::Tr(L"Language"));
+    AppendMenuW(look_menu, MF_STRING, cmd::kViewFont, util::Tr(L"Font..."));
+    separator(look_menu);
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewSimpleMode, util::Tr(L"Simple Mode"));
+    append_popup(menu, view_menu, util::Tr(L"&View"));
     AppendMenuW(options_menu, MF_STRING, cmd::kOptionsReadOnly, util::Tr(L"Read Only Mode"));
     AppendMenuW(options_menu, MF_STRING | (util::IsProcessPrivileged() ? 0 : MF_GRAYED), cmd::kOptionsBackupRestore, util::Tr(L"Use Backup/Restore Privileges"));
     separator(options_menu);

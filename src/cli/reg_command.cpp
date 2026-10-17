@@ -1263,6 +1263,7 @@ void PrintUsage()
           L"                                    Debugger entry, --override replaces it anyway\n"
           L"  regkit --uninstall-regedit-replacement\n"
           L"                                    remove this executable's replacement\n"
+          L"  regkit --setting key=value      change a settings.ini entry (repeatable)\n"
           L"  regkit --restart-system         relaunch as SYSTEM\n"
           L"  regkit --restart-ti             relaunch as TrustedInstaller\n"
           L"  regkit --help                   show this text\n"

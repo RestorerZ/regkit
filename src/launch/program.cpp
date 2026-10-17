@@ -55,6 +55,7 @@ constexpr wchar_t kUninstallEditContextMenuArg[] = L"--uninstall-edit-context-me
 constexpr wchar_t kInstallRegEditReplacementArg[] = L"--install-regedit-replacement";
 constexpr wchar_t kUninstallRegEditReplacementArg[] = L"--uninstall-regedit-replacement";
 constexpr wchar_t kOverrideArg[] = L"--override";
+constexpr wchar_t kSettingArg[] = L"--setting";
 
 constexpr const wchar_t* kRegEditNames[] = {L"regedit.exe", L"regedit", L"regedt32.exe", L"regedt32"};
 
@@ -462,6 +463,32 @@ std::optional<int> RunShellIntegrationCommand(const std::vector<std::wstring>& a
     return result == ERROR_SUCCESS ? 0 : 1;
 }
 
+// installer choices
+std::optional<int> RunSettingCommand(const std::vector<std::wstring>& args)
+{
+    std::wstring lines;
+    for (size_t index = 0; index + 1 < args.size(); ++index)
+    {
+        if (util::EqualsInsensitive(args[index], kSettingArg))
+        {
+            lines.append(args[++index]).append(L"\n");
+        }
+    }
+    if (lines.empty())
+    {
+        return std::nullopt;
+    }
+    const std::wstring folder = util::GetAppDataFolder();
+    if (folder.empty())
+    {
+        return 1;
+    }
+    const std::wstring path = util::JoinPath(folder, L"settings.ini");
+    workspace::Settings settings;
+    workspace::LoadSettings(path, &settings);
+    return workspace::SaveSettings(path, workspace::ParseSettings(lines, settings)) ? 0 : 1;
+}
+
 int MergeRegFiles(const std::vector<std::wstring>& reg_files)
 {
     for (const auto& path : reg_files)
@@ -550,6 +577,10 @@ int Run(HINSTANCE instance, int cmd_show)
     ApplySafeDllSearchPolicy();
     const auto args = GetCommandLineArgs();
     if (const std::optional<int> exit_code = RunShellIntegrationCommand(args))
+    {
+        return *exit_code;
+    }
+    if (const std::optional<int> exit_code = RunSettingCommand(args))
     {
         return *exit_code;
     }

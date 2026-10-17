@@ -94,6 +94,8 @@ Name: "startmenu"; Description: "Start Menu shortcut"; GroupDescription: "Shortc
 Name: "desktopicon"; Description: "Desktop shortcut"; GroupDescription: "Shortcuts:"
 Name: "replace_regedit"; Description: "Replace RegEdit"; GroupDescription: "Integration:"; Check: IsAdminInstallMode
 Name: "edit_context_menu"; Description: "Add ""Edit"" Context Menu"; GroupDescription: "Integration:"; Flags: checkedonce
+Name: "auto_updates"; Description: "Check for updates automatically"; GroupDescription: "Options:"
+Name: "simple_mode"; Description: "Enable simple mode (RegEdit layout)"; GroupDescription: "Options:"; Flags: unchecked
 
 [Files]
 Source: "{#BuildDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Components: main
@@ -218,6 +220,14 @@ begin
   end;
 end;
 
+function TaskValue(Task: string): string;
+begin
+  if WizardIsTaskSelected(Task) then
+    Result := '1'
+  else
+    Result := '0';
+end;
+
 function GetDefaultDir(Param: string): string;
 begin
   if IsAdminInstallMode then begin
@@ -229,6 +239,7 @@ end;
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Parameters: "--install-edit-context-menu"; Flags: runhidden runasoriginaluser; Tasks: edit_context_menu
+Filename: "{app}\{#AppExeName}"; Parameters: "--setting auto_check_updates={code:TaskValue|auto_updates} --setting view_simple_mode={code:TaskValue|simple_mode}"; Flags: runhidden runasoriginaluser
 Filename: "{app}\{#AppExeName}"; Description: "Launch RegKit"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
