@@ -640,6 +640,7 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         BuildMenus();
         ApplyValueColumns();
         ApplyViewVisibility();
+        ReloadLocalRoots();
         return true;
     case cmd::kViewExtraHives:
         settings_.show_extra_hives = !settings_.show_extra_hives;
