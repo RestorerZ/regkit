@@ -183,7 +183,6 @@ bool WriteTextFile(const std::wstring& path, const std::wstring& text, bool utf1
             DeleteFileW(temp_path.c_str());
             return false;
         }
-        // readers without delete sharing (scanners, indexers) block the replace for a moment, retried for up to 500 ms
         for (int retry = 0; retry < 20; ++retry)
         {
             if (MoveFileExW(temp_path.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
