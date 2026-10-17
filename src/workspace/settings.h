@@ -37,6 +37,7 @@ struct Settings
     bool show_extra_hives = false;
     bool show_value_grid = false;
     bool auto_refresh = false;
+    bool simple_mode = false;
     bool hkcu_follows_shell_user = true;
     bool save_tree_state = true;
     bool save_tabs = true;

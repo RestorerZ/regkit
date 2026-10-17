@@ -509,22 +509,22 @@ bool MainWindow::Impl::HandleFileCommand(int command_id)
 
 bool MainWindow::Impl::HandleViewCommand(int command_id)
 {
+    for (const PaneToggle& toggle : kPaneToggles)
+    {
+        if (toggle.command == command_id)
+        {
+            settings_.*toggle.shown = !(settings_.*toggle.shown);
+            SaveSettings();
+            ApplyViewVisibility();
+            return true;
+        }
+    }
     switch (command_id)
     {
     case cmd::kViewRefresh:
         RegistryStore::NoteKeyChange();
         RefreshWholeTree();
         UpdateValueListForNode(browse_.current_node());
-        return true;
-    case cmd::kViewAddressBar:
-        settings_.show_address_bar = !settings_.show_address_bar;
-        SaveSettings();
-        ApplyViewVisibility();
-        return true;
-    case cmd::kViewFilterBar:
-        settings_.show_filter_bar = !settings_.show_filter_bar;
-        SaveSettings();
-        ApplyViewVisibility();
         return true;
     case cmd::kViewFocusFilter:
         if (!settings_.show_filter_bar)
@@ -538,11 +538,6 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
             SetFocus(browse_.filter());
             SendMessageW(browse_.filter(), EM_SETSEL, 0, -1);
         }
-        return true;
-    case cmd::kViewTabControl:
-        settings_.show_tab_control = !settings_.show_tab_control;
-        SaveSettings();
-        ApplyViewVisibility();
         return true;
     case cmd::kTreeToggleExpand:
         {
@@ -620,16 +615,6 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
     case cmd::kEditInvertSelection:
         InvertSelectionInFocusedList();
         return true;
-    case cmd::kViewToolbar:
-        settings_.show_toolbar = !settings_.show_toolbar;
-        ApplyViewVisibility();
-        SaveSettings();
-        return true;
-    case cmd::kViewKeyTree:
-        settings_.show_tree = !settings_.show_tree;
-        ApplyViewVisibility();
-        SaveSettings();
-        return true;
     case cmd::kViewGridLines:
         SetValueGridEnabled(!settings_.show_value_grid, true);
         return true;
@@ -649,15 +634,12 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
         UpdateValueListForNode(browse_.current_node());
         SaveSettings();
         return true;
-    case cmd::kViewHistory:
-        settings_.show_history = !settings_.show_history;
-        ApplyViewVisibility();
+    case cmd::kViewSimpleMode:
+        settings_.simple_mode = !settings_.simple_mode;
         SaveSettings();
-        return true;
-    case cmd::kViewStatusBar:
-        settings_.show_status_bar = !settings_.show_status_bar;
+        BuildMenus();
+        ApplyValueColumns();
         ApplyViewVisibility();
-        SaveSettings();
         return true;
     case cmd::kViewExtraHives:
         settings_.show_extra_hives = !settings_.show_extra_hives;

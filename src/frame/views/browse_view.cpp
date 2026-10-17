@@ -204,7 +204,7 @@ void MainWindow::Impl::ApplyValueColumns()
     {
         return;
     }
-    RebuildListColumns(list, browse_.columns(), &value_column_subitems_);
+    RebuildListColumns(list, browse_.columns(), &value_column_subitems_, [this](size_t index) { return settings_.simple_mode && index > kValueColData; });
 
     HWND header = ListView_GetHeader(list);
     if (header)

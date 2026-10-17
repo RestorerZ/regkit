@@ -207,6 +207,21 @@ void ShowEditListMenu(HWND dialog, HWND list, LPARAM lparam, std::initializer_li
     }
 }
 
+void EnableRowButtons(HWND dialog, int list_id, int edit_id, int remove_id)
+{
+    const HWND list = GetDlgItem(dialog, list_id);
+    const bool selected = ListView_GetSelectedCount(list) > 0;
+    for (const int id : {edit_id, remove_id})
+    {
+        const HWND button = GetDlgItem(dialog, id);
+        if (!selected && GetFocus() == button)
+        {
+            SendMessageW(dialog, WM_NEXTDLGCTL, reinterpret_cast<WPARAM>(list), TRUE);
+        }
+        EnableWindow(button, selected);
+    }
+}
+
 std::vector<unsigned> CheckedBits(HWND dialog)
 {
     const HWND list = GetDlgItem(dialog, IDC_FIELD_BITS);
@@ -245,6 +260,7 @@ void FillStates(HWND dialog, const std::vector<State>& states, std::optional<uin
             ListView_EnsureVisible(list, row, FALSE);
         }
     }
+    EnableRowButtons(dialog, IDC_FIELD_STATES, IDC_FIELD_STATE_EDIT, IDC_FIELD_STATE_REMOVE);
 }
 
 INT_PTR CALLBACK StateDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam)
@@ -541,6 +557,10 @@ INT_PTR CALLBACK FieldDialogProc(HWND dialog, UINT message, WPARAM wparam, LPARA
             EditState(dialog, state, false);
             return TRUE;
         }
+        if (header->idFrom == IDC_FIELD_STATES && header->code == LVN_ITEMCHANGED)
+        {
+            EnableRowButtons(dialog, IDC_FIELD_STATES, IDC_FIELD_STATE_EDIT, IDC_FIELD_STATE_REMOVE);
+        }
         INT_PTR drawn = 0;
         if (dialog_support::HandleListViewNotify(dialog, header, &drawn))
         {
@@ -643,6 +663,7 @@ void RefreshFieldList(HWND dialog, Editor* state)
     appearance::SortListViewItems(list, state->field_sort_column, false, &state->field_sort_column, &state->field_sort_ascending, &state->field_sort_earlier, CompareDefinitionFields, state);
     SendMessageW(list, WM_SETREDRAW, TRUE, 0);
     RedrawWindow(list, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
+    EnableRowButtons(dialog, IDC_DEF_LIST, IDC_DEF_EDIT, IDC_DEF_REMOVE);
 }
 
 unsigned SelectedWidth(HWND dialog)
@@ -875,7 +896,7 @@ void ChangeWidth(HWND dialog, Editor* state)
     }
     if (affected)
     {
-        const int choice = ui::PromptChoice(dialog, util::Tr(L"Some fields use bits outside the new width. Remove those bits?"), util::Tr(L"Bit Definitions"), util::Tr(L"Remove"), util::Tr(L"Cancel"), L"", {80, 70, 70});
+        const int choice = ui::PromptChoice(dialog, util::Tr(L"Some fields use bits outside the new width. Remove those bits and any states or fields that no longer fit?"), util::Tr(L"Bit Definitions"), util::Tr(L"Remove"), util::Tr(L"Cancel"), L"", {80, 70, 70});
         if (choice != IDYES)
         {
             SelectWidth(dialog, definition.bit_width);
@@ -1103,6 +1124,10 @@ INT_PTR CALLBACK DefinitionDialogProc(HWND dialog, UINT message, WPARAM wparam, 
         {
             AddOrEditField(dialog, state, false);
             return TRUE;
+        }
+        if (header->idFrom == IDC_DEF_LIST && header->code == LVN_ITEMCHANGED)
+        {
+            EnableRowButtons(dialog, IDC_DEF_LIST, IDC_DEF_EDIT, IDC_DEF_REMOVE);
         }
         INT_PTR drawn = 0;
         if (dialog_support::HandleListViewNotify(dialog, header, &drawn))

@@ -51,7 +51,9 @@ void MainWindow::Impl::ShowHeaderMenu(HWND list, POINT screen_pt)
     {
         return;
     }
-    const int unavailable_column = list == search_results_list_ && IsCompareTabSelected() && !IsCompareResultColumnAvailable() ? 4 : -1;
+    const bool compare_gap = list == search_results_list_ && IsCompareTabSelected() && !IsCompareResultColumnAvailable();
+    const bool simple_values = list == browse_.values().hwnd() && settings_.simple_mode;
+    const auto unavailable = [&](size_t i) { return (compare_gap && i == 4) || (simple_values && i > kValueColData); };
     POINT client_pt = screen_pt;
     ScreenToClient(header_hwnd, &client_pt);
     HDHITTESTINFO hit = {};
@@ -68,10 +70,10 @@ void MainWindow::Impl::ShowHeaderMenu(HWND list, POINT screen_pt)
     AppendMenuW(menu, MF_STRING, cmd::kHeaderSizeAll, util::Tr(L"Size all columns to fit"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
-    const auto shown = [&](size_t i) { return static_cast<int>(i) != unavailable_column && (i >= set->visible.size() || set->visible[i]); };
+    const auto shown = [&](size_t i) { return !unavailable(i) && (i >= set->visible.size() || set->visible[i]); };
     for (size_t i = 0; i < set->items.size(); ++i)
     {
-        if (static_cast<int>(i) != unavailable_column)
+        if (!unavailable(i))
         {
             AppendMenuW(menu, MF_STRING | (shown(i) ? MF_CHECKED : MF_UNCHECKED), cmd::kHeaderToggleBase + static_cast<int>(i), set->items[i].title.c_str());
         }
@@ -116,7 +118,7 @@ void MainWindow::Impl::ShowHeaderMenu(HWND list, POINT screen_pt)
     else if (command >= cmd::kHeaderToggleBase)
     {
         const size_t index = static_cast<size_t>(command - cmd::kHeaderToggleBase);
-        if (index >= set->items.size() || index >= set->visible.size() || static_cast<int>(index) == unavailable_column)
+        if (index >= set->items.size() || index >= set->visible.size() || unavailable(index))
         {
             return;
         }

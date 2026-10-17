@@ -62,6 +62,22 @@ using workspace::FavoritesStore;
 constexpr wchar_t kHelpUrl[] = L"https://noverse.dev/docs/regkit";
 constexpr wchar_t kDiscordUrl[] = L"https://discord.noverse.dev";
 
+struct PaneToggle
+{
+    int command;
+    bool workspace::Settings::* shown;
+};
+
+constexpr PaneToggle kPaneToggles[] = {
+    {cmd::kViewToolbar, &workspace::Settings::show_toolbar},
+    {cmd::kViewAddressBar, &workspace::Settings::show_address_bar},
+    {cmd::kViewFilterBar, &workspace::Settings::show_filter_bar},
+    {cmd::kViewTabControl, &workspace::Settings::show_tab_control},
+    {cmd::kViewKeyTree, &workspace::Settings::show_tree},
+    {cmd::kViewHistory, &workspace::Settings::show_history},
+    {cmd::kViewStatusBar, &workspace::Settings::show_status_bar},
+};
+
 using util::ToLower;
 using util::TrimWhitespace;
 

@@ -410,6 +410,7 @@ class MainWindow::Impl
     bool EnsureWritable();
     bool ShowsRegFile() const;
     void PrepareMenusForOwnerDraw(HMENU menu);
+    void ApplySimpleMode(HMENU menu) const;
     void OnMeasureMenuItem(MEASUREITEMSTRUCT* info);
     void OnDrawMenuItem(const DRAWITEMSTRUCT* info);
     void PaintMenuBarSeparator();

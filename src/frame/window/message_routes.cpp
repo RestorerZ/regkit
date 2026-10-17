@@ -143,7 +143,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
                 if (content_rect_.right > 0 && GetWindowRect(hwnd_, &window))
                 {
                     const int panels = TextRowHeight(kPanelHeaderHeight) +
-                                       (settings_.show_history && !IsSearchTabSelected() ? kMinHistoryHeight + kHistoryGap + kHistorySplitterHeight : 0);
+                                       (settings_.show_history && !settings_.simple_mode && !IsSearchTabSelected() ? kMinHistoryHeight + kHistoryGap + kHistorySplitterHeight : 0);
                     const int chrome = (window.bottom - window.top) - (content_rect_.bottom - content_rect_.top);
                     info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, chrome + panels);
                 }
@@ -1445,6 +1445,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message, WPARA
             if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == kTreeHeaderCloseId)
             {
                 settings_.show_tree = false;
+                SaveSettings();
                 ApplyViewVisibility();
                 return 0;
             }
