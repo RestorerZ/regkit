@@ -19,10 +19,13 @@ struct UpdateCheckPayload : work::MoveOnly
 {
     bool silent = false;
     bool failed = false;
+    bool installed = false;
+    bool setup_exited = false;
     std::wstring version;
     std::wstring download_url;
+    std::wstring file_name;
     std::string sha256;
-    std::wstring setup_path;
+    std::wstring download_path;
     std::wstring error;
 };
 
@@ -36,6 +39,17 @@ class UpdateChecker
     void Apply(UpdateCheckPayload* payload);
     void Cancel();
 
+    bool SetupPending() const
+    {
+        return !setup_path_.empty();
+    }
+    bool SetupRunning() const
+    {
+        return setup_running_;
+    }
+    bool StartSetup();
+    void DropSetup();
+
   private:
     void Download(const UpdateCheckPayload& release);
     void SetStatus(const std::wstring& text) const;
@@ -43,6 +57,9 @@ class UpdateChecker
     HWND owner_ = nullptr;
     StatusCallback status_;
     work::Session session_;
+    std::wstring setup_path_;
+    std::string setup_sha256_;
+    bool setup_running_ = false;
 };
 
 } // namespace regkit::frame

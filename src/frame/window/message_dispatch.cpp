@@ -56,6 +56,7 @@ MessageArea ClassifyMessage(UINT message) noexcept
     case WM_DPICHANGED_AFTERPARENT:
     case WM_ACTIVATE:
     case WM_CLOSE:
+    case WM_ENDSESSION:
         return MessageArea::kLifecycle;
     case WM_LBUTTONDOWN:
     case WM_LBUTTONUP:

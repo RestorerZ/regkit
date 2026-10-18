@@ -94,8 +94,8 @@ Name: "startmenu"; Description: "Start Menu shortcut"; GroupDescription: "Shortc
 Name: "desktopicon"; Description: "Desktop shortcut"; GroupDescription: "Shortcuts:"
 Name: "replace_regedit"; Description: "Replace RegEdit"; GroupDescription: "Integration:"; Check: IsAdminInstallMode
 Name: "edit_context_menu"; Description: "Add ""Edit"" Context Menu"; GroupDescription: "Integration:"; Flags: checkedonce
-Name: "auto_updates"; Description: "Check for updates automatically"; GroupDescription: "Options:"
-Name: "simple_mode"; Description: "Enable simple mode (RegEdit layout)"; GroupDescription: "Options:"; Flags: unchecked
+Name: "auto_updates"; Description: "Check for updates automatically"; GroupDescription: "Options:"; Check: not IsUpgrade
+Name: "simple_mode"; Description: "Enable simple mode (RegEdit layout)"; GroupDescription: "Options:"; Flags: unchecked; Check: not IsUpgrade
 
 [Files]
 Source: "{#BuildDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Components: main
@@ -206,11 +206,24 @@ begin
   end;
 end;
 
+var
+  Upgrade, Installing: Boolean;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
+  if CurStep = ssInstall then
+    Installing := True;
   if CurStep = ssPostInstall then begin
     InstallRegEditReplacement;
   end;
+end;
+
+procedure DeinitializeSetup;
+var
+  ResultCode: Integer;
+begin
+  if Installing and WizardSilent and (ExpandConstant('{param:RELAUNCH|0}') = '1') then
+    ExecAsOriginalUser(ExpandConstant('{app}\{#AppExeName}'), '--restore-session', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
@@ -218,6 +231,17 @@ begin
   if CurUninstallStep = usUninstall then begin
     RemoveRegEditReplacement;
   end;
+end;
+
+function InitializeSetup: Boolean;
+begin
+  Upgrade := RegValueExists(HKA, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#AppId}_is1', 'UninstallString');
+  Result := True;
+end;
+
+function IsUpgrade: Boolean;
+begin
+  Result := Upgrade;
 end;
 
 function TaskValue(Task: string): string;
@@ -239,7 +263,7 @@ end;
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Parameters: "--install-edit-context-menu"; Flags: runhidden runasoriginaluser; Tasks: edit_context_menu
-Filename: "{app}\{#AppExeName}"; Parameters: "--setting auto_check_updates={code:TaskValue|auto_updates} --setting view_simple_mode={code:TaskValue|simple_mode}"; Flags: runhidden runasoriginaluser
+Filename: "{app}\{#AppExeName}"; Parameters: "--setting auto_check_updates={code:TaskValue|auto_updates} --setting view_simple_mode={code:TaskValue|simple_mode}"; Flags: runhidden runasoriginaluser; Check: not IsUpgrade
 Filename: "{app}\{#AppExeName}"; Description: "Launch RegKit"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
