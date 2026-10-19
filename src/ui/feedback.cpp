@@ -148,7 +148,7 @@ void FitChoiceDialogToContent(HWND hwnd, ChoiceDialogState* state)
     const int detail_h = Scaled(kControlHeight, dpi) + (lines - 1) * Scaled(kDetailLineHeight, dpi);
     const int needed = margin + text_h + block_gap + detail_h + block_gap + Scaled(kButtonHeight, dpi) +
                        Scaled(kDialogButtonBottomMargin, dpi);
-    if (needed <= client.bottom - client.top)
+    if (needed == client.bottom - client.top)
     {
         return;
     }
@@ -186,7 +186,11 @@ void LayoutChoiceDialog(HWND hwnd, ChoiceDialogState* state)
     if (state->detail_edit)
     {
         const int lines = std::min(DetailLineCount(state->detail), kMaxDetailLines);
-        const int detail_h = Scaled(kControlHeight, dpi) + (lines - 1) * Scaled(kDetailLineHeight, dpi);
+        int detail_h = Scaled(kControlHeight, dpi) + (lines - 1) * Scaled(kDetailLineHeight, dpi);
+        if (GetWindowLongPtrW(hwnd, GWL_STYLE) & WS_THICKFRAME)
+        {
+            detail_h = std::max(detail_h, static_cast<int>(client.bottom) - y - block_gap - button_h - Scaled(kDialogButtonBottomMargin, dpi));
+        }
         appearance::Place(state->detail_edit, text_x, y, content_w, detail_h);
         if (state->detail_tip)
         {
@@ -330,7 +334,8 @@ LRESULT CALLBACK ChoiceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                 {
                     detail_style |= WS_VSCROLL;
                 }
-                state->detail_edit = CreateWindowExW(0, L"EDIT", state->detail.c_str(), detail_style, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+                state->detail_edit = CreateWindowExW(0, L"EDIT", nullptr, detail_style, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
+                SetWindowTextW(state->detail_edit, state->detail.c_str());
                 state->detail_tip = CreateWindowExW(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr, WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, hwnd, nullptr, nullptr, nullptr);
                 if (state->detail_tip && state->detail_edit)
                 {
@@ -544,7 +549,8 @@ bool ShowChoiceDialog(HWND owner, const std::wstring& title, const std::wstring&
             kChoiceClass,
             ChoiceDialogProc,
             title.empty() ? kAppTitle : title.c_str(),
-            {appearance::metrics::Scaled(width, dpi), appearance::metrics::Scaled(height, dpi)}
+            {appearance::metrics::Scaled(width, dpi), appearance::metrics::Scaled(height, dpi)},
+            DetailLineCount(detail) > 1 ? WS_THICKFRAME : 0
         ))
     {
         return false;

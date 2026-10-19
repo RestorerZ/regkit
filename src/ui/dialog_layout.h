@@ -53,6 +53,8 @@ class DialogResizer
 };
 
 void AttachThemedBorder(HWND control);
+bool SizeGripRect(HWND dialog, RECT* rect);
+void DrawSizeGrip(HWND dialog, HDC hdc);
 
 struct DialogWindow
 {
@@ -63,6 +65,7 @@ struct DialogWindow
     int default_id = IDOK;
     bool accepted = false;
     bool owner_restored = false;
+    SIZE min_size = {};
 };
 
 template <typename State>

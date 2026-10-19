@@ -12,6 +12,9 @@
 
 #include <algorithm>
 #include <commctrl.h>
+#include <uxtheme.h>
+#include <vsstyle.h>
+#include <windowsx.h>
 
 #ifndef DCX_USESTYLE
 #define DCX_USESTYLE 0x00010000
@@ -266,6 +269,55 @@ void CloseDialogWindow(DialogWindow* dialog, bool accepted)
     DestroyWindow(dialog->hwnd);
 }
 
+bool SizeGripRect(HWND dialog, RECT* rect)
+{
+    if (!rect || (GetWindowLongPtrW(dialog, GWL_STYLE) & WS_THICKFRAME) == 0)
+    {
+        return false;
+    }
+    RECT client = {};
+    if (!GetClientRect(dialog, &client))
+    {
+        return false;
+    }
+    SIZE grip = {};
+    HTHEME theme = OpenThemeData(dialog, VSCLASS_STATUS);
+    if (theme)
+    {
+        if (FAILED(GetThemePartSize(theme, nullptr, SP_GRIPPER, 0, nullptr, TS_TRUE, &grip)))
+        {
+            grip = {};
+        }
+        CloseThemeData(theme);
+    }
+    if (grip.cx <= 0 || grip.cy <= 0)
+    {
+        grip.cx = grip.cy = GetSystemMetrics(SM_CXVSCROLL);
+    }
+    rect->left = client.right - grip.cx;
+    rect->top = client.bottom - grip.cy;
+    rect->right = client.right;
+    rect->bottom = client.bottom;
+    return true;
+}
+
+void DrawSizeGrip(HWND dialog, HDC hdc)
+{
+    RECT grip = {};
+    if (!hdc || !SizeGripRect(dialog, &grip))
+    {
+        return;
+    }
+    HTHEME theme = OpenThemeData(dialog, VSCLASS_STATUS);
+    if (theme)
+    {
+        DrawThemeBackground(theme, hdc, SP_GRIPPER, 0, &grip, nullptr);
+        CloseThemeData(theme);
+        return;
+    }
+    DrawFrameControl(hdc, &grip, DFC_SCROLL, DFCS_SCROLLSIZEGRIP);
+}
+
 LRESULT DefDialogWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
     DialogWindow* dialog = DialogWindowState<DialogWindow>(hwnd);
@@ -302,8 +354,32 @@ LRESULT DefDialogWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             RECT rect = {};
             GetClientRect(hwnd, &rect);
             FillRect(reinterpret_cast<HDC>(wparam), &rect, Theme::Current().BackgroundBrush());
+            DrawSizeGrip(hwnd, reinterpret_cast<HDC>(wparam));
             return TRUE;
         }
+    case WM_NCHITTEST:
+        {
+            RECT grip = {};
+            if (SizeGripRect(hwnd, &grip))
+            {
+                MapWindowPoints(hwnd, nullptr, reinterpret_cast<POINT*>(&grip), 2);
+                const POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+                if (PtInRect(&grip, pt))
+                {
+                    return HTBOTTOMRIGHT;
+                }
+            }
+            break;
+        }
+    case WM_GETMINMAXINFO:
+        if (dialog && dialog->min_size.cx > 0)
+        {
+            auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+            info->ptMinTrackSize.x = std::max<LONG>(info->ptMinTrackSize.x, dialog->min_size.cx);
+            info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, dialog->min_size.cy);
+            return 0;
+        }
+        break;
     case WM_CTLCOLORDLG:
     case WM_CTLCOLORSTATIC:
     case WM_CTLCOLORBTN:
@@ -358,6 +434,7 @@ LRESULT DefDialogWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 bool RunDialogWindow(DialogWindow* dialog, const wchar_t* class_name, WNDPROC proc, const wchar_t* title, SIZE size, DWORD extra_style)
 {
     WNDCLASSW window_class = {};
+    window_class.style = CS_HREDRAW | CS_VREDRAW;
     window_class.lpfnWndProc = proc;
     window_class.hInstance = GetModuleHandleW(nullptr);
     window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
@@ -368,6 +445,12 @@ bool RunDialogWindow(DialogWindow* dialog, const wchar_t* class_name, WNDPROC pr
     if (!hwnd)
     {
         return false;
+    }
+    if (extra_style & WS_THICKFRAME)
+    {
+        RECT window = {};
+        GetWindowRect(hwnd, &window);
+        dialog->min_size = {window.right - window.left, window.bottom - window.top};
     }
     ApplyDialogTheme(hwnd);
     CenterWindow(hwnd, dialog->owner);
