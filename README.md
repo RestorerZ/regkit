@@ -6,10 +6,13 @@ Whenever you're not a power user, `View > Simple Mode` mirrors the RegEdit UI la
 
 ## Installation
 
-The binaries can be downloaded via the [releases](https://github.com/nohuto/regkit/releases), winget ([PR](https://github.com/microsoft/winget-pkgs/pull/455779) wasn't merged yet), or by building them on your own.
+The binaries can be downloaded via the [releases](https://github.com/nohuto/regkit/releases), winget ([PR](https://github.com/microsoft/winget-pkgs/pull/455779) wasn't merged yet), scoop (will be added to [extras](https://github.com/ScoopInstaller/Extras) as soon as the repo has 100 stars) or by building them on your own.
 
 ```powershell
 winget install nohuto.RegKit
+
+scoop bucket add nohuto https://github.com/nohuto/regkit
+scoop install nohuto/regkit
 ```
 
 ### Verify Binaries
