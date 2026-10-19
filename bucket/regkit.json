@@ -20,6 +20,27 @@
             "RegKit"
         ]
     ],
+    "uninstaller": {
+        "script": [
+            "if ($cmd -eq 'uninstall') {",
+            "    $executables = @(Join-Path $dir 'regkit.exe')",
+            "    $current = Join-Path (Split-Path $dir) 'current\\regkit.exe'",
+            "    if (Test-Path -LiteralPath $current) { $executables += $current }",
+            "    foreach ($exe in $executables) {",
+            "        foreach ($argument in '--uninstall-regedit-replacement', '--uninstall-edit-context-menu') {",
+            "            $process = Start-Process -FilePath $exe -ArgumentList $argument -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop",
+            "            if ($process.ExitCode -ne 0) { abort \"RegKit cleanup failed ($argument)\" }",
+            "        }",
+            "    }",
+            "}"
+        ]
+    },
+    "post_uninstall": [
+        "if ($cmd -eq 'uninstall') {",
+        "    $dataDir = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Noverse\\RegKit'",
+        "    if (Test-Path -LiteralPath $dataDir) { Remove-Item -LiteralPath $dataDir -Recurse -Force -ErrorAction Stop }",
+        "}"
+    ],
     "checkver": "github",
     "autoupdate": {
         "architecture": {
