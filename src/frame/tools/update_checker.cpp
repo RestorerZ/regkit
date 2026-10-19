@@ -178,7 +178,7 @@ bool ReadRelease(const std::string& body, UpdateCheckPayload* release, std::wstr
                                                                        : nullptr;
                 return out && reader.Next() == L'"' ? reader.String(out) : reader.Skip();
             });
-            // the portable name becomes the saved file name
+            // portable name becomes the saved file name
             if (read && release->download_url.empty() && name.starts_with(prefix) && name.size() > prefix.size() + suffix.size() &&
                 name.ends_with(suffix) && name.find_first_of(L"\\/:") == std::wstring::npos)
             {
