@@ -8,6 +8,7 @@
 #include "ui/default_font.h"
 #include "ui/dialog_fit.h"
 #include "ui/dialog_layout.h"
+#include "ui/dialog_metrics.h"
 #include "ui/feedback.h"
 #include "ui/font_metrics.h"
 #include "ui/list_view_support.h"
@@ -19,7 +20,6 @@
 #include <string>
 
 #include <commctrl.h>
-#include <windowsx.h>
 
 namespace regkit::editors::dialog_support
 {
@@ -145,25 +145,13 @@ LRESULT CALLBACK ListViewProc(HWND window, UINT message, WPARAM wparam, LPARAM l
     return DefSubclassProc(window, message, wparam, lparam);
 }
 
-void ThinBorder(HWND dialog, int id)
-{
-    const HWND edit = GetDlgItem(dialog, id);
-    if (!edit)
-    {
-        return;
-    }
-    SetWindowLongPtrW(edit, GWL_EXSTYLE, GetWindowLongPtrW(edit, GWL_EXSTYLE) & ~WS_EX_CLIENTEDGE);
-    SetWindowLongPtrW(edit, GWL_STYLE, GetWindowLongPtrW(edit, GWL_STYLE) | WS_BORDER);
-    SetWindowPos(edit, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-}
-
 } // namespace
 
 void Initialize(HWND dialog, HFONT* owned_font, std::initializer_list<int> bordered_edits)
 {
     for (const int id : bordered_edits)
     {
-        ThinBorder(dialog, id);
+        appearance::SetThinBorder(GetDlgItem(dialog, id));
     }
     HFONT font = ui::DefaultUIFont(win32::DpiForWindow(dialog));
     if (owned_font)
@@ -270,53 +258,28 @@ bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam,
     }
     if (message == WM_ERASEBKGND)
     {
-        RECT rect = {};
-        GetClientRect(dialog, &rect);
-        FillRect(reinterpret_cast<HDC>(wparam), &rect, Theme::Current().BackgroundBrush());
-        appearance::DrawSizeGrip(dialog, reinterpret_cast<HDC>(wparam));
+        appearance::EraseDialogBackground(dialog, reinterpret_cast<HDC>(wparam));
         *result = TRUE;
         return true;
     }
-    if (message == WM_NCHITTEST)
+    if (message == WM_NCHITTEST && appearance::IsOnSizeGrip(dialog, lparam))
     {
-        RECT grip = {};
-        if (appearance::SizeGripRect(dialog, &grip))
-        {
-            MapWindowPoints(dialog, nullptr, reinterpret_cast<POINT*>(&grip), 2);
-            const POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-            if (PtInRect(&grip, pt))
-            {
-                SetWindowLongPtrW(dialog, DWLP_MSGRESULT, HTBOTTOMRIGHT);
-                *result = TRUE;
-                return true;
-            }
-        }
+        SetWindowLongPtrW(dialog, DWLP_MSGRESULT, HTBOTTOMRIGHT);
+        *result = TRUE;
+        return true;
     }
-    int color_type = 0;
     switch (message)
     {
     case WM_CTLCOLORDLG:
-        color_type = CTLCOLOR_DLG;
-        break;
     case WM_CTLCOLORSTATIC:
-        color_type = CTLCOLOR_STATIC;
-        break;
-    case WM_CTLCOLOREDIT:
-        color_type = CTLCOLOR_EDIT;
-        break;
-    case WM_CTLCOLORLISTBOX:
-        color_type = CTLCOLOR_LISTBOX;
-        break;
     case WM_CTLCOLORBTN:
-        color_type = CTLCOLOR_BTN;
-        break;
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+        *result = reinterpret_cast<INT_PTR>(Theme::Current().ControlColor(reinterpret_cast<HDC>(wparam), reinterpret_cast<HWND>(lparam), static_cast<int>(message - WM_CTLCOLORMSGBOX)));
+        return true;
     default:
         return false;
     }
-    *result = reinterpret_cast<INT_PTR>(
-        Theme::Current().ControlColor(reinterpret_cast<HDC>(wparam), reinterpret_cast<HWND>(lparam), color_type)
-    );
-    return true;
 }
 
 void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColumn> columns)
@@ -334,7 +297,7 @@ void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColu
         LVCOLUMNW item = {};
         item.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
         item.pszText = const_cast<wchar_t*>(column.title);
-        item.cx = std::max(MulDiv(column.width, static_cast<int>(dpi), 96), ListView_GetStringWidth(list, column.title) + MulDiv(16, static_cast<int>(dpi), 96));
+        item.cx = std::max(appearance::metrics::Scaled(column.width, dpi), ListView_GetStringWidth(list, column.title) + appearance::metrics::Scaled(16, dpi));
         item.iSubItem = index;
         ListView_InsertColumn(list, index, &item);
         ++index;
@@ -342,7 +305,7 @@ void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColu
 
     if (HWND tooltip = ListView_GetToolTips(list))
     {
-        SendMessageW(tooltip, TTM_SETMAXTIPWIDTH, 0, MulDiv(kTooltipMaxWidth, static_cast<int>(dpi), 96));
+        SendMessageW(tooltip, TTM_SETMAXTIPWIDTH, 0, appearance::metrics::Scaled(kTooltipMaxWidth, dpi));
     }
     EnsureSubclass(list, ListViewProc, kListViewSubclassId);
     appearance::RegisterListView(GetParent(list), list, kGridToggleId);
@@ -485,7 +448,8 @@ void FitDroppedWidth(HWND combo)
     RECT rect = {};
     GetWindowRect(combo, &rect);
     const int minimum = rect.right - rect.left;
-    const int padding = GetSystemMetrics(SM_CXVSCROLL) + 8;
+    const UINT dpi = win32::DpiForWindow(combo);
+    const int padding = win32::SystemMetricForDpi(SM_CXVSCROLL, dpi) + appearance::metrics::Scaled(8, dpi);
     SendMessageW(combo, CB_SETDROPPEDWIDTH, static_cast<WPARAM>(std::max(minimum, widest + padding)), 0);
 }
 

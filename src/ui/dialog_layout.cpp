@@ -71,29 +71,10 @@ LRESULT CALLBACK ThemedBorderProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM
     return result;
 }
 
-} // namespace
+constexpr DWORD kDialogWindowStyle = WS_POPUP | WS_CAPTION | WS_SYSMENU;
+constexpr DWORD kDialogWindowExStyle = WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT;
 
-void AttachThemedBorder(HWND control)
-{
-    if (!control || GetWindowSubclass(control, ThemedBorderProc, kThemedBorderSubclassId, nullptr))
-    {
-        return;
-    }
-    if (!SetWindowSubclass(control, ThemedBorderProc, kThemedBorderSubclassId, 0))
-    {
-        return;
-    }
-    SetWindowLongPtrW(control, GWL_EXSTYLE, GetWindowLongPtrW(control, GWL_EXSTYLE) & ~WS_EX_CLIENTEDGE);
-    SetWindowLongPtrW(control, GWL_STYLE, GetWindowLongPtrW(control, GWL_STYLE) | WS_BORDER);
-    SetWindowPos(control, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-}
-
-HWND CreateControl(HWND parent, const wchar_t* class_name, const wchar_t* text, DWORD style, int id)
-{
-    return CreateWindowExW(0, class_name, text, WS_CHILD | WS_VISIBLE | style, 0, 0, 0, 0, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), nullptr, nullptr);
-}
-
-static void SetControlFont(HWND control, HFONT font)
+void SetControlFont(HWND control, HFONT font)
 {
     if (control && font)
     {
@@ -101,28 +82,7 @@ static void SetControlFont(HWND control, HFONT font)
     }
 }
 
-void SetDialogFont(HWND dialog, HFONT font)
-{
-    SetControlFont(dialog, font);
-    EnumChildWindows(
-        dialog,
-        [](HWND child, LPARAM param) -> BOOL {
-            SetControlFont(child, reinterpret_cast<HFONT>(param));
-            return TRUE;
-        },
-        reinterpret_cast<LPARAM>(font)
-    );
-}
-
-void Place(HWND control, int x, int y, int width, int height)
-{
-    if (control)
-    {
-        SetWindowPos(control, nullptr, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
-    }
-}
-
-static void RestoreDialogOwner(HWND owner, bool* restored)
+void RestoreDialogOwner(HWND owner, bool* restored)
 {
     if (!owner || !restored || *restored)
     {
@@ -134,29 +94,7 @@ static void RestoreDialogOwner(HWND owner, bool* restored)
     *restored = true;
 }
 
-void CenterWindow(HWND window, HWND owner)
-{
-    RECT rect = {};
-    if (!window || !GetWindowRect(window, &rect))
-    {
-        return;
-    }
-    RECT target = {};
-    if ((!owner || !GetWindowRect(owner, &target)) && !SystemParametersInfoW(SPI_GETWORKAREA, 0, &target, 0))
-    {
-        return;
-    }
-    const LONG width = rect.right - rect.left;
-    const LONG height = rect.bottom - rect.top;
-    MONITORINFO monitor = {sizeof(monitor)};
-    GetMonitorInfoW(MonitorFromRect(&target, MONITOR_DEFAULTTONEAREST), &monitor);
-    const RECT& work = monitor.rcWork;
-    const LONG x = std::clamp(target.left + (target.right - target.left - width) / 2, work.left, std::max(work.left, work.right - width));
-    const LONG y = std::clamp(target.top + (target.bottom - target.top - height) / 2, work.top, std::max(work.top, work.bottom - height));
-    SetWindowPos(window, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
-}
-
-static void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi)
+void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi)
 {
     if (!window || !owned_font)
     {
@@ -175,7 +113,7 @@ static void RefreshDialogFont(HWND window, HFONT* owned_font, UINT dpi)
     *owned_font = font;
 }
 
-static void ApplyDpiChange(HWND window, LPARAM suggested_rect)
+void ApplyDpiChange(HWND window, LPARAM suggested_rect)
 {
     const RECT* rect = reinterpret_cast<const RECT*>(suggested_rect);
     if (!window || !rect)
@@ -185,7 +123,7 @@ static void ApplyDpiChange(HWND window, LPARAM suggested_rect)
     SetWindowPos(window, nullptr, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-static void RunModalLoop(HWND dialog)
+void RunModalLoop(HWND dialog)
 {
     MSG msg = {};
     while (IsWindow(dialog))
@@ -222,13 +160,107 @@ static void RunModalLoop(HWND dialog)
     }
 }
 
-namespace
+bool Resizable(HWND dialog)
 {
+    return (GetWindowLongPtrW(dialog, GWL_STYLE) & WS_THICKFRAME) != 0;
+}
 
-constexpr DWORD kDialogWindowStyle = WS_POPUP | WS_CAPTION | WS_SYSMENU;
-constexpr DWORD kDialogWindowExStyle = WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT;
+RECT SizeGripRect(HWND dialog, HTHEME theme)
+{
+    RECT rect = {};
+    GetClientRect(dialog, &rect);
+    SIZE grip = {};
+    if (!theme || FAILED(GetThemePartSize(theme, nullptr, SP_GRIPPER, 0, nullptr, TS_TRUE, &grip)) || grip.cx <= 0 || grip.cy <= 0)
+    {
+        grip.cx = grip.cy = win32::SystemMetricForDpi(SM_CXVSCROLL, win32::DpiForWindow(dialog));
+    }
+    rect.left = rect.right - grip.cx;
+    rect.top = rect.bottom - grip.cy;
+    return rect;
+}
+
+void ClampMinTrackSize(MINMAXINFO* info, SIZE min_size)
+{
+    if (!info || min_size.cx <= 0 || min_size.cy <= 0)
+    {
+        return;
+    }
+    info->ptMinTrackSize.x = std::max<LONG>(info->ptMinTrackSize.x, min_size.cx);
+    info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, min_size.cy);
+}
 
 } // namespace
+
+void SetThinBorder(HWND control)
+{
+    if (!control)
+    {
+        return;
+    }
+    SetWindowLongPtrW(control, GWL_EXSTYLE, GetWindowLongPtrW(control, GWL_EXSTYLE) & ~WS_EX_CLIENTEDGE);
+    SetWindowLongPtrW(control, GWL_STYLE, GetWindowLongPtrW(control, GWL_STYLE) | WS_BORDER);
+    SetWindowPos(control, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+}
+
+void AttachThemedBorder(HWND control)
+{
+    if (!control || GetWindowSubclass(control, ThemedBorderProc, kThemedBorderSubclassId, nullptr))
+    {
+        return;
+    }
+    if (SetWindowSubclass(control, ThemedBorderProc, kThemedBorderSubclassId, 0))
+    {
+        SetThinBorder(control);
+    }
+}
+
+HWND CreateControl(HWND parent, const wchar_t* class_name, const wchar_t* text, DWORD style, int id)
+{
+    return CreateWindowExW(0, class_name, text, WS_CHILD | WS_VISIBLE | style, 0, 0, 0, 0, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), nullptr, nullptr);
+}
+
+void SetDialogFont(HWND dialog, HFONT font)
+{
+    SetControlFont(dialog, font);
+    EnumChildWindows(
+        dialog,
+        [](HWND child, LPARAM param) -> BOOL {
+            SetControlFont(child, reinterpret_cast<HFONT>(param));
+            return TRUE;
+        },
+        reinterpret_cast<LPARAM>(font)
+    );
+}
+
+void Place(HWND control, int x, int y, int width, int height)
+{
+    if (control)
+    {
+        SetWindowPos(control, nullptr, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+}
+
+void CenterWindow(HWND window, HWND owner)
+{
+    RECT rect = {};
+    if (!window || !GetWindowRect(window, &rect))
+    {
+        return;
+    }
+    RECT target = {};
+    if ((!owner || !GetWindowRect(owner, &target)) && !SystemParametersInfoW(SPI_GETWORKAREA, 0, &target, 0))
+    {
+        return;
+    }
+    const LONG width = rect.right - rect.left;
+    const LONG height = rect.bottom - rect.top;
+    MONITORINFO monitor = {sizeof(monitor)};
+    GetMonitorInfoW(MonitorFromRect(&target, MONITOR_DEFAULTTONEAREST), &monitor);
+    const RECT& work = monitor.rcWork;
+    const LONG x = std::clamp(target.left + (target.right - target.left - width) / 2, work.left, std::max(work.left, work.right - width));
+    const LONG y = std::clamp(target.top + (target.bottom - target.top - height) / 2, work.top, std::max(work.top, work.bottom - height));
+    SetWindowPos(window, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+}
 
 SIZE DialogWindowSize(HWND owner, int client_width, int client_height, DWORD extra_style)
 {
@@ -269,46 +301,17 @@ void CloseDialogWindow(DialogWindow* dialog, bool accepted)
     DestroyWindow(dialog->hwnd);
 }
 
-bool SizeGripRect(HWND dialog, RECT* rect)
+void EraseDialogBackground(HWND dialog, HDC hdc)
 {
-    if (!rect || (GetWindowLongPtrW(dialog, GWL_STYLE) & WS_THICKFRAME) == 0)
-    {
-        return false;
-    }
-    RECT client = {};
-    if (!GetClientRect(dialog, &client))
-    {
-        return false;
-    }
-    SIZE grip = {};
-    HTHEME theme = OpenThemeData(dialog, VSCLASS_STATUS);
-    if (theme)
-    {
-        if (FAILED(GetThemePartSize(theme, nullptr, SP_GRIPPER, 0, nullptr, TS_TRUE, &grip)))
-        {
-            grip = {};
-        }
-        CloseThemeData(theme);
-    }
-    if (grip.cx <= 0 || grip.cy <= 0)
-    {
-        grip.cx = grip.cy = GetSystemMetrics(SM_CXVSCROLL);
-    }
-    rect->left = client.right - grip.cx;
-    rect->top = client.bottom - grip.cy;
-    rect->right = client.right;
-    rect->bottom = client.bottom;
-    return true;
-}
-
-void DrawSizeGrip(HWND dialog, HDC hdc)
-{
-    RECT grip = {};
-    if (!hdc || !SizeGripRect(dialog, &grip))
+    RECT rect = {};
+    GetClientRect(dialog, &rect);
+    FillRect(hdc, &rect, Theme::Current().BackgroundBrush());
+    if (!Resizable(dialog))
     {
         return;
     }
     HTHEME theme = OpenThemeData(dialog, VSCLASS_STATUS);
+    RECT grip = SizeGripRect(dialog, theme);
     if (theme)
     {
         DrawThemeBackground(theme, hdc, SP_GRIPPER, 0, &grip, nullptr);
@@ -316,6 +319,23 @@ void DrawSizeGrip(HWND dialog, HDC hdc)
         return;
     }
     DrawFrameControl(hdc, &grip, DFC_SCROLL, DFCS_SCROLLSIZEGRIP);
+}
+
+bool IsOnSizeGrip(HWND dialog, LPARAM screen_point)
+{
+    if (!Resizable(dialog))
+    {
+        return false;
+    }
+    HTHEME theme = OpenThemeData(dialog, VSCLASS_STATUS);
+    const RECT grip = SizeGripRect(dialog, theme);
+    if (theme)
+    {
+        CloseThemeData(theme);
+    }
+    POINT point = {GET_X_LPARAM(screen_point), GET_Y_LPARAM(screen_point)};
+    ScreenToClient(dialog, &point);
+    return PtInRect(&grip, point) != FALSE;
 }
 
 LRESULT DefDialogWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
@@ -350,33 +370,18 @@ LRESULT DefDialogWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         }
         return 0;
     case WM_ERASEBKGND:
-        {
-            RECT rect = {};
-            GetClientRect(hwnd, &rect);
-            FillRect(reinterpret_cast<HDC>(wparam), &rect, Theme::Current().BackgroundBrush());
-            DrawSizeGrip(hwnd, reinterpret_cast<HDC>(wparam));
-            return TRUE;
-        }
+        EraseDialogBackground(hwnd, reinterpret_cast<HDC>(wparam));
+        return TRUE;
     case WM_NCHITTEST:
+        if (IsOnSizeGrip(hwnd, lparam))
         {
-            RECT grip = {};
-            if (SizeGripRect(hwnd, &grip))
-            {
-                MapWindowPoints(hwnd, nullptr, reinterpret_cast<POINT*>(&grip), 2);
-                const POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-                if (PtInRect(&grip, pt))
-                {
-                    return HTBOTTOMRIGHT;
-                }
-            }
-            break;
+            return HTBOTTOMRIGHT;
         }
+        break;
     case WM_GETMINMAXINFO:
-        if (dialog && dialog->min_size.cx > 0)
+        if (dialog)
         {
-            auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
-            info->ptMinTrackSize.x = std::max<LONG>(info->ptMinTrackSize.x, dialog->min_size.cx);
-            info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, dialog->min_size.cy);
+            ClampMinTrackSize(reinterpret_cast<MINMAXINFO*>(lparam), dialog->min_size);
             return 0;
         }
         break;
@@ -547,12 +552,7 @@ void DialogResizer::Apply(HWND dialog) const
 
 void DialogResizer::ClampMinSize(MINMAXINFO* info) const
 {
-    if (!info || min_window_.cx <= 0 || min_window_.cy <= 0)
-    {
-        return;
-    }
-    info->ptMinTrackSize.x = std::max<LONG>(info->ptMinTrackSize.x, min_window_.cx);
-    info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, min_window_.cy);
+    ClampMinTrackSize(info, min_window_);
 }
 
 } // namespace regkit::appearance
