@@ -59,7 +59,7 @@ using window_detail::MakeValueListRow;
 using window_detail::StartsWithInsensitive;
 using workspace::FavoritesStore;
 
-constexpr wchar_t kHelpUrl[] = L"https://noverse.dev/docs/regkit";
+constexpr wchar_t kHelpUrl[] = L"https://noverse.dev/docs/regkit/overview/";
 constexpr wchar_t kDiscordUrl[] = L"https://discord.noverse.dev";
 
 struct PaneToggle
