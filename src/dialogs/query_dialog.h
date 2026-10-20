@@ -41,6 +41,7 @@ struct SearchSources
     bool reg_files = false;
     bool remote = false;
     bool extra_hives = false;
+    bool anomalies = true;
 };
 
 struct SearchDialogResult

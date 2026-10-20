@@ -103,6 +103,83 @@ int SubMenuPosition(HMENU menu, UINT command)
     return -1;
 }
 
+constexpr int kSimpleModeHidden[] = {
+    cmd::kFileImportComments,
+    cmd::kFileExportComments,
+    cmd::kFileSaveOfflineHive,
+    cmd::kNewVolatileKey,
+    cmd::kNewSymbolicLink,
+    cmd::kEditChangeType,
+    cmd::kEditBits,
+    cmd::kEditDecodeValue,
+    cmd::kEditModifyComment,
+    cmd::kEditResetDefault,
+    cmd::kEditCopyKeyPathAbbrev,
+    cmd::kEditCopyKeyPathRegEdit,
+    cmd::kEditCopyKeyPathRegFile,
+    cmd::kEditCopyKeyPathPowerShell,
+    cmd::kEditCopyKeyPathPowerShellProvider,
+    cmd::kEditCopyKeyPathEscaped,
+    cmd::kEditCopyKeyPathNative,
+    cmd::kEditCopyKeyPathNativeResolved,
+    cmd::kEditInvertSelection,
+    cmd::kRegistryOtherView,
+    cmd::kEditGoToVirtualStore,
+    cmd::kEditGoToGlobalKey,
+    cmd::kEditKeyInfo,
+    cmd::kEditOpenSourceHive,
+    cmd::kOptionsHiveFileDir,
+    cmd::kTreeExpandAll,
+    cmd::kViewAutoRefresh,
+    cmd::kViewToolbar,
+    cmd::kViewHistory,
+    cmd::kViewKeysInList,
+    cmd::kViewGridLines,
+    cmd::kViewSimulatedKeys,
+    cmd::kViewExtraHives,
+    cmd::kOptionsIconSetClassic,
+    cmd::kOptionsIconSetPhosphor,
+    cmd::kOptionsIconSetCustom,
+    cmd::kFavoritesEdit,
+    cmd::kFavoritesImport,
+    cmd::kFavoritesImportRegEdit,
+    cmd::kFavoritesExport,
+};
+
+bool IsSeparator(HMENU menu, int position)
+{
+    MENUITEMINFOW item = {};
+    item.cbSize = sizeof(item);
+    item.fMask = MIIM_FTYPE | MIIM_SUBMENU;
+    return GetMenuItemInfoW(menu, position, TRUE, &item) && (item.fType & MFT_SEPARATOR) && !item.hSubMenu;
+}
+
+void RemoveSimpleModeItems(HMENU menu)
+{
+    for (int position = GetMenuItemCount(menu) - 1; position >= 0; --position)
+    {
+        HMENU sub = GetSubMenu(menu, position);
+        const int sub_count = sub ? GetMenuItemCount(sub) : 0;
+        if (sub)
+        {
+            RemoveSimpleModeItems(sub);
+        }
+        const bool emptied = sub && sub_count > 0 && GetMenuItemCount(sub) == 0;
+        const bool hidden = !sub && std::ranges::find(kSimpleModeHidden, static_cast<int>(GetMenuItemID(menu, position))) != std::end(kSimpleModeHidden);
+        if (emptied || hidden)
+        {
+            DeleteMenu(menu, static_cast<UINT>(position), MF_BYPOSITION);
+        }
+    }
+    for (int position = GetMenuItemCount(menu) - 1; position >= 0; --position)
+    {
+        if (IsSeparator(menu, position) && (position == 0 || position == GetMenuItemCount(menu) - 1 || IsSeparator(menu, position - 1)))
+        {
+            DeleteMenu(menu, static_cast<UINT>(position), MF_BYPOSITION);
+        }
+    }
+}
+
 bool IsMenuInside(HMENU root, HMENU menu)
 {
     const int count = root ? GetMenuItemCount(root) : 0;
@@ -334,9 +411,11 @@ void MainWindow::Impl::BuildMenus()
     AppendMenuW(view_menu, MF_STRING, cmd::kViewGridLines, util::Tr(L"Grid Lines"));
     AppendMenuW(view_menu, MF_STRING, cmd::kViewSimulatedKeys, util::Tr(L"Simulated Keys"));
     AppendMenuW(view_menu, MF_STRING, cmd::kViewExtraHives, util::Tr(L"Show Extra Root Keys"));
-    append_popup(menu, view_menu, util::Tr(L"&View"));
+    separator(view_menu);
 
     HMENU options_menu = CreatePopupMenu();
+    // simple mode hides Options (look settings move to View)
+    HMENU look_menu = settings_.simple_mode ? view_menu : options_menu;
     HMENU theme_menu = CreatePopupMenu();
     AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemeSystem, util::Tr(L"System"));
     AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemeLight, util::Tr(L"Light"));
@@ -344,12 +423,12 @@ void MainWindow::Impl::BuildMenus()
     AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemeCustom, util::Tr(L"Custom"));
     separator(theme_menu);
     AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemePresets, util::Tr(L"Theme Presets..."));
-    append_popup(options_menu, theme_menu, util::Tr(L"Theme"));
+    append_popup(look_menu, theme_menu, util::Tr(L"Theme"));
     HMENU icon_menu = CreatePopupMenu();
     AppendMenuW(icon_menu, MF_STRING, cmd::kOptionsIconSetClassic, util::Tr(L"Classic"));
     AppendMenuW(icon_menu, MF_STRING, cmd::kOptionsIconSetPhosphor, util::Tr(L"Phosphor"));
     AppendMenuW(icon_menu, MF_STRING, cmd::kOptionsIconSetCustom, util::Tr(L"Custom"));
-    append_popup(options_menu, icon_menu, util::Tr(L"Icons"));
+    append_popup(look_menu, icon_menu, util::Tr(L"Icons"));
     HMENU language_menu = CreatePopupMenu();
     language_packs_ = util::InstalledLanguages();
     language_packs_.insert(language_packs_.begin(), {L"en", L"English"});
@@ -359,9 +438,11 @@ void MainWindow::Impl::BuildMenus()
     {
         AppendMenuW(language_menu, MF_STRING, cmd::kOptionsLanguageBase + static_cast<int>(i), language_packs_[i].name.c_str());
     }
-    append_popup(options_menu, language_menu, util::Tr(L"Language"));
-    AppendMenuW(options_menu, MF_STRING, cmd::kViewFont, util::Tr(L"Font..."));
-    separator(options_menu);
+    append_popup(look_menu, language_menu, util::Tr(L"Language"));
+    AppendMenuW(look_menu, MF_STRING, cmd::kViewFont, util::Tr(L"Font..."));
+    separator(look_menu);
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewSimpleMode, util::Tr(L"Simple Mode"));
+    append_popup(menu, view_menu, util::Tr(L"&View"));
     AppendMenuW(options_menu, MF_STRING, cmd::kOptionsReadOnly, util::Tr(L"Read Only Mode"));
     AppendMenuW(options_menu, MF_STRING | (util::IsProcessPrivileged() ? 0 : MF_GRAYED), cmd::kOptionsBackupRestore, util::Tr(L"Use Backup/Restore Privileges"));
     separator(options_menu);
@@ -567,6 +648,15 @@ void MainWindow::Impl::BuildMenus()
     append_popup(menu, default_menu, util::Tr(L"Defa&ult"));
     append_popup(menu, research_menu, util::Tr(L"Re&search"));
     append_popup(menu, help_menu, util::Tr(L"&Help"));
+    if (settings_.simple_mode)
+    {
+        for (int command : {cmd::kOptionsReadOnly, cmd::kToolsKeyHandles, cmd::kWindowNew, cmd::kTraceGuide, cmd::kDefaultLoadCustom, cmd::kResearchItemBase})
+        {
+            DeleteMenu(menu, static_cast<UINT>(SubMenuPosition(menu, command)), MF_BYPOSITION);
+        }
+        ApplySimpleMode(menu);
+        regedit_favorites_static_count_ = GetMenuItemCount(favorites_menu);
+    }
 
     PrepareMenusForOwnerDraw(menu);
 
@@ -576,6 +666,14 @@ void MainWindow::Impl::BuildMenus()
     if (old_menu)
     {
         DestroyMenu(old_menu);
+    }
+}
+
+void MainWindow::Impl::ApplySimpleMode(HMENU menu) const
+{
+    if (settings_.simple_mode)
+    {
+        RemoveSimpleModeItems(menu);
     }
 }
 
@@ -653,18 +751,16 @@ void MainWindow::Impl::UpdateMenuState(HMENU menu)
     }
 
     check(cmd::kViewAutoRefresh, settings_.auto_refresh);
-    check(cmd::kViewToolbar, settings_.show_toolbar);
-    check(cmd::kViewAddressBar, settings_.show_address_bar);
-    check(cmd::kViewFilterBar, settings_.show_filter_bar);
-    check(cmd::kViewTabControl, settings_.show_tab_control);
-    check(cmd::kViewStatusBar, settings_.show_status_bar);
-    check(cmd::kViewKeyTree, settings_.show_tree);
-    check(cmd::kViewHistory, settings_.show_history);
+    for (const PaneToggle& toggle : kPaneToggles)
+    {
+        check(toggle.command, settings_.*toggle.shown);
+    }
     check(cmd::kViewKeysInList, settings_.show_keys_in_list);
     check(cmd::kViewSimulatedKeys, settings_.show_simulated_keys);
     enable(cmd::kViewSimulatedKeys, HasActiveTraces());
     check(cmd::kViewExtraHives, settings_.show_extra_hives);
     enable(cmd::kViewExtraHives, mode == RegistryMode::kLocal);
+    check(cmd::kViewSimpleMode, settings_.simple_mode);
 
     check(cmd::kOptionsThemeSystem, theme_mode_ == ThemeMode::kSystem);
     check(cmd::kOptionsThemeLight, theme_mode_ == ThemeMode::kLight);

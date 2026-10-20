@@ -8,6 +8,7 @@
 #include "ui/default_font.h"
 #include "ui/dialog_fit.h"
 #include "ui/dialog_layout.h"
+#include "ui/dialog_metrics.h"
 #include "ui/feedback.h"
 #include "ui/font_metrics.h"
 #include "ui/list_view_support.h"
@@ -19,9 +20,6 @@
 #include <string>
 
 #include <commctrl.h>
-#include <uxtheme.h>
-#include <vsstyle.h>
-#include <windowsx.h>
 
 namespace regkit::editors::dialog_support
 {
@@ -147,74 +145,13 @@ LRESULT CALLBACK ListViewProc(HWND window, UINT message, WPARAM wparam, LPARAM l
     return DefSubclassProc(window, message, wparam, lparam);
 }
 
-bool SizeGripRect(HWND dialog, RECT* rect)
-{
-    if (!rect || (GetWindowLongPtrW(dialog, GWL_STYLE) & WS_THICKFRAME) == 0)
-    {
-        return false;
-    }
-    RECT client = {};
-    if (!GetClientRect(dialog, &client))
-    {
-        return false;
-    }
-    SIZE grip = {};
-    HTHEME theme = OpenThemeData(dialog, VSCLASS_STATUS);
-    if (theme)
-    {
-        if (FAILED(GetThemePartSize(theme, nullptr, SP_GRIPPER, 0, nullptr, TS_TRUE, &grip)))
-        {
-            grip = {};
-        }
-        CloseThemeData(theme);
-    }
-    if (grip.cx <= 0 || grip.cy <= 0)
-    {
-        grip.cx = grip.cy = GetSystemMetrics(SM_CXVSCROLL);
-    }
-    rect->left = client.right - grip.cx;
-    rect->top = client.bottom - grip.cy;
-    rect->right = client.right;
-    rect->bottom = client.bottom;
-    return true;
-}
-
-void DrawSizeGrip(HWND dialog, HDC hdc)
-{
-    RECT grip = {};
-    if (!hdc || !SizeGripRect(dialog, &grip))
-    {
-        return;
-    }
-    HTHEME theme = OpenThemeData(dialog, VSCLASS_STATUS);
-    if (theme)
-    {
-        DrawThemeBackground(theme, hdc, SP_GRIPPER, 0, &grip, nullptr);
-        CloseThemeData(theme);
-        return;
-    }
-    DrawFrameControl(hdc, &grip, DFC_SCROLL, DFCS_SCROLLSIZEGRIP);
-}
-
-void ThinBorder(HWND dialog, int id)
-{
-    const HWND edit = GetDlgItem(dialog, id);
-    if (!edit)
-    {
-        return;
-    }
-    SetWindowLongPtrW(edit, GWL_EXSTYLE, GetWindowLongPtrW(edit, GWL_EXSTYLE) & ~WS_EX_CLIENTEDGE);
-    SetWindowLongPtrW(edit, GWL_STYLE, GetWindowLongPtrW(edit, GWL_STYLE) | WS_BORDER);
-    SetWindowPos(edit, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-}
-
 } // namespace
 
 void Initialize(HWND dialog, HFONT* owned_font, std::initializer_list<int> bordered_edits)
 {
     for (const int id : bordered_edits)
     {
-        ThinBorder(dialog, id);
+        appearance::SetThinBorder(GetDlgItem(dialog, id));
     }
     HFONT font = ui::DefaultUIFont(win32::DpiForWindow(dialog));
     if (owned_font)
@@ -321,53 +258,28 @@ bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam,
     }
     if (message == WM_ERASEBKGND)
     {
-        RECT rect = {};
-        GetClientRect(dialog, &rect);
-        FillRect(reinterpret_cast<HDC>(wparam), &rect, Theme::Current().BackgroundBrush());
-        DrawSizeGrip(dialog, reinterpret_cast<HDC>(wparam));
+        appearance::EraseDialogBackground(dialog, reinterpret_cast<HDC>(wparam));
         *result = TRUE;
         return true;
     }
-    if (message == WM_NCHITTEST)
+    if (message == WM_NCHITTEST && appearance::IsOnSizeGrip(dialog, lparam))
     {
-        RECT grip = {};
-        if (SizeGripRect(dialog, &grip))
-        {
-            MapWindowPoints(dialog, nullptr, reinterpret_cast<POINT*>(&grip), 2);
-            const POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-            if (PtInRect(&grip, pt))
-            {
-                SetWindowLongPtrW(dialog, DWLP_MSGRESULT, HTBOTTOMRIGHT);
-                *result = TRUE;
-                return true;
-            }
-        }
+        SetWindowLongPtrW(dialog, DWLP_MSGRESULT, HTBOTTOMRIGHT);
+        *result = TRUE;
+        return true;
     }
-    int color_type = 0;
     switch (message)
     {
     case WM_CTLCOLORDLG:
-        color_type = CTLCOLOR_DLG;
-        break;
     case WM_CTLCOLORSTATIC:
-        color_type = CTLCOLOR_STATIC;
-        break;
-    case WM_CTLCOLOREDIT:
-        color_type = CTLCOLOR_EDIT;
-        break;
-    case WM_CTLCOLORLISTBOX:
-        color_type = CTLCOLOR_LISTBOX;
-        break;
     case WM_CTLCOLORBTN:
-        color_type = CTLCOLOR_BTN;
-        break;
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+        *result = reinterpret_cast<INT_PTR>(Theme::Current().ControlColor(reinterpret_cast<HDC>(wparam), reinterpret_cast<HWND>(lparam), static_cast<int>(message - WM_CTLCOLORMSGBOX)));
+        return true;
     default:
         return false;
     }
-    *result = reinterpret_cast<INT_PTR>(
-        Theme::Current().ControlColor(reinterpret_cast<HDC>(wparam), reinterpret_cast<HWND>(lparam), color_type)
-    );
-    return true;
 }
 
 void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColumn> columns)
@@ -385,7 +297,7 @@ void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColu
         LVCOLUMNW item = {};
         item.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
         item.pszText = const_cast<wchar_t*>(column.title);
-        item.cx = std::max(MulDiv(column.width, static_cast<int>(dpi), 96), ListView_GetStringWidth(list, column.title) + MulDiv(16, static_cast<int>(dpi), 96));
+        item.cx = std::max(appearance::metrics::Scaled(column.width, dpi), ListView_GetStringWidth(list, column.title) + appearance::metrics::Scaled(16, dpi));
         item.iSubItem = index;
         ListView_InsertColumn(list, index, &item);
         ++index;
@@ -393,7 +305,7 @@ void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColu
 
     if (HWND tooltip = ListView_GetToolTips(list))
     {
-        SendMessageW(tooltip, TTM_SETMAXTIPWIDTH, 0, MulDiv(kTooltipMaxWidth, static_cast<int>(dpi), 96));
+        SendMessageW(tooltip, TTM_SETMAXTIPWIDTH, 0, appearance::metrics::Scaled(kTooltipMaxWidth, dpi));
     }
     EnsureSubclass(list, ListViewProc, kListViewSubclassId);
     appearance::RegisterListView(GetParent(list), list, kGridToggleId);
@@ -536,7 +448,8 @@ void FitDroppedWidth(HWND combo)
     RECT rect = {};
     GetWindowRect(combo, &rect);
     const int minimum = rect.right - rect.left;
-    const int padding = GetSystemMetrics(SM_CXVSCROLL) + 8;
+    const UINT dpi = win32::DpiForWindow(combo);
+    const int padding = win32::SystemMetricForDpi(SM_CXVSCROLL, dpi) + appearance::metrics::Scaled(8, dpi);
     SendMessageW(combo, CB_SETDROPPEDWIDTH, static_cast<WPARAM>(std::max(minimum, widest + padding)), 0);
 }
 
@@ -552,6 +465,66 @@ void MatchComboHeights(HWND dialog, int edit_id, std::initializer_list<int> comb
         const LONG frame = (combo.bottom - combo.top) - static_cast<LONG>(item);
         SendDlgItemMessageW(dialog, id, CB_SETITEMHEIGHT, static_cast<WPARAM>(-1), (edit.bottom - edit.top) - frame);
     }
+}
+
+void CollapseSection(HWND dialog, int control_id)
+{
+    const auto for_each_child = [dialog](auto&& visit) {
+        for (HWND child = GetWindow(dialog, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
+        {
+            RECT rect = {};
+            if ((GetWindowLongPtrW(child, GWL_STYLE) & WS_VISIBLE) && GetWindowRect(child, &rect))
+            {
+                visit(child, rect);
+            }
+        }
+    };
+    RECT control = {};
+    GetWindowRect(GetDlgItem(dialog, control_id), &control);
+    RECT band = control;
+    bool grouped = false;
+    for_each_child([&](HWND child, const RECT& rect) {
+        wchar_t class_name[16] = {};
+        GetClassNameW(child, class_name, _countof(class_name));
+        if (util::EqualsInsensitive(class_name, L"Button") && (GetWindowLongPtrW(child, GWL_STYLE) & BS_TYPEMASK) == BS_GROUPBOX &&
+            rect.top <= control.top && rect.bottom >= control.bottom)
+        {
+            band = rect;
+            grouped = true;
+        }
+    });
+    if (!grouped)
+    {
+        for_each_child([&](HWND, const RECT& rect) {
+            if (rect.top < control.bottom && rect.bottom > control.top)
+            {
+                band.top = std::min(band.top, rect.top);
+                band.bottom = std::max(band.bottom, rect.bottom);
+            }
+        });
+    }
+    LONG next_top = LONG_MAX;
+    for_each_child([&](HWND, const RECT& rect) {
+        if (rect.top >= band.bottom)
+        {
+            next_top = std::min(next_top, rect.top);
+        }
+    });
+    const int shift = (next_top == LONG_MAX ? band.bottom : next_top) - band.top;
+    for_each_child([&](HWND child, RECT rect) {
+        if (rect.top >= band.top && rect.bottom <= band.bottom)
+        {
+            ShowWindow(child, SW_HIDE);
+        }
+        else if (rect.top >= band.bottom)
+        {
+            MapWindowPoints(nullptr, dialog, reinterpret_cast<POINT*>(&rect), 2);
+            SetWindowPos(child, nullptr, rect.left, rect.top - shift, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    });
+    RECT window = {};
+    GetWindowRect(dialog, &window);
+    SetWindowPos(dialog, nullptr, 0, 0, window.right - window.left, window.bottom - window.top - shift, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 } // namespace regkit::editors::dialog_support

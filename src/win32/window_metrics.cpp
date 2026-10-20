@@ -42,6 +42,12 @@ bool AdjustWindowRectForDpi(RECT* rect, DWORD style, DWORD ex_style, UINT dpi)
     return (adjust_for_dpi && adjust_for_dpi(rect, style, FALSE, ex_style, dpi)) || AdjustWindowRectEx(rect, style, FALSE, ex_style) != FALSE;
 }
 
+int SystemMetricForDpi(int index, UINT dpi)
+{
+    static const auto metric_for_dpi = ImportProc<int(WINAPI*)(int, UINT)>(L"user32.dll", "GetSystemMetricsForDpi");
+    return metric_for_dpi ? metric_for_dpi(index, dpi) : GetSystemMetrics(index);
+}
+
 void ClampToWorkArea(RECT* rect)
 {
     if (!rect || rect->right <= rect->left || rect->bottom <= rect->top)

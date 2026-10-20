@@ -143,7 +143,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
                 if (content_rect_.right > 0 && GetWindowRect(hwnd_, &window))
                 {
                     const int panels = TextRowHeight(kPanelHeaderHeight) +
-                                       (settings_.show_history && !IsSearchTabSelected() ? kMinHistoryHeight + kHistoryGap + kHistorySplitterHeight : 0);
+                                       (settings_.show_history && !settings_.simple_mode && !IsSearchTabSelected() ? kMinHistoryHeight + kHistoryGap + kHistorySplitterHeight : 0);
                     const int chrome = (window.bottom - window.top) - (content_rect_.bottom - content_rect_.top);
                     info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, chrome + panels);
                 }
@@ -197,6 +197,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
                     restart_on_close_ = false;
                     reset_settings_on_close_ = false;
                     cache_clear_on_close_.reset();
+                    updates_.DropSetup();
                     return 0;
                 }
             }
@@ -232,6 +233,16 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
                     return 0;
                 }
             }
+            else if (updates_.SetupPending())
+            {
+                // regkit stays until the setup closes it (WM_ENDSESSION)
+                if (PrepareSessionHandover() && updates_.StartSetup())
+                {
+                    EnableWindow(hwnd_, FALSE);
+                }
+                updates_.DropSetup();
+                return 0;
+            }
             else
             {
                 SaveSettings();
@@ -239,6 +250,13 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
             DestroyWindow(hwnd_);
             return 0;
         }
+    case WM_ENDSESSION:
+        if (wparam && updates_.SetupRunning())
+        {
+            restart_on_close_ = true;
+            DestroyWindow(hwnd_);
+        }
+        return 0;
     default:
         return std::nullopt;
     }
@@ -1445,6 +1463,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message, WPARA
             if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == kTreeHeaderCloseId)
             {
                 settings_.show_tree = false;
+                SaveSettings();
                 ApplyViewVisibility();
                 return 0;
             }

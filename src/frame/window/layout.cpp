@@ -33,7 +33,7 @@ void MainWindow::Impl::LayoutContent(bool dragging)
 {
     const bool show_search = IsSearchTabSelected();
     const bool show_tree = settings_.show_tree && !show_search;
-    const bool show_history = settings_.show_history && !show_search;
+    const bool show_history = settings_.show_history && !settings_.simple_mode && !show_search;
     const UINT dpi = win32::DpiForWindow(hwnd_);
     const int header_height = TextRowHeight(kPanelHeaderHeight);
     const int close_size = appearance::ScaleForDpi(kPanelCloseSize, dpi);
@@ -143,8 +143,8 @@ void MainWindow::Impl::ApplyViewVisibility()
     bool show_search = IsSearchTabSelected();
     bool show_tree = settings_.show_tree && !show_search;
     bool show_value = show_value_ && !show_search;
-    bool show_history = settings_.show_history && !show_search;
-    ShowWindow(toolbar_.hwnd(), settings_.show_toolbar ? SW_SHOW : SW_HIDE);
+    bool show_history = settings_.show_history && !settings_.simple_mode && !show_search;
+    ShowWindow(toolbar_.hwnd(), settings_.show_toolbar && !settings_.simple_mode ? SW_SHOW : SW_HIDE);
     ShowWindow(browse_.address(), settings_.show_address_bar ? SW_SHOW : SW_HIDE);
     ShowWindow(browse_.go_button(), settings_.show_address_bar ? SW_SHOW : SW_HIDE);
     ShowWindow(tab_, settings_.show_tab_control ? SW_SHOW : SW_HIDE);
@@ -638,7 +638,7 @@ void MainWindow::Impl::LayoutControls(int width, int height)
         SetWindowPos(hwnd, nullptr, x, y_pos, w, h, flags);
     };
 
-    if (settings_.show_toolbar)
+    if (settings_.show_toolbar && !settings_.simple_mode)
     {
         SendMessageW(toolbar_.hwnd(), TB_AUTOSIZE, 0, 0);
         SIZE ideal = {};

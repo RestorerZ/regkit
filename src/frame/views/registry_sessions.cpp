@@ -581,7 +581,7 @@ std::vector<RegistryRootEntry> MainWindow::Impl::LocalRoots(REGSAM view)
         root.view = view;
     }
     // native paths have no 32-bit view
-    if (!view)
+    if (!view && !settings_.simple_mode)
     {
         AppendRealRegistryRoot(&roots);
     }

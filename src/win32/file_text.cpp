@@ -183,9 +183,18 @@ bool WriteTextFile(const std::wstring& path, const std::wstring& text, bool utf1
             DeleteFileW(temp_path.c_str());
             return false;
         }
-        if (MoveFileExW(temp_path.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+        for (int retry = 0; retry < 20; ++retry)
         {
-            return true;
+            if (MoveFileExW(temp_path.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+            {
+                return true;
+            }
+            const DWORD error = GetLastError();
+            if (error != ERROR_ACCESS_DENIED && error != ERROR_SHARING_VIOLATION)
+            {
+                break;
+            }
+            Sleep(25);
         }
         DeleteFileW(temp_path.c_str());
         return false;

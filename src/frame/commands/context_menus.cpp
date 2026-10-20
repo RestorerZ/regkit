@@ -284,6 +284,7 @@ void MainWindow::Impl::ShowTreeContextMenu(HTREEITEM item, POINT screen_pt)
     key.expand_label = expanded ? util::Tr(L"Collapse Key") : util::Tr(L"Expand Key");
     HMENU menu = CreatePopupMenu();
     AppendKeyMenu(menu, key);
+    ApplySimpleMode(menu);
 
     const int command = appearance::TrackContextMenu(menu, screen_pt, hwnd_);
 
@@ -426,6 +427,7 @@ void MainWindow::Impl::ShowValueContextMenu(int index, POINT screen_pt)
             frame::AppendCommand(menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
         }
     }
+    ApplySimpleMode(menu);
 
     const int command = appearance::TrackContextMenu(menu, screen_pt, hwnd_);
 

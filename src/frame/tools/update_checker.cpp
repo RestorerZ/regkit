@@ -17,11 +17,13 @@
 #include "resource.h"
 
 #include <bcrypt.h>
+#include <shlobj.h>
 #include <winhttp.h>
 
 #include <algorithm>
 #include <array>
 #include <stdlib.h>
+#include <utility>
 
 namespace regkit::frame
 {
@@ -32,8 +34,42 @@ namespace
 constexpr wchar_t kReleasesPage[] = L"https://github.com/nohuto/regkit/releases";
 constexpr wchar_t kLatestReleaseUrl[] = L"https://api.github.com/repos/nohuto/regkit/releases/latest";
 constexpr const wchar_t* kSetupSuffix = sizeof(void*) == 8 ? L"-x64.exe" : L"-x86.exe";
+constexpr const wchar_t* kPortableSuffix = sizeof(void*) == 8 ? L"-x64.zip" : L"-x86.zip";
+constexpr wchar_t kUninstallKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\4678f42c-c6a2-4df9-bc2a-dddbd2613045_is1";
+constexpr wchar_t kSetupArguments[] = L"/VERYSILENT /NORESTART /RELAUNCH=1 ";
+constexpr DWORD kSetupCancelledBeforeInstall = 2;
 constexpr size_t kMaxReleaseJsonBytes = 4ull * 1024ull * 1024ull;
 constexpr size_t kMaxSetupBytes = 192ull * 1024ull * 1024ull;
+
+const wchar_t* InstallScope()
+{
+    const std::wstring directory = util::GetModuleDirectory();
+    for (const auto& [root, scope] : {std::pair{HKEY_LOCAL_MACHINE, L"/ALLUSERS"}, std::pair{HKEY_CURRENT_USER, L"/CURRENTUSER"}})
+    {
+        wchar_t location[MAX_PATH * 2] = {};
+        DWORD size = sizeof(location);
+        if (RegGetValueW(root, kUninstallKey, L"InstallLocation", RRF_RT_REG_SZ, nullptr, location, &size) != ERROR_SUCCESS)
+        {
+            continue;
+        }
+        std::wstring_view path(location);
+        while (path.size() > 3 && path.back() == L'\\')
+        {
+            path.remove_suffix(1);
+        }
+        if (util::EqualsInsensitive(path, directory))
+        {
+            return scope;
+        }
+    }
+    return nullptr;
+}
+
+std::wstring ReleasePage(const std::wstring& tag)
+{
+    const bool plain = !tag.empty() && tag.find_first_not_of(L"0123456789.-_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") == std::wstring::npos;
+    return plain ? std::wstring(kReleasesPage) + L"/tag/" + tag : kReleasesPage;
+}
 
 bool IsAllowedReleaseHost(const std::wstring& host)
 {
@@ -116,15 +152,16 @@ std::wstring HttpGet(const std::wstring& url, const std::atomic_bool& cancel, st
     return ErrorText(ERROR_CANCELLED);
 }
 
-bool ReadRelease(const std::string& body, std::wstring* version, std::wstring* url, std::wstring* digest)
+bool ReadRelease(const std::string& body, UpdateCheckPayload* release, std::wstring* digest)
 {
     const std::wstring text = util::Utf8ToWide(body);
     json::Reader reader(text, nullptr);
-    const std::wstring_view suffix(kSetupSuffix);
+    const std::wstring_view prefix = release->installed ? L"RegKit-Setup-" : L"RegKit-Portable-";
+    const std::wstring_view suffix = release->installed ? kSetupSuffix : kPortableSuffix;
     return reader.Object([&](const std::wstring& member) {
         if (member == L"tag_name")
         {
-            return reader.String(version, 64);
+            return reader.String(&release->version, 64);
         }
         if (member != L"assets")
         {
@@ -141,10 +178,12 @@ bool ReadRelease(const std::string& body, std::wstring* version, std::wstring* u
                                                                        : nullptr;
                 return out && reader.Next() == L'"' ? reader.String(out) : reader.Skip();
             });
-            if (read && url->empty() && name.starts_with(L"RegKit-Setup-") && name.size() > suffix.size() &&
-                name.ends_with(suffix))
+            // portable name becomes the saved file name
+            if (read && release->download_url.empty() && name.starts_with(prefix) && name.size() > prefix.size() + suffix.size() &&
+                name.ends_with(suffix) && name.find_first_of(L"\\/:") == std::wstring::npos)
             {
-                *url = std::move(link);
+                release->download_url = std::move(link);
+                release->file_name = std::move(name);
                 *digest = std::move(hash);
             }
             return read;
@@ -222,7 +261,26 @@ std::wstring PrivateTempDirectory(std::wstring* directory)
     return util::FormatWin32Error(ERROR_ALREADY_EXISTS);
 }
 
-std::wstring SaveSetup(const std::wstring& url, const std::string& sha256, const std::atomic_bool& cancel, std::wstring* path)
+std::wstring DownloadsDirectory(std::wstring* directory)
+{
+    util::UniqueCoTask<PWSTR> path;
+    const HRESULT hr = SHGetKnownFolderPath(FOLDERID_Downloads, 0, nullptr, path.put());
+    if (FAILED(hr) || !path)
+    {
+        return util::FormatWin32Error(HRESULT_FACILITY(hr) == FACILITY_WIN32 ? HRESULT_CODE(hr) : ERROR_PATH_NOT_FOUND);
+    }
+    *directory = path.get();
+    return {};
+}
+
+void DeleteSetup(const std::wstring& path)
+{
+    DeleteFileW(path.c_str());
+    RemoveDirectoryW(path.substr(0, path.find_last_of(L'\\')).c_str());
+}
+
+// setup waits in a private folder, portable zip goes to downloads
+std::wstring SaveDownload(const std::wstring& url, const std::string& sha256, const std::wstring& file_name, bool installed, const std::atomic_bool& cancel, std::wstring* path)
 {
     if (sha256.size() != 64 || sha256.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
     {
@@ -239,24 +297,42 @@ std::wstring SaveSetup(const std::wstring& url, const std::string& sha256, const
         return util::Tr(L"The downloaded file doesn't match the release checksum.");
     }
     std::wstring directory;
-    const std::wstring directory_error = PrivateTempDirectory(&directory);
+    const std::wstring directory_error = installed ? PrivateTempDirectory(&directory) : DownloadsDirectory(&directory);
     if (!directory_error.empty())
     {
         return directory_error;
     }
-    *path = util::JoinPath(directory, RandomName(L"RegKit-Setup-") + L".exe");
-    util::UniqueHandle file(
-        CreateFileW(path->c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr)
-    );
+    util::UniqueHandle file;
+    for (int copy = 0; copy < 100 && !file; ++copy)
+    {
+        std::wstring name = installed ? RandomName(L"RegKit-Setup-") + L".exe" : file_name;
+        if (copy > 0)
+        {
+            name.insert(name.size() - 4, L" (" + std::to_wstring(copy) + L")");
+        }
+        *path = util::JoinPath(directory, name);
+        file.reset(CreateFileW(path->c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
+        if (!file && GetLastError() != ERROR_FILE_EXISTS)
+        {
+            break;
+        }
+    }
     DWORD written = 0;
     const bool saved = file && WriteFile(file.get(), data.data(), static_cast<DWORD>(data.size()), &written, nullptr) &&
                        written == data.size();
     const DWORD code = saved ? ERROR_SUCCESS : GetLastError();
+    const bool created = static_cast<bool>(file);
     file.reset();
     if (!saved)
     {
-        DeleteFileW(path->c_str());
-        RemoveDirectoryW(directory.c_str());
+        if (created)
+        {
+            DeleteFileW(path->c_str());
+        }
+        if (installed)
+        {
+            RemoveDirectoryW(directory.c_str());
+        }
         path->clear();
         return util::FormatWin32Error(code != ERROR_SUCCESS ? code : ERROR_WRITE_FAULT);
     }
@@ -309,6 +385,7 @@ void UpdateChecker::Check(bool silent)
     session_.StartIfIdle(L"UpdateCheckThread", [owner, silent](uint64_t, std::atomic_bool& cancel) {
         auto payload = std::make_unique<UpdateCheckPayload>();
         payload->silent = silent;
+        payload->installed = InstallScope() != nullptr;
         std::wstring error;
         // a failure still posts a payload, so the error is shown
         try
@@ -316,8 +393,7 @@ void UpdateChecker::Check(bool silent)
             std::string json;
             error = HttpGet(kLatestReleaseUrl, cancel, &json, kMaxReleaseJsonBytes);
             std::wstring digest;
-            if (error.empty() &&
-                (!ReadRelease(json, &payload->version, &payload->download_url, &digest) || payload->version.empty()))
+            if (error.empty() && (!ReadRelease(json, payload.get(), &digest) || payload->version.empty()))
             {
                 error = util::Tr(L"The response didn't contain a release.");
             }
@@ -345,13 +421,14 @@ void UpdateChecker::Download(const UpdateCheckPayload& release)
     HWND owner = owner_;
     const bool started = session_.StartIfIdle(
         L"UpdateDownloadThread",
-        [owner, url = release.download_url, sha256 = release.sha256](uint64_t, std::atomic_bool& cancel) {
+        [owner, url = release.download_url, sha256 = release.sha256, file_name = release.file_name, installed = release.installed](uint64_t, std::atomic_bool& cancel) {
             auto payload = std::make_unique<UpdateCheckPayload>();
             payload->sha256 = sha256;
+            payload->installed = installed;
             std::wstring error;
             try
             {
-                error = SaveSetup(url, sha256, cancel, &payload->setup_path);
+                error = SaveDownload(url, sha256, file_name, installed, cancel, &payload->download_path);
             }
             catch (const std::exception&)
             {
@@ -364,7 +441,7 @@ void UpdateChecker::Download(const UpdateCheckPayload& release)
             if (!error.empty())
             {
                 payload->failed = true;
-                payload->setup_path.clear();
+                payload->download_path.clear();
                 payload->error = util::TrDetail(L"The update couldn't be downloaded.", error);
             }
             work::PostPayload(owner, frame::message_id::kUpdateCheckReady, 0, payload);
@@ -383,6 +460,16 @@ void UpdateChecker::Apply(UpdateCheckPayload* payload)
     {
         return;
     }
+    if (payload->setup_exited)
+    {
+        setup_running_ = false;
+        EnableWindow(owner_, TRUE);
+        if (!payload->error.empty())
+        {
+            ui::ShowError(owner_, payload->error);
+        }
+        return;
+    }
     if (payload->failed)
     {
         if (!payload->silent)
@@ -391,23 +478,17 @@ void UpdateChecker::Apply(UpdateCheckPayload* payload)
         }
         return;
     }
-    if (!payload->setup_path.empty())
+    if (!payload->download_path.empty())
     {
-        const util::UniqueHandle verified = OpenVerifiedSetup(payload->setup_path, payload->sha256);
-        if (!verified)
+        if (!payload->installed)
         {
-            ui::ShowError(owner_, util::Tr(L"The downloaded setup changed after RegKit verified it and wasn't started."));
+            win32::RevealInExplorer(payload->download_path);
             return;
         }
-        const HRESULT hr = win32::ShellOpen(owner_, payload->setup_path.c_str());
-        if (SUCCEEDED(hr))
-        {
-            PostMessageW(owner_, WM_CLOSE, 0, 0);
-        }
-        else if (!win32::DialogCancelled(hr))
-        {
-            ui::ShowError(owner_, util::TrDetail(L"The setup couldn't be started.", win32::FormatDialogError(hr)));
-        }
+        DropSetup();
+        setup_path_ = std::move(payload->download_path);
+        setup_sha256_ = std::move(payload->sha256);
+        PostMessageW(owner_, WM_CLOSE, 0, 0);
         return;
     }
     if (VersionParts(payload->version) <= VersionParts(REGKIT_VERSION_STR_W))
@@ -418,21 +499,89 @@ void UpdateChecker::Apply(UpdateCheckPayload* payload)
         }
         return;
     }
+    const bool found = !payload->download_url.empty();
     const std::wstring message =
         L"RegKit " + payload->version + L" (" + util::TrLabel(L"installed", REGKIT_VERSION_STR_W) + L")\n\n" +
-        (payload->download_url.empty() ? util::Tr(L"No setup was found for this build. Open the releases page?")
-                                       : util::Tr(L"Download and install it now? RegKit closes when the setup starts."));
-    if (ui::PromptChoice(owner_, message, util::Tr(L"Update Available"), payload->download_url.empty() ? util::Tr(L"Open") : util::Tr(L"Install"), L"", util::Tr(L"Close"), {70, 70, 70}) != IDYES)
-    {
-        return;
-    }
-    if (payload->download_url.empty())
-    {
-        win32::ShellOpen(owner_, kReleasesPage);
-    }
-    else
+        (!found               ? util::Tr(L"No download was found for this build. Open the release page?")
+         : payload->installed ? util::Tr(L"Download and install it now? RegKit restarts once the update is installed.")
+                              : util::Tr(L"Download the new portable version?"));
+    const std::wstring download = !found ? L"" : payload->installed ? util::Tr(L"Update")
+                                                                    : util::Tr(L"Download Portable");
+    const std::wstring release = found && payload->installed ? L"" : util::Tr(L"Open Release");
+    const int choice = ui::PromptChoice(owner_, message, util::Tr(L"Update Available"), download, release, util::Tr(L"Close"), {70, 70, 70});
+    if (choice == IDYES)
     {
         Download(*payload);
+    }
+    else if (choice == IDNO)
+    {
+        win32::ShellOpen(owner_, ReleasePage(payload->version).c_str());
+    }
+}
+
+bool UpdateChecker::StartSetup()
+{
+    const std::wstring path = std::exchange(setup_path_, {});
+    const std::string sha256 = std::exchange(setup_sha256_, {});
+    const wchar_t* scope = InstallScope();
+    // silent setups reuse the previous choices and relaunch regkit with the saved session
+    const std::wstring arguments = std::wstring(kSetupArguments) + (scope ? scope : L"");
+    SHELLEXECUTEINFOW info = {sizeof(info)};
+    info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
+    info.hwnd = owner_;
+    info.lpFile = path.c_str();
+    info.lpParameters = arguments.c_str();
+    info.nShow = SW_SHOWNORMAL;
+    bool started = false;
+    {
+        const util::UniqueHandle verified = OpenVerifiedSetup(path, sha256);
+        if (!verified)
+        {
+            ui::ShowError(owner_, util::Tr(L"The downloaded setup changed after RegKit verified it and wasn't started."));
+        }
+        else if (!ShellExecuteExW(&info) || !info.hProcess)
+        {
+            ui::ShowError(owner_, util::TrDetail(L"The setup couldn't be started.", util::FormatWin32Error(GetLastError())));
+        }
+        else
+        {
+            started = true;
+        }
+    }
+    if (!started)
+    {
+        DeleteSetup(path);
+        return false;
+    }
+    setup_running_ = true;
+    session_.Start(L"UpdateSetupThread", [owner = owner_, process = info.hProcess](uint64_t, std::atomic_bool& cancel) {
+        const util::UniqueHandle owned(process);
+        while (WaitForSingleObject(process, 200) == WAIT_TIMEOUT)
+        {
+            if (cancel.load())
+            {
+                return;
+            }
+        }
+        DWORD code = 0;
+        GetExitCodeProcess(process, &code);
+        auto payload = std::make_unique<UpdateCheckPayload>();
+        payload->setup_exited = true;
+        if (code != kSetupCancelledBeforeInstall)
+        {
+            payload->error = util::TrDetail(L"The update couldn't be installed.", util::TrLabel(L"Exit code", std::to_wstring(code)));
+        }
+        work::PostPayload(owner, frame::message_id::kUpdateCheckReady, 0, payload);
+    });
+    return true;
+}
+
+void UpdateChecker::DropSetup()
+{
+    if (!setup_path_.empty())
+    {
+        DeleteSetup(std::exchange(setup_path_, {}));
+        setup_sha256_.clear();
     }
 }
 

@@ -52,7 +52,10 @@ class DialogResizer
     SIZE min_window_ = {};
 };
 
+void SetThinBorder(HWND control);
 void AttachThemedBorder(HWND control);
+void EraseDialogBackground(HWND dialog, HDC hdc);
+bool IsOnSizeGrip(HWND dialog, LPARAM screen_point);
 
 struct DialogWindow
 {
@@ -63,6 +66,7 @@ struct DialogWindow
     int default_id = IDOK;
     bool accepted = false;
     bool owner_restored = false;
+    SIZE min_size = {};
 };
 
 template <typename State>

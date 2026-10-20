@@ -238,8 +238,7 @@ bool MainWindow::Impl::OnCreate()
         }
     }
 
-    browse_.roots() = RegistryStore::DefaultRoots(settings_.show_extra_hives);
-    AppendRealRegistryRoot(&browse_.roots());
+    browse_.roots() = LocalRoots(0);
     browse_.tree().SetRegEditLayout(false);
     browse_.tree().SetRootLabel(TreeRootLabel(), TreeRootIcon());
     browse_.tree().PopulateRoots(browse_.roots());

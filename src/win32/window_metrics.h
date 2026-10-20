@@ -14,6 +14,8 @@ UINT DpiForWindow(HWND window);
 
 bool AdjustWindowRectForDpi(RECT* rect, DWORD style, DWORD ex_style, UINT dpi);
 
+int SystemMetricForDpi(int index, UINT dpi);
+
 void ClampToWorkArea(RECT* rect);
 
 } // namespace regkit::win32

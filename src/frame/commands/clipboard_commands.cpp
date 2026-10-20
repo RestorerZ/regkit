@@ -405,9 +405,11 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id)
             workspace::DialogFields last(&state, false);
             SearchDialogFields(last, &options);
             SearchSources sources;
-            sources.traces = HasActiveTraces();
-            sources.defaults = !active_defaults_.empty();
-            sources.registry_root = registry_root_.get() != nullptr;
+            // simple mode hides traces, defaults, REGISTRY & anomalies
+            sources.traces = !settings_.simple_mode && HasActiveTraces();
+            sources.defaults = !settings_.simple_mode && !active_defaults_.empty();
+            sources.registry_root = !settings_.simple_mode && registry_root_.get() != nullptr;
+            sources.anomalies = !settings_.simple_mode;
             sources.offline = !session_->offline_roots.empty();
             sources.reg_files = std::any_of(tabs_.begin(), tabs_.end(), [](const TabEntry& tab) {
                 return tab.kind == TabEntry::Kind::kRegFile && !tab.reg_file_roots.empty();

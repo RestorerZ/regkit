@@ -193,7 +193,8 @@ int FillList(HWND list, const records::Table& table)
     {
         width += appearance::FitListColumn(list, static_cast<int>(column));
     }
-    return width + GetSystemMetrics(SM_CXVSCROLL) + 2 * GetSystemMetrics(SM_CXEDGE);
+    const UINT dpi = win32::DpiForWindow(list);
+    return width + win32::SystemMetricForDpi(SM_CXVSCROLL, dpi) + 2 * win32::SystemMetricForDpi(SM_CXEDGE, dpi);
 }
 
 void CreateLists(HWND dialog, State* state)

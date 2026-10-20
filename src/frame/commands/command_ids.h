@@ -106,6 +106,7 @@ constexpr int kViewSimulatedKeys = 2213;
 constexpr int kViewGridLines = 2214;
 constexpr int kViewFocusFilter = 2215;
 constexpr int kViewAutoRefresh = 2216;
+constexpr int kViewSimpleMode = 2217;
 
 constexpr int kFavoritesAdd = 2300;
 constexpr int kFavoritesRemove = 2301;

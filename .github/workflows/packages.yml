@@ -1,0 +1,64 @@
+name: Update WinGet & Scoop
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  winget:
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: windows-latest
+    steps:
+      - name: Submit release to WinGet
+        shell: pwsh
+        env:
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          $release = (Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json).release
+          $version = $release.tag_name -replace '^[vV]', ''
+          $base = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$($release.tag_name)"
+          Invoke-WebRequest -Uri 'https://aka.ms/wingetcreate/latest' -OutFile wingetcreate.exe -ErrorAction Stop
+          .\wingetcreate.exe update nohuto.RegKit `
+            --version $version `
+            --urls "$base/RegKit-Setup-$version-x64.exe|x64" "$base/RegKit-Setup-$version-x86.exe|x86" `
+            --release-notes-url $release.html_url `
+            --submit --no-open
+          exit $LASTEXITCODE
+
+  scoop:
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Update Scoop manifest
+        shell: python
+        run: |
+          import hashlib, json, os, urllib.request
+          from pathlib import Path
+
+          release = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())["release"]
+          tag = release["tag_name"]
+          version = tag[1:] if tag.startswith(("V", "v")) else tag
+          path = Path("bucket/regkit.json")
+          manifest = json.loads(path.read_text(encoding="utf-8"))
+          manifest["version"] = version
+          for architecture, cpu in (("64bit", "x64"), ("32bit", "x86")):
+              url = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/{tag}/RegKit-Portable-{version}-{cpu}.zip"
+              with urllib.request.urlopen(url, timeout=60) as response:
+                  digest = hashlib.sha256(response.read()).hexdigest()
+              manifest["architecture"][architecture].update(url=url, hash=digest)
+          path.write_text(json.dumps(manifest, indent=4) + "\n", encoding="utf-8")
+      - name: Commit Scoop manifest
+        run: |
+          if git diff --quiet -- bucket/regkit.json; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket/regkit.json
+          git commit -m "Update Scoop manifest for $GITHUB_REF_NAME"
+          git push

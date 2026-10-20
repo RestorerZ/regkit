@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-14 13:24+0200\n"
-"PO-Revision-Date: 2026-10-15 20:40+0300\n"
+"POT-Creation-Date: 2026-10-18 12:24+0200\n"
+"PO-Revision-Date: 2026-10-20 20:48+0300\n"
 "Last-Translator: Restorer, restorer@mail2k.ru\n"
 "Language-Team: Russian\n"
 "Language: ru\n"
@@ -58,6 +58,15 @@ msgstr "Недопустимые шестнадцатеричные данные
 msgid "Invalid"
 msgstr "Недействительно"
 
+#: dialogs/binary_editor.cpp:77 dialogs/bitfield_editor.cpp:387
+#: dialogs/bitfield_editor.cpp:782 dialogs/decoder_dialog.cpp:184
+#: dialogs/trace_dialog.cpp:205 dialogs/value_editor.cpp:771
+#: frame/detail/control_detail.cpp:161 frame/search/search_window.cpp:1090
+#: frame/tools/launch_bridge.cpp:243 frame/views/history_workspace.cpp:1117
+#: frame/views/value_loading.cpp:388 frame/views/value_loading.cpp:435
+#: frame/window/notifications.cpp:145 frame/window/notifications.cpp:1239
+#: frame/window/notifications.cpp:1311 regfile/script_convert.cpp:188
+#: search/search.cpp:235 search/search.cpp:1281 ui/feedback.cpp:787
 msgid "(Default)"
 msgstr "(по умолчанию)"
 
@@ -88,6 +97,8 @@ msgstr "Биты поля не должны повторяться и должн
 msgid "A field lists no bits."
 msgstr "В поле не указаны биты"
 
+#: dialogs/bitfield_definition.cpp:137 dialogs/bitfield_definition.cpp:503
+#: dialogs/bitfield_definition_editor.cpp:375
 msgid "A field lists more than 256 states."
 msgstr "В поле указано более 256 состояний"
 
@@ -143,17 +154,26 @@ msgstr "Каждое поле должно содержать хотя бы од
 msgid "Two fields claim the same bit."
 msgstr "Для двух полей указан один и тот же бит"
 
+#: dialogs/bitfield_definition.cpp:510
+#: dialogs/bitfield_definition_editor.cpp:348
 msgid "Every state needs a name of at most 256 characters."
 msgstr ""
 "Для каждого поля \"состояние\" должно быть указано наименование не более 256 "
 "символов"
 
+#: dialogs/bitfield_definition.cpp:514
+#: dialogs/bitfield_definition_editor.cpp:352
 msgid "A state meaning is longer than the format allows."
 msgstr "Данные в поле \"состояние\" превышают допустимый размер"
 
+#: dialogs/bitfield_definition.cpp:518
+#: dialogs/bitfield_definition_editor.cpp:338
+#: dialogs/bitfield_definition_editor.cpp:617
 msgid "A state value doesn't fit the bits of its field."
 msgstr "Значение поля \"состояние\" выходит за пределы битового поля"
 
+#: dialogs/bitfield_definition.cpp:524
+#: dialogs/bitfield_definition_editor.cpp:344
 msgid "Two states of one field share the same value."
 msgstr "Два состояния одного битового поля имеют одинаковое значение"
 
@@ -175,62 +195,169 @@ msgstr "Не удалось прочитать файл описания бит�
 msgid "The definition file couldn't be written."
 msgstr "Не удалось записать файл описания битовых полей"
 
-msgid "Add Field"
-msgstr "Добавление поля"
+#: dialogs/bitfield_definition_editor.cpp:198
+#: dialogs/bitfield_definition_editor.cpp:438 dialogs/bitfield_editor.cpp:684
+#: ui/preset_editor.cpp:466
+msgid "Copy Row"
+msgstr "Копировать строку"
 
-msgid "Edit Field"
-msgstr "Редактирование поля"
+#: dialogs/bitfield_definition_editor.cpp:273
+msgid "Add State"
+msgstr "Добавление состояния"
 
-msgid "Bit"
-msgstr "Бит"
+#: dialogs/bitfield_definition_editor.cpp:273
+msgid "Edit State"
+msgstr "Редактирование состояния"
 
-msgid "Mask"
-msgstr "Маска"
+#: dialogs/bitfield_definition_editor.cpp:334 dialogs/value_editor.cpp:1349
+msgid "Invalid number."
+msgstr "Недопустимое числовое значение"
 
-msgid "Field"
-msgstr "Поле"
-
-msgid "Enter a field name."
-msgstr "Введите наименование поля"
-
-msgid "Another field already uses that name."
-msgstr "Это наименование уже используется в другом поле"
-
+#: dialogs/bitfield_definition_editor.cpp:384
+#: dialogs/bitfield_definition_editor.cpp:611
 msgid "Select at least one bit."
 msgstr "Должен быть указан как минимум один бит"
 
+#: dialogs/bitfield_definition_editor.cpp:434 dialogs/bitfield_editor.cpp:677
+#: dialogs/query_prompts.cpp:122 frame/commands/context_menus.cpp:214
+#: frame/window/menu_bar.cpp:377
+msgid "Select All"
+msgstr "Выделить все"
+
+#: dialogs/bitfield_definition_editor.cpp:435 dialogs/bitfield_editor.cpp:678
+#: dialogs/query_prompts.cpp:124 frame/window/menu_bar.cpp:485
+msgid "Clear All"
+msgstr "Очистить все"
+
+#: dialogs/bitfield_definition_editor.cpp:437 dialogs/bitfield_editor.cpp:683
+msgid "Copy Mask"
+msgstr "Копировать маску"
+
+#: dialogs/bitfield_definition_editor.cpp:466
+msgid "Add Field"
+msgstr "Добавление поля"
+
+#: dialogs/bitfield_definition_editor.cpp:466
+msgid "Edit Field"
+msgstr "Редактирование поля"
+
+#: dialogs/bitfield_definition_editor.cpp:470 dialogs/bitfield_editor.cpp:796
+msgid "Bit"
+msgstr "Бит"
+
+#: dialogs/bitfield_definition_editor.cpp:470 dialogs/bitfield_editor.cpp:796
+msgid "Mask"
+msgstr "Маска"
+
+#: dialogs/bitfield_definition_editor.cpp:470
+#: dialogs/bitfield_definition_editor.cpp:1063 dialogs/bitfield_editor.cpp:796
+#: ui/preset_editor.cpp:41
+msgid "Field"
+msgstr "Поле"
+
+#: dialogs/bitfield_definition_editor.cpp:498 dialogs/bitfield_editor.cpp:796
+#: dialogs/decoder_dialog.cpp:211 frame/tools/launch_bridge.cpp:87
+#: frame/views/browse_view.cpp:249 frame/views/browse_view.cpp:258
+#: search/search.cpp:62
+msgid "Value"
+msgstr "Значение"
+
+#: dialogs/bitfield_definition_editor.cpp:498 frame/tools/launch_bridge.cpp:94
+#: frame/views/browse_view.cpp:59
+msgid "Name"
+msgstr "Наименование"
+
+#: dialogs/bitfield_definition_editor.cpp:498
+#: dialogs/bitfield_definition_editor.cpp:1063 dialogs/bitfield_editor.cpp:796
+msgid "Meaning"
+msgstr "Назначение"
+
+#: dialogs/bitfield_definition_editor.cpp:543
+msgid "Add State..."
+msgstr "Добавить состояние..."
+
+#: dialogs/bitfield_definition_editor.cpp:543
+msgid "Edit State..."
+msgstr "Изменить состояние..."
+
+#: dialogs/bitfield_definition_editor.cpp:543
+msgid "Remove State"
+msgstr "Удалить состояние"
+
+#: dialogs/bitfield_definition_editor.cpp:596
+msgid "Enter a field name."
+msgstr "Введите наименование поля"
+
+#: dialogs/bitfield_definition_editor.cpp:604
+msgid "Another field already uses that name."
+msgstr "Это наименование уже используется в другом поле"
+
+#: dialogs/bitfield_definition_editor.cpp:833
 msgid "This definition file has unsaved changes."
 msgstr "В файле описания битовых полей есть несохранённые изменения"
 
+#: dialogs/bitfield_definition_editor.cpp:833
+#: dialogs/bitfield_definition_editor.cpp:899
+#: dialogs/bitfield_definition_editor.cpp:1056 frame/window/menu_bar.cpp:525
 msgid "Bit Definitions"
 msgstr "Определения битовых полей"
 
+#: dialogs/bitfield_definition_editor.cpp:833 frame/views/tab_lists.cpp:435
+#: frame/views/tab_lists.cpp:469 frame/window/menu_bar.cpp:211
+#: frame/window/menu_bar.cpp:327
 msgid "Save"
 msgstr "Сохранить"
 
+#: dialogs/bitfield_definition_editor.cpp:833
 msgid "Discard"
 msgstr "Не сохранять"
 
+#: dialogs/bitfield_definition_editor.cpp:833
+#: dialogs/bitfield_definition_editor.cpp:899 dialogs/bitfield_editor.cpp:388
+#: dialogs/query_prompts.cpp:127 dialogs/query_prompts.cpp:211
+#: dialogs/value_editor.cpp:912 frame/commands/file_view_commands.cpp:50
+#: frame/commands/file_view_commands.cpp:435
+#: frame/commands/workspace_commands.cpp:259
+#: frame/tools/key_handles_window.cpp:356 frame/tools/launch_bridge.cpp:506
+#: frame/tools/launch_bridge.cpp:523 frame/views/history_workspace.cpp:260
+#: frame/views/registry_sessions.cpp:793 frame/views/registry_sessions.cpp:844
+#: frame/views/registry_sessions.cpp:1084
+#: frame/views/registry_sessions.cpp:1091 frame/views/tab_lists.cpp:435
+#: frame/views/tab_lists.cpp:469 frame/window/lifetime.cpp:25
+#: frame/window/message_routes.cpp:54 ui/feedback.cpp:792 ui/feedback.cpp:802
+#: ui/feedback.cpp:815 ui/feedback.cpp:868
 msgid "Cancel"
 msgstr "Отмена"
 
+#: dialogs/bitfield_definition_editor.cpp:869 dialogs/bitfield_editor.cpp:378
 msgid "The definition was made for a different value width."
 msgstr "Описание битовых полей создано для параметра другой разрядности"
 
-msgid "Some fields use bits outside the new width. Remove those bits?"
-msgstr ""
-"Некоторые поля содержат биты за пределами новой разрядности. Удалить эти "
-"биты?"
+#: dialogs/bitfield_definition_editor.cpp:899
+msgid "Some fields use bits outside the new width. Remove those bits and any states or fields that no longer fit?"
+msgstr "Некоторые поля содержат биты за пределами новой разрядности. Удалить эти биты, а также состояния и поля, которые больше не помещаются?"
 
+#: dialogs/bitfield_definition_editor.cpp:899
 msgid "Remove"
 msgstr "Удалить"
 
+#: dialogs/bitfield_definition_editor.cpp:1063
+msgid "Bits"
+msgstr "Биты"
+
+#: dialogs/bitfield_definition_editor.cpp:1063
+msgid "States"
+msgstr "Состояние"
+
+#: dialogs/bitfield_definition_editor.cpp:1111
 msgid "Add Field..."
 msgstr "Добавить поле..."
 
+#: dialogs/bitfield_definition_editor.cpp:1111 dialogs/bitfield_editor.cpp:680
 msgid "Edit Field..."
 msgstr "Изменить поле..."
 
+#: dialogs/bitfield_definition_editor.cpp:1111 dialogs/bitfield_editor.cpp:681
 msgid "Remove Field"
 msgstr "Удалить поле"
 
@@ -302,18 +429,161 @@ msgstr "Состояние"
 msgid "Value"
 msgstr "Значение"
 
+#: dialogs/comment_editor.cpp:79
+msgid "Values with the selected names"
+msgstr "К параметрам с такими же наименованиями"
+
+#: dialogs/comment_editor.cpp:79
+msgid "Values named"
+msgstr "К параметрам"
+
+#: dialogs/decoder_dialog.cpp:141
+msgid "Bytes shown"
+msgstr "Показано байт"
+
+#: dialogs/decoder_dialog.cpp:201
+msgid "Decode Value"
+msgstr "Декодирование параметра"
+
+#: dialogs/decoder_dialog.cpp:202
+msgid "Name:"
+msgstr "Параметр:"
+
+#: dialogs/decoder_dialog.cpp:203
+msgid "Encoding:"
+msgstr "Кодирование:"
+
+#: dialogs/decoder_dialog.cpp:204
+msgid "Interpret as:"
+msgstr "Интерпретация:"
+
+#: dialogs/decoder_dialog.cpp:211 frame/tools/launch_bridge.cpp:87
+msgid "Property"
+msgstr "Свойство"
+
+#: dialogs/decoder_dialog.cpp:261 dialogs/table_dialog.cpp:114
+#: frame/tools/key_handles_window.cpp:384
+msgid "Copy Rows"
+msgstr "Копировать строки"
+
+#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:168
+msgid "Don't open"
+msgstr "не открывать"
+
+#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:169
+msgid "In text editor"
+msgstr "в текстовом редакторе"
+
+#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:172
+msgid "In RegKit"
+msgstr "в программе RegKit"
+
+#: dialogs/export_dialog.cpp:70
+msgid "Registry File (.reg)"
+msgstr "Файлы реестра (*.reg)"
+
+#: dialogs/export_dialog.cpp:73
+msgid "Registry Hive File"
+msgstr "Файлы кустов реестра"
+
+#: dialogs/export_dialog.cpp:123
+msgid "Select a destination file."
+msgstr "Выберите файл назначения"
+
+#: dialogs/hive_dialog.cpp:101
+msgid "Select a hive file."
+msgstr "Выберите файл куста реестра"
+
+#: dialogs/hive_dialog.cpp:107
+msgid "Enter a key name for the loaded hive."
+msgstr "Введите наименование раздела для загружаемого куста"
+
+#: dialogs/hive_dialog.cpp:112
+msgid "The key name can't contain a backslash."
+msgstr "В наименовании раздела не допускается обратная наклонная черта"
+
+#: dialogs/hive_dialog.cpp:202
+msgid "Enter a link name and a target key."
+msgstr "Введите наименование ссылки и целевой раздел"
+
+#: dialogs/hive_dialog.cpp:207
+msgid "The link name can't contain a backslash."
+msgstr "В наименовании ссылки не допускается обратная наклонная черта"
+
+#: dialogs/query_dialog.cpp:146
+msgid "No top level keys"
+msgstr "Нет разделов верхнего уровня"
+
+#: dialogs/query_dialog.cpp:150
+msgid "All top level keys"
+msgstr "Все разделы верхнего уровня"
+
+#: dialogs/query_dialog.cpp:158
+msgid "Multiple keys"
+msgstr "Несколько разделов"
+
+#: dialogs/query_dialog.cpp:512
+msgid "Enter a search term."
+msgstr "Введите текст для поиска"
+
+#: dialogs/query_dialog.cpp:517
+msgid "The regular expression is too long."
+msgstr "Регулярное выражение слишком длинное"
+
+#: dialogs/query_dialog.cpp:527
+msgid "Select at least one search option."
+msgstr "Требуется указать как минимум один параметр поиска"
+
+#: dialogs/query_dialog.cpp:538
+msgid "Select at least one search source."
+msgstr "Требуется указать как минимум один источник поиска"
+
+#: dialogs/query_dialog.cpp:559
+msgid "Enter a valid minimum data size."
+msgstr "Введите допустимый минимальный размер данных"
+
+#: dialogs/query_dialog.cpp:564
+msgid "Enter a valid maximum data size."
+msgstr "Введите допустимый максимальный размер данных"
+
+#: dialogs/query_dialog.cpp:584
+msgid "Minimum data size can't exceed maximum data size."
+msgstr "Минимальный размер данных не может быть больше максимального размера данных"
+
+#: dialogs/query_dialog.cpp:589
+msgid "Modified date range is invalid."
+msgstr "Недопустимый диапазон даты изменения"
+
+#: dialogs/query_dialog.cpp:613
+msgid "Enter a valid result limit."
+msgstr "Укажите допустимое число ограничения результатов"
+
+#: dialogs/query_dialog.cpp:641
+msgid "Select at least one top level key."
+msgstr "Требуется указать как минимум один раздел верхнего уровня"
+
+#: dialogs/query_dialog.cpp:682
+msgid ""
+"PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
+"(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, \\X.\n"
+"Matching is unicode aware and ignores case unless 'Match case' is set."
+msgstr ""
+"Синтаксис PCRE: якоря ^ $, классы символов, жадные, ленивые (*?) и квантификаторы без возврата (*+),\n"
+"группы (?<name>...), проверки (?=...) (?<=...), обратные ссылки \\1 и классы Unicode \\p{L}, \\w, \\X.\n"
+"Поиск учитывает Unicode и не учитывает регистр, если не задано \"Учитывать регистр\"."
+
+#: dialogs/query_dialog.cpp:769
 msgid "Exclude Keys"
 msgstr "Исключаемые разделы"
 
+#: dialogs/query_dialog.cpp:770 frame/commands/clipboard_commands.cpp:54
 msgid "Each line should include one key."
 msgstr "В каждой строке указывается по одному разделу"
 
-msgid "Select All"
-msgstr "Выделить все"
-
-msgid "Clear All"
-msgstr "Очистить все"
-
+#: dialogs/query_prompts.cpp:125 dialogs/query_prompts.cpp:209
+#: frame/views/registry_sessions.cpp:1069 frame/window/lifetime.cpp:436
+#: frame/window/notifications.cpp:33 ui/feedback.cpp:406 ui/feedback.cpp:448
+#: ui/feedback.cpp:729 ui/feedback.cpp:749 ui/feedback.cpp:822
 msgid "OK"
 msgstr "ОК"
 
@@ -392,6 +662,8 @@ msgstr "Экспорт поддерживается только для стан
 msgid "Failed to write the exported registry file."
 msgstr "Не удалось записать экспортируемый файл реестра"
 
+#: dialogs/transfer_dialogs.cpp:113 dialogs/transfer_dialogs.cpp:198
+#: frame/window/menu_bar.cpp:213
 msgid "Export"
 msgstr "Экспорт"
 
@@ -480,123 +752,184 @@ msgstr "Не удалось прочитать данные параметра"
 msgid "The source key couldn't be opened."
 msgstr "Не удалось открыть исходный раздел"
 
+#: frame/commands/clipboard_commands.cpp:468
 msgid "Failed to paste value."
 msgstr "Не удалось добавить параметр"
 
+#: frame/commands/clipboard_commands.cpp:500
 msgid "Failed to paste key."
 msgstr "Не удалось добавить раздел"
 
+#: frame/commands/clipboard_commands.cpp:562 frame/commands/undo.cpp:193
 msgid "The change couldn't be undone."
 msgstr "Внесённые изменения не могут быть отменены"
 
+#: frame/commands/clipboard_commands.cpp:594 frame/commands/undo.cpp:193
 msgid "The change couldn't be redone."
 msgstr "Внесённые изменения не могут быть возвращены"
 
+#: frame/commands/command_detail.h:87
 msgid "Abbreviated (HKLM)"
 msgstr "Сокращение (HKLM)"
 
+#: frame/commands/command_detail.h:88
 msgid "RegEdit Address Bar"
 msgstr "Адресная строка RegEdit"
 
+#: frame/commands/command_detail.h:89
 msgid ".reg File Header"
 msgstr "Оглавление файла .reg"
 
+#: frame/commands/command_detail.h:90
 msgid "PowerShell Drive"
 msgstr "Хранилище PowerShell"
 
+#: frame/commands/command_detail.h:91
 msgid "PowerShell Provider"
 msgstr "Поставщик PowerShell"
 
+#: frame/commands/command_detail.h:92
 msgid "Escaped Backslashes"
 msgstr "Экранированный маршрут"
 
+#: frame/commands/command_detail.h:93
 msgid "Native"
 msgstr "Маршрут в формате NT"
 
+#: frame/commands/command_detail.h:94
 msgid "Native (Resolved)"
 msgstr "Формат NT (исходный)"
 
+#: frame/commands/command_detail.h:100 frame/tools/key_handles_window.cpp:476
+#: frame/views/value_loading.cpp:231 frame/views/value_loading.cpp:264
+#: frame/window/notifications.cpp:1321 search/search.cpp:60
+#: search/search.cpp:242
 msgid "Key"
 msgstr "Раздел"
 
+#: frame/commands/command_detail.h:101 frame/views/value_loading.cpp:230
 msgid "Volatile Key"
 msgstr "Временный раздел"
 
+#: frame/commands/command_detail.h:103
 msgid "String Value"
 msgstr "Строковый параметр"
 
+#: frame/commands/command_detail.h:104
 msgid "Binary Value"
 msgstr "Двоичный параметр"
 
+#: frame/commands/command_detail.h:105
 msgid "DWORD (32-bit) Value"
 msgstr "Параметр DWORD (32 бита)"
 
+#: frame/commands/command_detail.h:106
 msgid "QWORD (64-bit) Value"
 msgstr "Параметр QWORD (64 бита)"
 
+#: frame/commands/command_detail.h:107
 msgid "Multi-String Value"
 msgstr "Многостроковый параметр"
 
+#: frame/commands/command_detail.h:108
 msgid "Expandable String Value"
 msgstr "Расширяемый строковый параметр"
 
+#: frame/commands/command_detail.h:110
 msgid "Symbolic Link"
 msgstr "Символьную ссылку"
 
+#: frame/commands/context_menus.cpp:81 frame/commands/context_menus.cpp:404
+#: frame/commands/context_menus.cpp:634
 msgid "Copy Key Name"
 msgstr "Копировать название раздела"
 
+#: frame/commands/context_menus.cpp:82 frame/commands/context_menus.cpp:405
+#: frame/commands/context_menus.cpp:635
 msgid "Copy Key Path"
 msgstr "Копировать маршрут раздела"
 
+#: frame/commands/context_menus.cpp:83 frame/commands/context_menus.cpp:406
+#: frame/commands/context_menus.cpp:636
 msgid "Copy Key Path As"
 msgstr "Копировать маршрут как"
 
+#: frame/commands/context_menus.cpp:84 frame/commands/context_menus.cpp:361
+#: frame/commands/context_menus.cpp:631 frame/window/menu_bar.cpp:361
 msgid "Modify Comment..."
 msgstr "Изменить комментарий..."
 
 msgid "Open in Source Hive"
 msgstr "Открыть исходный куст"
 
+#: frame/commands/context_menus.cpp:91 frame/commands/context_menus.cpp:638
 msgid "On-Disk Hive File"
 msgstr "Файл куста на диске"
 
 msgid "Expand All Subkeys"
 msgstr "Развернуть все подразделы"
 
+#: frame/commands/context_menus.cpp:99 frame/commands/context_menus.cpp:410
+#: frame/views/registry_sessions.cpp:1091
 msgid "Create Key"
 msgstr "Создать раздел"
 
+#: frame/commands/context_menus.cpp:101 frame/commands/context_menus.cpp:108
+#: frame/commands/context_menus.cpp:422 frame/commands/context_menus.cpp:470
+#: frame/tools/key_handles_window.cpp:386 frame/window/menu_bar.cpp:225
+#: frame/window/menu_bar.cpp:395
 msgid "Refresh"
 msgstr "Обновить"
 
+#: frame/commands/context_menus.cpp:104 frame/commands/context_menus.cpp:414
+#: frame/window/menu_bar.cpp:354
 msgid "New"
 msgstr "Создать"
 
+#: frame/commands/context_menus.cpp:106 frame/commands/context_menus.cpp:393
+#: frame/commands/context_menus.cpp:419 frame/commands/context_menus.cpp:641
+#: frame/window/menu_bar.cpp:330 ui/preset_editor.cpp:460
 msgid "Export..."
 msgstr "Экспорт..."
 
+#: frame/commands/context_menus.cpp:110 frame/commands/context_menus.cpp:395
+#: frame/commands/context_menus.cpp:645 frame/window/menu_bar.cpp:374
 msgid "Rename"
 msgstr "Переименовать"
 
+#: frame/commands/context_menus.cpp:111 frame/commands/context_menus.cpp:212
+#: frame/commands/context_menus.cpp:396 frame/commands/context_menus.cpp:646
+#: frame/window/menu_bar.cpp:223 frame/window/menu_bar.cpp:375
+#: ui/feedback.cpp:792 ui/preset_editor.cpp:457
 msgid "Delete"
 msgstr "Удалить"
 
+#: frame/commands/context_menus.cpp:113 frame/commands/context_menus.cpp:426
+#: frame/commands/context_menus.cpp:649 frame/tools/launch_bridge.cpp:231
+#: frame/window/menu_bar.cpp:390
 msgid "Permissions..."
 msgstr "Разрешения..."
 
+#: frame/commands/context_menus.cpp:114 frame/commands/context_menus.cpp:427
+#: frame/window/menu_bar.cpp:391
 msgid "Key Information..."
 msgstr "Свойства раздела..."
 
+#: frame/commands/context_menus.cpp:206 frame/window/menu_bar.cpp:215
+#: frame/window/menu_bar.cpp:351
 msgid "Undo"
 msgstr "Отменить"
 
 msgid "Cut"
 msgstr "Вырезать"
 
+#: frame/commands/context_menus.cpp:209 frame/commands/context_menus.cpp:464
+#: frame/window/menu_bar.cpp:219 frame/window/menu_bar.cpp:364
 msgid "Copy"
 msgstr "Копировать"
 
+#: frame/commands/context_menus.cpp:210 frame/window/menu_bar.cpp:221
+#: frame/window/menu_bar.cpp:373
 msgid "Paste"
 msgstr "Вставить"
 
@@ -606,66 +939,90 @@ msgstr "Вставить и перейти"
 msgid "Collapse Key"
 msgstr "Свернуть раздел"
 
+#: frame/commands/context_menus.cpp:284 frame/commands/context_menus.cpp:326
 msgid "Expand Key"
 msgstr "Развернуть раздел"
 
+#: frame/commands/context_menus.cpp:356 frame/commands/context_menus.cpp:627
+#: frame/window/menu_bar.cpp:356
 msgid "Modify..."
 msgstr "Изменить..."
 
+#: frame/commands/context_menus.cpp:357 frame/commands/context_menus.cpp:628
+#: frame/window/menu_bar.cpp:357
 msgid "Modify Binary Data..."
 msgstr "Изменить двоичные данные..."
 
+#: frame/commands/context_menus.cpp:358 frame/window/menu_bar.cpp:358
 msgid "Change Data Type..."
 msgstr "Изменить тип данных..."
 
+#: frame/commands/context_menus.cpp:359 frame/window/menu_bar.cpp:359
 msgid "Edit Bits..."
 msgstr "Изменить битовые поля..."
 
+#: frame/commands/context_menus.cpp:360 frame/commands/context_menus.cpp:630
+#: frame/window/menu_bar.cpp:360
 msgid "Decode Value..."
 msgstr "Декодировать параметр..."
 
+#: frame/commands/context_menus.cpp:362 frame/window/menu_bar.cpp:362
 msgid "Reset to Default"
 msgstr "Сброс к начальному значению"
 
+#: frame/commands/context_menus.cpp:364
 msgid "Copy Value Name"
 msgstr "Копировать наименование"
 
+#: frame/commands/context_menus.cpp:365
 msgid "Copy Value Data"
 msgstr "Копировать значение"
 
+#: frame/commands/context_menus.cpp:381 frame/commands/context_menus.cpp:390
 msgid "Open Link"
 msgstr "Открыть ссылку"
 
+#: frame/commands/context_menus.cpp:461
 msgid "Open Entry"
 msgstr "Открыть запись"
 
+#: frame/commands/context_menus.cpp:462 frame/views/history_workspace.cpp:260
 msgid "Revert"
 msgstr "Восстановить"
 
+#: frame/commands/context_menus.cpp:466
 msgid "Remove from History"
 msgstr "Удалить из журнала"
 
+#: frame/commands/context_menus.cpp:473
 msgid "Clear History"
 msgstr "Очистить журнал"
 
+#: frame/commands/context_menus.cpp:481
 msgid "Failed to open history target."
 msgstr "Не удалось открыть целевой объект журнала"
 
+#: frame/commands/context_menus.cpp:613
 msgid "Open First Entry"
 msgstr "Показать первую запись"
 
+#: frame/commands/context_menus.cpp:614
 msgid "Open First Entry in New Tab"
 msgstr "Показать первую запись в новой вкладке"
 
+#: frame/commands/context_menus.cpp:615
 msgid "Open Second Entry"
 msgstr "Показать вторую запись"
 
+#: frame/commands/context_menus.cpp:616
 msgid "Open Second Entry in New Tab"
 msgstr "Показать вторую запись в новой вкладке"
 
+#: frame/commands/context_menus.cpp:621 frame/tools/key_handles_window.cpp:375
 msgid "Open Key"
 msgstr "Открыть раздел"
 
+#: frame/commands/context_menus.cpp:622 frame/tools/key_handles_window.cpp:376
 msgid "Open Key in New Tab"
 msgstr "Открыть раздел в новой вкладке"
 
@@ -717,28 +1074,38 @@ msgstr "Выгрузить этот раздел и все его подразд
 msgid "Unload"
 msgstr "Выгрузить"
 
+#: frame/commands/file_view_commands.cpp:601
 msgid "Expanded keys"
 msgstr "Развёрнуто разделов"
 
+#: frame/commands/file_view_commands.cpp:601
 msgid "This key has too many subkeys to expand at once."
 msgstr ""
 "Развёрнута только часть подразделов из‐за большого количества подразделов"
 
+#: frame/commands/file_view_commands.cpp:782
 msgid "Edit Active Defaults"
 msgstr "Изменение действующих предустановок"
 
+#: frame/commands/file_view_commands.cpp:783
+#: frame/commands/file_view_commands.cpp:845
 msgid "One default path per line."
 msgstr "В каждой строке указывается по одному файлу с предустановками"
 
+#: frame/commands/file_view_commands.cpp:813
 msgid "Edit Active Traces"
 msgstr "Изменение действующих трассировок"
 
+#: frame/commands/file_view_commands.cpp:814
+#: frame/commands/file_view_commands.cpp:865
 msgid "One trace path per line."
 msgstr "В каждой строке указывается по одному файлу трассировки"
 
+#: frame/commands/file_view_commands.cpp:844
 msgid "Edit Recent Defaults"
 msgstr "Изменение недавно использованных предустановок"
 
+#: frame/commands/file_view_commands.cpp:864
 msgid "Edit Recent Traces"
 msgstr "Изменение недавно использованных трассировок"
 
@@ -766,12 +1133,18 @@ msgstr "Не удалось задать значение параметра"
 msgid "Failed to update value."
 msgstr "Не удалось обновить параметр"
 
+#: frame/commands/mutation_commands.cpp:775
+#: frame/commands/mutation_commands.cpp:1023 ui/feedback.cpp:774
 msgid "Delete Value"
 msgstr "Удаление параметра"
 
 msgid "Failed to delete value."
 msgstr "Не удалось удалить параметр"
 
+#: frame/commands/mutation_commands.cpp:853
+#: frame/commands/mutation_commands.cpp:865
+#: frame/commands/mutation_commands.cpp:982
+#: frame/commands/mutation_commands.cpp:989 ui/feedback.cpp:770
 msgid "Delete Key"
 msgstr "Удаление раздела"
 
@@ -791,6 +1164,7 @@ msgstr "Массовое удаление поддерживается толь�
 msgid "Failed to read all selected values."
 msgstr "Не удалось считать все выбранные параметры"
 
+#: frame/commands/mutation_commands.cpp:940 ui/feedback.cpp:774
 msgid "Delete Values"
 msgstr "Удаление параметров"
 
@@ -810,9 +1184,11 @@ msgstr ""
 msgid "Restart RegKit now to apply the language?"
 msgstr "Перезапустить программу RegKit, чтобы изменить язык?"
 
+#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:438
 msgid "Language"
 msgstr "Изменить язык"
 
+#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:451
 msgid "Restart"
 msgstr "Перезапустить"
 
@@ -839,9 +1215,13 @@ msgstr "Сбросить"
 msgid "Invalid registry path."
 msgstr "Недопустимый маршрут реестра"
 
+#: frame/search/compare_command.cpp:114 frame/views/registry_sessions.cpp:1077
+#: frame/views/registry_sessions.cpp:1119 frame/window/message_routes.cpp:1278
+#: launch/program.cpp:231 launch/program.cpp:620
 msgid "Registry path not found."
 msgstr "Не удалось найти указанный раздел реестра"
 
+#: frame/search/compare_command.cpp:152 frame/window/menu_bar.cpp:520
 msgid "Compare Registries..."
 msgstr "Сравнение реестров..."
 
@@ -949,9 +1329,12 @@ msgstr "В выбранных источниках нет разделов дл�
 msgid "Anomalies"
 msgstr "Аномалии"
 
+#: frame/search/search_window.cpp:845 frame/search/search_window.cpp:848
+#: frame/views/history_workspace.cpp:606 frame/window/menu_bar.cpp:207
 msgid "Find"
 msgstr "Найти"
 
+#: frame/search/search_window.cpp:1371 frame/window/menu_bar.cpp:243
 msgid "Read only mode is enabled."
 msgstr "Включен режим только чтение"
 
@@ -989,6 +1372,7 @@ msgstr "Не удалось сохранить файл реестра"
 msgid "Failed to export registry file."
 msgstr "Не удалось экспортировать файл реестра"
 
+#: frame/sources/regfile_commands.cpp:239 launch/program.cpp:232
 msgid "Registry file not found."
 msgstr "Файл реестра не найден"
 
@@ -1110,6 +1494,7 @@ msgstr "Закрытие дескриптора"
 msgid "Close Handles"
 msgstr "Закрытие дескрипторов"
 
+#: frame/tools/key_handles_window.cpp:356 frame/tools/update_checker.cpp:512
 msgid "Close"
 msgstr "Закрыть"
 
@@ -1176,6 +1561,7 @@ msgstr "Средний"
 msgid "High"
 msgstr "Высокий"
 
+#: frame/tools/launch_bridge.cpp:45 frame/window/menu_bar.cpp:417
 msgid "System"
 msgstr "Системная"
 
@@ -1185,12 +1571,13 @@ msgstr "Защищённый процесс"
 msgid "Key Information"
 msgstr "Свойства раздела"
 
-msgid "The key information couldn't be read."
-msgstr "Не удалось получить свойства раздела"
-
+#: frame/tools/launch_bridge.cpp:75 frame/views/value_loading.cpp:315
+#: ui/feedback.cpp:712
 msgid "Yes"
 msgstr "Да"
 
+#: frame/tools/launch_bridge.cpp:75 frame/views/value_loading.cpp:313
+#: frame/views/value_loading.cpp:380 ui/feedback.cpp:712
 msgid "No"
 msgstr "Нет"
 
@@ -1329,6 +1716,7 @@ msgstr "Уровень запуска"
 msgid "Can write"
 msgstr "Разрешена запись"
 
+#: frame/tools/launch_bridge.cpp:245 ui/feedback.cpp:670 ui/feedback.cpp:672
 msgid "Error"
 msgstr "Ошибка"
 
@@ -1338,9 +1726,12 @@ msgstr "Данные ресурса повреждены"
 msgid "Edit Binary..."
 msgstr "Изменить двоичные данные..."
 
+#: frame/tools/launch_bridge.cpp:266 frame/tools/launch_bridge.cpp:489
+#: launch/program.cpp:395
 msgid "Failed to locate the executable path."
 msgstr "Не удалось определить маршрут к исполняемому файлу"
 
+#: frame/tools/launch_bridge.cpp:312 launch/program.cpp:419
 msgid "RegKit couldn't restore its own security context and must close now."
 msgstr ""
 "Программа RegKit будет закрыта так как не удалось восстановить собственный "
@@ -1367,18 +1758,31 @@ msgstr "Не удалось перезапустить с правами адм�
 msgid "Failed to restart as the signed-in user."
 msgstr "Не удалось перезапустить от имени вошедшего пользователя"
 
+#: frame/tools/launch_bridge.cpp:452 frame/window/menu_bar.cpp:454
+msgid "Restart as SYSTEM"
+msgstr "Пользователя SYSTEM"
+
+#: frame/tools/launch_bridge.cpp:462
 msgid "Failed to request SYSTEM restart."
 msgstr "Не удалось запросить перезапуск от имени пользователя SYSTEM"
 
+#: frame/tools/launch_bridge.cpp:464
 msgid "Failed to restart with SYSTEM rights."
 msgstr "Не удалось перезапустить с правами SYSTEM"
 
+#: frame/tools/launch_bridge.cpp:469 frame/window/menu_bar.cpp:455
+msgid "Restart as TrustedInstaller"
+msgstr "Пользователя TrustedInstaller"
+
+#: frame/tools/launch_bridge.cpp:479
 msgid "Failed to request TrustedInstaller restart."
 msgstr "Не удалось запросить перезапуск от имени пользователя TrustedInstaller"
 
+#: frame/tools/launch_bridge.cpp:481
 msgid "Failed to restart with TrustedInstaller rights."
 msgstr "Не удалось перезапустить с правами TrustedInstaller"
 
+#: frame/tools/launch_bridge.cpp:497
 msgid ""
 "Replacing RegEdit registers this executable for every account on the "
 "machine.\n"
@@ -1389,7 +1793,6 @@ msgid ""
 "somewhere only administrators can write.\n"
 "\n"
 "Replace anyway to apply it from this location."
-
 msgstr ""
 "При замене RegEdit будет выполнена регистрация указанного исполняемого файла "
 "для всех учётных записей на компьютере.\n"
@@ -1404,12 +1807,16 @@ msgstr ""
 "При нажатии кнопки \"Всё равно заменить\" будет выполнена замена на "
 "исполняемый файл из указанного каталога"
 
+#: frame/tools/launch_bridge.cpp:503 frame/tools/launch_bridge.cpp:520
+#: frame/window/menu_bar.cpp:464
 msgid "Replace RegEdit"
 msgstr "Замена RegEdit"
 
+#: frame/tools/launch_bridge.cpp:504
 msgid "Replace Anyway"
 msgstr "Всё равно заменить"
 
+#: frame/tools/launch_bridge.cpp:518
 msgid ""
 "RegEdit already has a Debugger entry owned by another program.\n"
 "\n"
@@ -1419,74 +1826,103 @@ msgstr ""
 "\n"
 "Переопределить существующую запись?"
 
+#: frame/tools/launch_bridge.cpp:521
 msgid "Override"
 msgstr "Переопределить"
 
+#: frame/tools/launch_bridge.cpp:596
 msgid "Hive files aren't available for remote registries."
 msgstr "Файлы кустов недоступны для удалённых реестров"
 
+#: frame/tools/launch_bridge.cpp:602
 msgid "No hive file was found for this key."
 msgstr "Для этого раздела не найден файл куста реестра"
 
+#: frame/tools/update_checker.cpp:110
 msgid "The release location isn't a trusted RegKit download address."
-
 msgstr ""
 "Адрес страницы версий программы RegKit не является доверенным адресом "
 "загрузки"
 
+#: frame/tools/update_checker.cpp:149
 msgid "The download is larger than RegKit accepts."
 msgstr "Размер загружаемого файла превышает допустимое значение"
 
+#: frame/tools/update_checker.cpp:288
 msgid "The release didn't publish a checksum for this download."
 msgstr "Для этого версии программы не опубликована контрольная сумма файла"
 
+#: frame/tools/update_checker.cpp:298
 msgid "The downloaded file doesn't match the release checksum."
 msgstr "Загруженная версия программы не соответствует контрольной сумме файла"
 
+#: frame/tools/update_checker.cpp:400
 msgid "The response didn't contain a release."
 msgstr "В полученном ответе сервера отсутствуют данные о версии программы"
 
+#: frame/tools/update_checker.cpp:415
 msgid "Failed to reach the update server."
 msgstr "Не удалось подключиться к серверу обновлений"
 
+#: frame/tools/update_checker.cpp:447
 msgid "The update couldn't be downloaded."
 msgstr "Не удалось загрузить обновление"
 
+#: frame/tools/update_checker.cpp:454
 msgid "Downloading"
 msgstr "Загрузка"
 
-msgid ""
-"The downloaded setup changed after RegKit verified it and wasn't started."
-msgstr ""
-"Запуск установщика отменён так как он был изменён уже после проверки "
-"программой RegKit"
-
-msgid "The setup couldn't be started."
-msgstr "Не удалось запустить установщик"
-
+#: frame/tools/update_checker.cpp:500
 msgid "RegKit is up to date."
 msgstr "Установлена последняя версия программы RegKit"
 
+#: frame/tools/update_checker.cpp:506
 msgid "installed"
 msgstr "установлено"
 
-msgid "No setup was found for this build. Open the releases page?"
-msgstr ""
-"Для этой сборки не найден установщик. Открыть страницу версий программы?"
+#: frame/tools/update_checker.cpp:507
+msgid "No download was found for this build. Open the release page?"
+msgstr "Для этой сборки не найден файл для загрузки. Открыть страницу версии?"
 
-msgid "Download and install it now? RegKit closes when the setup starts."
-msgstr ""
-"Выполнить загрузку и установку? Программа RegKit будет закрыта во время "
-"установки"
+#: frame/tools/update_checker.cpp:508
+msgid "Download and install it now? RegKit restarts once the update is installed."
+msgstr "Выполнить загрузку и установку? Программа RegKit будет перезапущена после установки обновления"
 
+#: frame/tools/update_checker.cpp:509
+msgid "Download the new portable version?"
+msgstr "Загрузить новую портативную версию?"
+
+#: frame/tools/update_checker.cpp:510
+msgid "Update"
+msgstr "Обновить"
+
+#: frame/tools/update_checker.cpp:510
+msgid "Download Portable"
+msgstr "Загрузить портативную версию"
+
+#: frame/tools/update_checker.cpp:511
+msgid "Open Release"
+msgstr "Открыть страницу версии"
+
+#: frame/tools/update_checker.cpp:512
 msgid "Update Available"
 msgstr "Обновление программы"
 
-msgid "Open"
-msgstr "Открыть"
+#: frame/tools/update_checker.cpp:541
+msgid "The downloaded setup changed after RegKit verified it and wasn't started."
+msgstr "Запуск установщика отменён так как он был изменён уже после проверки программой RegKit"
 
-msgid "Install"
-msgstr "Установить"
+#: frame/tools/update_checker.cpp:545
+msgid "The setup couldn't be started."
+msgstr "Не удалось запустить установщик"
+
+#: frame/tools/update_checker.cpp:574
+msgid "Exit code"
+msgstr "Код завершения"
+
+#: frame/tools/update_checker.cpp:574
+msgid "The update couldn't be installed."
+msgstr "Не удалось установить обновление"
 
 msgid "Type"
 msgstr "Тип"
@@ -1494,6 +1930,9 @@ msgstr "Тип"
 msgid "Data"
 msgstr "Данные"
 
+#: frame/views/browse_view.cpp:62 frame/window/menu_bar.cpp:609
+#: frame/window/menu_bar.cpp:947 registry/resource_list.cpp:336
+#: search/search.cpp:68
 msgid "Default"
 msgstr "Предустановленные"
 
@@ -1536,9 +1975,11 @@ msgstr "Вторая запись"
 msgid "Result"
 msgstr "Результат"
 
+#: frame/views/column_menus.cpp:69 ui/list_view_support.cpp:509
 msgid "Size column to fit"
 msgstr "Подобрать ширину столбца"
 
+#: frame/views/column_menus.cpp:70 ui/list_view_support.cpp:510
 msgid "Size all columns to fit"
 msgstr "Подобрать ширину всех столбцов"
 
@@ -1557,6 +1998,11 @@ msgstr ""
 "Не удалось записать файл журнала на диск. После завершения сеанса записи "
 "будут утеряны"
 
+#: frame/views/history_workspace.cpp:667 frame/views/history_workspace.cpp:689
+#: frame/views/history_workspace.cpp:888 frame/views/registry_sessions.cpp:496
+#: frame/views/registry_sessions.cpp:499 frame/views/tab_lists.cpp:634
+#: frame/window/menu_bar.cpp:201 frame/window/menu_bar.cpp:335
+#: search/search.cpp:52
 msgid "Local Registry"
 msgstr "Локальный реестр"
 
@@ -1572,6 +2018,8 @@ msgstr "Различающиеся размеры"
 msgid "The comment couldn't be saved."
 msgstr "Не удалось сохранить комментарий"
 
+#: frame/views/registry_sessions.cpp:499 frame/window/menu_bar.cpp:338
+#: search/search.cpp:52
 msgid "Local Registry (32-bit)"
 msgstr "Локальный реестр (32-bit)"
 
@@ -1588,6 +2036,9 @@ msgstr "Подключиться к удалённому реестру"
 msgid "Computer name (e.g. \\\\MACHINE):"
 msgstr "Наименование компьютера (например, \\\\MACHINE):"
 
+#: frame/views/registry_sessions.cpp:771 frame/views/registry_sessions.cpp:774
+#: frame/views/registry_sessions.cpp:793 frame/views/registry_sessions.cpp:831
+#: frame/window/menu_bar.cpp:203
 msgid "Remote Registry"
 msgstr "Удалённый реестр"
 
@@ -1641,6 +2092,8 @@ msgstr ""
 "Загрузить автономный реестр из единичного файла куста или из папки с файлами "
 "кустов?"
 
+#: frame/views/registry_sessions.cpp:844 frame/views/registry_sessions.cpp:945
+#: frame/views/registry_sessions.cpp:948 frame/window/menu_bar.cpp:205
 msgid "Offline Registry"
 msgstr "Автономный реестр"
 
@@ -1703,9 +2156,12 @@ msgstr ""
 "В автономном реестре есть несохранённые изменения.\n"
 "Сохранить перед закрытием вкладки?"
 
+#: frame/views/value_loading.cpp:124 frame/window/menu_bar.cpp:558
 msgid "Trace"
 msgstr "Трассировка"
 
+#: frame/views/value_loading.cpp:181 frame/window/menu_bar.cpp:950
+#: search/compare.cpp:55 search/compare.cpp:343 search/compare.cpp:344
 msgid "(Missing)"
 msgstr "(отсутствует)"
 
@@ -1735,380 +2191,517 @@ msgstr "Создание папки"
 msgid "Go"
 msgstr "Перейти"
 
+#: frame/window/lifetime.cpp:128 frame/window/menu_bar.cpp:404
 msgid "Key Tree"
 msgstr "Дерево разделов"
 
+#: frame/window/lifetime.cpp:155 frame/window/menu_bar.cpp:405
 msgid "History"
 msgstr "Журнал"
 
-msgid ""
-"The comments file couldn't be read, so comment changes won't be saved until "
-"it is fixed or removed."
-msgstr ""
-"Недоступно сохранение комментариев из‐за сбоя при считывании файла "
-"комментариев. Требуется исправить или удалить файл"
+#: frame/window/lifetime.cpp:433
+msgid "The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."
+msgstr "Недоступно сохранение комментариев из‐за сбоя при считывании файла комментариев. Требуется исправить или удалить файл"
 
+#: frame/window/lifetime.cpp:435
 msgid "Comments"
 msgstr "Комментарии"
 
+#: frame/window/lifetime.cpp:520
 msgid "The open tabs couldn't be saved for the next session."
 msgstr "Не удалось сохранить открытые вкладки для следующего сеанса"
 
+#: frame/window/menu_bar.cpp:209 ui/feedback.cpp:802
 msgid "Replace"
 msgstr "Заменить"
 
+#: frame/window/menu_bar.cpp:217 frame/window/menu_bar.cpp:352
 msgid "Redo"
 msgstr "Вернуть"
 
+#: frame/window/menu_bar.cpp:227
 msgid "Back"
 msgstr "К предыдущему разделу"
 
+#: frame/window/menu_bar.cpp:229
 msgid "Forward"
 msgstr "К прежнему разделу"
 
+#: frame/window/menu_bar.cpp:231
 msgid "Up"
 msgstr "На один уровень вверх"
 
+#: frame/window/menu_bar.cpp:326
 msgid "Open .reg File..."
 msgstr "Открыть файл .reg..."
 
+#: frame/window/menu_bar.cpp:329 ui/preset_editor.cpp:459
 msgid "Import..."
 msgstr "Импорт..."
 
+#: frame/window/menu_bar.cpp:332
 msgid "Import Comments..."
 msgstr "Импорт комментариев..."
 
+#: frame/window/menu_bar.cpp:333
 msgid "Export Comments..."
 msgstr "Экспорт комментариев..."
 
+#: frame/window/menu_bar.cpp:340
 msgid "Remote Registry..."
 msgstr "Удалённый реестр..."
 
+#: frame/window/menu_bar.cpp:341
 msgid "Offline Registry..."
 msgstr "Автономный реестр..."
 
+#: frame/window/menu_bar.cpp:342
 msgid "Save Offline Hive..."
 msgstr "Сохранить автономный куст..."
 
+#: frame/window/menu_bar.cpp:344
 msgid "Load Hive..."
 msgstr "Загрузить куст..."
 
+#: frame/window/menu_bar.cpp:345
 msgid "Unload Hive..."
 msgstr "Выгрузить куст..."
 
+#: frame/window/menu_bar.cpp:347
 msgid "Exit"
 msgstr "Выход"
 
+#: frame/window/menu_bar.cpp:348
 msgid "&File"
 msgstr "&Файл"
 
+#: frame/window/menu_bar.cpp:366
 msgid "Key Name"
 msgstr "Наименование раздела"
 
+#: frame/window/menu_bar.cpp:367
 msgid "Key Path"
 msgstr "Маршрут раздела"
 
+#: frame/window/menu_bar.cpp:368
 msgid "Key Path As"
 msgstr "Маршрут раздела как"
 
+#: frame/window/menu_bar.cpp:370
 msgid "Value Name"
 msgstr "Название параметра"
 
+#: frame/window/menu_bar.cpp:371
 msgid "Value Data"
 msgstr "Значение параметра"
 
+#: frame/window/menu_bar.cpp:372
 msgid "Copy Other"
 msgstr "Прочее копирование"
 
+#: frame/window/menu_bar.cpp:378
 msgid "Invert Selection"
 msgstr "Обратить выделение"
 
+#: frame/window/menu_bar.cpp:380
 msgid "Find..."
 msgstr "Найти..."
 
+#: frame/window/menu_bar.cpp:381
 msgid "Replace..."
 msgstr "Заменить..."
 
+#: frame/window/menu_bar.cpp:382
 msgid "Go To..."
 msgstr "Перейти..."
 
+#: frame/window/menu_bar.cpp:385
 msgid "Go to Other View"
 msgstr "Перейти к другой разрядности"
 
+#: frame/window/menu_bar.cpp:387
 msgid "Go to Virtual Store Copy"
 msgstr "Перейти к виртуальной копии"
 
+#: frame/window/menu_bar.cpp:388
 msgid "Go to Global Key"
 msgstr "Перейти к исходному разделу"
 
+#: frame/window/menu_bar.cpp:392
 msgid "&Edit"
 msgstr "&Правка"
 
+#: frame/window/menu_bar.cpp:396
 msgid "Auto Refresh"
 msgstr "Автообновление"
 
+#: frame/window/menu_bar.cpp:398
 msgid "Toolbar"
 msgstr "Панель инструментов"
 
+#: frame/window/menu_bar.cpp:399
 msgid "Address Bar"
 msgstr "Адресная строка"
 
+#: frame/window/menu_bar.cpp:400
 msgid "Filter Bar"
 msgstr "Панель фильтра"
 
+#: frame/window/menu_bar.cpp:401
 msgid "Tabs"
 msgstr "Вкладки"
 
+#: frame/window/menu_bar.cpp:402
 msgid "Status Bar"
 msgstr "Строка состояния"
 
+#: frame/window/menu_bar.cpp:407
 msgid "Keys in List"
 msgstr "Разделы в списке"
 
+#: frame/window/menu_bar.cpp:408 ui/list_view_support.cpp:177
+#: ui/list_view_support.cpp:185
 msgid "Grid Lines"
 msgstr "Сетка"
 
+#: frame/window/menu_bar.cpp:409
 msgid "Simulated Keys"
 msgstr "Имитируемые разделы"
 
+#: frame/window/menu_bar.cpp:410
 msgid "Show Extra Root Keys"
 msgstr "Специальные разделы"
 
-msgid "&View"
-msgstr "В&ид"
-
+#: frame/window/menu_bar.cpp:418
 msgid "Light"
 msgstr "Светлая"
 
+#: frame/window/menu_bar.cpp:419
 msgid "Dark"
 msgstr "Тёмная"
 
+#: frame/window/menu_bar.cpp:420 frame/window/menu_bar.cpp:427
 msgid "Custom"
 msgstr "Собственные"
 
+#: frame/window/menu_bar.cpp:422
 msgid "Theme Presets..."
 msgstr "Установленные темы..."
 
+#: frame/window/menu_bar.cpp:423
 msgid "Theme"
 msgstr "Тема"
 
+#: frame/window/menu_bar.cpp:425
 msgid "Classic"
 msgstr "Классические"
 
+#: frame/window/menu_bar.cpp:426
+msgid "Phosphor"
+msgstr ""
+
+#: frame/window/menu_bar.cpp:428
 msgid "Icons"
 msgstr "Значки"
 
+#: frame/window/menu_bar.cpp:432
 msgid "Automatic"
 msgstr "Автоматически"
 
+#: frame/window/menu_bar.cpp:439
 msgid "Font..."
 msgstr "Шрифт..."
 
+#: frame/window/menu_bar.cpp:441
+msgid "Simple Mode"
+msgstr "Простой режим"
+
+#: frame/window/menu_bar.cpp:442
+msgid "&View"
+msgstr "В&ид"
+
+#: frame/window/menu_bar.cpp:443
 msgid "Read Only Mode"
 msgstr "Режим только чтение"
 
+#: frame/window/menu_bar.cpp:444
 msgid "Use Backup/Restore Privileges"
 msgstr "Права резервного копирования/восстановления"
 
+#: frame/window/menu_bar.cpp:452
 msgid "Restart as User"
 msgstr "Текущего пользователя"
 
+#: frame/window/menu_bar.cpp:453
 msgid "Restart as Admin"
 msgstr "Администратора"
 
-msgid "Restart as SYSTEM"
-msgstr "Пользователя SYSTEM"
-
-msgid "Restart as TrustedInstaller"
-msgstr "Пользователя TrustedInstaller"
-
+#: frame/window/menu_bar.cpp:457
 msgid "Always Run as Admin"
 msgstr "Всегда запускать с правами администратора"
 
+#: frame/window/menu_bar.cpp:458
 msgid "Always Run as SYSTEM"
 msgstr "Всегда запускать с правами SYSTEM"
 
+#: frame/window/menu_bar.cpp:459
 msgid "Always Run as TrustedInstaller"
 msgstr "Всегда запускать с правами TrustedInstaller"
 
+#: frame/window/menu_bar.cpp:461
 msgid "HKCU Follows Signed-In User"
 msgstr "Отображать HKCU текущего пользователя"
 
+#: frame/window/menu_bar.cpp:462
 msgid "Run As"
 msgstr "Перезапуск с правами"
 
+#: frame/window/menu_bar.cpp:465
 msgid "Add \"Edit\" Context Menu"
 msgstr "Пункт \"Редактировать\" в контекстном меню"
 
+#: frame/window/menu_bar.cpp:466
 msgid "Single Instance"
 msgstr "Только один экземпляр"
 
+#: frame/window/menu_bar.cpp:467
 msgid "Autocomplete Key Paths"
 msgstr "Автоподстановка в маршрутах разделов"
 
+#: frame/window/menu_bar.cpp:469
 msgid "All Tabs"
 msgstr "Все вкладки"
 
+#: frame/window/menu_bar.cpp:471
 msgid "Local Registry Tabs"
 msgstr "Вкладки локального реестра"
 
+#: frame/window/menu_bar.cpp:472
 msgid "Offline Hive Tabs"
 msgstr "Вкладки автономных кустов"
 
+#: frame/window/menu_bar.cpp:473
 msgid "Remote Registry Tabs"
 msgstr "Вкладки удалённого реестра"
 
+#: frame/window/menu_bar.cpp:475
 msgid "Find Results"
 msgstr "Результаты поиска"
 
+#: frame/window/menu_bar.cpp:476
 msgid "Comparison Results"
 msgstr "Результаты сравнения"
 
+#: frame/window/menu_bar.cpp:477
 msgid ".reg File Tabs"
 msgstr "Вкладки файлов .reg"
 
+#: frame/window/menu_bar.cpp:479
 msgid "Save Tabs"
 msgstr "Сохранять вкладки"
 
+#: frame/window/menu_bar.cpp:480
 msgid "Save Previous Tree State"
 msgstr "Сохранять состояние дерева"
 
+#: frame/window/menu_bar.cpp:481
 msgid "Clear History on Exit"
 msgstr "Очищать журнал при выходе"
 
+#: frame/window/menu_bar.cpp:482
 msgid "Clear Tabs on Exit"
 msgstr "Очищать вкладки при выходе"
 
+#: frame/window/menu_bar.cpp:487
 msgid "Tab Sessions"
 msgstr "Вкладки сеанса"
 
+#: frame/window/menu_bar.cpp:488
 msgid "Change History"
 msgstr "Журнал изменений"
 
+#: frame/window/menu_bar.cpp:489
 msgid "Search History"
 msgstr "Журнал поиска"
 
+#: frame/window/menu_bar.cpp:490
+msgid "Dialog Options"
+msgstr "Параметры диалогов"
+
+#: frame/window/menu_bar.cpp:491
 msgid "Tree State"
 msgstr "Состояние дерева"
 
+#: frame/window/menu_bar.cpp:492
 msgid "Temporary Files"
 msgstr "Временные файлы"
 
+#: frame/window/menu_bar.cpp:493
 msgid "Clear Caches"
 msgstr "Очистить кэш"
 
+#: frame/window/menu_bar.cpp:494
 msgid "Reset Settings..."
 msgstr "Сбросить настройки..."
 
+#: frame/window/menu_bar.cpp:496
 msgid "Add to Favorites..."
 msgstr "Добавить в избранное..."
 
+#: frame/window/menu_bar.cpp:497
 msgid "Remove Favorite"
 msgstr "Удалить из избранного"
 
+#: frame/window/menu_bar.cpp:498
 msgid "Edit Favorites..."
 msgstr "Изменить избранное..."
 
+#: frame/window/menu_bar.cpp:500
 msgid "Import Favorites..."
 msgstr "Импорт избранного..."
 
+#: frame/window/menu_bar.cpp:501
 msgid "Import RegEdit Favorites"
 msgstr "Импорт избранного RegEdit"
 
+#: frame/window/menu_bar.cpp:502
 msgid "Export Favorites..."
 msgstr "Экспорт избранного..."
 
+#: frame/window/menu_bar.cpp:516
 msgid "F&avorites"
 msgstr "И&збранное"
 
+#: frame/window/menu_bar.cpp:517
 msgid "&Options"
 msgstr "Парам&етры"
 
+#: frame/window/menu_bar.cpp:521
 msgid "Convert File..."
 msgstr "Преобразование файлов..."
 
+#: frame/window/menu_bar.cpp:522
 msgid "Key Handles..."
 msgstr "Дескрипторы раздела..."
 
+#: frame/window/menu_bar.cpp:524
 msgid "New Definition File..."
 msgstr "Новый файл описания..."
 
+#: frame/window/menu_bar.cpp:526
 msgid "&Tools"
 msgstr "Инс&трументы"
 
+#: frame/window/menu_bar.cpp:529
 msgid "New Window"
 msgstr "Новое окно"
 
+#: frame/window/menu_bar.cpp:531
 msgid "Close Tab"
 msgstr "Закрыть вкладку"
 
+#: frame/window/menu_bar.cpp:532
 msgid "Close Window"
 msgstr "Закрыть окно"
 
+#: frame/window/menu_bar.cpp:534
 msgid "Always on Top"
 msgstr "Поверх других окон"
 
+#: frame/window/menu_bar.cpp:535
 msgid "&Window"
 msgstr "О&кно"
 
+#: frame/window/menu_bar.cpp:538
+msgid "23H2"
+msgstr ""
+
+#: frame/window/menu_bar.cpp:539
+msgid "24H2"
+msgstr ""
+
+#: frame/window/menu_bar.cpp:540
+msgid "25H2"
+msgstr ""
+
+#: frame/window/menu_bar.cpp:563
 msgid "Open Trace File..."
 msgstr "Открыть файл трассировки..."
 
+#: frame/window/menu_bar.cpp:565
 msgid "Edit Active Traces..."
 msgstr "Изменить действующие трассировки..."
 
+#: frame/window/menu_bar.cpp:566
 msgid "Clear Active Traces"
 msgstr "Сбросить действующие трассировки"
 
+#: frame/window/menu_bar.cpp:568
 msgid "Edit Recent Traces..."
 msgstr "Изменить недавние трассировки..."
 
+#: frame/window/menu_bar.cpp:569
 msgid "Clear Recent Traces"
 msgstr "Очистить список недавних трассировок"
 
+#: frame/window/menu_bar.cpp:571
 msgid "Guide"
 msgstr "Руководство"
 
+#: frame/window/menu_bar.cpp:614
 msgid "Open Default File..."
 msgstr "Открыть файл предустановок..."
 
+#: frame/window/menu_bar.cpp:616
 msgid "Edit Active Defaults..."
 msgstr "Изменить действующие предустановки..."
 
+#: frame/window/menu_bar.cpp:617
 msgid "Clear Active Defaults"
 msgstr "Сбросить действующие предустановки"
 
+#: frame/window/menu_bar.cpp:619
 msgid "Edit Recent Defaults..."
 msgstr "Изменить недавние предустановки..."
 
+#: frame/window/menu_bar.cpp:620
 msgid "Clear Recent Defaults"
 msgstr "Очистить список недавних предустановок"
 
+#: frame/window/menu_bar.cpp:622
 msgid "Enable Context Menu (risky)"
 msgstr "Включить контекстное меню (опасно)"
 
+#: frame/window/menu_bar.cpp:625
 msgid "Documentation"
 msgstr "Документация"
 
+#: frame/window/menu_bar.cpp:628
 msgid "Check for Updates"
 msgstr "Проверить обновления"
 
+#: frame/window/menu_bar.cpp:629
 msgid "Check for Updates Automatically"
 msgstr "Автоматическая проверка обновлений"
 
+#: frame/window/menu_bar.cpp:631 ui/feedback.cpp:526
 msgid "About RegKit"
 msgstr "О программе"
 
+#: frame/window/menu_bar.cpp:644
 msgid "T&race"
 msgstr "&Трассировки"
 
 # Restorer: Think about what sounds better
+#: frame/window/menu_bar.cpp:645
 msgid "Defa&ult"
 msgstr "Пре&дустановки"
 
+#: frame/window/menu_bar.cpp:646
 msgid "Re&search"
 msgstr "&Справочники"
 
+#: frame/window/menu_bar.cpp:647
 msgid "&Help"
 msgstr "Спра&вка"
 
@@ -2132,6 +2725,12 @@ msgstr ""
 msgid "Open .reg File"
 msgstr "Открытие файла .reg"
 
+#: frame/window/message_routes.cpp:54
+msgid "Open"
+msgstr "Открыть"
+
+#: frame/window/message_routes.cpp:588 search/regex.cpp:286
+#: search/regex.cpp:288
 msgid "The find text isn't a valid regular expression."
 msgstr "Поисковый запрос не является допустимым регулярным выражением"
 
@@ -2162,24 +2761,32 @@ msgstr "Переименование параметра"
 msgid "Failed to rename value."
 msgstr "Не удалось переименовать параметр"
 
+#: launch/program.cpp:192 launch/program.cpp:242 regfile/reg_exe_syntax.cpp:65
 msgid "Missing argument"
 msgstr "Отсутствует аргумент"
 
+#: launch/program.cpp:210 regfile/reg_exe_syntax.cpp:76
+#: regfile/reg_exe_syntax.cpp:168 regfile/reg_exe_syntax.cpp:179
 msgid "Invalid option"
 msgstr "Недопустимый ключ"
 
+#: launch/program.cpp:233
 msgid "Invalid argument"
 msgstr "Недопустимый аргумент командной строки"
 
+#: launch/program.cpp:238
 msgid "Registry paths with spaces must be in quotes."
 msgstr "Требуется заключить в кавычки маршрут реестра содержащий пробелы"
 
+#: launch/program.cpp:551
 msgid "Message loop failed unexpectedly."
 msgstr "Цикл обработки сообщений неожиданно завершился с ошибкой"
 
+#: launch/program.cpp:650
 msgid "Administrator restart was cancelled."
 msgstr "Не удалось запустить с правами администратора"
 
+#: launch/program.cpp:680
 msgid "Failed to create the main window."
 msgstr "Произошёл сбой при создании основного окно программы"
 
@@ -2930,21 +3537,27 @@ msgstr "В файле трассировки нет читаемых запис�
 msgid "Trace file contains no usable entries."
 msgstr "В файле трассировки нет соответствующих записей"
 
+#: ui/feedback.cpp:434
 msgid "Repository"
 msgstr "Репозиторий"
 
+#: ui/feedback.cpp:446
 msgid "Website"
 msgstr "Сайт"
 
+#: ui/feedback.cpp:447
 msgid "Email"
 msgstr "Электронная почта"
 
+#: ui/feedback.cpp:678 ui/feedback.cpp:680
 msgid "Warning"
 msgstr "Предупреждение"
 
+#: ui/feedback.cpp:686 ui/feedback.cpp:688
 msgid "Information"
 msgstr "Информация"
 
+#: ui/feedback.cpp:707
 msgid ""
 "Adding information can unintentionally change or delete values and\n"
 "cause components to stop working correctly. If you don't trust the\n"
@@ -2958,42 +3571,69 @@ msgstr ""
 "\n"
 "Вы действительно хотите продолжить?"
 
+#: ui/feedback.cpp:727
 msgid "The keys and values it contains have been added to the registry."
 msgstr "Содержащиеся в файле разделы и параметры были добавлены в реестр"
 
+#: ui/feedback.cpp:742
 msgid "The registry file couldn't be imported."
 msgstr "Не удалось импортировать файл реестра"
 
+#: ui/feedback.cpp:772
 msgid "Delete these keys and all of their subkeys?"
 msgstr "Удалить эти разделы и все их подразделы?"
 
+#: ui/feedback.cpp:772
 msgid "Delete this key and all of its subkeys?"
 msgstr "Удалить этот раздел и все его подразделы?"
 
+#: ui/feedback.cpp:776
 msgid "Delete these values?"
 msgstr "Удалить эти параметры?"
 
+#: ui/feedback.cpp:776
 msgid "Delete this value?"
 msgstr "Удалить этот параметр?"
 
+#: ui/feedback.cpp:780
 msgid "Delete these items?"
 msgstr "Удалить эти записи?"
 
+#: ui/feedback.cpp:780
 msgid "Delete this item?"
 msgstr "Удалить эту запись?"
 
+#: ui/feedback.cpp:802
 msgid "The file already exists. Replace it?"
 msgstr "Файл уже существует. Заменить его?"
 
+#: ui/feedback.cpp:812
 msgid "These entries can't be written in this format and will be left out."
 msgstr "Эти записи невозможно сохранить в данном формате, они будут пропущены"
 
+#: ui/feedback.cpp:815
 msgid "Convert"
 msgstr "Преобразовать"
 
+#: ui/feedback.cpp:822 ui/feedback.cpp:824
 msgid "The file was converted."
 msgstr "Выполнено преобразование файла"
 
+#: ui/feedback.cpp:860
+msgid ""
+"RegKit is running from a location that non administrators can write to, so a program without administrator rights could replace it before it restarts with these rights. Install RegKit for all users first, or move it somewhere only administrators can write.\n"
+"\n"
+"Restart anyway to continue from this location."
+msgstr ""
+"Программа RegKit запущена из каталога, доступного для записи пользователям без административных привилегий, поэтому сторонняя программа без прав администратора может подменить исполняемый файл до его перезапуска с этими правами. Переустановите RegKit для всех пользователей или переместите в каталог, где запись разрешена только администраторам.\n"
+"\n"
+"При нажатии кнопки \"Всё равно перезапустить\" работа продолжится из указанного каталога."
+
+#: ui/feedback.cpp:866
+msgid "Restart Anyway"
+msgstr "Всё равно перезапустить"
+
+#: ui/presets.cpp:185
 msgid "The theme preset file contains an entry RegKit can't parse."
 msgstr ""
 "Файл насторек темы содержит запись, которую програма RegKit не может разобрать"
@@ -3445,9 +4085,17 @@ msgstr "Описание битовых полей RegKit (*.regkit-bitfield.jso
 msgid "JSON files (*.jsonc;*.json)"
 msgstr "Файлы JSON (*.jsonc;*.json)"
 
+#: dialogs/transfer_dialogs.cpp:34 frame/tools/convert_dialog.cpp:28
+#: regfile/script_convert.h:23 ui/feedback.h:51 ui/feedback.h:53
 msgid "Registry Files (*.reg)"
 msgstr "Файлы реестра (*.reg)"
 
+#: dialogs/transfer_dialogs.cpp:34 frame/commands/clipboard_commands.cpp:76
+#: frame/commands/clipboard_commands.cpp:114
+#: frame/commands/file_view_commands.cpp:349
+#: frame/commands/file_view_commands.cpp:369 frame/detail/file_detail.h:75
+#: frame/sources/trace_commands.cpp:366 regfile/script_convert.h:23
+#: ui/feedback.h:51 ui/feedback.h:53 ui/preset_editor.cpp:144
 msgid "All Files (*.*)"
 msgstr "Все файлы (*.*)"
 
@@ -3457,6 +4105,8 @@ msgstr "Файлы избранного (*.txt)"
 msgid "RegKit Comment Files (*.jsonc)"
 msgstr "Файлы комментариев RegKit (*.jsonc)"
 
+#: frame/detail/file_detail.h:75 frame/search/compare_dialog.cpp:251
+#: ui/feedback.h:53
 msgid "Registry Hive Files"
 msgstr "Файлы кустов реестра"
 
@@ -3472,6 +4122,7 @@ msgstr "Командные файлы PowerShell (*.ps1)"
 msgid "Registry Scripts (*.reg;*.bat;*.cmd;*.ps1)"
 msgstr "Командные файлы реестра (*.reg;*.bat;*.cmd;*.ps1)"
 
+#: ui/feedback.h:52
 msgid "Hive Files (*.*)"
 msgstr "Файлы кустов (*.*)"
 
