@@ -191,13 +191,13 @@ bool ReadRelease(const std::string& body, UpdateCheckPayload* release, std::wstr
     }) && reader.End();
 }
 
-std::array<int, 4> VersionParts(const std::wstring& text)
+std::array<int, 3> VersionParts(const std::wstring& text)
 {
-    std::array<int, 4> parts = {};
+    std::array<int, 3> parts = {};
     const size_t start = text.find_first_of(L"0123456789");
     if (start != std::wstring::npos)
     {
-        swscanf_s(text.c_str() + start, L"%d.%d.%d.%d", &parts[0], &parts[1], &parts[2], &parts[3]);
+        swscanf_s(text.c_str() + start, L"%d.%d.%d", &parts[0], &parts[1], &parts[2]);
     }
     return parts;
 }
