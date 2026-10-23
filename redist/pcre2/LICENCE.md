@@ -1,7 +1,7 @@
 PCRE2 Licence
 =============
 
-| SPDX-License-Identifier: | BSD-3-Clause WITH PCRE2-exception |
+| SPDX License Identifier: | BSD-3-Clause WITH PCRE2-exception |
 |---------|-------|
 
 PCRE2 is a library of functions to support regular expressions whose syntax
