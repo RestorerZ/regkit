@@ -12,7 +12,7 @@
 #else
   #define BuildDir "..\\build\\Release"
 #endif
-#define AppVersion GetVersionNumbersString(AddBackslash(BuildDir) + AppExeName)
+#define AppVersion GetFileVersionString(AddBackslash(BuildDir) + AppExeName)
 
 [Setup]
 AppId={#AppId}
