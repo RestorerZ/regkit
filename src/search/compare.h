@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -41,7 +41,7 @@ struct Snapshot
     std::wstring label;
     std::wstring base_path;
     std::unordered_map<std::wstring, Key> keys;
-    // keys below the base that couldn't be read, left out on both sides
+    // unreadable keys below the base, omitted on both sides
     std::vector<std::wstring> unreadable;
 };
 

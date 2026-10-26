@@ -1,11 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "win32/shell_integration.h"
 #include "win32/text_transform.h"
 
 #include "win32/process_rights.h"
 #include "win32/registry_native.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <shlobj.h>
 
@@ -128,7 +130,7 @@ LONG DeleteOwnedRegEditDebugger(const std::wstring& exe_path)
     {
         return result;
     }
-    util::UniqueHKey key;
+    win32ui::UniqueHKey key;
     DWORD subkeys = 0;
     DWORD values = 0;
     if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, kRegEditImageOptionsKey, 0, KEY_QUERY_VALUE, key.put()) == ERROR_SUCCESS &&
@@ -204,7 +206,7 @@ LONG SetEditMenu(const std::wstring& exe_path, bool enable, LONG* cleanup_error)
     {
         result = DeleteEditMenu();
     }
-    // refresh explorer after changing file association
+    // refresh Explorer after file association changes
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
     return result;
 }

@@ -1,11 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "work/key_watcher.h"
 
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
 #include "work/session.h"
+
+#include <win32ui/handle_owner.h>
 
 namespace regkit::work
 {
@@ -68,9 +70,9 @@ void KeyWatcher::Stop()
 
 void KeyWatcher::Run()
 {
-    // registrations belong to this thread, so it stays alive while the window lives
-    util::UniqueHandle change(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-    util::UniqueHKey key;
+    // registrations belong to this thread, keep it alive as long as the window
+    win32ui::UniqueHandle change(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    win32ui::UniqueHKey key;
     HWND window = nullptr;
     UINT message = 0;
     uint64_t generation = 0;

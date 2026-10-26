@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/security_dialog.h"
 
@@ -9,6 +9,8 @@
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
 #include "win32/translation.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <string>
 
@@ -189,12 +191,18 @@ class RegistrySecurityInformation : public ISecurityInformation, public IEffecti
     HRESULT STDMETHODCALLTYPE GetEffectivePermission(const GUID*, PSID user, LPCWSTR, PSECURITY_DESCRIPTOR descriptor, POBJECT_TYPE_LIST* object_types, ULONG* object_type_count, PACCESS_MASK* granted_list, ULONG* granted_count) override
     {
         static OBJECT_TYPE_LIST default_types[] = {{ACCESS_OBJECT_GUID, 0, const_cast<GUID*>(&GUID_NULL)}};
+        // on failure, page reports that Windows cannot calculate effective permissions
+        const std::optional<ACCESS_MASK> access = key_access::ForSid(descriptor, user);
+        if (!access)
+        {
+            return E_FAIL;
+        }
         auto* granted = static_cast<ACCESS_MASK*>(LocalAlloc(LPTR, sizeof(ACCESS_MASK)));
         if (!granted)
         {
             return E_OUTOFMEMORY;
         }
-        *granted = key_access::ForSid(descriptor, user);
+        *granted = *access;
         *object_types = default_types;
         *object_type_count = 1;
         *granted_list = granted;
@@ -222,10 +230,10 @@ bool ShowRegistryPermissions(HWND owner, const RegistryNode& node)
 
     const util::PrivilegeScope privilege({SE_TAKE_OWNERSHIP_NAME});
     const util::PrivilegeScope restore({SE_RESTORE_NAME});
-    // the auditing page needs a handle with sacl access, which only the security privilege grants
+    // auditing needs SACL access, available only with the security privilege
     const util::PrivilegeScope audit({SE_SECURITY_NAME});
     const REGSAM audits = audit.held() ? ACCESS_SYSTEM_SECURITY : 0;
-    util::UniqueHKey key;
+    win32ui::UniqueHKey key;
     LONG result = ERROR_ACCESS_DENIED;
     REGSAM granted = 0;
     for (const REGSAM access : {READ_CONTROL | WRITE_DAC | WRITE_OWNER | audits, REGSAM(READ_CONTROL | WRITE_DAC | WRITE_OWNER), READ_CONTROL | WRITE_DAC | audits, REGSAM(READ_CONTROL | WRITE_DAC), READ_CONTROL | WRITE_OWNER | audits, REGSAM(READ_CONTROL | WRITE_OWNER), READ_CONTROL | audits, REGSAM(READ_CONTROL), REGSAM(MAXIMUM_ALLOWED)})

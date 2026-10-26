@@ -1,11 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "win32/restart.h"
 #include "win32/process_rights.h"
 #include "win32/text_transform.h"
 
 #include "win32/shell_paths.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <cerrno>
 
@@ -64,7 +66,7 @@ bool RestoreSessionRequested()
 std::wstring RestartUserSid()
 {
     int argc = 0;
-    const util::UniqueLocal<LPWSTR*> args(CommandLineToArgvW(GetCommandLineW(), &argc));
+    const win32ui::UniqueLocal<LPWSTR*> args(CommandLineToArgvW(GetCommandLineW(), &argc));
     LPWSTR* argv = args.get();
     for (int i = 1; argv && i + 1 < argc; ++i)
     {

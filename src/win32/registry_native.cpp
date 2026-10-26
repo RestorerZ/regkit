@@ -1,10 +1,12 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "win32/registry_native.h"
 
 #include "win32/process_rights.h"
-#include "win32/system_api.h"
+
+#include <win32ui/handle_owner.h>
+#include <win32ui/system_api.h>
 
 #include <winternl.h>
 
@@ -54,11 +56,11 @@ constexpr ULONG kPartialHeader = 3 * sizeof(ULONG);
 
 LONG DosError(NTSTATUS status)
 {
-    static const auto convert = win32::ImportProc<RtlNtStatusToDosErrorFn>(L"ntdll.dll", "RtlNtStatusToDosError");
+    static const auto convert = win32ui::ImportProc<RtlNtStatusToDosErrorFn>(L"ntdll.dll", "RtlNtStatusToDosError");
     return NT_SUCCESS(status) ? ERROR_SUCCESS : static_cast<LONG>(convert ? convert(status) : ERROR_GEN_FAILURE);
 }
 
-// bit 0 tags a remote rpc handle that native calls must never see, bit 1 an hkcr one
+// bit 0 tags remote RPC handles, never pass to native calls, bit 1 tags HKCR handles
 HANDLE RootHandle(HKEY key)
 {
     const ULONG_PTR value = reinterpret_cast<ULONG_PTR>(key);
@@ -67,7 +69,7 @@ HANDLE RootHandle(HKEY key)
 
 bool CountedName(const std::wstring& text, UNICODE_STRING* name)
 {
-    // counted names preserve embedded nulls that win32 key APIs cut off
+    // counted names preserve embedded NULs truncated by Win32 APIs
     if (text.size() * sizeof(wchar_t) > (std::numeric_limits<USHORT>::max)())
     {
         return false;
@@ -80,10 +82,10 @@ bool CountedName(const std::wstring& text, UNICODE_STRING* name)
 
 std::atomic_bool g_backup_restore{false};
 
-LONG OpenNative(HKEY parent, const std::wstring& path, REGSAM access, bool open_link, UniqueHKey* key, ULONG options = 0)
+LONG OpenNative(HKEY parent, const std::wstring& path, REGSAM access, bool open_link, win32ui::UniqueHKey* key, ULONG options = 0)
 {
-    static const auto open_key = win32::ImportProc<NtOpenKeyFn>(L"ntdll.dll", "NtOpenKey");
-    static const auto open_key_ex = win32::ImportProc<NtOpenKeyExFn>(L"ntdll.dll", "NtOpenKeyEx");
+    static const auto open_key = win32ui::ImportProc<NtOpenKeyFn>(L"ntdll.dll", "NtOpenKey");
+    static const auto open_key_ex = win32ui::ImportProc<NtOpenKeyExFn>(L"ntdll.dll", "NtOpenKeyEx");
     UNICODE_STRING name = {};
     if (path.empty() || !CountedName(path, &name))
     {
@@ -98,7 +100,7 @@ LONG OpenNative(HKEY parent, const std::wstring& path, REGSAM access, bool open_
     // use OBJ_OPENLINK to open the link key instead of following its target
     InitializeObjectAttributes(&attributes, &name, OBJ_CASE_INSENSITIVE | (open_link ? OBJ_OPENLINK : 0ul), parent ? RootHandle(parent) : nullptr, nullptr);
     HANDLE handle = nullptr;
-    // rem win32 registry view flags before the native call
+    // remove Win32 registry view flags before the native call
     const NTSTATUS status = options ? open_key_ex(&handle, access & ~kViewFlags, &attributes, options) : open_key(&handle, access & ~kViewFlags, &attributes);
     if (NT_SUCCESS(status))
     {
@@ -110,7 +112,7 @@ LONG OpenNative(HKEY parent, const std::wstring& path, REGSAM access, bool open_
 template <size_t N>
 bool QueryKeyWords(HKEY key, ULONG info_class, ULONG (&words)[N])
 {
-    static const auto query = win32::ImportProc<NtQueryKeyFn>(L"ntdll.dll", "NtQueryKey");
+    static const auto query = win32ui::ImportProc<NtQueryKeyFn>(L"ntdll.dll", "NtQueryKey");
     ULONG length = 0;
     return query && NT_SUCCESS(query(RootHandle(key), info_class, words, sizeof(words), &length));
 }
@@ -123,9 +125,9 @@ std::optional<ULONG> KeyWord(HKEY key, ULONG info_class)
 
 } // namespace
 
-UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access, bool open_link, LONG* error)
+win32ui::UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access, bool open_link, LONG* error)
 {
-    UniqueHKey key;
+    win32ui::UniqueHKey key;
     LONG result = OpenNative(nullptr, path, access, open_link, &key);
     if (result == ERROR_ACCESS_DENIED && g_backup_restore)
     {
@@ -138,12 +140,12 @@ UniqueHKey OpenNativeRegistryKey(const std::wstring& path, REGSAM access, bool o
     return key;
 }
 
-UniqueHKey OpenNativeRegistryRoot()
+win32ui::UniqueHKey OpenNativeRegistryRoot()
 {
     return OpenNativeRegistryKey(L"\\REGISTRY", KEY_READ);
 }
 
-LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool open_link, UniqueHKey* key)
+LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool open_link, win32ui::UniqueHKey* key)
 {
     key->reset();
     constexpr size_t kMaxLevelsPerOpen = 32;
@@ -152,7 +154,7 @@ LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool
     {
         if (++levels == kMaxLevelsPerOpen)
         {
-            UniqueHKey middle;
+            win32ui::UniqueHKey middle;
             const LONG result = OpenRegistryPath(root, subkey.substr(0, pos), MAXIMUM_ALLOWED | (access & kViewFlags), false, &middle);
             return result == ERROR_SUCCESS ? OpenRegistryPath(middle.get(), subkey.substr(pos + 1), access, open_link, key) : result;
         }
@@ -169,7 +171,7 @@ LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool
     {
         const size_t split = subkey.rfind(L'\\', null_char);
         const std::wstring prefix = split == std::wstring::npos ? std::wstring() : subkey.substr(0, split);
-        UniqueHKey parent;
+        win32ui::UniqueHKey parent;
         result = RegOpenKeyExW(root, prefix.c_str(), 0, MAXIMUM_ALLOWED | (access & kViewFlags), parent.put());
         if (result == ERROR_SUCCESS)
         {
@@ -181,7 +183,7 @@ LONG OpenRegistryPath(HKEY root, const std::wstring& subkey, REGSAM access, bool
     const bool predefined = (value & ~static_cast<ULONG_PTR>(0xFF)) == reinterpret_cast<ULONG_PTR>(HKEY_CLASSES_ROOT);
     if (result == ERROR_ACCESS_DENIED && g_backup_restore && !merged && !subkey.empty() && (predefined || !(value & 3)))
     {
-        UniqueHKey base;
+        win32ui::UniqueHKey base;
         if (predefined)
         {
             result = RegOpenKeyExW(root, nullptr, 0, KEY_QUERY_VALUE | (access & kViewFlags), base.put());
@@ -199,7 +201,7 @@ void SetBackupRestoreMode(bool enable)
     g_backup_restore = enable;
 }
 
-LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWORD options, UniqueHKey* key, DWORD* disposition, const std::wstring& class_name)
+LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWORD options, win32ui::UniqueHKey* key, DWORD* disposition, const std::wstring& class_name)
 {
     key->reset();
     if (name.find(L'\0') == std::wstring::npos)
@@ -213,7 +215,7 @@ LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWO
         return result;
     }
     // use NtCreateKey to keep the full name when it contains embedded nulls
-    static const auto create_key = win32::ImportProc<NtCreateKeyFn>(L"ntdll.dll", "NtCreateKey");
+    static const auto create_key = win32ui::ImportProc<NtCreateKeyFn>(L"ntdll.dll", "NtCreateKey");
     UNICODE_STRING counted = {};
     UNICODE_STRING counted_class = {};
     if (!create_key || !CountedName(name, &counted) || !CountedName(class_name, &counted_class))
@@ -238,9 +240,10 @@ LONG CreateRegistryKey(HKEY parent, const std::wstring& name, REGSAM access, DWO
 
 LONG RenameRegistryKey(HKEY parent, const std::wstring& old_name, const std::wstring& new_name)
 {
-    // NtRenameKey on the link key itself, RegRenameKey follows a link and renames its target and cuts names at embedded nulls
-    static const auto rename_key = win32::ImportProc<NtRenameKeyFn>(L"ntdll.dll", "NtRenameKey");
-    UniqueHKey key;
+    // NtRenameKey renames the link itself
+    // RegRenameKey follows targets and truncates names at embedded NULs
+    static const auto rename_key = win32ui::ImportProc<NtRenameKeyFn>(L"ntdll.dll", "NtRenameKey");
+    win32ui::UniqueHKey key;
     LONG result = OpenRegistryPath(parent, old_name, KEY_WRITE, true, &key);
     if (result == ERROR_SUCCESS && !RootHandle(key.get()))
     {
@@ -256,7 +259,7 @@ LONG RenameRegistryKey(HKEY parent, const std::wstring& old_name, const std::wst
 
 LONG DeleteRegistryTree(HKEY key)
 {
-    static const auto delete_key = win32::ImportProc<NtDeleteKeyFn>(L"ntdll.dll", "NtDeleteKey");
+    static const auto delete_key = win32ui::ImportProc<NtDeleteKeyFn>(L"ntdll.dll", "NtDeleteKey");
     if (!key || !delete_key)
     {
         return ERROR_INVALID_PARAMETER;
@@ -271,7 +274,7 @@ LONG DeleteRegistryTree(HKEY key)
         {
             break;
         }
-        UniqueHKey child;
+        win32ui::UniqueHKey child;
         // open link keys directly so deletion never goes into their targets
         LONG removed = result == ERROR_SUCCESS
                            ? OpenRegistryPath(key, std::wstring(name, length), DELETE | KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE, true, &child)
@@ -285,13 +288,13 @@ LONG DeleteRegistryTree(HKEY key)
             return removed;
         }
     }
-    // empty subkey deletes the key behind a remote handle
+    // empty subkeys delete the key behind a remote handle
     return RootHandle(key) ? DosError(delete_key(RootHandle(key))) : RegDeleteKeyExW(key, L"", 0, 0);
 }
 
 bool DeleteNativeRegistryKey(HKEY key)
 {
-    static const auto delete_key = win32::ImportProc<NtDeleteKeyFn>(L"ntdll.dll", "NtDeleteKey");
+    static const auto delete_key = win32ui::ImportProc<NtDeleteKeyFn>(L"ntdll.dll", "NtDeleteKey");
     return key && delete_key && NT_SUCCESS(delete_key(RootHandle(key)));
 }
 
@@ -303,7 +306,7 @@ std::optional<ULONG> QueryKeyFlags(HKEY key)
 
 std::wstring QueryKeyName(HKEY key)
 {
-    static const auto query = win32::ImportProc<NtQueryKeyFn>(L"ntdll.dll", "NtQueryKey");
+    static const auto query = win32ui::ImportProc<NtQueryKeyFn>(L"ntdll.dll", "NtQueryKey");
     std::vector<ULONG> buffer(130);
     for (int attempt = 0; query && attempt < 3; ++attempt)
     {
@@ -340,7 +343,7 @@ NativeKeyInfo QueryNativeKeyInfo(HKEY key)
 
 LONG SetKeyLastWriteTime(HKEY key, const FILETIME& time)
 {
-    static const auto set_information = win32::ImportProc<NtSetInformationKeyFn>(L"ntdll.dll", "NtSetInformationKey");
+    static const auto set_information = win32ui::ImportProc<NtSetInformationKeyFn>(L"ntdll.dll", "NtSetInformationKey");
     LARGE_INTEGER value = {};
     value.LowPart = time.dwLowDateTime;
     value.HighPart = static_cast<LONG>(time.dwHighDateTime);
@@ -349,14 +352,14 @@ LONG SetKeyLastWriteTime(HKEY key, const FILETIME& time)
 
 LONG SetKeyControlFlags(HKEY key, ULONG flags)
 {
-    static const auto set_information = win32::ImportProc<NtSetInformationKeyFn>(L"ntdll.dll", "NtSetInformationKey");
+    static const auto set_information = win32ui::ImportProc<NtSetInformationKeyFn>(L"ntdll.dll", "NtSetInformationKey");
     return set_information ? DosError(set_information(RootHandle(key), kKeyControlFlagsInformation, &flags, sizeof(flags))) : ERROR_CALL_NOT_IMPLEMENTED;
 }
 
 LONG QueryValueCounted(HKEY key, const std::wstring& name, DWORD* type, BYTE* data, DWORD* size)
 {
-    // mirrors RegQueryValueExW for names that only a counted string can address
-    static const auto query_value = win32::ImportProc<NtQueryValueKeyFn>(L"ntdll.dll", "NtQueryValueKey");
+    // RegQueryValueExW behavior for names requiring counted strings
+    static const auto query_value = win32ui::ImportProc<NtQueryValueKeyFn>(L"ntdll.dll", "NtQueryValueKey");
     UNICODE_STRING counted = {};
     if (!query_value || !CountedName(name, &counted) || !size || (data ? *size : 0) > MAXDWORD - kPartialHeader)
     {
@@ -389,7 +392,7 @@ LONG QueryValueCounted(HKEY key, const std::wstring& name, DWORD* type, BYTE* da
 
 LONG SetValueCounted(HKEY key, const std::wstring& name, DWORD type, const BYTE* data, DWORD size)
 {
-    static const auto set_value = win32::ImportProc<NtSetValueKeyFn>(L"ntdll.dll", "NtSetValueKey");
+    static const auto set_value = win32ui::ImportProc<NtSetValueKeyFn>(L"ntdll.dll", "NtSetValueKey");
     UNICODE_STRING counted = {};
     if (!set_value || !CountedName(name, &counted))
     {
@@ -400,7 +403,7 @@ LONG SetValueCounted(HKEY key, const std::wstring& name, DWORD type, const BYTE*
 
 LONG DeleteValueCounted(HKEY key, const std::wstring& name)
 {
-    static const auto delete_value = win32::ImportProc<NtDeleteValueKeyFn>(L"ntdll.dll", "NtDeleteValueKey");
+    static const auto delete_value = win32ui::ImportProc<NtDeleteValueKeyFn>(L"ntdll.dll", "NtDeleteValueKey");
     UNICODE_STRING counted = {};
     if (!delete_value || !CountedName(name, &counted))
     {

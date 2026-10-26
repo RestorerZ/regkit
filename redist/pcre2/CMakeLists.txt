@@ -1,8 +1,3 @@
-# PCRE2 10.48, 16 bit library only, no JIT
-# https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.48/pcre2-10.48.tar.gz
-# sha256 ebcc25aadf2a51fa1fefa9b8bc9e7a79b3dae86870a0f1152a22e42befd46888
-# pcre2.h and config.h are the upstream .generic files, pcre2_chartables.c is pcre2_chartables.c.dist
-
 set(PCRE2_SOURCES
     src/pcre2_auto_possess.c
     src/pcre2_chartables.c
@@ -47,7 +42,6 @@ target_compile_definitions(pcre2_16 PRIVATE
     SUPPORT_PCRE2_16
     SUPPORT_UNICODE
     NEVER_BACKSLASH_C
-    HAVE_MEMMOVE
     _CRT_SECURE_NO_WARNINGS
 )
 target_include_directories(pcre2_16 PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")

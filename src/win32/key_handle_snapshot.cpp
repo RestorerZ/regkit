@@ -1,11 +1,12 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "win32/key_handle_snapshot.h"
 
-#include "win32/handle_owner.h"
 #include "win32/process_rights.h"
-#include "win32/system_api.h"
+
+#include <win32ui/handle_owner.h>
+#include <win32ui/system_api.h>
 
 #include <tlhelp32.h>
 #include <winternl.h>
@@ -54,8 +55,8 @@ using StatusToDosErrorFn = ULONG(NTAPI*)(NTSTATUS);
 
 DWORD QueryHandleTable(std::vector<ULONG_PTR>* buffer)
 {
-    static const auto query = win32::ImportProc<QuerySystemInformationFn>(L"ntdll.dll", "NtQuerySystemInformation");
-    static const auto to_dos = win32::ImportProc<StatusToDosErrorFn>(L"ntdll.dll", "RtlNtStatusToDosError");
+    static const auto query = win32ui::ImportProc<QuerySystemInformationFn>(L"ntdll.dll", "NtQuerySystemInformation");
+    static const auto to_dos = win32ui::ImportProc<StatusToDosErrorFn>(L"ntdll.dll", "RtlNtStatusToDosError");
     if (!query)
     {
         return ERROR_PROC_NOT_FOUND;
@@ -111,7 +112,7 @@ void QueryName(QueryObjectFn query, HANDLE handle, std::vector<ULONG_PTR>* buffe
 std::unordered_map<ULONG_PTR, std::wstring> ProcessNames()
 {
     std::unordered_map<ULONG_PTR, std::wstring> names;
-    util::UniqueHandle snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
+    win32ui::UniqueHandle snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
     PROCESSENTRY32W entry = {};
     entry.dwSize = sizeof(entry);
     if (snapshot && Process32FirstW(snapshot.get(), &entry))
@@ -126,7 +127,7 @@ std::unordered_map<ULONG_PTR, std::wstring> ProcessNames()
 
 DWORD LoadKeyEntries(std::vector<HandleEntry>* keys)
 {
-    util::UniqueHKey probe;
+    win32ui::UniqueHKey probe;
     const LSTATUS opened = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE", 0, KEY_QUERY_VALUE, probe.put());
     if (opened != ERROR_SUCCESS)
     {
@@ -168,7 +169,7 @@ DWORD LoadKeyEntries(std::vector<HandleEntry>* keys)
 KeyHandleSnapshot SnapshotKeyHandles(const std::atomic_bool& cancel)
 {
     KeyHandleSnapshot snapshot;
-    static const auto query_object = win32::ImportProc<QueryObjectFn>(L"ntdll.dll", "NtQueryObject");
+    static const auto query_object = win32ui::ImportProc<QueryObjectFn>(L"ntdll.dll", "NtQueryObject");
     if (!query_object)
     {
         snapshot.error = ERROR_PROC_NOT_FOUND;
@@ -197,7 +198,7 @@ KeyHandleSnapshot SnapshotKeyHandles(const std::atomic_bool& cancel)
         {
             ++last;
         }
-        util::UniqueHandle process(pid == self ? nullptr : OpenProcess(PROCESS_DUP_HANDLE, FALSE, static_cast<DWORD>(pid)));
+        win32ui::UniqueHandle process(pid == self ? nullptr : OpenProcess(PROCESS_DUP_HANDLE, FALSE, static_cast<DWORD>(pid)));
         const HANDLE source = pid == self ? GetCurrentProcess() : process.get();
         if (!source)
         {
@@ -219,7 +220,7 @@ KeyHandleSnapshot SnapshotKeyHandles(const std::atomic_bool& cancel)
             {
                 row.process = process_name->second;
             }
-            util::UniqueHandle duplicate;
+            win32ui::UniqueHandle duplicate;
             if (DuplicateHandle(source, reinterpret_cast<HANDLE>(entry.handle), GetCurrentProcess(), duplicate.put(), 0, FALSE, DUPLICATE_SAME_ACCESS))
             {
                 QueryName(query_object, duplicate.get(), &name_buffer, &row.name);
@@ -254,7 +255,7 @@ DWORD CloseKeyHandles(const std::vector<KeyHandle>& targets, size_t* closed)
             result = ERROR_INVALID_HANDLE;
             continue;
         }
-        util::UniqueHandle process(OpenProcess(PROCESS_DUP_HANDLE, FALSE, static_cast<DWORD>(target.process_id)));
+        win32ui::UniqueHandle process(OpenProcess(PROCESS_DUP_HANDLE, FALSE, static_cast<DWORD>(target.process_id)));
         if (process && DuplicateHandle(process.get(), reinterpret_cast<HANDLE>(target.handle), nullptr, nullptr, 0, FALSE, DUPLICATE_CLOSE_SOURCE))
         {
             ++*closed;

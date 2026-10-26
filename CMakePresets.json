@@ -1,24 +1,39 @@
 {
-  "version": 3,
+  "version": 9,
   "configurePresets": [
     {
-      "name": "x64-release",
-      "displayName": "x64 Release",
+      "name": "vs2022",
+      "hidden": true,
       "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "binaryDir": "${sourceDir}/build",
+      "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "CMAKE_CONFIGURATION_TYPES": "Release"
+        "CMAKE_CONFIGURATION_TYPES": "Release;Debug"
       }
     },
     {
+      "name": "x64-release",
+      "inherits": "vs2022",
+      "architecture": "x64"
+    },
+    {
       "name": "x86-release",
-      "displayName": "x86 Release",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "Win32",
-      "binaryDir": "${sourceDir}/build32",
+      "inherits": "vs2022",
+      "architecture": "Win32"
+    },
+    {
+      "name": "x64-dev",
+      "displayName": "x64 Dev (local win32-ui)",
+      "inherits": "x64-release",
       "cacheVariables": {
-        "CMAKE_CONFIGURATION_TYPES": "Release"
+        "FETCHCONTENT_SOURCE_DIR_WIN32UI": "${sourceDir}/../win32-ui"
+      }
+    },
+    {
+      "name": "x86-dev",
+      "displayName": "x86 Dev (local win32-ui)",
+      "inherits": "x86-release",
+      "cacheVariables": {
+        "FETCHCONTENT_SOURCE_DIR_WIN32UI": "${sourceDir}/../win32-ui"
       }
     }
   ],
@@ -31,6 +46,16 @@
     {
       "name": "x86-release",
       "configurePreset": "x86-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "x64-dev",
+      "configurePreset": "x64-dev",
+      "configuration": "Release"
+    },
+    {
+      "name": "x86-dev",
+      "configurePreset": "x86-dev",
       "configuration": "Release"
     }
   ]

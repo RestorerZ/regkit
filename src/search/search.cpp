@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "search/search.h"
 
@@ -11,6 +11,8 @@
 #include "win32/text_transform.h"
 #include "win32/translation.h"
 #include "work/session.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <algorithm>
 #include <condition_variable>
@@ -80,7 +82,6 @@ Matcher::Matcher(const TextOptions& options)
     {
         return;
     }
-    // compile once
     regex::Options regex_options;
     regex_options.ignore_case = !match_case_;
     regex_options.whole = match_whole_;
@@ -311,7 +312,7 @@ void SortResults(std::vector<Result>* results, int column, bool ascending, const
     {
         return;
     }
-    // cache type and source labels as sorting calls the comparator many times
+    // cache labels because sorting calls the comparator repeatedly
     std::map<std::pair<ResultKind, DWORD>, std::wstring> labels;
     auto label_of = [&labels](const Result& row) -> const std::wstring& {
         const auto key = std::make_pair(row.kind, row.type);
@@ -431,7 +432,7 @@ bool UserClassesOverrides(const std::wstring& relative, const std::wstring* valu
         path.push_back(L'\\');
         path.append(relative);
     }
-    util::UniqueHKey key;
+    win32ui::UniqueHKey key;
     if (util::OpenRegistryPath(HKEY_CURRENT_USER, path, KEY_QUERY_VALUE | win32::kDefaultRegistryView, false, &key) !=
         ERROR_SUCCESS)
     {
@@ -573,7 +574,6 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
     DWORD base_type = value_format::NormalizeType(type);
     if (base_type == REG_MULTI_SZ)
     {
-        // match each item
         size_t display_start = 0;
         for (const std::wstring& item : value_format::MultiStringItems({data, size - size % sizeof(wchar_t)}))
         {
@@ -593,7 +593,7 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
     }
     if (base_type == REG_SZ || base_type == REG_EXPAND_SZ || base_type == REG_LINK)
     {
-        // search string data in place and format it only after a match
+        // search strings in place, format only matches
         std::wstring_view view;
         BuildStringView(data, size, &view);
         Match match = matcher.Find(view);
@@ -605,7 +605,7 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
         result.matched = true;
         result.match = match;
         std::wstring display = value_format::DisplayData(type, data, size, false);
-        // keep the highlight valid by showing whichever text the match came from
+        // show the text that matched so highlight offsets stay valid
         if (display == view)
         {
             result.data_text = std::move(display);
@@ -661,7 +661,7 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
             }
         };
 
-        // text views drop trailing NULs, as string values do
+        // trim trailing NULs from views, matching string value behavior
         DWORD bytes = size;
         while (bytes > 0 && data[bytes - 1] == 0)
         {
@@ -669,7 +669,6 @@ DataMatch MatchValueData(const Matcher& matcher, const HexQuery& hex_query, DWOR
         }
         if (scratch)
         {
-            // reuse each worker buffer
             scratch->assign(data, data + bytes);
             const Match match = matcher.Find(*scratch);
             if (match.matched)
@@ -911,7 +910,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
     const uint32_t value_anomalies = criteria.anomalies & kValueAnomalies;
     const uint32_t key_anomalies = criteria.anomalies & kKeyAnomalies;
     const bool watch_links = (key_anomalies & kAnomalyBrokenLink) && criteria.skip_links;
-    // skip values/child keys when the selected search fields dont need them
+    // skip values/subkeys not needed by selected search fields
     const bool want_values = criteria.search_values || criteria.search_data || criteria.comment_text || criteria.default_text || value_anomalies || watch_links;
     const bool want_data = criteria.search_data || (criteria.anomalies & kDataAnomalies);
     const bool want_subkeys = criteria.recursive;
@@ -1123,7 +1122,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                 }
             }
         };
-        // reuse buffers and vectors across all keys handled by this worker
+        // reuse worker buffers across keys
         EnumerationScratch scratch;
         std::wstring widen_scratch;
         ResultBatch batch;
@@ -1180,7 +1179,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                 flush_progress(false);
 
                 std::wstring display_path;
-                // build display paths only when filtering/returning a match
+                // build display paths only for filters and matches
                 auto path_text = [&]() -> const std::wstring& {
                     if (display_path.empty())
                     {
@@ -1263,7 +1262,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                         return false;
                     }
                     saw_link = saw_link || (value.type == REG_LINK && util::EqualsInsensitive(value.name, L"SymbolicLinkValue"));
-                    // reject by metadata before searching value names/data
+                    // reject metadata mismatches before searching names/data
                     if ((criteria.skip_links && value.type == REG_LINK) || !IsTypeAllowed(criteria, value.type) ||
                         !IsSizeAllowed(criteria, data_size) || !is_key_in_range())
                     {
@@ -1287,7 +1286,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                     }
 
                     DataMatch data_match;
-                    // skip data matching when value name already matches
+                    // matching names need no data search
                     if (!name_match.matched && criteria.search_data && !match_all)
                     {
                         data_match = MatchValueData(matcher, hex_query, value.type, data, data_size, &widen_scratch);
@@ -1339,7 +1338,7 @@ bool Run(const Criteria& criteria, std::atomic_bool* cancel_flag, const BatchCal
                     }
                     else
                     {
-                        // leave name matches unloaded until UI needs their data
+                        // defer loading name match data until requested by the UI
                         result.data_state = DataState::kNotLoaded;
                         result.match_field = extra_field;
                     }

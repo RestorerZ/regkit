@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -135,8 +135,8 @@ void MainWindow::Impl::SortValueList(int column, bool toggle)
     {
         return;
     }
-    appearance::UpdateListSortState(column, toggle, &browse_.columns().sort_column, &browse_.columns().sort_ascending, &browse_.columns().sort_earlier);
-    // names are unique, so nothing after Name decides a tie or needs loading
+    win32ui::UpdateListSortState(column, toggle, &browse_.columns().sort_column, &browse_.columns().sort_ascending, &browse_.columns().sort_earlier);
+    // unique names settle sorting ties without loading other columns
     auto& earlier = browse_.columns().sort_earlier;
     const auto name = std::find_if(earlier.begin(), earlier.end(), [](const auto& key) { return key.first == kValueColName; });
     earlier.erase(name == earlier.end() ? name : name + 1, earlier.end());
@@ -187,7 +187,7 @@ void MainWindow::Impl::SortValueList(int column, bool toggle)
         UpdateStatus();
     }
 
-    appearance::UpdateListViewSort(browse_.values().hwnd(), browse_.columns().sort_column, browse_.columns().sort_ascending);
+    win32ui::UpdateListViewSort(browse_.values().hwnd(), browse_.columns().sort_column, browse_.columns().sort_ascending);
 }
 
 void MainWindow::Impl::SortHistoryList(int column, bool toggle)
@@ -196,7 +196,7 @@ void MainWindow::Impl::SortHistoryList(int column, bool toggle)
     {
         return;
     }
-    appearance::UpdateListSortState(column, toggle, &history_sort_column_, &history_sort_ascending_, &history_sort_earlier_);
+    win32ui::UpdateListSortState(column, toggle, &history_sort_column_, &history_sort_ascending_, &history_sort_earlier_);
 
     auto history_key_at = [this](int index) {
         const auto& entries = change_history_.entries();
@@ -211,7 +211,7 @@ void MainWindow::Impl::SortHistoryList(int column, bool toggle)
     RebuildHistoryList();
     RestoreListSelection(history_list_, selection, history_key_at);
 
-    appearance::UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
+    win32ui::UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
 }
 
 void MainWindow::Impl::SortSearchTabResults(SearchTab* tab, bool keep_order)
@@ -239,7 +239,7 @@ void MainWindow::Impl::SortSearchTabResults(SearchTab* tab, bool keep_order)
         return static_cast<size_t>(row) < tab->results.size() ? SearchResultIdentity(tab->results[static_cast<size_t>(row)]) : std::wstring();
     };
     const StableListSelection selection = shown ? CaptureListSelection(search_results_list_, key_at) : StableListSelection();
-    // a click keeps the shown order for ties, new or reloaded rows use the earlier columns
+    // sort clicks preserve shown order for ties, new/reloaded rows use earlier columns
     const util::SortKeys earlier = keep_order ? util::SortKeys() : tab->sort_earlier;
     if (!tab->is_compare && tab->max_results > 0 && tab->results.size() > tab->max_results)
     {
@@ -284,10 +284,10 @@ void MainWindow::Impl::SortSearchResults(int column, bool toggle)
     }
     EnsureSearchTabResultsLoaded(index);
     auto& tab = search_tabs_[static_cast<size_t>(index)];
-    appearance::UpdateListSortState(column, toggle, &tab.sort_column, &tab.sort_ascending, &tab.sort_earlier);
+    win32ui::UpdateListSortState(column, toggle, &tab.sort_column, &tab.sort_ascending, &tab.sort_earlier);
     ++tab.sort_revision;
     SortSearchTabResults(&tab, true);
-    appearance::UpdateListViewSort(search_results_list_, tab.sort_column, tab.sort_ascending);
+    win32ui::UpdateListViewSort(search_results_list_, tab.sort_column, tab.sort_ascending);
 }
 
 void MainWindow::Impl::ClearHistoryItems(bool delete_cache)
@@ -371,7 +371,7 @@ void MainWindow::Impl::RefreshHistory()
 void MainWindow::Impl::ResetNavigationState()
 {
     browse_.ResetNavigation();
-    UpdateNavigationButtons();
+    UpdateToolbarStates();
 }
 
 void MainWindow::Impl::UpdateTabText(const std::wstring& text)
@@ -397,13 +397,13 @@ void MainWindow::Impl::UpdateTabText(const std::wstring& text)
     InvalidateRect(tab_, nullptr, FALSE);
 }
 
-// session_ stays on the last registry tab while a search tab is shown
+// session_ remains on the last registry tab while a search tab is shown
 void MainWindow::Impl::MarkOfflineDirty()
 {
     MarkSessionDirty(*session_);
 }
 
-// .reg tab or hive a change went to, which may not be the tab shown when it lands
+// target .reg tab or hive, which may differ from the visible tab when changes arrive
 void MainWindow::Impl::MarkSessionDirty(RegistrySession& session)
 {
     for (TabEntry& entry : tabs_)
@@ -469,14 +469,24 @@ bool MainWindow::Impl::ConfirmOfflineChanges(RegistrySession& session, const wch
     const int result = ui::PromptChoice(hwnd_, message, util::Tr(L"Unsaved Changes"), util::Tr(L"Save"), util::Tr(L"Don't Save"), util::Tr(L"Cancel"), {70, 100, 70});
     return result == IDNO || (result == IDYES && SaveOfflineRegistry(session));
 }
+bool MainWindow::Impl::CanCloseTab(int tab_index) const
+{
+    const int count = tab_ ? TabCtrl_GetItemCount(tab_) : 0;
+    if (count <= 1 || tab_index < 0 || tab_index >= count)
+    {
+        return false;
+    }
+    if (IsSearchTabIndex(tab_index) || static_cast<size_t>(tab_index) >= tabs_.size() ||
+        tabs_[static_cast<size_t>(tab_index)].kind != TabEntry::Kind::kRegistry)
+    {
+        return true;
+    }
+    return std::count_if(tabs_.begin(), tabs_.end(), [](const TabEntry& entry) { return entry.kind == TabEntry::Kind::kRegistry; }) > 1;
+}
+
 void MainWindow::Impl::CloseTab(int tab_index)
 {
-    if (!tab_)
-    {
-        return;
-    }
-    int count = TabCtrl_GetItemCount(tab_);
-    if (count <= 1 || tab_index < 0 || tab_index >= count)
+    if (!CanCloseTab(tab_index))
     {
         return;
     }
@@ -485,18 +495,8 @@ void MainWindow::Impl::CloseTab(int tab_index)
         CloseSearchTab(tab_index);
         return;
     }
-    const int registry_tab_count = static_cast<int>(std::count_if(
-        tabs_.begin(),
-        tabs_.end(),
-        [](const TabEntry& entry) { return entry.kind == TabEntry::Kind::kRegistry; }
-    ));
-    if (registry_tab_count <= 1 && static_cast<size_t>(tab_index) < tabs_.size() &&
-        tabs_[static_cast<size_t>(tab_index)].kind == TabEntry::Kind::kRegistry)
-    {
-        return;
-    }
     const auto& closing = tabs_[static_cast<size_t>(tab_index)].session;
-    // the closed tab's session takes its hive or .reg roots with it and the save prompt needs the replace's changes committed
+    // closing the tab releases its hive/.reg roots, commit replace changes before the save prompt
     if (replace_result_pending_ && closing && closing != local_session_ && replace_target_.lock() == closing)
     {
         StopReplace();
@@ -540,7 +540,7 @@ void MainWindow::Impl::CloseTab(int tab_index)
     SelectTabAfterClose(tab_index, previous_index);
     if (closed.tree && std::none_of(tabs_.begin(), tabs_.end(), [&](const TabEntry& tab) { return tab.tree == closed.tree; }))
     {
-        // search tab shown next keeps a tree active, a registry tab's own takes over so paths still resolve
+        // keep a tree active for search tabs, registry tabs use their own tree so paths resolve
         if (closed.tree == &browse_.tree())
         {
             const auto owner = std::find_if(tabs_.begin(), tabs_.end(), [](const TabEntry& tab) { return tab.tree != nullptr; });
@@ -555,14 +555,14 @@ void MainWindow::Impl::CloseTab(int tab_index)
             }
             else
             {
-                // no tab has a tree yet, the next one shown takes this one over
+                // no tab has a tree, next visible tab takes this one
                 closed.tree->Clear();
             }
         }
         browse_.RemoveTree(closed.tree);
     }
     closed.tree = nullptr;
-    // released once no tree shows them, a released root would reach the live registry
+    // release roots only after no tree uses them, released roots would reach the live registry
     ReleaseRegFileRoots(&closed);
     RefreshRegistryTabLabels();
     ApplyViewVisibility();
@@ -694,7 +694,8 @@ void MainWindow::Impl::UpdateTabWidth()
     {
         return;
     }
-    tab_height_ = tab_strip_.Refit(kTabMinWidth);
+    win32ui::RefreshTabStrip(tab_);
+    tab_height_ = win32ui::TabStripRowHeight(tab_);
     if (hwnd_)
     {
         RECT rect = {};
@@ -708,24 +709,7 @@ void MainWindow::Impl::UpdateTabWidth()
 
 void MainWindow::Impl::BuildAccelerators()
 {
-    if (accelerators_)
-    {
-        DestroyAcceleratorTable(accelerators_);
-        accelerators_ = nullptr;
-    }
-    std::vector<ACCEL> accels;
-    accels.reserve(_countof(frame::kShortcutBindings) + 9);
-    for (const auto& binding : frame::kShortcutBindings)
-    {
-        accels.push_back(
-            {static_cast<BYTE>(FVIRTKEY | binding.modifiers), binding.key, static_cast<WORD>(binding.command)}
-        );
-    }
-    for (int i = 0; i < 9; ++i)
-    {
-        accels.push_back({FVIRTKEY | FCONTROL, static_cast<WORD>('1' + i), static_cast<WORD>(cmd::kTabSelectBase + i)});
-    }
-    accelerators_ = CreateAcceleratorTableW(accels.data(), static_cast<int>(accels.size()));
+    shortcuts_.Create(frame::kShortcutBindings);
 }
 
 void MainWindow::Impl::ActivateTabIndex(int index)
@@ -793,9 +777,7 @@ bool MainWindow::Impl::SelectAllInFocusedList()
     {
         updating_value_list_ = true;
     }
-    ListView_SetItemState(focus, -1, LVIS_SELECTED, LVIS_SELECTED);
-    ListView_SetItemState(focus, 0, LVIS_FOCUSED, LVIS_FOCUSED);
-    ListView_EnsureVisible(focus, 0, FALSE);
+    win32ui::SelectAllListItems(focus);
     if (value_list)
     {
         updating_value_list_ = was_updating;

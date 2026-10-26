@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -22,7 +22,7 @@ struct TablesRequest
     std::vector<records::Table> tables;
     std::wstring action_label;
     std::function<void(HWND)> action;
-    // rows of tables[check_table] get checkboxes; on_check applies a click and returns false to undo it
+    // tables[check_table] rows get check boxes, on_check applies clicks and returns false to undo them
     int check_table = -1;
     std::vector<bool> checked;
     std::function<bool(HWND, size_t, bool)> on_check;

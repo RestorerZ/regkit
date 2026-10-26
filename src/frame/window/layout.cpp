@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -8,7 +8,10 @@
 
 #include "ui/dialog_support.h"
 
-#include "ui/dialog_metrics.h"
+#include <win32ui/dialog/dialog_metrics.h>
+#include <win32ui/gdi/icon_loader.h>
+#include <win32ui/handle_owner.h>
+#include <win32ui/window_metrics.h>
 
 namespace regkit
 {
@@ -17,7 +20,7 @@ using namespace window_detail;
 // single line controls get taller when the UI font needs it
 int MainWindow::Impl::TextRowHeight(int nominal, int padding) const
 {
-    const UINT dpi = win32::DpiForWindow(hwnd_);
+    const UINT dpi = win32ui::DpiForWindow(hwnd_);
     TEXTMETRICW metrics = {};
     if (HDC hdc = GetDC(hwnd_))
     {
@@ -26,7 +29,7 @@ int MainWindow::Impl::TextRowHeight(int nominal, int padding) const
         SelectObject(hdc, old_font);
         ReleaseDC(hwnd_, hdc);
     }
-    return std::max(appearance::ScaleForDpi(nominal, dpi), static_cast<int>(metrics.tmHeight) + appearance::ScaleForDpi(padding, dpi));
+    return std::max(win32ui::ScaleForDpi(nominal, dpi), static_cast<int>(metrics.tmHeight) + win32ui::ScaleForDpi(padding, dpi));
 }
 
 void MainWindow::Impl::LayoutContent(bool dragging)
@@ -34,10 +37,10 @@ void MainWindow::Impl::LayoutContent(bool dragging)
     const bool show_search = IsSearchTabSelected();
     const bool show_tree = settings_.show_tree && !show_search;
     const bool show_history = settings_.show_history && !settings_.simple_mode && !show_search;
-    const UINT dpi = win32::DpiForWindow(hwnd_);
+    const UINT dpi = win32ui::DpiForWindow(hwnd_);
     const int header_height = TextRowHeight(kPanelHeaderHeight);
-    const int close_size = appearance::ScaleForDpi(kPanelCloseSize, dpi);
-    const int close_inset = appearance::ScaleForDpi(kPanelCloseInset, dpi);
+    const int close_size = win32ui::ScaleForDpi(kPanelCloseSize, dpi);
+    const int close_inset = win32ui::ScaleForDpi(kPanelCloseInset, dpi);
     const int left = content_rect_.left;
     const int right = content_rect_.right;
     const int width = right - left;
@@ -49,7 +52,7 @@ void MainWindow::Impl::LayoutContent(bool dragging)
         HWND hwnd;
         RECT rect;
     };
-    Placement placements[7] = {};
+    Placement placements[9] = {};
     int count = 0;
     auto place = [&](HWND hwnd, int x, int y, int w, int h) {
         if (hwnd)
@@ -58,30 +61,38 @@ void MainWindow::Impl::LayoutContent(bool dragging)
         }
     };
     RECT dirty = {};
-    UnionRect(&dirty, &tree_splitter_.rect, &history_splitter_.rect);
 
-    history_splitter_.rect = {};
+    // saved sizes use DIPs, narrow windows shrink shown sizes without changing saved values
+    int history_bar_top = bottom;
+    history_shown_height_ = 0;
     if (show_history)
     {
-        settings_.history_height = ClampValue(settings_.history_height, kMinHistoryHeight, std::max(kMinHistoryHeight, bottom - top - kHistoryMaxPadding));
-        const int history_top = bottom - settings_.history_height;
+        const int minimum = win32ui::ScaleForDpi(kMinHistoryHeight, dpi);
+        const int history_height = ClampValue(win32ui::ScaleForDpi(settings_.history_height, dpi), minimum, std::max(minimum, bottom - top - win32ui::ScaleForDpi(kHistoryMaxPadding, dpi)));
+        const int history_top = bottom - history_height;
+        const int bar_height = win32ui::ScaleForDpi(kHistorySplitterHeight, dpi);
         place(history_label_, left, history_top, width, header_height);
         place(history_close_btn_, right - close_inset - close_size, history_top + (header_height - close_size) / 2, close_size, close_size);
-        place(history_list_, left, history_top + header_height - kPanelBorderOverlap, width, settings_.history_height - header_height + kPanelBorderOverlap);
-        history_splitter_.rect = {left, history_top - kHistoryGap - kHistorySplitterHeight, right, history_top - kHistoryGap};
+        place(history_list_, left, history_top + header_height - kPanelBorderOverlap, width, history_height - header_height + kPanelBorderOverlap);
+        history_bar_top = history_top - win32ui::ScaleForDpi(kHistoryGap, dpi) - bar_height;
+        place(history_splitter_, left, history_bar_top, width, bar_height);
+        history_shown_height_ = history_height;
     }
-    const int content_height = std::max(0, (show_history ? static_cast<int>(history_splitter_.rect.top) : bottom) - top);
+    const int content_height = std::max(0, history_bar_top - top);
 
-    tree_splitter_.rect = {};
     int list_x = left;
+    tree_shown_width_ = 0;
     if (show_tree)
     {
-        const int tree_width = ClampValue(settings_.tree_width, kMinTreeWidth, std::max(kMinTreeWidth, width - kMinValueListWidth - kSplitterWidth));
+        const int minimum = win32ui::ScaleForDpi(kMinTreeWidth, dpi);
+        const int bar_width = win32ui::ScaleForDpi(kSplitterWidth, dpi);
+        const int tree_width = ClampValue(win32ui::ScaleForDpi(settings_.tree_width, dpi), minimum, std::max(minimum, width - win32ui::ScaleForDpi(kMinValueListWidth, dpi) - bar_width));
         place(tree_header_, left, top, tree_width, header_height);
         place(tree_close_btn_, left + tree_width - close_inset - close_size, top + (header_height - close_size) / 2, close_size, close_size);
         place(browse_.tree().hwnd(), left, top + header_height - kPanelBorderOverlap, tree_width, std::max(0, content_height - header_height) + kPanelBorderOverlap);
-        tree_splitter_.rect = {left + tree_width, top, left + tree_width + kSplitterWidth, top + content_height};
-        list_x = left + tree_width + kSplitterWidth;
+        place(tree_splitter_, left + tree_width, top, bar_width, content_height);
+        list_x = left + tree_width + bar_width;
+        tree_shown_width_ = tree_width;
     }
     if (show_search)
     {
@@ -92,7 +103,7 @@ void MainWindow::Impl::LayoutContent(bool dragging)
         place(browse_.values().hwnd(), list_x, top, right - list_x, content_height);
     }
 
-    // while dragging, redraw only what the old and new positions cover, otherwise the caller repaints everything
+    // drag redraws only old/new control areas, otherwise caller repaints everything
     const UINT flags = SWP_NOZORDER | SWP_NOACTIVATE | (dragging ? 0 : SWP_NOREDRAW);
     HDWP batch = BeginDeferWindowPos(count);
     for (int i = 0; i < count; ++i)
@@ -109,7 +120,7 @@ void MainWindow::Impl::LayoutContent(bool dragging)
             batch = DeferWindowPos(batch, p.hwnd, nullptr, p.rect.left, p.rect.top, p.rect.right - p.rect.left, p.rect.bottom - p.rect.top, flags);
         }
     }
-    // a failed batch is abandoned, so every control is placed again
+    // failed batches are abandoned, reposition every control
     if (!batch || !EndDeferWindowPos(batch))
     {
         for (int i = 0; i < count; ++i)
@@ -118,23 +129,42 @@ void MainWindow::Impl::LayoutContent(bool dragging)
             SetWindowPos(p.hwnd, nullptr, p.rect.left, p.rect.top, p.rect.right - p.rect.left, p.rect.bottom - p.rect.top, flags);
         }
     }
-    LayoutValueGridToolbar();
+    ShowWindow(tree_splitter_, show_tree ? SW_SHOWNA : SW_HIDE);
+    ShowWindow(history_splitter_, show_history ? SW_SHOWNA : SW_HIDE);
     if (dragging)
     {
-        UnionRect(&dirty, &dirty, &tree_splitter_.rect);
-        UnionRect(&dirty, &dirty, &history_splitter_.rect);
         RedrawWindow(hwnd_, &dirty, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_UPDATENOW);
     }
 }
 
-void MainWindow::Impl::DragSplitter(ui::Splitter* splitter, int* size, POINT point)
+// clamp splitter drag like LayoutContent and store in DIPs
+void MainWindow::Impl::ResizePane(HWND splitter, int size, bool done)
 {
-    const int next = splitter->Track(point);
-    if (next != *size)
+    const UINT dpi = win32ui::DpiForWindow(hwnd_);
+    const bool tree = splitter == tree_splitter_;
+    // click without movement keeps shown size, narrow windows can show less than saved size
+    const bool moved = size != (tree ? tree_shown_width_ : history_shown_height_);
+    if (moved && tree)
     {
-        *size = next;
-        LayoutContent(true);
+        const int minimum = win32ui::ScaleForDpi(kMinTreeWidth, dpi);
+        const int maximum = content_rect_.right - content_rect_.left - win32ui::ScaleForDpi(kMinValueListWidth, dpi) - win32ui::ScaleForDpi(kSplitterWidth, dpi);
+        settings_.tree_width = win32ui::Unscale(ClampValue(size, minimum, std::max(minimum, maximum)), dpi);
     }
+    else if (moved)
+    {
+        const int minimum = win32ui::ScaleForDpi(kMinHistoryHeight, dpi);
+        const int maximum = content_rect_.bottom - content_rect_.top - win32ui::ScaleForDpi(kHistoryMaxPadding, dpi);
+        settings_.history_height = win32ui::Unscale(ClampValue(size, minimum, std::max(minimum, maximum)), dpi);
+    }
+    splitter_dragging_ = !done;
+    if (!done)
+    {
+        LayoutContent(true);
+        return;
+    }
+    RECT rect = {};
+    GetClientRect(hwnd_, &rect);
+    LayoutControls(rect.right, rect.bottom);
 }
 
 void MainWindow::Impl::ApplyViewVisibility()
@@ -144,7 +174,7 @@ void MainWindow::Impl::ApplyViewVisibility()
     bool show_tree = settings_.show_tree && !show_search;
     bool show_value = show_value_ && !show_search;
     bool show_history = settings_.show_history && !settings_.simple_mode && !show_search;
-    ShowWindow(toolbar_.hwnd(), settings_.show_toolbar && !settings_.simple_mode ? SW_SHOW : SW_HIDE);
+    ShowWindow(toolbar_, settings_.show_toolbar && !settings_.simple_mode ? SW_SHOW : SW_HIDE);
     ShowWindow(browse_.address(), settings_.show_address_bar ? SW_SHOW : SW_HIDE);
     ShowWindow(browse_.go_button(), settings_.show_address_bar ? SW_SHOW : SW_HIDE);
     ShowWindow(tab_, settings_.show_tab_control ? SW_SHOW : SW_HIDE);
@@ -158,7 +188,6 @@ void MainWindow::Impl::ApplyViewVisibility()
     ShowWindow(history_close_btn_, show_history ? SW_SHOW : SW_HIDE);
     ShowWindow(history_list_, show_history ? SW_SHOW : SW_HIDE);
     ShowWindow(search_results_list_, show_search ? SW_SHOW : SW_HIDE);
-    appearance::LayoutListViews(hwnd_);
     if (show_search && search_results_list_)
     {
         LONG_PTR style = GetWindowLongPtrW(search_results_list_, GWL_STYLE);
@@ -169,13 +198,6 @@ void MainWindow::Impl::ApplyViewVisibility()
         }
     }
     ShowWindow(status_bar_, settings_.show_status_bar ? SW_SHOW : SW_HIDE);
-    if (search_progress_)
-    {
-        const SearchTab* shown = ShownSearchTab();
-        const bool show_progress = settings_.show_status_bar && show_search && shown && shown->run && !IsCompareTabSelected();
-        SendMessageW(search_progress_, PBM_SETMARQUEE, show_progress, 30);
-        ShowWindow(search_progress_, show_progress ? SW_SHOW : SW_HIDE);
-    }
 
     RECT rect = {};
     GetClientRect(hwnd_, &rect);
@@ -191,7 +213,7 @@ void MainWindow::Impl::ApplyTabSelection(int index)
     const TabEntry& entry = tabs_[static_cast<size_t>(index)];
     if (entry.kind == TabEntry::Kind::kRegistry)
     {
-        // a remote or offline tab without a session connects whenever it is shown, restored at startup or disconnected
+        // remote/offline tabs without a session connect when shown, including restored or disconnected tabs
         const bool connect = !entry.session && entry.registry_mode != RegistryMode::kLocal;
         if (!ActivateTabTree(index) && !connect)
         {
@@ -220,7 +242,7 @@ void MainWindow::Impl::ApplyTabSelection(int index)
         }
         if (!shown && entry.registry_mode != RegistryMode::kLocal)
         {
-            // disconnected (empty tree under its own label)
+            // disconnected, empty tree under its own label
             auto disconnected = std::make_shared<RegistrySession>();
             disconnected->mode = entry.registry_mode;
             disconnected->remote_machine = entry.remote_machine;
@@ -276,8 +298,8 @@ void MainWindow::Impl::EnsureHiveListLoaded()
     {
         return;
     }
-    // cache mounted hive paths for file lookup & root icons
-    util::UniqueHKey hive_key;
+    // cache mounted hive paths for file lookup and root icons
+    win32ui::UniqueHKey hive_key;
     if (RegOpenKeyExW(hklm, L"SYSTEM\\CurrentControlSet\\Control\\hivelist", 0, KEY_READ, hive_key.put()) !=
         ERROR_SUCCESS)
     {
@@ -320,7 +342,7 @@ std::wstring MainWindow::Impl::LookupHivePath(const RegistryNode& node, bool* is
     std::wstring nt_path = registry_path::BuildNative(node);
     if (nt_path.empty() && !node.root_name.empty())
     {
-        // nodes without a predefined handle still name their root
+        // nodes without predefined handles still identify their root
         RegistryNode named = node;
         named.root = registry_path::RootFromName(node.root_name);
         nt_path = named.root == HKEY_CLASSES_ROOT ? registry_path::JoinSubkey(L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes", node.subkey) : registry_path::BuildNative(named);
@@ -451,25 +473,15 @@ std::wstring MainWindow::Impl::ResolveIconPath(const wchar_t* filename) const
     return util::JoinPath(icon_dir_, filename);
 }
 
-bool MainWindow::Impl::ShouldUseLightIcons() const
-{
-    switch (theme_mode_)
-    {
-    case ThemeMode::kDark:
-        return true;
-    case ThemeMode::kLight:
-        return false;
-    case ThemeMode::kSystem:
-        return Theme::IsSystemDarkMode();
-    case ThemeMode::kCustom:
-    default:
-        return Theme::UseDarkMode();
-    }
-}
-
 void MainWindow::Impl::ApplyGridToolbarIcons()
 {
-    appearance::ReloadListGridIcons();
+    for (HWND list : {browse_.values().hwnd(), history_list_, search_results_list_})
+    {
+        if (list)
+        {
+            win32ui::RefreshListView(list);
+        }
+    }
     appearance::SetListGridChangedCallback(
         [](void* context, bool enabled) {
             static_cast<MainWindow::Impl*>(context)->SetValueGridEnabled(enabled, true);
@@ -478,33 +490,54 @@ void MainWindow::Impl::ApplyGridToolbarIcons()
     );
 }
 
-void MainWindow::Impl::LayoutValueGridToolbar()
-{
-    appearance::LayoutListViews(hwnd_);
-}
-
 void MainWindow::Impl::SetValueGridEnabled(bool enabled, bool persist)
 {
     settings_.show_value_grid = enabled;
-    appearance::SetListGridEnabled(enabled);
+    win32ui::SetAllListGridLines(enabled);
     if (persist)
     {
         SaveSettings();
     }
 }
 
-ToolbarIcon MainWindow::Impl::MakeToolbarIcon(const wchar_t* filename, int resource_id) const
+HICON MainWindow::Impl::ToolbarIconFor(int command, UINT dpi) const
 {
-    ToolbarIcon icon;
-    icon.resource_id = resource_id + (ShouldUseLightIcons() ? IDI_ICON_LIGHT_OFFSET : 0);
-    icon.path = ResolveIconPath(filename);
-    return icon;
+    struct IconFile
+    {
+        int command;
+        const wchar_t* file;
+        int resource_id;
+    };
+    static constexpr IconFile kIcons[] = {
+        {cmd::kRegistryLocal, L"local-registry.ico", IDI_ICON_LOCAL_REGISTRY},
+        {cmd::kRegistryNetwork, L"remote-registry.ico", IDI_ICON_REMOTE_REGISTRY},
+        {cmd::kRegistryOffline, L"offline-registry.ico", IDI_ICON_OFFLINE_REGISTRY},
+        {cmd::kEditFind, L"search.ico", IDI_ICON_SEARCH},
+        {cmd::kEditReplace, L"replace.ico", IDI_ICON_REPLACE},
+        {cmd::kEditUndo, L"undo.ico", IDI_ICON_UNDO},
+        {cmd::kEditRedo, L"redo.ico", IDI_ICON_REDO},
+        {cmd::kEditCopy, L"copy.ico", IDI_ICON_COPY},
+        {cmd::kEditPaste, L"paste.ico", IDI_ICON_PASTE},
+        {cmd::kEditDelete, L"delete.ico", IDI_ICON_DELETE},
+        {cmd::kViewRefresh, L"refresh.ico", IDI_ICON_REFRESH},
+        {cmd::kNavBack, L"back.ico", IDI_ICON_BACK},
+        {cmd::kNavForward, L"forward.ico", IDI_ICON_FORWARD},
+        {cmd::kNavUp, L"up.ico", IDI_ICON_UP},
+    };
+    const auto found = std::ranges::find(kIcons, command, &IconFile::command);
+    if (found == std::end(kIcons))
+    {
+        return nullptr;
+    }
+    const std::wstring path = ResolveIconPath(found->file);
+    HICON icon = path.empty() ? nullptr : win32ui::LoadIconFromFile(path, dpi);
+    return icon ? icon : win32ui::LoadIconResource(found->resource_id + (win32ui::ThemeLightGlyphs() ? IDI_ICON_LIGHT_OFFSET : 0), dpi);
 }
 
 void MainWindow::Impl::ReloadThemeIcons()
 {
-    UINT dpi = win32::DpiForWindow(hwnd_);
-    bool use_light = ShouldUseLightIcons();
+    UINT dpi = win32ui::DpiForWindow(hwnd_);
+    bool use_light = win32ui::ThemeLightGlyphs();
     icon_dir_ = ResolveIconDir(use_light);
     auto set_redraw = [](HWND hwnd, bool enable) {
         if (!hwnd)
@@ -513,33 +546,13 @@ void MainWindow::Impl::ReloadThemeIcons()
         }
         SendMessageW(hwnd, WM_SETREDRAW, enable ? TRUE : FALSE, 0);
     };
-    // pause redraw while every image list is replaced
-    set_redraw(toolbar_.hwnd(), false);
+    // pause redraw while replacing image lists, toolbar manages its own redraw
     set_redraw(browse_.tree().hwnd(), false);
     set_redraw(browse_.values().hwnd(), false);
     set_redraw(search_results_list_, false);
     set_redraw(browse_.go_button(), false);
 
-    toolbar_.LoadIcons(
-        {
-            MakeToolbarIcon(L"local-registry.ico", IDI_ICON_LOCAL_REGISTRY),
-            MakeToolbarIcon(L"remote-registry.ico", IDI_ICON_REMOTE_REGISTRY),
-            MakeToolbarIcon(L"offline-registry.ico", IDI_ICON_OFFLINE_REGISTRY),
-            MakeToolbarIcon(L"search.ico", IDI_ICON_SEARCH),
-            MakeToolbarIcon(L"replace.ico", IDI_ICON_REPLACE),
-            MakeToolbarIcon(L"undo.ico", IDI_ICON_UNDO),
-            MakeToolbarIcon(L"redo.ico", IDI_ICON_REDO),
-            MakeToolbarIcon(L"copy.ico", IDI_ICON_COPY),
-            MakeToolbarIcon(L"paste.ico", IDI_ICON_PASTE),
-            MakeToolbarIcon(L"delete.ico", IDI_ICON_DELETE),
-            MakeToolbarIcon(L"refresh.ico", IDI_ICON_REFRESH),
-            MakeToolbarIcon(L"back.ico", IDI_ICON_BACK),
-            MakeToolbarIcon(L"forward.ico", IDI_ICON_FORWARD),
-            MakeToolbarIcon(L"up.ico", IDI_ICON_UP),
-        },
-        kToolbarIconSize,
-        kToolbarGlyphSize
-    );
+    win32ui::RefreshToolbar(toolbar_);
 
     BuildImageLists();
     for (const auto& tree : browse_.trees())
@@ -560,19 +573,13 @@ void MainWindow::Impl::ReloadThemeIcons()
         DestroyIcon(address_go_icon_);
         address_go_icon_ = nullptr;
     }
-    address_go_icon_ = appearance::LoadIconResource(use_light ? IDI_ICON_LIGHT_GO : IDI_ICON_DARK_GO, kToolbarGlyphSize, dpi);
+    address_go_icon_ = win32ui::LoadIconResource(use_light ? IDI_ICON_LIGHT_GO : IDI_ICON_DARK_GO, dpi);
     ApplyGridToolbarIcons();
-    LayoutValueGridToolbar();
 
-    set_redraw(toolbar_.hwnd(), true);
     set_redraw(browse_.tree().hwnd(), true);
     set_redraw(browse_.values().hwnd(), true);
     set_redraw(search_results_list_, true);
     set_redraw(browse_.go_button(), true);
-    if (toolbar_.hwnd())
-    {
-        InvalidateRect(toolbar_.hwnd(), nullptr, TRUE);
-    }
     if (browse_.tree().hwnd())
     {
         InvalidateRect(browse_.tree().hwnd(), nullptr, TRUE);
@@ -598,15 +605,17 @@ void MainWindow::Impl::LayoutControls(int width, int height)
         return;
     }
 
-    const int padding = 8;
-    UINT dpi = win32::DpiForWindow(hwnd_);
-    const int address_height = TextRowHeight(appearance::metrics::kControlHeight);
-    const int address_btn_width = std::max(appearance::ScaleForDpi(18, dpi), address_height);
-    const int tabs_height = std::max(20, tab_height_);
+    UINT dpi = win32ui::DpiForWindow(hwnd_);
+    const int padding = win32ui::ScaleForDpi(8, dpi);
+    const int gap = win32ui::ScaleForDpi(kMainVerticalGap, dpi);
+    const int address_height = TextRowHeight(win32ui::metrics::kControlHeight);
+    const int address_btn_width = std::max(win32ui::ScaleForDpi(18, dpi), address_height);
+    const int tabs_height = std::max(win32ui::ScaleForDpi(20, dpi), tab_height_);
     const int filter_height = address_height;
-    const int filter_min_width = 160;
-    const int filter_max_width = 260;
-    const int filter_gap = 6;
+    const int filter_min_width = win32ui::ScaleForDpi(160, dpi);
+    const int filter_max_width = win32ui::ScaleForDpi(260, dpi);
+    const int filter_gap = win32ui::ScaleForDpi(6, dpi);
+    const int tab_min_width = win32ui::ScaleForDpi(win32ui::kTabMinWidthDip, dpi);
     int status_height = 0;
     if (status_bar_ && settings_.show_status_bar)
     {
@@ -621,9 +630,9 @@ void MainWindow::Impl::LayoutControls(int width, int height)
     const bool show_search = IsSearchTabSelected();
     const bool show_value = show_value_ && !show_search;
 
-    int y = kMainVerticalGap;
+    int y = gap;
 
-    const bool dragging_splitter = tree_splitter_.dragging() || history_splitter_.dragging();
+    const bool dragging_splitter = splitter_dragging_;
     auto place = [&](HWND hwnd, int x, int y_pos, int w, int h) {
         if (!hwnd)
         {
@@ -632,7 +641,6 @@ void MainWindow::Impl::LayoutControls(int width, int height)
         UINT flags = SWP_NOZORDER | SWP_NOACTIVATE;
         if (!dragging_splitter)
         {
-            // wait for final redraw
             flags |= SWP_NOREDRAW;
         }
         SetWindowPos(hwnd, nullptr, x, y_pos, w, h, flags);
@@ -640,19 +648,9 @@ void MainWindow::Impl::LayoutControls(int width, int height)
 
     if (settings_.show_toolbar && !settings_.simple_mode)
     {
-        SendMessageW(toolbar_.hwnd(), TB_AUTOSIZE, 0, 0);
-        SIZE ideal = {};
-        SendMessageW(toolbar_.hwnd(), TB_GETMAXSIZE, 0, reinterpret_cast<LPARAM>(&ideal));
-        RECT tb_rect = {};
-        GetWindowRect(toolbar_.hwnd(), &tb_rect);
-        int toolbar_height = tb_rect.bottom - tb_rect.top;
-        if (toolbar_height <= 0)
-        {
-            toolbar_height = ideal.cy;
-        }
-        const int toolbar_area_width = std::max(0, width - padding * 2);
-        place(toolbar_.hwnd(), padding, y, toolbar_area_width, toolbar_height);
-        y += toolbar_height;
+        const int toolbar_height = win32ui::ToolbarHeight(toolbar_);
+        place(toolbar_, 0, 0, width, toolbar_height);
+        y = toolbar_height;
     }
     if (settings_.show_address_bar)
     {
@@ -665,15 +663,15 @@ void MainWindow::Impl::LayoutControls(int width, int height)
         place(browse_.go_button(), padding + address_width, y, address_btn_width, address_height);
         SetEditMargins(browse_.address(), 6, 6);
         SetEditVerticalRect(browse_.address(), ui_font_, 2, 6, 6);
-        y += address_height + kMainVerticalGap;
+        y += address_height + gap;
     }
 
     int tabs_width = width - padding * 2;
     bool show_tabs = settings_.show_tab_control && tab_;
     bool show_filter = show_value && settings_.show_filter_bar && browse_.filter();
     bool show_tab_row = show_tabs || show_filter;
-    // tabs wrap into rows at their width, the filter stays beside the first row;
-    // past a quarter of the window they fall back to one scrolling row so the panes keep their room
+    // tabs wrap beside the filter until they exceed a quarter of the window
+    // then use one scrolling row to preserve pane space
     int rows_height = tabs_height;
     const int max_tabs_height = std::max(tabs_height, height / 4);
     if (show_tab_row)
@@ -681,16 +679,16 @@ void MainWindow::Impl::LayoutControls(int width, int height)
         if (show_tabs && show_filter)
         {
             int available = std::max(0, tabs_width);
-            int min_needed = kTabMinWidth + filter_min_width + filter_gap;
+            int min_needed = tab_min_width + filter_min_width + filter_gap;
             if (available >= min_needed)
             {
                 int target_width = ClampValue(available / 4, filter_min_width, filter_max_width);
                 int filter_width =
-                    std::min(target_width, std::max(filter_min_width, available - kTabMinWidth - filter_gap));
-                tabs_width = std::max(kTabMinWidth, available - filter_width - filter_gap);
+                    std::min(target_width, std::max(filter_min_width, available - tab_min_width - filter_gap));
+                tabs_width = std::max(tab_min_width, available - filter_width - filter_gap);
                 int filter_y = y + std::max(0, (tabs_height - filter_height) / 2);
                 int edit_width = std::max(filter_min_width / 2, filter_width - address_btn_width);
-                rows_height = tab_strip_.Fit(tabs_width, tabs_height, max_tabs_height);
+                rows_height = win32ui::FitTabStrip(tab_, tabs_width, max_tabs_height);
                 place(tab_, padding, y, tabs_width, rows_height);
                 place(browse_.filter(), padding + tabs_width + filter_gap, filter_y, edit_width, filter_height);
                 place(filter_clear_btn_, padding + tabs_width + filter_gap + edit_width, filter_y, address_btn_width, filter_height);
@@ -707,7 +705,7 @@ void MainWindow::Impl::LayoutControls(int width, int height)
         }
         if (show_tabs && !show_filter)
         {
-            rows_height = tab_strip_.Fit(tabs_width, tabs_height, max_tabs_height);
+            rows_height = win32ui::FitTabStrip(tab_, tabs_width, max_tabs_height);
             place(tab_, padding, y, tabs_width, rows_height);
             if (browse_.filter())
             {
@@ -729,7 +727,7 @@ void MainWindow::Impl::LayoutControls(int width, int height)
             ShowWindow(browse_.filter(), SW_SHOW);
             ShowWindow(filter_clear_btn_, SW_SHOW);
         }
-        y += rows_height + kMainVerticalGap;
+        y += rows_height + gap;
     }
     else
     {

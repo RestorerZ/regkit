@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "search/compare.h"
 #include "records/escaped_fields.h"
@@ -278,7 +278,7 @@ std::vector<Row> BuildRows(const Snapshot& first, const Snapshot& second, RowFil
 {
     const bool include_differences = filter != RowFilter::kMatches;
     const bool include_matches = filter != RowFilter::kDifferences;
-    // key union once, each with its display path, so sorting needs no map lookups
+    // build key union with display paths once so sorting needs no map lookups
     std::vector<std::pair<const std::wstring*, const std::wstring*>> keys;
     keys.reserve(first.keys.size() + second.keys.size());
     for (const auto& [name, key] : first.keys)

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "regfile/reg_exe_syntax.h"
 #include "regfile/script_convert.h"
@@ -20,7 +20,7 @@ namespace
 constexpr size_t kMaxCommandLine = 8191;
 constexpr std::wstring_view kDefaultSeparator = L"\\0";
 
-// msvcrt rules used by reg
+// MSVCRT argument quoting rules used by reg.exe
 std::vector<std::wstring> SplitArguments(std::wstring_view text)
 {
     std::vector<std::wstring> args;
@@ -103,7 +103,7 @@ bool IsPadded(std::wstring_view text)
     return !text.empty() && (iswspace(text.front()) || iswspace(text.back()));
 }
 
-// reg.exe refuses key names of 255 characters, the registry's maximum
+// reg.exe rejects key names at the 255-character registry limit
 bool HasLongName(std::wstring_view path)
 {
     for (size_t start = 0; start <= path.size();)
@@ -509,7 +509,7 @@ bool ParseBatch(std::wstring_view content, std::vector<Operation>* output, std::
 std::wstring RenderBatch(const std::vector<Operation>& operations, bool admin_check, std::vector<std::wstring>* skipped)
 {
     std::wstring body;
-    // a key line left out because the next line creates the key, written after all when that line is skipped
+    // defer key creation to the following value line, emit it if that line is skipped
     std::wstring pending_key;
     for (size_t index = 0; index < operations.size(); ++index)
     {

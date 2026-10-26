@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-18 12:24+0200\n"
+"POT-Creation-Date: 2026-10-26 13:22+0100\n"
 "PO-Revision-Date: 2026-10-09 20:51+0200\n"
 "Last-Translator: nohuto contact@noverse.dev\n"
 "Language-Team: none\n"
@@ -16,591 +16,527 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: changes/value_comments.cpp:89
+#: changes/value_comments.cpp
 msgid "A comment has an unknown registry type."
 msgstr "コメントに不明なレジストリの種類があります。"
 
-#: changes/value_comments.cpp:98
+#: changes/value_comments.cpp
 msgid "A comment type is out of range."
 msgstr "コメントの種類が範囲外です。"
 
-#: changes/value_comments.cpp:110
+#: changes/value_comments.cpp
 msgid "A comment contains a duplicate member."
 msgstr "コメントに重複するプロパティがあります。"
 
-#: changes/value_comments.cpp:135
+#: changes/value_comments.cpp
 msgid "A comment has an empty key."
 msgstr "コメントのキーが空です。"
 
-#: changes/value_comments.cpp:137
+#: changes/value_comments.cpp
 msgid "A comment contains an unknown member."
 msgstr "コメントに不明なプロパティがあります。"
 
-#: changes/value_comments.cpp:139
+#: changes/value_comments.cpp
 msgid "A comment is missing its text."
 msgstr "コメントにテキストがありません。"
 
-#: changes/value_comments.cpp:145
+#: changes/value_comments.cpp
 msgid "A key comment needs a key and can't have a name, type, size or tree."
 msgstr "キーのコメントにはキーが必要で、名前、種類、サイズ、ツリーは指定できません。"
 
-#: changes/value_comments.cpp:272 changes/value_comments.cpp:280
+#: changes/value_comments.cpp
 msgid "The file isn't a RegKit comments file."
 msgstr "このファイルは RegKit のコメント ファイルではありません。"
 
-#: changes/value_comments.cpp:278
+#: changes/value_comments.cpp
 msgid "The file contains an unknown member."
 msgstr "ファイルに不明なプロパティがあります。"
 
-#: defaults/default_loader.cpp:115
+#: defaults/default_loader.cpp
 msgid "Default file contains no usable entries."
 msgstr "既定値ファイルに使用できる項目がありません。"
 
-#: dialogs/binary_editor.cpp:65 dialogs/binary_editor.cpp:165
-#: dialogs/binary_editor.cpp:212 dialogs/value_editor.cpp:341
+#: dialogs/binary_editor.cpp dialogs/value_editor.cpp
 msgid "Invalid hex input."
 msgstr "16 進数の入力が無効です。"
 
-#: dialogs/binary_editor.cpp:66
+#: dialogs/binary_editor.cpp
 msgid "Invalid"
 msgstr "無効"
 
-#: dialogs/binary_editor.cpp:77 dialogs/bitfield_editor.cpp:387
-#: dialogs/bitfield_editor.cpp:782 dialogs/decoder_dialog.cpp:184
-#: dialogs/trace_dialog.cpp:205 dialogs/value_editor.cpp:771
-#: frame/detail/control_detail.cpp:161 frame/search/search_window.cpp:1090
-#: frame/tools/launch_bridge.cpp:243 frame/views/history_workspace.cpp:1117
-#: frame/views/value_loading.cpp:388 frame/views/value_loading.cpp:435
-#: frame/window/notifications.cpp:145 frame/window/notifications.cpp:1239
-#: frame/window/notifications.cpp:1311 regfile/script_convert.cpp:188
-#: search/search.cpp:235 search/search.cpp:1281 ui/feedback.cpp:787
+#: dialogs/binary_editor.cpp dialogs/bitfield_editor.cpp
+#: dialogs/decoder_dialog.cpp dialogs/trace_dialog.cpp dialogs/value_editor.cpp
+#: frame/detail/control_detail.cpp frame/search/search_window.cpp
+#: frame/tools/launch_bridge.cpp frame/views/history_workspace.cpp
+#: frame/views/value_loading.cpp frame/window/notifications.cpp
+#: regfile/script_convert.cpp search/search.cpp ui/feedback.cpp
 msgid "(Default)"
 msgstr "(既定)"
 
-#: dialogs/binary_editor.cpp:92 dialogs/value_editor.cpp:767
-#: dialogs/value_editor.cpp:1099 dialogs/value_editor.cpp:1207
-#: frame/tools/launch_bridge.cpp:242
-msgid "Edit Value"
-msgstr "値の編集"
-
-#: dialogs/binary_editor.cpp:93
-msgid "Hex bytes:"
-msgstr "16 進バイト:"
-
-#: dialogs/binary_editor.cpp:94
-msgid "Preview:"
-msgstr "プレビュー:"
-
-#: dialogs/bitfield_definition.cpp:57
+#: dialogs/bitfield_definition.cpp
 msgid "An object contains an unknown member."
 msgstr "オブジェクトに不明なプロパティがあります。"
 
-#: dialogs/bitfield_definition.cpp:61
+#: dialogs/bitfield_definition.cpp
 msgid "An object contains a duplicate member."
 msgstr "オブジェクトに重複するプロパティがあります。"
 
-#: dialogs/bitfield_definition.cpp:94
+#: dialogs/bitfield_definition.cpp
 msgid "A state is missing its value or name."
 msgstr "状態に値または名前がありません。"
 
-#: dialogs/bitfield_definition.cpp:117 dialogs/bitfield_definition.cpp:488
+#: dialogs/bitfield_definition.cpp
 msgid "A field uses a bit outside the declared width."
 msgstr "フィールドが宣言された幅の範囲外のビットを使用しています。"
 
-#: dialogs/bitfield_definition.cpp:121 dialogs/bitfield_definition.cpp:492
+#: dialogs/bitfield_definition.cpp
 msgid "Field bits must be unique and in ascending order."
 msgstr "フィールドのビットは重複させず、昇順に並べる必要があります。"
 
-#: dialogs/bitfield_definition.cpp:125
+#: dialogs/bitfield_definition.cpp
 msgid "A field lists no bits."
 msgstr "フィールドにビットがありません。"
 
-#: dialogs/bitfield_definition.cpp:137 dialogs/bitfield_definition.cpp:503
-#: dialogs/bitfield_definition_editor.cpp:375
+#: dialogs/bitfield_definition.cpp dialogs/bitfield_definition_editor.cpp
 msgid "A field lists more than 256 states."
 msgstr "フィールドに 256 を超える状態があります。"
 
-#: dialogs/bitfield_definition.cpp:143
+#: dialogs/bitfield_definition.cpp
 msgid "A field is missing its name or bits."
 msgstr "フィールドに名前またはビットがありません。"
 
-#: dialogs/bitfield_definition.cpp:166 dialogs/bitfield_definition.cpp:458
+#: dialogs/bitfield_definition.cpp
 msgid "A definition lists too many key paths."
 msgstr "定義のキー パスが多すぎます。"
 
-#: dialogs/bitfield_definition.cpp:176 dialogs/bitfield_definition.cpp:438
+#: dialogs/bitfield_definition.cpp
 msgid "The bit width must be 8, 16, 32, or 64."
 msgstr "ビット幅は 8、16、32、64 のいずれかにする必要があります。"
 
-#: dialogs/bitfield_definition.cpp:183 dialogs/bitfield_definition.cpp:442
+#: dialogs/bitfield_definition.cpp
 msgid "The byte offset is out of range."
 msgstr "バイト オフセットが範囲外です。"
 
-#: dialogs/bitfield_definition.cpp:196 dialogs/bitfield_definition.cpp:446
+#: dialogs/bitfield_definition.cpp
 msgid "A definition contains more than 64 fields."
 msgstr "定義に 64 を超えるフィールドがあります。"
 
-#: dialogs/bitfield_definition.cpp:202
+#: dialogs/bitfield_definition.cpp
 msgid "A definition is missing its value name or bit width."
 msgstr "定義に値の名前またはビット幅がありません。"
 
-#: dialogs/bitfield_definition.cpp:217
+#: dialogs/bitfield_definition.cpp
 msgid "The file isn't a RegKit bitfield definition."
 msgstr "このファイルは RegKit のビット フィールド定義ではありません。"
 
-#: dialogs/bitfield_definition.cpp:233 dialogs/bitfield_definition.cpp:555
+#: dialogs/bitfield_definition.cpp
 msgid "The file contains no definitions."
 msgstr "ファイルに定義がありません。"
 
-#: dialogs/bitfield_definition.cpp:239
+#: dialogs/bitfield_definition.cpp
 msgid "The file is missing a required member."
 msgstr "ファイルに必須のプロパティがありません。"
 
-#: dialogs/bitfield_definition.cpp:388
+#: dialogs/bitfield_definition.cpp
 msgid "Unnamed definition"
 msgstr "名前のない定義"
 
-#: dialogs/bitfield_definition.cpp:450
+#: dialogs/bitfield_definition.cpp
 msgid "A name is longer than the format allows."
 msgstr "名前がこの形式の上限を超えています。"
 
-#: dialogs/bitfield_definition.cpp:454
+#: dialogs/bitfield_definition.cpp
 msgid "A comment is longer than the format allows."
 msgstr "コメントがこの形式の上限を超えています。"
 
-#: dialogs/bitfield_definition.cpp:464
+#: dialogs/bitfield_definition.cpp
 msgid "A key path is empty or longer than the format allows."
 msgstr "キー パスが空か、この形式の長さの上限を超えています。"
 
-#: dialogs/bitfield_definition.cpp:474
+#: dialogs/bitfield_definition.cpp
 msgid "Every field needs a name of at most 256 characters."
 msgstr "各フィールドには 256 文字以内の名前が必要です。"
 
-#: dialogs/bitfield_definition.cpp:478
+#: dialogs/bitfield_definition.cpp
 msgid "A field meaning is longer than the format allows."
 msgstr "フィールドの意味の説明がこの形式の長さの上限を超えています。"
 
-#: dialogs/bitfield_definition.cpp:482
+#: dialogs/bitfield_definition.cpp
 msgid "Every field needs at least one bit."
 msgstr "各フィールドには少なくとも 1 ビット必要です。"
 
-#: dialogs/bitfield_definition.cpp:496
+#: dialogs/bitfield_definition.cpp
 msgid "Two fields claim the same bit."
 msgstr "2 つのフィールドが同じビットを使用しています。"
 
-#: dialogs/bitfield_definition.cpp:510
-#: dialogs/bitfield_definition_editor.cpp:348
+#: dialogs/bitfield_definition.cpp dialogs/bitfield_definition_editor.cpp
 msgid "Every state needs a name of at most 256 characters."
 msgstr "各状態には 256 文字以内の名前が必要です。"
 
-#: dialogs/bitfield_definition.cpp:514
-#: dialogs/bitfield_definition_editor.cpp:352
+#: dialogs/bitfield_definition.cpp dialogs/bitfield_definition_editor.cpp
 msgid "A state meaning is longer than the format allows."
 msgstr "状態の意味の説明がこの形式の長さの上限を超えています。"
 
-#: dialogs/bitfield_definition.cpp:518
-#: dialogs/bitfield_definition_editor.cpp:338
-#: dialogs/bitfield_definition_editor.cpp:617
+#: dialogs/bitfield_definition.cpp dialogs/bitfield_definition_editor.cpp
 msgid "A state value doesn't fit the bits of its field."
 msgstr "状態の値がフィールドのビットに収まりません。"
 
-#: dialogs/bitfield_definition.cpp:524
-#: dialogs/bitfield_definition_editor.cpp:344
+#: dialogs/bitfield_definition.cpp dialogs/bitfield_definition_editor.cpp
 msgid "Two states of one field share the same value."
 msgstr "同じフィールドの 2 つの状態が同じ値を使用しています。"
 
-#: dialogs/bitfield_definition.cpp:532
+#: dialogs/bitfield_definition.cpp
 msgid "Two fields share the same name."
 msgstr "2 つのフィールドが同じ名前を使用しています。"
 
-#: dialogs/bitfield_definition.cpp:563
+#: dialogs/bitfield_definition.cpp
 msgid "A file name or comment is longer than the format allows."
 msgstr "ファイル名またはコメントがこの形式の長さの上限を超えています。"
 
-#: dialogs/bitfield_definition.cpp:596
+#: dialogs/bitfield_definition.cpp
 msgid "The definition file isn't valid UTF-8."
 msgstr "定義ファイルが有効な UTF-8 ではありません。"
 
-#: dialogs/bitfield_definition.cpp:607
+#: dialogs/bitfield_definition.cpp
 msgid "The definition file isn't valid JSON."
 msgstr "定義ファイルが有効な JSON ではありません。"
 
-#: dialogs/bitfield_definition.cpp:626
+#: dialogs/bitfield_definition.cpp
 msgid "The definition file couldn't be read."
 msgstr "定義ファイルを読み取れませんでした。"
 
-#: dialogs/bitfield_definition.cpp:750 regfile/reg_file.cpp:647
+#: dialogs/bitfield_definition.cpp regfile/reg_file.cpp
 msgid "The file is larger than RegKit can load."
 msgstr "ファイルが RegKit で読み込めるサイズを超えています。"
 
-#: dialogs/bitfield_definition.cpp:758
+#: dialogs/bitfield_definition.cpp
 msgid "The definition file couldn't be written."
 msgstr "定義ファイルを書き込めませんでした。"
 
-#: dialogs/bitfield_definition_editor.cpp:198
-#: dialogs/bitfield_definition_editor.cpp:438 dialogs/bitfield_editor.cpp:684
-#: ui/preset_editor.cpp:466
-msgid "Copy Row"
-msgstr "行のコピー"
+#: dialogs/bitfield_definition_editor.cpp
+msgid "Add &Field..."
+msgstr "フィールドの追加(&F)..."
 
-#: dialogs/bitfield_definition_editor.cpp:273
+#: dialogs/bitfield_definition_editor.cpp dialogs/bitfield_editor.cpp
+msgid "&Edit Field..."
+msgstr "フィールドの編集(&E)..."
+
+#: dialogs/bitfield_definition_editor.cpp dialogs/bitfield_editor.cpp
+msgid "&Remove Field"
+msgstr "フィールドの削除(&R)"
+
+#: dialogs/bitfield_definition_editor.cpp
+msgid "Add &State..."
+msgstr "状態の追加(&S)..."
+
+#: dialogs/bitfield_definition_editor.cpp
+msgid "&Edit State..."
+msgstr "状態の編集(&E)..."
+
+#: dialogs/bitfield_definition_editor.cpp
+msgid "&Remove State"
+msgstr "状態の削除(&R)"
+
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Add State"
 msgstr "状態の追加"
 
-#: dialogs/bitfield_definition_editor.cpp:273
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Edit State"
 msgstr "状態の編集"
 
-#: dialogs/bitfield_definition_editor.cpp:334 dialogs/value_editor.cpp:1349
+#: dialogs/bitfield_definition_editor.cpp dialogs/value_editor.cpp
 msgid "Invalid number."
 msgstr "数値が無効です。"
 
-#: dialogs/bitfield_definition_editor.cpp:384
-#: dialogs/bitfield_definition_editor.cpp:611
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Select at least one bit."
 msgstr "ビットを少なくとも 1 つ選択してください。"
 
-#: dialogs/bitfield_definition_editor.cpp:434 dialogs/bitfield_editor.cpp:677
-#: dialogs/query_prompts.cpp:122 frame/commands/context_menus.cpp:214
-#: frame/window/menu_bar.cpp:377
-msgid "Select All"
-msgstr "すべて選択"
+#: dialogs/bitfield_definition_editor.cpp
+msgid "Check All &Bits"
+msgstr "すべてのビットにチェックを入れる(&B)"
 
-#: dialogs/bitfield_definition_editor.cpp:435 dialogs/bitfield_editor.cpp:678
-#: dialogs/query_prompts.cpp:124 frame/window/menu_bar.cpp:485
-msgid "Clear All"
-msgstr "すべてクリア"
+#: dialogs/bitfield_definition_editor.cpp
+msgid "&Uncheck All Bits"
+msgstr "すべてのビットのチェックを外す(&U)"
 
-#: dialogs/bitfield_definition_editor.cpp:437 dialogs/bitfield_editor.cpp:683
-msgid "Copy Mask"
-msgstr "マスクのコピー"
+#: dialogs/bitfield_definition_editor.cpp dialogs/bitfield_editor.cpp
+msgid "Copy &Mask"
+msgstr "マスクのコピー(&M)"
 
-#: dialogs/bitfield_definition_editor.cpp:466
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Add Field"
 msgstr "フィールドの追加"
 
-#: dialogs/bitfield_definition_editor.cpp:466
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Edit Field"
 msgstr "フィールドの編集"
 
-#: dialogs/bitfield_definition_editor.cpp:470 dialogs/bitfield_editor.cpp:796
+#: dialogs/bitfield_definition_editor.cpp dialogs/bitfield_editor.cpp
 msgid "Bit"
 msgstr "ビット"
 
-#: dialogs/bitfield_definition_editor.cpp:470 dialogs/bitfield_editor.cpp:796
+#: dialogs/bitfield_definition_editor.cpp dialogs/bitfield_editor.cpp
 msgid "Mask"
 msgstr "マスク"
 
-#: dialogs/bitfield_definition_editor.cpp:470
-#: dialogs/bitfield_definition_editor.cpp:1063 dialogs/bitfield_editor.cpp:796
-#: ui/preset_editor.cpp:41
+#: dialogs/bitfield_definition_editor.cpp dialogs/bitfield_editor.cpp
+#: frame/window/appearance.cpp
 msgid "Field"
 msgstr "フィールド"
 
-#: dialogs/bitfield_definition_editor.cpp:498 dialogs/bitfield_editor.cpp:796
-#: dialogs/decoder_dialog.cpp:211 frame/tools/launch_bridge.cpp:87
-#: frame/views/browse_view.cpp:249 frame/views/browse_view.cpp:258
-#: search/search.cpp:62
+#: dialogs/bitfield_definition_editor.cpp dialogs/bitfield_editor.cpp
+#: dialogs/decoder_dialog.cpp frame/tools/launch_bridge.cpp
+#: frame/views/browse_view.cpp search/search.cpp
 msgid "Value"
 msgstr "値"
 
-#: dialogs/bitfield_definition_editor.cpp:498 frame/tools/launch_bridge.cpp:94
-#: frame/views/browse_view.cpp:59
+#: dialogs/bitfield_definition_editor.cpp frame/tools/launch_bridge.cpp
+#: frame/views/browse_view.cpp
 msgid "Name"
 msgstr "名前"
 
-#: dialogs/bitfield_definition_editor.cpp:498
-#: dialogs/bitfield_definition_editor.cpp:1063 dialogs/bitfield_editor.cpp:796
+#: dialogs/bitfield_definition_editor.cpp dialogs/bitfield_editor.cpp
 msgid "Meaning"
 msgstr "意味"
 
-#: dialogs/bitfield_definition_editor.cpp:543
-msgid "Add State..."
-msgstr "状態の追加..."
-
-#: dialogs/bitfield_definition_editor.cpp:543
-msgid "Edit State..."
-msgstr "状態の編集..."
-
-#: dialogs/bitfield_definition_editor.cpp:543
-msgid "Remove State"
-msgstr "状態の削除"
-
-#: dialogs/bitfield_definition_editor.cpp:596
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Enter a field name."
 msgstr "フィールド名を入力してください。"
 
-#: dialogs/bitfield_definition_editor.cpp:604
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Another field already uses that name."
 msgstr "その名前は別のフィールドで既に使用されています。"
 
-#: dialogs/bitfield_definition_editor.cpp:833
+#: dialogs/bitfield_definition_editor.cpp
 msgid "This definition file has unsaved changes."
 msgstr "この定義ファイルには保存されていない変更があります。"
 
-#: dialogs/bitfield_definition_editor.cpp:833
-#: dialogs/bitfield_definition_editor.cpp:899
-#: dialogs/bitfield_definition_editor.cpp:1056 frame/window/menu_bar.cpp:525
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Bit Definitions"
 msgstr "ビット定義"
 
-#: dialogs/bitfield_definition_editor.cpp:833 frame/views/tab_lists.cpp:435
-#: frame/views/tab_lists.cpp:469 frame/window/menu_bar.cpp:211
-#: frame/window/menu_bar.cpp:327
+#: dialogs/bitfield_definition_editor.cpp frame/views/tab_lists.cpp
+#: frame/window/menu_bar.cpp
 msgid "Save"
 msgstr "保存"
 
-#: dialogs/bitfield_definition_editor.cpp:833
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Discard"
 msgstr "変更の破棄"
 
-#: dialogs/bitfield_definition_editor.cpp:833
-#: dialogs/bitfield_definition_editor.cpp:899 dialogs/bitfield_editor.cpp:388
-#: dialogs/query_prompts.cpp:127 dialogs/query_prompts.cpp:211
-#: dialogs/value_editor.cpp:912 frame/commands/file_view_commands.cpp:50
-#: frame/commands/file_view_commands.cpp:435
-#: frame/commands/workspace_commands.cpp:259
-#: frame/tools/key_handles_window.cpp:356 frame/tools/launch_bridge.cpp:506
-#: frame/tools/launch_bridge.cpp:523 frame/views/history_workspace.cpp:260
-#: frame/views/registry_sessions.cpp:793 frame/views/registry_sessions.cpp:844
-#: frame/views/registry_sessions.cpp:1084
-#: frame/views/registry_sessions.cpp:1091 frame/views/tab_lists.cpp:435
-#: frame/views/tab_lists.cpp:469 frame/window/lifetime.cpp:25
-#: frame/window/message_routes.cpp:54 ui/feedback.cpp:792 ui/feedback.cpp:802
-#: ui/feedback.cpp:815 ui/feedback.cpp:868
+#: dialogs/bitfield_definition_editor.cpp dialogs/bitfield_editor.cpp
+#: dialogs/value_editor.cpp frame/commands/file_view_commands.cpp
+#: frame/commands/mutation_commands.cpp frame/commands/workspace_commands.cpp
+#: frame/tools/key_handles_window.cpp frame/tools/launch_bridge.cpp
+#: frame/views/history_workspace.cpp frame/views/registry_sessions.cpp
+#: frame/views/tab_lists.cpp frame/window/appearance.cpp
+#: frame/window/lifetime.cpp frame/window/message_routes.cpp ui/feedback.cpp
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: dialogs/bitfield_definition_editor.cpp:869 dialogs/bitfield_editor.cpp:378
+#: dialogs/bitfield_definition_editor.cpp dialogs/bitfield_editor.cpp
 msgid "The definition was made for a different value width."
 msgstr "この定義は異なる幅の値に合わせて作成されています。"
 
-#: dialogs/bitfield_definition_editor.cpp:899
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Some fields use bits outside the new width. Remove those bits and any states or fields that no longer fit?"
 msgstr "一部のフィールドが新しい幅の範囲外のビットを使用しています。それらのビットと、収まらなくなった状態やフィールドを削除しますか?"
 
-#: dialogs/bitfield_definition_editor.cpp:899
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Remove"
 msgstr "削除"
 
-#: dialogs/bitfield_definition_editor.cpp:1063
+#: dialogs/bitfield_definition_editor.cpp
 msgid "Bits"
 msgstr "ビット"
 
-#: dialogs/bitfield_definition_editor.cpp:1063
+#: dialogs/bitfield_definition_editor.cpp
 msgid "States"
 msgstr "状態"
 
-#: dialogs/bitfield_definition_editor.cpp:1111
-msgid "Add Field..."
-msgstr "フィールドの追加..."
-
-#: dialogs/bitfield_definition_editor.cpp:1111 dialogs/bitfield_editor.cpp:680
-msgid "Edit Field..."
-msgstr "フィールドの編集..."
-
-#: dialogs/bitfield_definition_editor.cpp:1111 dialogs/bitfield_editor.cpp:681
-msgid "Remove Field"
-msgstr "フィールドの削除"
-
-#: dialogs/bitfield_editor.cpp:303
+#: dialogs/bitfield_editor.cpp
 msgid "(none)"
 msgstr "(なし)"
 
-#: dialogs/bitfield_editor.cpp:378
+#: dialogs/bitfield_editor.cpp
 msgid "The definition describes bytes outside this value."
 msgstr "この定義は、この値の範囲外のバイトを記述しています。"
 
-#: dialogs/bitfield_editor.cpp:383
+#: dialogs/bitfield_editor.cpp
 msgid "This definition was made for a different value. Use it anyway?"
 msgstr "この定義は別の値に合わせて作成されています。それでも使用しますか?"
 
-#: dialogs/bitfield_editor.cpp:385
+#: dialogs/bitfield_editor.cpp
 msgid "Definition"
 msgstr "定義"
 
-#: dialogs/bitfield_editor.cpp:387
+#: dialogs/bitfield_editor.cpp
 msgid "This value"
 msgstr "この値"
 
-#: dialogs/bitfield_editor.cpp:388
+#: dialogs/bitfield_editor.cpp
 msgid "Bit Definition"
 msgstr "ビット定義"
 
-#: dialogs/bitfield_editor.cpp:388
+#: dialogs/bitfield_editor.cpp
 msgid "Use"
 msgstr "使用"
 
-#: dialogs/bitfield_editor.cpp:431
+#: dialogs/bitfield_editor.cpp
 msgid "No definition in that file fits this value."
 msgstr "そのファイルに、この値に合う定義はありません。"
 
-#: dialogs/bitfield_editor.cpp:431
+#: dialogs/bitfield_editor.cpp
 msgid "No definition in that file was made for this value width."
 msgstr "そのファイルに、この値の幅に合わせて作成された定義はありません。"
 
-#: dialogs/bitfield_editor.cpp:662
-msgid "Enable Bit"
-msgstr "ビットを有効にする"
+#: dialogs/bitfield_editor.cpp
+msgid "Enable &Bit"
+msgstr "ビットを有効にする(&B)"
 
-#: dialogs/bitfield_editor.cpp:663
-msgid "Disable Bit"
-msgstr "ビットを無効にする"
+#: dialogs/bitfield_editor.cpp
+msgid "&Disable Bit"
+msgstr "ビットを無効にする(&D)"
 
-#: dialogs/bitfield_editor.cpp:674
-msgid "Set Field To"
-msgstr "フィールドの値を設定"
+#: dialogs/bitfield_editor.cpp
+msgid "Set &Field To"
+msgstr "フィールドの値を設定(&F)"
 
-#: dialogs/bitfield_editor.cpp:680
+#: dialogs/bitfield_editor.cpp
+msgid "&Set All Bits"
+msgstr "すべてのビットを有効にする(&S)"
+
+#: dialogs/bitfield_editor.cpp
+msgid "C&lear All Bits"
+msgstr "すべてのビットを無効にする(&L)"
+
+#: dialogs/bitfield_editor.cpp
 msgid "Describe Bit..."
 msgstr "ビットの説明..."
 
-#: dialogs/bitfield_editor.cpp:781
-msgid "Edit Bits"
-msgstr "ビットの編集"
-
-#: dialogs/bitfield_editor.cpp:796
+#: dialogs/bitfield_editor.cpp
 msgid "State"
 msgstr "状態"
 
-#: dialogs/comment_editor.cpp:74
+#: dialogs/comment_editor.cpp
 msgid "Selected values only"
 msgstr "選択した値のみ"
 
-#: dialogs/comment_editor.cpp:79
+#: dialogs/comment_editor.cpp
 msgid "Values with the selected names"
 msgstr "選択した名前の値"
 
-#: dialogs/comment_editor.cpp:79
+#: dialogs/comment_editor.cpp
 msgid "Values named"
 msgstr "指定した名前の値"
 
-#: dialogs/decoder_dialog.cpp:141
+#: dialogs/decoder_dialog.cpp
 msgid "Bytes shown"
 msgstr "表示バイト数"
 
-#: dialogs/decoder_dialog.cpp:201
-msgid "Decode Value"
-msgstr "値のデコード"
-
-#: dialogs/decoder_dialog.cpp:202
-msgid "Name:"
-msgstr "名前:"
-
-#: dialogs/decoder_dialog.cpp:203
-msgid "Encoding:"
-msgstr "エンコード:"
-
-#: dialogs/decoder_dialog.cpp:204
-msgid "Interpret as:"
-msgstr "解釈形式:"
-
-#: dialogs/decoder_dialog.cpp:211 frame/tools/launch_bridge.cpp:87
+#: dialogs/decoder_dialog.cpp frame/tools/launch_bridge.cpp
 msgid "Property"
 msgstr "プロパティ"
 
-#: dialogs/decoder_dialog.cpp:261 dialogs/table_dialog.cpp:114
-#: frame/tools/key_handles_window.cpp:384
-msgid "Copy Rows"
-msgstr "行のコピー"
-
-#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:168
+#: dialogs/export_dialog.cpp win32/file_dialog.cpp
 msgid "Don't open"
 msgstr "開かない"
 
-#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:169
+#: dialogs/export_dialog.cpp win32/file_dialog.cpp
 msgid "In text editor"
 msgstr "テキスト エディター"
 
-#: dialogs/export_dialog.cpp:65 win32/file_dialog.cpp:172
+#: dialogs/export_dialog.cpp win32/file_dialog.cpp
 msgid "In RegKit"
 msgstr "RegKit"
 
-#: dialogs/export_dialog.cpp:70
+#: dialogs/export_dialog.cpp
 msgid "Registry File (.reg)"
 msgstr "レジストリ ファイル (.reg)"
 
-#: dialogs/export_dialog.cpp:73
+#: dialogs/export_dialog.cpp
 msgid "Registry Hive File"
 msgstr "レジストリ ハイブ ファイル"
 
-#: dialogs/export_dialog.cpp:123
+#: dialogs/export_dialog.cpp
 msgid "Select a destination file."
 msgstr "保存先のファイルを選択してください。"
 
-#: dialogs/hive_dialog.cpp:101
+#: dialogs/hive_dialog.cpp
 msgid "Select a hive file."
 msgstr "ハイブ ファイルを選択してください。"
 
-#: dialogs/hive_dialog.cpp:107
+#: dialogs/hive_dialog.cpp
 msgid "Enter a key name for the loaded hive."
 msgstr "読み込むハイブのキー名を入力してください。"
 
-#: dialogs/hive_dialog.cpp:112
+#: dialogs/hive_dialog.cpp
 msgid "The key name can't contain a backslash."
 msgstr "キー名にバックスラッシュは使用できません。"
 
-#: dialogs/hive_dialog.cpp:202
+#: dialogs/hive_dialog.cpp
 msgid "Enter a link name and a target key."
 msgstr "リンク名とリンク先のキーを入力してください。"
 
-#: dialogs/hive_dialog.cpp:207
+#: dialogs/hive_dialog.cpp
 msgid "The link name can't contain a backslash."
 msgstr "リンク名にバックスラッシュは使用できません。"
 
-#: dialogs/query_dialog.cpp:146
+#: dialogs/query_dialog.cpp
 msgid "No top level keys"
 msgstr "最上位キーなし"
 
-#: dialogs/query_dialog.cpp:150
+#: dialogs/query_dialog.cpp
 msgid "All top level keys"
 msgstr "すべての最上位キー"
 
-#: dialogs/query_dialog.cpp:158
+#: dialogs/query_dialog.cpp
 msgid "Multiple keys"
 msgstr "複数のキー"
 
-#: dialogs/query_dialog.cpp:512
+#: dialogs/query_dialog.cpp
 msgid "Enter a search term."
 msgstr "検索語を入力してください。"
 
-#: dialogs/query_dialog.cpp:517
+#: dialogs/query_dialog.cpp
 msgid "The regular expression is too long."
 msgstr "正規表現が長すぎます。"
 
-#: dialogs/query_dialog.cpp:527
+#: dialogs/query_dialog.cpp
 msgid "Select at least one search option."
 msgstr "検索オプションを少なくとも 1 つ選択してください。"
 
-#: dialogs/query_dialog.cpp:538
+#: dialogs/query_dialog.cpp
 msgid "Select at least one search source."
 msgstr "検索元を少なくとも 1 つ選択してください。"
 
-#: dialogs/query_dialog.cpp:559
+#: dialogs/query_dialog.cpp
 msgid "Enter a valid minimum data size."
 msgstr "データの最小サイズに有効な値を入力してください。"
 
-#: dialogs/query_dialog.cpp:564
+#: dialogs/query_dialog.cpp
 msgid "Enter a valid maximum data size."
 msgstr "データの最大サイズに有効な値を入力してください。"
 
-#: dialogs/query_dialog.cpp:584
+#: dialogs/query_dialog.cpp
 msgid "Minimum data size can't exceed maximum data size."
 msgstr "データの最小サイズは最大サイズを超えることはできません。"
 
-#: dialogs/query_dialog.cpp:589
+#: dialogs/query_dialog.cpp
 msgid "Modified date range is invalid."
 msgstr "更新日時の範囲が無効です。"
 
-#: dialogs/query_dialog.cpp:613
+#: dialogs/query_dialog.cpp
 msgid "Enter a valid result limit."
 msgstr "有効な結果数の上限を入力してください。"
 
-#: dialogs/query_dialog.cpp:641
+#: dialogs/query_dialog.cpp
 msgid "Select at least one top level key."
 msgstr "最上位キーを少なくとも 1 つ選択してください。"
 
-#: dialogs/query_dialog.cpp:682
+#: dialogs/query_dialog.cpp
 msgid ""
 "PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
 "(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, \\X.\n"
@@ -610,46 +546,31 @@ msgstr ""
 "(?<name>...) グループ、先読み・後読み (?=...) (?<=...)、後方参照 \\1、Unicode クラス \\p{L}、\\w、\\X。\n"
 "照合は Unicode に対応し、'大文字と小文字を区別' が有効でない限り、大文字と小文字を区別しません。"
 
-#: dialogs/query_dialog.cpp:769
+#: dialogs/query_dialog.cpp
 msgid "Exclude Keys"
 msgstr "キーの除外"
 
-#: dialogs/query_dialog.cpp:770 frame/commands/clipboard_commands.cpp:54
+#: dialogs/query_dialog.cpp frame/commands/clipboard_commands.cpp
 msgid "Each line should include one key."
 msgstr "1 行につき 1 つのキーを指定してください。"
 
-#: dialogs/query_prompts.cpp:125 dialogs/query_prompts.cpp:209
-#: frame/views/registry_sessions.cpp:1069 frame/window/lifetime.cpp:436
-#: frame/window/notifications.cpp:33 ui/feedback.cpp:406 ui/feedback.cpp:448
-#: ui/feedback.cpp:729 ui/feedback.cpp:749 ui/feedback.cpp:822
-msgid "OK"
-msgstr "OK"
-
-#: dialogs/query_prompts.cpp:155
+#: dialogs/query_prompts.cpp
 msgid "Select at least one data type."
 msgstr "データの種類を少なくとも 1 つ選択してください。"
 
-#: dialogs/query_prompts.cpp:187
-msgid "Data Types"
-msgstr "データの種類"
-
-#: dialogs/query_prompts.cpp:278
+#: dialogs/query_prompts.cpp
 msgid "Select a key."
 msgstr "キーを選択してください。"
 
-#: dialogs/query_prompts.cpp:297
-msgid "Browse Key"
-msgstr "キーの参照"
-
-#: dialogs/replace_dialog.cpp:60 frame/search/search_window.cpp:748
+#: dialogs/replace_dialog.cpp frame/search/search_window.cpp
 msgid "Enter text to find."
 msgstr "検索するテキストを入力してください。"
 
-#: dialogs/replace_dialog.cpp:71
+#: dialogs/replace_dialog.cpp
 msgid "Select what should be replaced."
 msgstr "置換する対象を選択してください。"
 
-#: dialogs/replace_dialog.cpp:98
+#: dialogs/replace_dialog.cpp
 msgid ""
 "PCRE syntax: ^ $ anchors, character classes, greedy, lazy (*?) and possessive (*+) quantifiers,\n"
 "(?<name>...) groups, lookaround (?=...) (?<=...), backreferences \\1 and Unicode classes \\p{L}, \\w, \\X.\n"
@@ -659,929 +580,900 @@ msgstr ""
 "(?<name>...) グループ、先読み・後読み (?=...) (?<=...)、後方参照 \\1、Unicode クラス \\p{L}、\\w、\\X。\n"
 "置換後の文字列: グループは $1 または ${1}、名前付きグループは $<name> または ${name}、一致全体は $&、ドル記号は $$。"
 
-#: dialogs/security_dialog.cpp:130 frame/window/lifetime.cpp:25
+#: dialogs/security_dialog.cpp frame/commands/mutation_commands.cpp
+#: frame/window/lifetime.cpp
 msgid "Create"
 msgstr "作成"
 
-#: dialogs/security_dialog.cpp:131
+#: dialogs/security_dialog.cpp
 msgid "Enumerate"
 msgstr "サブキーの列挙"
 
-#: dialogs/security_dialog.cpp:132
+#: dialogs/security_dialog.cpp
 msgid "Set Value"
 msgstr "値の設定"
 
-#: dialogs/security_dialog.cpp:133
+#: dialogs/security_dialog.cpp
 msgid "Query Value"
 msgstr "値の照会"
 
-#: dialogs/security_dialog.cpp:134 registry/key_access.cpp:139
+#: dialogs/security_dialog.cpp registry/key_access.cpp
 msgid "Write"
 msgstr "書き込み"
 
-#: dialogs/security_dialog.cpp:135 registry/key_access.cpp:139
+#: dialogs/security_dialog.cpp registry/key_access.cpp
 msgid "Read"
 msgstr "読み取り"
 
-#: dialogs/security_dialog.cpp:170
+#: dialogs/security_dialog.cpp
 msgid "This key only"
 msgstr "このキーのみ"
 
-#: dialogs/security_dialog.cpp:171
+#: dialogs/security_dialog.cpp
 msgid "This key and subkeys"
 msgstr "このキーとサブキー"
 
-#: dialogs/trace_dialog.cpp:99 frame/views/value_loading.cpp:246
+#: dialogs/trace_dialog.cpp frame/views/value_loading.cpp
 msgid "Keys"
 msgstr "キー"
 
-#: dialogs/trace_dialog.cpp:102 frame/tools/launch_bridge.cpp:130
-#: frame/views/value_loading.cpp:246
+#: dialogs/trace_dialog.cpp frame/tools/launch_bridge.cpp
+#: frame/views/value_loading.cpp
 msgid "Values"
 msgstr "値"
 
-#: dialogs/trace_dialog.cpp:107
+#: dialogs/trace_dialog.cpp
 msgid "loading..."
 msgstr "読み込み中..."
 
-#: dialogs/trace_dialog.cpp:434
+#: dialogs/trace_dialog.cpp
 msgid "Select at least one key or value."
 msgstr "キーまたは値を少なくとも 1 つ選択してください。"
 
-#: dialogs/transfer_dialogs.cpp:43
+#: dialogs/transfer_dialogs.cpp
 msgid "Export supports the standard root keys only."
 msgstr "エクスポートは標準のルート キーのみサポートしています。"
 
-#: dialogs/transfer_dialogs.cpp:59
+#: dialogs/transfer_dialogs.cpp
 msgid "Failed to write the exported registry file."
 msgstr "エクスポートしたレジストリ ファイルを書き込めませんでした。"
 
-#: dialogs/transfer_dialogs.cpp:113 dialogs/transfer_dialogs.cpp:198
-#: frame/window/menu_bar.cpp:213
+#: dialogs/transfer_dialogs.cpp frame/window/menu_bar.cpp
 msgid "Export"
 msgstr "エクスポート"
 
-#: dialogs/transfer_dialogs.cpp:128
+#: dialogs/transfer_dialogs.cpp
 msgid "No data to export."
 msgstr "エクスポートするデータがありません。"
 
-#: dialogs/transfer_dialogs.cpp:174
+#: dialogs/transfer_dialogs.cpp
 msgid "No selected values were found in the export."
 msgstr "エクスポート内に選択した値が見つかりませんでした。"
 
-#: dialogs/transfer_dialogs.cpp:224
+#: dialogs/transfer_dialogs.cpp
 msgid "Loading a hive needs the backup and restore privileges. Run RegKit elevated."
 msgstr "ハイブの読み込みにはバックアップと復元の特権が必要です。RegKit を昇格して実行してください。"
 
-#: dialogs/transfer_dialogs.cpp:246 frame/commands/file_view_commands.cpp:435
+#: dialogs/transfer_dialogs.cpp frame/commands/file_view_commands.cpp
 msgid "Unload Hive"
 msgstr "ハイブのアンロード"
 
-#: dialogs/transfer_dialogs.cpp:247
+#: dialogs/transfer_dialogs.cpp
 msgid "Key name:"
 msgstr "キー名:"
 
-#: dialogs/transfer_dialogs.cpp:260
+#: dialogs/transfer_dialogs.cpp
 msgid "Key name is required."
 msgstr "キー名を指定してください。"
 
-#: dialogs/transfer_dialogs.cpp:269
+#: dialogs/transfer_dialogs.cpp
 msgid "Unloading a hive needs the backup and restore privileges. Run RegKit elevated."
 msgstr "ハイブのアンロードにはバックアップと復元の特権が必要です。RegKit を昇格して実行してください。"
 
-#: dialogs/value_editor.cpp:424
+#: dialogs/value_editor.cpp
 msgid "Enter a valid number before editing its bits."
 msgstr "ビットを編集する前に有効な数値を入力してください。"
 
-#: dialogs/value_editor.cpp:888
+#: dialogs/value_editor.cpp
 msgid "The current data isn't valid, so the type can't be changed."
 msgstr "現在のデータが無効なため、種類を変更できません。"
 
-#: dialogs/value_editor.cpp:912
+#: dialogs/value_editor.cpp
 msgid "The current data can't be represented in this type. Continue and start with an empty value?"
 msgstr "現在のデータはこの種類では表現できません。空の値から始めて続けますか?"
 
-#: dialogs/value_editor.cpp:912
+#: dialogs/value_editor.cpp
 msgid "Change Data Type"
 msgstr "データの種類の変更"
 
-#: dialogs/value_editor.cpp:912
+#: dialogs/value_editor.cpp
 msgid "Continue"
 msgstr "続行"
 
-#: dialogs/value_editor.cpp:1040 dialogs/value_editor.cpp:1376
+#: dialogs/value_editor.cpp
 msgid "Invalid value data."
 msgstr "値のデータが無効です。"
 
-#: dialogs/value_editor.cpp:1355
+#: dialogs/value_editor.cpp
 msgid "Number is out of range."
 msgstr "数値が範囲外です。"
 
-#: dialogs/value_editor.cpp:1469
+#: dialogs/value_editor.cpp
 msgid "This value has no data to edit as bits."
 msgstr "この値にはビットとして編集できるデータがありません。"
 
-#: frame/commands/clipboard_commands.cpp:14
+#: frame/commands/clipboard_commands.cpp
 msgid "New favorites imported"
 msgstr "インポートした新しいお気に入り"
 
-#: frame/commands/clipboard_commands.cpp:14
+#: frame/commands/clipboard_commands.cpp
 msgid "There are no new favorites to import."
 msgstr "インポートする新しいお気に入りはありません。"
 
-#: frame/commands/clipboard_commands.cpp:53
+#: frame/commands/clipboard_commands.cpp
 msgid "Edit Favorites"
 msgstr "お気に入りの編集"
 
-#: frame/commands/clipboard_commands.cpp:64 workspace/favorites.cpp:158
+#: frame/commands/clipboard_commands.cpp workspace/favorites.cpp
 msgid "Failed to save favorites."
 msgstr "お気に入りを保存できませんでした。"
 
-#: frame/commands/clipboard_commands.cpp:83
+#: frame/commands/clipboard_commands.cpp
 msgid "Failed to import favorites."
 msgstr "お気に入りをインポートできませんでした。"
 
-#: frame/commands/clipboard_commands.cpp:98 workspace/favorites.cpp:149
+#: frame/commands/clipboard_commands.cpp workspace/favorites.cpp
 msgid "Failed to import RegEdit favorites."
 msgstr "RegEdit のお気に入りをインポートできませんでした。"
 
-#: frame/commands/clipboard_commands.cpp:120
+#: frame/commands/clipboard_commands.cpp
 msgid "Failed to export favorites."
 msgstr "お気に入りをエクスポートできませんでした。"
 
-#: frame/commands/clipboard_commands.cpp:239
-#: frame/commands/clipboard_commands.cpp:348
-#: frame/commands/mutation_commands.cpp:405
-#: frame/commands/mutation_commands.cpp:513
-#: frame/commands/mutation_commands.cpp:1030
-#: frame/commands/tools_commands.cpp:102
+#: frame/commands/clipboard_commands.cpp frame/commands/mutation_commands.cpp
+#: frame/commands/tools_commands.cpp
 msgid "Failed to read value."
 msgstr "値を読み取れませんでした。"
 
-#: frame/commands/clipboard_commands.cpp:277 frame/tools/launch_bridge.cpp:72
+#: frame/commands/clipboard_commands.cpp frame/tools/launch_bridge.cpp
 msgid "The key information couldn't be read."
 msgstr "キーの情報を読み取れませんでした。"
 
-#: frame/commands/clipboard_commands.cpp:395
+#: frame/commands/clipboard_commands.cpp
 msgid "The source key couldn't be opened."
 msgstr "コピー元のキーを開けませんでした。"
 
-#: frame/commands/clipboard_commands.cpp:468
+#: frame/commands/clipboard_commands.cpp
 msgid "Failed to paste value."
 msgstr "値を貼り付けられませんでした。"
 
-#: frame/commands/clipboard_commands.cpp:500
+#: frame/commands/clipboard_commands.cpp
 msgid "Failed to paste key."
 msgstr "キーを貼り付けられませんでした。"
 
-#: frame/commands/clipboard_commands.cpp:562 frame/commands/undo.cpp:193
+#: frame/commands/clipboard_commands.cpp frame/commands/undo.cpp
 msgid "The change couldn't be undone."
 msgstr "変更を元に戻せませんでした。"
 
-#: frame/commands/clipboard_commands.cpp:594 frame/commands/undo.cpp:193
+#: frame/commands/clipboard_commands.cpp frame/commands/undo.cpp
 msgid "The change couldn't be redone."
 msgstr "変更をやり直せませんでした。"
 
-#: frame/commands/command_detail.h:87
-msgid "Abbreviated (HKLM)"
-msgstr "省略形 (HKLM)"
+#: frame/commands/command_detail.h
+msgid "&Abbreviated (HKLM)"
+msgstr "省略形 (HKLM)(&A)"
 
-#: frame/commands/command_detail.h:88
-msgid "RegEdit Address Bar"
-msgstr "RegEdit のアドレス バー"
+#: frame/commands/command_detail.h
+msgid "RegEdit Address &Bar"
+msgstr "RegEdit のアドレス バー(&B)"
 
-#: frame/commands/command_detail.h:89
-msgid ".reg File Header"
-msgstr ".reg ファイルのヘッダー"
+#: frame/commands/command_detail.h
+msgid ".reg &File Header"
+msgstr ".reg ファイルのヘッダー(&F)"
 
-#: frame/commands/command_detail.h:90
-msgid "PowerShell Drive"
-msgstr "PowerShell ドライブ"
+#: frame/commands/command_detail.h
+msgid "PowerShell &Drive"
+msgstr "PowerShell ドライブ(&D)"
 
-#: frame/commands/command_detail.h:91
-msgid "PowerShell Provider"
-msgstr "PowerShell プロバイダー"
+#: frame/commands/command_detail.h
+msgid "&PowerShell Provider"
+msgstr "PowerShell プロバイダー(&P)"
 
-#: frame/commands/command_detail.h:92
-msgid "Escaped Backslashes"
-msgstr "エスケープしたバックスラッシュ"
+#: frame/commands/command_detail.h
+msgid "&Escaped Backslashes"
+msgstr "エスケープしたバックスラッシュ(&E)"
 
-#: frame/commands/command_detail.h:93
-msgid "Native"
-msgstr "ネイティブ"
+#: frame/commands/command_detail.h
+msgid "&Native"
+msgstr "ネイティブ(&N)"
 
-#: frame/commands/command_detail.h:94
-msgid "Native (Resolved)"
-msgstr "ネイティブ (解決済み)"
+#: frame/commands/command_detail.h
+msgid "Native (&Resolved)"
+msgstr "ネイティブ (解決済み)(&R)"
 
-#: frame/commands/command_detail.h:100 frame/tools/key_handles_window.cpp:476
-#: frame/views/value_loading.cpp:231 frame/views/value_loading.cpp:264
-#: frame/window/notifications.cpp:1321 search/search.cpp:60
-#: search/search.cpp:242
-msgid "Key"
-msgstr "キー"
+#: frame/commands/command_detail.h
+msgid "&Key"
+msgstr "キー(&K)"
 
-#: frame/commands/command_detail.h:101 frame/views/value_loading.cpp:230
-msgid "Volatile Key"
-msgstr "揮発性キー"
+#: frame/commands/command_detail.h
+msgid "&Volatile Key"
+msgstr "揮発性キー(&V)"
 
-#: frame/commands/command_detail.h:103
-msgid "String Value"
-msgstr "文字列値"
+#: frame/commands/command_detail.h
+msgid "&String Value"
+msgstr "文字列値(&S)"
 
-#: frame/commands/command_detail.h:104
-msgid "Binary Value"
-msgstr "バイナリ値"
+#: frame/commands/command_detail.h
+msgid "&Binary Value"
+msgstr "バイナリ値(&B)"
 
-#: frame/commands/command_detail.h:105
-msgid "DWORD (32-bit) Value"
-msgstr "DWORD (32 ビット) 値"
+#: frame/commands/command_detail.h
+msgid "&DWORD (32-bit) Value"
+msgstr "DWORD (32 ビット) 値(&D)"
 
-#: frame/commands/command_detail.h:106
-msgid "QWORD (64-bit) Value"
-msgstr "QWORD (64 ビット) 値"
+#: frame/commands/command_detail.h
+msgid "&QWORD (64-bit) Value"
+msgstr "QWORD (64 ビット) 値(&Q)"
 
-#: frame/commands/command_detail.h:107
-msgid "Multi-String Value"
-msgstr "複数行文字列値"
+#: frame/commands/command_detail.h
+msgid "&Multi-String Value"
+msgstr "複数行文字列値(&M)"
 
-#: frame/commands/command_detail.h:108
-msgid "Expandable String Value"
-msgstr "展開可能な文字列値"
+#: frame/commands/command_detail.h
+msgid "&Expandable String Value"
+msgstr "展開可能な文字列値(&E)"
 
-#: frame/commands/command_detail.h:110
-msgid "Symbolic Link"
-msgstr "シンボリック リンク"
+#: frame/commands/command_detail.h
+msgid "Symbolic &Link"
+msgstr "シンボリック リンク(&L)"
 
-#: frame/commands/context_menus.cpp:81 frame/commands/context_menus.cpp:404
-#: frame/commands/context_menus.cpp:634
-msgid "Copy Key Name"
-msgstr "キー名のコピー"
+#: frame/commands/context_menus.cpp
+msgid "&Copy Key Name"
+msgstr "キー名のコピー(&C)"
 
-#: frame/commands/context_menus.cpp:82 frame/commands/context_menus.cpp:405
-#: frame/commands/context_menus.cpp:635
-msgid "Copy Key Path"
-msgstr "キー パスのコピー"
+#: frame/commands/context_menus.cpp
+msgid "Copy Key &Path"
+msgstr "キー パスのコピー(&P)"
 
-#: frame/commands/context_menus.cpp:83 frame/commands/context_menus.cpp:406
-#: frame/commands/context_menus.cpp:636
-msgid "Copy Key Path As"
-msgstr "キー パスのコピー形式"
+#: frame/commands/context_menus.cpp
+msgid "Copy Key Path &As"
+msgstr "キー パスのコピー形式(&A)"
 
-#: frame/commands/context_menus.cpp:84 frame/commands/context_menus.cpp:361
-#: frame/commands/context_menus.cpp:631 frame/window/menu_bar.cpp:361
-msgid "Modify Comment..."
-msgstr "コメントの変更..."
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "Modif&y Comment..."
+msgstr "コメントの変更(&Y)..."
 
-#: frame/commands/context_menus.cpp:87
-msgid "Open in Source Hive"
-msgstr "元のハイブで開く"
+#: frame/commands/context_menus.cpp
+msgid "&Open in Source Hive"
+msgstr "元のハイブで開く(&O)"
 
-#: frame/commands/context_menus.cpp:91 frame/commands/context_menus.cpp:638
-msgid "On-Disk Hive File"
-msgstr "ディスク上のハイブ ファイル"
+#: frame/commands/context_menus.cpp
+msgid "On-Disk &Hive File"
+msgstr "ディスク上のハイブ ファイル(&H)"
 
-#: frame/commands/context_menus.cpp:95
-msgid "Expand All Subkeys"
-msgstr "すべてのサブキーを展開"
+#: frame/commands/context_menus.cpp
+msgid "Expand All &Subkeys"
+msgstr "すべてのサブキーを展開(&S)"
 
-#: frame/commands/context_menus.cpp:99 frame/commands/context_menus.cpp:410
-#: frame/views/registry_sessions.cpp:1091
-msgid "Create Key"
-msgstr "キーの作成"
+#: frame/commands/context_menus.cpp
+msgid "Crea&te Key"
+msgstr "キーの作成(&T)"
 
-#: frame/commands/context_menus.cpp:101 frame/commands/context_menus.cpp:108
-#: frame/commands/context_menus.cpp:422 frame/commands/context_menus.cpp:470
-#: frame/tools/key_handles_window.cpp:386 frame/window/menu_bar.cpp:225
-#: frame/window/menu_bar.cpp:395
-msgid "Refresh"
-msgstr "最新の情報に更新"
+#: frame/commands/context_menus.cpp frame/tools/key_handles_window.cpp
+#: frame/window/menu_bar.cpp
+msgid "&Refresh"
+msgstr "最新の情報に更新(&R)"
 
-#: frame/commands/context_menus.cpp:104 frame/commands/context_menus.cpp:414
-#: frame/window/menu_bar.cpp:354
-msgid "New"
-msgstr "新規"
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "Ne&w"
+msgstr "新規(&W)"
 
-#: frame/commands/context_menus.cpp:106 frame/commands/context_menus.cpp:393
-#: frame/commands/context_menus.cpp:419 frame/commands/context_menus.cpp:641
-#: frame/window/menu_bar.cpp:330 ui/preset_editor.cpp:460
-msgid "Export..."
-msgstr "エクスポート..."
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "&Export..."
+msgstr "エクスポート(&E)..."
 
-#: frame/commands/context_menus.cpp:110 frame/commands/context_menus.cpp:395
-#: frame/commands/context_menus.cpp:645 frame/window/menu_bar.cpp:374
-msgid "Rename"
-msgstr "名前の変更"
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "Re&name"
+msgstr "名前の変更(&N)"
 
-#: frame/commands/context_menus.cpp:111 frame/commands/context_menus.cpp:212
-#: frame/commands/context_menus.cpp:396 frame/commands/context_menus.cpp:646
-#: frame/window/menu_bar.cpp:223 frame/window/menu_bar.cpp:375
-#: ui/feedback.cpp:792 ui/preset_editor.cpp:457
-msgid "Delete"
-msgstr "削除"
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "&Delete"
+msgstr "削除(&D)"
 
-#: frame/commands/context_menus.cpp:113 frame/commands/context_menus.cpp:426
-#: frame/commands/context_menus.cpp:649 frame/tools/launch_bridge.cpp:231
-#: frame/window/menu_bar.cpp:390
-msgid "Permissions..."
-msgstr "アクセス許可..."
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "Perm&issions..."
+msgstr "アクセス許可(&I)..."
 
-#: frame/commands/context_menus.cpp:114 frame/commands/context_menus.cpp:427
-#: frame/window/menu_bar.cpp:391
-msgid "Key Information..."
-msgstr "キーの情報..."
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "&Key Information..."
+msgstr "キーの情報(&K)..."
 
-#: frame/commands/context_menus.cpp:206 frame/window/menu_bar.cpp:215
-#: frame/window/menu_bar.cpp:351
-msgid "Undo"
-msgstr "元に戻す"
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "&Undo"
+msgstr "元に戻す(&U)"
 
-#: frame/commands/context_menus.cpp:208
-msgid "Cut"
-msgstr "切り取り"
+#: frame/commands/context_menus.cpp
+msgid "Cu&t"
+msgstr "切り取り(&T)"
 
-#: frame/commands/context_menus.cpp:209 frame/commands/context_menus.cpp:464
-#: frame/window/menu_bar.cpp:219 frame/window/menu_bar.cpp:364
-msgid "Copy"
-msgstr "コピー"
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+#: ui/list_view_support.cpp
+msgid "&Copy"
+msgstr "コピー(&C)"
 
-#: frame/commands/context_menus.cpp:210 frame/window/menu_bar.cpp:221
-#: frame/window/menu_bar.cpp:373
-msgid "Paste"
-msgstr "貼り付け"
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "&Paste"
+msgstr "貼り付け(&P)"
 
-#: frame/commands/context_menus.cpp:211
-msgid "Paste and Go"
-msgstr "貼り付けて移動"
+#: frame/commands/context_menus.cpp
+msgid "Paste and &Go"
+msgstr "貼り付けて移動(&G)"
 
-#: frame/commands/context_menus.cpp:284
-msgid "Collapse Key"
-msgstr "キーを折りたたむ"
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+#: ui/list_view_support.cpp
+msgid "Select &All"
+msgstr "すべて選択(&A)"
 
-#: frame/commands/context_menus.cpp:284 frame/commands/context_menus.cpp:326
-msgid "Expand Key"
-msgstr "キーを展開"
+#: frame/commands/context_menus.cpp
+msgid "Co&llapse Key"
+msgstr "キーを折りたたむ(&L)"
 
-#: frame/commands/context_menus.cpp:356 frame/commands/context_menus.cpp:627
-#: frame/window/menu_bar.cpp:356
-msgid "Modify..."
-msgstr "修正..."
+#: frame/commands/context_menus.cpp
+msgid "E&xpand Key"
+msgstr "キーを展開(&X)"
 
-#: frame/commands/context_menus.cpp:357 frame/commands/context_menus.cpp:628
-#: frame/window/menu_bar.cpp:357
-msgid "Modify Binary Data..."
-msgstr "バイナリ データの修正..."
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "&Modify..."
+msgstr "修正(&M)..."
 
-#: frame/commands/context_menus.cpp:358 frame/window/menu_bar.cpp:358
-msgid "Change Data Type..."
-msgstr "データの種類の変更..."
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "Modify &Binary Data..."
+msgstr "バイナリ データの修正(&B)..."
 
-#: frame/commands/context_menus.cpp:359 frame/window/menu_bar.cpp:359
-msgid "Edit Bits..."
-msgstr "ビットの編集..."
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "C&hange Data Type..."
+msgstr "データの種類の変更(&H)..."
 
-#: frame/commands/context_menus.cpp:360 frame/commands/context_menus.cpp:630
-#: frame/window/menu_bar.cpp:360
-msgid "Decode Value..."
-msgstr "値のデコード..."
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "Edit Bit&s..."
+msgstr "ビットの編集(&S)..."
 
-#: frame/commands/context_menus.cpp:362 frame/window/menu_bar.cpp:362
-msgid "Reset to Default"
-msgstr "既定に戻す"
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "Decode &Value..."
+msgstr "値のデコード(&V)..."
 
-#: frame/commands/context_menus.cpp:364
-msgid "Copy Value Name"
-msgstr "値の名前のコピー"
+#: frame/commands/context_menus.cpp frame/window/menu_bar.cpp
+msgid "Reset &to Default"
+msgstr "既定に戻す(&T)"
 
-#: frame/commands/context_menus.cpp:365
-msgid "Copy Value Data"
-msgstr "値のデータのコピー"
+#: frame/commands/context_menus.cpp
+msgid "Co&py Value Name"
+msgstr "値の名前のコピー(&P)"
 
-#: frame/commands/context_menus.cpp:381 frame/commands/context_menus.cpp:390
-msgid "Open Link"
-msgstr "リンクを開く"
+#: frame/commands/context_menus.cpp
+msgid "&Copy Value Data"
+msgstr "値のデータのコピー(&C)"
 
-#: frame/commands/context_menus.cpp:461
-msgid "Open Entry"
-msgstr "項目を開く"
+#: frame/commands/context_menus.cpp
+msgid "&Open Link"
+msgstr "リンクを開く(&O)"
 
-#: frame/commands/context_menus.cpp:462 frame/views/history_workspace.cpp:260
-msgid "Revert"
-msgstr "元に戻す"
+#: frame/commands/context_menus.cpp
+msgid "&Open Entry"
+msgstr "項目を開く(&O)"
 
-#: frame/commands/context_menus.cpp:466
-msgid "Remove from History"
-msgstr "履歴から削除"
+#: frame/commands/context_menus.cpp
+msgid "R&evert"
+msgstr "元に戻す(&E)"
 
-#: frame/commands/context_menus.cpp:473
-msgid "Clear History"
-msgstr "履歴のクリア"
+#: frame/commands/context_menus.cpp
+msgid "Remove &from History"
+msgstr "履歴から削除(&F)"
 
-#: frame/commands/context_menus.cpp:481
+#: frame/commands/context_menus.cpp
+msgid "Clear &History"
+msgstr "履歴のクリア(&H)"
+
+#: frame/commands/context_menus.cpp
 msgid "Failed to open history target."
 msgstr "履歴の参照先を開けませんでした。"
 
-#: frame/commands/context_menus.cpp:613
-msgid "Open First Entry"
-msgstr "最初の項目を開く"
+#: frame/commands/context_menus.cpp
+msgid "Open &First Entry"
+msgstr "最初の項目を開く(&F)"
 
-#: frame/commands/context_menus.cpp:614
-msgid "Open First Entry in New Tab"
-msgstr "最初の項目を新しいタブで開く"
+#: frame/commands/context_menus.cpp
+msgid "Open Fi&rst Entry in New Tab"
+msgstr "最初の項目を新しいタブで開く(&R)"
 
-#: frame/commands/context_menus.cpp:615
-msgid "Open Second Entry"
-msgstr "2 番目の項目を開く"
+#: frame/commands/context_menus.cpp
+msgid "&Open Second Entry"
+msgstr "2 番目の項目を開く(&O)"
 
-#: frame/commands/context_menus.cpp:616
-msgid "Open Second Entry in New Tab"
-msgstr "2 番目の項目を新しいタブで開く"
+#: frame/commands/context_menus.cpp
+msgid "Open &Second Entry in New Tab"
+msgstr "2 番目の項目を新しいタブで開く(&S)"
 
-#: frame/commands/context_menus.cpp:621 frame/tools/key_handles_window.cpp:375
-msgid "Open Key"
-msgstr "キーを開く"
+#: frame/commands/context_menus.cpp frame/tools/key_handles_window.cpp
+msgid "Open &Key"
+msgstr "キーを開く(&K)"
 
-#: frame/commands/context_menus.cpp:622 frame/tools/key_handles_window.cpp:376
-msgid "Open Key in New Tab"
-msgstr "キーを新しいタブで開く"
+#: frame/commands/context_menus.cpp frame/tools/key_handles_window.cpp
+msgid "Open Key in New &Tab"
+msgstr "キーを新しいタブで開く(&T)"
 
-#: frame/commands/file_view_commands.cpp:43
+#: frame/commands/file_view_commands.cpp
 msgid "Hive files can only be restored into the local registry, outside HKEY_CLASSES_ROOT."
 msgstr "ハイブ ファイルを復元できるのは、HKEY_CLASSES_ROOT 以外のローカル レジストリのみです。"
 
-#: frame/commands/file_view_commands.cpp:48
+#: frame/commands/file_view_commands.cpp
 msgid "Replace all contents of this key with the hive file?"
 msgstr "このキーの内容をすべてハイブ ファイルの内容で置き換えますか?"
 
-#: frame/commands/file_view_commands.cpp:49
+#: frame/commands/file_view_commands.cpp
 msgid "Replace all contents of this key with the hive file? This key is too large to undo the restore."
 msgstr "このキーの内容をすべてハイブ ファイルの内容で置き換えますか? このキーは大きすぎるため、復元を元に戻せません。"
 
-#: frame/commands/file_view_commands.cpp:50
+#: frame/commands/file_view_commands.cpp
 msgid "Restore Key"
 msgstr "キーの復元"
 
-#: frame/commands/file_view_commands.cpp:50
+#: frame/commands/file_view_commands.cpp
 msgid "Restore"
 msgstr "復元"
 
-#: frame/commands/file_view_commands.cpp:357
+#: frame/commands/file_view_commands.cpp
 msgid "Comments imported"
 msgstr "インポートしたコメント"
 
-#: frame/commands/file_view_commands.cpp:361
+#: frame/commands/file_view_commands.cpp
 msgid "Failed to import comments."
 msgstr "コメントをインポートできませんでした。"
 
-#: frame/commands/file_view_commands.cpp:380
+#: frame/commands/file_view_commands.cpp
 msgid "Failed to export comments."
 msgstr "コメントをエクスポートできませんでした。"
 
-#: frame/commands/file_view_commands.cpp:392
+#: frame/commands/file_view_commands.cpp
 msgid "Loading hives isn't supported for remote registries."
 msgstr "リモート レジストリではハイブの読み込みはサポートされていません。"
 
-#: frame/commands/file_view_commands.cpp:419
+#: frame/commands/file_view_commands.cpp
 msgid "Unloading hives isn't supported for remote registries."
 msgstr "リモート レジストリではハイブのアンロードはサポートされていません。"
 
-#: frame/commands/file_view_commands.cpp:432
+#: frame/commands/file_view_commands.cpp
 msgid "Select a hive you loaded under HKEY_LOCAL_MACHINE or HKEY_USERS first."
 msgstr "先に HKEY_LOCAL_MACHINE または HKEY_USERS の下に読み込んだハイブを選択してください。"
 
-#: frame/commands/file_view_commands.cpp:435
+#: frame/commands/file_view_commands.cpp
 msgid "Unload this key and all of its subkeys?"
 msgstr "このキーとすべてのサブキーをアンロードしますか?"
 
-#: frame/commands/file_view_commands.cpp:435
+#: frame/commands/file_view_commands.cpp
 msgid "Unload"
 msgstr "アンロード"
 
-#: frame/commands/file_view_commands.cpp:601
+#: frame/commands/file_view_commands.cpp
 msgid "Expanded keys"
 msgstr "展開済みのキー"
 
-#: frame/commands/file_view_commands.cpp:601
+#: frame/commands/file_view_commands.cpp
 msgid "This key has too many subkeys to expand at once."
 msgstr "このキーには、一度に展開できる数を超えるサブキーがあります。"
 
-#: frame/commands/file_view_commands.cpp:782
+#: frame/commands/file_view_commands.cpp
 msgid "Edit Active Defaults"
 msgstr "使用中の既定値の編集"
 
-#: frame/commands/file_view_commands.cpp:783
-#: frame/commands/file_view_commands.cpp:845
+#: frame/commands/file_view_commands.cpp
 msgid "One default path per line."
 msgstr "1 行につき 1 つの既定値ファイルのパスを指定してください。"
 
-#: frame/commands/file_view_commands.cpp:813
+#: frame/commands/file_view_commands.cpp
 msgid "Edit Active Traces"
 msgstr "使用中の Trace の編集"
 
-#: frame/commands/file_view_commands.cpp:814
-#: frame/commands/file_view_commands.cpp:865
+#: frame/commands/file_view_commands.cpp
 msgid "One trace path per line."
 msgstr "1 行につき 1 つの Trace ファイルのパスを指定してください。"
 
-#: frame/commands/file_view_commands.cpp:844
+#: frame/commands/file_view_commands.cpp
 msgid "Edit Recent Defaults"
 msgstr "最近使った既定値の編集"
 
-#: frame/commands/file_view_commands.cpp:864
+#: frame/commands/file_view_commands.cpp
 msgid "Edit Recent Traces"
 msgstr "最近使った Trace の編集"
 
-#: frame/commands/mutation_commands.cpp:79
+#: frame/commands/mutation_commands.cpp
 msgid "Symbolic links can only be created in the local registry."
 msgstr "シンボリック リンクはローカル レジストリでのみ作成できます。"
 
-#: frame/commands/mutation_commands.cpp:95
+#: frame/commands/mutation_commands.cpp
 msgid "The target must be a full registry path under a standard root."
 msgstr "リンク先は、標準のルートの下にある完全なレジストリ パスである必要があります。"
 
-#: frame/commands/mutation_commands.cpp:101
+#: frame/commands/mutation_commands.cpp
+msgid "Windows doesn't follow a link from a user hive into another user's hive or HKEY_LOCAL_MACHINE, so this link may not open. Create it anyway?"
+msgstr ""
+
+#: frame/commands/mutation_commands.cpp
+msgid "New Symbolic Link"
+msgstr "新しいシンボリック リンク"
+
+#: frame/commands/mutation_commands.cpp
 msgid "Failed to create the symbolic link."
 msgstr "シンボリック リンクを作成できませんでした。"
 
-#: frame/commands/mutation_commands.cpp:177
-#: frame/commands/mutation_commands.cpp:204
-#: frame/commands/mutation_commands.cpp:487
+#: frame/commands/mutation_commands.cpp
 msgid "Failed to create the key."
 msgstr "キーを作成できませんでした。"
 
-#: frame/commands/mutation_commands.cpp:211
+#: frame/commands/mutation_commands.cpp
 msgid "Created a volatile key, because its parent key is volatile."
 msgstr "親キーが揮発性のため、揮発性キーを作成しました。"
 
-#: frame/commands/mutation_commands.cpp:351
-#: frame/commands/mutation_commands.cpp:494
+#: frame/commands/mutation_commands.cpp
 msgid "Failed to set value."
 msgstr "値を設定できませんでした。"
 
-#: frame/commands/mutation_commands.cpp:428
-#: frame/commands/mutation_commands.cpp:593
-#: frame/commands/mutation_commands.cpp:801
+#: frame/commands/mutation_commands.cpp
 msgid "Failed to update value."
 msgstr "値を更新できませんでした。"
 
-#: frame/commands/mutation_commands.cpp:775
-#: frame/commands/mutation_commands.cpp:1023 ui/feedback.cpp:774
+#: frame/commands/mutation_commands.cpp ui/feedback.cpp
 msgid "Delete Value"
 msgstr "値の削除"
 
-#: frame/commands/mutation_commands.cpp:781
-#: frame/commands/mutation_commands.cpp:1035
+#: frame/commands/mutation_commands.cpp
 msgid "Failed to delete value."
 msgstr "値を削除できませんでした。"
 
-#: frame/commands/mutation_commands.cpp:853
-#: frame/commands/mutation_commands.cpp:865
-#: frame/commands/mutation_commands.cpp:982
-#: frame/commands/mutation_commands.cpp:989 ui/feedback.cpp:770
+#: frame/commands/mutation_commands.cpp ui/feedback.cpp
 msgid "Delete Key"
 msgstr "キーの削除"
 
-#: frame/commands/mutation_commands.cpp:865
-#: frame/commands/mutation_commands.cpp:989
+#: frame/commands/mutation_commands.cpp
 msgid "Part of this key couldn't be read, so this delete can't be undone. Delete anyway?"
 msgstr "このキーの一部を読み取れなかったため、この削除は元に戻せません。それでも削除しますか?"
 
-#: frame/commands/mutation_commands.cpp:872
-#: frame/commands/mutation_commands.cpp:996
+#: frame/commands/mutation_commands.cpp
 msgid "Failed to delete key."
 msgstr "キーを削除できませんでした。"
 
-#: frame/commands/mutation_commands.cpp:911
+#: frame/commands/mutation_commands.cpp
 msgid "Bulk deletion only supports registry values."
 msgstr "一括削除はレジストリ値のみサポートしています。"
 
-#: frame/commands/mutation_commands.cpp:928
+#: frame/commands/mutation_commands.cpp
 msgid "Failed to read all selected values."
 msgstr "選択した値のすべてを読み取ることはできませんでした。"
 
-#: frame/commands/mutation_commands.cpp:940 ui/feedback.cpp:774
+#: frame/commands/mutation_commands.cpp ui/feedback.cpp
 msgid "Delete Values"
 msgstr "複数の値の削除"
 
-#: frame/commands/mutation_commands.cpp:974
+#: frame/commands/mutation_commands.cpp
 msgid "Some of the selected values couldn't be deleted."
 msgstr "選択した値の一部を削除できませんでした。"
 
-#: frame/commands/tools_commands.cpp:81
+#: frame/commands/tools_commands.cpp
 msgid "The key couldn't be found."
 msgstr "キーが見つかりませんでした。"
 
-#: frame/commands/undo.cpp:184 frame/window/notifications.cpp:811
+#: frame/commands/undo.cpp frame/window/notifications.cpp
 msgid "The value was copied to the new name but the old name couldn't be removed. Both names now exist."
 msgstr "新しい名前に値をコピーしましたが、元の名前を削除できませんでした。現在は両方の名前が存在します。"
 
-#: frame/commands/workspace_commands.cpp:40
+#: frame/commands/workspace_commands.cpp
 msgid "Restart RegKit now to apply the language?"
 msgstr "言語を適用するために RegKit を今すぐ再起動しますか?"
 
-#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:438
+#: frame/commands/workspace_commands.cpp
 msgid "Language"
 msgstr "言語"
 
-#: frame/commands/workspace_commands.cpp:40 frame/window/menu_bar.cpp:451
+#: frame/commands/workspace_commands.cpp
 msgid "Restart"
 msgstr "再起動"
 
-#: frame/commands/workspace_commands.cpp:40
+#: frame/commands/workspace_commands.cpp
 msgid "Later"
 msgstr "後で"
 
-#: frame/commands/workspace_commands.cpp:241
+#: frame/commands/workspace_commands.cpp
 msgid "Backup/restore mode needs the backup and restore privileges. Run RegKit elevated."
 msgstr "バックアップ/復元モードにはバックアップと復元の特権が必要です。RegKit を昇格して実行してください。"
 
-#: frame/commands/workspace_commands.cpp:259
+#: frame/commands/workspace_commands.cpp
 msgid "Reset all settings and restart RegKit?"
 msgstr "すべての設定をリセットして RegKit を再起動しますか?"
 
-#: frame/commands/workspace_commands.cpp:259
+#: frame/commands/workspace_commands.cpp
 msgid "Reset Settings"
 msgstr "設定のリセット"
 
-#: frame/commands/workspace_commands.cpp:259
+#: frame/commands/workspace_commands.cpp
 msgid "Reset"
 msgstr "リセット"
 
-#: frame/search/compare_command.cpp:107
+#: frame/search/compare_command.cpp
 msgid "Invalid registry path."
 msgstr "レジストリ パスが無効です。"
 
-#: frame/search/compare_command.cpp:114 frame/views/registry_sessions.cpp:1077
-#: frame/views/registry_sessions.cpp:1119 frame/window/message_routes.cpp:1278
-#: launch/program.cpp:231 launch/program.cpp:620
+#: frame/search/compare_command.cpp frame/views/registry_sessions.cpp
+#: frame/window/message_routes.cpp launch/program.cpp
 msgid "Registry path not found."
 msgstr "レジストリ パスが見つかりません。"
 
-#: frame/search/compare_command.cpp:152 frame/window/menu_bar.cpp:520
+#: frame/search/compare_command.cpp
 msgid "Compare Registries..."
 msgstr "レジストリの比較..."
 
-#: frame/search/compare_command.cpp:170 frame/search/compare_dialog.cpp:329
-#: frame/sources/regfile_commands.cpp:199 regfile/registry_transfer.cpp:155
+#: frame/search/compare_command.cpp frame/search/compare_dialog.cpp
+#: frame/sources/regfile_commands.cpp regfile/registry_transfer.cpp
 msgid "Failed to read registry file."
 msgstr "レジストリ ファイルを読み取れませんでした。"
 
-#: frame/search/compare_command.cpp:201
+#: frame/search/compare_command.cpp
 msgid "Failed to read the hive file."
 msgstr "ハイブ ファイルを読み取れませんでした。"
 
-#: frame/search/compare_command.cpp:210
+#: frame/search/compare_command.cpp
 msgid "Select a computer to compare against."
 msgstr "比較対象のコンピューターを選択してください。"
 
-#: frame/search/compare_command.cpp:226
+#: frame/search/compare_command.cpp
 msgid "Network registry path not found."
 msgstr "ネットワーク レジストリのパスが見つかりません。"
 
-#: frame/search/compare_command.cpp:274 frame/search/search_window.cpp:1669
+#: frame/search/compare_command.cpp frame/search/search_window.cpp
 msgid "Skipped"
 msgstr "スキップ"
 
-#: frame/search/compare_command.cpp:274 search/compare.cpp:152
+#: frame/search/compare_command.cpp search/compare.cpp
 msgid "Couldn't read the registry key."
 msgstr "レジストリ キーを読み取れませんでした。"
 
-#: frame/search/compare_command.cpp:305
+#: frame/search/compare_command.cpp
 msgid "Registry Comparison"
 msgstr "レジストリの比較"
 
-#: frame/search/compare_dialog.cpp:34 frame/tools/convert_dialog.cpp:223
-#: frame/tools/convert_dialog.cpp:224
+#: frame/search/compare_dialog.cpp frame/tools/convert_dialog.cpp
 msgid "Reg File"
 msgstr ".reg ファイル"
 
-#: frame/search/compare_dialog.cpp:36 search/search.cpp:45
+#: frame/search/compare_dialog.cpp search/search.cpp
 msgid "Network Registry"
 msgstr "ネットワーク レジストリ"
 
-#: frame/search/compare_dialog.cpp:38
+#: frame/search/compare_dialog.cpp
 msgid "Offline Hive"
 msgstr "オフライン ハイブ"
 
-#: frame/search/compare_dialog.cpp:40 frame/tools/convert_dialog.cpp:223
+#: frame/search/compare_dialog.cpp frame/tools/convert_dialog.cpp
 msgid "Registry"
 msgstr "レジストリ"
 
-#: frame/search/compare_dialog.cpp:106
+#: frame/search/compare_dialog.cpp
 msgid "Computer:"
 msgstr "コンピューター:"
 
-#: frame/search/compare_dialog.cpp:106
+#: frame/search/compare_dialog.cpp
 msgid "File:"
 msgstr "ファイル:"
 
-#: frame/search/compare_dialog.cpp:267 frame/search/compare_dialog.cpp:335
-#: search/compare.cpp:176
+#: frame/search/compare_dialog.cpp search/compare.cpp
 msgid "No registry keys were found in the .reg file."
 msgstr ".reg ファイルにレジストリ キーが見つかりませんでした。"
 
-#: frame/search/compare_dialog.cpp:298 frame/tools/convert_dialog.cpp:124
+#: frame/search/compare_dialog.cpp frame/tools/convert_dialog.cpp
 msgid "Registry key is required."
 msgstr "レジストリ キーを指定してください。"
 
-#: frame/search/compare_dialog.cpp:308 frame/views/registry_sessions.cpp:734
+#: frame/search/compare_dialog.cpp frame/views/registry_sessions.cpp
 msgid "Computer name is required."
 msgstr "コンピューター名を指定してください。"
 
-#: frame/search/compare_dialog.cpp:318
+#: frame/search/compare_dialog.cpp
 msgid "Hive file path is required."
 msgstr "ハイブ ファイルのパスを指定してください。"
 
-#: frame/search/compare_dialog.cpp:318
+#: frame/search/compare_dialog.cpp
 msgid "Registry file path is required."
 msgstr "レジストリ ファイルのパスを指定してください。"
 
-#: frame/search/compare_dialog.cpp:359
+#: frame/search/compare_dialog.cpp
 msgid "The selected key path wasn't found in the .reg file."
 msgstr "選択したキー パスは .reg ファイルに見つかりませんでした。"
 
-#: frame/search/search_window.cpp:162 frame/search/search_window.cpp:183
+#: frame/search/search_window.cpp
 #, c-format
 msgid "Results: %llu"
 msgstr "結果: %llu"
 
-#: frame/search/search_window.cpp:169
+#: frame/search/search_window.cpp
 #, c-format
 msgid "Searching... Results: ~%llu | Scanned: %llu"
 msgstr "検索中... 結果: ~%llu | 検索済み: %llu"
 
-#: frame/search/search_window.cpp:173
+#: frame/search/search_window.cpp
 #, c-format
 msgid "Searching... Results: ~%llu"
 msgstr "検索中... 結果: ~%llu"
 
-#: frame/search/search_window.cpp:179
+#: frame/search/search_window.cpp
 #, c-format
 msgid "Results: %llu (%.2fs)"
 msgstr "結果: %llu (%.2f 秒)"
 
-#: frame/search/search_window.cpp:198
+#: frame/search/search_window.cpp
 msgid "Loading"
 msgstr "読み込み中"
 
-#: frame/search/search_window.cpp:230
+#: frame/search/search_window.cpp
+#, fuzzy
+msgid "The contents of this key couldn't be read."
+msgstr "定義ファイルを読み取れませんでした。"
+
+#: frame/search/search_window.cpp
 msgid "HKCU"
 msgstr ""
 
-#: frame/search/search_window.cpp:233
+#: frame/search/search_window.cpp
 msgid "HKCR"
 msgstr ""
 
-#: frame/search/search_window.cpp:240 frame/window/notifications.cpp:43
+#: frame/search/search_window.cpp frame/window/notifications.cpp
 msgid "Backup/restore mode"
 msgstr "バックアップ/復元モード"
 
-#: frame/search/search_window.cpp:242
+#: frame/search/search_window.cpp
 #, c-format
 msgid "Keys: %d"
 msgstr "キー: %d"
 
-#: frame/search/search_window.cpp:244
+#: frame/search/search_window.cpp
 #, c-format
 msgid "Values: %d"
 msgstr "値: %d"
 
-#: frame/search/search_window.cpp:246
+#: frame/search/search_window.cpp
 #, c-format
 msgid "Selected: %d"
 msgstr "選択数: %d"
 
-#: frame/search/search_window.cpp:574 frame/search/search_window.cpp:1384
+#: frame/search/search_window.cpp
 msgid "Starting key path wasn't found."
 msgstr "開始キーのパスが見つかりませんでした。"
 
-#: frame/search/search_window.cpp:585 frame/search/search_window.cpp:784
-#: frame/search/search_window.cpp:1394
+#: frame/search/search_window.cpp
 msgid "Select a starting key first."
 msgstr "先に開始キーを選択してください。"
 
-#: frame/search/search_window.cpp:799
+#: frame/search/search_window.cpp
 msgid "No keys to search in the selected sources."
 msgstr "選択した検索元に検索対象のキーがありません。"
 
-#: frame/search/search_window.cpp:845
+#: frame/search/search_window.cpp
 msgid "Anomalies"
 msgstr "異常"
 
-#: frame/search/search_window.cpp:845 frame/search/search_window.cpp:848
-#: frame/views/history_workspace.cpp:606 frame/window/menu_bar.cpp:207
+#: frame/search/search_window.cpp frame/views/history_workspace.cpp
+#: frame/window/menu_bar.cpp
 msgid "Find"
 msgstr "検索"
 
-#: frame/search/search_window.cpp:1371 frame/window/menu_bar.cpp:243
+#: frame/search/search_window.cpp frame/window/menu_bar.cpp
 msgid "Read only mode is enabled."
 msgstr "読み取り専用モードが有効になっています。"
 
-#: frame/search/search_window.cpp:1407
+#: frame/search/search_window.cpp
 msgid "Replace is already running."
 msgstr "置換は既に実行中です。"
 
-#: frame/search/search_window.cpp:1662 frame/search/search_window.cpp:1679
+#: frame/search/search_window.cpp
 msgid "Replaced"
 msgstr "置換済み"
 
-#: frame/search/search_window.cpp:1665 frame/search/search_window.cpp:1680
+#: frame/search/search_window.cpp
 msgid "Failed"
 msgstr "失敗"
 
-#: frame/search/search_window.cpp:1673
+#: frame/search/search_window.cpp
 msgid "cancelled"
 msgstr "キャンセル済み"
 
-#: frame/search/search_window.cpp:1679
+#: frame/search/search_window.cpp
 msgid "Replace finished with some failures."
 msgstr "置換は完了しましたが、一部失敗しました。"
 
-#: frame/search/search_window.cpp:1683
+#: frame/search/search_window.cpp
 msgid "Skipped, the replacement isn't valid for the value type"
 msgstr "置換内容が値の種類に適合しないためスキップ"
 
-#: frame/search/search_window.cpp:1687
+#: frame/search/search_window.cpp
 msgid "Copied to the new name, the old name couldn't be removed"
 msgstr "新しい名前にコピー済み、元の名前を削除できませんでした"
 
-#: frame/sources/default_commands.cpp:36
+#: frame/sources/default_commands.cpp
 msgid "Default file not found."
 msgstr "既定値ファイルが見つかりません。"
 
-#: frame/sources/default_commands.cpp:81
+#: frame/sources/default_commands.cpp
 msgid "Default entries"
 msgstr "既定値の項目"
 
-#: frame/sources/regfile_commands.cpp:33
+#: frame/sources/regfile_commands.cpp
 msgid "Failed to save registry file."
 msgstr "レジストリ ファイルを保存できませんでした。"
 
-#: frame/sources/regfile_commands.cpp:62
+#: frame/sources/regfile_commands.cpp
 msgid "Failed to export registry file."
 msgstr "レジストリ ファイルをエクスポートできませんでした。"
 
-#: frame/sources/regfile_commands.cpp:239 launch/program.cpp:232
+#: frame/sources/regfile_commands.cpp launch/program.cpp
 msgid "Registry file not found."
 msgstr "レジストリ ファイルが見つかりません。"
 
-#: frame/sources/regfile_commands.cpp:245
+#: frame/sources/regfile_commands.cpp
 msgid "Registry File"
 msgstr "レジストリ ファイル"
 
-#: frame/sources/trace_commands.cpp:250
+#: frame/sources/trace_commands.cpp
 msgid "Trace file not found."
 msgstr "Trace ファイルが見つかりません。"
 
-#: frame/sources/trace_commands.cpp:308
+#: frame/sources/trace_commands.cpp
 msgid "Trace entries"
 msgstr "Trace の項目"
 
-#: frame/tools/convert_dialog.cpp:124
+#: frame/tools/convert_dialog.cpp
 msgid "Input file path is required."
 msgstr "入力ファイルのパスを指定してください。"
 
-#: frame/tools/convert_dialog.cpp:129
+#: frame/tools/convert_dialog.cpp
 msgid "Output file path is required."
 msgstr "出力ファイルのパスを指定してください。"
 
-#: frame/tools/convert_dialog.cpp:134
+#: frame/tools/convert_dialog.cpp
 msgid "The output file can't be the input file."
 msgstr "出力ファイルを入力ファイルと同じにすることはできません。"
 
-#: frame/tools/convert_dialog.cpp:162
+#: frame/tools/convert_dialog.cpp
 msgid "The output file couldn't be written."
 msgstr "出力ファイルを書き込めませんでした。"
 
-#: frame/tools/convert_dialog.cpp:223 frame/tools/convert_dialog.cpp:224
+#: frame/tools/convert_dialog.cpp
 msgid "Batch File"
 msgstr "バッチ ファイル"
 
-#: frame/tools/convert_dialog.cpp:223 frame/tools/convert_dialog.cpp:224
+#: frame/tools/convert_dialog.cpp
 msgid "PowerShell Script"
 msgstr "PowerShell スクリプト"
 
-#: frame/tools/key_handles_window.cpp:222
+#: frame/tools/key_handles_window.cpp
 msgid "Scanning handles..."
 msgstr "ハンドルを検索中..."
 
-#: frame/tools/key_handles_window.cpp:226
+#: frame/tools/key_handles_window.cpp
 msgid "Handles couldn't be enumerated."
 msgstr "ハンドルを列挙できませんでした。"
 
-#: frame/tools/key_handles_window.cpp:230
+#: frame/tools/key_handles_window.cpp
 msgid "Handles"
 msgstr "ハンドル"
 
-#: frame/tools/key_handles_window.cpp:231
+#: frame/tools/key_handles_window.cpp
 msgid "Shown"
 msgstr "表示数"
 
-#: frame/tools/key_handles_window.cpp:232
+#: frame/tools/key_handles_window.cpp
 msgid "Inaccessible processes"
 msgstr "アクセスできないプロセス"
 
-#: frame/tools/key_handles_window.cpp:353
+#: frame/tools/key_handles_window.cpp
 msgid ""
 "Closing a handle owned by another process can make that process malfunction or crash.\n"
 "\n"
@@ -1591,379 +1483,393 @@ msgstr ""
 "\n"
 "各ハンドルは最新のスナップショットと照合してから閉じますが、照合から閉じるまでの間にハンドルが閉じられ、再利用されることもあります。"
 
-#: frame/tools/key_handles_window.cpp:356
+#: frame/tools/key_handles_window.cpp
 msgid "Close Handle"
 msgstr "ハンドルを閉じる"
 
-#: frame/tools/key_handles_window.cpp:356
+#: frame/tools/key_handles_window.cpp
 msgid "Close Handles"
 msgstr "複数のハンドルを閉じる"
 
-#: frame/tools/key_handles_window.cpp:356 frame/tools/update_checker.cpp:512
+#: frame/tools/key_handles_window.cpp frame/tools/update_checker.cpp
 msgid "Close"
 msgstr "閉じる"
 
-#: frame/tools/key_handles_window.cpp:364
+#: frame/tools/key_handles_window.cpp
 msgid "Not all handles were closed."
 msgstr "一部のハンドルを閉じられませんでした。"
 
-#: frame/tools/key_handles_window.cpp:378
-msgid "Copy Key"
-msgstr "キーのコピー"
+#: frame/tools/key_handles_window.cpp
+msgid "Cop&y Key"
+msgstr "キーのコピー(&Y)"
 
-#: frame/tools/key_handles_window.cpp:379
-msgid "Copy Native Name"
-msgstr "ネイティブ名のコピー"
+#: frame/tools/key_handles_window.cpp
+msgid "Copy &Native Name"
+msgstr "ネイティブ名のコピー(&N)"
 
-#: frame/tools/key_handles_window.cpp:380
-msgid "Copy Process"
-msgstr "プロセスのコピー"
+#: frame/tools/key_handles_window.cpp
+msgid "Copy &Process"
+msgstr "プロセスのコピー(&P)"
 
-#: frame/tools/key_handles_window.cpp:381
-msgid "Copy PID"
-msgstr "PID のコピー"
+#: frame/tools/key_handles_window.cpp
+msgid "Copy P&ID"
+msgstr "PID のコピー(&I)"
 
-#: frame/tools/key_handles_window.cpp:382
-msgid "Copy Handle"
-msgstr "ハンドルのコピー"
+#: frame/tools/key_handles_window.cpp
+msgid "Copy &Handle"
+msgstr "ハンドルのコピー(&H)"
 
-#: frame/tools/key_handles_window.cpp:383
-msgid "Copy Access"
-msgstr "アクセス権のコピー"
+#: frame/tools/key_handles_window.cpp
+msgid "C&opy Access"
+msgstr "アクセス権のコピー(&O)"
 
-#: frame/tools/key_handles_window.cpp:388
-msgid "Close Handle..."
-msgstr "ハンドルを閉じる..."
+#: frame/tools/key_handles_window.cpp
+msgid "C&lose Handle..."
+msgstr "ハンドルを閉じる(&L)..."
 
-#: frame/tools/key_handles_window.cpp:475
+#: frame/tools/key_handles_window.cpp
 msgid "Filter"
 msgstr "フィルター"
 
-#: frame/tools/key_handles_window.cpp:476
+#: frame/tools/key_handles_window.cpp
 msgid "Process"
 msgstr "プロセス"
 
-#: frame/tools/key_handles_window.cpp:476
+#: frame/tools/key_handles_window.cpp
 msgid "PID"
 msgstr ""
 
-#: frame/tools/key_handles_window.cpp:476
+#: frame/tools/key_handles_window.cpp
 msgid "Handle"
 msgstr "ハンドル"
 
-#: frame/tools/key_handles_window.cpp:476
+#: frame/tools/key_handles_window.cpp
 msgid "Object Address"
 msgstr "オブジェクト アドレス"
 
-#: frame/tools/key_handles_window.cpp:476 frame/tools/launch_bridge.cpp:224
+#: frame/tools/key_handles_window.cpp frame/views/value_loading.cpp
+#: frame/window/notifications.cpp search/search.cpp
+msgid "Key"
+msgstr "キー"
+
+#: frame/tools/key_handles_window.cpp frame/tools/launch_bridge.cpp
 msgid "Access"
 msgstr "アクセス権"
 
-#: frame/tools/key_handles_window.cpp:476
+#: frame/tools/key_handles_window.cpp
 msgid "Attributes"
 msgstr "属性"
 
-#: frame/tools/key_handles_window.cpp:476
+#: frame/tools/key_handles_window.cpp
 msgid "Native Name"
 msgstr "ネイティブ名"
 
-#: frame/tools/launch_bridge.cpp:36
+#: frame/tools/key_handles_window.cpp frame/window/lifetime.cpp
+msgid "Status Bar"
+msgstr "ステータス バー"
+
+#: frame/tools/launch_bridge.cpp
 msgid "Not set (medium)"
 msgstr "未設定 (中)"
 
-#: frame/tools/launch_bridge.cpp:41
+#: frame/tools/launch_bridge.cpp
 msgid "Untrusted"
 msgstr "信頼されていない"
 
-#: frame/tools/launch_bridge.cpp:42
+#: frame/tools/launch_bridge.cpp
 msgid "Low"
 msgstr "低"
 
-#: frame/tools/launch_bridge.cpp:43
+#: frame/tools/launch_bridge.cpp
 msgid "Medium"
 msgstr "中"
 
-#: frame/tools/launch_bridge.cpp:44
+#: frame/tools/launch_bridge.cpp
 msgid "High"
 msgstr "高"
 
-#: frame/tools/launch_bridge.cpp:45 frame/window/menu_bar.cpp:417
+#: frame/tools/launch_bridge.cpp
 msgid "System"
 msgstr "システム"
 
-#: frame/tools/launch_bridge.cpp:46
+#: frame/tools/launch_bridge.cpp
 msgid "Protected process"
 msgstr "保護されたプロセス"
 
-#: frame/tools/launch_bridge.cpp:65
+#: frame/tools/launch_bridge.cpp
 msgid "Key Information"
 msgstr "キーの情報"
 
-#: frame/tools/launch_bridge.cpp:75 frame/views/value_loading.cpp:315
-#: ui/feedback.cpp:712
+#: frame/tools/launch_bridge.cpp frame/views/value_loading.cpp ui/feedback.cpp
 msgid "Yes"
 msgstr "はい"
 
-#: frame/tools/launch_bridge.cpp:75 frame/views/value_loading.cpp:313
-#: frame/views/value_loading.cpp:380 ui/feedback.cpp:712
+#: frame/tools/launch_bridge.cpp frame/views/value_loading.cpp ui/feedback.cpp
 msgid "No"
 msgstr "いいえ"
 
-#: frame/tools/launch_bridge.cpp:85 frame/tools/launch_bridge.cpp:112
-#: frame/tools/launch_bridge.cpp:174 registry/value_decoder.cpp:733
+#: frame/tools/launch_bridge.cpp registry/value_decoder.cpp
 msgid "None"
 msgstr "なし"
 
-#: frame/tools/launch_bridge.cpp:88
+#: frame/tools/launch_bridge.cpp
 msgid "General"
 msgstr "全般"
 
-#: frame/tools/launch_bridge.cpp:89
+#: frame/tools/launch_bridge.cpp
 msgid "Contents"
 msgstr "内容"
 
-#: frame/tools/launch_bridge.cpp:90 registry/resource_list.cpp:273
-#: registry/resource_list.cpp:285 registry/resource_list.cpp:289
-#: registry/resource_list.cpp:306 registry/resource_list.cpp:365
-#: registry/resource_list.cpp:369 registry/resource_list.cpp:375
-#: registry/resource_list.cpp:382
+#: frame/tools/launch_bridge.cpp registry/resource_list.cpp
 msgid "Flags"
 msgstr "フラグ"
 
-#: frame/tools/launch_bridge.cpp:97
+#: frame/tools/launch_bridge.cpp
 msgid "Native name"
 msgstr "ネイティブ名"
 
-#: frame/tools/launch_bridge.cpp:101 frame/views/browse_view.cpp:254
+#: frame/tools/launch_bridge.cpp frame/views/browse_view.cpp
 msgid "Source"
 msgstr "ソース"
 
-#: frame/tools/launch_bridge.cpp:101 frame/views/value_loading.cpp:249
+#: frame/tools/launch_bridge.cpp frame/views/value_loading.cpp
 msgid "Machine"
 msgstr "コンピューター"
 
-#: frame/tools/launch_bridge.cpp:101 frame/views/value_loading.cpp:249
+#: frame/tools/launch_bridge.cpp frame/views/value_loading.cpp
 msgid "User"
 msgstr "ユーザー"
 
-#: frame/tools/launch_bridge.cpp:107
+#: frame/tools/launch_bridge.cpp
 msgid "Hive file"
 msgstr "ハイブ ファイル"
 
-#: frame/tools/launch_bridge.cpp:108
+#: frame/tools/launch_bridge.cpp
 msgid "Hive root"
 msgstr "ハイブのルート"
 
-#: frame/tools/launch_bridge.cpp:117
+#: frame/tools/launch_bridge.cpp
 msgid "Class name"
 msgstr "クラス名"
 
-#: frame/tools/launch_bridge.cpp:122
+#: frame/tools/launch_bridge.cpp
 msgid "Last write time"
 msgstr "最終書き込み日時"
 
-#: frame/tools/launch_bridge.cpp:126
+#: frame/tools/launch_bridge.cpp
 msgid "Last write time (UTC)"
 msgstr "最終書き込み日時 (UTC)"
 
-#: frame/tools/launch_bridge.cpp:129
+#: frame/tools/launch_bridge.cpp
 msgid "Subkeys"
 msgstr "サブキー"
 
-#: frame/tools/launch_bridge.cpp:131
+#: frame/tools/launch_bridge.cpp
 msgid "Longest subkey name"
 msgstr "最長のサブキー名"
 
-#: frame/tools/launch_bridge.cpp:132
+#: frame/tools/launch_bridge.cpp
 msgid "Longest class name"
 msgstr "最長のクラス名"
 
-#: frame/tools/launch_bridge.cpp:133
+#: frame/tools/launch_bridge.cpp
 msgid "Longest value name"
 msgstr "最長の値名"
 
-#: frame/tools/launch_bridge.cpp:134
+#: frame/tools/launch_bridge.cpp
 msgid "Largest value data"
 msgstr "値データの最大サイズ"
 
-#: frame/tools/launch_bridge.cpp:139
+#: frame/tools/launch_bridge.cpp
 msgid "Volatile"
 msgstr "揮発性"
 
-#: frame/tools/launch_bridge.cpp:142
+#: frame/tools/launch_bridge.cpp
 msgid "Symbolic link"
 msgstr "シンボリック リンク"
 
-#: frame/tools/launch_bridge.cpp:149
+#: frame/tools/launch_bridge.cpp
 msgid "Not in the other view"
 msgstr "他のビューに存在しない"
 
-#: frame/tools/launch_bridge.cpp:154
+#: frame/tools/launch_bridge.cpp
 msgid "Shared by both views"
 msgstr "両方のビューで共有"
 
-#: frame/tools/launch_bridge.cpp:154
+#: frame/tools/launch_bridge.cpp
 msgid "32-bit view"
 msgstr "32 ビット ビュー"
 
-#: frame/tools/launch_bridge.cpp:159
+#: frame/tools/launch_bridge.cpp
 msgid "Don't virtualize"
 msgstr "仮想化しない"
 
-#: frame/tools/launch_bridge.cpp:160
+#: frame/tools/launch_bridge.cpp
 msgid "Don't silent fail"
 msgstr "エラーを通知せずに失敗しない"
 
-#: frame/tools/launch_bridge.cpp:161
+#: frame/tools/launch_bridge.cpp
 msgid "Recurse"
 msgstr "再帰"
 
-#: frame/tools/launch_bridge.cpp:168 frame/tools/launch_bridge.cpp:198
+#: frame/tools/launch_bridge.cpp
 msgid "Virtualization flags"
 msgstr "仮想化フラグ"
 
-#: frame/tools/launch_bridge.cpp:174 search/search.cpp:1433
+#: frame/tools/launch_bridge.cpp search/search.cpp
 msgid "Virtual store copy"
 msgstr "仮想ストア内のコピー"
 
-#: frame/tools/launch_bridge.cpp:178
+#: frame/tools/launch_bridge.cpp
 msgid "Virtualization state"
 msgstr "仮想化の状態"
 
-#: frame/tools/launch_bridge.cpp:178
+#: frame/tools/launch_bridge.cpp
 msgid "Candidate"
 msgstr "候補"
 
-#: frame/tools/launch_bridge.cpp:178
+#: frame/tools/launch_bridge.cpp
 msgid "Enabled"
 msgstr "有効"
 
-#: frame/tools/launch_bridge.cpp:178
+#: frame/tools/launch_bridge.cpp
 msgid "Virtual target"
 msgstr "仮想ターゲット"
 
-#: frame/tools/launch_bridge.cpp:178
+#: frame/tools/launch_bridge.cpp
 msgid "Virtual store"
 msgstr "仮想ストア"
 
-#: frame/tools/launch_bridge.cpp:178
+#: frame/tools/launch_bridge.cpp
 msgid "Virtual source"
 msgstr "仮想ソース"
 
-#: frame/tools/launch_bridge.cpp:182
+#: frame/tools/launch_bridge.cpp
 msgid "Trusted key"
 msgstr "信頼されたキー"
 
-#: frame/tools/launch_bridge.cpp:186
+#: frame/tools/launch_bridge.cpp
 msgid "Layer"
 msgstr "レイヤー"
 
-#: frame/tools/launch_bridge.cpp:186
+#: frame/tools/launch_bridge.cpp
 msgid "Tombstone"
 msgstr "削除マーカー"
 
-#: frame/tools/launch_bridge.cpp:186
+#: frame/tools/launch_bridge.cpp
 msgid "Supersede local"
 msgstr "ローカル レイヤーを置き換える"
 
-#: frame/tools/launch_bridge.cpp:186
+#: frame/tools/launch_bridge.cpp
 msgid "Supersede tree"
 msgstr "ツリーを置き換える"
 
-#: frame/tools/launch_bridge.cpp:186
+#: frame/tools/launch_bridge.cpp
 msgid "Class is inherited"
 msgstr "クラスが継承されている"
 
-#: frame/tools/launch_bridge.cpp:192
+#: frame/tools/launch_bridge.cpp
 msgid "Integrity level"
 msgstr "整合性レベル"
 
-#: frame/tools/launch_bridge.cpp:198
+#: frame/tools/launch_bridge.cpp
 msgid "Flag"
 msgstr "フラグ"
 
-#: frame/tools/launch_bridge.cpp:224
+#: frame/tools/launch_bridge.cpp
 msgid "Run level"
 msgstr "実行レベル"
 
-#: frame/tools/launch_bridge.cpp:224
+#: frame/tools/launch_bridge.cpp
 msgid "Can write"
 msgstr "書き込み可能"
 
-#: frame/tools/launch_bridge.cpp:245 ui/feedback.cpp:670 ui/feedback.cpp:672
+#: frame/tools/launch_bridge.cpp ui/feedback.cpp
 msgid "Error"
 msgstr "エラー"
 
-#: frame/tools/launch_bridge.cpp:245
+#: frame/tools/launch_bridge.cpp
+#, fuzzy
+msgid "The key's permissions couldn't be read."
+msgstr "キーの情報を読み取れませんでした。"
+
+#: frame/tools/launch_bridge.cpp
+msgid "Permissions..."
+msgstr "アクセス許可..."
+
+#: frame/tools/launch_bridge.cpp
+msgid "Edit Value"
+msgstr "値の編集"
+
+#: frame/tools/launch_bridge.cpp
 msgid "The resource data is malformed."
 msgstr "リソース データの形式が正しくありません。"
 
-#: frame/tools/launch_bridge.cpp:247
+#: frame/tools/launch_bridge.cpp
 msgid "Edit Binary..."
 msgstr "バイナリ データの編集..."
 
-#: frame/tools/launch_bridge.cpp:266 frame/tools/launch_bridge.cpp:489
-#: launch/program.cpp:395
+#: frame/tools/launch_bridge.cpp launch/program.cpp
 msgid "Failed to locate the executable path."
 msgstr "実行可能ファイルのパスを特定できませんでした。"
 
-#: frame/tools/launch_bridge.cpp:312 launch/program.cpp:419
+#: frame/tools/launch_bridge.cpp launch/program.cpp
 msgid "RegKit couldn't restore its own security context and must close now."
 msgstr "RegKit が自身のセキュリティ コンテキストを復元できなかったため、今すぐ終了する必要があります。"
 
-#: frame/tools/launch_bridge.cpp:342
+#: frame/tools/launch_bridge.cpp
 msgid "The current session couldn't be saved for the restart."
 msgstr "再起動に向けて現在のセッションを保存できませんでした。"
 
-#: frame/tools/launch_bridge.cpp:352
+#: frame/tools/launch_bridge.cpp
 msgid "RegKit couldn't be restarted."
 msgstr "RegKit を再起動できませんでした。"
 
-#: frame/tools/launch_bridge.cpp:386
+#: frame/tools/launch_bridge.cpp
 msgid "One or more cache files couldn't be removed."
 msgstr "1 つ以上のキャッシュ ファイルを削除できませんでした。"
 
-#: frame/tools/launch_bridge.cpp:410
+#: frame/tools/launch_bridge.cpp
 msgid "Failed to find the settings file."
 msgstr "設定ファイルが見つかりませんでした。"
 
-#: frame/tools/launch_bridge.cpp:415
+#: frame/tools/launch_bridge.cpp
 msgid "The settings file couldn't be reset."
 msgstr "設定ファイルをリセットできませんでした。"
 
-#: frame/tools/launch_bridge.cpp:436 frame/tools/launch_bridge.cpp:438
+#: frame/tools/launch_bridge.cpp
 msgid "Failed to restart with administrator rights."
 msgstr "管理者権限で再起動できませんでした。"
 
-#: frame/tools/launch_bridge.cpp:447
+#: frame/tools/launch_bridge.cpp
 msgid "Failed to restart as the signed-in user."
 msgstr "サインイン中のユーザーとして再起動できませんでした。"
 
-#: frame/tools/launch_bridge.cpp:452 frame/window/menu_bar.cpp:454
+#: frame/tools/launch_bridge.cpp
 msgid "Restart as SYSTEM"
 msgstr "SYSTEM として再起動"
 
-#: frame/tools/launch_bridge.cpp:462
+#: frame/tools/launch_bridge.cpp
 msgid "Failed to request SYSTEM restart."
 msgstr "SYSTEM としての再起動を要求できませんでした。"
 
-#: frame/tools/launch_bridge.cpp:464
+#: frame/tools/launch_bridge.cpp
 msgid "Failed to restart with SYSTEM rights."
 msgstr "SYSTEM の権限で再起動できませんでした。"
 
-#: frame/tools/launch_bridge.cpp:469 frame/window/menu_bar.cpp:455
+#: frame/tools/launch_bridge.cpp
 msgid "Restart as TrustedInstaller"
 msgstr "TrustedInstaller として再起動"
 
-#: frame/tools/launch_bridge.cpp:479
+#: frame/tools/launch_bridge.cpp
 msgid "Failed to request TrustedInstaller restart."
 msgstr "TrustedInstaller としての再起動を要求できませんでした。"
 
-#: frame/tools/launch_bridge.cpp:481
+#: frame/tools/launch_bridge.cpp
 msgid "Failed to restart with TrustedInstaller rights."
 msgstr "TrustedInstaller の権限で再起動できませんでした。"
 
-#: frame/tools/launch_bridge.cpp:497
+#: frame/tools/launch_bridge.cpp
 msgid ""
 "Replacing RegEdit registers this executable for every account on the machine.\n"
 "\n"
@@ -1977,16 +1883,15 @@ msgstr ""
 "\n"
 "それでもこの場所から適用するには、置き換えてください。"
 
-#: frame/tools/launch_bridge.cpp:503 frame/tools/launch_bridge.cpp:520
-#: frame/window/menu_bar.cpp:464
+#: frame/tools/launch_bridge.cpp
 msgid "Replace RegEdit"
 msgstr "RegEdit の置き換え"
 
-#: frame/tools/launch_bridge.cpp:504
+#: frame/tools/launch_bridge.cpp
 msgid "Replace Anyway"
 msgstr "それでも置き換える"
 
-#: frame/tools/launch_bridge.cpp:518
+#: frame/tools/launch_bridge.cpp
 msgid ""
 "RegEdit already has a Debugger entry owned by another program.\n"
 "\n"
@@ -1996,227 +1901,213 @@ msgstr ""
 "\n"
 "既存のエントリを上書きしますか?"
 
-#: frame/tools/launch_bridge.cpp:521
+#: frame/tools/launch_bridge.cpp
 msgid "Override"
 msgstr "上書き"
 
-#: frame/tools/launch_bridge.cpp:596
+#: frame/tools/launch_bridge.cpp
 msgid "Hive files aren't available for remote registries."
 msgstr "リモート レジストリではハイブ ファイルを使用できません。"
 
-#: frame/tools/launch_bridge.cpp:602
+#: frame/tools/launch_bridge.cpp
 msgid "No hive file was found for this key."
 msgstr "このキーのハイブ ファイルが見つかりませんでした。"
 
-#: frame/tools/update_checker.cpp:110
+#: frame/tools/update_checker.cpp
 msgid "The release location isn't a trusted RegKit download address."
 msgstr "リリースの場所は信頼できる RegKit のダウンロード アドレスではありません。"
 
-#: frame/tools/update_checker.cpp:149
+#: frame/tools/update_checker.cpp
 msgid "The download is larger than RegKit accepts."
 msgstr "ダウンロードのサイズが RegKit の上限を超えています。"
 
-#: frame/tools/update_checker.cpp:288
+#: frame/tools/update_checker.cpp
 msgid "The release didn't publish a checksum for this download."
 msgstr "このダウンロードのチェックサムがリリースで公開されていません。"
 
-#: frame/tools/update_checker.cpp:298
+#: frame/tools/update_checker.cpp
 msgid "The downloaded file doesn't match the release checksum."
 msgstr "ダウンロードしたファイルがリリースのチェックサムと一致しません。"
 
-#: frame/tools/update_checker.cpp:400
+#: frame/tools/update_checker.cpp
 msgid "The response didn't contain a release."
 msgstr "応答にリリースが含まれていませんでした。"
 
-#: frame/tools/update_checker.cpp:415
+#: frame/tools/update_checker.cpp
 msgid "Failed to reach the update server."
 msgstr "更新サーバーに接続できませんでした。"
 
-#: frame/tools/update_checker.cpp:447
+#: frame/tools/update_checker.cpp
 msgid "The update couldn't be downloaded."
 msgstr "更新をダウンロードできませんでした。"
 
-#: frame/tools/update_checker.cpp:454
+#: frame/tools/update_checker.cpp
 msgid "Downloading"
 msgstr "ダウンロード中"
 
-#: frame/tools/update_checker.cpp:500
+#: frame/tools/update_checker.cpp
 msgid "RegKit is up to date."
 msgstr "RegKit は最新の状態です。"
 
-#: frame/tools/update_checker.cpp:506
+#: frame/tools/update_checker.cpp
 msgid "installed"
 msgstr "インストール済み"
 
-#: frame/tools/update_checker.cpp:507
+#: frame/tools/update_checker.cpp
 msgid "No download was found for this build. Open the release page?"
 msgstr "このビルドのダウンロードが見つかりませんでした。リリース ページを開きますか?"
 
-#: frame/tools/update_checker.cpp:508
+#: frame/tools/update_checker.cpp
 msgid "Download and install it now? RegKit restarts once the update is installed."
 msgstr "今すぐダウンロードしてインストールしますか? 更新のインストール後に RegKit が再起動します。"
 
-#: frame/tools/update_checker.cpp:509
+#: frame/tools/update_checker.cpp
 msgid "Download the new portable version?"
 msgstr "新しいポータブル版をダウンロードしますか?"
 
-#: frame/tools/update_checker.cpp:510
+#: frame/tools/update_checker.cpp
 msgid "Update"
 msgstr "更新"
 
-#: frame/tools/update_checker.cpp:510
+#: frame/tools/update_checker.cpp
 msgid "Download Portable"
 msgstr "ポータブル版をダウンロード"
 
-#: frame/tools/update_checker.cpp:511
+#: frame/tools/update_checker.cpp
 msgid "Open Release"
 msgstr "リリース ページを開く"
 
-#: frame/tools/update_checker.cpp:512
+#: frame/tools/update_checker.cpp
 msgid "Update Available"
 msgstr "更新があります"
 
-#: frame/tools/update_checker.cpp:541
+#: frame/tools/update_checker.cpp
 msgid "The downloaded setup changed after RegKit verified it and wasn't started."
 msgstr "ダウンロードしたセットアップ ファイルが RegKit の検証後に変更されたため、起動しませんでした。"
 
-#: frame/tools/update_checker.cpp:545
+#: frame/tools/update_checker.cpp
 msgid "The setup couldn't be started."
 msgstr "セットアップを起動できませんでした。"
 
-#: frame/tools/update_checker.cpp:574
+#: frame/tools/update_checker.cpp
 msgid "Exit code"
 msgstr "終了コード"
 
-#: frame/tools/update_checker.cpp:574
+#: frame/tools/update_checker.cpp
 msgid "The update couldn't be installed."
 msgstr "更新をインストールできませんでした。"
 
-#: frame/views/browse_view.cpp:60 frame/views/browse_view.cpp:250
-#: registry/resource_list.cpp:306 registry/resource_list.cpp:382
+#: frame/views/browse_view.cpp registry/resource_list.cpp
 msgid "Type"
 msgstr "種類"
 
-#: frame/views/browse_view.cpp:61 frame/views/browse_view.cpp:251
-#: registry/resource_list.cpp:302 registry/resource_list.cpp:306
-#: registry/resource_list.cpp:382 search/search.cpp:64
+#: frame/views/browse_view.cpp registry/resource_list.cpp search/search.cpp
 msgid "Data"
 msgstr "データ"
 
-#: frame/views/browse_view.cpp:62 frame/window/menu_bar.cpp:609
-#: frame/window/menu_bar.cpp:947 registry/resource_list.cpp:336
-#: search/search.cpp:68
+#: frame/views/browse_view.cpp frame/window/menu_bar.cpp
+#: registry/resource_list.cpp search/search.cpp
 msgid "Default"
 msgstr "既定値"
 
-#: frame/views/browse_view.cpp:63
+#: frame/views/browse_view.cpp
 msgid "Read on boot"
 msgstr "起動時に読み取り"
 
-#: frame/views/browse_view.cpp:64 frame/views/browse_view.cpp:252
-#: registry/resource_list.cpp:302
+#: frame/views/browse_view.cpp registry/resource_list.cpp
 msgid "Size"
 msgstr "サイズ"
 
-#: frame/views/browse_view.cpp:65 frame/views/browse_view.cpp:253
+#: frame/views/browse_view.cpp
 msgid "Date Modified"
 msgstr "更新日時"
 
-#: frame/views/browse_view.cpp:66
+#: frame/views/browse_view.cpp
 msgid "Details"
 msgstr "詳細"
 
-#: frame/views/browse_view.cpp:67 search/search.cpp:66
+#: frame/views/browse_view.cpp search/search.cpp
 msgid "Comment"
 msgstr "コメント"
 
-#: frame/views/browse_view.cpp:140
+#: frame/views/browse_view.cpp
 msgid "Time"
 msgstr "時刻"
 
-#: frame/views/browse_view.cpp:141
+#: frame/views/browse_view.cpp
 msgid "Action"
 msgstr "操作"
 
-#: frame/views/browse_view.cpp:142
+#: frame/views/browse_view.cpp
 msgid "Old Data"
 msgstr "変更前のデータ"
 
-#: frame/views/browse_view.cpp:143
+#: frame/views/browse_view.cpp
 msgid "New Data"
 msgstr "変更後のデータ"
 
-#: frame/views/browse_view.cpp:248 frame/views/browse_view.cpp:257
+#: frame/views/browse_view.cpp
 msgid "Path"
 msgstr "パス"
 
-#: frame/views/browse_view.cpp:259
+#: frame/views/browse_view.cpp
 msgid "First Entry"
 msgstr "最初の項目"
 
-#: frame/views/browse_view.cpp:260
+#: frame/views/browse_view.cpp
 msgid "Second Entry"
 msgstr "2 番目の項目"
 
-#: frame/views/browse_view.cpp:261
+#: frame/views/browse_view.cpp
 msgid "Result"
 msgstr "結果"
 
-#: frame/views/column_menus.cpp:69 ui/list_view_support.cpp:509
-msgid "Size column to fit"
-msgstr "列の幅を内容に合わせる"
-
-#: frame/views/column_menus.cpp:70 ui/list_view_support.cpp:510
-msgid "Size all columns to fit"
-msgstr "すべての列の幅を内容に合わせる"
-
-#: frame/views/history_workspace.cpp:260
+#: frame/views/history_workspace.cpp
 msgid "Revert this change with elevated rights?"
 msgstr "昇格した権限でこの変更を元に戻しますか?"
 
-#: frame/views/history_workspace.cpp:293
+#: frame/views/history_workspace.cpp
+msgid "Revert"
+msgstr "元に戻す"
+
+#: frame/views/history_workspace.cpp
 msgid "Revert Key Creation"
 msgstr "キーの作成を元に戻す"
 
-#: frame/views/history_workspace.cpp:307
+#: frame/views/history_workspace.cpp
 msgid "Failed to revert history entry."
 msgstr "履歴の項目を元に戻せませんでした。"
 
-#: frame/views/history_workspace.cpp:344
+#: frame/views/history_workspace.cpp
 msgid "The history couldn't be written to disk. It is kept for this session only."
 msgstr "履歴をディスクに書き込めませんでした。このセッションでのみ保持されます。"
 
-#: frame/views/history_workspace.cpp:667 frame/views/history_workspace.cpp:689
-#: frame/views/history_workspace.cpp:888 frame/views/registry_sessions.cpp:496
-#: frame/views/registry_sessions.cpp:499 frame/views/tab_lists.cpp:634
-#: frame/window/menu_bar.cpp:201 frame/window/menu_bar.cpp:335
-#: search/search.cpp:52
+#: frame/views/history_workspace.cpp frame/views/registry_sessions.cpp
+#: frame/views/tab_lists.cpp frame/window/menu_bar.cpp search/search.cpp
 msgid "Local Registry"
 msgstr "ローカル レジストリ"
 
-#: frame/views/history_workspace.cpp:1007
+#: frame/views/history_workspace.cpp
 msgid "Comments were imported but couldn't be saved."
 msgstr "コメントをインポートしましたが、保存できませんでした。"
 
-#: frame/views/history_workspace.cpp:1118
+#: frame/views/history_workspace.cpp
 msgid "Different types"
 msgstr "種類が異なります"
 
-#: frame/views/history_workspace.cpp:1120
+#: frame/views/history_workspace.cpp
 msgid "Different lengths"
 msgstr "長さが異なります"
 
-#: frame/views/history_workspace.cpp:1168
+#: frame/views/history_workspace.cpp
 msgid "The comment couldn't be saved."
 msgstr "コメントを保存できませんでした。"
 
-#: frame/views/registry_sessions.cpp:499 frame/window/menu_bar.cpp:338
-#: search/search.cpp:52
+#: frame/views/registry_sessions.cpp search/search.cpp
 msgid "Local Registry (32-bit)"
 msgstr "ローカル レジストリ (32 ビット)"
 
-#: frame/views/registry_sessions.cpp:692 frame/views/registry_sessions.cpp:753
-#: frame/views/registry_sessions.cpp:869
+#: frame/views/registry_sessions.cpp
 msgid ""
 "The offline registry has unsaved changes.\n"
 "Save before switching?"
@@ -2224,124 +2115,128 @@ msgstr ""
 "オフライン レジストリには保存されていない変更があります。\n"
 "切り替える前に保存しますか?"
 
-#: frame/views/registry_sessions.cpp:716
+#: frame/views/registry_sessions.cpp
 msgid "Connect to Remote Registry"
 msgstr "リモート レジストリへの接続"
 
-#: frame/views/registry_sessions.cpp:717
+#: frame/views/registry_sessions.cpp
 msgid "Computer name (e.g. \\\\MACHINE):"
 msgstr "コンピューター名 (例: \\\\MACHINE):"
 
-#: frame/views/registry_sessions.cpp:771 frame/views/registry_sessions.cpp:774
-#: frame/views/registry_sessions.cpp:793 frame/views/registry_sessions.cpp:831
-#: frame/window/menu_bar.cpp:203
+#: frame/views/registry_sessions.cpp frame/window/menu_bar.cpp
 msgid "Remote Registry"
 msgstr "リモート レジストリ"
 
-#: frame/views/registry_sessions.cpp:778
+#: frame/views/registry_sessions.cpp
 msgid "Connected to HKEY_LOCAL_MACHINE, but HKEY_USERS was unavailable."
 msgstr "HKEY_LOCAL_MACHINE に接続しましたが、HKEY_USERS は使用できませんでした。"
 
-#: frame/views/registry_sessions.cpp:791
+#: frame/views/registry_sessions.cpp
 msgid "The Remote Registry service on this computer is disabled. Set it to start manually and start it?"
 msgstr "このコンピューターのリモート レジストリ サービスは無効になっています。スタートアップの種類を手動に設定して開始しますか?"
 
-#: frame/views/registry_sessions.cpp:792
+#: frame/views/registry_sessions.cpp
 msgid "The Remote Registry service on this computer is stopped. Start it?"
 msgstr "このコンピューターのリモート レジストリ サービスは停止しています。開始しますか?"
 
-#: frame/views/registry_sessions.cpp:793
+#: frame/views/registry_sessions.cpp
 msgid "Start"
 msgstr "開始"
 
-#: frame/views/registry_sessions.cpp:802
+#: frame/views/registry_sessions.cpp
 msgid "The Remote Registry service couldn't be started."
 msgstr "リモート レジストリ サービスを開始できませんでした。"
 
-#: frame/views/registry_sessions.cpp:829
+#: frame/views/registry_sessions.cpp
 msgid "RegKit started the Remote Registry service on this computer. Stop it and disable it again?"
 msgstr "RegKit がこのコンピューターのリモート レジストリ サービスを開始しました。停止して再び無効にしますか?"
 
-#: frame/views/registry_sessions.cpp:830
+#: frame/views/registry_sessions.cpp
 msgid "RegKit started the Remote Registry service on this computer. Stop it again?"
 msgstr "RegKit がこのコンピューターのリモート レジストリ サービスを開始しました。再び停止しますか?"
 
-#: frame/views/registry_sessions.cpp:831
+#: frame/views/registry_sessions.cpp
 msgid "Stop"
 msgstr "停止"
 
-#: frame/views/registry_sessions.cpp:831
+#: frame/views/registry_sessions.cpp
 msgid "Keep Running"
 msgstr "実行を継続"
 
-#: frame/views/registry_sessions.cpp:838
+#: frame/views/registry_sessions.cpp
 msgid "The Remote Registry service couldn't be stopped."
 msgstr "リモート レジストリ サービスを停止できませんでした。"
 
-#: frame/views/registry_sessions.cpp:844
+#: frame/views/registry_sessions.cpp
 msgid "Load the offline registry from a single hive file, or from a folder of hives?"
 msgstr "1 つのハイブ ファイルからオフライン レジストリを読み込みますか、それともハイブのフォルダーから読み込みますか?"
 
-#: frame/views/registry_sessions.cpp:844 frame/views/registry_sessions.cpp:945
-#: frame/views/registry_sessions.cpp:948 frame/window/menu_bar.cpp:205
+#: frame/views/registry_sessions.cpp frame/window/menu_bar.cpp
 msgid "Offline Registry"
 msgstr "オフライン レジストリ"
 
-#: frame/views/registry_sessions.cpp:844
+#: frame/views/registry_sessions.cpp
 msgid "Hive File"
 msgstr "ハイブ ファイル"
 
-#: frame/views/registry_sessions.cpp:844
+#: frame/views/registry_sessions.cpp
 msgid "Folder"
 msgstr "フォルダー"
 
-#: frame/views/registry_sessions.cpp:892
+#: frame/views/registry_sessions.cpp
 msgid "The selected folder doesn't contain a registry hive file."
 msgstr "選択したフォルダーにレジストリ ハイブ ファイルがありません。"
 
-#: frame/views/registry_sessions.cpp:964 frame/views/registry_sessions.cpp:998
+#: frame/views/registry_sessions.cpp
 msgid "No offline registry is loaded."
 msgstr "オフライン レジストリが読み込まれていません。"
 
-#: frame/views/registry_sessions.cpp:971
+#: frame/views/registry_sessions.cpp
 msgid "Failed to resolve offline hive paths for saving."
 msgstr "保存に必要なオフライン ハイブのパスを解決できませんでした。"
 
-#: frame/views/registry_sessions.cpp:979
+#: frame/views/registry_sessions.cpp
 msgid "Failed to resolve offline hive path for saving."
 msgstr "保存に必要なオフライン ハイブのパスを解決できませんでした。"
 
-#: frame/views/registry_sessions.cpp:985 frame/views/registry_sessions.cpp:1012
+#: frame/views/registry_sessions.cpp
 msgid "Failed to save offline hive."
 msgstr "オフライン ハイブを保存できませんでした。"
 
-#: frame/views/registry_sessions.cpp:1069
+#: frame/views/registry_sessions.cpp
 msgid "The key was opened, but it doesn't contain this value:"
 msgstr "キーを開きましたが、次の値は含まれていません:"
 
-#: frame/views/registry_sessions.cpp:1069
+#: frame/views/registry_sessions.cpp
 msgid "Value Not Found"
 msgstr "値が見つかりません"
 
-#: frame/views/registry_sessions.cpp:1080
+#: frame/views/registry_sessions.cpp frame/window/appearance.cpp
+#: frame/window/lifetime.cpp frame/window/notifications.cpp ui/feedback.cpp
+msgid "OK"
+msgstr "OK"
+
+#: frame/views/registry_sessions.cpp
 msgid "The registry key doesn't exist:"
 msgstr "次のレジストリ キーは存在しません:"
 
-#: frame/views/registry_sessions.cpp:1084
-#: frame/views/registry_sessions.cpp:1091
+#: frame/views/registry_sessions.cpp
 msgid "Registry Path Not Found"
 msgstr "レジストリ パスが見つかりません"
 
-#: frame/views/registry_sessions.cpp:1084
-#: frame/views/registry_sessions.cpp:1091
+#: frame/views/registry_sessions.cpp
 msgid "Go to Nearest Key"
 msgstr "最も近いキーへ移動"
 
-#: frame/views/registry_sessions.cpp:1101
+#: frame/views/registry_sessions.cpp
+msgid "Create Key"
+msgstr "キーの作成"
+
+#: frame/views/registry_sessions.cpp
 msgid "Failed to create registry key."
 msgstr "レジストリ キーを作成できませんでした。"
 
-#: frame/views/tab_lists.cpp:432
+#: frame/views/tab_lists.cpp
 msgid ""
 "The registry file has unsaved changes.\n"
 "Save before closing the tab?"
@@ -2349,15 +2244,15 @@ msgstr ""
 "レジストリ ファイルには保存されていない変更があります。\n"
 "タブを閉じる前に保存しますか?"
 
-#: frame/views/tab_lists.cpp:435 frame/views/tab_lists.cpp:469
+#: frame/views/tab_lists.cpp
 msgid "Unsaved Changes"
 msgstr "保存されていない変更"
 
-#: frame/views/tab_lists.cpp:435 frame/views/tab_lists.cpp:469
+#: frame/views/tab_lists.cpp
 msgid "Don't Save"
 msgstr "保存しない"
 
-#: frame/views/tab_lists.cpp:455
+#: frame/views/tab_lists.cpp
 msgid ""
 "The offline registry has unsaved changes.\n"
 "Save before closing the tab?"
@@ -2365,561 +2260,795 @@ msgstr ""
 "オフライン レジストリには保存されていない変更があります。\n"
 "タブを閉じる前に保存しますか?"
 
-#: frame/views/value_loading.cpp:124 frame/window/menu_bar.cpp:558
+#: frame/views/value_loading.cpp frame/window/menu_bar.cpp
 msgid "Trace"
 msgstr "Trace"
 
-#: frame/views/value_loading.cpp:181 frame/window/menu_bar.cpp:950
-#: search/compare.cpp:55 search/compare.cpp:343 search/compare.cpp:344
+#: frame/views/value_loading.cpp frame/window/menu_bar.cpp search/compare.cpp
 msgid "(Missing)"
 msgstr "(見つかりません)"
 
-#: frame/views/value_loading.cpp:230
+#: frame/views/value_loading.cpp
 msgid "Link"
 msgstr "リンク"
 
-#: frame/views/value_loading.cpp:390 frame/views/value_loading.cpp:438
+#: frame/views/value_loading.cpp
+msgid "Volatile Key"
+msgstr "揮発性キー"
+
+#: frame/views/value_loading.cpp
 msgid "(value not set)"
 msgstr "(値の設定なし)"
 
-#: frame/window/appearance.cpp:30
-msgid "Preset name:"
-msgstr "プリセット名:"
+#: frame/window/appearance.cpp
+msgid "Theme Presets"
+msgstr "テーマ プリセット"
 
-#: frame/window/events.cpp:43 registry/key_access.cpp:119
-msgid "Administrator"
-msgstr "管理者"
+#: frame/window/appearance.cpp
+msgid "Presets"
+msgstr "プリセット"
 
-#: frame/window/lifetime.cpp:25
-msgid "SYSTEM has no Desktop folder, so Windows reports \"Location is not available\" in file dialogs. Create this folder to prevent the error?"
-msgstr "SYSTEM には Desktop フォルダーがないため、Windows のファイル ダイアログに \"場所が利用できません\" と表示されます。このフォルダーを作成してエラーを防ぎますか?"
+#: frame/window/appearance.cpp
+msgid "Colors"
+msgstr "色"
 
-#: frame/window/lifetime.cpp:25
-msgid "Create Folder"
-msgstr "フォルダーの作成"
+#: frame/window/appearance.cpp
+msgid "Templates"
+msgstr "テンプレート"
 
-#: frame/window/lifetime.cpp:117
-msgid "Go"
-msgstr "移動"
+#: frame/window/appearance.cpp
+msgid "Color"
+msgstr "色"
 
-#: frame/window/lifetime.cpp:128 frame/window/menu_bar.cpp:404
-msgid "Key Tree"
-msgstr "キー ツリー"
+#: frame/window/appearance.cpp
+msgid "Hex"
+msgstr ""
 
-#: frame/window/lifetime.cpp:155 frame/window/menu_bar.cpp:405
-msgid "History"
-msgstr "履歴"
+#: frame/window/appearance.cpp
+msgid "Treat as dark theme"
+msgstr "ダーク テーマとして扱う"
 
-#: frame/window/lifetime.cpp:433
-msgid "The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."
-msgstr "コメント ファイルを読み取れなかったため、修正または削除するまでコメントの変更は保存されません。"
+#: frame/window/appearance.cpp
+msgid "New..."
+msgstr "新規..."
 
-#: frame/window/lifetime.cpp:435
-msgid "Comments"
-msgstr "コメント"
+#: frame/window/appearance.cpp
+msgid "Duplicate"
+msgstr "複製"
 
-#: frame/window/lifetime.cpp:520
-msgid "The open tabs couldn't be saved for the next session."
-msgstr "次のセッションに向けて開いているタブを保存できませんでした。"
+#: frame/window/appearance.cpp
+msgid "Rename..."
+msgstr "名前の変更..."
 
-#: frame/window/menu_bar.cpp:209 ui/feedback.cpp:802
-msgid "Replace"
-msgstr "置換"
+#: frame/window/appearance.cpp frame/window/menu_bar.cpp ui/feedback.cpp
+msgid "Delete"
+msgstr "削除"
 
-#: frame/window/menu_bar.cpp:217 frame/window/menu_bar.cpp:352
-msgid "Redo"
-msgstr "やり直し"
-
-#: frame/window/menu_bar.cpp:227
-msgid "Back"
-msgstr "戻る"
-
-#: frame/window/menu_bar.cpp:229
-msgid "Forward"
-msgstr "進む"
-
-#: frame/window/menu_bar.cpp:231
-msgid "Up"
-msgstr "上へ"
-
-#: frame/window/menu_bar.cpp:326
-msgid "Open .reg File..."
-msgstr ".reg ファイルを開く..."
-
-#: frame/window/menu_bar.cpp:329 ui/preset_editor.cpp:459
+#: frame/window/appearance.cpp
 msgid "Import..."
 msgstr "インポート..."
 
-#: frame/window/menu_bar.cpp:332
-msgid "Import Comments..."
-msgstr "コメントのインポート..."
+#: frame/window/appearance.cpp
+msgid "Export..."
+msgstr "エクスポート..."
 
-#: frame/window/menu_bar.cpp:333
-msgid "Export Comments..."
-msgstr "コメントのエクスポート..."
+#: frame/window/appearance.cpp
+msgid "Edit Color..."
+msgstr "色の編集..."
 
-#: frame/window/menu_bar.cpp:340
-msgid "Remote Registry..."
-msgstr "リモート レジストリ..."
+#: frame/window/appearance.cpp
+msgid "Apply Template"
+msgstr "テンプレートの適用"
 
-#: frame/window/menu_bar.cpp:341
-msgid "Offline Registry..."
-msgstr "オフライン レジストリ..."
+#: frame/window/appearance.cpp
+msgid "Apply"
+msgstr "適用"
 
-#: frame/window/menu_bar.cpp:342
-msgid "Save Offline Hive..."
-msgstr "オフライン ハイブの保存..."
+#: frame/window/appearance.cpp
+msgid "New Preset"
+msgstr "新しいプリセット"
 
-#: frame/window/menu_bar.cpp:344
-msgid "Load Hive..."
-msgstr "ハイブの読み込み..."
+#: frame/window/appearance.cpp
+msgid "Rename Preset"
+msgstr "プリセット名の変更"
 
-#: frame/window/menu_bar.cpp:345
-msgid "Unload Hive..."
-msgstr "ハイブのアンロード..."
+#: frame/window/appearance.cpp
+msgid "Background"
+msgstr "背景"
 
-#: frame/window/menu_bar.cpp:347
-msgid "Exit"
-msgstr "終了"
+#: frame/window/appearance.cpp
+msgid "Panel"
+msgstr "パネル"
 
-#: frame/window/menu_bar.cpp:348
-msgid "&File"
-msgstr "ファイル(&F)"
+#: frame/window/appearance.cpp
+msgid "Surface"
+msgstr "サーフェス"
 
-#: frame/window/menu_bar.cpp:366
-msgid "Key Name"
-msgstr "キー名"
+#: frame/window/appearance.cpp
+msgid "Header"
+msgstr "ヘッダー"
 
-#: frame/window/menu_bar.cpp:367
-msgid "Key Path"
-msgstr "キー パス"
+#: frame/window/appearance.cpp
+msgid "Border"
+msgstr "境界線"
 
-#: frame/window/menu_bar.cpp:368
-msgid "Key Path As"
-msgstr "キー パスの形式"
+#: frame/window/appearance.cpp registry/value_decoder.cpp
+msgid "Text"
+msgstr "テキスト"
 
-#: frame/window/menu_bar.cpp:370
-msgid "Value Name"
-msgstr "値の名前"
+#: frame/window/appearance.cpp
+msgid "Muted Text"
+msgstr "控えめなテキスト"
 
-#: frame/window/menu_bar.cpp:371
-msgid "Value Data"
-msgstr "値のデータ"
+#: frame/window/appearance.cpp
+msgid "Accent"
+msgstr "アクセント"
 
-#: frame/window/menu_bar.cpp:372
-msgid "Copy Other"
-msgstr "その他のコピー"
+#: frame/window/appearance.cpp
+msgid "Selection"
+msgstr "選択範囲"
 
-#: frame/window/menu_bar.cpp:378
-msgid "Invert Selection"
-msgstr "選択範囲の反転"
+#: frame/window/appearance.cpp
+msgid "Selection Text"
+msgstr "選択範囲のテキスト"
 
-#: frame/window/menu_bar.cpp:380
-msgid "Find..."
-msgstr "検索..."
+#: frame/window/appearance.cpp
+msgid "Hover"
+msgstr "ホバー"
 
-#: frame/window/menu_bar.cpp:381
-msgid "Replace..."
-msgstr "置換..."
+#: frame/window/appearance.cpp
+msgid "Focus"
+msgstr "フォーカス"
 
-#: frame/window/menu_bar.cpp:382
-msgid "Go To..."
-msgstr "移動..."
+#: frame/window/appearance.cpp
+msgid "Preset name:"
+msgstr "プリセット名:"
 
-#: frame/window/menu_bar.cpp:385
-msgid "Go to Other View"
-msgstr "他のビューへ移動"
+#: frame/window/appearance.cpp
+msgid "Preset name can't be empty."
+msgstr "プリセット名は空にできません。"
 
-#: frame/window/menu_bar.cpp:387
-msgid "Go to Virtual Store Copy"
-msgstr "仮想ストア内のコピーへ移動"
+#: frame/window/appearance.cpp
+msgid "Delete Preset"
+msgstr "プリセットの削除"
 
-#: frame/window/menu_bar.cpp:388
-msgid "Go to Global Key"
-msgstr "グローバル キーへ移動"
+#: frame/window/appearance.cpp
+msgid "Failed to import theme presets."
+msgstr "テーマ プリセットをインポートできませんでした。"
 
-#: frame/window/menu_bar.cpp:392
-msgid "&Edit"
-msgstr "編集(&E)"
+#: frame/window/appearance.cpp
+msgid "Failed to export theme presets."
+msgstr "テーマ プリセットをエクスポートできませんでした。"
 
-#: frame/window/menu_bar.cpp:396
-msgid "Auto Refresh"
-msgstr "自動更新"
+#: frame/window/events.cpp registry/key_access.cpp
+msgid "Administrator"
+msgstr "管理者"
 
-#: frame/window/menu_bar.cpp:398
+#: frame/window/lifetime.cpp
+msgid "SYSTEM has no Desktop folder, so Windows reports \"Location is not available\" in file dialogs. Create this folder to prevent the error?"
+msgstr "SYSTEM には Desktop フォルダーがないため、Windows のファイル ダイアログに \"場所が利用できません\" と表示されます。このフォルダーを作成してエラーを防ぎますか?"
+
+#: frame/window/lifetime.cpp
+msgid "Create Folder"
+msgstr "フォルダーの作成"
+
+#: frame/window/lifetime.cpp
 msgid "Toolbar"
 msgstr "ツール バー"
 
-#: frame/window/menu_bar.cpp:399
-msgid "Address Bar"
-msgstr "アドレス バー"
-
-#: frame/window/menu_bar.cpp:400
-msgid "Filter Bar"
-msgstr "フィルター バー"
-
-#: frame/window/menu_bar.cpp:401
-msgid "Tabs"
-msgstr "タブ"
-
-#: frame/window/menu_bar.cpp:402
-msgid "Status Bar"
-msgstr "ステータス バー"
-
-#: frame/window/menu_bar.cpp:407
-msgid "Keys in List"
-msgstr "一覧にキーを表示"
-
-#: frame/window/menu_bar.cpp:408 ui/list_view_support.cpp:177
-#: ui/list_view_support.cpp:185
-msgid "Grid Lines"
-msgstr "グリッド線"
-
-#: frame/window/menu_bar.cpp:409
-msgid "Simulated Keys"
-msgstr "模擬キー"
-
-#: frame/window/menu_bar.cpp:410
-msgid "Show Extra Root Keys"
-msgstr "追加のルート キーを表示"
-
-#: frame/window/menu_bar.cpp:418
-msgid "Light"
-msgstr "ライト"
-
-#: frame/window/menu_bar.cpp:419
-msgid "Dark"
-msgstr "ダーク"
-
-#: frame/window/menu_bar.cpp:420 frame/window/menu_bar.cpp:427
-msgid "Custom"
-msgstr "カスタム"
-
-#: frame/window/menu_bar.cpp:422
-msgid "Theme Presets..."
-msgstr "テーマ プリセット..."
-
-#: frame/window/menu_bar.cpp:423
-msgid "Theme"
-msgstr "テーマ"
-
-#: frame/window/menu_bar.cpp:425
-msgid "Classic"
-msgstr "クラシック"
-
-#: frame/window/menu_bar.cpp:426
-msgid "Phosphor"
-msgstr ""
-
-#: frame/window/menu_bar.cpp:428
-msgid "Icons"
-msgstr "アイコン"
-
-#: frame/window/menu_bar.cpp:432
-msgid "Automatic"
-msgstr "自動"
-
-#: frame/window/menu_bar.cpp:439
-msgid "Font..."
-msgstr "フォント..."
-
-#: frame/window/menu_bar.cpp:441
-msgid "Simple Mode"
-msgstr "シンプル モード"
-
-#: frame/window/menu_bar.cpp:442
-msgid "&View"
-msgstr "表示(&V)"
-
-#: frame/window/menu_bar.cpp:443
-msgid "Read Only Mode"
-msgstr "読み取り専用モード"
-
-#: frame/window/menu_bar.cpp:444
-msgid "Use Backup/Restore Privileges"
-msgstr "バックアップ/復元の特権を使用"
-
-#: frame/window/menu_bar.cpp:452
-msgid "Restart as User"
-msgstr "ユーザーとして再起動"
-
-#: frame/window/menu_bar.cpp:453
-msgid "Restart as Admin"
-msgstr "管理者として再起動"
-
-#: frame/window/menu_bar.cpp:457
-msgid "Always Run as Admin"
-msgstr "常に管理者として実行"
-
-#: frame/window/menu_bar.cpp:458
-msgid "Always Run as SYSTEM"
-msgstr "常に SYSTEM として実行"
-
-#: frame/window/menu_bar.cpp:459
-msgid "Always Run as TrustedInstaller"
-msgstr "常に TrustedInstaller として実行"
-
-#: frame/window/menu_bar.cpp:461
-msgid "HKCU Follows Signed-In User"
-msgstr "HKCU をサインイン中のユーザーに合わせる"
-
-#: frame/window/menu_bar.cpp:462
-msgid "Run As"
-msgstr "実行ユーザー"
-
-#: frame/window/menu_bar.cpp:465
-msgid "Add \"Edit\" Context Menu"
-msgstr "コンテキスト メニューに \"編集\" を追加"
-
-#: frame/window/menu_bar.cpp:466
-msgid "Single Instance"
-msgstr "単一インスタンス"
-
-#: frame/window/menu_bar.cpp:467
-msgid "Autocomplete Key Paths"
-msgstr "キー パスのオートコンプリート"
-
-#: frame/window/menu_bar.cpp:469
-msgid "All Tabs"
-msgstr "すべてのタブ"
-
-#: frame/window/menu_bar.cpp:471
-msgid "Local Registry Tabs"
-msgstr "ローカル レジストリのタブ"
-
-#: frame/window/menu_bar.cpp:472
-msgid "Offline Hive Tabs"
-msgstr "オフライン ハイブのタブ"
-
-#: frame/window/menu_bar.cpp:473
-msgid "Remote Registry Tabs"
-msgstr "リモート レジストリのタブ"
-
-#: frame/window/menu_bar.cpp:475
-msgid "Find Results"
-msgstr "検索結果"
-
-#: frame/window/menu_bar.cpp:476
-msgid "Comparison Results"
-msgstr "比較結果"
-
-#: frame/window/menu_bar.cpp:477
-msgid ".reg File Tabs"
-msgstr ".reg ファイルのタブ"
-
-#: frame/window/menu_bar.cpp:479
-msgid "Save Tabs"
-msgstr "タブの保存"
-
-#: frame/window/menu_bar.cpp:480
-msgid "Save Previous Tree State"
-msgstr "前回のツリーの状態を保存"
-
-#: frame/window/menu_bar.cpp:481
-msgid "Clear History on Exit"
-msgstr "終了時に履歴をクリア"
-
-#: frame/window/menu_bar.cpp:482
-msgid "Clear Tabs on Exit"
-msgstr "終了時にタブをクリア"
-
-#: frame/window/menu_bar.cpp:487
-msgid "Tab Sessions"
-msgstr "タブ セッション"
-
-#: frame/window/menu_bar.cpp:488
-msgid "Change History"
-msgstr "変更履歴"
-
-#: frame/window/menu_bar.cpp:489
-msgid "Search History"
-msgstr "検索履歴"
-
-#: frame/window/menu_bar.cpp:490
-msgid "Dialog Options"
-msgstr "ダイアログのオプション"
-
-#: frame/window/menu_bar.cpp:491
-msgid "Tree State"
-msgstr "ツリーの状態"
-
-#: frame/window/menu_bar.cpp:492
-msgid "Temporary Files"
-msgstr "一時ファイル"
-
-#: frame/window/menu_bar.cpp:493
-msgid "Clear Caches"
-msgstr "キャッシュのクリア"
-
-#: frame/window/menu_bar.cpp:494
-msgid "Reset Settings..."
-msgstr "設定のリセット..."
-
-#: frame/window/menu_bar.cpp:496
-msgid "Add to Favorites..."
-msgstr "お気に入りに追加..."
-
-#: frame/window/menu_bar.cpp:497
-msgid "Remove Favorite"
-msgstr "お気に入りから削除"
-
-#: frame/window/menu_bar.cpp:498
-msgid "Edit Favorites..."
-msgstr "お気に入りの編集..."
-
-#: frame/window/menu_bar.cpp:500
-msgid "Import Favorites..."
-msgstr "お気に入りのインポート..."
-
-#: frame/window/menu_bar.cpp:501
-msgid "Import RegEdit Favorites"
-msgstr "RegEdit のお気に入りをインポート"
-
-#: frame/window/menu_bar.cpp:502
-msgid "Export Favorites..."
-msgstr "お気に入りのエクスポート..."
-
-#: frame/window/menu_bar.cpp:516
-msgid "F&avorites"
-msgstr "お気に入り(&A)"
-
-#: frame/window/menu_bar.cpp:517
-msgid "&Options"
-msgstr "オプション(&O)"
-
-#: frame/window/menu_bar.cpp:521
-msgid "Convert File..."
-msgstr "ファイルの変換..."
-
-#: frame/window/menu_bar.cpp:522
-msgid "Key Handles..."
-msgstr "キー ハンドル..."
-
-#: frame/window/menu_bar.cpp:524
-msgid "New Definition File..."
-msgstr "新しい定義ファイル..."
-
-#: frame/window/menu_bar.cpp:526
-msgid "&Tools"
-msgstr "ツール(&T)"
-
-#: frame/window/menu_bar.cpp:529
-msgid "New Window"
-msgstr "新しいウィンドウ"
-
-#: frame/window/menu_bar.cpp:531
+#: frame/window/lifetime.cpp
+msgid "Go"
+msgstr "移動"
+
+#: frame/window/lifetime.cpp
 msgid "Close Tab"
 msgstr "タブを閉じる"
 
-#: frame/window/menu_bar.cpp:532
-msgid "Close Window"
-msgstr "ウィンドウを閉じる"
+#: frame/window/lifetime.cpp
+msgid "Tabs"
+msgstr "タブ"
 
-#: frame/window/menu_bar.cpp:534
-msgid "Always on Top"
-msgstr "常に手前に表示"
+#: frame/window/lifetime.cpp
+msgid "Key Tree"
+msgstr "キー ツリー"
 
-#: frame/window/menu_bar.cpp:535
+#: frame/window/lifetime.cpp
+msgid "History"
+msgstr "履歴"
+
+#: frame/window/lifetime.cpp
+msgid "Key Tree Splitter"
+msgstr "キー ツリーの分割バー"
+
+#: frame/window/lifetime.cpp
+msgid "History Splitter"
+msgstr "履歴の分割バー"
+
+#: frame/window/lifetime.cpp
+msgid "The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."
+msgstr "コメント ファイルを読み取れなかったため、修正または削除するまでコメントの変更は保存されません。"
+
+#: frame/window/lifetime.cpp
+msgid "Comments"
+msgstr "コメント"
+
+#: frame/window/lifetime.cpp
+msgid "The open tabs couldn't be saved for the next session."
+msgstr "次のセッションに向けて開いているタブを保存できませんでした。"
+
+#: frame/window/menu_bar.cpp ui/feedback.cpp
+msgid "Replace"
+msgstr "置換"
+
+#: frame/window/menu_bar.cpp
+msgid "Undo"
+msgstr "元に戻す"
+
+#: frame/window/menu_bar.cpp
+msgid "Redo"
+msgstr "やり直し"
+
+#: frame/window/menu_bar.cpp ui/feedback.cpp ui/list_view_support.cpp
+msgid "Copy"
+msgstr "コピー"
+
+#: frame/window/menu_bar.cpp
+msgid "Paste"
+msgstr "貼り付け"
+
+#: frame/window/menu_bar.cpp
+msgid "Refresh"
+msgstr "最新の情報に更新"
+
+#: frame/window/menu_bar.cpp
+msgid "Back"
+msgstr "戻る"
+
+#: frame/window/menu_bar.cpp
+msgid "Forward"
+msgstr "進む"
+
+#: frame/window/menu_bar.cpp
+msgid "Up"
+msgstr "上へ"
+
+#: frame/window/menu_bar.cpp
+msgid "Open .reg &File..."
+msgstr ".reg ファイルを開く(&F)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Save"
+msgstr "保存(&S)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Import..."
+msgstr "インポート(&I)..."
+
+#: frame/window/menu_bar.cpp
+msgid "I&mport Comments..."
+msgstr "コメントのインポート(&M)..."
+
+#: frame/window/menu_bar.cpp
+msgid "Export &Comments..."
+msgstr "コメントのエクスポート(&C)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Local Registry"
+msgstr "ローカル レジストリ(&L)"
+
+#: frame/window/menu_bar.cpp
+msgid "Local Registry (&32-bit)"
+msgstr "ローカル レジストリ (32 ビット)(&3)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Remote Registry..."
+msgstr "リモート レジストリ(&R)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Offline Registry..."
+msgstr "オフライン レジストリ(&O)..."
+
+#: frame/window/menu_bar.cpp
+msgid "S&ave Offline Hive..."
+msgstr "オフライン ハイブの保存(&A)..."
+
+#: frame/window/menu_bar.cpp
+msgid "Load &Hive..."
+msgstr "ハイブの読み込み(&H)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Unload Hive..."
+msgstr "ハイブのアンロード(&U)..."
+
+#: frame/window/menu_bar.cpp
+msgid "E&xit"
+msgstr "終了(&X)"
+
+#: frame/window/menu_bar.cpp
+msgid "&File"
+msgstr "ファイル(&F)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Redo"
+msgstr "やり直し(&R)"
+
+#: frame/window/menu_bar.cpp
+msgid "Key &Name"
+msgstr "キー名(&N)"
+
+#: frame/window/menu_bar.cpp
+msgid "Key &Path"
+msgstr "キー パス(&P)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Key Path As"
+msgstr "キー パスの形式(&K)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Value Name"
+msgstr "値の名前(&V)"
+
+#: frame/window/menu_bar.cpp
+msgid "Value &Data"
+msgstr "値のデータ(&D)"
+
+#: frame/window/menu_bar.cpp
+msgid "Copy &Other"
+msgstr "その他のコピー(&O)"
+
+#: frame/window/menu_bar.cpp
+msgid "Inv&ert Selection"
+msgstr "選択範囲の反転(&E)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Find..."
+msgstr "検索(&F)..."
+
+#: frame/window/menu_bar.cpp
+msgid "Rep&lace..."
+msgstr "置換(&L)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Go To..."
+msgstr "移動(&G)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Go to Other View"
+msgstr "他のビューへ移動(&G)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Go to Virtual Store Copy"
+msgstr "仮想ストア内のコピーへ移動(&G)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Go to Global Key"
+msgstr "グローバル キーへ移動(&G)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Edit"
+msgstr "編集(&E)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Auto Refresh"
+msgstr "自動更新(&A)"
+
+#: frame/window/menu_bar.cpp
+msgid "T&oolbar"
+msgstr "ツール バー(&O)"
+
+#: frame/window/menu_bar.cpp
+msgid "A&ddress Bar"
+msgstr "アドレス バー(&D)"
+
+#: frame/window/menu_bar.cpp
+msgid "Filter &Bar"
+msgstr "フィルター バー(&B)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Tabs"
+msgstr "タブ(&T)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Status Bar"
+msgstr "ステータス バー(&S)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Key Tree"
+msgstr "キー ツリー(&K)"
+
+#: frame/window/menu_bar.cpp
+msgid "&History"
+msgstr "履歴(&H)"
+
+#: frame/window/menu_bar.cpp
+msgid "Keys &in List"
+msgstr "一覧にキーを表示(&I)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Grid Lines"
+msgstr "グリッド線(&G)"
+
+#: frame/window/menu_bar.cpp
+msgid "Sim&ulated Keys"
+msgstr "模擬キー(&U)"
+
+#: frame/window/menu_bar.cpp
+msgid "Sho&w Extra Root Keys"
+msgstr "追加のルート キーを表示(&W)"
+
+#: frame/window/menu_bar.cpp
+msgid "&System"
+msgstr "システム(&S)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Light"
+msgstr "ライト(&L)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Dark"
+msgstr "ダーク(&D)"
+
+#: frame/window/menu_bar.cpp
+msgid "C&ustom"
+msgstr "カスタム(&U)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Theme Presets..."
+msgstr "テーマ プリセット(&T)..."
+
+#: frame/window/menu_bar.cpp
+msgid "Th&eme"
+msgstr "テーマ(&E)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Classic"
+msgstr "クラシック(&C)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Phosphor"
+msgstr ""
+
+#: frame/window/menu_bar.cpp
+msgid "Ico&ns"
+msgstr "アイコン(&N)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Automatic"
+msgstr "自動(&A)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Language"
+msgstr "言語(&L)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Font..."
+msgstr "フォント(&F)..."
+
+#: frame/window/menu_bar.cpp
+msgid "Simple &Mode"
+msgstr "シンプル モード(&M)"
+
+#: frame/window/menu_bar.cpp
+msgid "&View"
+msgstr "表示(&V)"
+
+#: frame/window/menu_bar.cpp
+msgid "Read Only &Mode"
+msgstr "読み取り専用モード(&M)"
+
+#: frame/window/menu_bar.cpp
+msgid "Use &Backup/Restore Privileges"
+msgstr "バックアップ/復元の特権を使用(&B)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Restart"
+msgstr "再起動(&R)"
+
+#: frame/window/menu_bar.cpp
+msgid "Restart as &User"
+msgstr "ユーザーとして再起動(&U)"
+
+#: frame/window/menu_bar.cpp
+msgid "R&estart as Admin"
+msgstr "管理者として再起動(&E)"
+
+#: frame/window/menu_bar.cpp
+msgid "Restart as &SYSTEM"
+msgstr "SYSTEM として再起動(&S)"
+
+#: frame/window/menu_bar.cpp
+msgid "Restart as &TrustedInstaller"
+msgstr "TrustedInstaller として再起動(&T)"
+
+#: frame/window/menu_bar.cpp
+msgid "A&lways Run as Admin"
+msgstr "常に管理者として実行(&L)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Always Run as SYSTEM"
+msgstr "常に SYSTEM として実行(&A)"
+
+#: frame/window/menu_bar.cpp
+msgid "Al&ways Run as TrustedInstaller"
+msgstr "常に TrustedInstaller として実行(&W)"
+
+#: frame/window/menu_bar.cpp
+msgid "&HKCU Follows Signed-In User"
+msgstr "HKCU をサインイン中のユーザーに合わせる(&H)"
+
+#: frame/window/menu_bar.cpp
+msgid "R&un As"
+msgstr "実行ユーザー(&U)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Replace RegEdit"
+msgstr "RegEdit の置き換え(&R)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Add \"Edit\" Context Menu"
+msgstr "コンテキスト メニューに \"編集\" を追加(&A)"
+
+#: frame/window/menu_bar.cpp
+msgid "Single &Instance"
+msgstr "単一インスタンス(&I)"
+
+#: frame/window/menu_bar.cpp
+msgid "Autocomplete &Key Paths"
+msgstr "キー パスのオートコンプリート(&K)"
+
+#: frame/window/menu_bar.cpp
+msgid "&All Tabs"
+msgstr "すべてのタブ(&A)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Local Registry Tabs"
+msgstr "ローカル レジストリのタブ(&L)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Offline Hive Tabs"
+msgstr "オフライン ハイブのタブ(&O)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Remote Registry Tabs"
+msgstr "リモート レジストリのタブ(&R)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Find Results"
+msgstr "検索結果(&F)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Comparison Results"
+msgstr "比較結果(&C)"
+
+#: frame/window/menu_bar.cpp
+msgid ".reg File &Tabs"
+msgstr ".reg ファイルのタブ(&T)"
+
+#: frame/window/menu_bar.cpp
+msgid "Save &Tabs"
+msgstr "タブの保存(&T)"
+
+#: frame/window/menu_bar.cpp
+msgid "Save &Previous Tree State"
+msgstr "前回のツリーの状態を保存(&P)"
+
+#: frame/window/menu_bar.cpp
+msgid "Clear &History on Exit"
+msgstr "終了時に履歴をクリア(&H)"
+
+#: frame/window/menu_bar.cpp
+msgid "Clear Tabs &on Exit"
+msgstr "終了時にタブをクリア(&O)"
+
+#: frame/window/menu_bar.cpp
+msgid "Clear &All"
+msgstr "すべてクリア(&A)"
+
+#: frame/window/menu_bar.cpp
+msgid "Tab &Sessions"
+msgstr "タブ セッション(&S)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Change History"
+msgstr "変更履歴(&C)"
+
+#: frame/window/menu_bar.cpp
+msgid "Search &History"
+msgstr "検索履歴(&H)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Dialog Options"
+msgstr "ダイアログのオプション(&D)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Tree State"
+msgstr "ツリーの状態(&T)"
+
+#: frame/window/menu_bar.cpp
+msgid "Temporary &Files"
+msgstr "一時ファイル(&F)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Clear Caches"
+msgstr "キャッシュのクリア(&C)"
+
+#: frame/window/menu_bar.cpp
+msgid "Reset &Settings..."
+msgstr "設定のリセット(&S)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Add to Favorites..."
+msgstr "お気に入りに追加(&A)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Remove Favorite"
+msgstr "お気に入りから削除(&R)"
+
+#: frame/window/menu_bar.cpp
+msgid "Edit &Favorites..."
+msgstr "お気に入りの編集(&F)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Import Favorites..."
+msgstr "お気に入りのインポート(&I)..."
+
+#: frame/window/menu_bar.cpp
+msgid "I&mport RegEdit Favorites"
+msgstr "RegEdit のお気に入りをインポート(&M)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Export Favorites..."
+msgstr "お気に入りのエクスポート(&E)..."
+
+#: frame/window/menu_bar.cpp
+msgid "F&avorites"
+msgstr "お気に入り(&A)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Options"
+msgstr "オプション(&O)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Compare Registries..."
+msgstr "レジストリの比較(&C)..."
+
+#: frame/window/menu_bar.cpp
+msgid "Convert &File..."
+msgstr "ファイルの変換(&F)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Key Handles..."
+msgstr "キー ハンドル(&K)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&New Definition File..."
+msgstr "新しい定義ファイル(&N)..."
+
+#: frame/window/menu_bar.cpp
+msgid "&Bit Definitions"
+msgstr "ビット定義(&B)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Tools"
+msgstr "ツール(&T)"
+
+#: frame/window/menu_bar.cpp
+msgid "&New Window"
+msgstr "新しいウィンドウ(&N)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Close Tab"
+msgstr "タブを閉じる(&C)"
+
+#: frame/window/menu_bar.cpp
+msgid "Close &Window"
+msgstr "ウィンドウを閉じる(&W)"
+
+#: frame/window/menu_bar.cpp
+msgid "&Always on Top"
+msgstr "常に手前に表示(&A)"
+
+#: frame/window/menu_bar.cpp
 msgid "&Window"
 msgstr "ウィンドウ(&W)"
 
-#: frame/window/menu_bar.cpp:538
-msgid "23H2"
+#: frame/window/menu_bar.cpp
+msgid "2&3H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:539
-msgid "24H2"
+#: frame/window/menu_bar.cpp
+msgid "2&4H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:540
-msgid "25H2"
+#: frame/window/menu_bar.cpp
+msgid "&25H2"
 msgstr ""
 
-#: frame/window/menu_bar.cpp:563
-msgid "Open Trace File..."
-msgstr "Trace ファイルを開く..."
+#: frame/window/menu_bar.cpp
+msgid "&Open Trace File..."
+msgstr "Trace ファイルを開く(&O)..."
 
-#: frame/window/menu_bar.cpp:565
-msgid "Edit Active Traces..."
-msgstr "使用中の Trace の編集..."
+#: frame/window/menu_bar.cpp
+msgid "&Edit Active Traces..."
+msgstr "使用中の Trace の編集(&E)..."
 
-#: frame/window/menu_bar.cpp:566
-msgid "Clear Active Traces"
-msgstr "使用中の Trace をクリア"
+#: frame/window/menu_bar.cpp
+msgid "Clear &Active Traces"
+msgstr "使用中の Trace をクリア(&A)"
 
-#: frame/window/menu_bar.cpp:568
-msgid "Edit Recent Traces..."
-msgstr "最近使った Trace の編集..."
+#: frame/window/menu_bar.cpp
+msgid "Edit &Recent Traces..."
+msgstr "最近使った Trace の編集(&R)..."
 
-#: frame/window/menu_bar.cpp:569
-msgid "Clear Recent Traces"
-msgstr "最近使った Trace をクリア"
+#: frame/window/menu_bar.cpp
+msgid "&Clear Recent Traces"
+msgstr "最近使った Trace をクリア(&C)"
 
-#: frame/window/menu_bar.cpp:571
-msgid "Guide"
-msgstr "ガイド"
+#: frame/window/menu_bar.cpp
+msgid "&Guide"
+msgstr "ガイド(&G)"
 
-#: frame/window/menu_bar.cpp:614
-msgid "Open Default File..."
-msgstr "既定値ファイルを開く..."
+#: frame/window/menu_bar.cpp
+msgid "&Open Default File..."
+msgstr "既定値ファイルを開く(&O)..."
 
-#: frame/window/menu_bar.cpp:616
-msgid "Edit Active Defaults..."
-msgstr "使用中の既定値の編集..."
+#: frame/window/menu_bar.cpp
+msgid "Edit &Active Defaults..."
+msgstr "使用中の既定値の編集(&A)..."
 
-#: frame/window/menu_bar.cpp:617
-msgid "Clear Active Defaults"
-msgstr "使用中の既定値をクリア"
+#: frame/window/menu_bar.cpp
+msgid "&Clear Active Defaults"
+msgstr "使用中の既定値をクリア(&C)"
 
-#: frame/window/menu_bar.cpp:619
-msgid "Edit Recent Defaults..."
-msgstr "最近使った既定値の編集..."
+#: frame/window/menu_bar.cpp
+msgid "Edit Recent &Defaults..."
+msgstr "最近使った既定値の編集(&D)..."
 
-#: frame/window/menu_bar.cpp:620
-msgid "Clear Recent Defaults"
-msgstr "最近使った既定値をクリア"
+#: frame/window/menu_bar.cpp
+msgid "Clear &Recent Defaults"
+msgstr "最近使った既定値をクリア(&R)"
 
-#: frame/window/menu_bar.cpp:622
-msgid "Enable Context Menu (risky)"
-msgstr "コンテキスト メニューを有効化 (危険)"
+#: frame/window/menu_bar.cpp
+msgid "&Enable Context Menu (risky)"
+msgstr "コンテキスト メニューを有効化 (危険)(&E)"
 
-#: frame/window/menu_bar.cpp:625
-msgid "Documentation"
-msgstr "ドキュメント"
+#: frame/window/menu_bar.cpp
+msgid "D&ocumentation"
+msgstr "ドキュメント(&O)"
 
-#: frame/window/menu_bar.cpp:628
-msgid "Check for Updates"
-msgstr "更新プログラムの確認"
+#: frame/window/menu_bar.cpp
+msgid "Check &for Updates"
+msgstr "更新プログラムの確認(&F)"
 
-#: frame/window/menu_bar.cpp:629
-msgid "Check for Updates Automatically"
-msgstr "更新プログラムを自動的に確認"
+#: frame/window/menu_bar.cpp
+msgid "&Check for Updates Automatically"
+msgstr "更新プログラムを自動的に確認(&C)"
 
-#: frame/window/menu_bar.cpp:631 ui/feedback.cpp:526
-msgid "About RegKit"
-msgstr "RegKit について"
+#: frame/window/menu_bar.cpp
+msgid "&About RegKit"
+msgstr "RegKit について(&A)"
 
-#: frame/window/menu_bar.cpp:644
+#: frame/window/menu_bar.cpp
 msgid "T&race"
 msgstr "Trace(&R)"
 
-#: frame/window/menu_bar.cpp:645
+#: frame/window/menu_bar.cpp
 msgid "Defa&ult"
 msgstr "既定値(&U)"
 
-#: frame/window/menu_bar.cpp:646
+#: frame/window/menu_bar.cpp
 msgid "Re&search"
 msgstr "参考資料(&S)"
 
-#: frame/window/menu_bar.cpp:647
+#: frame/window/menu_bar.cpp
 msgid "&Help"
 msgstr "ヘルプ(&H)"
 
-#: frame/window/message_routes.cpp:50
+#: frame/window/message_routes.cpp
 msgid "RegKit is running with elevated rights and only opens local files handed to it by another instance."
 msgstr "RegKit は昇格した権限で実行されており、別のインスタンスから渡されたファイルはローカル ファイルのみ開きます。"
 
-#: frame/window/message_routes.cpp:54
+#: frame/window/message_routes.cpp
 msgid ""
 "Another RegKit instance asked this elevated window to open a .reg file.\n"
 "\n"
@@ -2929,1095 +3058,1076 @@ msgstr ""
 "\n"
 "開きますか?"
 
-#: frame/window/message_routes.cpp:54
+#: frame/window/message_routes.cpp
 msgid "Open .reg File"
 msgstr ".reg ファイルを開く"
 
-#: frame/window/message_routes.cpp:54
+#: frame/window/message_routes.cpp
 msgid "Open"
 msgstr "開く"
 
-#: frame/window/message_routes.cpp:588 search/regex.cpp:286
-#: search/regex.cpp:288
+#: frame/window/message_routes.cpp search/regex.cpp
 msgid "The find text isn't a valid regular expression."
 msgstr "検索テキストは有効な正規表現ではありません。"
 
-#: frame/window/notifications.cpp:144 frame/window/notifications.cpp:1235
+#: frame/window/notifications.cpp
 msgid "(Key)"
 msgstr "(キー)"
 
-#: frame/window/notifications.cpp:151 frame/window/notifications.cpp:1253
+#: frame/window/notifications.cpp
 msgid "Same"
 msgstr "同一"
 
-#: frame/window/notifications.cpp:151 frame/window/notifications.cpp:1253
+#: frame/window/notifications.cpp
 msgid "Different"
 msgstr "相違"
 
-#: frame/window/notifications.cpp:556 frame/window/notifications.cpp:778
+#: frame/window/notifications.cpp
 msgid "A key with this name already exists:"
 msgstr "この名前のキーは既に存在します:"
 
-#: frame/window/notifications.cpp:556 frame/window/notifications.cpp:778
+#: frame/window/notifications.cpp
 msgid "Rename Key"
 msgstr "キー名の変更"
 
-#: frame/window/notifications.cpp:561 frame/window/notifications.cpp:783
+#: frame/window/notifications.cpp
 msgid "Failed to rename key."
 msgstr "キー名を変更できませんでした。"
 
-#: frame/window/notifications.cpp:800
+#: frame/window/notifications.cpp
 msgid "A value with this name already exists:"
 msgstr "この名前の値は既に存在します:"
 
-#: frame/window/notifications.cpp:800
+#: frame/window/notifications.cpp
 msgid "Rename Value"
 msgstr "値の名前の変更"
 
-#: frame/window/notifications.cpp:816
+#: frame/window/notifications.cpp
 msgid "Failed to rename value."
 msgstr "値の名前を変更できませんでした。"
 
-#: launch/program.cpp:192 launch/program.cpp:242 regfile/reg_exe_syntax.cpp:65
+#: launch/program.cpp regfile/reg_exe_syntax.cpp
 msgid "Missing argument"
 msgstr "引数がありません"
 
-#: launch/program.cpp:210 regfile/reg_exe_syntax.cpp:76
-#: regfile/reg_exe_syntax.cpp:168 regfile/reg_exe_syntax.cpp:179
+#: launch/program.cpp regfile/reg_exe_syntax.cpp
 msgid "Invalid option"
 msgstr "無効なオプション"
 
-#: launch/program.cpp:233
+#: launch/program.cpp
 msgid "Invalid argument"
 msgstr "無効な引数"
 
-#: launch/program.cpp:238
+#: launch/program.cpp
 msgid "Registry paths with spaces must be in quotes."
 msgstr "スペースを含むレジストリ パスは引用符で囲む必要があります。"
 
-#: launch/program.cpp:551
+#: launch/program.cpp
 msgid "Message loop failed unexpectedly."
 msgstr "メッセージ ループで予期しないエラーが発生しました。"
 
-#: launch/program.cpp:650
+#: launch/program.cpp
 msgid "Administrator restart was cancelled."
 msgstr "管理者としての再起動がキャンセルされました。"
 
-#: launch/program.cpp:680
+#: launch/program.cpp
 msgid "Failed to create the main window."
 msgstr "メイン ウィンドウを作成できませんでした。"
 
-#: records/json.cpp:89 records/json.cpp:106 records/json.cpp:146
-#: records/json.cpp:289 records/json.cpp:300 records/json.cpp:317
+#: records/json.cpp
 msgid "The file isn't valid JSON."
 msgstr "ファイルが有効な JSON ではありません。"
 
-#: records/json.cpp:116
+#: records/json.cpp
 msgid "The file is nested too deeply."
 msgstr "ファイルの入れ子が深すぎます。"
 
-#: records/json.cpp:169
+#: records/json.cpp
 msgid "A text member is longer than the format allows."
 msgstr "テキスト プロパティがこの形式の長さの上限を超えています。"
 
-#: records/json.cpp:173 records/json.cpp:186
+#: records/json.cpp
 msgid "The file ends inside a string."
 msgstr "ファイルが文字列の途中で終わっています。"
 
-#: records/json.cpp:182
+#: records/json.cpp
 msgid "A string contains an unescaped control character."
 msgstr "文字列にエスケープされていない制御文字があります。"
 
-#: records/json.cpp:216
+#: records/json.cpp
 msgid "A string contains a malformed escape."
 msgstr "文字列に不正なエスケープがあります。"
 
-#: records/json.cpp:223
+#: records/json.cpp
 msgid "A string contains an unsupported escape."
 msgstr "文字列にサポートされていないエスケープがあります。"
 
-#: records/json.cpp:232
+#: records/json.cpp
 msgid "An unsigned number was expected."
 msgstr "符号なしの数値が必要です。"
 
-#: records/json.cpp:236
+#: records/json.cpp
 msgid "A number has a leading zero."
 msgstr "数値に先行ゼロがあります。"
 
-#: records/json.cpp:244
+#: records/json.cpp
 msgid "A number is out of range."
 msgstr "数値が範囲外です。"
 
-#: records/json.cpp:250
+#: records/json.cpp
 msgid "Only unsigned integers are supported."
 msgstr "符号なし整数のみサポートしています。"
 
-#: records/json.cpp:326
+#: records/json.cpp
 msgid "The file contains trailing content."
 msgstr "ファイルの末尾に余分な内容があります。"
 
-#: regfile/batch_script.cpp:184
+#: regfile/batch_script.cpp
 msgid "Unsupported reg command"
 msgstr "サポートされていない reg コマンド"
 
-#: regfile/batch_script.cpp:196 regfile/batch_script.cpp:532
-#: regfile/script_convert.cpp:109
+#: regfile/batch_script.cpp regfile/script_convert.cpp
 msgid "Invalid key name."
 msgstr "キー名が無効です。"
 
-#: regfile/batch_script.cpp:201
+#: regfile/batch_script.cpp
 msgid "/reg:32 targets the 32-bit view, which can't be converted."
 msgstr "/reg:32 は 32 ビット ビューを対象としており、変換できません。"
 
-#: regfile/batch_script.cpp:206
+#: regfile/batch_script.cpp
 msgid "/va isn't supported."
 msgstr "/va はサポートされていません。"
 
-#: regfile/batch_script.cpp:219
+#: regfile/batch_script.cpp
 msgid "Invalid type"
 msgstr "無効な種類"
 
-#: regfile/batch_script.cpp:293
+#: regfile/batch_script.cpp
 msgid "Pipes aren't supported."
 msgstr "パイプはサポートされていません。"
 
-#: regfile/batch_script.cpp:354
+#: regfile/batch_script.cpp
 msgid "Batch arguments can't be resolved."
 msgstr "バッチ引数を解決できません。"
 
-#: regfile/batch_script.cpp:366 regfile/powershell_script.cpp:783
-#: regfile/powershell_script.cpp:840
+#: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Variable can't be resolved"
 msgstr "変数を解決できません"
 
-#: regfile/batch_script.cpp:406 regfile/powershell_script.cpp:1423
+#: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Line"
 msgstr "行"
 
-#: regfile/batch_script.cpp:443 regfile/batch_script.cpp:502
-#: regfile/powershell_script.cpp:1202
+#: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Unsupported command"
 msgstr "サポートされていないコマンド"
 
-#: regfile/batch_script.cpp:453
+#: regfile/batch_script.cpp
 msgid "reg query is only supported in the form RegKit writes for empty keys."
 msgstr "reg query は、空のキーに対して RegKit が書き込む形式のみサポートしています。"
 
-#: regfile/batch_script.cpp:468
+#: regfile/batch_script.cpp
 msgid "set /a and set /p aren't supported."
 msgstr "set /a と set /p はサポートされていません。"
 
-#: regfile/batch_script.cpp:524
+#: regfile/batch_script.cpp
 msgid "contains a line break"
 msgstr "改行が含まれています"
 
-#: regfile/batch_script.cpp:528
+#: regfile/batch_script.cpp
 msgid "reg.exe trims leading and trailing spaces"
 msgstr "reg.exe は先頭と末尾の空白を削除します"
 
-#: regfile/batch_script.cpp:547 regfile/powershell_script.cpp:1454
+#: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "a root key can't be deleted"
 msgstr "ルート キーは削除できません"
 
-#: regfile/batch_script.cpp:565
+#: regfile/batch_script.cpp
 msgid "reg.exe can't write this data type"
 msgstr "reg.exe ではこのデータの種類を書き込めません"
 
-#: regfile/batch_script.cpp:570
+#: regfile/batch_script.cpp
 msgid "too long for a batch line"
 msgstr "バッチの 1 行としては長すぎます"
 
-#: regfile/batch_script.cpp:574 search/regex.cpp:273
+#: regfile/batch_script.cpp search/regex.cpp
 msgid "The text isn't valid UTF-16."
 msgstr "テキストが有効な UTF-16 ではありません。"
 
-#: regfile/powershell_script.cpp:101
+#: regfile/powershell_script.cpp
 msgid "Subexpressions aren't supported."
 msgstr "部分式はサポートされていません。"
 
-#: regfile/powershell_script.cpp:112 regfile/powershell_script.cpp:303
+#: regfile/powershell_script.cpp
 msgid "Unterminated variable name."
 msgstr "変数名が閉じられていません。"
 
-#: regfile/powershell_script.cpp:202
+#: regfile/powershell_script.cpp
 msgid "Unterminated block comment."
 msgstr "ブロック コメントが閉じられていません。"
 
-#: regfile/powershell_script.cpp:218
+#: regfile/powershell_script.cpp
 msgid "Unterminated here-string."
 msgstr "ヒアストリングが閉じられていません。"
 
-#: regfile/powershell_script.cpp:244 regfile/powershell_script.cpp:277
+#: regfile/powershell_script.cpp
 msgid "Unterminated string."
 msgstr "文字列が閉じられていません。"
 
-#: regfile/powershell_script.cpp:332
+#: regfile/powershell_script.cpp
 msgid "Unterminated type name."
 msgstr "型名が閉じられていません。"
 
-#: regfile/powershell_script.cpp:391
+#: regfile/powershell_script.cpp
 msgid "Unsupported number"
 msgstr "サポートされていない数値"
 
-#: regfile/powershell_script.cpp:413
+#: regfile/powershell_script.cpp
 msgid "Unexpected character"
 msgstr "予期しない文字"
 
-#: regfile/powershell_script.cpp:506 regfile/powershell_script.cpp:647
-#: regfile/powershell_script.cpp:744 regfile/powershell_script.cpp:824
+#: regfile/powershell_script.cpp
 msgid "Unexpected token"
 msgstr "予期しないトークン"
 
-#: regfile/powershell_script.cpp:546
+#: regfile/powershell_script.cpp
 msgid "Expected"
 msgstr "必要なトークン"
 
-#: regfile/powershell_script.cpp:588 regfile/powershell_script.cpp:604
-#: regfile/powershell_script.cpp:620
+#: regfile/powershell_script.cpp
 msgid "Only if conditions on Test-Path are supported."
 msgstr "Test-Path を条件とする if のみサポートしています。"
 
-#: regfile/powershell_script.cpp:613 regfile/powershell_script.cpp:1213
-#: regfile/powershell_script.cpp:1221
+#: regfile/powershell_script.cpp
 msgid "Unsupported parameter"
 msgstr "サポートされていないパラメーター"
 
-#: regfile/powershell_script.cpp:638
+#: regfile/powershell_script.cpp
 msgid "Expected '}'."
 msgstr "'}' が必要です。"
 
-#: regfile/powershell_script.cpp:654
+#: regfile/powershell_script.cpp
 msgid "else blocks aren't supported."
 msgstr "else ブロックはサポートされていません。"
 
-#: regfile/powershell_script.cpp:665
+#: regfile/powershell_script.cpp
 msgid "Only | Out-Null pipelines are supported."
 msgstr "パイプラインは | Out-Null のみサポートしています。"
 
-#: regfile/powershell_script.cpp:689
+#: regfile/powershell_script.cpp
 msgid "-WhatIf makes no changes and can't be converted."
 msgstr "-WhatIf は変更を行わないため、変換できません。"
 
-#: regfile/powershell_script.cpp:868
+#: regfile/powershell_script.cpp
 msgid "Expected a member name."
 msgstr "メンバー名が必要です。"
 
-#: regfile/powershell_script.cpp:878
+#: regfile/powershell_script.cpp
 msgid "Unexpected type"
 msgstr "予期しない型"
 
-#: regfile/powershell_script.cpp:911
+#: regfile/powershell_script.cpp
 msgid "Invalid RegKit.Native call."
 msgstr "RegKit.Native の呼び出しが無効です。"
 
-#: regfile/powershell_script.cpp:920 regfile/powershell_script.cpp:930
-#: regfile/powershell_script.cpp:966
+#: regfile/powershell_script.cpp
 msgid "Unsupported member"
 msgstr "サポートされていないメンバー"
 
-#: regfile/powershell_script.cpp:980
+#: regfile/powershell_script.cpp
 msgid "Expected text."
 msgstr "テキストが必要です。"
 
-#: regfile/powershell_script.cpp:992 regfile/powershell_script.cpp:1025
+#: regfile/powershell_script.cpp
 msgid "Byte values must be numbers from 0 to 255."
 msgstr "バイト値は 0 から 255 までの数値にする必要があります。"
 
-#: regfile/powershell_script.cpp:1039
+#: regfile/powershell_script.cpp
 msgid "The number doesn't fit an [int]."
 msgstr "数値が [int] の範囲に収まりません。"
 
-#: regfile/powershell_script.cpp:1051
+#: regfile/powershell_script.cpp
 msgid "Unsupported cast"
 msgstr "サポートされていないキャスト"
 
-#: regfile/powershell_script.cpp:1079
+#: regfile/powershell_script.cpp
 msgid "Invalid number"
 msgstr "無効な数値"
 
-#: regfile/powershell_script.cpp:1083
+#: regfile/powershell_script.cpp
 msgid "Expected a number."
 msgstr "数値が必要です。"
 
-#: regfile/powershell_script.cpp:1087
+#: regfile/powershell_script.cpp
 msgid "The number doesn't fit a DWORD."
 msgstr "数値が DWORD の範囲に収まりません。"
 
-#: regfile/powershell_script.cpp:1109
+#: regfile/powershell_script.cpp
 msgid "The value type can't be inferred, add -Type."
 msgstr "値の種類を推定できないため、-Type を追加してください。"
 
-#: regfile/powershell_script.cpp:1109
+#: regfile/powershell_script.cpp
 msgid "Unsupported value type"
 msgstr "サポートされていない値の種類"
 
-#: regfile/powershell_script.cpp:1138 regfile/powershell_script.cpp:1154
+#: regfile/powershell_script.cpp
 msgid "Not a registry path"
 msgstr "レジストリ パスではありません"
 
-#: regfile/powershell_script.cpp:1148
+#: regfile/powershell_script.cpp
 msgid "Wildcard paths can't be converted, use -LiteralPath."
 msgstr "ワイルドカードを含むパスは変換できないため、-LiteralPath を使用してください。"
 
-#: regfile/powershell_script.cpp:1169
+#: regfile/powershell_script.cpp
 msgid "A -Path is required."
 msgstr "-Path が必要です。"
 
-#: regfile/powershell_script.cpp:1195
+#: regfile/powershell_script.cpp
 msgid "Only registry drives are supported."
 msgstr "レジストリ ドライブのみサポートしています。"
 
-#: regfile/powershell_script.cpp:1206 regfile/powershell_script.cpp:1231
+#: regfile/powershell_script.cpp
 msgid "Only New-Item can follow if (-not (Test-Path)), and only removals can follow if (Test-Path)."
 msgstr "if (-not (Test-Path)) の後に記述できるのは New-Item のみ、if (Test-Path) の後に記述できるのは削除操作のみです。"
 
-#: regfile/powershell_script.cpp:1252
+#: regfile/powershell_script.cpp
 msgid "-Name and -Value are required."
 msgstr "-Name と -Value が必要です。"
 
-#: regfile/powershell_script.cpp:1261
+#: regfile/powershell_script.cpp
 msgid "-Name is required."
 msgstr "-Name が必要です。"
 
-#: regfile/powershell_script.cpp:1269
+#: regfile/powershell_script.cpp
 msgid "Wildcard value names can't be converted."
 msgstr "ワイルドカードを含む値の名前は変換できません。"
 
-#: regfile/powershell_script.cpp:1447
+#: regfile/powershell_script.cpp
 msgid "contains control characters"
 msgstr "制御文字が含まれています"
 
-#: regfile/registry_transfer.cpp:36
+#: regfile/registry_transfer.cpp
 msgid "The system directory couldn't be resolved."
 msgstr "システム ディレクトリを解決できませんでした。"
 
-#: regfile/registry_transfer.cpp:104
+#: regfile/registry_transfer.cpp
 msgid "reg.exe exited with an error."
 msgstr "reg.exe がエラーで終了しました。"
 
-#: regfile/registry_transfer.cpp:273
+#: regfile/registry_transfer.cpp
 msgid "Hive files need the backup and restore privileges. Run RegKit elevated."
 msgstr "ハイブ ファイルにはバックアップと復元の特権が必要です。RegKit を昇格して実行してください。"
 
-#: regfile/reg_exe_syntax.cpp:254
+#: regfile/reg_exe_syntax.cpp
 msgid "Invalid multi-string data"
 msgstr "無効な複数行文字列データ"
 
-#: regfile/reg_exe_syntax.cpp:272
+#: regfile/reg_exe_syntax.cpp
 msgid "Invalid numeric data"
 msgstr "無効な数値データ"
 
-#: regfile/reg_exe_syntax.cpp:276
+#: regfile/reg_exe_syntax.cpp
 msgid "Numeric data out of range for a DWORD"
 msgstr "数値データが DWORD の範囲外です"
 
-#: regfile/reg_exe_syntax.cpp:289 regfile/reg_exe_syntax.cpp:296
+#: regfile/reg_exe_syntax.cpp
 msgid "Invalid binary data"
 msgstr "無効なバイナリ データ"
 
-#: regfile/reg_file.cpp:272
+#: regfile/reg_file.cpp
 msgid "only the volatile flag of it and its subkeys"
 msgstr "このキーとサブキーの揮発性フラグのみ"
 
-#: regfile/reg_file.cpp:296
+#: regfile/reg_file.cpp
 msgid "the name contains a null character"
 msgstr "名前に null 文字が含まれる"
 
-#: regfile/reg_file.cpp:427
+#: regfile/reg_file.cpp
 msgid "The file contains an entry RegKit can't parse."
 msgstr "ファイルに RegKit で解析できない項目があります。"
 
-#: regfile/script_convert.cpp:51
+#: regfile/script_convert.cpp
 msgid "Unsupported file type, use .reg, .bat, .cmd or .ps1."
 msgstr "サポートされていないファイルの種類なので、.reg、.bat、.cmd、.ps1 を使用してください。"
 
-#: regfile/script_convert.cpp:72
+#: regfile/script_convert.cpp
 msgid "Unsupported root key."
 msgstr "サポートされていないルート キーです。"
 
-#: regfile/script_convert.cpp:79
+#: regfile/script_convert.cpp
 msgid "The file has no registry changes."
 msgstr "ファイルにレジストリの変更がありません。"
 
-#: regfile/script_convert.cpp:90
+#: regfile/script_convert.cpp
 msgid "Enter a key under HKLM, HKCU, HKCR, HKU or HKCC."
 msgstr "HKLM、HKCU、HKCR、HKU、HKCC の下のキーを入力してください。"
 
-#: regfile/script_convert.cpp:117
+#: regfile/script_convert.cpp
 msgid "The file has no changes for this key."
 msgstr "ファイルにこのキーの変更がありません。"
 
-#: registry/key_access.cpp:113
+#: registry/key_access.cpp
 msgid "Current user"
 msgstr "現在のユーザー"
 
-#: registry/key_access.cpp:136
+#: registry/key_access.cpp
 msgid "Full control"
 msgstr "フル コントロール"
 
-#: registry/key_access.cpp:139
+#: registry/key_access.cpp
 msgid "Read and write"
 msgstr "読み取りと書き込み"
 
-#: registry/key_access.cpp:140
+#: registry/key_access.cpp
 msgid "No access"
 msgstr "アクセス不可"
 
-#: registry/key_access.cpp:144
+#: registry/key_access.cpp
 msgid "can change permissions"
 msgstr "アクセス許可を変更可能"
 
-#: registry/offline_registry.cpp:152
+#: registry/offline_registry.cpp
 msgid "offreg.dll couldn't be loaded."
 msgstr "offreg.dll を読み込めませんでした。"
 
-#: registry/resource_list.cpp:84
+#: registry/resource_list.cpp
 msgid "Undefined"
 msgstr "未定義"
 
-#: registry/resource_list.cpp:85
+#: registry/resource_list.cpp
 msgid "Internal"
 msgstr "内部"
 
-#: registry/resource_list.cpp:97
+#: registry/resource_list.cpp
 msgid "Processor internal"
 msgstr "プロセッサ内部"
 
-#: registry/resource_list.cpp:98
+#: registry/resource_list.cpp
 msgid "Internal power bus"
 msgstr "内部電源バス"
 
-#: registry/resource_list.cpp:106
+#: registry/resource_list.cpp
 msgid "Null"
 msgstr "Null"
 
-#: registry/resource_list.cpp:107
+#: registry/resource_list.cpp
 msgid "Configuration data"
 msgstr "構成データ"
 
-#: registry/resource_list.cpp:108
+#: registry/resource_list.cpp
 msgid "Device private"
 msgstr "デバイス固有"
 
-#: registry/resource_list.cpp:109
+#: registry/resource_list.cpp
 msgid "PC card configuration"
 msgstr "PC カード構成"
 
-#: registry/resource_list.cpp:110
+#: registry/resource_list.cpp
 msgid "Multifunction card configuration"
 msgstr "多機能カード構成"
 
-#: registry/resource_list.cpp:111
+#: registry/resource_list.cpp
 msgid "Connection"
 msgstr "接続"
 
-#: registry/resource_list.cpp:115
+#: registry/resource_list.cpp
 msgid "Undetermined"
 msgstr "未確定"
 
-#: registry/resource_list.cpp:116
+#: registry/resource_list.cpp
 msgid "Device exclusive"
 msgstr "デバイス専用"
 
-#: registry/resource_list.cpp:117
+#: registry/resource_list.cpp
 msgid "Driver exclusive"
 msgstr "ドライバー専用"
 
-#: registry/resource_list.cpp:118
+#: registry/resource_list.cpp
 msgid "Shared"
 msgstr "共有"
 
-#: registry/resource_list.cpp:182
+#: registry/resource_list.cpp
 msgid "Ports"
 msgstr "ポート"
 
-#: registry/resource_list.cpp:183
+#: registry/resource_list.cpp
 msgid "Interrupts"
 msgstr "割り込み"
 
-#: registry/resource_list.cpp:184
+#: registry/resource_list.cpp
 msgid "Memory"
 msgstr "メモリ"
 
-#: registry/resource_list.cpp:185
+#: registry/resource_list.cpp
 msgid "DMA"
 msgstr ""
 
-#: registry/resource_list.cpp:186
+#: registry/resource_list.cpp
 msgid "Bus numbers"
 msgstr "バス番号"
 
-#: registry/resource_list.cpp:187
+#: registry/resource_list.cpp
 msgid "Device specific data"
 msgstr "デバイス固有データ"
 
-#: registry/resource_list.cpp:188
+#: registry/resource_list.cpp
 msgid "Other resources"
 msgstr "その他のリソース"
 
-#: registry/resource_list.cpp:273
+#: registry/resource_list.cpp
 msgid "Start address"
 msgstr "開始アドレス"
 
-#: registry/resource_list.cpp:273 registry/resource_list.cpp:292
-#: registry/resource_list.cpp:365 registry/resource_list.cpp:379
-#: registry/value_decoder.cpp:602
+#: registry/resource_list.cpp registry/value_decoder.cpp
 msgid "Length"
 msgstr "長さ"
 
-#: registry/resource_list.cpp:273 registry/resource_list.cpp:285
-#: registry/resource_list.cpp:289 registry/resource_list.cpp:292
-#: registry/resource_list.cpp:306 registry/resource_list.cpp:365
-#: registry/resource_list.cpp:369 registry/resource_list.cpp:375
-#: registry/resource_list.cpp:379 registry/resource_list.cpp:382
+#: registry/resource_list.cpp
 msgid "Share"
 msgstr "共有"
 
-#: registry/resource_list.cpp:283
+#: registry/resource_list.cpp
 msgid "Messages"
 msgstr "メッセージ"
 
-#: registry/resource_list.cpp:285
+#: registry/resource_list.cpp
 msgid "Vector"
 msgstr "ベクター"
 
-#: registry/resource_list.cpp:285
+#: registry/resource_list.cpp
 msgid "Level"
 msgstr "レベル"
 
-#: registry/resource_list.cpp:285 registry/resource_list.cpp:369
-#: registry/value_decoder.cpp:688
+#: registry/resource_list.cpp registry/value_decoder.cpp
 msgid "Group"
 msgstr "グループ"
 
-#: registry/resource_list.cpp:285
+#: registry/resource_list.cpp
 msgid "Affinity"
 msgstr "プロセッサ アフィニティ"
 
-#: registry/resource_list.cpp:289
+#: registry/resource_list.cpp
 msgid "Channel"
 msgstr "チャネル"
 
-#: registry/resource_list.cpp:289
+#: registry/resource_list.cpp
 msgid "Port / request line"
 msgstr "ポート / 要求ライン"
 
-#: registry/resource_list.cpp:292
+#: registry/resource_list.cpp
 msgid "Start bus number"
 msgstr "開始バス番号"
 
-#: registry/resource_list.cpp:334
+#: registry/resource_list.cpp
 msgid "Required"
 msgstr "必須"
 
-#: registry/resource_list.cpp:335
+#: registry/resource_list.cpp
 msgid "Preferred"
 msgstr "優先"
 
-#: registry/resource_list.cpp:337
+#: registry/resource_list.cpp
 msgid "Alternative"
 msgstr "代替"
 
-#: registry/resource_list.cpp:365 registry/resource_list.cpp:369
-#: registry/resource_list.cpp:375 registry/resource_list.cpp:379
-#: registry/resource_list.cpp:382
+#: registry/resource_list.cpp
 msgid "Option"
 msgstr "オプション"
 
-#: registry/resource_list.cpp:365
+#: registry/resource_list.cpp
 msgid "Alignment"
 msgstr "アラインメント"
 
-#: registry/resource_list.cpp:365
+#: registry/resource_list.cpp
 msgid "Minimum address"
 msgstr "最小アドレス"
 
-#: registry/resource_list.cpp:365
+#: registry/resource_list.cpp
 msgid "Maximum address"
 msgstr "最大アドレス"
 
-#: registry/resource_list.cpp:369
+#: registry/resource_list.cpp
 msgid "Minimum vector"
 msgstr "最小ベクター"
 
-#: registry/resource_list.cpp:369
+#: registry/resource_list.cpp
 msgid "Maximum vector"
 msgstr "最大ベクター"
 
-#: registry/resource_list.cpp:369
+#: registry/resource_list.cpp
 msgid "Targeted processors"
 msgstr "対象プロセッサ"
 
-#: registry/resource_list.cpp:375
+#: registry/resource_list.cpp
 msgid "Minimum channel"
 msgstr "最小チャネル"
 
-#: registry/resource_list.cpp:375
+#: registry/resource_list.cpp
 msgid "Maximum channel"
 msgstr "最大チャネル"
 
-#: registry/resource_list.cpp:379
+#: registry/resource_list.cpp
 msgid "Minimum bus number"
 msgstr "最小バス番号"
 
-#: registry/resource_list.cpp:379
+#: registry/resource_list.cpp
 msgid "Maximum bus number"
 msgstr "最大バス番号"
 
-#: registry/resource_list.cpp:397
+#: registry/resource_list.cpp
 msgid "Requirements"
 msgstr "要件"
 
-#: registry/resource_list.cpp:397 registry/resource_list.cpp:417
+#: registry/resource_list.cpp
 msgid "Interface"
 msgstr "インターフェイス"
 
-#: registry/resource_list.cpp:397 registry/resource_list.cpp:417
+#: registry/resource_list.cpp
 msgid "Bus number"
 msgstr "バス番号"
 
-#: registry/resource_list.cpp:397
+#: registry/resource_list.cpp
 msgid "Slot number"
 msgstr "スロット番号"
 
-#: registry/resource_list.cpp:397
+#: registry/resource_list.cpp
 msgid "Alternative lists"
 msgstr "代替リスト"
 
-#: registry/resource_list.cpp:398
+#: registry/resource_list.cpp
 msgid "List"
 msgstr "リスト"
 
-#: registry/resource_list.cpp:416
+#: registry/resource_list.cpp
 msgid "Descriptor"
 msgstr "記述子"
 
-#: registry/resource_list.cpp:417
+#: registry/resource_list.cpp
 msgid "Descriptors"
 msgstr "記述子"
 
-#: registry/resource_list.cpp:417
+#: registry/resource_list.cpp
 msgid "Version"
 msgstr "バージョン"
 
-#: registry/resource_list.cpp:417
+#: registry/resource_list.cpp
 msgid "Resources"
 msgstr "リソース"
 
-#: registry/value_decoder.cpp:34
+#: registry/value_decoder.cpp
 msgid "Offset"
 msgstr "オフセット"
 
-#: registry/value_decoder.cpp:65
+#: registry/value_decoder.cpp
 msgid "Text value has an odd byte count."
 msgstr "テキスト値のバイト数が奇数です。"
 
-#: registry/value_decoder.cpp:80
+#: registry/value_decoder.cpp
 msgid "Text value contains an embedded NUL."
 msgstr "テキスト値に埋め込み NUL があります。"
 
-#: registry/value_decoder.cpp:93
+#: registry/value_decoder.cpp
 msgid "Binary value isn't ASCII text."
 msgstr "バイナリ値は ASCII テキストではありません。"
 
-#: registry/value_decoder.cpp:100
+#: registry/value_decoder.cpp
 msgid "This value type has no text form."
 msgstr "この値の種類にはテキスト形式がありません。"
 
-#: registry/value_decoder.cpp:136
+#: registry/value_decoder.cpp
 msgid "Invalid Base64 character."
 msgstr "無効な Base64 文字です。"
 
-#: registry/value_decoder.cpp:145 registry/value_decoder.cpp:153
+#: registry/value_decoder.cpp
 msgid "Invalid Base64 padding bits."
 msgstr "Base64 のパディング ビットが無効です。"
 
-#: registry/value_decoder.cpp:169 registry/value_decoder.cpp:419
+#: registry/value_decoder.cpp
 msgid "Input is too large to decode."
 msgstr "入力が大きすぎてデコードできません。"
 
-#: registry/value_decoder.cpp:175 registry/value_decoder.cpp:186
+#: registry/value_decoder.cpp
 msgid "The text couldn't be decoded."
 msgstr "テキストをデコードできませんでした。"
 
-#: registry/value_decoder.cpp:197
+#: registry/value_decoder.cpp
 msgid "Base64 length isn't a multiple of four."
 msgstr "Base64 の長さは 4 の倍数ではありません。"
 
-#: registry/value_decoder.cpp:237
+#: registry/value_decoder.cpp
 msgid "Invalid Base64URL character."
 msgstr "無効な Base64URL 文字です。"
 
-#: registry/value_decoder.cpp:248
+#: registry/value_decoder.cpp
 msgid "Base64URL padding isn't at the end."
 msgstr "Base64URL のパディングが末尾にありません。"
 
-#: registry/value_decoder.cpp:254
+#: registry/value_decoder.cpp
 msgid "Base64URL length isn't valid."
 msgstr "Base64URL の長さが無効です。"
 
-#: registry/value_decoder.cpp:261
+#: registry/value_decoder.cpp
 msgid "Base64URL padding is incomplete."
 msgstr "Base64URL のパディングが不完全です。"
 
-#: registry/value_decoder.cpp:299
+#: registry/value_decoder.cpp
 msgid "Invalid hex character."
 msgstr "無効な 16 進文字です。"
 
-#: registry/value_decoder.cpp:304
+#: registry/value_decoder.cpp
 msgid "Incomplete hex byte."
 msgstr "16 進バイトが不完全です。"
 
-#: registry/value_decoder.cpp:325
+#: registry/value_decoder.cpp
 msgid "Incomplete percent escape."
 msgstr "パーセント エスケープが不完全です。"
 
-#: registry/value_decoder.cpp:332
+#: registry/value_decoder.cpp
 msgid "Invalid percent escape."
 msgstr "パーセント エスケープが無効です。"
 
-#: registry/value_decoder.cpp:341
+#: registry/value_decoder.cpp
 msgid "Percent encoded text must be ASCII."
 msgstr "パーセント エンコードされたテキストは ASCII である必要があります。"
 
-#: registry/value_decoder.cpp:353 registry/value_decoder.cpp:362
+#: registry/value_decoder.cpp
 msgid "Invalid FILETIME."
 msgstr "無効な FILETIME です。"
 
-#: registry/value_decoder.cpp:369
+#: registry/value_decoder.cpp
 msgid "Local"
 msgstr "ローカル"
 
-#: registry/value_decoder.cpp:423 registry/value_decoder.cpp:430
-#: registry/value_decoder.cpp:462 registry/value_decoder.cpp:477
-#: ui/preset_editor.cpp:44
-msgid "Text"
-msgstr "テキスト"
-
-#: registry/value_decoder.cpp:423 registry/value_decoder.cpp:430
-#: registry/value_decoder.cpp:477 registry/value_decoder.cpp:834
+#: registry/value_decoder.cpp
 msgid "Bytes"
 msgstr "バイト"
 
-#: registry/value_decoder.cpp:428
+#: registry/value_decoder.cpp
 msgid "Invalid UTF-8."
 msgstr "無効な UTF-8 です。"
 
-#: registry/value_decoder.cpp:437
+#: registry/value_decoder.cpp
 msgid "UTF-16 needs an even byte count."
 msgstr "UTF-16 には偶数のバイト数が必要です。"
 
-#: registry/value_decoder.cpp:460
+#: registry/value_decoder.cpp
 msgid "Invalid UTF-16 surrogate pair."
 msgstr "UTF-16 のサロゲート ペアが無効です。"
 
-#: registry/value_decoder.cpp:462
+#: registry/value_decoder.cpp
 msgid "Code units"
 msgstr "コード単位"
 
-#: registry/value_decoder.cpp:473
+#: registry/value_decoder.cpp
 msgid "A byte isn't ASCII."
 msgstr "バイトが ASCII の範囲外です。"
 
-#: registry/value_decoder.cpp:484
+#: registry/value_decoder.cpp
 msgid "A FILETIME needs exactly 8 bytes."
 msgstr "FILETIME には正確に 8 バイト必要です。"
 
-#: registry/value_decoder.cpp:490
+#: registry/value_decoder.cpp
 msgid "Raw ticks"
 msgstr "生のティック値"
 
-#: registry/value_decoder.cpp:504
+#: registry/value_decoder.cpp
 msgid "A SYSTEMTIME needs exactly 16 bytes."
 msgstr "SYSTEMTIME には正確に 16 バイト必要です。"
 
-#: registry/value_decoder.cpp:514
+#: registry/value_decoder.cpp
 msgid "Invalid SYSTEMTIME."
 msgstr "無効な SYSTEMTIME です。"
 
-#: registry/value_decoder.cpp:518
+#: registry/value_decoder.cpp
 msgid "Date and time"
 msgstr "日付と時刻"
 
-#: registry/value_decoder.cpp:519
+#: registry/value_decoder.cpp
 msgid "Year"
 msgstr "年"
 
-#: registry/value_decoder.cpp:520
+#: registry/value_decoder.cpp
 msgid "Month"
 msgstr "月"
 
-#: registry/value_decoder.cpp:521
+#: registry/value_decoder.cpp
 msgid "Day"
 msgstr "日"
 
-#: registry/value_decoder.cpp:522
+#: registry/value_decoder.cpp
 msgid "Day of week"
 msgstr "曜日"
 
-#: registry/value_decoder.cpp:523
+#: registry/value_decoder.cpp
 msgid "Hour"
 msgstr "時"
 
-#: registry/value_decoder.cpp:524
+#: registry/value_decoder.cpp
 msgid "Minute"
 msgstr "分"
 
-#: registry/value_decoder.cpp:525
+#: registry/value_decoder.cpp
 msgid "Second"
 msgstr "秒"
 
-#: registry/value_decoder.cpp:526 registry/value_decoder.cpp:546
+#: registry/value_decoder.cpp
 msgid "Milliseconds"
 msgstr "ミリ秒"
 
-#: registry/value_decoder.cpp:534
+#: registry/value_decoder.cpp
 msgid "Unix time needs exactly 4 or 8 bytes."
 msgstr "Unix 時刻には正確に 4 または 8 バイト必要です。"
 
-#: registry/value_decoder.cpp:541 registry/value_decoder.cpp:550
+#: registry/value_decoder.cpp
 msgid "Unix time is out of range."
 msgstr "Unix 時刻が範囲外です。"
 
-#: registry/value_decoder.cpp:546
+#: registry/value_decoder.cpp
 msgid "Seconds"
 msgstr "秒"
 
-#: registry/value_decoder.cpp:560
+#: registry/value_decoder.cpp
 msgid "A GUID needs exactly 16 bytes."
 msgstr "GUID には正確に 16 バイト必要です。"
 
-#: registry/value_decoder.cpp:567
+#: registry/value_decoder.cpp
 msgid "The GUID couldn't be formatted."
 msgstr "GUID を書式設定できませんでした。"
 
-#: registry/value_decoder.cpp:586 registry/value_decoder.cpp:650
-#: registry/value_decoder.cpp:662
+#: registry/value_decoder.cpp
 msgid "Truncated structure."
 msgstr "構造体が途中で切れています。"
 
-#: registry/value_decoder.cpp:592 registry/value_decoder.cpp:597
+#: registry/value_decoder.cpp
 msgid "Invalid SID."
 msgstr "無効な SID です。"
 
-#: registry/value_decoder.cpp:616
+#: registry/value_decoder.cpp
 msgid "Account"
 msgstr "アカウント"
 
-#: registry/value_decoder.cpp:657
+#: registry/value_decoder.cpp
 msgid "Not a self relative security descriptor."
 msgstr "自己相対セキュリティ記述子ではありません。"
 
-#: registry/value_decoder.cpp:668
+#: registry/value_decoder.cpp
 msgid "Invalid security descriptor."
 msgstr "セキュリティ記述子が無効です。"
 
-#: registry/value_decoder.cpp:678
+#: registry/value_decoder.cpp
 msgid "The security descriptor couldn't be converted."
 msgstr "セキュリティ記述子を変換できませんでした。"
 
-#: registry/value_decoder.cpp:681
+#: registry/value_decoder.cpp
 msgid "absent"
 msgstr "なし"
 
-#: registry/value_decoder.cpp:681
+#: registry/value_decoder.cpp
 msgid "present"
 msgstr "あり"
 
-#: registry/value_decoder.cpp:687
+#: registry/value_decoder.cpp
 msgid "Owner"
 msgstr "所有者"
 
-#: registry/value_decoder.cpp:699
+#: registry/value_decoder.cpp
 msgid "An IPv6 address needs exactly 16 bytes."
 msgstr "IPv6 アドレスには正確に 16 バイト必要です。"
 
-#: registry/value_decoder.cpp:699
+#: registry/value_decoder.cpp
 msgid "An IPv4 address needs exactly 4 bytes."
 msgstr "IPv4 アドレスには正確に 4 バイト必要です。"
 
-#: registry/value_decoder.cpp:706
+#: registry/value_decoder.cpp
 msgid "The address couldn't be formatted."
 msgstr "アドレスを書式設定できませんでした。"
 
-#: registry/value_decoder.cpp:708
+#: registry/value_decoder.cpp
 msgid "Address"
 msgstr "アドレス"
 
-#: registry/value_decoder.cpp:738
+#: registry/value_decoder.cpp
 msgid "Hex bytes"
 msgstr "16 進バイト"
 
-#: registry/value_decoder.cpp:739
+#: registry/value_decoder.cpp
 msgid "URI percent encoding"
 msgstr "URI パーセント エンコード"
 
-#: registry/value_decoder.cpp:747
+#: registry/value_decoder.cpp
 msgid "Raw bytes"
 msgstr "生のバイト"
 
-#: registry/value_decoder.cpp:748
+#: registry/value_decoder.cpp
 msgid "UTF-8 text"
 msgstr "UTF-8 テキスト"
 
-#: registry/value_decoder.cpp:751
+#: registry/value_decoder.cpp
 msgid "UTF-16 LE text"
 msgstr "UTF-16 LE テキスト"
 
-#: registry/value_decoder.cpp:752
+#: registry/value_decoder.cpp
 msgid "UTF-16 BE text"
 msgstr "UTF-16 BE テキスト"
 
-#: registry/value_decoder.cpp:754
+#: registry/value_decoder.cpp
 msgid "ASCII text"
 msgstr "ASCII テキスト"
 
-#: registry/value_decoder.cpp:758
+#: registry/value_decoder.cpp
 msgid "Windows FILETIME"
 msgstr "Windows FILETIME"
 
-#: registry/value_decoder.cpp:762
+#: registry/value_decoder.cpp
 msgid "Windows SYSTEMTIME"
 msgstr "Windows SYSTEMTIME"
 
-#: registry/value_decoder.cpp:766
+#: registry/value_decoder.cpp
 msgid "Unix time (seconds)"
 msgstr "Unix 時刻 (秒)"
 
-#: registry/value_decoder.cpp:767
+#: registry/value_decoder.cpp
 msgid "Unix time (milliseconds)"
 msgstr "Unix 時刻 (ミリ秒)"
 
-#: registry/value_decoder.cpp:779
+#: registry/value_decoder.cpp
 msgid "Security descriptor"
 msgstr "セキュリティ記述子"
 
-#: registry/value_decoder.cpp:783
+#: registry/value_decoder.cpp
 msgid "IPv4 address"
 msgstr "IPv4 アドレス"
 
-#: registry/value_decoder.cpp:787
+#: registry/value_decoder.cpp
 msgid "IPv6 address"
 msgstr "IPv6 アドレス"
 
-#: registry/value_decoder.cpp:821
+#: registry/value_decoder.cpp
 msgid "Unknown encoding."
 msgstr "不明なエンコードです。"
 
-#: registry/value_decoder.cpp:829
+#: registry/value_decoder.cpp
 msgid "No data."
 msgstr "データがありません。"
 
-#: registry/value_decoder.cpp:862
+#: registry/value_decoder.cpp
 msgid "Unknown interpretation."
 msgstr "不明な解釈形式です。"
 
-#: registry/value_format.cpp:77
+#: registry/value_format.cpp
 msgid "byte"
 msgstr "バイト"
 
-#: registry/value_format.cpp:77
+#: registry/value_format.cpp
 msgid "bytes"
 msgstr "バイト"
 
-#: search/compare.cpp:244
+#: search/compare.cpp
 msgid "No matching keys were found for the selected path."
 msgstr "選択したパスに一致するキーが見つかりませんでした。"
 
-#: search/compare.cpp:343 search/compare.cpp:344 search/compare.cpp:357
-#: search/compare.cpp:358
+#: search/compare.cpp
 msgid "Present"
 msgstr "存在"
 
-#: search/regex.cpp:269
+#: search/regex.cpp
 msgid "The search was cancelled."
 msgstr "検索をキャンセルしました。"
 
-#: search/regex.cpp:271
+#: search/regex.cpp
 msgid "The pattern needed too many steps or too much memory."
 msgstr "パターンに必要な処理ステップ数またはメモリが多すぎます。"
 
-#: search/regex.cpp:275
+#: search/regex.cpp
 msgid "The pattern couldn't be applied."
 msgstr "パターンを適用できませんでした。"
 
-#: search/regex.cpp:288
+#: search/regex.cpp
 msgid "Position"
 msgstr "位置"
 
-#: search/search.cpp:715
+#: search/search.cpp
 msgid "Null character in the name"
 msgstr "名前に null 文字"
 
-#: search/search.cpp:720
+#: search/search.cpp
 msgid "Edge spaces or control characters in the name"
 msgstr "名前の先頭や末尾のスペース、または制御文字"
 
-#: search/search.cpp:735
+#: search/search.cpp
 msgid "Unknown type"
 msgstr "不明な種類"
 
-#: search/search.cpp:739
+#: search/search.cpp
 msgid "Unexpected size"
 msgstr "想定外のサイズ"
 
-#: search/search.cpp:751
+#: search/search.cpp
 msgid "Odd size"
 msgstr "バイト数が奇数"
 
-#: search/search.cpp:760
+#: search/search.cpp
 msgid "No terminating null"
 msgstr "終端の null 文字なし"
 
-#: search/search.cpp:764
+#: search/search.cpp
 msgid "No final double null"
 msgstr "末尾の二重 null 文字なし"
 
-#: search/search.cpp:768
+#: search/search.cpp
 msgid "Empty item"
 msgstr "空の要素"
 
-#: search/search.cpp:1444
+#: search/search.cpp
 msgid "Link target missing"
 msgstr "リンク先が存在しない"
 
-#: trace/trace_loader.cpp:29
+#: trace/trace_loader.cpp
 msgid "Failed to read trace file."
 msgstr "Trace ファイルを読み取れませんでした。"
 
-#: trace/trace_parser.cpp:37
+#: trace/trace_parser.cpp
 msgid "Trace file is empty or too large to load."
 msgstr "Trace ファイルが空か、大きすぎて読み込めません。"
 
-#: trace/trace_parser.cpp:51
+#: trace/trace_parser.cpp
 msgid "Trace file has no readable entries."
 msgstr "Trace ファイルに読み取れる項目がありません。"
 
-#: trace/trace_parser.cpp:142
+#: trace/trace_parser.cpp
 msgid "Trace file contains no usable entries."
 msgstr "Trace ファイルに使用できる項目がありません。"
 
-#: ui/feedback.cpp:434
-msgid "Repository"
-msgstr "リポジトリ"
-
-#: ui/feedback.cpp:446
-msgid "Website"
-msgstr "Web サイト"
-
-#: ui/feedback.cpp:447
-msgid "Email"
-msgstr "メール"
-
-#: ui/feedback.cpp:678 ui/feedback.cpp:680
+#: ui/feedback.cpp
 msgid "Warning"
 msgstr "警告"
 
-#: ui/feedback.cpp:686 ui/feedback.cpp:688
+#: ui/feedback.cpp
 msgid "Information"
 msgstr "情報"
 
-#: ui/feedback.cpp:707
+#: ui/feedback.cpp
+#, fuzzy
+msgid "The file couldn't be shown in Explorer."
+msgstr "レジストリ ファイルをインポートできませんでした。"
+
+#: ui/feedback.cpp
+msgid "About RegKit"
+msgstr "RegKit について"
+
+#: ui/feedback.cpp
+msgid "Repository"
+msgstr "リポジトリ"
+
+#: ui/feedback.cpp
+msgid "Website"
+msgstr "Web サイト"
+
+#: ui/feedback.cpp
+msgid "Email"
+msgstr "メール"
+
+#: ui/feedback.cpp
 msgid ""
 "Adding information can unintentionally change or delete values and\n"
 "cause components to stop working correctly. If you don't trust the\n"
@@ -4031,55 +4141,55 @@ msgstr ""
 "\n"
 "このまま続けますか?"
 
-#: ui/feedback.cpp:727
+#: ui/feedback.cpp
 msgid "The keys and values it contains have been added to the registry."
 msgstr "含まれるキーと値がレジストリに追加されました。"
 
-#: ui/feedback.cpp:742
+#: ui/feedback.cpp
 msgid "The registry file couldn't be imported."
 msgstr "レジストリ ファイルをインポートできませんでした。"
 
-#: ui/feedback.cpp:772
+#: ui/feedback.cpp
 msgid "Delete these keys and all of their subkeys?"
 msgstr "これらのキーとすべてのサブキーを削除しますか?"
 
-#: ui/feedback.cpp:772
+#: ui/feedback.cpp
 msgid "Delete this key and all of its subkeys?"
 msgstr "このキーとすべてのサブキーを削除しますか?"
 
-#: ui/feedback.cpp:776
+#: ui/feedback.cpp
 msgid "Delete these values?"
 msgstr "これらの値を削除しますか?"
 
-#: ui/feedback.cpp:776
+#: ui/feedback.cpp
 msgid "Delete this value?"
 msgstr "この値を削除しますか?"
 
-#: ui/feedback.cpp:780
+#: ui/feedback.cpp
 msgid "Delete these items?"
 msgstr "これらの項目を削除しますか?"
 
-#: ui/feedback.cpp:780
+#: ui/feedback.cpp
 msgid "Delete this item?"
 msgstr "この項目を削除しますか?"
 
-#: ui/feedback.cpp:802
+#: ui/feedback.cpp
 msgid "The file already exists. Replace it?"
 msgstr "ファイルは既に存在します。置き換えますか?"
 
-#: ui/feedback.cpp:812
+#: ui/feedback.cpp
 msgid "These entries can't be written in this format and will be left out."
 msgstr "これらの項目はこの形式では書き込めないため、除外されます。"
 
-#: ui/feedback.cpp:815
+#: ui/feedback.cpp
 msgid "Convert"
 msgstr "変換"
 
-#: ui/feedback.cpp:822 ui/feedback.cpp:824
+#: ui/feedback.cpp
 msgid "The file was converted."
 msgstr "ファイルを変換しました。"
 
-#: ui/feedback.cpp:860
+#: ui/feedback.cpp
 msgid ""
 "RegKit is running from a location that non administrators can write to, so a program without administrator rights could replace it before it restarts with these rights. Install RegKit for all users first, or move it somewhere only administrators can write.\n"
 "\n"
@@ -4089,746 +4199,702 @@ msgstr ""
 "\n"
 "それでもこの場所から続行するには、再起動してください。"
 
-#: ui/feedback.cpp:866
+#: ui/feedback.cpp
 msgid "Restart Anyway"
 msgstr "それでも再起動する"
 
-#: ui/presets.cpp:185
+#: ui/list_view_support.cpp
+msgid "Size column to fit"
+msgstr "列の幅を内容に合わせる"
+
+#: ui/list_view_support.cpp
+msgid "Size all columns to fit"
+msgstr "すべての列の幅を内容に合わせる"
+
+#: ui/list_view_support.cpp
+msgid "Reset columns"
+msgstr "列をリセット"
+
+#: ui/list_view_support.cpp
+msgid "Select All"
+msgstr "すべて選択"
+
+#: ui/list_view_support.cpp
+msgid "Grid Lines"
+msgstr "グリッド線"
+
+#: ui/presets.cpp
 msgid "The theme preset file contains an entry RegKit can't parse."
 msgstr "テーマ プリセット ファイルに RegKit で解析できない項目があります。"
 
-#: ui/presets.cpp:238
+#: ui/presets.cpp
 msgid "Failed to write the theme preset file."
 msgstr "テーマ プリセット ファイルに書き込めませんでした。"
 
-#: ui/presets.cpp:290
+#: ui/presets.cpp
 msgid "No theme presets were found in the file."
 msgstr "ファイルにテーマ プリセットが見つかりませんでした。"
 
-#: ui/presets.cpp:290
+#: ui/presets.cpp
 msgid "Failed to open the theme preset file."
 msgstr "テーマ プリセット ファイルを開けませんでした。"
 
-#: ui/preset_editor.cpp:38
-msgid "Background"
-msgstr "背景"
-
-#: ui/preset_editor.cpp:39
-msgid "Panel"
-msgstr "パネル"
-
-#: ui/preset_editor.cpp:40
-msgid "Surface"
-msgstr "サーフェス"
-
-#: ui/preset_editor.cpp:42
-msgid "Header"
-msgstr "ヘッダー"
-
-#: ui/preset_editor.cpp:43
-msgid "Border"
-msgstr "境界線"
-
-#: ui/preset_editor.cpp:45
-msgid "Muted Text"
-msgstr "控えめなテキスト"
-
-#: ui/preset_editor.cpp:46
-msgid "Accent"
-msgstr "アクセント"
-
-#: ui/preset_editor.cpp:47
-msgid "Selection"
-msgstr "選択範囲"
-
-#: ui/preset_editor.cpp:48
-msgid "Selection Text"
-msgstr "選択範囲のテキスト"
-
-#: ui/preset_editor.cpp:49
-msgid "Hover"
-msgstr "ホバー"
-
-#: ui/preset_editor.cpp:50
-msgid "Focus"
-msgstr "フォーカス"
-
-#: ui/preset_editor.cpp:137
-msgid "Preset name can't be empty."
-msgstr "プリセット名は空にできません。"
-
-#: ui/preset_editor.cpp:211
-msgid "Color"
-msgstr "色"
-
-#: ui/preset_editor.cpp:215
-msgid "Hex"
-msgstr ""
-
-#: ui/preset_editor.cpp:454
-msgid "New..."
-msgstr "新規..."
-
-#: ui/preset_editor.cpp:455
-msgid "Duplicate"
-msgstr "複製"
-
-#: ui/preset_editor.cpp:456
-msgid "Rename..."
-msgstr "名前の変更..."
-
-#: ui/preset_editor.cpp:464
-msgid "Edit Color..."
-msgstr "色の編集..."
-
-#: ui/preset_editor.cpp:531
-msgid "New Preset"
-msgstr "新しいプリセット"
-
-#: ui/preset_editor.cpp:568
-msgid "Rename Preset"
-msgstr "プリセット名の変更"
-
-#: ui/preset_editor.cpp:581
-msgid "At least one preset must remain."
-msgstr "プリセットを少なくとも 1 つ残す必要があります。"
-
-#: ui/preset_editor.cpp:589
-msgid "Delete Preset"
-msgstr "プリセットの削除"
-
-#: ui/preset_editor.cpp:613
-msgid "Failed to import theme presets."
-msgstr "テーマ プリセットをインポートできませんでした。"
-
-#: ui/preset_editor.cpp:640
-msgid "Failed to export theme presets."
-msgstr "テーマ プリセットをエクスポートできませんでした。"
-
-#: win32/file_dialog.cpp:166
+#: win32/file_dialog.cpp
 msgid "Open after saving:"
 msgstr "保存後に開く:"
 
-#: win32/file_dialog.cpp:361
+#: win32/file_dialog.cpp
 msgid "The file dialog failed."
 msgstr "ファイル ダイアログでエラーが発生しました。"
 
-#: win32/system_error.cpp:22
+#: win32/system_error.cpp
 msgid "Unknown error."
 msgstr "不明なエラーです。"
 
-#: ../resources/app.rc:44
+#: ../resources/app.rc
 msgid "Key Handles"
 msgstr "キー ハンドル"
 
-#: ../resources/editor_dialogs.rc:6 ../resources/editor_dialogs.rc:17
-#: ../resources/editor_dialogs.rc:93
+#: ../resources/editor_dialogs.rc
 msgid "Value data:"
 msgstr "値のデータ:"
 
-#: ../resources/editor_dialogs.rc:19 ../resources/editor_dialogs.rc:196
-#: ../resources/editor_dialogs.rc:216 ../resources/editor_dialogs.rc:228
-#: ../resources/search_dialogs.rc:11 ../resources/search_dialogs.rc:21
-#: ../resources/search_dialogs.rc:45 ../resources/search_dialogs.rc:55
-#: ../resources/search_dialogs.rc:77 ../resources/search_dialogs.rc:118
+#: ../resources/editor_dialogs.rc ../resources/search_dialogs.rc
 msgid "Browse..."
 msgstr "参照..."
 
-#: ../resources/editor_dialogs.rc:26 ../resources/editor_dialogs.rc:49
+#: ../resources/editor_dialogs.rc
 msgid "Edit Comment"
 msgstr "コメントの編集"
 
-#: ../resources/editor_dialogs.rc:29 ../resources/editor_dialogs.rc:53
-#: ../resources/editor_dialogs.rc:296
+#: ../resources/editor_dialogs.rc
 msgid "Comment:"
 msgstr "コメント:"
 
-#: ../resources/editor_dialogs.rc:31
+#: ../resources/editor_dialogs.rc
 msgid "Apply to"
 msgstr "適用先"
 
-#: ../resources/editor_dialogs.rc:32
+#: ../resources/editor_dialogs.rc
 msgid "This value only"
 msgstr "この値のみ"
 
-#: ../resources/editor_dialogs.rc:34
+#: ../resources/editor_dialogs.rc
 msgid "Match only values with"
 msgstr "一致する値の条件"
 
-#: ../resources/editor_dialogs.rc:35
+#: ../resources/editor_dialogs.rc
 msgid "Same registry type"
 msgstr "同じレジストリの種類"
 
-#: ../resources/editor_dialogs.rc:37
+#: ../resources/editor_dialogs.rc
 msgid "Same data length"
 msgstr "同じデータ長"
 
-#: ../resources/editor_dialogs.rc:39
+#: ../resources/editor_dialogs.rc
 msgid "In key"
 msgstr "対象キー"
 
-#: ../resources/editor_dialogs.rc:41
+#: ../resources/editor_dialogs.rc
 msgid "Include subkeys"
 msgstr "サブキーを含める"
 
-#: ../resources/editor_dialogs.rc:42 ../resources/editor_dialogs.rc:55
+#: ../resources/editor_dialogs.rc
 msgid "Restore Default"
 msgstr "既定のコメントに戻す"
 
-#: ../resources/editor_dialogs.rc:62
-msgid "Edit Binary Value"
-msgstr "バイナリ値の編集"
+#: ../resources/editor_dialogs.rc
+msgid "Name:"
+msgstr "名前:"
 
-#: ../resources/editor_dialogs.rc:67
+#: ../resources/editor_dialogs.rc
 msgid "Bytes:"
 msgstr "バイト数:"
 
-#: ../resources/editor_dialogs.rc:68
+#: ../resources/editor_dialogs.rc
 msgid "0 bytes"
 msgstr "0 バイト"
 
-#: ../resources/editor_dialogs.rc:73 ../resources/editor_dialogs.rc:164
-#: ../resources/editor_dialogs.rc:177
+#: ../resources/editor_dialogs.rc
+msgid "Hex bytes:"
+msgstr "16 進バイト:"
+
+#: ../resources/editor_dialogs.rc
+msgid "Preview:"
+msgstr "プレビュー:"
+
+#: ../resources/editor_dialogs.rc
 msgid "Format"
 msgstr "形式"
 
-#: ../resources/editor_dialogs.rc:74 ../resources/editor_dialogs.rc:165
-#: ../resources/editor_dialogs.rc:178
+#: ../resources/editor_dialogs.rc
 msgid "Byte"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:75 ../resources/editor_dialogs.rc:166
-#: ../resources/editor_dialogs.rc:179
+#: ../resources/editor_dialogs.rc
 msgid "Word"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:76 ../resources/editor_dialogs.rc:167
-#: ../resources/editor_dialogs.rc:180
+#: ../resources/editor_dialogs.rc
 msgid "DWord"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:77 ../resources/editor_dialogs.rc:168
-#: ../resources/editor_dialogs.rc:181
+#: ../resources/editor_dialogs.rc
 msgid "QWord"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:79 ../resources/editor_dialogs.rc:170
-#: ../resources/editor_dialogs.rc:183
+#: ../resources/editor_dialogs.rc
 msgid "ANSI"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:80 ../resources/editor_dialogs.rc:171
-#: ../resources/editor_dialogs.rc:184
+#: ../resources/editor_dialogs.rc
 msgid "Unicode"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:81 ../resources/editor_dialogs.rc:121
-#: ../resources/editor_dialogs.rc:147 ../resources/editor_dialogs.rc:154
+#: ../resources/editor_dialogs.rc
 msgid "Bits..."
 msgstr "ビット..."
 
-#: ../resources/editor_dialogs.rc:106
+#: ../resources/editor_dialogs.rc
 msgid "Strings (one per line):"
 msgstr "文字列 (1 行に 1 つ):"
 
-#: ../resources/editor_dialogs.rc:119 ../resources/editor_dialogs.rc:263
-#: ../resources/editor_dialogs.rc:333
+#: ../resources/editor_dialogs.rc
 msgid "Value:"
 msgstr "値:"
 
-#: ../resources/editor_dialogs.rc:122 ../resources/editor_dialogs.rc:148
-#: ../resources/editor_dialogs.rc:155
+#: ../resources/editor_dialogs.rc
 msgid "Base"
 msgstr "基数"
 
-#: ../resources/editor_dialogs.rc:124 ../resources/editor_dialogs.rc:150
-#: ../resources/editor_dialogs.rc:157
+#: ../resources/editor_dialogs.rc
 msgid "Decimal"
 msgstr "10 進数"
 
-#: ../resources/editor_dialogs.rc:125 ../resources/editor_dialogs.rc:151
-#: ../resources/editor_dialogs.rc:158
+#: ../resources/editor_dialogs.rc
 msgid "Binary"
 msgstr "2 進数"
 
-#: ../resources/editor_dialogs.rc:137
+#: ../resources/editor_dialogs.rc
 msgid "Type:"
 msgstr "種類:"
 
-#: ../resources/editor_dialogs.rc:139
+#: ../resources/editor_dialogs.rc
 msgid "REG_SZ"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:141
+#: ../resources/editor_dialogs.rc
 msgid "REG_EXPAND_SZ"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:143
+#: ../resources/editor_dialogs.rc
 msgid "REG_MULTI_SZ"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:145
+#: ../resources/editor_dialogs.rc
 msgid "REG_DWORD"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:152
+#: ../resources/editor_dialogs.rc
 msgid "REG_QWORD"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:159
+#: ../resources/editor_dialogs.rc
 msgid "REG_BINARY"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:172
+#: ../resources/editor_dialogs.rc
 msgid "REG_NONE"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:194
+#: ../resources/editor_dialogs.rc
+#, fuzzy
+msgid "RegKit"
+msgstr "RegKit"
+
+#: ../resources/editor_dialogs.rc
 msgid "Export to:"
 msgstr "エクスポート先:"
 
-#: ../resources/editor_dialogs.rc:197 ../resources/search_dialogs.rc:51
+#: ../resources/editor_dialogs.rc ../resources/search_dialogs.rc
 msgid "Format:"
 msgstr "形式:"
 
-#: ../resources/editor_dialogs.rc:199
+#: ../resources/editor_dialogs.rc
 msgid "Export range"
 msgstr "エクスポート範囲"
 
-#: ../resources/editor_dialogs.rc:200
+#: ../resources/editor_dialogs.rc
 msgid "Selected key and subkeys"
 msgstr "選択したキーとサブキー"
 
-#: ../resources/editor_dialogs.rc:201
+#: ../resources/editor_dialogs.rc
 msgid "Selected key only"
 msgstr "選択したキーのみ"
 
-#: ../resources/editor_dialogs.rc:202
+#: ../resources/editor_dialogs.rc
 msgid "Open after export:"
 msgstr "エクスポート後に開く:"
 
-#: ../resources/editor_dialogs.rc:209
-msgid "New Symbolic Link"
-msgstr "新しいシンボリック リンク"
-
-#: ../resources/editor_dialogs.rc:212
+#: ../resources/editor_dialogs.rc
 msgid "Link name:"
 msgstr "リンク名:"
 
-#: ../resources/editor_dialogs.rc:214
+#: ../resources/editor_dialogs.rc
 msgid "Target key:"
 msgstr "リンク先のキー:"
 
-#: ../resources/editor_dialogs.rc:223
+#: ../resources/editor_dialogs.rc
 msgid "Load Hive"
 msgstr "ハイブの読み込み"
 
-#: ../resources/editor_dialogs.rc:226
+#: ../resources/editor_dialogs.rc
 msgid "Hive file:"
 msgstr "ハイブ ファイル:"
 
-#: ../resources/editor_dialogs.rc:231
+#: ../resources/editor_dialogs.rc
 msgid "Load into"
 msgstr "読み込み先"
 
-#: ../resources/editor_dialogs.rc:232
+#: ../resources/editor_dialogs.rc
 msgid "HKEY_LOCAL_MACHINE"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:233
+#: ../resources/editor_dialogs.rc
 msgid "HKEY_USERS"
 msgstr ""
 
-#: ../resources/editor_dialogs.rc:265 ../resources/editor_dialogs.rc:284
+#: ../resources/editor_dialogs.rc
+msgid "Decode Value"
+msgstr "値のデコード"
+
+#: ../resources/editor_dialogs.rc
+msgid "Encoding:"
+msgstr "エンコード:"
+
+#: ../resources/editor_dialogs.rc
+msgid "Interpret as:"
+msgstr "解釈形式:"
+
+#: ../resources/editor_dialogs.rc
+msgid "Edit Bits"
+msgstr "ビットの編集"
+
+#: ../resources/editor_dialogs.rc
 msgid "Definition:"
 msgstr "定義:"
 
-#: ../resources/editor_dialogs.rc:267
+#: ../resources/editor_dialogs.rc
 msgid "Load..."
 msgstr "読み込み..."
 
-#: ../resources/editor_dialogs.rc:269 ../resources/editor_dialogs.rc:300
-#: ../resources/editor_dialogs.rc:320 ../resources/search_dialogs.rc:158
+#: ../resources/editor_dialogs.rc ../resources/search_dialogs.rc
 msgid "Edit..."
 msgstr "編集..."
 
-#: ../resources/editor_dialogs.rc:270 ../resources/editor_dialogs.rc:303
+#: ../resources/editor_dialogs.rc
 msgid "Save As..."
 msgstr "名前を付けて保存..."
 
-#: ../resources/editor_dialogs.rc:286
+#: ../resources/editor_dialogs.rc
+msgid "Set All Bits"
+msgstr "すべてのビットを有効にする"
+
+#: ../resources/editor_dialogs.rc
+msgid "Clear All Bits"
+msgstr "すべてのビットを無効にする"
+
+#: ../resources/editor_dialogs.rc
 msgid "Add"
 msgstr "追加"
 
-#: ../resources/editor_dialogs.rc:288
+#: ../resources/editor_dialogs.rc
 msgid "Registry value:"
 msgstr "レジストリ値:"
 
-#: ../resources/editor_dialogs.rc:290
+#: ../resources/editor_dialogs.rc
 msgid "Key paths:"
 msgstr "キー パス:"
 
-#: ../resources/editor_dialogs.rc:292
+#: ../resources/editor_dialogs.rc
 msgid "Bit width:"
 msgstr "ビット幅:"
 
-#: ../resources/editor_dialogs.rc:294
+#: ../resources/editor_dialogs.rc
 msgid "Byte offset:"
 msgstr "バイト オフセット:"
 
-#: ../resources/editor_dialogs.rc:302
+#: ../resources/editor_dialogs.rc
+msgid "Add Field..."
+msgstr "フィールドの追加..."
+
+#: ../resources/editor_dialogs.rc
 msgid "Open..."
 msgstr "開く..."
 
-#: ../resources/editor_dialogs.rc:313
+#: ../resources/editor_dialogs.rc
 msgid "Field name:"
 msgstr "フィールド名:"
 
-#: ../resources/editor_dialogs.rc:315 ../resources/editor_dialogs.rc:337
+#: ../resources/editor_dialogs.rc
 msgid "Meaning:"
 msgstr "意味:"
 
-#: ../resources/editor_dialogs.rc:317
+#: ../resources/editor_dialogs.rc
 msgid "States:"
 msgstr "状態:"
 
-#: ../resources/editor_dialogs.rc:322
+#: ../resources/editor_dialogs.rc
+msgid "Add State..."
+msgstr "状態の追加..."
+
+#: ../resources/editor_dialogs.rc
 msgid "Bits:"
 msgstr "ビット:"
 
-#: ../resources/editor_dialogs.rc:356
-msgid "Theme Presets"
-msgstr "テーマ プリセット"
-
-#: ../resources/editor_dialogs.rc:369
-msgid "Treat as dark theme"
-msgstr "ダーク テーマとして扱う"
-
-#: ../resources/editor_dialogs.rc:372
-msgid "Apply Template"
-msgstr "テンプレートの適用"
-
-#: ../resources/editor_dialogs.rc:374
-msgid "Presets"
-msgstr "プリセット"
-
-#: ../resources/editor_dialogs.rc:375
-msgid "Colors"
-msgstr "色"
-
-#: ../resources/editor_dialogs.rc:376
-msgid "Templates"
-msgstr "テンプレート"
-
-#: ../resources/editor_dialogs.rc:378
-msgid "Apply"
-msgstr "適用"
-
-#: ../resources/search_dialogs.rc:3
+#: ../resources/search_dialogs.rc
 msgid "Compare Registries"
 msgstr "レジストリの比較"
 
-#: ../resources/search_dialogs.rc:7 ../resources/search_dialogs.rc:17
-#: ../resources/search_dialogs.rc:41
+#: ../resources/search_dialogs.rc
 msgid "Source:"
 msgstr "ソース:"
 
-#: ../resources/search_dialogs.rc:12 ../resources/search_dialogs.rc:22
-#: ../resources/search_dialogs.rc:46 ../resources/search_dialogs.rc:75
+#: ../resources/search_dialogs.rc
 msgid "Key:"
 msgstr "キー:"
 
-#: ../resources/search_dialogs.rc:14 ../resources/search_dialogs.rc:24
-#: ../resources/search_dialogs.rc:48 ../resources/search_dialogs.rc:79
-#: ../resources/search_dialogs.rc:101 ../resources/search_dialogs.rc:119
+#: ../resources/search_dialogs.rc
 msgid "Recursive"
 msgstr "再帰的"
 
-#: ../resources/search_dialogs.rc:26
+#: ../resources/search_dialogs.rc
 msgid "Results"
 msgstr "結果"
 
-#: ../resources/search_dialogs.rc:27
+#: ../resources/search_dialogs.rc
 msgid "Both"
 msgstr "両方"
 
-#: ../resources/search_dialogs.rc:28
+#: ../resources/search_dialogs.rc
 msgid "Only differences"
 msgstr "相違のみ"
 
-#: ../resources/search_dialogs.rc:29
+#: ../resources/search_dialogs.rc
 msgid "Only matching"
 msgstr "一致のみ"
 
-#: ../resources/search_dialogs.rc:31
+#: ../resources/search_dialogs.rc
 msgid "Compare"
 msgstr "比較"
 
-#: ../resources/search_dialogs.rc:37
+#: ../resources/search_dialogs.rc
 msgid "Convert File"
 msgstr "ファイルの変換"
 
-#: ../resources/search_dialogs.rc:40
+#: ../resources/search_dialogs.rc
 msgid "Input"
 msgstr "入力"
 
-#: ../resources/search_dialogs.rc:50
+#: ../resources/search_dialogs.rc
 msgid "Output"
 msgstr "出力"
 
-#: ../resources/search_dialogs.rc:57 ../resources/search_dialogs.rc:78
+#: ../resources/search_dialogs.rc
 msgid "Options"
 msgstr "オプション"
 
-#: ../resources/search_dialogs.rc:58
+#: ../resources/search_dialogs.rc
 msgid "Check for administrator rights outside HKCU"
 msgstr "HKCU 以外では管理者権限を確認"
 
-#: ../resources/search_dialogs.rc:59
+#: ../resources/search_dialogs.rc
 msgid "Open the converted file in an editor"
 msgstr "変換したファイルをエディターで開く"
 
-#: ../resources/search_dialogs.rc:70 ../resources/search_dialogs.rc:111
+#: ../resources/search_dialogs.rc
 msgid "Find what:"
 msgstr "検索する文字列:"
 
-#: ../resources/search_dialogs.rc:72
+#: ../resources/search_dialogs.rc
 msgid "Replace with:"
 msgstr "置換後の文字列:"
 
-#: ../resources/search_dialogs.rc:74 ../resources/search_dialogs.rc:113
+#: ../resources/search_dialogs.rc
 msgid "Where to search"
 msgstr "検索場所"
 
-#: ../resources/search_dialogs.rc:80 ../resources/search_dialogs.rc:132
+#: ../resources/search_dialogs.rc
 msgid "Match whole string"
 msgstr "文字列全体の一致"
 
-#: ../resources/search_dialogs.rc:81 ../resources/search_dialogs.rc:131
+#: ../resources/search_dialogs.rc
 msgid "Match case"
 msgstr "大文字と小文字を区別"
 
-#: ../resources/search_dialogs.rc:82 ../resources/search_dialogs.rc:133
+#: ../resources/search_dialogs.rc
 msgid "Regular expressions"
 msgstr "正規表現"
 
-#: ../resources/search_dialogs.rc:83
+#: ../resources/search_dialogs.rc
 msgid "Replace in key names"
 msgstr "キー名を置換"
 
-#: ../resources/search_dialogs.rc:84
+#: ../resources/search_dialogs.rc
 msgid "Replace in value names"
 msgstr "値の名前を置換"
 
-#: ../resources/search_dialogs.rc:85
+#: ../resources/search_dialogs.rc
 msgid "Replace in value data"
 msgstr "値のデータを置換"
 
-#: ../resources/search_dialogs.rc:87
+#: ../resources/search_dialogs.rc
+msgid "Value Data"
+msgstr "値のデータ"
+
+#: ../resources/search_dialogs.rc
 msgid "Numbers as decimal"
 msgstr "数値を 10 進数として扱う"
 
-#: ../resources/search_dialogs.rc:88
+#: ../resources/search_dialogs.rc
 msgid "Numbers as hex"
 msgstr "数値を 16 進数として扱う"
 
-#: ../resources/search_dialogs.rc:100
+#: ../resources/search_dialogs.rc
 msgid "Select All Keys"
 msgstr "すべてのキーを選択"
 
-#: ../resources/search_dialogs.rc:102
+#: ../resources/search_dialogs.rc
 msgid "Select"
 msgstr "選択"
 
-#: ../resources/search_dialogs.rc:114
+#: ../resources/search_dialogs.rc
 msgid "Top level keys"
 msgstr "最上位キー"
 
-#: ../resources/search_dialogs.rc:116
+#: ../resources/search_dialogs.rc
 msgid "Specific key"
 msgstr "特定のキー"
 
-#: ../resources/search_dialogs.rc:120
+#: ../resources/search_dialogs.rc
 msgid "Search options"
 msgstr "検索オプション"
 
-#: ../resources/search_dialogs.rc:121
+#: ../resources/search_dialogs.rc
 msgid "Search keys"
 msgstr "キーを検索"
 
-#: ../resources/search_dialogs.rc:122
+#: ../resources/search_dialogs.rc
 msgid "Search values"
 msgstr "値を検索"
 
-#: ../resources/search_dialogs.rc:123
+#: ../resources/search_dialogs.rc
 msgid "Search data"
 msgstr "データを検索"
 
-#: ../resources/search_dialogs.rc:124
+#: ../resources/search_dialogs.rc
 msgid "Search comments"
 msgstr "コメントを検索"
 
-#: ../resources/search_dialogs.rc:125
+#: ../resources/search_dialogs.rc
 msgid "Skip symbolic links"
 msgstr "シンボリック リンクをスキップ"
 
-#: ../resources/search_dialogs.rc:126
+#: ../resources/search_dialogs.rc
 msgid "Data Types..."
 msgstr "データの種類..."
 
-#: ../resources/search_dialogs.rc:127
+#: ../resources/search_dialogs.rc
 msgid "Min data size (bytes):"
 msgstr "データの最小サイズ (バイト):"
 
-#: ../resources/search_dialogs.rc:129
+#: ../resources/search_dialogs.rc
 msgid "Max data size (bytes):"
 msgstr "データの最大サイズ (バイト):"
 
-#: ../resources/search_dialogs.rc:134
+#: ../resources/search_dialogs.rc
 msgid "Sources"
 msgstr "検索元"
 
-#: ../resources/search_dialogs.rc:135
+#: ../resources/search_dialogs.rc
 msgid "Root Keys"
 msgstr "ルート キー"
 
-#: ../resources/search_dialogs.rc:136
+#: ../resources/search_dialogs.rc
 msgid "Default Data"
 msgstr "既定値データ"
 
-#: ../resources/search_dialogs.rc:138
+#: ../resources/search_dialogs.rc
 msgid "REGISTRY"
 msgstr ""
 
-#: ../resources/search_dialogs.rc:139
+#: ../resources/search_dialogs.rc
 msgid "Offline Hives"
 msgstr "オフライン ハイブ"
 
-#: ../resources/search_dialogs.rc:140
+#: ../resources/search_dialogs.rc
 msgid "Trace Values"
 msgstr "Trace の値"
 
-#: ../resources/search_dialogs.rc:142
+#: ../resources/search_dialogs.rc
+msgid ".reg File Tabs"
+msgstr ".reg ファイルのタブ"
+
+#: ../resources/search_dialogs.rc
 msgid "Find anomalies"
 msgstr "異常の検索"
 
-#: ../resources/search_dialogs.rc:143
+#: ../resources/search_dialogs.rc
 msgid "Null characters in names"
 msgstr "名前内の null 文字"
 
-#: ../resources/search_dialogs.rc:144
+#: ../resources/search_dialogs.rc
 msgid "Wrong DWORD/QWORD size"
 msgstr "DWORD/QWORD のサイズ不正"
 
-#: ../resources/search_dialogs.rc:145
+#: ../resources/search_dialogs.rc
 msgid "Malformed multi-strings"
 msgstr "形式が不正な複数行文字列"
 
-#: ../resources/search_dialogs.rc:146
+#: ../resources/search_dialogs.rc
 msgid "Links to missing keys"
 msgstr "存在しないキーへのリンク"
 
-#: ../resources/search_dialogs.rc:147
+#: ../resources/search_dialogs.rc
 msgid "Edge spaces, control characters"
 msgstr "先頭や末尾のスペース、制御文字"
 
-#: ../resources/search_dialogs.rc:148
+#: ../resources/search_dialogs.rc
 msgid "Unterminated strings"
 msgstr "終端のない文字列"
 
-#: ../resources/search_dialogs.rc:149
+#: ../resources/search_dialogs.rc
 msgid "Unknown value types"
 msgstr "不明な値の種類"
 
-#: ../resources/search_dialogs.rc:150
+#: ../resources/search_dialogs.rc
 msgid "Virtual store copies"
 msgstr "仮想ストア内のコピー"
 
-#: ../resources/search_dialogs.rc:151
+#: ../resources/search_dialogs.rc
 msgid "Modified in period:"
 msgstr "更新期間:"
 
-#: ../resources/search_dialogs.rc:155 ../resources/search_dialogs.rc:156
+#: ../resources/search_dialogs.rc
 msgid "Exclude keys"
 msgstr "キーの除外"
 
-#: ../resources/search_dialogs.rc:159
+#: ../resources/search_dialogs.rc
 msgid "Result options"
 msgstr "結果オプション"
 
-#: ../resources/search_dialogs.rc:160
+#: ../resources/search_dialogs.rc
 msgid "Reuse last Find Results window"
 msgstr "前回の検索結果ウィンドウを再利用"
 
-#: ../resources/search_dialogs.rc:161
+#: ../resources/search_dialogs.rc
 msgid "Open new Find Results window"
 msgstr "新しい検索結果ウィンドウを開く"
 
-#: ../resources/search_dialogs.rc:162
+#: ../resources/search_dialogs.rc
 msgid "Open result in new tab"
 msgstr "結果を新しいタブで開く"
 
-#: ../resources/search_dialogs.rc:163
+#: ../resources/search_dialogs.rc
 msgid "Limit results to"
 msgstr "結果数の上限"
 
-#: dialogs/bitfield_definition.cpp:807
+#: ../resources/search_dialogs.rc
+msgid "Data Types"
+msgstr "データの種類"
+
+#: ../resources/search_dialogs.rc
+msgid "Clear All"
+msgstr "すべてクリア"
+
+#: ../resources/search_dialogs.rc
+msgid "Browse Key"
+msgstr "キーの参照"
+
+#: dialogs/bitfield_definition.cpp
 msgid "RegKit bitfield definitions (*.regkit-bitfield.jsonc)"
 msgstr "RegKit ビット フィールド定義 (*.regkit-bitfield.jsonc)"
 
-#: dialogs/bitfield_definition.cpp:807
+#: dialogs/bitfield_definition.cpp
 msgid "JSON files (*.jsonc;*.json)"
 msgstr "JSON ファイル (*.jsonc;*.json)"
 
-#: dialogs/transfer_dialogs.cpp:34 frame/tools/convert_dialog.cpp:28
-#: regfile/script_convert.h:23 ui/feedback.h:51 ui/feedback.h:53
+#: dialogs/transfer_dialogs.cpp frame/tools/convert_dialog.cpp
+#: regfile/script_convert.h ui/feedback.h
 msgid "Registry Files (*.reg)"
 msgstr "レジストリ ファイル (*.reg)"
 
-#: dialogs/transfer_dialogs.cpp:34 frame/commands/clipboard_commands.cpp:76
-#: frame/commands/clipboard_commands.cpp:114
-#: frame/commands/file_view_commands.cpp:349
-#: frame/commands/file_view_commands.cpp:369 frame/detail/file_detail.h:75
-#: frame/sources/trace_commands.cpp:366 regfile/script_convert.h:23
-#: ui/feedback.h:51 ui/feedback.h:53 ui/preset_editor.cpp:144
+#: dialogs/transfer_dialogs.cpp frame/commands/clipboard_commands.cpp
+#: frame/commands/file_view_commands.cpp frame/detail/file_detail.h
+#: frame/sources/trace_commands.cpp frame/window/appearance.cpp
+#: regfile/script_convert.h ui/feedback.h
 msgid "All Files (*.*)"
 msgstr "すべてのファイル (*.*)"
 
-#: frame/commands/clipboard_commands.cpp:76
-#: frame/commands/clipboard_commands.cpp:114
+#: frame/commands/clipboard_commands.cpp
 msgid "Favorites Files (*.txt)"
 msgstr "お気に入りファイル (*.txt)"
 
-#: frame/commands/file_view_commands.cpp:349
-#: frame/commands/file_view_commands.cpp:369
+#: frame/commands/file_view_commands.cpp
 msgid "RegKit Comment Files (*.jsonc)"
 msgstr "RegKit コメント ファイル (*.jsonc)"
 
-#: frame/detail/file_detail.h:75 frame/search/compare_dialog.cpp:251
-#: ui/feedback.h:53
+#: frame/detail/file_detail.h frame/search/compare_dialog.cpp ui/feedback.h
 msgid "Registry Hive Files"
 msgstr "レジストリ ハイブ ファイル"
 
-#: frame/sources/trace_commands.cpp:366
+#: frame/sources/trace_commands.cpp
 msgid "Trace Files (*.txt)"
 msgstr "Trace ファイル (*.txt)"
 
-#: frame/tools/convert_dialog.cpp:29 regfile/script_convert.h:23
+#: frame/tools/convert_dialog.cpp regfile/script_convert.h
 msgid "Batch Files (*.bat;*.cmd)"
 msgstr "バッチ ファイル (*.bat;*.cmd)"
 
-#: frame/tools/convert_dialog.cpp:30 regfile/script_convert.h:23
+#: frame/tools/convert_dialog.cpp regfile/script_convert.h
 msgid "PowerShell Scripts (*.ps1)"
 msgstr "PowerShell スクリプト (*.ps1)"
 
-#: regfile/script_convert.h:23
+#: frame/window/appearance.cpp
+msgid "RegKit Theme Presets (*.rktheme)"
+msgstr "RegKit テーマ プリセット (*.rktheme)"
+
+#: regfile/script_convert.h
 msgid "Registry Scripts (*.reg;*.bat;*.cmd;*.ps1)"
 msgstr "レジストリ スクリプト (*.reg;*.bat;*.cmd;*.ps1)"
 
-#: ui/feedback.h:52
+#: ui/feedback.h
 msgid "Hive Files (*.*)"
 msgstr "ハイブ ファイル (*.*)"
 
-#: ui/preset_editor.cpp:144
-msgid "RegKit Theme Presets (*.rktheme)"
-msgstr "RegKit テーマ プリセット (*.rktheme)"
+#~ msgid "New"
+#~ msgstr "新規"
+
+#~ msgid "Cut"
+#~ msgstr "切り取り"
+
+#~ msgid "Exit"
+#~ msgstr "終了"
+
+#~ msgid "Theme"
+#~ msgstr "テーマ"
+
+#~ msgid "Icons"
+#~ msgstr "アイコン"
+
+#~ msgid "Copy Row"
+#~ msgstr "行のコピー"
+
+#~ msgid "Copy Rows"
+#~ msgstr "行のコピー"
+
+#~ msgid "At least one preset must remain."
+#~ msgstr "プリセットを少なくとも 1 つ残す必要があります。"
+
+#~ msgid "Edit Binary Value"
+#~ msgstr "バイナリ値の編集"

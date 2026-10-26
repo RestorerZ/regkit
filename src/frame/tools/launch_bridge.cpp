@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -10,6 +10,10 @@
 #include "registry/value_format.h"
 #include "win32/shell_integration.h"
 #include "win32/translation.h"
+
+#include <win32ui/dialog/dialog_window.h>
+#include <win32ui/gdi/fonts.h>
+#include <win32ui/process_token.h>
 
 namespace regkit
 {
@@ -64,7 +68,7 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
     editors::TablesRequest request;
     request.title = util::Tr(L"Key Information");
     request.identifier = registry_path::DisplayName(registry_path::Build(node));
-    // a link key describes itself, a key that denies queries keeps the rows that need no access
+    // link keys describe themselves, denied keys retain rows needing no query access
     KeyDetails details;
     const bool readable = RegistryStore::QueryKeyDetails(node, &details, true);
     if (!readable && details.native.native_name.empty())
@@ -142,7 +146,7 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
     add(flags, util::Tr(L"Symbolic link"), RegistryStore::QuerySymbolicLinkTarget(node, &target) ? target : yes_no(false));
     if (win32::HasAlternateView() && session_->mode == RegistryMode::kLocal && !native.native_name.empty())
     {
-        // the same path opened in the other view lands on the same key unless wow64 redirects it
+        // other views reach the same path unless WOW64 redirects it
         RegistryNode other = node;
         other.view = node.view ? 0 : win32::kAlternateRegistryView;
         KeyDetails other_details;
@@ -160,7 +164,7 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
         {util::kKeyDontSilentFail, util::TrNoop(L"Don't silent fail")},
         {util::kKeyRecurseFlag, util::TrNoop(L"Recurse")}
     };
-    // reg flags only accepts HKLM\SOFTWARE keys, the same keys uac virtualizes
+    // reg flags accepts only HKLM\SOFTWARE, the subtree UAC virtualizes
     const std::wstring store = registry_path::VirtualStorePath(native.native_name);
     const bool editable_flags = native.control_flags && !store.empty() && session_->mode == RegistryMode::kLocal && !settings_.read_only;
     if (native.control_flags && !editable_flags)
@@ -218,15 +222,21 @@ void MainWindow::Impl::ShowKeyInfoDialog(const RegistryNode& node)
 
     SECURITY_INFORMATION access_parts = OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
     std::vector<BYTE> access_descriptor;
-    if (RegistryStore::ReadKeySecurity(node, &access_parts, &access_descriptor))
+    LONG access_error = ERROR_SUCCESS;
+    if (RegistryStore::ReadKeySecurity(node, &access_parts, &access_descriptor, &access_error))
     {
-        // which run level is needed to write here, so the user can pick it before trying
+        // show required write level before the user tries it
         records::Table access = {util::Tr(L"Access"), {util::Tr(L"Run level"), util::Tr(L"Access"), util::Tr(L"Can write")}, {}};
         for (const key_access::RunLevel& level : key_access::ForRunLevels(access_descriptor.data()))
         {
-            access.rows.push_back({util::Tr(level.name), key_access::Describe(level.granted), yes_no(key_access::CanWrite(level.granted))});
+            access.rows.push_back({util::Tr(level.name), level.granted ? key_access::Describe(*level.granted) : std::wstring(), level.granted ? yes_no(key_access::CanWrite(*level.granted)) : std::wstring()});
         }
         request.tables.push_back(std::move(access));
+    }
+    else if (!RegistryStore::IsVirtualRoot(node.root))
+    {
+        const std::wstring detail = FormatWin32Error(static_cast<DWORD>(access_error));
+        request.tables.push_back({util::Tr(L"Access"), {util::Tr(L"Error")}, {{std::wstring(util::Tr(L"The key's permissions couldn't be read.")) + (detail.empty() ? L"" : L" " + detail)}}});
     }
     request.action_label = util::Tr(L"Permissions...");
     if (!settings_.read_only)
@@ -247,7 +257,7 @@ bool MainWindow::Impl::ShowResourceList(const RegistryValue& value)
     request.action_label = util::Tr(L"Edit Binary...");
     request.action = [&edit_binary](HWND dialog) {
         edit_binary = true;
-        EndDialog(dialog, IDCANCEL);
+        win32ui::EndDialogWindow(dialog, IDCANCEL);
     };
     editors::ShowTables(hwnd_, request);
     return edit_binary;
@@ -430,7 +440,7 @@ bool MainWindow::Impl::RestartAsAdmin()
     {
         return false;
     }
-    if (util::IsProcessSystem() || util::IsProcessTrustedInstaller())
+    if (win32ui::IsProcessSystem() || win32ui::IsProcessTrustedInstaller())
     {
         // return through the signed in shell before requesting admin access
         return BrokerRestart(hwnd_, kRestartAdminArg, util::Tr(L"Failed to restart with administrator rights."), util::LaunchProcessAsShellUser);
@@ -449,7 +459,7 @@ bool MainWindow::Impl::RestartAsUser()
 
 bool MainWindow::Impl::RestartAsSystem()
 {
-    if (util::IsProcessElevated() && !ui::ConfirmPrivilegedRestart(hwnd_, util::Tr(L"Restart as SYSTEM")))
+    if (win32ui::IsProcessElevated() && !ui::ConfirmPrivilegedRestart(hwnd_, util::Tr(L"Restart as SYSTEM")))
     {
         return false;
     }
@@ -457,7 +467,7 @@ bool MainWindow::Impl::RestartAsSystem()
     {
         return false;
     }
-    if (!util::IsProcessElevated())
+    if (!win32ui::IsProcessElevated())
     {
         return BeginRestart(hwnd_, kRestartSystemArg, util::Tr(L"Failed to request SYSTEM restart."));
     }
@@ -466,7 +476,7 @@ bool MainWindow::Impl::RestartAsSystem()
 
 bool MainWindow::Impl::RestartAsTrustedInstaller()
 {
-    if (util::IsProcessElevated() && !ui::ConfirmPrivilegedRestart(hwnd_, util::Tr(L"Restart as TrustedInstaller")))
+    if (win32ui::IsProcessElevated() && !ui::ConfirmPrivilegedRestart(hwnd_, util::Tr(L"Restart as TrustedInstaller")))
     {
         return false;
     }
@@ -474,7 +484,7 @@ bool MainWindow::Impl::RestartAsTrustedInstaller()
     {
         return false;
     }
-    if (!util::IsProcessElevated())
+    if (!win32ui::IsProcessElevated())
     {
         return BeginRestart(hwnd_, kRestartTiArg, util::Tr(L"Failed to request TrustedInstaller restart."));
     }
@@ -489,7 +499,7 @@ void MainWindow::Impl::ReplaceRegEdit(bool enable)
         ui::ShowError(hwnd_, util::Tr(L"Failed to locate the executable path."));
         return;
     }
-    // reject machine wide redirection to an executable another user can replace
+    // reject machine wide redirection to executables other users can replace
     const bool writable_location = enable && util::IsWritableByNonAdmins(exe_path);
     if (writable_location &&
         ui::PromptKeyChoice(
@@ -602,16 +612,7 @@ void MainWindow::Impl::OpenHiveFileDir()
         ui::ShowError(hwnd_, util::Tr(L"No hive file was found for this key."));
         return;
     }
-    const HRESULT hr = win32::RevealInExplorer(hive_path);
-    if (FAILED(hr))
-    {
-        ui::ShowError(hwnd_, win32::FormatDialogError(hr));
-    }
-}
-
-LOGFONTW MainWindow::Impl::DefaultLogFont() const
-{
-    return ui::SystemUIFontLogFont();
+    ui::RevealFile(hwnd_, hive_path);
 }
 
 } // namespace regkit

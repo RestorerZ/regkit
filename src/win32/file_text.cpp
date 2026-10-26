@@ -1,11 +1,11 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #define _CRT_RAND_S
 
 #include "win32/file_text.h"
 
-#include "win32/handle_owner.h"
+#include <win32ui/handle_owner.h>
 
 #include <cstdlib>
 #include <limits>
@@ -73,7 +73,7 @@ bool ReadFileBytes(const std::wstring& path, std::vector<BYTE>* output, uint64_t
         return false;
     }
     output->clear();
-    const UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, share_mode, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+    const win32ui::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, share_mode, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
     LARGE_INTEGER size = {};
     if (!file || !GetFileSizeEx(file.get(), &size) || size.QuadPart <= 0 || static_cast<uint64_t>(size.QuadPart) > max_bytes ||
         size.QuadPart > static_cast<LONGLONG>(std::numeric_limits<DWORD>::max()))
@@ -138,7 +138,7 @@ namespace
 
 bool WriteWholeFile(const std::wstring& path, const std::wstring& text, bool utf16, DWORD disposition = CREATE_ALWAYS)
 {
-    const UniqueHandle file(CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, disposition, FILE_ATTRIBUTE_NORMAL, nullptr));
+    const win32ui::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, disposition, FILE_ATTRIBUTE_NORMAL, nullptr));
     if (!file)
     {
         return false;

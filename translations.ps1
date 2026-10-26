@@ -1,5 +1,5 @@
 # Copyright (C) 2026 nohuto
-# This is used to autogenerate the template & merge new text into existing po files
+# generates the template and merges new text into existing PO files
 
 param([Parameter(Mandatory)][string]$gettext, [string]$language)
 
@@ -17,7 +17,7 @@ function invokeTool([string]$tool, [string[]]$arguments) {
 
 function addText($texts, [string]$text, [string]$reference) {
     if (!$texts.Contains($text)) { $texts[$text] = [Collections.Generic.List[string]]::new() }
-    $texts[$text].Add($reference)
+    if (!$texts[$text].Contains($reference)) { $texts[$text].Add($reference) }
 }
 
 function getLang([string]$code) {
@@ -27,19 +27,19 @@ function getLang([string]$code) {
     $culture.Name
 }
 
-# get dialog captions & control labels from rc files
+# extract dialog captions and control labels from RC files
 function addRcTexts($texts) {
     foreach ($file in gci "$PSScriptRoot\resources\*.rc" -ErrorAction Stop) {
         $lines = [IO.File]::ReadAllLines($file.FullName)
         for ($i = 0; $i -lt $lines.Count; $i++) {
             if ($lines[$i] -match '^\s*(CAPTION|LTEXT|RTEXT|CTEXT|PUSHBUTTON|DEFPUSHBUTTON|CHECKBOX|AUTOCHECKBOX|RADIOBUTTON|AUTORADIOBUTTON|GROUPBOX|CONTROL)\s+"((?:[^"]|"")*[A-Za-z](?:[^"]|"")*)"') {
-                addText $texts ($Matches[2] -replace '""', '\"') "../resources/$($file.Name):$($i + 1)"
+                addText $texts ($Matches[2] -replace '""', '\"') "../resources/$($file.Name)"
             }
         }
     }
 }
 
-# get display labels from NUL separated file filters
+# extract labels from NUL separated file filters
 function addFilterTexts($texts, $files) {
     foreach ($file in $files) {
         $content = [IO.File]::ReadAllText($file)
@@ -53,7 +53,7 @@ function addFilterTexts($texts, $files) {
         }
         $path = $file.Substring($src.Length + 1).Replace('\', '/')
         foreach ($group in $groups | ? { $_.text.Contains('\0') }) {
-            $reference = "${path}:$($content.Substring(0, $group.start).Split("`n").Count)"
+            $reference = $path
             $parts = $group.text -split '\\0'
             for ($i = 0; $i -lt $parts.Count; $i += 2) {
                 if (($parts[$i] -replace '\\.', '') -match '[A-Za-z]') { addText $texts $parts[$i] $reference }
@@ -66,7 +66,7 @@ function updateTemplate {
     $files = (gci $src -Recurse -Include *.cpp, *.h -ErrorAction Stop).FullName
     [IO.File]::WriteAllLines("$temp\files.txt", [string[]]($files | % { $_.Substring($src.Length + 1).Replace('\', '/') }), $utf8)
 
-    invokeTool xgettext '--language=C++', '--from-code=UTF-8', '--keyword=Tr', '--keyword=TrNoop', '--keyword=TrDetail:1', '--keyword=TrLabel:1', '--add-comments=TRANSLATORS', '--no-wrap', '--package-name=RegKit', '--msgid-bugs-address=https://github.com/nohuto/regkit/issues', '-D', $src, '-f', "$temp\files.txt", '-o', "$temp\code.pot"
+    invokeTool xgettext '--language=C++', '--from-code=UTF-8', '--keyword=Tr', '--keyword=TrNoop', '--keyword=TrDetail:1', '--keyword=TrLabel:1', '--add-comments=TRANSLATORS', '--add-location=file', '--no-wrap', '--package-name=RegKit', '--msgid-bugs-address=https://github.com/nohuto/regkit/issues', '-D', $src, '-f', "$temp\files.txt", '-o', "$temp\code.pot"
 
     $texts = [ordered]@{}
     addRcTexts $texts
@@ -75,8 +75,7 @@ function updateTemplate {
     foreach ($entry in $texts.GetEnumerator()) { $lines.AddRange([string[]]@("#: $($entry.Value -join ' ')", "msgid `"$($entry.Key)`"", 'msgstr ""', '')) }
     [IO.File]::WriteAllLines("$temp\extra.pot", $lines, $utf8)
 
-    # combine everything into template
-    invokeTool msgcat '--use-first', '--no-wrap', '-o', "$temp\regkit.pot", "$temp\code.pot", "$temp\extra.pot"
+    invokeTool msgcat '--use-first', '--add-location=file', '--no-wrap', '-o', "$temp\regkit.pot", "$temp\code.pot", "$temp\extra.pot"
     $content = [IO.File]::ReadAllText("$temp\regkit.pot")
     $start = $content.IndexOf('#, fuzzy')
     if ($start -lt 0) { throw "msgcat wrote no template header" }
@@ -93,7 +92,6 @@ try {
     ni -ItemType Directory -Force $temp -ErrorAction Stop | Out-Null
     updateTemplate
 
-    # create lang catalog if theres none
     if ($language) {
         if (Test-Path -LiteralPath "$lang\$language.po") { Write-Host "$language.po already exists, its updated instead" }
         else { invokeTool msginit '--no-translator', '--no-wrap', "--locale=$($language.Replace('-', '_'))", '-i', $pot, '-o', "$lang\$language.po" }
@@ -101,7 +99,7 @@ try {
     
     foreach ($po in gci "$lang\*.po") {
         try {
-            invokeTool msgmerge '--quiet', '--update', '--backup=none', '--no-wrap', $po.FullName, $pot
+            invokeTool msgmerge '--quiet', '--update', '--backup=none', '--add-location=file', '--no-wrap', $po.FullName, $pot
             invokeTool msgfmt '--check-format', '--statistics', '-o', 'NUL', $po.FullName | % { "$($po.Name): $_" }
         }
         catch {

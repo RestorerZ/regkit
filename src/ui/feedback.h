@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -18,13 +18,13 @@ namespace regkit
 namespace ui
 {
 
-LRESULT HandleThemedListViewCustomDraw(HWND list, NMLVCUSTOMDRAW* draw);
 bool ListViewItemSelected(HWND list, int item_index);
 
-bool CopyTextToClipboard(HWND owner, const std::wstring& text);
 void ShowError(HWND owner, const std::wstring& message);
 void ShowWarning(HWND owner, const std::wstring& message);
 void ShowInfo(HWND owner, const std::wstring& message);
+// selects the file in Explorer, else shows its path
+void RevealFile(HWND owner, const std::wstring& path);
 void ShowAbout(HWND owner);
 bool ConfirmRegFileMerge(HWND owner, const std::wstring& path);
 void ShowRegFileMergeSucceeded(HWND owner, const std::wstring& path);

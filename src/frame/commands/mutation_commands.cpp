@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
@@ -93,6 +93,14 @@ bool MainWindow::Impl::HandleMutationCommand(int command_id)
             if (native.empty())
             {
                 ui::ShowError(hwnd_, util::Tr(L"The target must be a full registry path under a standard root."));
+                return true;
+            }
+            KeyDetails parent;
+            // native names are available even when key queries are denied
+            RegistryStore::QueryKeyDetails(*browse_.current_node(), &parent);
+            if (registry_path::LinkLeavesUserHives(parent.native.native_name, native) &&
+                ui::PromptChoice(hwnd_, util::Tr(L"Windows doesn't follow a link from a user hive into another user's hive or HKEY_LOCAL_MACHINE, so this link may not open. Create it anyway?"), util::Tr(L"New Symbolic Link"), util::Tr(L"Create"), util::Tr(L"Cancel"), L"") != IDYES)
+            {
                 return true;
             }
             DWORD error = ERROR_SUCCESS;
@@ -326,6 +334,7 @@ bool MainWindow::Impl::HandleCreateCommand(int command_id)
             const std::optional<std::wstring> free_name = MakeUniqueValueName(*browse_.current_node(), base_name);
             if (!free_name)
             {
+                ui::ShowError(hwnd_, util::Tr(L"Failed to set value."));
                 return true;
             }
             const std::wstring& value_name = *free_name;
@@ -520,7 +529,7 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
                 base_type == REG_SZ || base_type == REG_EXPAND_SZ || base_type == REG_MULTI_SZ || base_type == REG_DWORD ||
                 base_type == REG_DWORD_BIG_ENDIAN || base_type == REG_QWORD || base_type == REG_LINK;
             std::vector<BYTE> new_data;
-            // resource lists are kernel written hardware assignments, modify shows them decoded with hex as a fallback
+            // resource lists contain kernel hardware assignments, Modify shows decoded data with hex fallback
             const bool resource = command_id == cmd::kEditModify && resource_list::IsResourceType(base_type);
             const bool edit_binary = command_id == cmd::kEditModifyBinary || base_type == REG_BINARY || base_type == REG_NONE || (resource && ShowResourceList(entry));
             if (resource && !edit_binary)
@@ -611,39 +620,49 @@ bool MainWindow::Impl::HandleModifyCommand(int command_id)
         }
     case cmd::kEditModifyComment:
         {
-            if (!browse_.current_node())
+            const std::vector<changes::CommentTarget> targets = CommentTargets();
+            if (!targets.empty())
             {
-                return true;
+                EditComments(targets);
             }
-            std::vector<ListRow> selected_rows = SelectedListRows(browse_.values());
-            const std::wstring path = CommentKeyPath(*browse_.current_node());
-            std::vector<changes::CommentTarget> targets;
-            if (GetFocus() == browse_.tree().hwnd() || selected_rows.empty())
-            {
-                targets.push_back({path, {}, 0, 0, true});
-            }
-            else if (selected_rows.size() == 1 && selected_rows.front().kind == rowkind::kKey &&
-                     !selected_rows.front().extra.empty())
-            {
-                targets.push_back({registry_path::JoinSubkey(path, selected_rows.front().extra), {}, 0, 0, true});
-            }
-            else
-            {
-                for (const ListRow& row : selected_rows)
-                {
-                    if (row.kind != rowkind::kValue || row.simulated)
-                    {
-                        return true;
-                    }
-                    targets.push_back({path, row.extra, row.value_type, row.value_data_size});
-                }
-            }
-            EditComments(targets);
             return true;
         }
     default:
         return false;
     }
+}
+
+std::vector<changes::CommentTarget> MainWindow::Impl::CommentTargets()
+{
+    std::vector<changes::CommentTarget> targets;
+    if (!browse_.current_node())
+    {
+        return targets;
+    }
+    std::vector<ListRow> selected_rows = SelectedListRows(browse_.values());
+    const std::wstring path = CommentKeyPath(*browse_.current_node());
+    if (GetFocus() == browse_.tree().hwnd() || selected_rows.empty())
+    {
+        targets.push_back({path, {}, 0, 0, true});
+    }
+    else if (selected_rows.size() == 1 && selected_rows.front().kind == rowkind::kKey &&
+             !selected_rows.front().extra.empty())
+    {
+        targets.push_back({registry_path::JoinSubkey(path, selected_rows.front().extra), {}, 0, 0, true});
+    }
+    else
+    {
+        // simulated SymbolicLinkValue rows support comments like real values
+        for (const ListRow& row : selected_rows)
+        {
+            if (row.kind != rowkind::kValue)
+            {
+                return {};
+            }
+            targets.push_back({path, row.extra, row.value_type, row.value_data_size});
+        }
+    }
+    return targets;
 }
 
 bool MainWindow::Impl::HandleRenameCommand(int command_id)
@@ -911,7 +930,7 @@ bool MainWindow::Impl::HandleDeleteCommand(int command_id)
                     ui::ShowWarning(hwnd_, util::Tr(L"Bulk deletion only supports registry values."));
                     return true;
                 }
-                // an unset (Default) or trace only row has nothing to delete
+                // unset defaults and trace only rows have nothing to delete
                 std::erase_if(selected_rows, [](const ListRow& selected) { return selected.missing; });
                 if (selected_rows.empty())
                 {

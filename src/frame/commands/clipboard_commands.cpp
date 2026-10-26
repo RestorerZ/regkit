@@ -1,9 +1,11 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
 #include "win32/translation.h"
+
+#include <win32ui/dialog/message_dialog.h>
 
 namespace regkit
 {
@@ -25,7 +27,6 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
                 if (FavoritesStore::Add(registry_path::Build(*browse_.current_node())))
                 {
                     RefreshFavoritesCache();
-                    BuildMenus();
                 }
             }
             return true;
@@ -37,7 +38,6 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
                 if (FavoritesStore::Remove(registry_path::Build(*browse_.current_node())))
                 {
                     RefreshFavoritesCache();
-                    BuildMenus();
                 }
             }
             return true;
@@ -66,7 +66,6 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
                 }
                 favorites_cache_ = std::move(updated);
                 favorites_loaded_ = true;
-                BuildMenus();
             }
             return true;
         }
@@ -85,7 +84,6 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
             }
             RefreshFavoritesCache();
             AppendHistoryEntry(L"Import favorites " + util::FileName(path), L"", path);
-            BuildMenus();
             ShowFavoritesImported(imported);
             return true;
         }
@@ -101,7 +99,6 @@ bool MainWindow::Impl::HandleFavoritesCommand(int command_id)
             if (imported > 0)
             {
                 RefreshFavoritesCache();
-                BuildMenus();
             }
             AppendHistoryEntry(L"Import RegEdit favorites", L"", std::to_wstring(imported) + L" favorites");
             ShowFavoritesImported(imported);
@@ -202,7 +199,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
             }
             if (!name.empty())
             {
-                ui::CopyTextToClipboard(hwnd_, name);
+                win32ui::CopyTextToClipboard(hwnd_, name);
             }
             return true;
         }
@@ -215,7 +212,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
             }
             const ListRow* row = &selected_rows.front();
             std::wstring name = row->extra.empty() ? L"(Default)" : row->extra;
-            ui::CopyTextToClipboard(hwnd_, name);
+            win32ui::CopyTextToClipboard(hwnd_, name);
             return true;
         }
     case cmd::kEditCopyValueData:
@@ -241,7 +238,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
             }
             std::wstring data =
                 value_format::DisplayData(entry.type, entry.data.data(), static_cast<DWORD>(entry.data.size()));
-            ui::CopyTextToClipboard(hwnd_, data);
+            win32ui::CopyTextToClipboard(hwnd_, data);
             return true;
         }
     case cmd::kEditCopyKeyPath:
@@ -269,7 +266,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
         }
     case cmd::kEditCopy:
         {
-            // key that can't be read completely would paste without its unreadable part
+            // partial key copies would paste without unreadable data
             const auto capture_key = [this](const RegistryNode& key) {
                 changes::KeySnapshot snapshot = changes::CaptureKey(key, false);
                 if (!snapshot.complete)
@@ -313,7 +310,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                 clipboard_.kind = capture_key(node) ? ClipboardItem::Kind::kKey : ClipboardItem::Kind::kNone;
                 clipboard_.source_parent = parent;
                 clipboard_.name = LeafName(node);
-                ui::CopyTextToClipboard(hwnd_, registry_path::Build(node));
+                win32ui::CopyTextToClipboard(hwnd_, registry_path::Build(node));
                 return true;
             }
             if (focus == browse_.values().hwnd() || focus == search_results_list_ || focus == history_list_)
@@ -322,10 +319,10 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                 int selected = ListView_GetSelectedCount(list);
                 if (selected > 0)
                 {
-                    std::wstring text = appearance::SelectedRowsText(list);
+                    std::wstring text = win32ui::SelectedRowsText(list);
                     if (!text.empty())
                     {
-                        ui::CopyTextToClipboard(hwnd_, text);
+                        win32ui::CopyTextToClipboard(hwnd_, text);
                     }
                     if (list == browse_.values().hwnd())
                     {
@@ -349,7 +346,7 @@ bool MainWindow::Impl::HandleClipboardCommand(int command_id)
                 return true;
             }
             const bool key_row = row && row->kind == rowkind::kKey;
-            ui::CopyTextToClipboard(hwnd_, row && row->kind == rowkind::kValue ? row->name : registry_path::Build(key_row ? ChildNode(*browse_.current_node(), row->extra) : *browse_.current_node()));
+            win32ui::CopyTextToClipboard(hwnd_, row && row->kind == rowkind::kValue ? row->name : registry_path::Build(key_row ? ChildNode(*browse_.current_node(), row->extra) : *browse_.current_node()));
             return true;
         }
     default:
@@ -405,7 +402,7 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id)
             workspace::DialogFields last(&state, false);
             SearchDialogFields(last, &options);
             SearchSources sources;
-            // simple mode hides traces, defaults, REGISTRY & anomalies
+            // simple mode hides traces, defaults, REGISTRY and anomalies
             sources.traces = !settings_.simple_mode && HasActiveTraces();
             sources.defaults = !settings_.simple_mode && !active_defaults_.empty();
             sources.registry_root = !settings_.simple_mode && registry_root_.get() != nullptr;
@@ -568,7 +565,7 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                 }
                 break;
             }
-            UpdateUndoButtons();
+            UpdateToolbarStates();
             return true;
         }
     case cmd::kEditRedo:
@@ -600,7 +597,7 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                 }
                 break;
             }
-            UpdateUndoButtons();
+            UpdateToolbarStates();
             return true;
         }
     default:
@@ -656,7 +653,7 @@ void MainWindow::Impl::CopyKeyPathAs(int command_id, const RegistryNode& node, c
     std::wstring text;
     if (command_id == cmd::kEditCopyKeyPathNative || command_id == cmd::kEditCopyKeyPathNativeResolved)
     {
-        // hkcr is merged and a 32-bit view is redirected, so only the opened key knows where it lives
+        // HKCR is merged and the 32 bit view redirects paths, only the opened key knows its location
         const bool unresolved = command_id == cmd::kEditCopyKeyPathNative;
         text = unresolved && !node.view ? registry_path::BuildNative(node) : std::wstring();
         KeyDetails details;
@@ -700,7 +697,7 @@ void MainWindow::Impl::CopyKeyPathAs(int command_id, const RegistryNode& node, c
     }
     if (!text.empty())
     {
-        ui::CopyTextToClipboard(hwnd_, text);
+        win32ui::CopyTextToClipboard(hwnd_, text);
     }
 }
 

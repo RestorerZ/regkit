@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -208,10 +208,6 @@ constexpr int kToolsBitfieldFileMax = 2879;
 
 constexpr int kResearchItemBase = 2800;
 constexpr int kResearchItemMax = 2821;
-
-constexpr int kHeaderSizeToFit = 4000;
-constexpr int kHeaderSizeAll = 4001;
-constexpr int kHeaderToggleBase = 4100;
 
 } // namespace cmd
 } // namespace regkit

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/export_dialog.h"
 
@@ -10,6 +10,8 @@
 #include "win32/translation.h"
 
 #include "resource.h"
+
+#include <win32ui/dialog/dialog_window.h>
 
 #include <algorithm>
 #include <utility>
@@ -22,7 +24,7 @@ namespace
 
 void ApplyFormat(HWND dialog, bool hive)
 {
-    // hive files always hold the whole branch and have no viewer to open them in
+    // hive exports always contain the full branch and have no associated viewer
     EnableWindow(GetDlgItem(dialog, IDC_EXPORT_RANGE_KEY), !hive);
     EnableWindow(GetDlgItem(dialog, IDC_EXPORT_OPEN_AFTER), !hive);
     if (hive)
@@ -47,7 +49,6 @@ struct State
 {
     ExportResult value;
     std::wstring confirmed_path;
-    HFONT font = nullptr;
     bool accepted = false;
 };
 
@@ -58,7 +59,6 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     {
         state = reinterpret_cast<State*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-        SetWindowTextW(dialog, L"RegKit");
         SetDlgItemTextW(dialog, IDC_EXPORT_PATH, state->value.path.c_str());
         CheckDlgButton(dialog, IDC_EXPORT_RANGE_BRANCH, state->value.include_subkeys ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(dialog, IDC_EXPORT_RANGE_KEY, state->value.include_subkeys ? BST_UNCHECKED : BST_CHECKED);
@@ -74,21 +74,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         }
         SendDlgItemMessageW(dialog, IDC_EXPORT_FORMAT, CB_SETCURSEL, 0, 0);
         EnableWindow(GetDlgItem(dialog, IDC_EXPORT_FORMAT), state->value.allow_hive);
-        dialog_support::Initialize(dialog, &state->font, {IDC_EXPORT_PATH});
         return TRUE;
-    }
-    if (message == WM_DESTROY)
-    {
-        if (state)
-        {
-            dialog_support::ReleaseFont(&state->font);
-        }
-        return TRUE;
-    }
-    INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed))
-    {
-        return themed;
     }
     if (message != WM_COMMAND || !state)
     {
@@ -130,12 +116,12 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         state->value.include_subkeys = IsDlgButtonChecked(dialog, IDC_EXPORT_RANGE_BRANCH) == BST_CHECKED;
         state->value.open_after = static_cast<win32::OpenAfter>(std::max<LRESULT>(0, SendDlgItemMessageW(dialog, IDC_EXPORT_OPEN_AFTER, CB_GETCURSEL, 0, 0)));
         state->accepted = true;
-        EndDialog(dialog, IDOK);
+        win32ui::EndDialogWindow(dialog, IDOK);
         return TRUE;
     }
     if (id == IDCANCEL)
     {
-        EndDialog(dialog, IDCANCEL);
+        win32ui::EndDialogWindow(dialog, IDCANCEL);
         return TRUE;
     }
     return FALSE;
@@ -151,7 +137,7 @@ bool ChooseExport(HWND owner, const ExportRequest& request, ExportResult* result
     }
     State state;
     state.value = request;
-    const INT_PTR dialog_result = dialog_support::Modal(owner, IDD_EXPORT_OPTIONS, DialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_EXPORT_OPTIONS), DialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;

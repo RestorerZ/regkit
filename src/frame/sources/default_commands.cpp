@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -146,7 +146,6 @@ bool MainWindow::Impl::LoadDefaultFromPrompt()
         return false;
     }
     AddRecentDefaultPath(path);
-    BuildMenus();
     SaveSettings();
     return true;
 }

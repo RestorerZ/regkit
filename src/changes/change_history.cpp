@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "changes/change_history.h"
 
@@ -7,8 +7,9 @@
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "win32/file_text.h"
-#include "win32/handle_owner.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -95,7 +96,7 @@ void Stamp(HistoryEntry* entry)
     ULARGE_INTEGER value = {};
     value.LowPart = now.dwLowDateTime;
     value.HighPart = now.dwHighDateTime;
-    // strictly increasing, a batch stamped within one clock tick still sorts in the order it was made
+    // strictly increasing timestamps preserve batch order within one clock tick
     static uint64_t last = 0;
     last = std::max<uint64_t>(value.QuadPart, last + 1);
     entry->timestamp = last;
@@ -236,7 +237,7 @@ bool AppendHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>
         lines += SerializeHistoryEntry(entry);
     }
     const std::string bytes = util::WideToUtf8(lines);
-    util::UniqueHandle file(path.empty() ? INVALID_HANDLE_VALUE : CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
+    win32ui::UniqueHandle file(path.empty() ? INVALID_HANDLE_VALUE : CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
     DWORD written = 0;
     return file && !bytes.empty() &&
            WriteFile(file.get(), bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) &&

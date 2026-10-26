@@ -1,215 +1,31 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "ui/dialog_support.h"
 #include "win32/text_transform.h"
-#include "win32/window_metrics.h"
 
-#include "ui/default_font.h"
-#include "ui/dialog_fit.h"
-#include "ui/dialog_layout.h"
-#include "ui/dialog_metrics.h"
-#include "ui/feedback.h"
-#include "ui/font_metrics.h"
 #include "ui/list_view_support.h"
 #include "ui/theme.h"
 
-#include "resource.h"
+#include <win32ui/gdi/fonts.h>
+#include <win32ui/window_metrics.h>
 
 #include <algorithm>
 #include <string>
+#include <vector>
 
 #include <commctrl.h>
 
 namespace regkit::editors::dialog_support
 {
 
-namespace
+HFONT ApplyMonoFont(HWND dialog, std::initializer_list<int> controls, HFONT dialog_font)
 {
-
-constexpr UINT_PTR kSingleLineSubclassId = 2;
-constexpr UINT_PTR kListViewSubclassId = 3;
-constexpr int kTooltipMaxWidth = 600;
-constexpr int kGridToggleId = 4200;
-
-std::vector<BYTE> LoadTemplate(int id)
-{
-    const HINSTANCE instance = GetModuleHandleW(nullptr);
-    const HRSRC resource = FindResourceW(instance, MAKEINTRESOURCEW(id), RT_DIALOG);
-    const HGLOBAL loaded = resource ? LoadResource(instance, resource) : nullptr;
-    const auto* data = loaded ? static_cast<const BYTE*>(LockResource(loaded)) : nullptr;
-    if (!data)
-    {
-        return {};
-    }
-    const size_t size = SizeofResource(instance, resource);
-    const auto word = [&](size_t offset) { return offset + 2 <= size ? *reinterpret_cast<const WORD*>(data + offset) : WORD{0}; };
-    if (size < 26 || word(2) != 0xFFFF || !(*reinterpret_cast<const DWORD*>(data + 12) & DS_SETFONT))
-    {
-        return std::vector<BYTE>(data, data + size);
-    }
-    size_t offset = 26;
-    for (int field = 0; field < 3; ++field)
-    {
-        if (word(offset) == 0xFFFF)
-        {
-            offset += 4;
-            continue;
-        }
-        while (word(offset))
-        {
-            offset += 2;
-        }
-        offset += 2;
-    }
-    const size_t font = offset;
-    for (offset += 6; word(offset); offset += 2)
-    {
-    }
-    const size_t items = (offset + 2 + 3) & ~size_t{3};
-    if (items > size)
-    {
-        return std::vector<BYTE>(data, data + size);
-    }
-    const LOGFONTW lf = ui::DefaultUIFontLogFont(USER_DEFAULT_SCREEN_DPI);
-    const WORD header[] = {static_cast<WORD>(MulDiv(std::abs(lf.lfHeight), 72, USER_DEFAULT_SCREEN_DPI)), static_cast<WORD>(lf.lfWeight), static_cast<WORD>(lf.lfItalic | (lf.lfCharSet << 8))};
-    std::vector<BYTE> patched(data, data + font);
-    patched.insert(patched.end(), reinterpret_cast<const BYTE*>(header), reinterpret_cast<const BYTE*>(header) + sizeof(header));
-    patched.insert(patched.end(), reinterpret_cast<const BYTE*>(lf.lfFaceName), reinterpret_cast<const BYTE*>(lf.lfFaceName + wcslen(lf.lfFaceName) + 1));
-    patched.resize((patched.size() + 3) & ~size_t{3});
-    patched.insert(patched.end(), data + items, data + size);
-    return patched;
-}
-
-LRESULT CALLBACK SingleLineProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR)
-{
-    if (message == WM_CHAR && (wparam == L'\r' || wparam == L'\n'))
-    {
-        return 0;
-    }
-    if (message == WM_PASTE)
-    {
-        std::wstring text;
-        if (OpenClipboard(window))
-        {
-            HANDLE handle = GetClipboardData(CF_UNICODETEXT);
-            const wchar_t* data = handle ? static_cast<const wchar_t*>(GlobalLock(handle)) : nullptr;
-            if (data)
-            {
-                text = data;
-                GlobalUnlock(handle);
-            }
-            CloseClipboard();
-        }
-        if (text.find_first_of(L"\r\n") == std::wstring::npos)
-        {
-            return DefSubclassProc(window, message, wparam, lparam);
-        }
-        for (wchar_t& character : text)
-        {
-            if (character == L'\r' || character == L'\n')
-            {
-                character = L' ';
-            }
-        }
-        SendMessageW(window, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(text.c_str()));
-        return 0;
-    }
-    if (message == WM_NCDESTROY)
-    {
-        RemoveWindowSubclass(window, SingleLineProc, kSingleLineSubclassId);
-    }
-    return DefSubclassProc(window, message, wparam, lparam);
-}
-
-LRESULT CALLBACK ListViewProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR)
-{
-    if (message == WM_SETFOCUS || message == WM_KILLFOCUS)
-    {
-        SendMessageW(window, WM_CHANGEUISTATE, MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS), 0);
-    }
-    if (message == WM_UPDATEUISTATE)
-    {
-        const LRESULT result = DefSubclassProc(window, message, wparam, lparam);
-        SendMessageW(window, WM_CHANGEUISTATE, MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS), 0);
-        return result;
-    }
-    if (message == WM_THEMECHANGED)
-    {
-        InvalidateRect(window, nullptr, TRUE);
-    }
-    if (message == WM_NCDESTROY)
-    {
-        RemoveWindowSubclass(window, ListViewProc, kListViewSubclassId);
-    }
-    return DefSubclassProc(window, message, wparam, lparam);
-}
-
-} // namespace
-
-void Initialize(HWND dialog, HFONT* owned_font, std::initializer_list<int> bordered_edits)
-{
-    for (const int id : bordered_edits)
-    {
-        appearance::SetThinBorder(GetDlgItem(dialog, id));
-    }
-    HFONT font = ui::DefaultUIFont(win32::DpiForWindow(dialog));
-    if (owned_font)
-    {
-        *owned_font = font;
-    }
-    if (font)
-    {
-        SendMessageW(dialog, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-        EnumChildWindows(
-            dialog,
-            [](HWND child, LPARAM value) {
-                SendMessageW(child, WM_SETFONT, static_cast<WPARAM>(value), TRUE);
-                wchar_t class_name[16] = {};
-                GetClassNameW(child, class_name, _countof(class_name));
-                const LONG_PTR style = GetWindowLongPtrW(child, GWL_STYLE);
-                if (util::EqualsInsensitive(class_name, L"Edit"))
-                {
-                    // typed & pasted values aren't cut at the 30000 character default
-                    SendMessageW(child, EM_SETLIMITTEXT, 0, 0);
-                    if ((style & ES_MULTILINE) && !(style & ES_READONLY))
-                    {
-                        SetWindowSubclass(child, SingleLineProc, kSingleLineSubclassId, 0);
-                    }
-                }
-                return TRUE;
-            },
-            reinterpret_cast<LPARAM>(font)
-        );
-    }
-    appearance::LocalizeDialog(dialog);
-    appearance::ApplyDialogTheme(dialog);
-    regkit::appearance::CenterWindow(dialog, GetWindow(dialog, GW_OWNER));
-}
-
-void AllowNewlines(HWND dialog, int control_id)
-{
-    if (HWND edit = GetDlgItem(dialog, control_id))
-    {
-        RemoveWindowSubclass(edit, SingleLineProc, kSingleLineSubclassId);
-    }
-}
-
-INT_PTR Modal(HWND owner, int id, DLGPROC proc, LPARAM param)
-{
-    const std::vector<BYTE> dialog = LoadTemplate(id);
-    return dialog.empty() ? -1 : DialogBoxIndirectParamW(GetModuleHandleW(nullptr), reinterpret_cast<const DLGTEMPLATE*>(dialog.data()), owner, proc, param);
-}
-
-HWND Modeless(HWND owner, int id, DLGPROC proc, LPARAM param)
-{
-    const std::vector<BYTE> dialog = LoadTemplate(id);
-    return dialog.empty() ? nullptr : CreateDialogIndirectParamW(GetModuleHandleW(nullptr), reinterpret_cast<const DLGTEMPLATE*>(dialog.data()), owner, proc, param);
-}
-
-HFONT ApplyMonoFont(HWND dialog, std::initializer_list<int> controls)
-{
-    const HFONT font = CreateFontW(appearance::FontHeight(9, win32::DpiForWindow(dialog)), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_MODERN, L"Consolas");
+    // dialog font size follows custom font, Windows text size and DPI
+    LOGFONTW logfont = {};
+    const HFONT current = dialog_font ? dialog_font : reinterpret_cast<HFONT>(SendMessageW(dialog, WM_GETFONT, 0, 0));
+    const int height = current && GetObjectW(current, sizeof(logfont), &logfont) ? logfont.lfHeight : win32ui::FontHeight(9, win32ui::DpiForWindow(dialog));
+    const HFONT font = CreateFontW(height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_MODERN, L"Consolas");
     for (const int id : controls)
     {
         if (font)
@@ -218,6 +34,19 @@ HFONT ApplyMonoFont(HWND dialog, std::initializer_list<int> controls)
         }
     }
     return font;
+}
+
+void FollowDialogFont(HWND dialog, HFONT dialog_font, HFONT* mono_font, std::initializer_list<int> controls)
+{
+    if (!mono_font || !*mono_font)
+    {
+        return;
+    }
+    if (const HFONT font = ApplyMonoFont(dialog, controls, dialog_font))
+    {
+        DeleteObject(*mono_font);
+        *mono_font = font;
+    }
 }
 
 void ReleaseFont(HFONT* font)
@@ -229,115 +58,25 @@ void ReleaseFont(HFONT* font)
     }
 }
 
-bool HandleThemeMessage(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam, INT_PTR* result, const appearance::DialogResizer* resizer)
-{
-    if (!result)
-    {
-        return false;
-    }
-    if (resizer && message == WM_SIZE)
-    {
-        resizer->Apply(dialog);
-        *result = TRUE;
-        return true;
-    }
-    if (resizer && message == WM_GETMINMAXINFO)
-    {
-        resizer->ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
-        *result = TRUE;
-        return true;
-    }
-    if (message == WM_SETTINGCHANGE)
-    {
-        if (Theme::UpdateFromSystem())
-        {
-            appearance::ApplyDialogTheme(dialog);
-        }
-        *result = TRUE;
-        return true;
-    }
-    if (message == WM_ERASEBKGND)
-    {
-        appearance::EraseDialogBackground(dialog, reinterpret_cast<HDC>(wparam));
-        *result = TRUE;
-        return true;
-    }
-    if (message == WM_NCHITTEST && appearance::IsOnSizeGrip(dialog, lparam))
-    {
-        SetWindowLongPtrW(dialog, DWLP_MSGRESULT, HTBOTTOMRIGHT);
-        *result = TRUE;
-        return true;
-    }
-    switch (message)
-    {
-    case WM_CTLCOLORDLG:
-    case WM_CTLCOLORSTATIC:
-    case WM_CTLCOLORBTN:
-    case WM_CTLCOLOREDIT:
-    case WM_CTLCOLORLISTBOX:
-        *result = reinterpret_cast<INT_PTR>(Theme::Current().ControlColor(reinterpret_cast<HDC>(wparam), reinterpret_cast<HWND>(lparam), static_cast<int>(message - WM_CTLCOLORMSGBOX)));
-        return true;
-    default:
-        return false;
-    }
-}
-
-void SetupListView(HWND list, DWORD extra_styles, std::initializer_list<ListColumn> columns)
+void SetupListView(HWND list, const win32ui::ListViewHooks* hooks, DWORD extra_styles, std::initializer_list<win32ui::ListColumn> columns)
 {
     if (!list)
     {
         return;
     }
-    appearance::ConfigureListView(list, LVS_EX_LABELTIP | extra_styles);
-
-    const UINT dpi = win32::DpiForWindow(list);
-    int index = 0;
-    for (const ListColumn& column : columns)
+    static const win32ui::ListViewHooks defaults = appearance::DialogListHooks();
+    // theme before enabling check boxes so state images use the right style
+    win32ui::ApplyThemeToWindow(list);
+    win32ui::AttachDialogListView(list, hooks ? hooks : &defaults, extra_styles);
+    const UINT dpi = win32ui::DpiForWindow(list);
+    std::vector<win32ui::ListColumn> shown;
+    for (const win32ui::ListColumn& column : columns)
     {
-        LVCOLUMNW item = {};
-        item.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-        item.pszText = const_cast<wchar_t*>(column.title);
-        item.cx = std::max(appearance::metrics::Scaled(column.width, dpi), ListView_GetStringWidth(list, column.title) + appearance::metrics::Scaled(16, dpi));
-        item.iSubItem = index;
-        ListView_InsertColumn(list, index, &item);
-        ++index;
+        const int width = std::max(column.width_dip, win32ui::Unscale(ListView_GetStringWidth(list, column.title.c_str()), dpi) + 16);
+        shown.push_back({column.title, width, width});
     }
-
-    if (HWND tooltip = ListView_GetToolTips(list))
-    {
-        SendMessageW(tooltip, TTM_SETMAXTIPWIDTH, 0, appearance::metrics::Scaled(kTooltipMaxWidth, dpi));
-    }
-    EnsureSubclass(list, ListViewProc, kListViewSubclassId);
-    appearance::RegisterListView(GetParent(list), list, kGridToggleId);
-    appearance::RefreshListView(list);
-}
-
-bool HandleListViewNotify(HWND dialog, const NMHDR* header, INT_PTR* result)
-{
-    if (!header || !result || header->code != NM_CUSTOMDRAW)
-    {
-        return false;
-    }
-    LRESULT feature_result = 0;
-    if (appearance::HandleListViewNotify(dialog, header, &feature_result))
-    {
-        SetWindowLongPtrW(dialog, DWLP_MSGRESULT, feature_result);
-        *result = TRUE;
-        return true;
-    }
-    wchar_t class_name[32] = {};
-    GetClassNameW(header->hwndFrom, class_name, static_cast<int>(_countof(class_name)));
-    if (!util::EqualsInsensitive(class_name, WC_LISTVIEWW))
-    {
-        return false;
-    }
-    const HWND list = header->hwndFrom;
-    auto* draw = reinterpret_cast<NMLVCUSTOMDRAW*>(const_cast<NMHDR*>(header));
-    LRESULT drawn = ui::HandleThemedListViewCustomDraw(list, draw);
-    drawn = appearance::HandleListGridCustomDraw(list, draw, drawn);
-    SetWindowLongPtrW(dialog, DWLP_MSGRESULT, drawn);
-    *result = TRUE;
-    return true;
+    win32ui::SetListColumns(list, shown);
+    win32ui::ShowListGridButton(list);
 }
 
 std::wstring ToDisplayText(const std::wstring& text)
@@ -394,137 +133,6 @@ std::wstring SingleLine(const std::wstring& text)
 bool Matches(const std::wstring& text, const std::wstring& filter)
 {
     return filter.empty() || util::ContainsInsensitive(text, filter);
-}
-
-void SetComboItems(HWND combo, const std::vector<std::wstring>& items)
-{
-    if (!combo)
-    {
-        return;
-    }
-    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
-    for (const auto& item : items)
-    {
-        SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item.c_str()));
-    }
-}
-
-void FitDroppedWidth(HWND combo)
-{
-    if (!combo)
-    {
-        return;
-    }
-    const HDC dc = GetDC(combo);
-    if (!dc)
-    {
-        return;
-    }
-    auto* font = reinterpret_cast<HFONT>(SendMessageW(combo, WM_GETFONT, 0, 0));
-    HGDIOBJ previous = font ? SelectObject(dc, font) : nullptr;
-    const int count = static_cast<int>(SendMessageW(combo, CB_GETCOUNT, 0, 0));
-    int widest = 0;
-    std::wstring text;
-    for (int i = 0; i < count; ++i)
-    {
-        const int length = static_cast<int>(SendMessageW(combo, CB_GETLBTEXTLEN, static_cast<WPARAM>(i), 0));
-        if (length <= 0)
-        {
-            continue;
-        }
-        text.resize(static_cast<size_t>(length));
-        SendMessageW(combo, CB_GETLBTEXT, static_cast<WPARAM>(i), reinterpret_cast<LPARAM>(text.data()));
-        SIZE size = {};
-        if (GetTextExtentPoint32W(dc, text.c_str(), length, &size) && size.cx > widest)
-        {
-            widest = size.cx;
-        }
-    }
-    if (previous)
-    {
-        SelectObject(dc, previous);
-    }
-    ReleaseDC(combo, dc);
-    RECT rect = {};
-    GetWindowRect(combo, &rect);
-    const int minimum = rect.right - rect.left;
-    const UINT dpi = win32::DpiForWindow(combo);
-    const int padding = win32::SystemMetricForDpi(SM_CXVSCROLL, dpi) + appearance::metrics::Scaled(8, dpi);
-    SendMessageW(combo, CB_SETDROPPEDWIDTH, static_cast<WPARAM>(std::max(minimum, widest + padding)), 0);
-}
-
-void MatchComboHeights(HWND dialog, int edit_id, std::initializer_list<int> combos)
-{
-    RECT edit = {};
-    GetWindowRect(GetDlgItem(dialog, edit_id), &edit);
-    for (const int id : combos)
-    {
-        RECT combo = {};
-        GetWindowRect(GetDlgItem(dialog, id), &combo);
-        const LRESULT item = SendDlgItemMessageW(dialog, id, CB_GETITEMHEIGHT, static_cast<WPARAM>(-1), 0);
-        const LONG frame = (combo.bottom - combo.top) - static_cast<LONG>(item);
-        SendDlgItemMessageW(dialog, id, CB_SETITEMHEIGHT, static_cast<WPARAM>(-1), (edit.bottom - edit.top) - frame);
-    }
-}
-
-void CollapseSection(HWND dialog, int control_id)
-{
-    const auto for_each_child = [dialog](auto&& visit) {
-        for (HWND child = GetWindow(dialog, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
-        {
-            RECT rect = {};
-            if ((GetWindowLongPtrW(child, GWL_STYLE) & WS_VISIBLE) && GetWindowRect(child, &rect))
-            {
-                visit(child, rect);
-            }
-        }
-    };
-    RECT control = {};
-    GetWindowRect(GetDlgItem(dialog, control_id), &control);
-    RECT band = control;
-    bool grouped = false;
-    for_each_child([&](HWND child, const RECT& rect) {
-        wchar_t class_name[16] = {};
-        GetClassNameW(child, class_name, _countof(class_name));
-        if (util::EqualsInsensitive(class_name, L"Button") && (GetWindowLongPtrW(child, GWL_STYLE) & BS_TYPEMASK) == BS_GROUPBOX &&
-            rect.top <= control.top && rect.bottom >= control.bottom)
-        {
-            band = rect;
-            grouped = true;
-        }
-    });
-    if (!grouped)
-    {
-        for_each_child([&](HWND, const RECT& rect) {
-            if (rect.top < control.bottom && rect.bottom > control.top)
-            {
-                band.top = std::min(band.top, rect.top);
-                band.bottom = std::max(band.bottom, rect.bottom);
-            }
-        });
-    }
-    LONG next_top = LONG_MAX;
-    for_each_child([&](HWND, const RECT& rect) {
-        if (rect.top >= band.bottom)
-        {
-            next_top = std::min(next_top, rect.top);
-        }
-    });
-    const int shift = (next_top == LONG_MAX ? band.bottom : next_top) - band.top;
-    for_each_child([&](HWND child, RECT rect) {
-        if (rect.top >= band.top && rect.bottom <= band.bottom)
-        {
-            ShowWindow(child, SW_HIDE);
-        }
-        else if (rect.top >= band.bottom)
-        {
-            MapWindowPoints(nullptr, dialog, reinterpret_cast<POINT*>(&rect), 2);
-            SetWindowPos(child, nullptr, rect.left, rect.top - shift, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-        }
-    });
-    RECT window = {};
-    GetWindowRect(dialog, &window);
-    SetWindowPos(dialog, nullptr, 0, 0, window.right - window.left, window.bottom - window.top - shift, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 } // namespace regkit::editors::dialog_support

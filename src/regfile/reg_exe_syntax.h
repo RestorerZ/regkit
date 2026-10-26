@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -15,7 +15,7 @@
 namespace regkit::reg_exe
 {
 
-// switches mean different things per verb: /f forces add and delete but is the pattern for query, /d is data for add
+// switch meaning depends on verb, /f forces add/delete but sets query pattern, /d supplies add data
 enum class Verb
 {
     kAdd,

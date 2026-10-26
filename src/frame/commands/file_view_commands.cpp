@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
@@ -127,7 +127,6 @@ bool MainWindow::Impl::HandleDynamicCommand(int command_id)
             if (LoadDefaultFromFile(label, path))
             {
                 AddRecentDefaultPath(path);
-                BuildMenus();
                 SaveSettings();
             }
             return true;
@@ -151,7 +150,6 @@ bool MainWindow::Impl::HandleDynamicCommand(int command_id)
             if (LoadTraceFromFile(label, path))
             {
                 AddRecentTracePath(path);
-                BuildMenus();
                 SaveSettings();
                 SaveActiveTraces();
             }
@@ -691,12 +689,7 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
     case cmd::kOptionsReadOnly:
         settings_.read_only = !settings_.read_only;
         SaveSettings();
-        if (toolbar_.hwnd())
-        {
-            SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditPaste, settings_.read_only ? 0 : TBSTATE_ENABLED);
-            SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditDelete, settings_.read_only ? 0 : TBSTATE_ENABLED);
-            UpdateUndoButtons();
-        }
+        UpdateToolbarStates();
         return true;
     case cmd::kOptionsCompareRegistries:
         StartCompareRegistries();
@@ -704,7 +697,7 @@ bool MainWindow::Impl::HandleViewCommand(int command_id)
     case cmd::kViewFont:
         {
             FontDialogResult result = {};
-            if (ShowFontDialog(hwnd_, DefaultLogFont(), !settings_.use_custom_font, custom_font_, &result))
+            if (ShowFontDialog(hwnd_, win32ui::MessageFontLogFont(0), !settings_.use_custom_font, custom_font_, &result))
             {
                 settings_.use_custom_font = !result.use_default;
                 custom_font_ = result.font;
@@ -752,7 +745,6 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
     case cmd::kTraceClearRecent:
         recent_trace_paths_.Replace({});
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kDefaultLoadCustom:
         LoadDefaultFromPrompt();
@@ -763,7 +755,6 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
     case cmd::kDefaultClearRecent:
         recent_default_paths_.Replace({});
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kDefaultResetEnable:
         settings_.default_reset_enabled = !settings_.default_reset_enabled;
@@ -853,7 +844,6 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
                 recent_default_paths_.Replace(std::move(updated));
                 NormalizeRecentDefaultList();
                 SaveSettings();
-                BuildMenus();
             }
             return true;
         }
@@ -873,7 +863,6 @@ bool MainWindow::Impl::HandleTraceDefaultCommand(int command_id)
                 recent_trace_paths_.Replace(std::move(updated));
                 NormalizeRecentTraceList();
                 SaveSettings();
-                BuildMenus();
             }
             return true;
         }

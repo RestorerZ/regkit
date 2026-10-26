@@ -1,11 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "registry/registry_store.h"
 
 #include "registry/registry_backends.h"
 #include "registry/registry_path.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <algorithm>
 #include <atomic>
@@ -267,7 +269,7 @@ bool RegistryStore::QueryValue(const RegistryNode& node, const std::wstring& val
 LONG RegistryStore::SetKeyControlFlags(const RegistryNode& node, ULONG flags)
 {
     NoteKeyChange();
-    util::UniqueHKey key;
+    win32ui::UniqueHKey key;
     const LONG status = util::OpenRegistryPath(node.root, node.subkey, KEY_SET_VALUE | ViewOf(node), false, &key);
     return status == ERROR_SUCCESS ? util::SetKeyControlFlags(key.get(), flags) : status;
 }
@@ -339,13 +341,13 @@ bool RegistryStore::ReadKeyLink(const RegistryNode& node, std::wstring* target)
     );
 }
 
-bool RegistryStore::ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor)
+bool RegistryStore::ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor, LONG* error)
 {
     return Dispatch(
         node,
         [&](VirtualRegistryData&) { return false; },
-        [&] { return registry_backend::offline::ReadKeySecurity(node, parts, descriptor); },
-        [&] { return registry_backend::live::ReadKeySecurity(node, parts, descriptor); }
+        [&] { return registry_backend::offline::ReadKeySecurity(node, parts, descriptor, error); },
+        [&] { return registry_backend::live::ReadKeySecurity(node, parts, descriptor, error); }
     );
 }
 

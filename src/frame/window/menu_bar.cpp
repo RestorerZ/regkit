@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
@@ -13,7 +13,10 @@
 #include "win32/text_transform.h"
 #include "win32/translation.h"
 
+#include <win32ui/process_token.h>
+
 #include <filesystem>
+#include <optional>
 
 namespace regkit
 {
@@ -180,6 +183,26 @@ void RemoveSimpleModeItems(HMENU menu)
     }
 }
 
+// context menu items that follow selection like menu bar items
+constexpr int kSelectionCommands[] = {
+    cmd::kEditPermissions,
+    cmd::kEditKeyInfo,
+    cmd::kEditModifyComment,
+    cmd::kEditModify,
+    cmd::kEditModifyBinary,
+    cmd::kEditCopyValueName,
+    cmd::kEditChangeType,
+    cmd::kEditDecodeValue,
+    cmd::kEditBits,
+    cmd::kEditCopyValueData,
+    cmd::kFileLoadHive,
+    cmd::kFileUnloadHive,
+    cmd::kOptionsHiveFileDir,
+    cmd::kNewVolatileKey,
+    cmd::kEditCopyKeyPathNative,
+    cmd::kEditCopyKeyPathNativeResolved,
+};
+
 bool IsMenuInside(HMENU root, HMENU menu)
 {
     const int count = root ? GetMenuItemCount(root) : 0;
@@ -252,42 +275,6 @@ bool MainWindow::Impl::ShowsRegFile() const
     return std::any_of(session_->roots.begin(), session_->roots.end(), [](const RegistryRootEntry& root) { return RegistryStore::IsVirtualRoot(root.root); });
 }
 
-void MainWindow::Impl::RefreshStorageMenuState(HMENU menu)
-{
-    if (!menu)
-    {
-        return;
-    }
-    const int clear_position = MenuHasDirectCommand(menu, cmd::kFileClearCacheAll) ? -1 : SubMenuPosition(menu, cmd::kFileClearCacheAll);
-    HMENU clear_menu = clear_position >= 0 ? GetSubMenu(menu, clear_position) : (MenuHasDirectCommand(menu, cmd::kFileClearCacheAll) ? menu : nullptr);
-    const bool has_reset = MenuHasDirectCommand(menu, cmd::kOptionsResetSettings);
-    if (!clear_menu && !has_reset)
-    {
-        return;
-    }
-    if (clear_menu)
-    {
-        const CacheAvailability cache = InspectCacheFiles(CacheFolderPath());
-        EnableMenuItem(clear_menu, cmd::kFileClearCacheAll, MF_BYCOMMAND | (cache.any ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(clear_menu, cmd::kFileClearCacheTabs, MF_BYCOMMAND | (cache.tabs ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(clear_menu, cmd::kFileClearCacheHistory, MF_BYCOMMAND | (cache.history ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(clear_menu, cmd::kFileClearCacheSearchHistory, MF_BYCOMMAND | (cache.search_history ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(clear_menu, cmd::kFileClearCacheDialogState, MF_BYCOMMAND | (cache.dialog_state ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(clear_menu, cmd::kFileClearCacheTreeState, MF_BYCOMMAND | (cache.tree_state ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(clear_menu, cmd::kFileClearCacheTemporary, MF_BYCOMMAND | (cache.temporary ? MF_ENABLED : MF_GRAYED));
-        if (clear_position >= 0)
-        {
-            EnableMenuItem(menu, clear_position, MF_BYPOSITION | (cache.any ? MF_ENABLED : MF_GRAYED));
-        }
-    }
-    if (has_reset)
-    {
-        const workspace::Settings settings = CurrentSettings();
-        const bool changed = workspace::SerializeSettings(settings) != workspace::SerializeSettings(workspace::DefaultOptions(settings));
-        EnableMenuItem(menu, cmd::kOptionsResetSettings, MF_BYCOMMAND | (changed ? MF_ENABLED : MF_GRAYED));
-    }
-}
-
 void MainWindow::Impl::FillBitfieldMenu(HMENU menu)
 {
     if (GetMenuItemCount(menu) != 1 || GetMenuItemID(menu, 0) != cmd::kToolsBitfieldDefinitions)
@@ -303,21 +290,16 @@ void MainWindow::Impl::FillBitfieldMenu(HMENU menu)
     {
         std::wstring label = files[i].name.empty() ? util::FileBaseName(files[i].path) : files[i].name;
         label.append(L"   (").append(std::to_wstring(files[i].definitions.size())).append(L")");
-        AppendMenuW(menu, MF_STRING, cmd::kToolsBitfieldFileBase + i, label.c_str());
+        AppendMenuW(menu, MF_STRING, cmd::kToolsBitfieldFileBase + i, MenuName(label).c_str());
     }
 }
 
 void MainWindow::Impl::BuildMenus()
 {
-    if (deferred_startup_complete_ && !favorites_loaded_)
-    {
-        RefreshFavoritesCache();
-    }
     if (deferred_startup_complete_ && !bundled_defaults_loaded_)
     {
         RefreshBundledDefaultsCache();
     }
-    menu_items_.clear();
     HMENU menu = CreateMenu();
     const auto append_menu = frame::AppendCommand;
     auto append_popup = [&](HMENU target, HMENU popup, const wchar_t* text) {
@@ -326,252 +308,216 @@ void MainWindow::Impl::BuildMenus()
     auto separator = [](HMENU target) { AppendMenuW(target, MF_SEPARATOR, 0, nullptr); };
 
     HMENU file_menu = CreatePopupMenu();
-    append_menu(file_menu, MF_STRING, cmd::kFileOpenRegFile, util::Tr(L"Open .reg File..."));
-    append_menu(file_menu, MF_STRING, cmd::kFileSave, util::Tr(L"Save"));
+    append_menu(file_menu, MF_STRING, cmd::kFileOpenRegFile, util::Tr(L"Open .reg &File..."));
+    append_menu(file_menu, MF_STRING, cmd::kFileSave, util::Tr(L"&Save"));
     separator(file_menu);
-    append_menu(file_menu, MF_STRING, cmd::kFileImport, util::Tr(L"Import..."));
-    append_menu(file_menu, MF_STRING, cmd::kFileExport, util::Tr(L"Export..."));
+    append_menu(file_menu, MF_STRING, cmd::kFileImport, util::Tr(L"&Import..."));
+    append_menu(file_menu, MF_STRING, cmd::kFileExport, util::Tr(L"&Export..."));
     separator(file_menu);
-    append_menu(file_menu, MF_STRING, cmd::kFileImportComments, util::Tr(L"Import Comments..."));
-    append_menu(file_menu, MF_STRING, cmd::kFileExportComments, util::Tr(L"Export Comments..."));
+    append_menu(file_menu, MF_STRING, cmd::kFileImportComments, util::Tr(L"I&mport Comments..."));
+    append_menu(file_menu, MF_STRING, cmd::kFileExportComments, util::Tr(L"Export &Comments..."));
     separator(file_menu);
-    append_menu(file_menu, MF_STRING, cmd::kRegistryLocal, util::Tr(L"Local Registry"));
+    frame::AppendRadioCommand(file_menu, cmd::kRegistryLocal, util::Tr(L"&Local Registry"));
     if (win32::HasAlternateView())
     {
-        append_menu(file_menu, MF_STRING, cmd::kRegistryLocal32, util::Tr(L"Local Registry (32-bit)"));
+        frame::AppendRadioCommand(file_menu, cmd::kRegistryLocal32, util::Tr(L"Local Registry (&32-bit)"));
     }
-    append_menu(file_menu, MF_STRING, cmd::kRegistryNetwork, util::Tr(L"Remote Registry..."));
-    append_menu(file_menu, MF_STRING, cmd::kRegistryOffline, util::Tr(L"Offline Registry..."));
-    append_menu(file_menu, MF_STRING, cmd::kFileSaveOfflineHive, util::Tr(L"Save Offline Hive..."));
+    frame::AppendRadioCommand(file_menu, cmd::kRegistryNetwork, util::Tr(L"&Remote Registry..."));
+    frame::AppendRadioCommand(file_menu, cmd::kRegistryOffline, util::Tr(L"&Offline Registry..."));
+    append_menu(file_menu, MF_STRING, cmd::kFileSaveOfflineHive, util::Tr(L"S&ave Offline Hive..."));
     separator(file_menu);
-    append_menu(file_menu, MF_STRING, cmd::kFileLoadHive, util::Tr(L"Load Hive..."));
-    append_menu(file_menu, MF_STRING, cmd::kFileUnloadHive, util::Tr(L"Unload Hive..."));
+    append_menu(file_menu, MF_STRING, cmd::kFileLoadHive, util::Tr(L"Load &Hive..."));
+    append_menu(file_menu, MF_STRING, cmd::kFileUnloadHive, util::Tr(L"&Unload Hive..."));
     separator(file_menu);
-    append_menu(file_menu, MF_STRING, cmd::kFileExit, util::Tr(L"Exit"));
+    append_menu(file_menu, MF_STRING, cmd::kFileExit, util::Tr(L"E&xit"));
     append_popup(menu, file_menu, util::Tr(L"&File"));
 
     HMENU edit_menu = CreatePopupMenu();
-    append_menu(edit_menu, MF_STRING, cmd::kEditUndo, util::Tr(L"Undo"));
-    append_menu(edit_menu, MF_STRING, cmd::kEditRedo, util::Tr(L"Redo"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditUndo, util::Tr(L"&Undo"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditRedo, util::Tr(L"&Redo"));
     separator(edit_menu);
-    append_popup(edit_menu, BuildNewMenu(), util::Tr(L"New"));
+    append_popup(edit_menu, BuildNewMenu(), util::Tr(L"Ne&w"));
     separator(edit_menu);
-    append_menu(edit_menu, MF_STRING, cmd::kEditModify, util::Tr(L"Modify..."));
-    append_menu(edit_menu, MF_STRING, cmd::kEditModifyBinary, util::Tr(L"Modify Binary Data..."));
-    append_menu(edit_menu, MF_STRING, cmd::kEditChangeType, util::Tr(L"Change Data Type..."));
-    append_menu(edit_menu, MF_STRING, cmd::kEditBits, util::Tr(L"Edit Bits..."));
-    append_menu(edit_menu, MF_STRING, cmd::kEditDecodeValue, util::Tr(L"Decode Value..."));
-    append_menu(edit_menu, MF_STRING, cmd::kEditModifyComment, util::Tr(L"Modify Comment..."));
-    append_menu(edit_menu, MF_STRING, cmd::kEditResetDefault, util::Tr(L"Reset to Default"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditModify, util::Tr(L"&Modify..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditModifyBinary, util::Tr(L"Modify &Binary Data..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditChangeType, util::Tr(L"C&hange Data Type..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditBits, util::Tr(L"Edit Bit&s..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditDecodeValue, util::Tr(L"Decode &Value..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditModifyComment, util::Tr(L"Modif&y Comment..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditResetDefault, util::Tr(L"Reset &to Default"));
     separator(edit_menu);
-    append_menu(edit_menu, MF_STRING, cmd::kEditCopy, util::Tr(L"Copy"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditCopy, util::Tr(L"&Copy"));
     HMENU copy_other_menu = CreatePopupMenu();
-    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyKey, util::Tr(L"Key Name"));
-    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyKeyPath, util::Tr(L"Key Path"));
-    append_popup(copy_other_menu, BuildCopyKeyPathMenu(), util::Tr(L"Key Path As"));
+    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyKey, util::Tr(L"Key &Name"));
+    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyKeyPath, util::Tr(L"Key &Path"));
+    append_popup(copy_other_menu, BuildCopyKeyPathMenu(), util::Tr(L"&Key Path As"));
     separator(copy_other_menu);
-    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyValueName, util::Tr(L"Value Name"));
-    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyValueData, util::Tr(L"Value Data"));
-    append_popup(edit_menu, copy_other_menu, util::Tr(L"Copy Other"));
-    append_menu(edit_menu, MF_STRING, cmd::kEditPaste, util::Tr(L"Paste"));
-    append_menu(edit_menu, MF_STRING, cmd::kEditRename, util::Tr(L"Rename"));
-    append_menu(edit_menu, MF_STRING, cmd::kEditDelete, util::Tr(L"Delete"));
+    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyValueName, util::Tr(L"&Value Name"));
+    append_menu(copy_other_menu, MF_STRING, cmd::kEditCopyValueData, util::Tr(L"Value &Data"));
+    append_popup(edit_menu, copy_other_menu, util::Tr(L"Copy &Other"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditPaste, util::Tr(L"&Paste"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditRename, util::Tr(L"Re&name"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditDelete, util::Tr(L"&Delete"));
     separator(edit_menu);
-    append_menu(edit_menu, MF_STRING, cmd::kViewSelectAll, util::Tr(L"Select All"));
-    append_menu(edit_menu, MF_STRING, cmd::kEditInvertSelection, util::Tr(L"Invert Selection"));
+    append_menu(edit_menu, MF_STRING, cmd::kViewSelectAll, util::Tr(L"Select &All"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditInvertSelection, util::Tr(L"Inv&ert Selection"));
     separator(edit_menu);
-    append_menu(edit_menu, MF_STRING, cmd::kEditFind, util::Tr(L"Find..."));
-    append_menu(edit_menu, MF_STRING, cmd::kEditReplace, util::Tr(L"Replace..."));
-    append_menu(edit_menu, MF_STRING, cmd::kEditGoTo, util::Tr(L"Go To..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditFind, util::Tr(L"&Find..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditReplace, util::Tr(L"Rep&lace..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditGoTo, util::Tr(L"&Go To..."));
     if (win32::HasAlternateView())
     {
-        append_menu(edit_menu, MF_STRING, cmd::kRegistryOtherView, util::Tr(L"Go to Other View"));
+        append_menu(edit_menu, MF_STRING, cmd::kRegistryOtherView, util::Tr(L"&Go to Other View"));
     }
-    append_menu(edit_menu, MF_STRING, cmd::kEditGoToVirtualStore, util::Tr(L"Go to Virtual Store Copy"));
-    append_menu(edit_menu, MF_STRING, cmd::kEditGoToGlobalKey, util::Tr(L"Go to Global Key"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditGoToVirtualStore, util::Tr(L"&Go to Virtual Store Copy"));
+    append_menu(edit_menu, MF_STRING, cmd::kEditGoToGlobalKey, util::Tr(L"&Go to Global Key"));
     separator(edit_menu);
-    append_menu(edit_menu, MF_STRING, cmd::kEditPermissions, util::Tr(L"Permissions..."));
-    append_menu(edit_menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"Key Information..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditPermissions, util::Tr(L"Perm&issions..."));
+    append_menu(edit_menu, MF_STRING, cmd::kEditKeyInfo, util::Tr(L"&Key Information..."));
     append_popup(menu, edit_menu, util::Tr(L"&Edit"));
 
     HMENU view_menu = CreatePopupMenu();
-    append_menu(view_menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"Refresh"));
-    append_menu(view_menu, MF_STRING, cmd::kViewAutoRefresh, util::Tr(L"Auto Refresh"));
+    append_menu(view_menu, MF_STRING, cmd::kViewRefresh, util::Tr(L"&Refresh"));
+    append_menu(view_menu, MF_STRING, cmd::kViewAutoRefresh, util::Tr(L"&Auto Refresh"));
     separator(view_menu);
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewToolbar, util::Tr(L"Toolbar"));
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewAddressBar, util::Tr(L"Address Bar"));
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewFilterBar, util::Tr(L"Filter Bar"));
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewTabControl, util::Tr(L"Tabs"));
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewStatusBar, util::Tr(L"Status Bar"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewToolbar, util::Tr(L"T&oolbar"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewAddressBar, util::Tr(L"A&ddress Bar"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewFilterBar, util::Tr(L"Filter &Bar"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewTabControl, util::Tr(L"&Tabs"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewStatusBar, util::Tr(L"&Status Bar"));
     separator(view_menu);
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewKeyTree, util::Tr(L"Key Tree"));
-    append_menu(view_menu, MF_STRING, cmd::kViewHistory, util::Tr(L"History"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewKeyTree, util::Tr(L"&Key Tree"));
+    append_menu(view_menu, MF_STRING, cmd::kViewHistory, util::Tr(L"&History"));
     separator(view_menu);
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewKeysInList, util::Tr(L"Keys in List"));
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewGridLines, util::Tr(L"Grid Lines"));
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewSimulatedKeys, util::Tr(L"Simulated Keys"));
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewExtraHives, util::Tr(L"Show Extra Root Keys"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewKeysInList, util::Tr(L"Keys &in List"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewGridLines, util::Tr(L"&Grid Lines"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewSimulatedKeys, util::Tr(L"Sim&ulated Keys"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewExtraHives, util::Tr(L"Sho&w Extra Root Keys"));
     separator(view_menu);
 
     HMENU options_menu = CreatePopupMenu();
-    // simple mode hides Options (look settings move to View)
+    // simple mode hides Options and moves appearance settings to View
     HMENU look_menu = settings_.simple_mode ? view_menu : options_menu;
     HMENU theme_menu = CreatePopupMenu();
-    AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemeSystem, util::Tr(L"System"));
-    AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemeLight, util::Tr(L"Light"));
-    AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemeDark, util::Tr(L"Dark"));
-    AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemeCustom, util::Tr(L"Custom"));
+    frame::AppendRadioCommand(theme_menu, cmd::kOptionsThemeSystem, util::Tr(L"&System"));
+    frame::AppendRadioCommand(theme_menu, cmd::kOptionsThemeLight, util::Tr(L"&Light"));
+    frame::AppendRadioCommand(theme_menu, cmd::kOptionsThemeDark, util::Tr(L"&Dark"));
+    frame::AppendRadioCommand(theme_menu, cmd::kOptionsThemeCustom, util::Tr(L"C&ustom"));
     separator(theme_menu);
-    AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemePresets, util::Tr(L"Theme Presets..."));
-    append_popup(look_menu, theme_menu, util::Tr(L"Theme"));
+    AppendMenuW(theme_menu, MF_STRING, cmd::kOptionsThemePresets, util::Tr(L"&Theme Presets..."));
+    append_popup(look_menu, theme_menu, util::Tr(L"Th&eme"));
     HMENU icon_menu = CreatePopupMenu();
-    AppendMenuW(icon_menu, MF_STRING, cmd::kOptionsIconSetClassic, util::Tr(L"Classic"));
-    AppendMenuW(icon_menu, MF_STRING, cmd::kOptionsIconSetPhosphor, util::Tr(L"Phosphor"));
-    AppendMenuW(icon_menu, MF_STRING, cmd::kOptionsIconSetCustom, util::Tr(L"Custom"));
-    append_popup(look_menu, icon_menu, util::Tr(L"Icons"));
+    frame::AppendRadioCommand(icon_menu, cmd::kOptionsIconSetClassic, util::Tr(L"&Classic"));
+    frame::AppendRadioCommand(icon_menu, cmd::kOptionsIconSetPhosphor, util::Tr(L"&Phosphor"));
+    frame::AppendRadioCommand(icon_menu, cmd::kOptionsIconSetCustom, util::Tr(L"C&ustom"));
+    append_popup(look_menu, icon_menu, util::Tr(L"Ico&ns"));
     HMENU language_menu = CreatePopupMenu();
     language_packs_ = util::InstalledLanguages();
     language_packs_.insert(language_packs_.begin(), {L"en", L"English"});
-    AppendMenuW(language_menu, MF_STRING, cmd::kOptionsLanguageAuto, util::Tr(L"Automatic"));
+    frame::AppendRadioCommand(language_menu, cmd::kOptionsLanguageAuto, util::Tr(L"&Automatic"));
     separator(language_menu);
     for (size_t i = 0; i < language_packs_.size() && cmd::kOptionsLanguageBase + static_cast<int>(i) <= cmd::kOptionsLanguageMax; ++i)
     {
-        AppendMenuW(language_menu, MF_STRING, cmd::kOptionsLanguageBase + static_cast<int>(i), language_packs_[i].name.c_str());
+        frame::AppendRadioCommand(language_menu, cmd::kOptionsLanguageBase + static_cast<int>(i), MenuName(language_packs_[i].name).c_str());
     }
-    append_popup(look_menu, language_menu, util::Tr(L"Language"));
-    AppendMenuW(look_menu, MF_STRING, cmd::kViewFont, util::Tr(L"Font..."));
+    append_popup(look_menu, language_menu, util::Tr(L"&Language"));
+    AppendMenuW(look_menu, MF_STRING, cmd::kViewFont, util::Tr(L"&Font..."));
     separator(look_menu);
-    AppendMenuW(view_menu, MF_STRING, cmd::kViewSimpleMode, util::Tr(L"Simple Mode"));
+    AppendMenuW(view_menu, MF_STRING, cmd::kViewSimpleMode, util::Tr(L"Simple &Mode"));
     append_popup(menu, view_menu, util::Tr(L"&View"));
-    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsReadOnly, util::Tr(L"Read Only Mode"));
-    AppendMenuW(options_menu, MF_STRING | (util::IsProcessPrivileged() ? 0 : MF_GRAYED), cmd::kOptionsBackupRestore, util::Tr(L"Use Backup/Restore Privileges"));
+    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsReadOnly, util::Tr(L"Read Only &Mode"));
+    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsBackupRestore, util::Tr(L"Use &Backup/Restore Privileges"));
     separator(options_menu);
-    const bool is_elevated = util::IsProcessElevated();
-    const bool is_system = util::IsProcessSystem();
-    const bool is_ti = util::IsProcessTrustedInstaller();
-    const bool is_high = is_system || is_ti;
     HMENU run_as_menu = CreatePopupMenu();
-    append_menu(run_as_menu, MF_STRING, cmd::kFileRestart, util::Tr(L"Restart"));
-    AppendMenuW(run_as_menu, MF_STRING | (((is_high || is_elevated) && util::IsUacEnabled()) ? 0 : MF_GRAYED), cmd::kOptionsRestartUser, util::Tr(L"Restart as User"));
-    AppendMenuW(run_as_menu, MF_STRING | ((is_elevated && !is_high) ? MF_GRAYED : 0), cmd::kOptionsRestartAdmin, util::Tr(L"Restart as Admin"));
-    AppendMenuW(run_as_menu, MF_STRING | (is_system ? MF_GRAYED : 0), cmd::kOptionsRestartSystem, util::Tr(L"Restart as SYSTEM"));
-    AppendMenuW(run_as_menu, MF_STRING | (is_ti ? MF_GRAYED : 0), cmd::kOptionsRestartTrustedInstaller, util::Tr(L"Restart as TrustedInstaller"));
+    append_menu(run_as_menu, MF_STRING, cmd::kFileRestart, util::Tr(L"&Restart"));
+    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsRestartUser, util::Tr(L"Restart as &User"));
+    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsRestartAdmin, util::Tr(L"R&estart as Admin"));
+    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsRestartSystem, util::Tr(L"Restart as &SYSTEM"));
+    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsRestartTrustedInstaller, util::Tr(L"Restart as &TrustedInstaller"));
     separator(run_as_menu);
-    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsAlwaysRunAdmin, util::Tr(L"Always Run as Admin"));
-    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsAlwaysRunSystem, util::Tr(L"Always Run as SYSTEM"));
-    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsAlwaysRunTrustedInstaller, util::Tr(L"Always Run as TrustedInstaller"));
+    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsAlwaysRunAdmin, util::Tr(L"A&lways Run as Admin"));
+    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsAlwaysRunSystem, util::Tr(L"&Always Run as SYSTEM"));
+    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsAlwaysRunTrustedInstaller, util::Tr(L"Al&ways Run as TrustedInstaller"));
     separator(run_as_menu);
-    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsHkcuFollowsUser, util::Tr(L"HKCU Follows Signed-In User"));
-    append_popup(options_menu, run_as_menu, util::Tr(L"Run As"));
+    AppendMenuW(run_as_menu, MF_STRING, cmd::kOptionsHkcuFollowsUser, util::Tr(L"&HKCU Follows Signed-In User"));
+    append_popup(options_menu, run_as_menu, util::Tr(L"R&un As"));
     separator(options_menu);
-    AppendMenuW(options_menu, MF_STRING | ((is_elevated || is_high) ? 0 : MF_GRAYED), cmd::kOptionsReplaceRegEdit, util::Tr(L"Replace RegEdit"));
-    AppendMenuW(options_menu, MF_STRING | (is_high ? MF_GRAYED : 0), cmd::kOptionsEditContextMenu, util::Tr(L"Add \"Edit\" Context Menu"));
-    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsSingleInstance, util::Tr(L"Single Instance"));
-    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsAutoComplete, util::Tr(L"Autocomplete Key Paths"));
+    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsReplaceRegEdit, util::Tr(L"&Replace RegEdit"));
+    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsEditContextMenu, util::Tr(L"&Add \"Edit\" Context Menu"));
+    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsSingleInstance, util::Tr(L"Single &Instance"));
+    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsAutoComplete, util::Tr(L"Autocomplete &Key Paths"));
     HMENU save_tabs_menu = CreatePopupMenu();
-    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabs, util::Tr(L"All Tabs"));
+    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabs, util::Tr(L"&All Tabs"));
     separator(save_tabs_menu);
-    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsLocal, util::Tr(L"Local Registry Tabs"));
-    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsOffline, util::Tr(L"Offline Hive Tabs"));
-    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsRemote, util::Tr(L"Remote Registry Tabs"));
+    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsLocal, util::Tr(L"&Local Registry Tabs"));
+    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsOffline, util::Tr(L"&Offline Hive Tabs"));
+    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsRemote, util::Tr(L"&Remote Registry Tabs"));
     separator(save_tabs_menu);
-    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsSearch, util::Tr(L"Find Results"));
-    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsCompare, util::Tr(L"Comparison Results"));
-    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsRegFile, util::Tr(L".reg File Tabs"));
+    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsSearch, util::Tr(L"&Find Results"));
+    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsCompare, util::Tr(L"&Comparison Results"));
+    AppendMenuW(save_tabs_menu, MF_STRING, cmd::kOptionsSaveTabsRegFile, util::Tr(L".reg File &Tabs"));
     separator(options_menu);
-    append_popup(options_menu, save_tabs_menu, util::Tr(L"Save Tabs"));
-    AppendMenuW(options_menu, MF_STRING, cmd::kViewSaveTreeState, util::Tr(L"Save Previous Tree State"));
-    append_menu(options_menu, MF_STRING, cmd::kFileClearHistoryOnExit, util::Tr(L"Clear History on Exit"));
-    append_menu(options_menu, MF_STRING, cmd::kFileClearTabsOnExit, util::Tr(L"Clear Tabs on Exit"));
+    append_popup(options_menu, save_tabs_menu, util::Tr(L"Save &Tabs"));
+    AppendMenuW(options_menu, MF_STRING, cmd::kViewSaveTreeState, util::Tr(L"Save &Previous Tree State"));
+    append_menu(options_menu, MF_STRING, cmd::kFileClearHistoryOnExit, util::Tr(L"Clear &History on Exit"));
+    append_menu(options_menu, MF_STRING, cmd::kFileClearTabsOnExit, util::Tr(L"Clear Tabs &on Exit"));
     separator(options_menu);
     HMENU clear_cache_menu = CreatePopupMenu();
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheAll, util::Tr(L"Clear All"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheAll, util::Tr(L"Clear &All"));
     separator(clear_cache_menu);
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTabs, util::Tr(L"Tab Sessions"));
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheHistory, util::Tr(L"Change History"));
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheSearchHistory, util::Tr(L"Search History"));
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheDialogState, util::Tr(L"Dialog Options"));
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTreeState, util::Tr(L"Tree State"));
-    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTemporary, util::Tr(L"Temporary Files"));
-    append_popup(options_menu, clear_cache_menu, util::Tr(L"Clear Caches"));
-    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsResetSettings, util::Tr(L"Reset Settings..."));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTabs, util::Tr(L"Tab &Sessions"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheHistory, util::Tr(L"&Change History"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheSearchHistory, util::Tr(L"Search &History"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheDialogState, util::Tr(L"&Dialog Options"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTreeState, util::Tr(L"&Tree State"));
+    AppendMenuW(clear_cache_menu, MF_STRING, cmd::kFileClearCacheTemporary, util::Tr(L"Temporary &Files"));
+    append_popup(options_menu, clear_cache_menu, util::Tr(L"&Clear Caches"));
+    AppendMenuW(options_menu, MF_STRING, cmd::kOptionsResetSettings, util::Tr(L"Reset &Settings..."));
     HMENU favorites_menu = CreatePopupMenu();
-    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesAdd, util::Tr(L"Add to Favorites..."));
-    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesRemove, util::Tr(L"Remove Favorite"));
-    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesEdit, util::Tr(L"Edit Favorites..."));
+    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesAdd, util::Tr(L"&Add to Favorites..."));
+    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesRemove, util::Tr(L"&Remove Favorite"));
+    AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesEdit, util::Tr(L"Edit &Favorites..."));
     separator(favorites_menu);
-    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImport, util::Tr(L"Import Favorites..."));
-    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImportRegEdit, util::Tr(L"Import RegEdit Favorites"));
-    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesExport, util::Tr(L"Export Favorites..."));
-    if (!favorites_cache_.empty())
-    {
-        separator(favorites_menu);
-        int limit =
-            std::min(static_cast<int>(favorites_cache_.size()), cmd::kFavoritesItemMax - cmd::kFavoritesItemBase + 1);
-        for (int i = 0; i < limit; ++i)
-        {
-            AppendMenuW(favorites_menu, MF_STRING, cmd::kFavoritesItemBase + i, favorites_cache_[static_cast<size_t>(i)].c_str());
-        }
-    }
-    regedit_favorites_menu_ = favorites_menu;
-    regedit_favorites_static_count_ = GetMenuItemCount(favorites_menu);
+    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImport, util::Tr(L"&Import Favorites..."));
+    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesImportRegEdit, util::Tr(L"I&mport RegEdit Favorites"));
+    append_menu(favorites_menu, MF_STRING, cmd::kFavoritesExport, util::Tr(L"&Export Favorites..."));
+    favorites_menu_ = favorites_menu;
     regedit_favorites_.clear();
     append_popup(menu, favorites_menu, util::Tr(L"F&avorites"));
     append_popup(menu, options_menu, util::Tr(L"&Options"));
 
     HMENU tools_menu = CreatePopupMenu();
-    append_menu(tools_menu, MF_STRING, cmd::kOptionsCompareRegistries, util::Tr(L"Compare Registries..."));
-    append_menu(tools_menu, MF_STRING, cmd::kToolsConvertFile, util::Tr(L"Convert File..."));
-    append_menu(tools_menu, MF_STRING, cmd::kToolsKeyHandles, util::Tr(L"Key Handles..."));
+    append_menu(tools_menu, MF_STRING, cmd::kOptionsCompareRegistries, util::Tr(L"&Compare Registries..."));
+    append_menu(tools_menu, MF_STRING, cmd::kToolsConvertFile, util::Tr(L"Convert &File..."));
+    append_menu(tools_menu, MF_STRING, cmd::kToolsKeyHandles, util::Tr(L"&Key Handles..."));
     HMENU bitfield_menu = CreatePopupMenu();
-    AppendMenuW(bitfield_menu, MF_STRING, cmd::kToolsBitfieldDefinitions, util::Tr(L"New Definition File..."));
-    append_popup(tools_menu, bitfield_menu, util::Tr(L"Bit Definitions"));
+    AppendMenuW(bitfield_menu, MF_STRING, cmd::kToolsBitfieldDefinitions, util::Tr(L"&New Definition File..."));
+    append_popup(tools_menu, bitfield_menu, util::Tr(L"&Bit Definitions"));
     append_popup(menu, tools_menu, util::Tr(L"&Tools"));
 
     HMENU window_menu = CreatePopupMenu();
-    append_menu(window_menu, MF_STRING, cmd::kWindowNew, util::Tr(L"New Window"));
+    append_menu(window_menu, MF_STRING, cmd::kWindowNew, util::Tr(L"&New Window"));
     separator(window_menu);
-    append_menu(window_menu, MF_STRING, cmd::kTabClose, util::Tr(L"Close Tab"));
-    AppendMenuW(window_menu, MF_STRING, cmd::kWindowClose, util::Tr(L"Close Window"));
+    append_menu(window_menu, MF_STRING, cmd::kTabClose, util::Tr(L"&Close Tab"));
+    AppendMenuW(window_menu, MF_STRING, cmd::kWindowClose, util::Tr(L"Close &Window"));
     separator(window_menu);
-    AppendMenuW(window_menu, MF_STRING, cmd::kWindowAlwaysOnTop, util::Tr(L"Always on Top"));
+    AppendMenuW(window_menu, MF_STRING, cmd::kWindowAlwaysOnTop, util::Tr(L"&Always on Top"));
     append_popup(menu, window_menu, util::Tr(L"&Window"));
 
     HMENU trace_menu = CreatePopupMenu();
-    append_menu(trace_menu, MF_STRING, cmd::kTraceLoad23H2, util::Tr(L"23H2"));
-    append_menu(trace_menu, MF_STRING, cmd::kTraceLoad24H2, util::Tr(L"24H2"));
-    append_menu(trace_menu, MF_STRING, cmd::kTraceLoad25H2, util::Tr(L"25H2"));
-    bool has_recent_trace = false;
-    int recent_limit = std::min(static_cast<int>(recent_trace_paths_.items().size()), cmd::kTraceRecentMax - cmd::kTraceRecentBase + 1);
-    for (int i = 0; i < recent_limit; ++i)
-    {
-        const std::wstring& path = recent_trace_paths_.items()[static_cast<size_t>(i)];
-        if (path.empty())
-        {
-            continue;
-        }
-        if (!has_recent_trace)
-        {
-            separator(trace_menu);
-        }
-        has_recent_trace = true;
-        std::wstring name = util::FileName(path);
-        if (name.empty())
-        {
-            name = util::Tr(L"Trace");
-        }
-        append_menu(trace_menu, MF_STRING, cmd::kTraceRecentBase + i, name.c_str());
-    }
+    append_menu(trace_menu, MF_STRING, cmd::kTraceLoad23H2, util::Tr(L"2&3H2"));
+    append_menu(trace_menu, MF_STRING, cmd::kTraceLoad24H2, util::Tr(L"2&4H2"));
+    append_menu(trace_menu, MF_STRING, cmd::kTraceLoad25H2, util::Tr(L"&25H2"));
     separator(trace_menu);
-    append_menu(trace_menu, MF_STRING, cmd::kTraceLoadCustom, util::Tr(L"Open Trace File..."));
+    append_menu(trace_menu, MF_STRING, cmd::kTraceLoadCustom, util::Tr(L"&Open Trace File..."));
     separator(trace_menu);
-    append_menu(trace_menu, MF_STRING, cmd::kTraceEditActive, util::Tr(L"Edit Active Traces..."));
-    append_menu(trace_menu, MF_STRING, cmd::kTraceClear, util::Tr(L"Clear Active Traces"));
+    append_menu(trace_menu, MF_STRING, cmd::kTraceEditActive, util::Tr(L"&Edit Active Traces..."));
+    append_menu(trace_menu, MF_STRING, cmd::kTraceClear, util::Tr(L"Clear &Active Traces"));
     separator(trace_menu);
-    append_menu(trace_menu, MF_STRING | (has_recent_trace ? 0 : MF_GRAYED), cmd::kTraceEditRecent, util::Tr(L"Edit Recent Traces..."));
-    append_menu(trace_menu, MF_STRING | (has_recent_trace ? 0 : MF_GRAYED), cmd::kTraceClearRecent, util::Tr(L"Clear Recent Traces"));
+    append_menu(trace_menu, MF_STRING, cmd::kTraceEditRecent, util::Tr(L"Edit &Recent Traces..."));
+    append_menu(trace_menu, MF_STRING, cmd::kTraceClearRecent, util::Tr(L"&Clear Recent Traces"));
     separator(trace_menu);
-    append_menu(trace_menu, MF_STRING, cmd::kTraceGuide, util::Tr(L"Guide"));
+    append_menu(trace_menu, MF_STRING, cmd::kTraceGuide, util::Tr(L"&Guide"));
 
     HMENU default_menu = CreatePopupMenu();
     HMENU bundled_menu = nullptr;
@@ -583,55 +529,29 @@ void MainWindow::Impl::BuildMenus()
         {
             bundled_group = entry.group;
             bundled_menu = CreatePopupMenu();
-            append_popup(default_menu, bundled_menu, bundled_group.c_str());
+            append_popup(default_menu, bundled_menu, MenuName(bundled_group).c_str());
         }
-        append_menu(bundled_menu, MF_STRING, cmd::kDefaultBundledBase + static_cast<int>(i), entry.label.c_str());
-    }
-    bool has_recent_default = false;
-    int default_recent_limit = std::min(static_cast<int>(recent_default_paths_.items().size()), cmd::kDefaultRecentMax - cmd::kDefaultRecentBase + 1);
-    for (int i = 0; i < default_recent_limit; ++i)
-    {
-        const std::wstring& path = recent_default_paths_.items()[static_cast<size_t>(i)];
-        if (path.empty())
-        {
-            continue;
-        }
-        if (!has_recent_default && !bundled_defaults_.empty())
-        {
-            separator(default_menu);
-        }
-        has_recent_default = true;
-        std::wstring name = util::FileBaseName(path);
-        const std::wstring build = defaults::ShortLabel(std::wstring(), path);
-        if (!build.empty())
-        {
-            name = build + L" - " + name;
-        }
-        if (name.empty())
-        {
-            name = util::Tr(L"Default");
-        }
-        append_menu(default_menu, MF_STRING, cmd::kDefaultRecentBase + i, name.c_str());
+        append_menu(bundled_menu, MF_STRING, cmd::kDefaultBundledBase + static_cast<int>(i), MenuName(entry.label).c_str());
     }
     separator(default_menu);
-    append_menu(default_menu, MF_STRING, cmd::kDefaultLoadCustom, util::Tr(L"Open Default File..."));
+    append_menu(default_menu, MF_STRING, cmd::kDefaultLoadCustom, util::Tr(L"&Open Default File..."));
     separator(default_menu);
-    append_menu(default_menu, MF_STRING, cmd::kDefaultEditActive, util::Tr(L"Edit Active Defaults..."));
-    append_menu(default_menu, MF_STRING, cmd::kDefaultClear, util::Tr(L"Clear Active Defaults"));
+    append_menu(default_menu, MF_STRING, cmd::kDefaultEditActive, util::Tr(L"Edit &Active Defaults..."));
+    append_menu(default_menu, MF_STRING, cmd::kDefaultClear, util::Tr(L"&Clear Active Defaults"));
     separator(default_menu);
-    append_menu(default_menu, MF_STRING | (has_recent_default ? 0 : MF_GRAYED), cmd::kDefaultEditRecent, util::Tr(L"Edit Recent Defaults..."));
-    append_menu(default_menu, MF_STRING | (has_recent_default ? 0 : MF_GRAYED), cmd::kDefaultClearRecent, util::Tr(L"Clear Recent Defaults"));
+    append_menu(default_menu, MF_STRING, cmd::kDefaultEditRecent, util::Tr(L"Edit Recent &Defaults..."));
+    append_menu(default_menu, MF_STRING, cmd::kDefaultClearRecent, util::Tr(L"Clear &Recent Defaults"));
     separator(default_menu);
-    append_menu(default_menu, MF_STRING, cmd::kDefaultResetEnable, util::Tr(L"Enable Context Menu (risky)"));
+    append_menu(default_menu, MF_STRING, cmd::kDefaultResetEnable, util::Tr(L"&Enable Context Menu (risky)"));
 
     HMENU help_menu = CreatePopupMenu();
-    append_menu(help_menu, MF_STRING, cmd::kHelpContents, util::Tr(L"Documentation"));
-    AppendMenuW(help_menu, MF_STRING, cmd::kHelpDiscord, L"Discord");
+    append_menu(help_menu, MF_STRING, cmd::kHelpContents, util::Tr(L"D&ocumentation"));
+    AppendMenuW(help_menu, MF_STRING, cmd::kHelpDiscord, L"&Discord");
     separator(help_menu);
-    AppendMenuW(help_menu, MF_STRING, cmd::kHelpCheckUpdates, util::Tr(L"Check for Updates"));
-    AppendMenuW(help_menu, MF_STRING, cmd::kHelpAutoCheckUpdates, util::Tr(L"Check for Updates Automatically"));
+    AppendMenuW(help_menu, MF_STRING, cmd::kHelpCheckUpdates, util::Tr(L"Check &for Updates"));
+    AppendMenuW(help_menu, MF_STRING, cmd::kHelpAutoCheckUpdates, util::Tr(L"&Check for Updates Automatically"));
     separator(help_menu);
-    AppendMenuW(help_menu, MF_STRING, cmd::kHelpAbout, util::Tr(L"About RegKit"));
+    AppendMenuW(help_menu, MF_STRING, cmd::kHelpAbout, util::Tr(L"&About RegKit"));
 
     HMENU research_menu = CreatePopupMenu();
     int research_command = cmd::kResearchItemBase;
@@ -655,18 +575,12 @@ void MainWindow::Impl::BuildMenus()
             DeleteMenu(menu, static_cast<UINT>(SubMenuPosition(menu, command)), MF_BYPOSITION);
         }
         ApplySimpleMode(menu);
-        regedit_favorites_static_count_ = GetMenuItemCount(favorites_menu);
     }
+    trace_menu_ = IsMenuInside(menu, trace_menu) ? trace_menu : nullptr;
+    default_menu_ = IsMenuInside(menu, default_menu) ? default_menu : nullptr;
 
-    PrepareMenusForOwnerDraw(menu);
-
-    HMENU old_menu = GetMenu(hwnd_);
-    SetMenu(hwnd_, menu);
-    DrawMenuBar(hwnd_);
-    if (old_menu)
-    {
-        DestroyMenu(old_menu);
-    }
+    menu_bar_.Attach(hwnd_, menu);
+    menu_bar_.ApplyTheme();
 }
 
 void MainWindow::Impl::ApplySimpleMode(HMENU menu) const
@@ -677,161 +591,365 @@ void MainWindow::Impl::ApplySimpleMode(HMENU menu) const
     }
 }
 
-void MainWindow::Impl::UpdateMenuState(HMENU menu)
+struct MainWindow::Impl::CommandState
 {
-    auto check = [menu](int id, bool on) { CheckMenuItem(menu, static_cast<UINT>(id), MF_BYCOMMAND | (on ? MF_CHECKED : MF_UNCHECKED)); };
-    auto enable = [menu](int id, bool on) { EnableMenuItem(menu, static_cast<UINT>(id), MF_BYCOMMAND | (on ? MF_ENABLED : MF_GRAYED)); };
-    RefreshStorageMenuState(menu);
-    FillBitfieldMenu(menu);
-    RefreshResetDefaultMenu(menu);
+    Impl* window = nullptr;
+    // one lookup per popup, shared by all items
+    std::optional<CacheAvailability> cache;
+    std::optional<bool> settings_changed;
+    std::optional<bool> comment_targets;
+    std::optional<std::vector<DefaultValueChoice>> reset_choices;
+    bool row_known = false;
+    const ListRow* row = nullptr;
+};
+
+bool MainWindow::Impl::CommandEnabled(int command, CommandState* state)
+{
     const RegistryNode* node = browse_.current_node();
-    check(cmd::kViewGridLines, settings_.show_value_grid);
-    enable(cmd::kEditPermissions, node != nullptr);
-    enable(cmd::kEditKeyInfo, node != nullptr);
-    enable(cmd::kEditModifyComment, node != nullptr);
-    const HWND values = browse_.values().hwnd();
-    const int selected_index = values && ListView_GetSelectedCount(values) == 1 ? ListView_GetNextItem(values, -1, LVNI_SELECTED) : -1;
-    const ListRow* selected_row = selected_index >= 0 ? browse_.values().RowAt(selected_index) : nullptr;
-    const bool can_open_value = selected_row && selected_row->kind == rowkind::kValue && !selected_row->simulated;
-    const bool can_edit_data = can_open_value && !selected_row->missing;
-    enable(cmd::kEditModify, can_open_value);
-    enable(cmd::kEditModifyBinary, can_open_value);
-    enable(cmd::kEditCopyValueName, can_open_value);
-    enable(cmd::kEditChangeType, can_edit_data);
-    enable(cmd::kEditDecodeValue, can_edit_data);
-    enable(cmd::kEditBits, can_edit_data);
-    enable(cmd::kEditCopyValueData, can_edit_data);
-    const bool hives_allowed = !settings_.read_only && session_->mode != RegistryMode::kRemote;
-    enable(cmd::kFileLoadHive, hives_allowed);
-    enable(cmd::kFileUnloadHive, hives_allowed && node && IsMountedHive(node->root, node->subkey));
-    if (GetMenuState(menu, cmd::kOptionsHiveFileDir, MF_BYCOMMAND) != static_cast<UINT>(-1))
-    {
-        enable(cmd::kOptionsHiveFileDir, !ResolveSelectedHiveFilePath().empty());
-    }
-    // .reg files and hives have no volatile keys
-    // only the local registry has native paths
-    enable(cmd::kNewVolatileKey, session_->mode != RegistryMode::kOffline && !ShowsRegFile());
-    enable(cmd::kEditCopyKeyPathNative, session_->mode == RegistryMode::kLocal && !ShowsRegFile());
-    enable(cmd::kEditCopyKeyPathNativeResolved, session_->mode == RegistryMode::kLocal && !ShowsRegFile());
-    if (!IsMenuInside(GetMenu(hwnd_), menu))
-    {
-        return;
-    }
-
-    const bool can_modify = !settings_.read_only;
+    const bool writable = !settings_.read_only;
     const RegistryMode mode = session_->mode;
-    for (int id : {cmd::kEditUndo, cmd::kEditRedo, cmd::kEditPaste, cmd::kEditReplace})
+    const HWND values = browse_.values().hwnd();
+    // single selected value that is not simulated
+    auto selected_value = [&]() -> const ListRow* {
+        if (!state->row_known)
+        {
+            const int index = values && ListView_GetSelectedCount(values) == 1 ? ListView_GetNextItem(values, -1, LVNI_SELECTED) : -1;
+            const ListRow* row = index >= 0 ? browse_.values().RowAt(index) : nullptr;
+            state->row = row && row->kind == rowkind::kValue && !row->simulated ? row : nullptr;
+            state->row_known = true;
+        }
+        return state->row;
+    };
+    auto focused_value = [&]() { return GetFocus() == values ? selected_value() : nullptr; };
+    auto cache = [&]() -> const CacheAvailability& {
+        if (!state->cache)
+        {
+            state->cache = InspectCacheFiles(CacheFolderPath());
+        }
+        return *state->cache;
+    };
+    auto any_path = [](const std::vector<std::wstring>& paths, int limit) {
+        return std::any_of(paths.begin(), paths.begin() + std::min(static_cast<ptrdiff_t>(paths.size()), static_cast<ptrdiff_t>(limit)), [](const std::wstring& path) { return !path.empty(); });
+    };
+    switch (command)
     {
-        enable(id, can_modify);
-    }
+    case cmd::kEditPermissions:
+    case cmd::kEditKeyInfo:
+        return node != nullptr;
+    case cmd::kEditModifyComment:
+        if (!state->comment_targets)
+        {
+            state->comment_targets = !CommentTargets().empty();
+        }
+        return *state->comment_targets;
+    case cmd::kEditModify:
+    case cmd::kEditModifyBinary:
+    case cmd::kEditCopyValueName:
+        return selected_value() != nullptr;
+    case cmd::kEditChangeType:
+    case cmd::kEditDecodeValue:
+    case cmd::kEditBits:
+    case cmd::kEditCopyValueData:
+        return selected_value() && !selected_value()->missing;
+    case cmd::kEditResetDefault:
+        if (!state->reset_choices)
+        {
+            state->reset_choices = SelectedValueDefaultChoices();
+        }
+        return !state->reset_choices->empty();
+    case cmd::kFileLoadHive:
+        return writable && mode != RegistryMode::kRemote;
+    case cmd::kFileUnloadHive:
+        return writable && mode != RegistryMode::kRemote && node && IsMountedHive(node->root, node->subkey);
+    case cmd::kOptionsHiveFileDir:
+        return !ResolveSelectedHiveFilePath().empty();
+    // .reg files and hives have no volatile keys
+    case cmd::kNewVolatileKey:
+        return writable && mode != RegistryMode::kOffline && !ShowsRegFile();
+    // only the local registry has native paths
+    case cmd::kEditCopyKeyPathNative:
+    case cmd::kEditCopyKeyPathNativeResolved:
+        return mode == RegistryMode::kLocal && !ShowsRegFile();
+    case cmd::kEditUndo:
+        return writable && session_->undo.CanUndo();
+    case cmd::kEditRedo:
+        return writable && session_->undo.CanRedo();
+    case cmd::kEditPaste:
+    case cmd::kEditReplace:
+    case cmd::kNewKey:
+    case cmd::kNewString:
+    case cmd::kNewExpandString:
+    case cmd::kNewBinary:
+    case cmd::kNewDword:
+    case cmd::kNewQword:
+    case cmd::kNewMultiString:
+    case cmd::kNewSymbolicLink:
+        return writable;
     // reg.exe imports into the local registry only
-    enable(cmd::kFileImport, can_modify && mode == RegistryMode::kLocal && !ShowsRegFile());
-    const bool value_focused = can_open_value && GetFocus() == values;
-    enable(cmd::kEditRename, can_modify && !(value_focused && (selected_row->extra.empty() || selected_row->missing)));
-    enable(cmd::kEditDelete, can_modify && !(value_focused && selected_row->missing));
-    const int tab_index = tab_ ? TabCtrl_GetCurSel(tab_) : -1;
-    const TabEntry* tab = tab_index >= 0 && static_cast<size_t>(tab_index) < tabs_.size() ? &tabs_[static_cast<size_t>(tab_index)] : nullptr;
-    const bool dirty = tab && (tab->kind == TabEntry::Kind::kRegFile ? tab->reg_file_dirty : tab->kind == TabEntry::Kind::kRegistry && tab->session && tab->session->offline_dirty);
-    enable(cmd::kFileSave, can_modify && dirty);
-    check(cmd::kRegistryLocal, mode == RegistryMode::kLocal && !session_->view);
-    check(cmd::kRegistryLocal32, mode == RegistryMode::kLocal && session_->view);
-    enable(cmd::kRegistryOtherView, mode == RegistryMode::kLocal && node != nullptr);
-    if (GetMenuState(menu, cmd::kEditGoToVirtualStore, MF_BYCOMMAND) != static_cast<UINT>(-1))
-    {
-        enable(cmd::kEditGoToVirtualStore, !VirtualStoreTarget().empty());
-        enable(cmd::kEditGoToGlobalKey, !GlobalKeyTarget().empty());
+    case cmd::kFileImport:
+        return writable && mode == RegistryMode::kLocal && !ShowsRegFile();
+    case cmd::kEditRename:
+        return writable && !(focused_value() && (focused_value()->extra.empty() || focused_value()->missing));
+    case cmd::kEditDelete:
+        return writable && !(focused_value() && focused_value()->missing);
+    case cmd::kFileSave:
+        {
+            const int tab_index = tab_ ? TabCtrl_GetCurSel(tab_) : -1;
+            const TabEntry* tab = tab_index >= 0 && static_cast<size_t>(tab_index) < tabs_.size() ? &tabs_[static_cast<size_t>(tab_index)] : nullptr;
+            return writable && tab && (tab->kind == TabEntry::Kind::kRegFile ? tab->reg_file_dirty : tab->kind == TabEntry::Kind::kRegistry && tab->session && tab->session->offline_dirty);
+        }
+    case cmd::kRegistryOtherView:
+        return mode == RegistryMode::kLocal && node != nullptr;
+    case cmd::kEditGoToVirtualStore:
+        return !VirtualStoreTarget().empty();
+    case cmd::kEditGoToGlobalKey:
+        return !GlobalKeyTarget().empty();
+    case cmd::kFileSaveOfflineHive:
+        return mode == RegistryMode::kOffline && !session_->offline_mount.empty();
+    case cmd::kViewSimulatedKeys:
+        return HasActiveTraces();
+    case cmd::kViewExtraHives:
+        return mode == RegistryMode::kLocal;
+    case cmd::kWindowNew:
+        return !settings_.single_instance;
+    case cmd::kTraceClear:
+        return !active_traces_.empty();
+    case cmd::kDefaultClear:
+        return !active_defaults_.empty();
+    case cmd::kTraceEditRecent:
+    case cmd::kTraceClearRecent:
+        return any_path(recent_trace_paths_.items(), cmd::kTraceRecentMax - cmd::kTraceRecentBase + 1);
+    case cmd::kDefaultEditRecent:
+    case cmd::kDefaultClearRecent:
+        return any_path(recent_default_paths_.items(), cmd::kDefaultRecentMax - cmd::kDefaultRecentBase + 1);
+    case cmd::kFileClearCacheAll:
+        return cache().any;
+    case cmd::kFileClearCacheTabs:
+        return cache().tabs;
+    case cmd::kFileClearCacheHistory:
+        return cache().history;
+    case cmd::kFileClearCacheSearchHistory:
+        return cache().search_history;
+    case cmd::kFileClearCacheDialogState:
+        return cache().dialog_state;
+    case cmd::kFileClearCacheTreeState:
+        return cache().tree_state;
+    case cmd::kFileClearCacheTemporary:
+        return cache().temporary;
+    case cmd::kOptionsResetSettings:
+        if (!state->settings_changed)
+        {
+            const workspace::Settings settings = CurrentSettings();
+            state->settings_changed = workspace::SerializeSettings(settings) != workspace::SerializeSettings(workspace::DefaultOptions(settings));
+        }
+        return *state->settings_changed;
+    case cmd::kOptionsBackupRestore:
+        return util::IsProcessPrivileged();
+    case cmd::kOptionsRestartUser:
+        return (win32ui::IsProcessElevated() || win32ui::IsProcessSystem() || win32ui::IsProcessTrustedInstaller()) && util::IsUacEnabled();
+    case cmd::kOptionsRestartAdmin:
+        return !win32ui::IsProcessElevated() || win32ui::IsProcessSystem() || win32ui::IsProcessTrustedInstaller();
+    case cmd::kOptionsRestartSystem:
+        return !win32ui::IsProcessSystem();
+    case cmd::kOptionsRestartTrustedInstaller:
+        return !win32ui::IsProcessTrustedInstaller();
+    case cmd::kOptionsReplaceRegEdit:
+        return win32ui::IsProcessElevated() || win32ui::IsProcessSystem() || win32ui::IsProcessTrustedInstaller();
+    case cmd::kOptionsEditContextMenu:
+        return !win32ui::IsProcessSystem() && !win32ui::IsProcessTrustedInstaller();
+    case cmd::kNavBack:
+        return browse_.navigation().back;
+    case cmd::kNavForward:
+        return browse_.navigation().forward;
+    case cmd::kNavUp:
+        return browse_.navigation().up;
+    default:
+        return true;
     }
-    check(cmd::kRegistryNetwork, mode == RegistryMode::kRemote);
-    check(cmd::kRegistryOffline, mode == RegistryMode::kOffline);
-    enable(cmd::kFileSaveOfflineHive, mode == RegistryMode::kOffline && !session_->offline_mount.empty());
-    const int new_position = SubMenuPosition(menu, cmd::kNewKey);
-    if (new_position >= 0)
-    {
-        EnableMenuItem(menu, static_cast<UINT>(new_position), MF_BYPOSITION | (can_modify ? MF_ENABLED : MF_GRAYED));
-    }
+}
 
-    check(cmd::kViewAutoRefresh, settings_.auto_refresh);
-    for (const PaneToggle& toggle : kPaneToggles)
-    {
-        check(toggle.command, settings_.*toggle.shown);
-    }
-    check(cmd::kViewKeysInList, settings_.show_keys_in_list);
-    check(cmd::kViewSimulatedKeys, settings_.show_simulated_keys);
-    enable(cmd::kViewSimulatedKeys, HasActiveTraces());
-    check(cmd::kViewExtraHives, settings_.show_extra_hives);
-    enable(cmd::kViewExtraHives, mode == RegistryMode::kLocal);
-    check(cmd::kViewSimpleMode, settings_.simple_mode);
-
-    check(cmd::kOptionsThemeSystem, theme_mode_ == ThemeMode::kSystem);
-    check(cmd::kOptionsThemeLight, theme_mode_ == ThemeMode::kLight);
-    check(cmd::kOptionsThemeDark, theme_mode_ == ThemeMode::kDark);
-    check(cmd::kOptionsThemeCustom, theme_mode_ == ThemeMode::kCustom);
-    check(cmd::kOptionsIconSetClassic, util::EqualsInsensitive(settings_.icon_set, kIconSetClassic));
-    check(cmd::kOptionsIconSetPhosphor, util::EqualsInsensitive(settings_.icon_set, kIconSetPhosphor));
-    check(cmd::kOptionsIconSetCustom, util::EqualsInsensitive(settings_.icon_set, kIconSetCustom));
-    check(cmd::kOptionsLanguageAuto, settings_.language.empty());
-    for (size_t i = 0; i < language_packs_.size(); ++i)
-    {
-        check(cmd::kOptionsLanguageBase + static_cast<int>(i), settings_.language == language_packs_[i].code);
-    }
-    check(cmd::kOptionsReadOnly, settings_.read_only);
-    check(cmd::kOptionsBackupRestore, backup_privileges_ != nullptr);
-    check(cmd::kOptionsAlwaysRunAdmin, settings_.always_run_as_admin);
-    check(cmd::kOptionsAlwaysRunSystem, settings_.always_run_as_system);
-    check(cmd::kOptionsAlwaysRunTrustedInstaller, settings_.always_run_as_trustedinstaller);
-    check(cmd::kOptionsHkcuFollowsUser, settings_.hkcu_follows_shell_user);
-    if (GetMenuState(menu, cmd::kOptionsReplaceRegEdit, MF_BYCOMMAND) != static_cast<UINT>(-1))
-    {
-        const std::wstring exe_path = util::GetModulePath();
-        check(cmd::kOptionsReplaceRegEdit, win32::IsRegEditReplacementRegistered(exe_path));
-        check(cmd::kOptionsEditContextMenu, win32::IsEditMenuRegistered(exe_path));
-    }
-    check(cmd::kOptionsSingleInstance, settings_.single_instance);
-    check(cmd::kOptionsAutoComplete, settings_.autocomplete);
-    const int kinds = settings_.save_tab_kinds;
-    check(cmd::kOptionsSaveTabs, (kinds & workspace::kSaveTabsAll) == workspace::kSaveTabsAll);
-    check(cmd::kOptionsSaveTabsLocal, (kinds & workspace::kSaveTabsLocal) != 0);
-    check(cmd::kOptionsSaveTabsOffline, (kinds & workspace::kSaveTabsOffline) != 0);
-    check(cmd::kOptionsSaveTabsRemote, (kinds & workspace::kSaveTabsRemote) != 0);
-    check(cmd::kOptionsSaveTabsSearch, (kinds & workspace::kSaveTabsSearch) != 0);
-    check(cmd::kOptionsSaveTabsCompare, (kinds & workspace::kSaveTabsCompare) != 0);
-    check(cmd::kOptionsSaveTabsRegFile, (kinds & workspace::kSaveTabsRegFile) != 0);
-    const int save_tabs_position = SubMenuPosition(menu, cmd::kOptionsSaveTabs);
-    if (save_tabs_position >= 0)
-    {
-        CheckMenuItem(menu, static_cast<UINT>(save_tabs_position), MF_BYPOSITION | (kinds != 0 ? MF_CHECKED : MF_UNCHECKED));
-    }
-    check(cmd::kViewSaveTreeState, settings_.save_tree_state);
-    check(cmd::kFileClearHistoryOnExit, settings_.clear_history_on_exit);
-    check(cmd::kFileClearTabsOnExit, settings_.clear_tabs_on_exit);
-    enable(cmd::kWindowNew, !settings_.single_instance);
-    check(cmd::kWindowAlwaysOnTop, settings_.always_on_top);
-    check(cmd::kHelpAutoCheckUpdates, settings_.auto_check_updates);
-
+bool MainWindow::Impl::CommandChecked(int command) const
+{
+    const RegistryMode mode = session_->mode;
     auto trace_active = [&](auto match) { return std::any_of(active_traces_.begin(), active_traces_.end(), match); };
-    check(cmd::kTraceLoad23H2, trace_active([](const auto& trace) { return util::EqualsInsensitive(trace.label, L"23H2"); }));
-    check(cmd::kTraceLoad24H2, trace_active([](const auto& trace) { return util::EqualsInsensitive(trace.label, L"24H2"); }));
-    check(cmd::kTraceLoad25H2, trace_active([](const auto& trace) { return util::EqualsInsensitive(trace.label, L"25H2"); }));
-    for (size_t i = 0; i < recent_trace_paths_.items().size() && cmd::kTraceRecentBase + static_cast<int>(i) <= cmd::kTraceRecentMax; ++i)
-    {
-        const std::wstring& path = recent_trace_paths_.items()[i];
-        check(cmd::kTraceRecentBase + static_cast<int>(i), trace_active([&](const auto& trace) { return EqualsInsensitive(trace.source_path, path); }));
-    }
-    enable(cmd::kTraceClear, !active_traces_.empty());
-
+    auto label_active = [&](const wchar_t* label) { return trace_active([label](const auto& trace) { return util::EqualsInsensitive(trace.label, label); }); };
     auto default_active = [&](const std::wstring& path) {
         return std::any_of(active_defaults_.begin(), active_defaults_.end(), [&](const auto& defaults) { return EqualsInsensitive(defaults.source_path, path); });
     };
-    for (size_t i = 0; i < bundled_defaults_.size(); ++i)
+    for (const PaneToggle& toggle : kPaneToggles)
     {
-        check(cmd::kDefaultBundledBase + static_cast<int>(i), default_active(bundled_defaults_[i].path));
+        if (toggle.command == command)
+        {
+            return settings_.*toggle.shown;
+        }
     }
-    for (size_t i = 0; i < recent_default_paths_.items().size() && cmd::kDefaultRecentBase + static_cast<int>(i) <= cmd::kDefaultRecentMax; ++i)
+    if (command >= cmd::kOptionsLanguageBase && command <= cmd::kOptionsLanguageMax)
     {
-        check(cmd::kDefaultRecentBase + static_cast<int>(i), default_active(recent_default_paths_.items()[i]));
+        const size_t index = static_cast<size_t>(command - cmd::kOptionsLanguageBase);
+        return index < language_packs_.size() && settings_.language == language_packs_[index].code;
     }
-    enable(cmd::kDefaultClear, !active_defaults_.empty());
-    check(cmd::kDefaultResetEnable, settings_.default_reset_enabled);
+    if (command >= cmd::kTraceRecentBase && command <= cmd::kTraceRecentMax)
+    {
+        const size_t index = static_cast<size_t>(command - cmd::kTraceRecentBase);
+        return index < recent_trace_paths_.items().size() && trace_active([&](const auto& trace) { return EqualsInsensitive(trace.source_path, recent_trace_paths_.items()[index]); });
+    }
+    if (command >= cmd::kDefaultBundledBase && command <= cmd::kDefaultBundledMax)
+    {
+        const size_t index = static_cast<size_t>(command - cmd::kDefaultBundledBase);
+        return index < bundled_defaults_.size() && default_active(bundled_defaults_[index].path);
+    }
+    if (command >= cmd::kDefaultRecentBase && command <= cmd::kDefaultRecentMax)
+    {
+        const size_t index = static_cast<size_t>(command - cmd::kDefaultRecentBase);
+        return index < recent_default_paths_.items().size() && default_active(recent_default_paths_.items()[index]);
+    }
+    const int kinds = settings_.save_tab_kinds;
+    switch (command)
+    {
+    case cmd::kViewGridLines:
+        return settings_.show_value_grid;
+    case cmd::kRegistryLocal:
+        return mode == RegistryMode::kLocal && !session_->view;
+    case cmd::kRegistryLocal32:
+        return mode == RegistryMode::kLocal && session_->view;
+    case cmd::kRegistryNetwork:
+        return mode == RegistryMode::kRemote;
+    case cmd::kRegistryOffline:
+        return mode == RegistryMode::kOffline;
+    case cmd::kViewAutoRefresh:
+        return settings_.auto_refresh;
+    case cmd::kViewKeysInList:
+        return settings_.show_keys_in_list;
+    case cmd::kViewSimulatedKeys:
+        return settings_.show_simulated_keys;
+    case cmd::kViewExtraHives:
+        return settings_.show_extra_hives;
+    case cmd::kViewSimpleMode:
+        return settings_.simple_mode;
+    case cmd::kOptionsThemeSystem:
+        return theme_mode_ == win32ui::ThemeMode::system;
+    case cmd::kOptionsThemeLight:
+        return theme_mode_ == win32ui::ThemeMode::light;
+    case cmd::kOptionsThemeDark:
+        return theme_mode_ == win32ui::ThemeMode::dark;
+    case cmd::kOptionsThemeCustom:
+        return theme_mode_ == win32ui::ThemeMode::custom;
+    case cmd::kOptionsIconSetClassic:
+        return util::EqualsInsensitive(settings_.icon_set, kIconSetClassic);
+    case cmd::kOptionsIconSetPhosphor:
+        return util::EqualsInsensitive(settings_.icon_set, kIconSetPhosphor);
+    case cmd::kOptionsIconSetCustom:
+        return util::EqualsInsensitive(settings_.icon_set, kIconSetCustom);
+    case cmd::kOptionsLanguageAuto:
+        return settings_.language.empty();
+    case cmd::kOptionsReadOnly:
+        return settings_.read_only;
+    case cmd::kOptionsBackupRestore:
+        return backup_privileges_ != nullptr;
+    case cmd::kOptionsAlwaysRunAdmin:
+        return settings_.always_run_as_admin;
+    case cmd::kOptionsAlwaysRunSystem:
+        return settings_.always_run_as_system;
+    case cmd::kOptionsAlwaysRunTrustedInstaller:
+        return settings_.always_run_as_trustedinstaller;
+    case cmd::kOptionsHkcuFollowsUser:
+        return settings_.hkcu_follows_shell_user;
+    case cmd::kOptionsReplaceRegEdit:
+        return win32::IsRegEditReplacementRegistered(util::GetModulePath());
+    case cmd::kOptionsEditContextMenu:
+        return win32::IsEditMenuRegistered(util::GetModulePath());
+    case cmd::kOptionsSingleInstance:
+        return settings_.single_instance;
+    case cmd::kOptionsAutoComplete:
+        return settings_.autocomplete;
+    case cmd::kOptionsSaveTabs:
+        return (kinds & workspace::kSaveTabsAll) == workspace::kSaveTabsAll;
+    case cmd::kOptionsSaveTabsLocal:
+        return (kinds & workspace::kSaveTabsLocal) != 0;
+    case cmd::kOptionsSaveTabsOffline:
+        return (kinds & workspace::kSaveTabsOffline) != 0;
+    case cmd::kOptionsSaveTabsRemote:
+        return (kinds & workspace::kSaveTabsRemote) != 0;
+    case cmd::kOptionsSaveTabsSearch:
+        return (kinds & workspace::kSaveTabsSearch) != 0;
+    case cmd::kOptionsSaveTabsCompare:
+        return (kinds & workspace::kSaveTabsCompare) != 0;
+    case cmd::kOptionsSaveTabsRegFile:
+        return (kinds & workspace::kSaveTabsRegFile) != 0;
+    case cmd::kViewSaveTreeState:
+        return settings_.save_tree_state;
+    case cmd::kFileClearHistoryOnExit:
+        return settings_.clear_history_on_exit;
+    case cmd::kFileClearTabsOnExit:
+        return settings_.clear_tabs_on_exit;
+    case cmd::kWindowAlwaysOnTop:
+        return settings_.always_on_top;
+    case cmd::kHelpAutoCheckUpdates:
+        return settings_.auto_check_updates;
+    case cmd::kTraceLoad23H2:
+        return label_active(L"23H2");
+    case cmd::kTraceLoad24H2:
+        return label_active(L"24H2");
+    case cmd::kTraceLoad25H2:
+        return label_active(L"25H2");
+    case cmd::kDefaultResetEnable:
+        return settings_.default_reset_enabled;
+    default:
+        return false;
+    }
+}
+
+void MainWindow::Impl::UpdateMenuState(HMENU menu)
+{
+    CommandState state{this};
+    FillBitfieldMenu(menu);
+    RefreshResetDefaultMenu(menu, &state);
+    if (IsMenuInside(GetMenu(hwnd_), menu))
+    {
+        FillMenuLists(menu);
+        const win32ui::MenuHooks hooks = {
+            &state,
+            [](void* context, int command) {
+                auto* state = static_cast<CommandState*>(context);
+                return state->window->CommandEnabled(command, state);
+            },
+            [](void* context, int command) { return static_cast<CommandState*>(context)->window->CommandChecked(command); },
+        };
+        win32ui::UpdateMenuPopup(menu, hooks);
+        const int save_tabs_position = SubMenuPosition(menu, cmd::kOptionsSaveTabs);
+        if (save_tabs_position >= 0)
+        {
+            CheckMenuItem(menu, static_cast<UINT>(save_tabs_position), MF_BYPOSITION | (settings_.save_tab_kinds != 0 ? MF_CHECKED : MF_UNCHECKED));
+        }
+        return;
+    }
+    // most context menu state stays fixed, these commands follow selection like the menu bar
+    CheckMenuItem(menu, cmd::kViewGridLines, MF_BYCOMMAND | (settings_.show_value_grid ? MF_CHECKED : MF_UNCHECKED));
+    for (const int command : kSelectionCommands)
+    {
+        if (GetMenuState(menu, static_cast<UINT>(command), MF_BYCOMMAND) != static_cast<UINT>(-1))
+        {
+            EnableMenuItem(menu, static_cast<UINT>(command), MF_BYCOMMAND | (CommandEnabled(command, &state) ? MF_ENABLED : MF_GRAYED));
+        }
+    }
+}
+
+void MainWindow::Impl::UpdateToolbarStates()
+{
+    if (!toolbar_)
+    {
+        return;
+    }
+    CommandState state{this};
+    const int count = static_cast<int>(SendMessageW(toolbar_, TB_BUTTONCOUNT, 0, 0));
+    for (int index = 0; index < count; ++index)
+    {
+        TBBUTTON button = {};
+        if (SendMessageW(toolbar_, TB_GETBUTTON, static_cast<WPARAM>(index), reinterpret_cast<LPARAM>(&button)) && button.idCommand != 0)
+        {
+            win32ui::EnableToolbarButton(toolbar_, button.idCommand, CommandEnabled(button.idCommand, &state));
+        }
+    }
 }
 
 void MainWindow::Impl::RefreshFavoritesCache()
@@ -841,29 +959,58 @@ void MainWindow::Impl::RefreshFavoritesCache()
     favorites_loaded_ = true;
 }
 
-void MainWindow::Impl::RefreshRegEditFavoritesMenu()
+void MainWindow::Impl::FillMenuLists(HMENU menu)
 {
-    if (!regedit_favorites_menu_)
+    if (menu == trace_menu_)
     {
-        return;
+        std::vector<std::wstring> labels;
+        for (const std::wstring& path : recent_trace_paths_.items())
+        {
+            const std::wstring name = util::FileName(path);
+            labels.push_back(path.empty() ? std::wstring() : name.empty() ? std::wstring(util::Tr(L"Trace"))
+                                                                          : MenuName(name));
+        }
+        win32ui::ReplaceMenuRange(menu, cmd::kTraceRecentBase, cmd::kTraceRecentMax, cmd::kTraceLoadCustom, labels);
     }
-    while (GetMenuItemCount(regedit_favorites_menu_) > regedit_favorites_static_count_)
+    else if (menu == default_menu_)
     {
-        DeleteMenu(regedit_favorites_menu_, regedit_favorites_static_count_, MF_BYPOSITION);
+        std::vector<std::wstring> labels;
+        for (const std::wstring& path : recent_default_paths_.items())
+        {
+            std::wstring name = util::FileBaseName(path);
+            const std::wstring build = defaults::ShortLabel(std::wstring(), path);
+            if (!build.empty())
+            {
+                name = build + L" - " + name;
+            }
+            labels.push_back(path.empty() ? std::wstring() : name.empty() ? std::wstring(util::Tr(L"Default"))
+                                                                          : MenuName(name));
+        }
+        win32ui::ReplaceMenuRange(menu, cmd::kDefaultRecentBase, cmd::kDefaultRecentMax, cmd::kDefaultLoadCustom, labels);
     }
-    regedit_favorites_.clear();
-    FavoritesStore::LoadRegEdit(&regedit_favorites_);
-    const size_t limit = std::min(regedit_favorites_.size(), static_cast<size_t>(cmd::kRegEditFavoriteMax - cmd::kRegEditFavoriteBase + 1));
-    if (limit == 0)
+    else if (menu == favorites_menu_)
     {
-        return;
+        if (!favorites_loaded_)
+        {
+            RefreshFavoritesCache();
+        }
+        std::vector<std::wstring> paths;
+        const size_t shown = std::min(favorites_cache_.size(), static_cast<size_t>(cmd::kFavoritesItemMax - cmd::kFavoritesItemBase + 1));
+        for (size_t i = 0; i < shown; ++i)
+        {
+            paths.push_back(MenuName(favorites_cache_[i]));
+        }
+        win32ui::ReplaceMenuRange(menu, cmd::kFavoritesItemBase, cmd::kFavoritesItemMax, cmd::kRegEditFavoriteBase, paths);
+        regedit_favorites_.clear();
+        FavoritesStore::LoadRegEdit(&regedit_favorites_);
+        regedit_favorites_.resize(std::min(regedit_favorites_.size(), static_cast<size_t>(cmd::kRegEditFavoriteMax - cmd::kRegEditFavoriteBase + 1)));
+        std::vector<std::wstring> names;
+        for (const auto& favorite : regedit_favorites_)
+        {
+            names.push_back(MenuName(favorite.name));
+        }
+        win32ui::ReplaceMenuRange(menu, cmd::kRegEditFavoriteBase, cmd::kRegEditFavoriteMax, 0, names);
     }
-    AppendMenuW(regedit_favorites_menu_, MF_SEPARATOR, 0, nullptr);
-    for (size_t i = 0; i < limit; ++i)
-    {
-        AppendMenuW(regedit_favorites_menu_, MF_STRING, cmd::kRegEditFavoriteBase + static_cast<UINT>(i), regedit_favorites_[i].name.c_str());
-    }
-    regedit_favorites_.resize(limit);
 }
 
 void MainWindow::Impl::RefreshBundledDefaultsCache()
@@ -952,12 +1099,12 @@ HMENU MainWindow::Impl::BuildResetDefaultMenu(const std::vector<DefaultValueChoi
         {
             text.append(L" ").append(util::Tr(L"(Missing)"));
         }
-        AppendMenuW(menu, MF_STRING, cmd::kResetDefaultBase + static_cast<int>(i), text.c_str());
+        AppendMenuW(menu, MF_STRING, cmd::kResetDefaultBase + static_cast<int>(i), MenuName(text).c_str());
     }
     return menu;
 }
 
-void MainWindow::Impl::RefreshResetDefaultMenu(HMENU menu)
+void MainWindow::Impl::RefreshResetDefaultMenu(HMENU menu, CommandState* state)
 {
     const int count = GetMenuItemCount(menu);
     for (int position = 0; position < count; ++position)
@@ -969,7 +1116,11 @@ void MainWindow::Impl::RefreshResetDefaultMenu(HMENU menu)
         {
             continue;
         }
-        const std::vector<DefaultValueChoice> choices = SelectedValueDefaultChoices();
+        if (!state->reset_choices)
+        {
+            state->reset_choices = SelectedValueDefaultChoices();
+        }
+        const std::vector<DefaultValueChoice>& choices = *state->reset_choices;
         item.fMask = MIIM_STATE | MIIM_SUBMENU;
         item.hSubMenu = choices.size() < 2 ? nullptr : BuildResetDefaultMenu(choices);
         item.fState = choices.empty() ? MFS_GRAYED : MFS_ENABLED;

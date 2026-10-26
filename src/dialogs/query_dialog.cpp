@@ -1,10 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/query_dialog.h"
 
 #include "dialogs/query_prompts.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/dialog/combo_box.h>
+#include <win32ui/dialog/dialog_window.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -19,7 +22,6 @@
 #include "registry/registry_store.h"
 #include "resource.h"
 #include "ui/autocomplete.h"
-#include "ui/dialog_support.h"
 #include "ui/feedback.h"
 #include "win32/file_text.h"
 #include "win32/shell_paths.h"
@@ -32,12 +34,9 @@ namespace regkit
 namespace
 {
 
-namespace dialog_support = editors::dialog_support;
-
 struct SearchDialogState
 {
     HWND dialog = nullptr;
-    HFONT font = nullptr;
     SearchDialogResult* out = nullptr;
     SearchSources sources;
     bool recursive = true;
@@ -384,7 +383,7 @@ void UpdateDialogEnableState(SearchDialogState* state)
 void LoadInitialState(SearchDialogState* state)
 {
     state->history = LoadSearchHistory();
-    dialog_support::SetComboItems(Item(state, IDC_FIND_WHAT), state->history);
+    win32ui::SetComboItems(Item(state, IDC_FIND_WHAT), state->history);
     if (state->out && (!state->out->criteria.query.empty() || state->out->criteria.anomalies))
     {
         SetWindowTextW(Item(state, IDC_FIND_WHAT), state->out->criteria.query.c_str());
@@ -550,7 +549,7 @@ bool ReadSearchResult(HWND hwnd, SearchDialogState* state, SearchDialogResult* o
     result.criteria.use_regex = IsChecked(Item(state, IDC_FIND_REGEX));
     result.criteria.skip_links = IsChecked(Item(state, IDC_FIND_SKIP_LINKS));
     result.criteria.anomalies = anomalies;
-    // data filters are kept while unused so the dialog remembers them, StartSearch applies them only with Search data
+    // retain unused data filters for next time, StartSearch applies them only with Search data
     result.criteria.allowed_types = state->data_types;
     result.criteria.use_min_size = IsChecked(Item(state, IDC_FIND_MIN_SIZE));
     result.criteria.use_max_size = IsChecked(Item(state, IDC_FIND_MAX_SIZE));
@@ -689,9 +688,8 @@ INT_PTR CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
         UpdateDialogEnableState(state);
         if (!state->sources.anomalies)
         {
-            dialog_support::CollapseSection(hwnd, IDC_FIND_NUL_NAMES);
+            win32ui::CollapseSection(hwnd, IDC_FIND_NUL_NAMES);
         }
-        dialog_support::Initialize(hwnd, &state->font, {IDC_FIND_SCOPE_EDIT, IDC_FIND_MIN_SIZE_EDIT, IDC_FIND_MAX_SIZE_EDIT, IDC_FIND_EXCLUDE_EDIT, IDC_FIND_LIMIT_EDIT});
         SetFocus(Item(state, IDC_FIND_WHAT));
         SendDlgItemMessageW(hwnd, IDC_FIND_WHAT, CB_SETEDITSEL, 0, MAKELPARAM(0, -1));
         return FALSE;
@@ -699,16 +697,6 @@ INT_PTR CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
     if (!state)
     {
         return FALSE;
-    }
-    if (msg == WM_DESTROY)
-    {
-        dialog_support::ReleaseFont(&state->font);
-        return TRUE;
-    }
-    INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(hwnd, msg, wparam, lparam, &themed))
-    {
-        return themed;
     }
     switch (msg)
     {
@@ -789,11 +777,11 @@ INT_PTR CALLBACK SearchDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
                     SaveSearchHistory(state->history);
 
                     *state->out = std::move(result);
-                    EndDialog(hwnd, IDOK);
+                    win32ui::EndDialogWindow(hwnd, IDOK);
                     return TRUE;
                 }
             case IDCANCEL:
-                EndDialog(hwnd, IDCANCEL);
+                win32ui::EndDialogWindow(hwnd, IDCANCEL);
                 return TRUE;
             default:
                 break;
@@ -818,7 +806,7 @@ bool ShowSearchDialog(HWND owner, SearchDialogResult* result, const SearchSource
     SearchDialogState state;
     state.out = result;
     state.sources = available;
-    return result && dialog_support::Modal(owner, IDD_FIND, SearchDialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
+    return result && win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_FIND), SearchDialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
 }
 
 void SearchDialogFields(workspace::DialogFields& fields, SearchDialogResult* result)

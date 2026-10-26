@@ -1,11 +1,12 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "win32/shell_paths.h"
 
-#include "win32/handle_owner.h"
-#include "win32/system_api.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/handle_owner.h>
+#include <win32ui/system_api.h>
 
 #include <algorithm>
 #include <shlobj.h>
@@ -44,7 +45,7 @@ std::wstring GetModuleDirectory()
     {
         return {};
     }
-    static const auto remove_file_spec = win32::ImportProc<HRESULT(WINAPI*)(PWSTR, size_t)>(L"kernelbase.dll", "PathCchRemoveFileSpec");
+    static const auto remove_file_spec = win32ui::ImportProc<HRESULT(WINAPI*)(PWSTR, size_t)>(L"kernelbase.dll", "PathCchRemoveFileSpec");
     if (remove_file_spec)
     {
         path.push_back(L'\0');
@@ -71,7 +72,7 @@ std::wstring JoinPath(const std::wstring& left, const std::wstring& right)
         return right;
     }
     const size_t capacity = std::min<size_t>(std::max<size_t>(MAX_PATH, left.size() + right.size() + 2), 32768);
-    static const auto combine = win32::ImportProc<HRESULT(WINAPI*)(PWSTR, size_t, PCWSTR, PCWSTR)>(L"kernelbase.dll", "PathCchCombine");
+    static const auto combine = win32ui::ImportProc<HRESULT(WINAPI*)(PWSTR, size_t, PCWSTR, PCWSTR)>(L"kernelbase.dll", "PathCchCombine");
     if (combine)
     {
         std::wstring output(capacity, L'\0');
@@ -137,7 +138,7 @@ std::wstring GetAppDataFolder()
         }
     }
 
-    UniqueCoTask<PWSTR> base;
+    win32ui::UniqueCoTask<PWSTR> base;
     if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, base.put())) || !base)
     {
         return {};

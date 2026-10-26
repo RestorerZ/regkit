@@ -1,11 +1,12 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/detail/file_detail.h"
 
 #include "frame/detail/draw_detail.h"
 #include "frame/window_impl.h"
 #include "records/escaped_fields.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -43,8 +44,6 @@
 #include "trace/trace_loader.h"
 #include "trace/trace_parser.h"
 #include "ui/feedback.h"
-#include "ui/gdi_cache.h"
-#include "ui/icon_loader.h"
 #include "win32/file_text.h"
 #include "win32/process_rights.h"
 #include "win32/registry_native.h"

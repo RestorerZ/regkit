@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/tools/key_handles_window.h"
 
@@ -9,18 +9,25 @@
 #include "ui/dialog_support.h"
 #include "ui/feedback.h"
 #include "ui/list_view_support.h"
-#include "ui/theme.h"
 #include "win32/key_handle_snapshot.h"
 #include "win32/process_rights.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
-#include "win32/window_metrics.h"
 #include "work/session.h"
+
+#include <win32ui/dialog/dialog_layout.h>
+#include <win32ui/dialog/dialog_window.h>
+#include <win32ui/dialog/message_dialog.h>
+#include <win32ui/list_view/sort.h>
+#include <win32ui/menu/popup_menu.h>
+#include <win32ui/status_bar/status_bar.h>
+#include <win32ui/window_metrics.h>
 
 #include <algorithm>
 #include <array>
 #include <memory>
+#include <numeric>
 #include <utility>
 #include <vector>
 
@@ -33,6 +40,7 @@ namespace
 namespace support = editors::dialog_support;
 
 constexpr UINT kSnapshotReady = WM_APP + 1;
+constexpr size_t kNoRow = static_cast<size_t>(-1);
 
 enum Column
 {
@@ -57,7 +65,6 @@ enum MenuCommand
     kMenuCopyPid,
     kMenuCopyHandle,
     kMenuCopyAccess,
-    kMenuCopyRows,
     kMenuRefresh,
     kMenuClose,
 };
@@ -79,13 +86,14 @@ struct Payload
 struct State
 {
     KeyHandlesNavigate navigate;
-    HFONT font = nullptr;
     HWND list = nullptr;
     HWND status = nullptr;
-    appearance::DialogResizer resizer;
     work::Session session;
     std::vector<Row> rows;
-    std::vector<size_t> view;
+    // virtual list indexes rows by sort order, then filtered order
+    std::vector<size_t> order;
+    std::vector<size_t> shown;
+    std::wstring filter;
     size_t inaccessible = 0;
     DWORD error = ERROR_SUCCESS;
     bool scanning = false;
@@ -206,9 +214,9 @@ std::vector<const Row*> SelectedRows(const State* state)
     for (int item = ListView_GetNextItem(state->list, -1, LVNI_SELECTED); item >= 0;
          item = ListView_GetNextItem(state->list, item, LVNI_SELECTED))
     {
-        if (static_cast<size_t>(item) < state->view.size())
+        if (static_cast<size_t>(item) < state->shown.size())
         {
-            rows.push_back(&state->rows[state->view[static_cast<size_t>(item)]]);
+            rows.push_back(&state->rows[state->shown[static_cast<size_t>(item)]]);
         }
     }
     return rows;
@@ -228,21 +236,18 @@ void UpdateStatus(const State* state)
     else
     {
         parts[0] = util::TrLabel(L"Handles", std::to_wstring(state->rows.size()));
-        parts[1] = util::TrLabel(L"Shown", std::to_wstring(state->view.size()));
+        parts[1] = util::TrLabel(L"Shown", std::to_wstring(state->shown.size()));
         parts[2] = util::TrLabel(L"Inaccessible processes", std::to_wstring(state->inaccessible));
     }
     for (int part = 0; part < 3; ++part)
     {
-        SendMessageW(state->status, SB_SETTEXTW, part, reinterpret_cast<LPARAM>(parts[part].c_str()));
+        win32ui::SetStatusText(state->status, part, parts[part]);
     }
 }
 
 void Layout(HWND dialog, const State* state)
 {
     SendMessageW(state->status, WM_SIZE, 0, 0);
-    const int part = MulDiv(170, static_cast<int>(win32::DpiForWindow(state->status)), 96);
-    const int edges[3] = {part, part * 2, -1};
-    SendMessageW(state->status, SB_SETPARTS, 3, reinterpret_cast<LPARAM>(edges));
     RECT client = {};
     RECT bar = {};
     RECT list = {};
@@ -252,31 +257,140 @@ void Layout(HWND dialog, const State* state)
     MapWindowPoints(nullptr, dialog, reinterpret_cast<POINT*>(&bar), 2);
     MapWindowPoints(nullptr, dialog, reinterpret_cast<POINT*>(&list), 2);
     SetWindowPos(state->list, nullptr, -1, list.top, client.right + 2, bar.top - list.top + 1, SWP_NOZORDER | SWP_NOACTIVATE);
-    appearance::LayoutListViews(dialog);
 }
 
-void RebuildView(HWND dialog, State* state)
+bool Matches(const Row& row, const std::wstring& filter)
 {
-    const std::wstring filter = support::ReadText(dialog, IDC_KH_FILTER);
-    state->view.clear();
-    for (size_t index = 0; index < state->rows.size(); ++index)
+    return filter.empty() || std::any_of(row.text.begin(), row.text.end(), [&](const std::wstring& text) { return util::ContainsInsensitive(text, filter); });
+}
+
+// extended filters only remove rows, scan the visible subset
+void FilterRows(State* state, std::wstring filter)
+{
+    const bool narrower = !state->filter.empty() && util::ContainsInsensitive(filter, state->filter);
+    std::vector<size_t> shown;
+    for (const size_t index : narrower ? state->shown : state->order)
     {
-        const Row& row = state->rows[index];
-        if (filter.empty() || std::any_of(row.text.begin(), row.text.end(), [&](const std::wstring& text) {
-                return util::ContainsInsensitive(text, filter);
-            }))
+        if (Matches(state->rows[index], filter))
         {
-            state->view.push_back(index);
+            shown.push_back(index);
         }
     }
-    std::stable_sort(state->view.begin(), state->view.end(), [state](size_t left, size_t right) {
-        return util::CompareSorted(state->sort_column, state->ascending, state->sort_earlier, [&](int key) { return CompareRows(state->rows[left], state->rows[right], key); }) < 0;
-    });
-    appearance::UpdateListViewSort(state->list, state->sort_column, state->ascending);
+    state->shown = std::move(shown);
+    state->filter = std::move(filter);
+}
+
+// sort clicks keep shown order for ties, new snapshots use earlier sort columns
+void SortRows(State* state, int column, bool toggle)
+{
+    win32ui::UpdateListSortState(column, toggle, &state->sort_column, &state->ascending, &state->sort_earlier);
+    const util::SortKeys none;
+    const util::SortKeys& earlier = toggle ? none : state->sort_earlier;
+    const auto before = [&](size_t left, size_t right) {
+        return util::CompareSorted(state->sort_column, state->ascending, earlier, [&](int key) { return CompareRows(state->rows[left], state->rows[right], key); }) < 0;
+    };
+    std::stable_sort(state->order.begin(), state->order.end(), before);
+    std::stable_sort(state->shown.begin(), state->shown.end(), before);
+    win32ui::UpdateListViewSort(state->list, state->sort_column, state->ascending);
+}
+
+// update shown rows while preserving visible selection, focus and selection mark
+template <typename Change>
+void ChangeView(State* state, Change change)
+{
+    const auto row_at = [state](int item) {
+        return item >= 0 && static_cast<size_t>(item) < state->shown.size() ? state->shown[static_cast<size_t>(item)] : kNoRow;
+    };
+    std::vector<size_t> selected;
+    if (!state->shown.empty() && ListView_GetSelectedCount(state->list) == state->shown.size())
+    {
+        selected = state->shown;
+    }
+    else
+    {
+        for (int item = ListView_GetNextItem(state->list, -1, LVNI_SELECTED); item >= 0; item = ListView_GetNextItem(state->list, item, LVNI_SELECTED))
+        {
+            if (const size_t row = row_at(item); row != kNoRow)
+            {
+                selected.push_back(row);
+            }
+        }
+    }
+    const size_t focused = row_at(ListView_GetNextItem(state->list, -1, LVNI_FOCUSED));
+    const size_t mark = row_at(ListView_GetSelectionMark(state->list));
+    change();
+    std::vector<int> position(state->rows.size(), -1);
+    for (size_t item = 0; item < state->shown.size(); ++item)
+    {
+        position[state->shown[item]] = static_cast<int>(item);
+    }
+    const auto item_of = [&position](size_t row) { return row < position.size() ? position[row] : -1; };
     ListView_SetItemState(state->list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-    ListView_SetItemCountEx(state->list, static_cast<int>(state->view.size()), 0);
-    InvalidateRect(state->list, nullptr, FALSE);
+    ListView_SetItemCountEx(state->list, static_cast<int>(state->shown.size()), 0);
+    const size_t kept = static_cast<size_t>(std::count_if(selected.begin(), selected.end(), [&](size_t row) { return item_of(row) >= 0; }));
+    if (kept > 0 && kept == state->shown.size())
+    {
+        ListView_SetItemState(state->list, -1, LVIS_SELECTED, LVIS_SELECTED);
+    }
+    else
+    {
+        for (const size_t row : selected)
+        {
+            if (const int item = item_of(row); item >= 0)
+            {
+                ListView_SetItemState(state->list, item, LVIS_SELECTED, LVIS_SELECTED);
+            }
+        }
+    }
+    if (const int item = item_of(focused); item >= 0)
+    {
+        ListView_SetItemState(state->list, item, LVIS_FOCUSED, LVIS_FOCUSED);
+    }
+    ListView_SetSelectionMark(state->list, item_of(mark));
+}
+
+// new snapshots reset selection and scroll to the first row
+void ShowRows(HWND dialog, State* state)
+{
+    state->order.resize(state->rows.size());
+    std::iota(state->order.begin(), state->order.end(), size_t{0});
+    state->shown.clear();
+    state->filter.clear();
+    FilterRows(state, support::ReadText(dialog, IDC_KH_FILTER));
+    SortRows(state, state->sort_column, false);
+    ListView_SetItemState(state->list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+    ListView_SetSelectionMark(state->list, -1);
+    ListView_SetItemCountEx(state->list, static_cast<int>(state->shown.size()), 0);
+    if (!state->shown.empty())
+    {
+        ListView_EnsureVisible(state->list, 0, FALSE);
+    }
     UpdateStatus(state);
+}
+
+void ApplyFilter(HWND dialog, State* state)
+{
+    std::wstring filter = support::ReadText(dialog, IDC_KH_FILTER);
+    ChangeView(state, [&] { FilterRows(state, std::move(filter)); });
+    // keep focus visible if it passes the filter, else show the first match
+    const int focused = ListView_GetNextItem(state->list, -1, LVNI_FOCUSED);
+    if (!state->shown.empty())
+    {
+        ListView_EnsureVisible(state->list, focused >= 0 ? focused : 0, FALSE);
+    }
+    UpdateStatus(state);
+}
+
+// list stores no text, library uses this for copy and text search
+bool CellText(void*, HWND list, int item, int subitem, std::wstring* text)
+{
+    const auto* state = reinterpret_cast<const State*>(GetWindowLongPtrW(GetParent(list), DWLP_USER));
+    if (!state || item < 0 || static_cast<size_t>(item) >= state->shown.size() || subitem < 0 || subitem >= kColumnCount)
+    {
+        return false;
+    }
+    *text = state->rows[state->shown[static_cast<size_t>(item)]].text[static_cast<size_t>(subitem)];
+    return true;
 }
 
 void Refresh(HWND dialog, State* state)
@@ -303,20 +417,14 @@ void Refresh(HWND dialog, State* state)
 
 void Copy(HWND dialog, const State* state, int column)
 {
-    const int first = column < 0 ? 0 : column;
-    const int last = column < 0 ? kColumnCount : column + 1;
     std::wstring text;
     for (const Row* row : SelectedRows(state))
     {
-        text.append(text.empty() ? L"" : L"\r\n");
-        for (int part = first; part < last; ++part)
-        {
-            text.append(part == first ? L"" : L"\t").append(row->text[part]);
-        }
+        text.append(text.empty() ? L"" : L"\r\n").append(row->text[column]);
     }
     if (!text.empty())
     {
-        ui::CopyTextToClipboard(dialog, text);
+        win32ui::CopyTextToClipboard(dialog, text);
     }
 }
 
@@ -366,28 +474,43 @@ void CloseHandles(HWND dialog, State* state)
     Refresh(dialog, state);
 }
 
-void ShowRowMenu(HWND dialog, State* state, POINT screen)
+bool ShowRowMenu(void*, HWND list, int, POINT screen)
 {
+    const HWND dialog = GetParent(list);
+    auto* state = reinterpret_cast<State*>(GetWindowLongPtrW(dialog, DWLP_USER));
+    if (!state)
+    {
+        return false;
+    }
     const std::vector<const Row*> rows = SelectedRows(state);
     const UINT any = rows.empty() ? MF_GRAYED : 0;
     const UINT one = rows.size() == 1 && !rows.front()->text[kKey].empty() ? 0 : MF_GRAYED;
     HMENU menu = CreatePopupMenu();
-    appearance::AppendMenuItem(menu, MF_STRING | one, kMenuOpen, util::Tr(L"Open Key"), L"Enter");
-    AppendMenuW(menu, MF_STRING | one, kMenuOpenNewTab, util::Tr(L"Open Key in New Tab"));
+    if (!menu)
+    {
+        return true;
+    }
+    win32ui::AppendMenuItem(menu, MF_STRING | one, kMenuOpen, util::Tr(L"Open &Key"), L"Enter");
+    AppendMenuW(menu, MF_STRING | one, kMenuOpenNewTab, util::Tr(L"Open Key in New &Tab"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyKey, util::Tr(L"Copy Key"));
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyNative, util::Tr(L"Copy Native Name"));
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyProcess, util::Tr(L"Copy Process"));
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyPid, util::Tr(L"Copy PID"));
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyHandle, util::Tr(L"Copy Handle"));
-    AppendMenuW(menu, MF_STRING | any, kMenuCopyAccess, util::Tr(L"Copy Access"));
-    appearance::AppendMenuItem(menu, MF_STRING | any, kMenuCopyRows, util::Tr(L"Copy Rows"), L"Ctrl+C");
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyKey, util::Tr(L"Cop&y Key"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyNative, util::Tr(L"Copy &Native Name"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyProcess, util::Tr(L"Copy &Process"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyPid, util::Tr(L"Copy P&ID"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyHandle, util::Tr(L"Copy &Handle"));
+    AppendMenuW(menu, MF_STRING | any, kMenuCopyAccess, util::Tr(L"C&opy Access"));
+    appearance::AppendRowMenuCommands(menu, list);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    appearance::AppendMenuItem(menu, MF_STRING, kMenuRefresh, util::Tr(L"Refresh"), L"F5");
+    win32ui::AppendMenuItem(menu, MF_STRING, kMenuRefresh, util::Tr(L"&Refresh"), L"F5");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    appearance::AppendMenuItem(menu, MF_STRING | any, kMenuClose, util::Tr(L"Close Handle..."), L"Del");
-    const int chosen = appearance::TrackContextMenu(menu, screen, dialog);
-    static constexpr int kCopyColumns[] = {kKey, kNative, kProcess, kPid, kHandle, kAccess, -1};
+    win32ui::AppendMenuItem(menu, MF_STRING | any, kMenuClose, util::Tr(L"C&lose Handle..."), L"Del");
+    const int chosen = win32ui::TrackContextMenu(menu, screen, dialog);
+    // modeless window may be destroyed during the menu loop
+    if (!IsWindow(list) || appearance::RunRowMenuCommand(list, chosen))
+    {
+        return true;
+    }
+    static constexpr int kCopyColumns[] = {kKey, kNative, kProcess, kPid, kHandle, kAccess};
     switch (chosen)
     {
     case kMenuOpen:
@@ -401,12 +524,13 @@ void ShowRowMenu(HWND dialog, State* state, POINT screen)
         CloseHandles(dialog, state);
         break;
     default:
-        if (chosen >= kMenuCopyKey && chosen <= kMenuCopyRows)
+        if (chosen >= kMenuCopyKey && chosen <= kMenuCopyAccess)
         {
             Copy(dialog, state, kCopyColumns[chosen - kMenuCopyKey]);
         }
         break;
     }
+    return true;
 }
 
 INT_PTR HandleNotify(HWND dialog, State* state, NMHDR* header)
@@ -416,21 +540,17 @@ INT_PTR HandleNotify(HWND dialog, State* state, NMHDR* header)
     case LVN_GETDISPINFOW:
         {
             auto* info = reinterpret_cast<NMLVDISPINFOW*>(header);
-            if ((info->item.mask & LVIF_TEXT) && info->item.iItem >= 0 &&
-                static_cast<size_t>(info->item.iItem) < state->view.size() && info->item.iSubItem < kColumnCount)
+            if ((info->item.mask & LVIF_TEXT) && info->item.iItem >= 0 && static_cast<size_t>(info->item.iItem) < state->shown.size() && info->item.iSubItem >= 0 &&
+                info->item.iSubItem < kColumnCount)
             {
-                info->item.pszText = const_cast<wchar_t*>(
-                    state->rows[state->view[static_cast<size_t>(info->item.iItem)]].text[info->item.iSubItem].c_str()
-                );
+                const Row& row = state->rows[state->shown[static_cast<size_t>(info->item.iItem)]];
+                info->item.pszText = const_cast<wchar_t*>(row.text[static_cast<size_t>(info->item.iSubItem)].c_str());
             }
             return TRUE;
         }
     case LVN_COLUMNCLICK:
-        {
-            appearance::UpdateListSortState(reinterpret_cast<NMLISTVIEW*>(header)->iSubItem, true, &state->sort_column, &state->ascending, &state->sort_earlier);
-            RebuildView(dialog, state);
-            return TRUE;
-        }
+        ChangeView(state, [&] { SortRows(state, reinterpret_cast<NMLISTVIEW*>(header)->iSubItem, true); });
+        return TRUE;
     case LVN_ITEMACTIVATE:
         OpenKey(state, false);
         return TRUE;
@@ -445,17 +565,12 @@ INT_PTR HandleNotify(HWND dialog, State* state, NMHDR* header)
             {
                 CloseHandles(dialog, state);
             }
-            else if (key == 'C' && (GetKeyState(VK_CONTROL) & 0x8000))
-            {
-                Copy(dialog, state, -1);
-            }
             return TRUE;
         }
     default:
         break;
     }
-    INT_PTR result = FALSE;
-    return support::HandleListViewNotify(dialog, header, &result) ? result : FALSE;
+    return FALSE;
 }
 
 INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam)
@@ -465,24 +580,26 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     {
     case WM_INITDIALOG:
         {
-            state = reinterpret_cast<State*>(lparam);
+            state = reinterpret_cast<std::unique_ptr<State>*>(lparam)->release();
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
             state->list = GetDlgItem(dialog, IDC_KH_LIST);
             state->status = GetDlgItem(dialog, IDC_KH_STATUS);
-            support::Initialize(dialog, &state->font, {IDC_KH_FILTER});
-            SendMessageW(dialog, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(LoadIconW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_APPICON))));
-            SendMessageW(dialog, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_APPICON), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED)));
             SendDlgItemMessageW(dialog, IDC_KH_FILTER, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(util::Tr(L"Filter")));
-            support::SetupListView(state->list, 0, {{util::Tr(L"Process"), 150}, {util::Tr(L"PID"), 60}, {util::Tr(L"Handle"), 80}, {util::Tr(L"Object Address"), 140}, {util::Tr(L"Key"), 400}, {util::Tr(L"Access"), 300}, {util::Tr(L"Attributes"), 90}, {util::Tr(L"Native Name"), 400}});
+            static const win32ui::ListViewHooks hooks = [] {
+                win32ui::ListViewHooks list_hooks = appearance::DialogListHooks(ShowRowMenu);
+                list_hooks.cell_text = CellText;
+                return list_hooks;
+            }();
+            support::SetupListView(state->list, &hooks, 0, {{util::Tr(L"Process"), 150}, {util::Tr(L"PID"), 60}, {util::Tr(L"Handle"), 80}, {util::Tr(L"Object Address"), 140}, {util::Tr(L"Key"), 400}, {util::Tr(L"Access"), 300}, {util::Tr(L"Attributes"), 90}, {util::Tr(L"Native Name"), 400}});
             SetWindowPos(state->status, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-            using namespace appearance;
-            state->resizer.Attach(dialog, {
-                                              {IDC_KH_FILTER, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                          });
-            appearance::ApplyDialogTheme(dialog);
-            Theme::Current().ApplyToStatusBar(state->status);
+            win32ui::AnchorDialogControls(dialog, {
+                                                      {IDC_KH_FILTER, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  });
+            static const win32ui::StatusBarHooks status_hooks = appearance::StatusBarThemeHooks();
+            win32ui::AttachStatusBar(state->status, util::Tr(L"Status Bar"), &status_hooks);
+            win32ui::SetStatusParts(state->status, {{L"", 170}, {L"", 170}, {L"", 0, true}});
             Layout(dialog, state);
-            RebuildView(dialog, state);
+            ShowRows(dialog, state);
             Refresh(dialog, state);
             return TRUE;
         }
@@ -495,34 +612,18 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
                 state->inaccessible = payload->inaccessible;
                 state->error = payload->error;
                 state->scanning = false;
-                RebuildView(dialog, state);
+                ShowRows(dialog, state);
             }
             return TRUE;
         }
     case WM_SIZE:
         if (state)
         {
-            state->resizer.Apply(dialog);
             Layout(dialog, state);
         }
-        return TRUE;
-    case WM_GETMINMAXINFO:
-        if (state)
-        {
-            state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
-        }
-        return TRUE;
+        return FALSE;
     case WM_NOTIFY:
         return state ? HandleNotify(dialog, state, reinterpret_cast<NMHDR*>(lparam)) : FALSE;
-    case WM_CONTEXTMENU:
-        if (state && reinterpret_cast<HWND>(wparam) == state->list)
-        {
-            POINT screen = {};
-            appearance::ContextMenuRow(state->list, lparam, &screen);
-            ShowRowMenu(dialog, state, screen);
-            return TRUE;
-        }
-        return FALSE;
     case WM_COMMAND:
         if (!state)
         {
@@ -533,17 +634,17 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         case IDC_KH_FILTER:
             if (HIWORD(wparam) == EN_CHANGE)
             {
-                RebuildView(dialog, state);
+                ApplyFilter(dialog, state);
             }
             return TRUE;
         case IDOK:
             OpenKey(state, false);
             return TRUE;
         case IDCANCEL:
-            DestroyWindow(dialog);
+            win32ui::EndDialogWindow(dialog, IDCANCEL);
             return TRUE;
         default:
-            return appearance::HandleListViewCommand(dialog, LOWORD(wparam));
+            return FALSE;
         }
     case WM_DESTROY:
         if (state)
@@ -554,8 +655,6 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             {
                 delete reinterpret_cast<Payload*>(pending.lParam);
             }
-            appearance::ReleaseListViews(dialog);
-            support::ReleaseFont(&state->font);
         }
         return TRUE;
     case WM_NCDESTROY:
@@ -564,23 +663,20 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     default:
         break;
     }
-    INT_PTR themed = 0;
-    return support::HandleThemeMessage(dialog, message, wparam, lparam, &themed) ? themed : FALSE;
+    return FALSE;
 }
 
 } // namespace
 
 HWND ShowKeyHandlesWindow(HWND owner, KeyHandlesNavigate navigate)
 {
-    auto* state = new State;
+    auto state = std::make_unique<State>();
     state->navigate = std::move(navigate);
-    HWND dialog = editors::dialog_support::Modeless(nullptr, IDD_KEY_HANDLES, DialogProc, reinterpret_cast<LPARAM>(state));
+    HWND dialog = win32ui::OpenProcDialog(MAKEINTRESOURCEW(IDD_KEY_HANDLES), DialogProc, reinterpret_cast<LPARAM>(&state), owner);
     if (!dialog)
     {
         return nullptr;
     }
-    appearance::CenterWindow(dialog, owner);
-    ShowWindow(dialog, SW_SHOW);
     return dialog;
 }
 

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -93,7 +93,7 @@ void MainWindow::Impl::ShowSession(const std::shared_ptr<RegistrySession>& sessi
         ApplyRegistryRoots(session_->roots);
     }
     RefreshRegistryTabLabels();
-    UpdateUndoButtons();
+    UpdateToolbarStates();
 }
 
 void MainWindow::Impl::ApplyRegistryRoots(const std::vector<RegistryRootEntry>& roots)
@@ -276,7 +276,7 @@ void MainWindow::Impl::SelectDefaultTreeItem()
     }
 }
 
-// the tree keeps its own state while hidden, tree_state also captures the expansion for saving
+// hidden trees retain state, tree_state also captures expansion for saving
 void MainWindow::Impl::CaptureRegistryTabState(int index, bool tree_state)
 {
     if (index < 0 || static_cast<size_t>(index) >= tabs_.size())
@@ -347,7 +347,7 @@ void MainWindow::Impl::ResetRegistryTreeState()
             {
                 collapse(child);
             }
-            // groups stay expanded as after PopulateRoots, tab state only holds key paths
+            // PopulateRoots leaves groups expanded, tab state stores key paths only
             if (browse_.tree().NodeFromItem(item))
             {
                 TreeView_Expand(browse_.tree().hwnd(), item, TVE_COLLAPSE);
@@ -363,7 +363,7 @@ void MainWindow::Impl::ResetRegistryTreeState()
     TreeView_SelectItem(browse_.tree().hwnd(), root);
 }
 
-// tree repaints once when the current message is done
+// tree repaints once after this message
 void MainWindow::Impl::FlushTreeRedraw()
 {
     if (tree_redraw_pending_)
@@ -420,14 +420,14 @@ void MainWindow::Impl::RestoreValueSelection(const TabEntry& entry)
         pending_value_selection_.empty() && pending_value_top_index_ == 0 ? std::wstring() : entry.selected_path;
 }
 
-// tab gets its own tree the first time it's shown, true when that tree still needs its roots
+// creates tab tree on first display, true if roots still need loading
 bool MainWindow::Impl::ActivateTabTree(int index)
 {
     TabEntry& entry = tabs_[static_cast<size_t>(index)];
     const bool fresh = !entry.tree;
     if (fresh)
     {
-        // startup tree & a closed tab's cleared tree belong to no tab
+        // startup tree and cleared closed tab trees belong to no tab
         RegistryTree* shown = &browse_.tree();
         const bool owned = std::any_of(tabs_.begin(), tabs_.end(), [shown](const TabEntry& tab) { return tab.tree == shown; });
         entry.tree = owned ? browse_.AddTree() : shown;
@@ -453,7 +453,7 @@ bool MainWindow::Impl::ActivateTabTree(int index)
     const bool focused = GetFocus() == previous.hwnd();
     browse_.SetActiveTree(entry.tree);
     SetWindowPos(entry.tree->hwnd(), nullptr, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER | SWP_NOACTIVATE);
-    // the style, not IsWindowVisible, as the main window may not be shown yet
+    // use style bit, IsWindowVisible is false before the main window is shown
     ShowWindow(entry.tree->hwnd(), (GetWindowLongPtrW(previous.hwnd(), GWL_STYLE) & WS_VISIBLE) ? SW_SHOW : SW_HIDE);
     ShowWindow(previous.hwnd(), SW_HIDE);
     if (focused)
@@ -464,7 +464,7 @@ bool MainWindow::Impl::ActivateTabTree(int index)
     return fresh;
 }
 
-// shows a tab whose tree was built before, only keys changed elsewhere need a resync
+// existing tab trees only resync keys changed elsewhere
 void MainWindow::Impl::ResumeTabTree(int index)
 {
     const TabEntry& entry = tabs_[static_cast<size_t>(index)];
@@ -486,7 +486,7 @@ void MainWindow::Impl::ResumeTabTree(int index)
     RestoreValueSelection(entry);
     ApplyTreeSelectionEffects(browse_.current_node());
     RefreshRegistryTabLabels();
-    UpdateUndoButtons();
+    UpdateToolbarStates();
 }
 
 std::wstring MainWindow::Impl::LocalRegistryTabLabel(int index) const
@@ -580,7 +580,7 @@ std::vector<RegistryRootEntry> MainWindow::Impl::LocalRoots(REGSAM view)
     {
         root.view = view;
     }
-    // native paths have no 32-bit view
+    // native paths have no 32 bit view
     if (!view && !settings_.simple_mode)
     {
         AppendRealRegistryRoot(&roots);
@@ -814,7 +814,7 @@ void MainWindow::Impl::OfferRemoteServiceRestore(RegistrySession& session, bool 
         return;
     }
     session.remote_service_started = false;
-    // another tab on that machine still needs the service and offers the restore when it goes
+    // another tab still needs the remote service and will offer restoration when closed
     for (TabEntry& entry : tabs_)
     {
         if (hand_over && entry.session && entry.session.get() != &session && entry.session->mode == RegistryMode::kRemote &&
@@ -1016,7 +1016,7 @@ bool MainWindow::Impl::SaveOfflineRegistry(RegistrySession& session, bool choose
     {
         session.offline_root_paths.front() = path;
     }
-    // the tab reopens the file it was saved to
+    // tab reopens the saved destination file
     for (TabEntry& tab : tabs_)
     {
         if (tab.session.get() == &session)

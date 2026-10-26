@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -50,7 +50,7 @@ std::vector<std::wstring> MainWindow::Impl::BuildAddressSuggestions(const std::w
     {
         return items;
     }
-    // the popup filters this list itself after a separator, so every child is needed
+    // popup filters after separators, it needs every child
     for (const auto& raw_name : RegistryStore::EnumSubKeyNames(node, true))
     {
         std::wstring name = registry_path::DisplayName(raw_name);

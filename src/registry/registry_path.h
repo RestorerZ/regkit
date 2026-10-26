@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -44,16 +44,18 @@ std::wstring BuildNative(const RegistryNode& node);
 bool InVolatileHive(std::wstring_view native_path);
 ClassSource ClassesSource(std::wstring_view native_path);
 std::wstring ClassesSourcePath(std::wstring_view native_path, std::wstring_view current_user_sid);
-// uac virtualization keeps per-user copies of HKLM\SOFTWARE keys in the virtual store, empty when the key has no such place
+// UAC virtual store holds per user HKLM\SOFTWARE copies, empty if no virtual path exists
 std::wstring VirtualStorePath(std::wstring_view native_path);
 std::wstring GlobalKeyPath(std::wstring_view path);
 
 std::wstring Clean(std::wstring_view path);
 bool HasComponentPrefix(std::wstring_view path, std::wstring_view prefix);
+// Windows follows user hive links only into that user hive or its _Classes hive
+bool LinkLeavesUserHives(std::wstring_view source_native, std::wstring_view target_native);
 std::wstring Normalize(std::wstring_view path, std::wstring_view current_user_sid = {});
 std::wstring Format(std::wstring_view normalized_path, Style style, std::wstring_view tree_root = L"Computer");
 bool ParseRoot(std::wstring_view path, RegistryNode* node);
-// a key path, optionally naming a value as key!value, key: value or a trailing value name
+// key path, optionally with value as key!value, key: value or trailing name
 bool ResolveJumpTarget(std::wstring_view target, const std::function<std::wstring(const std::wstring&)>& normalize, const std::function<bool(const std::wstring&, RegistryNode*)>& key_exists, std::wstring* key_path, std::wstring* value_name, bool* value_missing);
 std::vector<std::wstring> Split(std::wstring_view path);
 std::wstring Join(const std::vector<std::wstring>& parts, size_t first_part = 0);

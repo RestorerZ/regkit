@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -358,7 +358,10 @@ void MainWindow::Impl::StartValueListWorker()
             ++payload->value_count;
             return !stopping.load() && task->generation == value_list_generation_.load();
         };
-        RegistryStore::EnumKeyStreaming(task->snapshot, true, true, false, nullptr, append_value, RegistryStore::SubkeyStreamCallback(), max_data_size);
+        RegistryStore::KeyEnumResult listed;
+        RegistryStore::EnumKeyStreaming(task->snapshot, true, true, false, &listed, append_value, RegistryStore::SubkeyStreamCallback(), max_data_size);
+        // trace only simulated keys are expected to be absent
+        payload->error = task->snapshot.simulated ? ERROR_SUCCESS : listed.error;
 
         if (!has_symbolic_value && has_link && !link_target.empty())
         {
@@ -604,7 +607,7 @@ std::vector<std::vector<RegistryRootEntry>> MainWindow::Impl::SearchSourceRoots(
             roots[i] = LocalRoots(source.view);
             continue;
         }
-        // closed or disconnected source has no roots, its rows show no data
+        // closed/disconnected sources have no roots, show no row data
         const int index = FindSourceTab(source);
         if (index < 0)
         {

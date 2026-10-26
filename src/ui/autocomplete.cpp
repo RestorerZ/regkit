@@ -1,12 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "ui/autocomplete.h"
 
-#include "ui/gdi_cache.h"
 #include "ui/theme.h"
 #include "win32/text_transform.h"
-#include "win32/window_metrics.h"
+
+#include <win32ui/gdi/gdi_cache.h>
+#include <win32ui/window_metrics.h>
 
 #include <commctrl.h>
 #include <shldisp.h>
@@ -120,7 +121,7 @@ class AutoCompleteSource : public ::IEnumString, public ::IACList
         {
             const std::wstring& item = suggestions_[index_];
             size_t bytes = (item.size() + 1) * sizeof(wchar_t);
-            // return strings with COM task memory so the caller can free them
+            // allocate returned strings with COM task memory so the caller can free them
             wchar_t* buffer = static_cast<wchar_t*>(CoTaskMemAlloc(bytes));
             if (!buffer)
             {
@@ -331,21 +332,21 @@ LRESULT CALLBACK PopupSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
         break;
     case WM_DRAWITEM:
         {
-            // the popup owner draws its suggestion list with system colors
+            // popup owner draws suggestions in system colors
             auto* draw = reinterpret_cast<DRAWITEMSTRUCT*>(lparam);
             if (draw->CtlType != ODT_LISTVIEW)
             {
                 break;
             }
-            const Theme& theme = Theme::Current();
+            const win32ui::ThemeColors& colors = win32ui::CurrentThemeColors();
             const bool selected = (draw->itemState & ODS_SELECTED) != 0;
-            FillRect(draw->hDC, &draw->rcItem, CachedBrush(selected ? theme.SelectionColor() : theme.SurfaceColor()));
+            FillRect(draw->hDC, &draw->rcItem, win32ui::CachedBrush(selected ? colors.selection : colors.surface));
             wchar_t text[1024] = {};
             ListView_GetItemText(draw->hwndItem, draw->itemID, 0, text, static_cast<int>(_countof(text)));
             RECT rect = draw->rcItem;
-            rect.left += MulDiv(4, static_cast<int>(win32::DpiForWindow(hwnd)), 96);
+            rect.left += win32ui::Scale(4, win32ui::DpiForWindow(hwnd));
             SetBkMode(draw->hDC, TRANSPARENT);
-            SetTextColor(draw->hDC, selected ? theme.SelectionTextColor() : theme.TextColor());
+            SetTextColor(draw->hDC, selected ? colors.selection_text : colors.text);
             DrawTextW(draw->hDC, text, -1, &rect, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS);
             return TRUE;
         }
@@ -353,7 +354,7 @@ LRESULT CALLBACK PopupSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lp
         {
             RECT rect = {};
             GetClientRect(hwnd, &rect);
-            FillRect(reinterpret_cast<HDC>(wparam), &rect, Theme::Current().SurfaceBrush());
+            FillRect(reinterpret_cast<HDC>(wparam), &rect, win32ui::ThemeBrush(win32ui::ThemeFill::surface));
             return TRUE;
         }
     default:
@@ -377,7 +378,7 @@ LRESULT CALLBACK SizeBoxSubclassProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
             HDC hdc = BeginPaint(hwnd, &ps);
             RECT rect = {};
             GetClientRect(hwnd, &rect);
-            FillRect(hdc, &rect, Theme::Current().SurfaceBrush());
+            FillRect(hdc, &rect, win32ui::ThemeBrush(win32ui::ThemeFill::surface));
             if (HTHEME theme = OpenThemeData(hwnd, VSCLASS_STATUS))
             {
                 SIZE grip = {};
@@ -402,15 +403,15 @@ BOOL CALLBACK ThemePopupProc(HWND hwnd, LPARAM)
     {
         return TRUE;
     }
-    Theme::Current().ApplyToWindow(hwnd);
+    win32ui::ApplyThemeToWindow(hwnd);
     EnsureSubclass(hwnd, PopupSubclassProc, kPopupSubclassId);
     EnumChildWindows(
         hwnd,
         [](HWND child, LPARAM) -> BOOL {
-            SetDarkWindowTheme(child, Theme::UseDarkMode());
+            // suggestions need surface color, theme walk gave the list panel color
             if (ClassIs(child, WC_LISTVIEWW))
             {
-                ListView_SetBkColor(child, Theme::Current().SurfaceColor());
+                ListView_SetBkColor(child, win32ui::CurrentThemeColors().surface);
             }
             else if (ClassIs(child, WC_SCROLLBARW) && (GetWindowLongPtrW(child, GWL_STYLE) & (SBS_SIZEBOX | SBS_SIZEGRIP)))
             {

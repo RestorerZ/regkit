@@ -1,9 +1,10 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/detail/draw_detail.h"
 
 #include "frame/window_impl.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -41,10 +42,7 @@
 #include "search/result_file.h"
 #include "trace/trace_loader.h"
 #include "trace/trace_parser.h"
-#include "ui/default_font.h"
 #include "ui/feedback.h"
-#include "ui/gdi_cache.h"
-#include "ui/icon_loader.h"
 #include "ui/list_view_support.h"
 #include "win32/file_dialog.h"
 #include "win32/file_text.h"
@@ -72,28 +70,6 @@ bool GetChildRectInParent(HWND parent, HWND child, RECT* rect)
     }
     MapWindowPoints(nullptr, parent, reinterpret_cast<POINT*>(rect), 2);
     return true;
-}
-
-int MappedSubItem(const std::vector<int>& map, int display_index)
-{
-    return (display_index >= 0 && static_cast<size_t>(display_index) < map.size())
-               ? map[static_cast<size_t>(display_index)]
-               : display_index;
-}
-
-int GetListViewColumnSubItem(HWND list, int display_index)
-{
-    if (!list || display_index < 0)
-    {
-        return display_index;
-    }
-    LVCOLUMNW col = {};
-    col.mask = LVCF_SUBITEM;
-    if (ListView_GetColumn(list, display_index, &col))
-    {
-        return col.iSubItem;
-    }
-    return display_index;
 }
 
 void DrawSearchMatchOverlay(HDC hdc, const RECT& cell, std::wstring_view text, int start, int length)
@@ -163,7 +139,7 @@ void DrawSearchMatchOverlay(HDC hdc, const RECT& cell, std::wstring_view text, i
     GetTextMetricsW(hdc, &metrics);
     const int y = cell.top + (cell.bottom - cell.top - metrics.tmHeight) / 2;
     const int old_mode = SetBkMode(hdc, TRANSPARENT);
-    const COLORREF old_color = SetTextColor(hdc, Theme::Current().FocusColor());
+    const COLORREF old_color = SetTextColor(hdc, win32ui::CurrentThemeColors().focus);
     ExtTextOutW(hdc, x, y, ETO_CLIPPED, &cell, text.data() + start, static_cast<UINT>(length), nullptr);
     SetTextColor(hdc, old_color);
     SetBkMode(hdc, old_mode);
@@ -186,65 +162,6 @@ int SearchMatchSubItem(const search::Result& result)
     default:
         return -1;
     }
-}
-
-int FindListViewColumnBySubItem(HWND list, int subitem)
-{
-    if (!list || subitem < 0)
-    {
-        return -1;
-    }
-    HWND header = ListView_GetHeader(list);
-    int count = header ? Header_GetItemCount(header) : 0;
-    for (int i = 0; i < count; ++i)
-    {
-        if (GetListViewColumnSubItem(list, i) == subitem)
-        {
-            return i;
-        }
-    }
-    return -1;
-}
-
-int CalcListViewColumnFitWidth(HWND list, int column, int min_width)
-{
-    if (!list || column < 0)
-    {
-        return min_width;
-    }
-    int display_index = FindListViewColumnBySubItem(list, column);
-    if (display_index < 0)
-    {
-        return min_width;
-    }
-    int width = min_width;
-    wchar_t header_text[256] = {};
-    LVCOLUMNW col = {};
-    col.mask = LVCF_TEXT;
-    col.pszText = header_text;
-    col.cchTextMax = static_cast<int>(_countof(header_text));
-    if (ListView_GetColumn(list, display_index, &col))
-    {
-        int header_width = ListView_GetStringWidth(list, header_text) + 18;
-        width = std::max(width, header_width);
-    }
-
-    int count = ListView_GetItemCount(list);
-    std::wstring buffer;
-    buffer.resize(256);
-    for (int i = 0; i < count; ++i)
-    {
-        int length = appearance::FetchListViewItemText(list, i, column, &buffer);
-        if (length > 0)
-        {
-            int text_width = ListView_GetStringWidth(list, buffer.c_str()) + 18;
-            if (text_width > width)
-            {
-                width = text_width;
-            }
-        }
-    }
-    return width;
 }
 
 } // namespace regkit::window_detail

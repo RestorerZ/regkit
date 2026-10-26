@@ -1,9 +1,11 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/window_metrics.h>
 
 namespace regkit
 {
@@ -125,7 +127,7 @@ void MainWindow::Impl::RefreshMatchingTreeNodes(HTREEITEM selected)
 
 void MainWindow::Impl::RefreshTreeSelection()
 {
-    // other tabs trees resync when shown
+    // other tab trees resync when shown
     RegistryStore::NoteKeyChange();
     if (!browse_.tree().hwnd())
     {
@@ -152,7 +154,7 @@ void MainWindow::Impl::RefreshWholeTree()
 {
     if (browse_.tree().hwnd())
     {
-        // sampled first, a change during the resync keeps the tree marked as behind
+        // sample version before resync so changes during it still mark the tree stale
         const uint64_t revision = RegistryStore::KeyRevision();
         RefreshTreeItem(TreeView_GetRoot(browse_.tree().hwnd()));
         browse_.tree().synced_revision = revision;
@@ -267,7 +269,7 @@ void MainWindow::Impl::CaptureTreeState(const RegistryTree& tree, std::wstring* 
     walk(root, true);
 }
 
-// the global state belongs to the plain local tab, the tab a start without saved tabs opens
+// global state belongs to the plain local tab opened without saved tabs
 void MainWindow::Impl::RestoreTreeState(workspace::TreeState state)
 {
     const int local = FindLocalRegistryTabIndex();
@@ -315,7 +317,7 @@ void MainWindow::Impl::ApplySavedWindowPlacement()
         work = {};
     }
     RECT target = {settings_.window_x + work.left, settings_.window_y + work.top, settings_.window_x + work.left + width, settings_.window_y + work.top + height};
-    win32::ClampToWorkArea(&target);
+    win32ui::ClampToWorkArea(&target);
     SetWindowPos(hwnd_, nullptr, target.left, target.top, target.right - target.left, target.bottom - target.top, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
@@ -410,7 +412,7 @@ void MainWindow::Impl::CaptureTreeStateNow()
     }
 }
 
-// shown_only skips the capture while another tab is shown, the local tab's state can't change then
+// shown_only skips hidden local tabs because their state cannot change
 bool MainWindow::Impl::CaptureLocalTreeState(workspace::TreeState* state, bool shown_only) const
 {
     const int local = FindLocalRegistryTabIndex();

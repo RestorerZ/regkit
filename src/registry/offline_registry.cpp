@@ -1,14 +1,15 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "registry/registry_backends.h"
 
 #include "registry/key_algorithms.h"
-#include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
-#include "win32/system_api.h"
 #include "win32/system_error.h"
 #include "win32/translation.h"
+
+#include <win32ui/handle_owner.h>
+#include <win32ui/system_api.h>
 
 #include <algorithm>
 #include <iterator>
@@ -67,22 +68,22 @@ class OffregApi
             load_error_ = GetLastError();
             return;
         }
-        open_hive = win32::ImportProc<OROpenHiveFn>(module_, "OROpenHive");
-        close_hive = win32::ImportProc<ORCloseHiveFn>(module_, "ORCloseHive");
-        save_hive = win32::ImportProc<ORSaveHiveFn>(module_, "ORSaveHive");
-        open_key = win32::ImportProc<OROpenKeyFn>(module_, "OROpenKey");
-        close_key = win32::ImportProc<ORCloseKeyFn>(module_, "ORCloseKey");
-        create_key = win32::ImportProc<ORCreateKeyFn>(module_, "ORCreateKey");
-        delete_key = win32::ImportProc<ORDeleteKeyFn>(module_, "ORDeleteKey");
-        query_info = win32::ImportProc<ORQueryInfoKeyFn>(module_, "ORQueryInfoKey");
-        enum_key = win32::ImportProc<OREnumKeyFn>(module_, "OREnumKey");
-        get_value = win32::ImportProc<ORGetValueFn>(module_, "ORGetValue");
-        set_value = win32::ImportProc<ORSetValueFn>(module_, "ORSetValue");
-        delete_value = win32::ImportProc<ORDeleteValueFn>(module_, "ORDeleteValue");
-        enum_value = win32::ImportProc<OREnumValueFn>(module_, "OREnumValue");
-        rename_key = win32::ImportProc<ORRenameKeyFn>(module_, "ORRenameKey");
-        get_key_security = win32::ImportProc<ORGetKeySecurityFn>(module_, "ORGetKeySecurity");
-        set_key_security = win32::ImportProc<ORSetKeySecurityFn>(module_, "ORSetKeySecurity");
+        open_hive = win32ui::ImportProc<OROpenHiveFn>(module_, "OROpenHive");
+        close_hive = win32ui::ImportProc<ORCloseHiveFn>(module_, "ORCloseHive");
+        save_hive = win32ui::ImportProc<ORSaveHiveFn>(module_, "ORSaveHive");
+        open_key = win32ui::ImportProc<OROpenKeyFn>(module_, "OROpenKey");
+        close_key = win32ui::ImportProc<ORCloseKeyFn>(module_, "ORCloseKey");
+        create_key = win32ui::ImportProc<ORCreateKeyFn>(module_, "ORCreateKey");
+        delete_key = win32ui::ImportProc<ORDeleteKeyFn>(module_, "ORDeleteKey");
+        query_info = win32ui::ImportProc<ORQueryInfoKeyFn>(module_, "ORQueryInfoKey");
+        enum_key = win32ui::ImportProc<OREnumKeyFn>(module_, "OREnumKey");
+        get_value = win32ui::ImportProc<ORGetValueFn>(module_, "ORGetValue");
+        set_value = win32ui::ImportProc<ORSetValueFn>(module_, "ORSetValue");
+        delete_value = win32ui::ImportProc<ORDeleteValueFn>(module_, "ORDeleteValue");
+        enum_value = win32ui::ImportProc<OREnumValueFn>(module_, "OREnumValue");
+        rename_key = win32ui::ImportProc<ORRenameKeyFn>(module_, "ORRenameKey");
+        get_key_security = win32ui::ImportProc<ORGetKeySecurityFn>(module_, "ORGetKeySecurity");
+        set_key_security = win32ui::ImportProc<ORSetKeySecurityFn>(module_, "ORSetKeySecurity");
         if (!valid())
         {
             load_error_ = ERROR_PROC_NOT_FOUND;
@@ -181,7 +182,8 @@ std::wstring SelectedControlSet(OffregApi* api, ORHKEY root)
     return control_set;
 }
 
-// currentcontrolset is a volatile link windows builds at boot, offline it maps through Select\Current unless the hive has a real key of that name
+// Windows creates volatile CurrentControlSet links at boot
+// offline, map through Select\Current unless a real CurrentControlSet key exists
 std::wstring ResolveControlSet(OffregApi* api, ORHKEY root, const std::wstring& subkey)
 {
     constexpr std::wstring_view kLink = L"CurrentControlSet";
@@ -205,14 +207,14 @@ class OfflineKey
         : api_(Api())
     {
         ORHKEY root = reinterpret_cast<ORHKEY>(node.root);
-        // offreg cuts names at embedded nulls, which would address another key
+        // offreg truncates embedded NUL names and would address a different key
         if (!api_ || !root || HasNull(node.subkey))
         {
             return;
         }
         if (node.subkey.empty())
         {
-            // hive roots stay owned by the caller while opened subkeys are owned here
+            // caller owns hive roots, this scope owns opened subkeys
             key_ = root;
         }
         else if (api_->open_key(root, ResolveControlSet(api_, root, node.subkey).c_str(), owner_.put()) == ERROR_SUCCESS)
@@ -254,7 +256,7 @@ class OfflineKey
     {
         const DWORD capacity = *name_length;
         DWORD result = api_->enum_value(key_, index, name, name_length, type, data, data_length);
-        // offreg answers a size only query with ERROR_MORE_DATA, RegEnumValueW with success
+        // size only queries return ERROR_MORE_DATA from offreg, success from RegEnumValueW
         if (result == ERROR_MORE_DATA && !data && data_length)
         {
             *name_length = capacity;
@@ -288,7 +290,7 @@ class OfflineKey
   private:
     OffregApi* api_ = nullptr;
     ORHKEY key_ = nullptr;
-    util::UniqueResource<ORHKEY, CloseOfflineKey> owner_;
+    win32ui::UniqueNullable<ORHKEY, CloseOfflineKey> owner_;
 };
 
 std::shared_mutex g_roots_mutex;
@@ -324,7 +326,6 @@ bool WithApi(std::wstring* error, Action&& action)
     OffregApi* api = Api();
     if (!api)
     {
-        // report missing/incomplete offreg support
         if (error)
         {
             *error = OffregLoadFailure();
@@ -347,7 +348,6 @@ bool OpenHive(const std::wstring& path, HKEY* root, std::wstring* error)
     return WithApi(error, [&](OffregApi& api) {
         ORHKEY hive = nullptr;
         DWORD result = api.open_hive(path.c_str(), &hive);
-        // reject a success result that didnt return a usable root
         if (result == ERROR_SUCCESS && !hive)
         {
             result = ERROR_INVALID_HANDLE;
@@ -360,7 +360,7 @@ bool OpenHive(const std::wstring& path, HKEY* root, std::wstring* error)
 bool SaveHive(HKEY root, const std::wstring& path, std::wstring* error)
 {
     return root && WithApi(error, [&](OffregApi& api) {
-               const RTL_OSVERSIONINFOW& version = win32::OsVersion();
+               const RTL_OSVERSIONINFOW& version = win32ui::OsVersion();
                return api.save_hive(reinterpret_cast<ORHKEY>(root), path.c_str(), version.dwMajorVersion ? version.dwMajorVersion : 10, version.dwMinorVersion);
            });
 }
@@ -447,19 +447,18 @@ bool CreateKey(const RegistryNode& node, const std::wstring& name, const std::ws
     {
         return false;
     }
-    util::UniqueResource<ORHKEY, CloseOfflineKey> created;
+    win32ui::UniqueNullable<ORHKEY, CloseOfflineKey> created;
     DWORD disposition = 0;
-    // dont report an existing key as newly created
     return parent.api().create_key(parent.get(), name.c_str(), class_name.empty() ? nullptr : const_cast<PWSTR>(class_name.c_str()), 0, nullptr, created.put(), &disposition) ==
                ERROR_SUCCESS &&
            disposition == REG_CREATED_NEW_KEY;
 }
 
-bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor)
+bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor, LONG* error)
 {
     descriptor->clear();
     const OfflineKey key(node);
-    return key && ReadSecurity(key, parts, descriptor);
+    return key && ReadSecurity(key, parts, descriptor, error);
 }
 
 bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor)

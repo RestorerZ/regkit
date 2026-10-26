@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "changes/undo_stack.h"
 
@@ -40,7 +40,7 @@ void UndoStack::CompletePartial(UndoOperation group, size_t replayed, bool redo,
     done.type = UndoOperation::Type::kGroup;
     done.steps.assign(std::make_move_iterator(first), std::make_move_iterator(last));
     steps.erase(first, last);
-    // the failing step is the next one the replay would have reached
+    // next step replay would have reached
     if (drop_failed && !steps.empty())
     {
         steps.erase(redo ? steps.begin() : steps.end() - 1);

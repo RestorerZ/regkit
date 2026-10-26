@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/value_editor.h"
 #include "win32/text_transform.h"
@@ -8,6 +8,9 @@
 #include "dialogs/bitfield_editor.h"
 #include "ui/dialog_layout.h"
 #include "ui/dialog_support.h"
+
+#include <win32ui/dialog/dialog_window.h>
+#include <win32ui/dialog/single_line_edit.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -41,8 +44,6 @@ struct TextDialogState
     const wchar_t* label = nullptr;
     std::wstring text;
     BrowseText browse = nullptr;
-    HFONT ui_font = nullptr;
-    appearance::DialogResizer resizer;
 };
 
 struct BinaryGroupState
@@ -67,8 +68,6 @@ struct TraceValueDialogState
     BinaryGroupState binary;
     BinaryGroupState none;
     HFONT mono_font = nullptr;
-    HFONT ui_font = nullptr;
-    appearance::DialogResizer resizer;
 };
 
 struct ExtendedValueDialogState
@@ -82,8 +81,6 @@ struct ExtendedValueDialogState
     bool read_only = false;
     int number_base = 16;
     int initial_number_base = 16;
-    HFONT ui_font = nullptr;
-    appearance::DialogResizer resizer;
 };
 
 std::wstring RegDataToString(const std::vector<BYTE>& data);
@@ -738,33 +735,12 @@ bool SerializeTraceEditor(HWND dlg, TraceValueDialogState* state, DWORD type, st
 INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     auto* state = reinterpret_cast<TraceValueDialogState*>(GetWindowLongPtrW(dlg, DWLP_USER));
-    if (msg != WM_INITDIALOG && msg != WM_DESTROY)
-    {
-        INT_PTR themed = 0;
-        if (dialog_support::HandleThemeMessage(dlg, msg, wparam, lparam, &themed))
-        {
-            return themed;
-        }
-    }
     switch (msg)
     {
-    case WM_SIZE:
-        if (state)
-        {
-            state->resizer.Apply(dlg);
-        }
-        return TRUE;
-    case WM_GETMINMAXINFO:
-        if (state)
-        {
-            state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
-        }
-        return TRUE;
     case WM_INITDIALOG:
         {
             state = reinterpret_cast<TraceValueDialogState*>(lparam);
             SetWindowLongPtrW(dlg, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-            SetWindowTextW(dlg, util::Tr(L"Edit Value"));
             PopulateTraceTypeCombo(dlg);
             if (state)
             {
@@ -808,59 +784,62 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
             {
                 ConfigureReadOnlyControls(dlg, {IDC_REG_SZ_EDIT, IDC_REG_EXPAND_EDIT, IDC_REG_MULTI_EDIT, IDC_REG_DWORD_EDIT, IDC_REG_QWORD_EDIT, IDC_REG_BINARY_EDIT, IDC_REG_NONE_EDIT}, {IDC_TYPE_COMBO, IDC_REG_DWORD_HEX, IDC_REG_DWORD_DEC, IDC_REG_DWORD_BIN, IDC_REG_QWORD_HEX, IDC_REG_QWORD_DEC, IDC_REG_QWORD_BIN, IDC_REG_BINARY_FORMAT_BYTE, IDC_REG_BINARY_FORMAT_WORD, IDC_REG_BINARY_FORMAT_DWORD, IDC_REG_BINARY_FORMAT_QWORD, IDC_REG_BINARY_TEXT_ANSI, IDC_REG_BINARY_TEXT_UNICODE, IDC_REG_NONE_FORMAT_BYTE, IDC_REG_NONE_FORMAT_WORD, IDC_REG_NONE_FORMAT_DWORD, IDC_REG_NONE_FORMAT_QWORD, IDC_REG_NONE_TEXT_ANSI, IDC_REG_NONE_TEXT_UNICODE});
             }
-            dialog_support::Initialize(dlg, &state->ui_font, {IDC_VALUE_NAME, IDC_REG_SZ_EDIT, IDC_REG_EXPAND_EDIT, IDC_REG_MULTI_EDIT, IDC_REG_DWORD_EDIT, IDC_REG_QWORD_EDIT, IDC_REG_BINARY_EDIT, IDC_REG_BINARY_PREVIEW, IDC_REG_NONE_EDIT, IDC_REG_NONE_PREVIEW});
-            dialog_support::AllowNewlines(dlg, IDC_REG_MULTI_EDIT);
-            using namespace appearance;
-            state->resizer.Attach(dlg, {
-                                           {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                           {IDC_GROUP_REG_SZ, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_SZ_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                           {IDC_GROUP_REG_EXPAND, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_EXPAND_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                           {IDC_GROUP_REG_MULTI, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_MULTI_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_GROUP_REG_DWORD, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_GROUP_REG_QWORD, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_GROUP_REG_BINARY, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_BINARY_LABEL_HEX, kAnchorLeft | kAnchorTop},
-                                           {IDC_REG_BINARY_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_BINARY_LABEL_PREVIEW, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_BINARY_PREVIEW, kAnchorLeft | kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_BINARY_FORMAT_GROUP, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_BINARY_FORMAT_BYTE, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_BINARY_FORMAT_WORD, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_BINARY_FORMAT_DWORD, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_BINARY_FORMAT_QWORD, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_BINARY_TEXT_GROUP, kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_BINARY_TEXT_ANSI, kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_BINARY_TEXT_UNICODE, kAnchorRight | kAnchorBottom},
-                                           {IDC_GROUP_REG_NONE, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_NONE_LABEL_HEX, kAnchorLeft | kAnchorTop},
-                                           {IDC_REG_NONE_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_NONE_LABEL_PREVIEW, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_NONE_PREVIEW, kAnchorLeft | kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_NONE_FORMAT_GROUP, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_NONE_FORMAT_BYTE, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_NONE_FORMAT_WORD, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_NONE_FORMAT_DWORD, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_NONE_FORMAT_QWORD, kAnchorLeft | kAnchorBottom},
-                                           {IDC_REG_NONE_TEXT_GROUP, kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_NONE_TEXT_ANSI, kAnchorRight | kAnchorBottom},
-                                           {IDC_REG_NONE_TEXT_UNICODE, kAnchorRight | kAnchorBottom},
-                                           {IDOK, kAnchorRight | kAnchorBottom},
-                                           {IDCANCEL, kAnchorRight | kAnchorBottom},
-                                       });
+            win32ui::AllowLineBreaks(GetDlgItem(dlg, IDC_REG_MULTI_EDIT));
+            win32ui::AnchorDialogControls(dlg, {
+                                                   {IDC_VALUE_NAME, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                   {IDC_GROUP_REG_SZ, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_SZ_EDIT, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                   {IDC_GROUP_REG_EXPAND, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_EXPAND_EDIT, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                   {IDC_GROUP_REG_MULTI, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_MULTI_EDIT, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_GROUP_REG_DWORD, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_GROUP_REG_QWORD, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_GROUP_REG_BINARY, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_LABEL_HEX, win32ui::kAnchorLeft | win32ui::kAnchorTop},
+                                                   {IDC_REG_BINARY_EDIT, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_LABEL_PREVIEW, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_PREVIEW, win32ui::kAnchorLeft | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_FORMAT_GROUP, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_FORMAT_BYTE, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_FORMAT_WORD, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_FORMAT_DWORD, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_FORMAT_QWORD, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_TEXT_GROUP, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_TEXT_ANSI, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_BINARY_TEXT_UNICODE, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_GROUP_REG_NONE, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_LABEL_HEX, win32ui::kAnchorLeft | win32ui::kAnchorTop},
+                                                   {IDC_REG_NONE_EDIT, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_LABEL_PREVIEW, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_PREVIEW, win32ui::kAnchorLeft | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_FORMAT_GROUP, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_FORMAT_BYTE, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_FORMAT_WORD, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_FORMAT_DWORD, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_FORMAT_QWORD, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_TEXT_GROUP, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_TEXT_ANSI, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDC_REG_NONE_TEXT_UNICODE, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDOK, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   {IDCANCEL, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                               });
             state->mono_font = dialog_support::ApplyMonoFont(dlg, {IDC_REG_BINARY_EDIT, IDC_REG_BINARY_PREVIEW, IDC_REG_NONE_EDIT, IDC_REG_NONE_PREVIEW});
             UpdateBinaryPreviewEx(dlg, state ? &state->binary : nullptr, kBinaryIds);
             UpdateBinaryPreviewEx(dlg, state ? &state->none : nullptr, kNoneIds);
             return TRUE;
         }
+    case WM_SETFONT:
+        if (state)
+        {
+            dialog_support::FollowDialogFont(dlg, reinterpret_cast<HFONT>(wparam), &state->mono_font, {IDC_REG_BINARY_EDIT, IDC_REG_BINARY_PREVIEW, IDC_REG_NONE_EDIT, IDC_REG_NONE_PREVIEW});
+        }
+        return FALSE;
     case WM_DESTROY:
         {
             if (state)
             {
                 dialog_support::ReleaseFont(&state->mono_font);
-                dialog_support::ReleaseFont(&state->ui_font);
             }
             return TRUE;
         }
@@ -1043,13 +1022,13 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
                 state->type = type;
                 state->data = std::move(data);
                 state->accepted = true;
-                EndDialog(dlg, IDOK);
+                win32ui::EndDialogWindow(dlg, IDOK);
                 return TRUE;
             }
             if (id == IDCANCEL)
             {
                 state->accepted = false;
-                EndDialog(dlg, IDCANCEL);
+                win32ui::EndDialogWindow(dlg, IDCANCEL);
                 return TRUE;
             }
             break;
@@ -1063,29 +1042,9 @@ INT_PTR CALLBACK CustomValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM
 INT_PTR CALLBACK TextDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     TextDialogState* state = reinterpret_cast<TextDialogState*>(GetWindowLongPtrW(dlg, DWLP_USER));
-    if (msg != WM_INITDIALOG && msg != WM_DESTROY)
-    {
-        INT_PTR themed = 0;
-        if (dialog_support::HandleThemeMessage(dlg, msg, wparam, lparam, &themed))
-        {
-            return themed;
-        }
-    }
 
     switch (msg)
     {
-    case WM_SIZE:
-        if (state)
-        {
-            state->resizer.Apply(dlg);
-        }
-        return TRUE;
-    case WM_GETMINMAXINFO:
-        if (state)
-        {
-            state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
-        }
-        return TRUE;
     case WM_INITDIALOG:
         {
             state = reinterpret_cast<TextDialogState*>(lparam);
@@ -1094,10 +1053,6 @@ INT_PTR CALLBACK TextDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam
             {
                 SetWindowTextW(dlg, state->title);
             }
-            else
-            {
-                SetWindowTextW(dlg, util::Tr(L"Edit Value"));
-            }
             if (state->label)
             {
                 SetDlgItemTextW(dlg, IDC_LABEL, state->label);
@@ -1105,27 +1060,20 @@ INT_PTR CALLBACK TextDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam
             SetDlgItemTextW(dlg, IDC_EDIT, state->text.c_str());
             SendDlgItemMessageW(dlg, IDC_EDIT, EM_SETSEL, 0, -1);
             ShowWindow(GetDlgItem(dlg, IDC_TEXT_BROWSE), state->browse ? SW_SHOW : SW_HIDE);
-            dialog_support::Initialize(dlg, &state->ui_font, {IDC_EDIT});
+            win32ui::FitDialogText(dlg);
             if (IsMultilineEdit(dlg, IDC_EDIT))
             {
-                dialog_support::AllowNewlines(dlg, IDC_EDIT);
-                using namespace appearance;
-                state->resizer.Attach(dlg, {
-                                               {IDC_LABEL, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                               {IDC_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                               {IDC_TEXT_BROWSE, kAnchorLeft | kAnchorBottom},
-                                               {IDOK, kAnchorRight | kAnchorBottom},
-                                               {IDCANCEL, kAnchorRight | kAnchorBottom},
-                                           });
+                win32ui::AllowLineBreaks(GetDlgItem(dlg, IDC_EDIT));
+                win32ui::AnchorDialogControls(dlg, {
+                                                       {IDC_LABEL, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                       {IDC_EDIT, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                       {IDC_TEXT_BROWSE, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                       {IDOK, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                       {IDCANCEL, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   });
             }
             return TRUE;
         }
-    case WM_DESTROY:
-        if (state)
-        {
-            dialog_support::ReleaseFont(&state->ui_font);
-        }
-        return TRUE;
     case WM_COMMAND:
         {
             switch (LOWORD(wparam))
@@ -1158,11 +1106,11 @@ INT_PTR CALLBACK TextDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam
                     {
                         state->text = dialog_support::ReadText(dlg, IDC_EDIT);
                     }
-                    EndDialog(dlg, IDOK);
+                    win32ui::EndDialogWindow(dlg, IDOK);
                     return TRUE;
                 }
             case IDCANCEL:
-                EndDialog(dlg, IDCANCEL);
+                win32ui::EndDialogWindow(dlg, IDCANCEL);
                 return TRUE;
             default:
                 break;
@@ -1178,37 +1126,16 @@ INT_PTR CALLBACK TextDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam
 INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     auto* state = reinterpret_cast<ExtendedValueDialogState*>(GetWindowLongPtrW(dlg, DWLP_USER));
-    if (msg != WM_INITDIALOG && msg != WM_DESTROY)
-    {
-        INT_PTR themed = 0;
-        if (dialog_support::HandleThemeMessage(dlg, msg, wparam, lparam, &themed))
-        {
-            return themed;
-        }
-    }
     switch (msg)
     {
-    case WM_SIZE:
-        if (state)
-        {
-            state->resizer.Apply(dlg);
-        }
-        return TRUE;
-    case WM_GETMINMAXINFO:
-        if (state)
-        {
-            state->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
-        }
-        return TRUE;
     case WM_INITDIALOG:
         {
             state = reinterpret_cast<ExtendedValueDialogState*>(lparam);
             SetWindowLongPtrW(dlg, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-            SetWindowTextW(dlg, util::Tr(L"Edit Value"));
             if (state)
             {
                 SetDlgItemTextW(dlg, IDC_EDIT, state->initial_text.c_str());
-                // compare OK against what the control holds
+                // compare OK with current control contents
                 state->initial_text = util::DialogText(dlg, IDC_EDIT);
                 ConfigureReadOnlyNameField(dlg, state->value_name);
             }
@@ -1228,30 +1155,22 @@ INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPAR
             {
                 ConfigureReadOnlyControls(dlg, {IDC_EDIT}, {IDC_HEX, IDC_DEC, IDC_BIN});
             }
-            dialog_support::Initialize(dlg, &state->ui_font, {IDC_VALUE_NAME, IDC_EDIT});
             if (state->base_type == REG_MULTI_SZ)
             {
-                dialog_support::AllowNewlines(dlg, IDC_EDIT);
+                win32ui::AllowLineBreaks(GetDlgItem(dlg, IDC_EDIT));
             }
             if (IsMultilineEdit(dlg, IDC_EDIT))
             {
-                using namespace appearance;
-                state->resizer.Attach(dlg, {
-                                               {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                               {IDC_LABEL, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                               {IDC_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                               {IDOK, kAnchorRight | kAnchorBottom},
-                                               {IDCANCEL, kAnchorRight | kAnchorBottom},
-                                           });
+                win32ui::AnchorDialogControls(dlg, {
+                                                       {IDC_VALUE_NAME, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                       {IDC_LABEL, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                       {IDC_EDIT, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                       {IDOK, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                       {IDCANCEL, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                   });
             }
             return TRUE;
         }
-    case WM_DESTROY:
-        if (state)
-        {
-            dialog_support::ReleaseFont(&state->ui_font);
-        }
-        return TRUE;
     case WM_COMMAND:
         {
             if (!state)
@@ -1379,13 +1298,13 @@ INT_PTR CALLBACK ExtendedValueDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPAR
                     state->data = std::move(base_data);
                 }
                 state->accepted = true;
-                EndDialog(dlg, IDOK);
+                win32ui::EndDialogWindow(dlg, IDOK);
                 return TRUE;
             }
             if (id == IDCANCEL)
             {
                 state->accepted = false;
-                EndDialog(dlg, IDCANCEL);
+                win32ui::EndDialogWindow(dlg, IDCANCEL);
                 return TRUE;
             }
             break;
@@ -1426,7 +1345,7 @@ bool EditText(HWND owner, const TextRequest& request, TextResult* result)
     state.text = request.text;
     state.browse = request.browse;
     const int dialog_id = request.multiline ? IDD_MULTI_TEXT : IDD_INPUT;
-    const INT_PTR dialog_result = dialog_support::Modal(owner, dialog_id, TextDialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(dialog_id), TextDialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK)
     {
         return false;
@@ -1484,7 +1403,7 @@ bool EditValueBits(HWND owner, const BitsRequest& request, std::vector<BYTE>* da
     }
     if (request.base_type == REG_DWORD_BIG_ENDIAN)
     {
-        // restore registry types big endian byte order after editing
+        // restore registry type big endian byte order after editing
         *data = value_format::UnsignedBytes(result.value, sizeof(DWORD), true);
         return true;
     }
@@ -1505,7 +1424,7 @@ bool EditCustomValue(HWND owner, const CustomValueRequest& request, CustomValueR
     state.type = request.type;
     state.data = request.data;
     state.read_only = request.read_only;
-    const INT_PTR dialog_result = dialog_support::Modal(owner, IDD_CUSTOM_VALUE, CustomValueDialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_CUSTOM_VALUE), CustomValueDialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;
@@ -1580,7 +1499,7 @@ bool EditFlaggedValue(HWND owner, const FlaggedValueRequest& request, FlaggedVal
         dialog_id = IDD_NUMBER_BINARY;
     }
 
-    const INT_PTR dialog_result = dialog_support::Modal(owner, dialog_id, ExtendedValueDialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(dialog_id), ExtendedValueDialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;

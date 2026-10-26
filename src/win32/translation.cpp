@@ -1,12 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "win32/translation.h"
 
 #include "win32/file_text.h"
-#include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <cwchar>
 #include <cwctype>
@@ -208,7 +209,7 @@ std::vector<LanguagePack> InstalledLanguages()
 {
     std::vector<LanguagePack> packs;
     WIN32_FIND_DATAW data = {};
-    const UniqueFind find(FindFirstFileW(JoinPath(LanguageFolder(), L"*.po").c_str(), &data));
+    const win32ui::UniqueFind find(FindFirstFileW(JoinPath(LanguageFolder(), L"*.po").c_str(), &data));
     if (!find)
     {
         return packs;

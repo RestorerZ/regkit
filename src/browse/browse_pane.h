@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -36,8 +36,6 @@ struct CreateRequest
     UINT_PTR filter_subclass_id = 0;
     SUBCLASSPROC tree_proc = nullptr;
     UINT_PTR tree_subclass_id = 0;
-    SUBCLASSPROC values_proc = nullptr;
-    UINT_PTR values_subclass_id = 0;
     DWORD_PTR callback_context = 0;
 };
 
@@ -96,7 +94,6 @@ class Pane
     void ResetNavigation();
 
     bool SelectValue(const std::wstring& name);
-    void TypeSelectValues(wchar_t ch, DWORD now);
     void TypeSelectTree(wchar_t ch, DWORD now);
     void set_tree_type_select_descend(bool descend) noexcept;
 
@@ -108,7 +105,7 @@ class Pane
     HWND filter_ = nullptr;
     CreateRequest tree_request_;
     std::vector<std::unique_ptr<RegistryTree>> trees_;
-    // stands in until Create, the window is laid out before the pane exists
+    // placeholder until Create, layout runs before pane creation
     RegistryTree no_tree_;
     RegistryTree* tree_ = &no_tree_;
     ValueList values_;
@@ -117,9 +114,7 @@ class Pane
     int navigation_index_ = -1;
     bool programmatic_navigation_ = false;
     std::wstring tree_type_buffer_;
-    std::wstring value_type_buffer_;
     DWORD tree_type_tick_ = 0;
-    DWORD value_type_tick_ = 0;
     bool tree_type_select_descend_ = false;
 };
 

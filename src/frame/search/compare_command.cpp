@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
@@ -91,7 +91,7 @@ void MainWindow::Impl::StartCompareRegistries()
     CompareDialogFields(store, &used);
     workspace::SaveDialogState(state);
 
-    // paths & the shown tab's keys resolve here, the worker only reads
+    // resolve paths and visible tab keys here, worker only reads
     struct Side
     {
         CompareDialogSelection source;
@@ -115,8 +115,8 @@ void MainWindow::Impl::StartCompareRegistries()
             return;
         }
     }
-    // a .reg tab can close while the worker reads it, the worker reads its own registration of the file
-    // released with the task, also when the worker throws or never starts
+    // worker owns a separate .reg registration because the source tab may close
+    // task releases it even if the worker throws or never starts
     std::shared_ptr<std::vector<HKEY>> owned_roots(new std::vector<HKEY>(), [](std::vector<HKEY>* roots) {
         for (HKEY root : *roots)
         {
@@ -149,8 +149,9 @@ void MainWindow::Impl::StartCompareRegistries()
     };
     std::vector<search::Source> sources = {source_ref(selection.left), source_ref(selection.right)};
 
-    SetStatusMessage(util::Tr(L"Compare Registries..."));
-    // the session keeps a remote or offline tabs handles open while the worker reads them
+    // keep message until compare result arrives
+    SetStatusMessage(util::Tr(L"Compare Registries..."), 0);
+    // session keeps remote/offline tab handles open while worker reads
     compare_session_.Start(
         L"CompareThread",
         [hwnd = hwnd_, sides, owned_roots, filter = selection.filter, sources, keep = session_, sid = util::GetCurrentUserSidString(), contexts = RegistryPathContexts()](
@@ -244,7 +245,7 @@ void MainWindow::Impl::StartCompareRegistries()
             std::wstring left_error;
             std::wstring right_error;
             bool right_ok = false;
-            // both sides are read at once, registry reads scale with readers
+            // read both sides concurrently, registry reads scale with reader count
             std::jthread right_reader([&]() noexcept {
                 try
                 {
@@ -276,7 +277,7 @@ void MainWindow::Impl::StartCompareRegistries()
                     }
                 }
             }
-            // freed before the post, the UI thread joins this thread when the result arrives
+            // free before posting, UI thread joins this worker when the result arrives
             left_snapshot = {};
             right_snapshot = {};
             if (!cancel.load())

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -36,7 +36,7 @@ class MoveOnly
     MoveOnly& operator=(const MoveOnly&) = delete;
 };
 
-// a worker result travels as a MoveOnly pointer in lparam, so whoever drops a queued one can delete it through the base
+// post results as MoveOnly pointers in lparam so dropped queued payloads can be deleted through the base
 template <typename T>
 bool PostPayload(HWND hwnd, UINT message, WPARAM wparam, std::unique_ptr<T>& payload)
 {
@@ -210,7 +210,7 @@ class LatestTask
 template <typename Task>
 class DebouncedTask
 {
-    // the worker takes the pending task outside its catch
+    // take pending task outside the worker catch
     static_assert(std::is_nothrow_move_constructible_v<Task>);
 
   public:

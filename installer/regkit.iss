@@ -8,9 +8,9 @@
   #define Arch "x64"
 #endif
 #if Arch == "x86"
-  #define BuildDir "..\\build32\\Release"
+  #define BuildDir "..\\build\\x86-release\\Release"
 #else
-  #define BuildDir "..\\build\\Release"
+  #define BuildDir "..\\build\\x64-release\\Release"
 #endif
 #define AppVersion GetFileVersionString(AddBackslash(BuildDir) + AppExeName)
 
@@ -47,7 +47,7 @@ ArchitecturesInstallIn64BitMode=x64os
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
 WizardStyle=modern dynamic
-OutputDir=dist
+OutputDir=..\build\dist
 OutputBaseFilename=RegKit-Setup-{#AppVersion}-{#Arch}
 
 [Messages]

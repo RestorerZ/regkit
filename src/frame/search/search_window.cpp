@@ -1,11 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
 #include "trace/trace_paths.h"
+
+#include <win32ui/process_token.h>
 
 namespace regkit
 {
@@ -103,47 +105,35 @@ bool MainWindow::Impl::CreateRegistryPath(const std::wstring& path)
     return true;
 }
 
-void MainWindow::Impl::SetStatusMessage(const std::wstring& text)
+void MainWindow::Impl::SetStatusMessage(const std::wstring& text, UINT ms)
 {
-    status_message_ = text;
+    // keep compare message until result arrives
+    win32ui::ShowStatusMessage(status_bar_, text, compare_session_.running() ? 0 : ms);
     UpdateStatus();
-    if (hwnd_)
-    {
-        KillTimer(hwnd_, kStatusMessageTimerId);
-        if (!text.empty())
-        {
-            SetTimer(hwnd_, kStatusMessageTimerId, 8000, nullptr);
-        }
-    }
 }
 
 void MainWindow::Impl::UpdateStatus()
 {
+    UpdateToolbarStates();
     if (!status_bar_)
     {
         return;
     }
-    RECT rc = {};
-    GetClientRect(status_bar_, &rc);
-    int total_width = rc.right - rc.left;
-    if (total_width < 0)
-    {
-        total_width = 0;
-    }
-    LONG_PTR sb_style = GetWindowLongPtrW(status_bar_, GWL_STYLE);
-    if (sb_style & SBARS_SIZEGRIP)
-    {
-        int grip = GetSystemMetrics(SM_CXVSCROLL);
-        total_width = std::max(total_width - grip, 0);
-    }
-    auto measure_text = [&](HDC hdc, const std::wstring& text) -> int {
-        if (!hdc || text.empty())
+    const std::wstring message = win32ui::StatusMessage(status_bar_);
+    // search tabs and loading .reg files use one text part, running searches add progress
+    auto show_one = [this](const std::wstring& text, bool searching) {
+        std::vector<win32ui::StatusPart> parts = {{L"", 0, true}};
+        if (searching)
         {
-            return 0;
+            parts.push_back({L"", 120});
         }
-        SIZE size = {};
-        GetTextExtentPoint32W(hdc, text.c_str(), static_cast<int>(text.size()), &size);
-        return size.cx + 20;
+        win32ui::SetStatusParts(status_bar_, parts);
+        win32ui::ShowStatusProgress(status_bar_, 1, searching);
+        win32ui::SetStatusText(status_bar_, 0, text);
+        if (searching)
+        {
+            win32ui::SetStatusText(status_bar_, 1, L"");
+        }
     };
     if (IsSearchTabSelected())
     {
@@ -157,12 +147,14 @@ void MainWindow::Impl::UpdateStatus()
         }
         unsigned long long count_value = static_cast<unsigned long long>(count);
         wchar_t buffer[256] = {};
+        bool searching = false;
         if (compare_selected)
         {
             swprintf_s(buffer, util::Tr(L"Results: %llu"), count_value);
         }
         else if (const SearchTab* shown = ShownSearchTab(); shown && shown->run)
         {
+            searching = true;
             uint64_t searched = shown->run->searched.load();
             if (searched > 0)
             {
@@ -182,9 +174,7 @@ void MainWindow::Impl::UpdateStatus()
         {
             swprintf_s(buffer, util::Tr(L"Results: %llu"), count_value);
         }
-        int part = total_width;
-        SendMessageW(status_bar_, SB_SETPARTS, 1, reinterpret_cast<LPARAM>(&part));
-        SendMessageW(status_bar_, SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(status_message_.empty() ? buffer : status_message_.c_str()));
+        show_one(message.empty() ? std::wstring(buffer) : message, searching);
         return;
     }
     if (IsRegFileTabSelected())
@@ -195,31 +185,27 @@ void MainWindow::Impl::UpdateStatus()
             const TabEntry& entry = tabs_[static_cast<size_t>(sel)];
             if (entry.reg_file_loading)
             {
-                std::wstring text = util::TrLabel(L"Loading", entry.reg_file_label);
-                int part = total_width;
-                SendMessageW(status_bar_, SB_SETPARTS, 1, reinterpret_cast<LPARAM>(&part));
-                SendMessageW(status_bar_, SB_SETTEXTW, 0, reinterpret_cast<LPARAM>(text.c_str()));
+                show_one(util::TrLabel(L"Loading", entry.reg_file_label), false);
                 return;
             }
         }
     }
 
+    win32ui::ShowStatusProgress(status_bar_, 1, false);
     int selected = ListView_GetSelectedCount(browse_.values().hwnd());
     wchar_t buffer[256] = {};
-    std::wstring keys_text;
-    std::wstring values_text;
-    std::wstring selected_text;
-    std::wstring path_text;
-    if (!status_message_.empty())
+    std::wstring path_text = message;
+    if (path_text.empty() && value_list_error_ != ERROR_SUCCESS && browse_.current_node())
     {
-        path_text = status_message_;
+        // reason replaces path until the key is read or left
+        path_text = std::wstring(util::Tr(L"The contents of this key couldn't be read.")) + L" " + util::FormatWin32Error(static_cast<DWORD>(value_list_error_));
     }
-    else if (browse_.current_node())
+    if (path_text.empty() && browse_.current_node())
     {
         path_text = registry_path::Build(*browse_.current_node());
     }
     std::wstring mode_text;
-    if (session_->mode == RegistryMode::kLocal && (util::ShellUserDiffers() || util::IsProcessSystem()))
+    if (session_->mode == RegistryMode::kLocal && (util::ShellUserDiffers() || win32ui::IsProcessSystem()))
     {
         const std::wstring sid = util::GetCurrentUserSidString();
         const std::wstring classes_sid = util::GetClassesUserSidString();
@@ -240,46 +226,31 @@ void MainWindow::Impl::UpdateStatus()
         mode_text.append(mode_text.empty() ? L"" : L", ").append(util::Tr(L"Backup/restore mode"));
     }
     swprintf_s(buffer, util::Tr(L"Keys: %d"), current_key_count_);
-    keys_text = buffer;
+    std::wstring keys_text = buffer;
     swprintf_s(buffer, util::Tr(L"Values: %d"), current_value_count_);
-    values_text = buffer;
+    std::wstring values_text = buffer;
     swprintf_s(buffer, util::Tr(L"Selected: %d"), selected);
-    selected_text = buffer;
+    std::wstring selected_text = buffer;
 
-    HDC hdc = GetDC(status_bar_);
-    HFONT old_font = nullptr;
-    if (hdc && ui_font_)
+    // path fills remaining space, mode part exists only when needed
+    // counts fit five digits and grow for longer values
+    std::vector<win32ui::StatusPart> parts = {{L"", 0, true}};
+    if (!mode_text.empty())
     {
-        old_font = reinterpret_cast<HFONT>(SelectObject(hdc, ui_font_));
+        parts.push_back({mode_text});
     }
-    int mode_width = measure_text(hdc, mode_text);
-    int values_width = measure_text(hdc, values_text);
-    int selected_width = measure_text(hdc, selected_text);
-    int keys_width = measure_text(hdc, keys_text);
-    if (old_font)
+    for (const auto& [format, count] : {std::pair{util::Tr(L"Values: %d"), current_value_count_}, std::pair{util::Tr(L"Selected: %d"), selected}, std::pair{util::Tr(L"Keys: %d"), current_key_count_}})
     {
-        SelectObject(hdc, old_font);
+        swprintf_s(buffer, format, std::max(count, 99999));
+        parts.push_back({buffer});
     }
-    if (hdc)
+    win32ui::SetStatusParts(status_bar_, parts);
+    int part = 0;
+    for (const std::wstring* text : {&path_text, &mode_text, &values_text, &selected_text, &keys_text})
     {
-        ReleaseDC(status_bar_, hdc);
-    }
-
-    int part3 = total_width;
-    int part2 = std::max(part3 - keys_width, 0);
-    int part1 = std::max(part2 - selected_width, 0);
-    int part0 = std::max(part1 - values_width, 0);
-    int path_part = std::max(part0 - mode_width, 0);
-    // the mode part only exists while there is something to report
-    const bool mode = !mode_text.empty();
-    int parts[5] = {path_part, part0, part1, part2, part3};
-    SendMessageW(status_bar_, SB_SETPARTS, mode ? 5 : 4, reinterpret_cast<LPARAM>(mode ? parts : parts + 1));
-    const std::wstring* texts[] = {&path_text, &mode_text, &values_text, &selected_text, &keys_text};
-    for (int part = 0, index = 0; index < 5; ++index)
-    {
-        if (index != 1 || mode)
+        if (text != &mode_text || !mode_text.empty())
         {
-            SendMessageW(status_bar_, SB_SETTEXTW, part++, reinterpret_cast<LPARAM>(texts[index]->c_str()));
+            win32ui::SetStatusText(status_bar_, part++, *text);
         }
     }
 }
@@ -431,13 +402,13 @@ void MainWindow::Impl::SyncRegFileTabSelection()
         StartRegFileParse(entry.reg_file_path, entry.reg_file_session_key);
     }
     const bool fresh = ActivateTabTree(index);
-    // own session, so the tab's roots & undo never land in a registry tab's session
+    // own session keeps roots and undo out of registry tab sessions
     if (!entry.session)
     {
         entry.session = std::make_shared<RegistrySession>();
     }
     session_ = entry.session;
-    UpdateUndoButtons();
+    UpdateToolbarStates();
     std::vector<RegistryRootEntry>& roots = session_->roots;
     roots.clear();
     roots.reserve(entry.reg_file_roots.size());
@@ -509,14 +480,14 @@ void MainWindow::Impl::UpdateSearchResultsView()
     }
     else if (compare && force_redraw)
     {
-        RefreshCompareColumnTitles();
+        ApplySearchColumns(true);
     }
     int max_sort_col = compare ? (show_result ? 4 : 3) : 6;
     if (tab.sort_column > max_sort_col)
     {
         tab.sort_column = -1;
     }
-    appearance::UpdateListViewSort(search_results_list_, tab.sort_column, tab.sort_ascending);
+    win32ui::UpdateListViewSort(search_results_list_, tab.sort_column, tab.sort_ascending);
     size_t count = compare ? tab.compare_rows.size() : tab.results.size();
     size_t old_count = tab.last_ui_count;
     if (force_redraw || count != old_count)
@@ -1641,14 +1612,14 @@ void MainWindow::Impl::CommitReplacePayload(std::unique_ptr<ReplacePayload> payl
     if (session)
     {
         session->undo.Push(std::move(steps));
-        UpdateUndoButtons();
+        UpdateToolbarStates();
     }
-    // the session the replace ran in, a closed source has nothing left to mark
+    // mark changes in the replace session, closed sources have nothing left to mark
     if (session && (!payload->changes.empty() || payload->partial_renames > 0))
     {
         MarkSessionDirty(*session);
     }
-    // renamed keys can be anywhere in the shown tree, not only at the selection
+    // renamed keys can lie anywhere in the visible tree, not just under selection
     if (renamed_keys)
     {
         RefreshWholeTree();

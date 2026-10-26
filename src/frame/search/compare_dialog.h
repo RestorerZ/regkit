@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -32,7 +32,7 @@ struct CompareDialogSelection
     std::wstring file_path;
     std::wstring key_path;
     bool recursive = true;
-    // the .reg file as the dialog already parsed it
+    // already parsed .reg file from the dialog
     std::shared_ptr<const regfile::Document> document;
 };
 

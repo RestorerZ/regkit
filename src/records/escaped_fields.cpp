@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "records/escaped_fields.h"
 
@@ -27,7 +27,7 @@ int HexValue(wchar_t character)
                                                     : -1;
 }
 
-// lone surrogates become \uXXXX so the utf-8 files keep registry names that aren't valid utf-16
+// escape lone surrogates as \uXXXX to preserve invalid UTF-16 registry names in UTF-8 files
 void AppendEscaped(std::wstring* output, std::wstring_view text)
 {
     size_t start = 0;

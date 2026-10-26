@@ -1,7 +1,11 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/query_prompts.h"
+
+#include <win32ui/dialog/dialog_layout.h>
+#include <win32ui/dialog/dialog_metrics.h>
+#include <win32ui/dialog/dialog_window.h>
 
 #include <algorithm>
 #include <vector>
@@ -13,13 +17,9 @@
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
 #include "registry/value_format.h"
-#include "ui/dialog_fit.h"
-#include "ui/dialog_layout.h"
-#include "ui/dialog_metrics.h"
+#include "resource.h"
 #include "ui/feedback.h"
-#include "ui/theme.h"
 #include "win32/translation.h"
-#include "win32/window_metrics.h"
 
 namespace regkit::query_prompts
 {
@@ -55,117 +55,167 @@ std::vector<DataTypeItem> BuildDataTypeItems()
     return items;
 }
 
-struct DataTypesDialogState : appearance::DialogWindow
+// registry types supply the runtime check boxes
+class DataTypesDialog final : public win32ui::DialogWindow
 {
-    HWND select_all = nullptr;
-    HWND clear_all = nullptr;
-    HWND ok_button = nullptr;
-    HWND cancel_button = nullptr;
-    std::vector<DataTypeItem> items;
-    std::vector<HWND> checks;
-    std::vector<DWORD> types;
-    int rows_per_col = 1;
-};
+  public:
+    DataTypesDialog(std::vector<DataTypeItem> items, std::vector<DWORD> types)
+        : items_(std::move(items)), types_(std::move(types))
+    {
+    }
 
-void LayoutDataTypesDialog(HWND hwnd, DataTypesDialogState* state)
-{
-    RECT client = {};
-    GetClientRect(hwnd, &client);
-    using namespace appearance::metrics;
-    const UINT dpi = win32::DpiForWindow(hwnd);
-    const int padding = Scaled(kDialogContentMargin, dpi);
-    int col_w = Scaled(kDataTypesColWidth, dpi);
-    for (HWND check : state->checks)
+    const std::vector<DWORD>& types() const noexcept
     {
-        col_w = std::max(col_w, appearance::TextFitWidth(check));
+        return types_;
     }
-    const int col_gap = Scaled(kBlockGap, dpi);
-    const int row_step = Scaled(kRowPitch, dpi);
-    const int button_h = Scaled(kButtonHeight, dpi);
-    const int button_gap = Scaled(kButtonGap, dpi);
-    const int button_w = Scaled(kButtonMinWidth, dpi);
-    const int select_all_w = std::max(Scaled(100, dpi), appearance::TextFitWidth(state->select_all));
-    const int clear_all_w = std::max(Scaled(90, dpi), appearance::TextFitWidth(state->clear_all));
-    const int btn_y = client.bottom - Scaled(kDialogButtonBottomMargin, dpi) - button_h;
-    const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
-    const int buttons_w = appearance::PlaceButtonRow({state->ok_button, state->cancel_button}, client.right - right_margin, btn_y, button_w, button_h, button_gap);
-    if (appearance::GrowDialogWidth(hwnd, std::max(padding + kDataTypesColCount * (col_w + col_gap) - col_gap, padding + select_all_w + clear_all_w + buttons_w + button_gap * 2) + right_margin))
-    {
-        return;
-    }
-    for (size_t index = 0; index < state->checks.size(); ++index)
-    {
-        const int col = static_cast<int>(index) / state->rows_per_col;
-        const int row = static_cast<int>(index) % state->rows_per_col;
-        appearance::Place(state->checks[index], padding + col * (col_w + col_gap), padding + row * row_step, col_w, Scaled(kCheckHeight, dpi));
-    }
-    appearance::Place(state->select_all, padding, btn_y, select_all_w, button_h);
-    appearance::Place(state->clear_all, padding + select_all_w + button_gap, btn_y, clear_all_w, button_h);
-}
 
-LRESULT CALLBACK DataTypesDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
-{
-    auto* state = appearance::DialogWindowState<DataTypesDialogState>(hwnd);
-    switch (msg)
+  protected:
+    HWND initial_focus() const override
     {
-    case WM_CREATE:
-        for (const auto& item : state->items)
+        return checks_.empty() ? nullptr : checks_.front();
+    }
+
+    void OnCreate() override
+    {
+        // check boxes precede template buttons in tab order
+        HWND previous = HWND_TOP;
+        for (const auto& item : items_)
         {
-            HWND check =
-                CreateWindowExW(0, L"BUTTON", item.label.c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd, nullptr, nullptr, nullptr);
-            const bool checked = state->types.empty() ||
-                                 std::find(state->types.begin(), state->types.end(), item.type) != state->types.end();
+            HWND check = CreateWindowExW(0, L"BUTTON", item.label.c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, hwnd(), nullptr, nullptr, nullptr);
+            SetWindowPos(check, previous, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            previous = check;
+            const bool checked = types_.empty() || std::find(types_.begin(), types_.end(), item.type) != types_.end();
             Button_SetCheck(check, checked ? BST_CHECKED : BST_UNCHECKED);
-            state->checks.push_back(check);
+            // set font for measurement, dialog reapplies it after OnCreate
+            SendMessageW(check, WM_SETFONT, reinterpret_cast<WPARAM>(fonts().ui()), FALSE);
+            checks_.push_back(check);
         }
-        state->select_all =
-            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Select All"), WS_TABSTOP | BS_PUSHBUTTON, 100);
-        state->clear_all =
-            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Clear All"), WS_TABSTOP | BS_PUSHBUTTON, 101);
-        state->ok_button = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"OK"), WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
-        state->cancel_button =
-            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
-        appearance::SetDialogFont(hwnd, state->font);
-        LayoutDataTypesDialog(hwnd, state);
-        return 0;
-    case WM_SIZE:
-        LayoutDataTypesDialog(hwnd, state);
-        return 0;
-    case WM_COMMAND:
-        switch (LOWORD(wparam))
+        select_all_ = GetDlgItem(hwnd(), IDC_DATA_TYPES_SELECT_ALL);
+        clear_all_ = GetDlgItem(hwnd(), IDC_DATA_TYPES_CLEAR_ALL);
+        ok_button_ = GetDlgItem(hwnd(), IDOK);
+        cancel_button_ = GetDlgItem(hwnd(), IDCANCEL);
+        // fit columns within monitor work area, larger fonts use fewer, taller columns
+        MONITORINFO monitor = {sizeof(monitor)};
+        RECT window = {};
+        RECT client = {};
+        if (GetMonitorInfoW(MonitorFromWindow(hwnd(), MONITOR_DEFAULTTONEAREST), &monitor) && GetWindowRect(hwnd(), &window) && GetClientRect(hwnd(), &client))
         {
-        case 100:
-        case 101:
-            for (HWND check : state->checks)
+            const int frame = window.right - window.left - client.right;
+            const int room = monitor.rcWork.right - monitor.rcWork.left - frame;
+            while (columns_ > 1 && ContentWidth(columns_) > room)
             {
-                Button_SetCheck(check, LOWORD(wparam) == 100 ? BST_CHECKED : BST_UNCHECKED);
+                --columns_;
             }
-            return 0;
-        case IDOK:
-            state->types.clear();
-            for (size_t i = 0; i < state->checks.size(); ++i)
+            // template scales with font, beyond the work area use the width needed by columns
+            if (client.right > room)
             {
-                if (Button_GetCheck(state->checks[i]) == BST_CHECKED)
+                SetWindowPos(hwnd(), nullptr, 0, 0, ContentWidth(columns_) + frame, window.bottom - window.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+        }
+        rows_per_col_ = std::max(1, (static_cast<int>(items_.size()) + columns_ - 1) / columns_);
+        win32ui::FitDialogHeight(hwnd(), Px(win32ui::metrics::kDialogContentMargin) + rows_per_col_ * TextPx(win32ui::metrics::kRowPitch) + Px(win32ui::metrics::kButtonGap) + TextPx(win32ui::metrics::kButtonHeight) + Px(win32ui::metrics::kDialogButtonBottomMargin));
+    }
+
+    void OnLayout(int width, int height) override
+    {
+        const int padding = Px(win32ui::metrics::kDialogContentMargin);
+        const int col_gap = Px(win32ui::metrics::kBlockGap);
+        const int row_step = TextPx(win32ui::metrics::kRowPitch);
+        const int button_h = TextPx(win32ui::metrics::kButtonHeight);
+        const int button_gap = Px(win32ui::metrics::kButtonGap);
+        const int button_w = Px(win32ui::metrics::kButtonMinWidth);
+        const int select_all_w = std::max(Px(100), win32ui::TextFitWidth(select_all_));
+        const int clear_all_w = std::max(Px(90), win32ui::TextFitWidth(clear_all_));
+        const int btn_y = height - Px(win32ui::metrics::kDialogButtonBottomMargin) - button_h;
+        const int right_margin = Px(win32ui::metrics::kDialogButtonRightMargin);
+        win32ui::PlaceButtonRow({ok_button_, cancel_button_}, width - right_margin, btn_y, button_w, button_h, button_gap);
+        if (win32ui::GrowDialogWidth(hwnd(), ContentWidth(columns_)))
+        {
+            return;
+        }
+        int x = padding;
+        for (int col = 0; col < columns_; ++col)
+        {
+            const int col_w = ColumnWidth(col, columns_);
+            for (int row = 0; row < rows_per_col_ && col * rows_per_col_ + row < static_cast<int>(checks_.size()); ++row)
+            {
+                win32ui::Place(checks_[static_cast<size_t>(col * rows_per_col_ + row)], x, padding + row * row_step, col_w, TextPx(win32ui::metrics::kCheckHeight));
+            }
+            x += col_w + col_gap;
+        }
+        win32ui::Place(select_all_, padding, btn_y, select_all_w, button_h);
+        win32ui::Place(clear_all_, padding + select_all_w + button_gap, btn_y, clear_all_w, button_h);
+    }
+
+    bool OnCommand(int id, int, HWND) override
+    {
+        switch (id)
+        {
+        case IDC_DATA_TYPES_SELECT_ALL:
+        case IDC_DATA_TYPES_CLEAR_ALL:
+            for (HWND check : checks_)
+            {
+                Button_SetCheck(check, id == IDC_DATA_TYPES_SELECT_ALL ? BST_CHECKED : BST_UNCHECKED);
+            }
+            return true;
+        case IDOK:
+            types_.clear();
+            for (size_t i = 0; i < checks_.size(); ++i)
+            {
+                if (Button_GetCheck(checks_[i]) == BST_CHECKED)
                 {
-                    state->types.push_back(state->items[i].type);
+                    types_.push_back(items_[i].type);
                 }
             }
-            if (state->types.empty())
+            if (types_.empty())
             {
-                ui::ShowWarning(hwnd, util::Tr(L"Select at least one data type."));
-                return 0;
+                ui::ShowWarning(hwnd(), util::Tr(L"Select at least one data type."));
+                return true;
             }
-            appearance::CloseDialogWindow(state, true);
-            return 0;
+            End(IDOK);
+            return true;
         default:
-            break;
+            return false;
         }
-        break;
-    default:
-        break;
     }
-    return appearance::DefDialogWindowProc(hwnd, msg, wparam, lparam);
-}
+
+  private:
+    // widest label in each column, at least kDataTypesColWidth
+    int ColumnWidth(int col, int columns) const
+    {
+        const int count = static_cast<int>(checks_.size());
+        const int rows = std::max(1, (count + columns - 1) / columns);
+        int width = Px(kDataTypesColWidth);
+        for (int index = col * rows; index < std::min(count, (col + 1) * rows); ++index)
+        {
+            width = std::max(width, win32ui::TextFitWidth(checks_[static_cast<size_t>(index)]));
+        }
+        return width;
+    }
+
+    int ContentWidth(int columns) const
+    {
+        const int gap = Px(win32ui::metrics::kBlockGap);
+        const int button_gap = Px(win32ui::metrics::kButtonGap);
+        int checks_w = 0;
+        for (int col = 0; col < columns; ++col)
+        {
+            checks_w += ColumnWidth(col, columns) + (col ? gap : 0);
+        }
+        const int buttons_w = std::max(Px(100), win32ui::TextFitWidth(select_all_)) + std::max(Px(90), win32ui::TextFitWidth(clear_all_)) + 2 * std::max(Px(win32ui::metrics::kButtonMinWidth), std::max(win32ui::TextFitWidth(ok_button_), win32ui::TextFitWidth(cancel_button_))) + 3 * button_gap;
+        return Px(win32ui::metrics::kDialogContentMargin) + std::max(checks_w, buttons_w) + Px(win32ui::metrics::kDialogButtonRightMargin);
+    }
+
+    HWND select_all_ = nullptr;
+    HWND clear_all_ = nullptr;
+    HWND ok_button_ = nullptr;
+    HWND cancel_button_ = nullptr;
+    std::vector<DataTypeItem> items_;
+    std::vector<HWND> checks_;
+    std::vector<DWORD> types_;
+    int columns_ = kDataTypesColCount;
+    int rows_per_col_ = 1;
+};
 
 bool ShowDataTypes(HWND owner, std::vector<DWORD>* types)
 {
@@ -173,132 +223,118 @@ bool ShowDataTypes(HWND owner, std::vector<DWORD>* types)
     {
         return false;
     }
-    using namespace appearance::metrics;
-    DataTypesDialogState state;
-    state.owner = owner;
-    state.items = BuildDataTypeItems();
-    state.types = *types;
-    state.rows_per_col =
-        std::max(1, (static_cast<int>(state.items.size()) + kDataTypesColCount - 1) / kDataTypesColCount);
-    const UINT dpi = win32::DpiForWindow(owner);
-    const int content_w = kDataTypesColCount * kDataTypesColWidth + (kDataTypesColCount - 1) * kBlockGap;
-    const int client_w = Scaled(kDialogContentMargin + content_w + kDialogButtonRightMargin, dpi);
-    const int client_h = Scaled(kDialogContentMargin + state.rows_per_col * kRowPitch + kButtonGap + kButtonHeight + kDialogButtonBottomMargin, dpi);
-    if (!appearance::RunDialogWindow(&state, L"RegKitDataTypesDialog", DataTypesDialogProc, util::Tr(L"Data Types"), appearance::DialogWindowSize(owner, client_w, client_h)))
+    DataTypesDialog dialog(BuildDataTypeItems(), *types);
+    if (dialog.RunModal(owner, MAKEINTRESOURCEW(IDD_DATA_TYPES)) != IDOK)
     {
         return false;
     }
-    *types = state.types;
+    *types = dialog.types();
     return true;
 }
 
-struct BrowseDialogState : appearance::DialogWindow
+// registry tree is created at runtime
+class BrowseKeyDialog final : public win32ui::DialogWindow
 {
-    HWND ok_button = nullptr;
-    HWND cancel_button = nullptr;
-    RegistryTree tree;
-    std::wstring selected_path;
-};
-
-LRESULT CALLBACK BrowseDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
-{
-    auto* state = appearance::DialogWindowState<BrowseDialogState>(hwnd);
-    switch (msg)
+  public:
+    const std::wstring& selected_path() const noexcept
     {
-    case WM_CREATE:
-        state->ok_button = appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"OK"), WS_TABSTOP | BS_DEFPUSHBUTTON, IDOK);
-        state->cancel_button =
-            appearance::CreateControl(hwnd, L"BUTTON", util::Tr(L"Cancel"), WS_TABSTOP | BS_PUSHBUTTON, IDCANCEL);
-        state->tree.Create(hwnd, GetModuleHandleW(nullptr), 1);
-        state->tree.PopulateRoots(RegistryStore::DefaultRoots());
-        ShowWindow(state->tree.hwnd(), SW_SHOW);
-        state->focus = state->tree.hwnd();
-        appearance::SetDialogFont(hwnd, state->font);
-        return 0;
-    case WM_SIZE:
-        {
-            using namespace appearance::metrics;
-            const UINT dpi = win32::DpiForWindow(hwnd);
-            const int margin = Scaled(kDialogContentMargin, dpi);
-            const int button_h = Scaled(kButtonHeight, dpi);
-            const int right_margin = Scaled(kDialogButtonRightMargin, dpi);
-            const int width = LOWORD(lparam);
-            const int bottom_y = HIWORD(lparam) - Scaled(kDialogButtonBottomMargin, dpi) - button_h;
-            appearance::Place(state->tree.hwnd(), margin, margin, width - margin * 2, std::max(0, bottom_y - Scaled(kBlockGap, dpi) - margin));
-            const int buttons_w = appearance::PlaceButtonRow({state->ok_button, state->cancel_button}, width - right_margin, bottom_y, Scaled(kButtonMinWidth, dpi), button_h, Scaled(kButtonGap, dpi));
-            appearance::GrowDialogWidth(hwnd, margin + buttons_w + right_margin);
-            return 0;
-        }
-    case WM_NOTIFY:
-        {
-            auto* hdr = reinterpret_cast<NMHDR*>(lparam);
-            if (hdr->hwndFrom != state->tree.hwnd())
-            {
-                break;
-            }
-            switch (hdr->code)
-            {
-            case TVN_ITEMEXPANDINGW:
-                state->tree.OnItemExpanding(reinterpret_cast<NMTREEVIEWW*>(lparam));
-                return 0;
-            case TVN_GETDISPINFOW:
-                state->tree.OnGetDispInfo(reinterpret_cast<NMTVDISPINFOW*>(lparam));
-                return 0;
-            case TVN_SELCHANGEDW:
-                if (RegistryNode* node = state->tree.OnSelectionChanged(reinterpret_cast<NMTREEVIEWW*>(lparam)))
-                {
-                    state->selected_path = registry_path::Build(*node);
-                }
-                return 0;
-            case NM_CUSTOMDRAW:
-                {
-                    auto* draw = reinterpret_cast<NMTVCUSTOMDRAW*>(lparam);
-                    if (draw->nmcd.dwDrawStage == CDDS_PREPAINT)
-                    {
-                        return CDRF_NOTIFYITEMDRAW;
-                    }
-                    if (draw->nmcd.dwDrawStage == CDDS_ITEMPREPAINT && !(draw->nmcd.uItemState & CDIS_SELECTED))
-                    {
-                        draw->clrText = Theme::Current().TextColor();
-                        draw->clrTextBk = Theme::Current().PanelColor();
-                        return CDRF_NEWFONT;
-                    }
-                    return CDRF_DODEFAULT;
-                }
-            default:
-                break;
-            }
-            break;
-        }
-    case WM_COMMAND:
-        if (LOWORD(wparam) == IDOK)
-        {
-            if (state->selected_path.empty())
-            {
-                ui::ShowWarning(hwnd, util::Tr(L"Select a key."));
-                return 0;
-            }
-            appearance::CloseDialogWindow(state, true);
-            return 0;
-        }
-        break;
-    default:
-        break;
+        return selected_path_;
     }
-    return appearance::DefDialogWindowProc(hwnd, msg, wparam, lparam);
-}
+
+  protected:
+    void OnCreate() override
+    {
+        // keep outer size at 420 by 420 DIPs regardless of frame metrics, opening size is the resize minimum
+        SetWindowPos(hwnd(), nullptr, 0, 0, Px(420), Px(420), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        ok_button_ = GetDlgItem(hwnd(), IDOK);
+        cancel_button_ = GetDlgItem(hwnd(), IDCANCEL);
+        tree_.Create(hwnd(), GetModuleHandleW(nullptr), IDC_BROWSE_KEY_TREE);
+        tree_.PopulateRoots(RegistryStore::DefaultRoots());
+        // tree precedes template buttons in tab order
+        SetWindowLongPtrW(tree_.hwnd(), GWL_STYLE, GetWindowLongPtrW(tree_.hwnd(), GWL_STYLE) | WS_TABSTOP);
+        SetWindowPos(tree_.hwnd(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        ShowWindow(tree_.hwnd(), SW_SHOW);
+    }
+
+    HWND initial_focus() const override
+    {
+        return tree_.hwnd();
+    }
+
+    void OnLayout(int width, int height) override
+    {
+        const int margin = Px(win32ui::metrics::kDialogContentMargin);
+        const int button_h = TextPx(win32ui::metrics::kButtonHeight);
+        const int right_margin = Px(win32ui::metrics::kDialogButtonRightMargin);
+        const int bottom_y = height - Px(win32ui::metrics::kDialogButtonBottomMargin) - button_h;
+        win32ui::Place(tree_.hwnd(), margin, margin, width - margin * 2, std::max(0, bottom_y - Px(win32ui::metrics::kBlockGap) - margin));
+        const int buttons_w = win32ui::PlaceButtonRow({ok_button_, cancel_button_}, width - right_margin, bottom_y, Px(win32ui::metrics::kButtonMinWidth), button_h, Px(win32ui::metrics::kButtonGap));
+        win32ui::GrowDialogWidth(hwnd(), margin + buttons_w + right_margin);
+    }
+
+    LRESULT OnNotify(NMHDR* header, bool* handled) override
+    {
+        *handled = false;
+        if (header->hwndFrom != tree_.hwnd())
+        {
+            return 0;
+        }
+        switch (header->code)
+        {
+        case TVN_ITEMEXPANDINGW:
+            *handled = true;
+            tree_.OnItemExpanding(reinterpret_cast<NMTREEVIEWW*>(header));
+            return 0;
+        case TVN_GETDISPINFOW:
+            *handled = true;
+            tree_.OnGetDispInfo(reinterpret_cast<NMTVDISPINFOW*>(header));
+            return 0;
+        case TVN_SELCHANGEDW:
+            *handled = true;
+            if (RegistryNode* node = tree_.OnSelectionChanged(reinterpret_cast<NMTREEVIEWW*>(header)))
+            {
+                selected_path_ = registry_path::Build(*node);
+            }
+            return 0;
+        default:
+            return 0;
+        }
+    }
+
+    bool OnCommand(int id, int, HWND) override
+    {
+        if (id != IDOK)
+        {
+            return false;
+        }
+        if (selected_path_.empty())
+        {
+            ui::ShowWarning(hwnd(), util::Tr(L"Select a key."));
+            return true;
+        }
+        End(IDOK);
+        return true;
+    }
+
+  private:
+    HWND ok_button_ = nullptr;
+    HWND cancel_button_ = nullptr;
+    RegistryTree tree_;
+    std::wstring selected_path_;
+};
 
 bool ShowRegistryKey(HWND owner, std::wstring* selected_path)
 {
-    BrowseDialogState state;
-    state.owner = owner;
-    const UINT dpi = win32::DpiForWindow(owner);
-    if (!selected_path ||
-        !appearance::RunDialogWindow(&state, L"RegKitBrowseKeyDialog", BrowseDialogProc, util::Tr(L"Browse Key"), {appearance::metrics::Scaled(420, dpi), appearance::metrics::Scaled(420, dpi)}, WS_SIZEBOX))
+    if (!selected_path)
     {
         return false;
     }
-    *selected_path = state.selected_path;
+    BrowseKeyDialog dialog;
+    if (dialog.RunModal(owner, MAKEINTRESOURCEW(IDD_BROWSE_KEY)) != IDOK)
+    {
+        return false;
+    }
+    *selected_path = dialog.selected_path();
     return true;
 }
 

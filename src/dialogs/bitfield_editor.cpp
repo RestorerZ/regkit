@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/bitfield_editor.h"
 
@@ -11,13 +11,18 @@
 #include "ui/dialog_support.h"
 #include "ui/feedback.h"
 #include "ui/list_view_support.h"
-#include "ui/theme.h"
 #include "win32/file_dialog.h"
 #include "win32/translation.h"
-#include "win32/window_metrics.h"
 
 #include "resource.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/dialog/combo_box.h>
+#include <win32ui/dialog/dialog_window.h>
+#include <win32ui/dialog/message_dialog.h>
+#include <win32ui/list_view/sort.h>
+#include <win32ui/menu/popup_menu.h>
+#include <win32ui/window_metrics.h>
 
 #include <commctrl.h>
 
@@ -47,9 +52,8 @@ constexpr int kMenuDisable = 101;
 constexpr int kMenuEditField = 102;
 constexpr int kMenuRemoveField = 103;
 constexpr int kMenuCopyMask = 104;
-constexpr int kMenuCopyRow = 105;
-constexpr int kMenuSelectAll = 106;
-constexpr int kMenuClearAll = 107;
+constexpr int kMenuSetAllBits = 106;
+constexpr int kMenuClearAllBits = 107;
 constexpr int kMenuStateBase = 200;
 
 struct Editor
@@ -71,8 +75,6 @@ struct Editor
     util::SortKeys sort_earlier;
     std::vector<Definition> choices;
     int choice = 0;
-    HFONT ui_font = nullptr;
-    appearance::DialogResizer resizer;
 
     Definition& definition()
     {
@@ -89,7 +91,7 @@ const std::wstring& RowMeaning(const Field& field, uint64_t value);
 bool BitForRow(HWND list, int row, unsigned* bit)
 {
     LPARAM data = 0;
-    if (!bit || appearance::ListViewItemData(list, row, &data) < 0 || data < 0)
+    if (!bit || !win32ui::ListViewItemData(list, row, &data) || data < 0)
     {
         return false;
     }
@@ -99,7 +101,7 @@ bool BitForRow(HWND list, int row, unsigned* bit)
 
 int RowForBit(HWND list, unsigned bit)
 {
-    return appearance::FindListViewItemByData(list, static_cast<LPARAM>(bit));
+    return win32ui::FindListViewItemByData(list, static_cast<LPARAM>(bit));
 }
 
 int CALLBACK CompareBitRows(LPARAM left_data, LPARAM right_data, int column, void* context)
@@ -149,7 +151,7 @@ int CALLBACK CompareBitRows(LPARAM left_data, LPARAM right_data, int column, voi
 
 void SortBitRows(HWND list, Editor* editor, int column, bool toggle)
 {
-    appearance::SortListViewItems(list, column, toggle, &editor->sort_column, &editor->sort_ascending, &editor->sort_earlier, CompareBitRows, editor);
+    win32ui::SortListViewItems(list, column, toggle, &editor->sort_column, &editor->sort_ascending, &editor->sort_earlier, CompareBitRows, editor);
 }
 
 uint64_t ReadWindow(const Editor& editor)
@@ -320,7 +322,7 @@ void RefreshCombo(HWND dialog, Editor* editor)
     }
     SendMessageW(combo, WM_SETREDRAW, TRUE, 0);
     InvalidateRect(combo, nullptr, TRUE);
-    dialog_support::FitDroppedWidth(combo);
+    win32ui::FitDroppedWidth(combo);
     editor->updating_combo = false;
 }
 
@@ -639,28 +641,28 @@ void SetAllBits(HWND dialog, Editor* editor, bool set)
     UpdateValueText(dialog, *editor);
 }
 
-void ShowRowMenu(HWND dialog, Editor* editor, int row, POINT screen)
+bool BitRowMenu(void*, HWND list, int row, POINT screen)
 {
-    if (row < 0 || static_cast<unsigned>(row) >= editor->width)
+    const HWND dialog = GetParent(list);
+    auto* editor = reinterpret_cast<Editor*>(GetWindowLongPtrW(dialog, DWLP_USER));
+    if (!editor)
     {
-        return;
+        return false;
     }
+    // empty space menus target the selected bit
     unsigned bit = 0;
-    if (!BitForRow(GetDlgItem(dialog, IDC_BITFIELD_LIST), row, &bit) || bit >= editor->width)
-    {
-        return;
-    }
-    const bool set = (editor->value >> bit) & 1ull;
-    const Definition& definition = editor->definition();
-    const Field* field = definition.FieldForBit(bit);
+    const bool has_bit = BitForRow(list, row >= 0 ? row : ListView_GetNextItem(list, -1, LVNI_SELECTED), &bit) && bit < editor->width;
+    const bool set = has_bit && ((editor->value >> bit) & 1ull);
+    const Field* field = has_bit ? editor->definition().FieldForBit(bit) : nullptr;
     HMENU menu = CreatePopupMenu();
     if (!menu)
     {
-        return;
+        return true;
     }
     const UINT edit_flags = editor->read_only ? MF_GRAYED : 0;
-    AppendMenuW(menu, MF_STRING | edit_flags | (set ? MF_GRAYED : 0), kMenuEnable, util::Tr(L"Enable Bit"));
-    AppendMenuW(menu, MF_STRING | edit_flags | (set ? 0 : MF_GRAYED), kMenuDisable, util::Tr(L"Disable Bit"));
+    const UINT bit_flags = has_bit ? 0 : MF_GRAYED;
+    AppendMenuW(menu, MF_STRING | edit_flags | bit_flags | (set ? MF_GRAYED : 0), kMenuEnable, util::Tr(L"Enable &Bit"));
+    AppendMenuW(menu, MF_STRING | edit_flags | bit_flags | (set ? 0 : MF_GRAYED), kMenuDisable, util::Tr(L"&Disable Bit"));
     if (field && !field->states.empty())
     {
         HMENU states = CreatePopupMenu();
@@ -668,46 +670,47 @@ void ShowRowMenu(HWND dialog, Editor* editor, int row, POINT screen)
         for (size_t i = 0; i < field->states.size(); ++i)
         {
             const bitfield::State& state = field->states[i];
-            std::wstring label = state.name + L"   (" + std::to_wstring(state.value) + L")";
+            std::wstring label = win32ui::MenuName(state.name) + L"   (" + std::to_wstring(state.value) + L")";
             AppendMenuW(states, MF_STRING | edit_flags | (state.value == current ? MF_CHECKED : 0), kMenuStateBase + i, label.c_str());
         }
-        AppendMenuW(menu, MF_POPUP | edit_flags, reinterpret_cast<UINT_PTR>(states), util::Tr(L"Set Field To"));
+        AppendMenuW(menu, MF_POPUP | edit_flags, reinterpret_cast<UINT_PTR>(states), util::Tr(L"Set &Field To"));
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING | edit_flags, kMenuSelectAll, util::Tr(L"Select All"));
-    AppendMenuW(menu, MF_STRING | edit_flags, kMenuClearAll, util::Tr(L"Clear All"));
+    AppendMenuW(menu, MF_STRING | edit_flags, kMenuSetAllBits, util::Tr(L"&Set All Bits"));
+    AppendMenuW(menu, MF_STRING | edit_flags, kMenuClearAllBits, util::Tr(L"C&lear All Bits"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, kMenuEditField, field ? util::Tr(L"Edit Field...") : util::Tr(L"Describe Bit..."));
-    AppendMenuW(menu, MF_STRING | (field ? 0 : MF_GRAYED), kMenuRemoveField, util::Tr(L"Remove Field"));
+    AppendMenuW(menu, MF_STRING | bit_flags, kMenuEditField, field ? util::Tr(L"&Edit Field...") : util::Tr(L"Describe Bit..."));
+    AppendMenuW(menu, MF_STRING | (field ? 0 : MF_GRAYED), kMenuRemoveField, util::Tr(L"&Remove Field"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, kMenuCopyMask, util::Tr(L"Copy Mask"));
-    AppendMenuW(menu, MF_STRING, kMenuCopyRow, util::Tr(L"Copy Row"));
+    AppendMenuW(menu, MF_STRING | bit_flags, kMenuCopyMask, util::Tr(L"Copy &Mask"));
+    appearance::AppendRowMenuCommands(menu, list);
 
-    const int chosen = appearance::TrackContextMenu(menu, screen, dialog);
+    const int chosen = win32ui::TrackContextMenu(menu, screen, dialog);
+    if (appearance::RunRowMenuCommand(list, chosen))
+    {
+        return true;
+    }
     switch (chosen)
     {
-    case kMenuSelectAll:
-    case kMenuClearAll:
-        SetAllBits(dialog, editor, chosen == kMenuSelectAll);
-        return;
+    case kMenuSetAllBits:
+    case kMenuClearAllBits:
+        SetAllBits(dialog, editor, chosen == kMenuSetAllBits);
+        return true;
     case kMenuEnable:
         SetBit(dialog, editor, bit, true);
-        return;
+        return true;
     case kMenuDisable:
         SetBit(dialog, editor, bit, false);
-        return;
+        return true;
     case kMenuEditField:
         EditRowField(dialog, editor, bit);
-        return;
+        return true;
     case kMenuRemoveField:
         RemoveRowField(dialog, editor, bit);
-        return;
+        return true;
     case kMenuCopyMask:
-        ui::CopyTextToClipboard(dialog, MaskText(editor->width, 1ull << bit));
-        return;
-    case kMenuCopyRow:
-        ui::CopyTextToClipboard(dialog, appearance::SelectedRowsText(GetDlgItem(dialog, IDC_BITFIELD_LIST)));
-        return;
+        win32ui::CopyTextToClipboard(dialog, MaskText(editor->width, 1ull << bit));
+        return true;
     default:
         break;
     }
@@ -715,6 +718,7 @@ void ShowRowMenu(HWND dialog, Editor* editor, int row, POINT screen)
     {
         ApplyState(dialog, editor, bit, static_cast<size_t>(chosen - kMenuStateBase));
     }
+    return true;
 }
 
 void HandleItemChanged(HWND dialog, Editor* editor, const NMLISTVIEW* info)
@@ -778,7 +782,6 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     {
         editor = reinterpret_cast<Editor*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(editor));
-        SetWindowTextW(dialog, util::Tr(L"Edit Bits"));
         SetDlgItemTextW(dialog, IDC_VALUE_NAME, editor->value_name.empty() ? util::Tr(L"(Default)") : registry_path::DisplayName(editor->value_name).c_str());
         SendDlgItemMessageW(dialog, IDC_VALUE_NAME, EM_SETREADONLY, TRUE, 0);
         SendDlgItemMessageW(dialog, IDC_BITFIELD_COMMENT, EM_SETREADONLY, TRUE, 0);
@@ -786,65 +789,37 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         SetWindowLongPtrW(name, GWL_STYLE, GetWindowLongPtrW(name, GWL_STYLE) & ~WS_TABSTOP);
         if (editor->read_only)
         {
-            EnableWindow(GetDlgItem(dialog, IDC_BITFIELD_SELECT_ALL), FALSE);
+            EnableWindow(GetDlgItem(dialog, IDC_BITFIELD_SET_ALL), FALSE);
             EnableWindow(GetDlgItem(dialog, IDC_BITFIELD_CLEAR_ALL), FALSE);
             EnableWindow(GetDlgItem(dialog, IDOK), FALSE);
         }
+        static const win32ui::ListViewHooks hooks = appearance::DialogListHooks(BitRowMenu);
         dialog_support::SetupListView(
             GetDlgItem(dialog, IDC_BITFIELD_LIST),
+            &hooks,
             editor->read_only ? 0u : static_cast<DWORD>(LVS_EX_CHECKBOXES),
             {{util::Tr(L"Bit"), 44}, {util::Tr(L"Mask"), 150}, {util::Tr(L"State"), 62}, {util::Tr(L"Field"), 160}, {util::Tr(L"Value"), 110}, {util::Tr(L"Meaning"), 420}}
         );
         PopulateChoices(dialog, editor);
-        dialog_support::Initialize(dialog, &editor->ui_font, {IDC_VALUE_NAME, IDC_BITFIELD_COMMENT});
-        appearance::RefreshListView(GetDlgItem(dialog, IDC_BITFIELD_LIST));
-        using namespace appearance;
-        editor->resizer.Attach(dialog, {
-                                           {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                           {IDC_VALUE_BYTES_LABEL, kAnchorTop | kAnchorRight},
-                                           {IDC_VALUE_BYTES, kAnchorTop | kAnchorRight},
-                                           {IDC_BITFIELD_DEFINITION, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                           {IDC_BITFIELD_LOAD, kAnchorTop | kAnchorRight},
-                                           {IDC_BITFIELD_NEW, kAnchorTop | kAnchorRight},
-                                           {IDC_BITFIELD_EDIT_DEF, kAnchorTop | kAnchorRight},
-                                           {IDC_BITFIELD_SAVE_AS, kAnchorTop | kAnchorRight},
-                                           {IDC_BITFIELD_COMMENT, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                           {IDC_BITFIELD_LIST, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                           {IDC_BITFIELD_SELECT_ALL, kAnchorLeft | kAnchorBottom},
-                                           {IDC_BITFIELD_CLEAR_ALL, kAnchorLeft | kAnchorBottom},
-                                           {IDOK, kAnchorRight | kAnchorBottom},
-                                           {IDCANCEL, kAnchorRight | kAnchorBottom},
-                                       });
+        win32ui::AnchorDialogControls(dialog, {
+                                                  {IDC_VALUE_NAME, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_VALUE_BYTES_LABEL, win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_VALUE_BYTES, win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_BITFIELD_DEFINITION, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_BITFIELD_LOAD, win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_BITFIELD_NEW, win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_BITFIELD_EDIT_DEF, win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_BITFIELD_SAVE_AS, win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_BITFIELD_COMMENT, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_BITFIELD_LIST, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                  {IDC_BITFIELD_SET_ALL, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                  {IDC_BITFIELD_CLEAR_ALL, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                  {IDOK, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                  {IDCANCEL, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                              });
         ApplyChoice(dialog, editor, editor->choices.size() > 1 ? 1 : 0);
         SetFocus(GetDlgItem(dialog, IDC_BITFIELD_LIST));
         return FALSE;
-    }
-    if (message == WM_DESTROY)
-    {
-        if (editor)
-        {
-            dialog_support::ReleaseFont(&editor->ui_font);
-        }
-        appearance::ReleaseListViews(dialog);
-        return TRUE;
-    }
-    if (message == WM_SIZE && editor)
-    {
-        editor->resizer.Apply(dialog);
-        appearance::LayoutListViews(dialog);
-        return TRUE;
-    }
-    if (message == WM_GETMINMAXINFO && editor)
-    {
-        editor->resizer.ClampMinSize(reinterpret_cast<MINMAXINFO*>(lparam));
-        return TRUE;
-    }
-    if (message == WM_CONTEXTMENU && editor && reinterpret_cast<HWND>(wparam) == GetDlgItem(dialog, IDC_BITFIELD_LIST))
-    {
-        POINT screen = {};
-        const int row = appearance::ContextMenuRow(reinterpret_cast<HWND>(wparam), lparam, &screen);
-        ShowRowMenu(dialog, editor, row, screen);
-        return TRUE;
     }
     if (message == WM_NOTIFY && editor)
     {
@@ -860,30 +835,12 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
             HandleItemChanged(dialog, editor, reinterpret_cast<NMLISTVIEW*>(lparam));
             return TRUE;
         }
-        INT_PTR drawn = 0;
-        if (dialog_support::HandleListViewNotify(dialog, header, &drawn))
-        {
-            return drawn;
-        }
-    }
-    INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed))
-    {
-        if (message == WM_SETTINGCHANGE)
-        {
-            appearance::RefreshListView(GetDlgItem(dialog, IDC_BITFIELD_LIST));
-        }
-        return themed;
     }
     if (message != WM_COMMAND || !editor)
     {
         return FALSE;
     }
     const int id = LOWORD(wparam);
-    if (appearance::HandleListViewCommand(dialog, id))
-    {
-        return TRUE;
-    }
     if (id == IDC_BITFIELD_DEFINITION)
     {
         const HWND combo = GetDlgItem(dialog, IDC_BITFIELD_DEFINITION);
@@ -929,7 +886,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     case IDC_BITFIELD_SAVE_AS:
         SaveCurrent(dialog, editor);
         return TRUE;
-    case IDC_BITFIELD_SELECT_ALL:
+    case IDC_BITFIELD_SET_ALL:
         SetAllBits(dialog, editor, true);
         return TRUE;
     case IDC_BITFIELD_CLEAR_ALL:
@@ -940,11 +897,11 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         {
             WriteWindow(editor);
             editor->accepted = true;
-            EndDialog(dialog, IDOK);
+            win32ui::EndDialogWindow(dialog, IDOK);
         }
         return TRUE;
     case IDCANCEL:
-        EndDialog(dialog, IDCANCEL);
+        win32ui::EndDialogWindow(dialog, IDCANCEL);
         return TRUE;
     default:
         return FALSE;
@@ -983,7 +940,7 @@ bool EditBitfield(HWND owner, const BitfieldRequest& request, BitfieldResult* re
         WriteWindow(&editor);
     }
 
-    const INT_PTR outcome = dialog_support::Modal(owner, IDD_BITFIELD, DialogProc, reinterpret_cast<LPARAM>(&editor));
+    const INT_PTR outcome = win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_BITFIELD), DialogProc, reinterpret_cast<LPARAM>(&editor));
     if (outcome != IDOK || !editor.accepted)
     {
         return false;

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "workspace/settings.h"
 
@@ -7,8 +7,15 @@
 #include "win32/file_text.h"
 #include "win32/text_transform.h"
 
+#include <win32ui/system_api.h>
+#include <win32ui/window_metrics.h>
+
+#include <shellscalingapi.h>
+
 #include <algorithm>
 #include <cwchar>
+#include <limits>
+#include <optional>
 #include <span>
 
 namespace regkit::workspace
@@ -127,10 +134,42 @@ void Line(std::wstring* output, std::wstring_view key, std::wstring_view value)
     output->append(key).append(L"=").append(value).append(L"\n");
 }
 
-} // namespace
-
-Settings ParseSettings(const std::wstring& content, Settings settings)
+UINT LegacySizeDpi(const Settings& settings)
 {
+    if (settings.window_placement_present && settings.window_width > 0 && settings.window_height > 0 &&
+        settings.window_x <= std::numeric_limits<int>::max() - settings.window_width &&
+        settings.window_y <= std::numeric_limits<int>::max() - settings.window_height)
+    {
+        const RECT rect = {settings.window_x, settings.window_y, settings.window_x + settings.window_width, settings.window_y + settings.window_height};
+        const HMONITOR monitor = MonitorFromRect(&rect, MONITOR_DEFAULTTONEAREST);
+        const HMODULE module = LoadLibraryExW(L"shcore.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+        const auto get_monitor_dpi = win32ui::ImportProc<HRESULT(WINAPI*)(HMONITOR, MONITOR_DPI_TYPE, UINT*, UINT*)>(module, "GetDpiForMonitor");
+        UINT dpi_x = 0;
+        UINT dpi_y = 0;
+        const HRESULT result = monitor && get_monitor_dpi ? get_monitor_dpi(monitor, MDT_EFFECTIVE_DPI, &dpi_x, &dpi_y) : E_NOTIMPL;
+        if (module)
+        {
+            FreeLibrary(module);
+        }
+        if (SUCCEEDED(result) && dpi_x > 0)
+        {
+            return dpi_x;
+        }
+    }
+    return win32ui::DpiForWindow(nullptr);
+}
+
+int SizeInDip(int value, UINT dpi)
+{
+    return value > 0 ? std::max(1, win32ui::Unscale(value, dpi)) : value;
+}
+
+Settings ParseSettingsContent(const std::wstring& content, Settings settings, std::optional<UINT> legacy_dpi)
+{
+    bool sizes_in_dip = false;
+    bool tree_width_present = false;
+    bool history_height_present = false;
+    std::vector<bool> column_width_present;
     for (const std::wstring_view line : record_fields::Lines(content))
     {
         const size_t separator = line.find(L'=');
@@ -151,6 +190,8 @@ Settings ParseSettings(const std::wstring& content, Settings settings)
             if (number > 0)
             {
                 settings.*(positive_field->member) = number;
+                tree_width_present = tree_width_present || positive_field->member == &Settings::tree_width;
+                history_height_present = history_height_present || positive_field->member == &Settings::history_height;
             }
         }
         else if (const auto* placement_field = FindField<IntField>(key, kPlacementFields))
@@ -161,6 +202,10 @@ Settings ParseSettings(const std::wstring& content, Settings settings)
         else if (const auto* text_field = FindField<TextField>(key, kTextFields))
         {
             settings.*(text_field->member) = value;
+        }
+        else if (util::EqualsInsensitive(key, L"size_units"))
+        {
+            sizes_in_dip = util::EqualsInsensitive(value, L"dip");
         }
         else if (util::EqualsInsensitive(key, L"window_maximized"))
         {
@@ -192,10 +237,30 @@ Settings ParseSettings(const std::wstring& content, Settings settings)
         else if (Indexed(key, L"value_column_width_", &index))
         {
             SetIndexed(&settings.value_column_widths, index, number);
+            SetIndexed(&column_width_present, index, true);
         }
         else if (Indexed(key, L"value_column_visible_", &index))
         {
             SetIndexed(&settings.value_column_visible, index, util::ParseBool(value), true);
+        }
+    }
+    if (legacy_dpi && !sizes_in_dip)
+    {
+        const UINT dpi = *legacy_dpi ? *legacy_dpi : LegacySizeDpi(settings);
+        if (tree_width_present)
+        {
+            settings.tree_width = SizeInDip(settings.tree_width, dpi);
+        }
+        if (history_height_present)
+        {
+            settings.history_height = SizeInDip(settings.history_height, dpi);
+        }
+        for (size_t index = 0; index < column_width_present.size(); ++index)
+        {
+            if (column_width_present[index])
+            {
+                settings.value_column_widths[index] = SizeInDip(settings.value_column_widths[index], dpi);
+            }
         }
     }
     if (settings.always_run_as_trustedinstaller)
@@ -210,9 +275,17 @@ Settings ParseSettings(const std::wstring& content, Settings settings)
     return settings;
 }
 
+} // namespace
+
+Settings ParseSettings(const std::wstring& content, Settings settings)
+{
+    return ParseSettingsContent(content, std::move(settings), std::nullopt);
+}
+
 std::wstring SerializeSettings(const Settings& settings)
 {
     std::wstring content;
+    Line(&content, L"size_units", L"dip");
     for (const BoolField& field : kBoolFields)
     {
         Line(&content, field.key, settings.*(field.member) ? L"1" : L"0");
@@ -295,7 +368,7 @@ bool LoadSettings(const std::wstring& path, Settings* settings)
     {
         return false;
     }
-    *settings = ParseSettings(content, std::move(*settings));
+    *settings = ParseSettingsContent(content, std::move(*settings), 0);
     return true;
 }
 

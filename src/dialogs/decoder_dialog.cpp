@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/decoder_dialog.h"
 
@@ -10,11 +10,15 @@
 #include "ui/dialog_layout.h"
 #include "ui/dialog_support.h"
 #include "ui/feedback.h"
-#include "ui/list_view_support.h"
 
 #include "resource.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
+
+#include <win32ui/dialog/dialog_layout.h>
+#include <win32ui/dialog/dialog_window.h>
+#include <win32ui/dialog/message_dialog.h>
+#include <win32ui/list_view/list_view.h>
 
 #include <algorithm>
 #include <span>
@@ -41,14 +45,12 @@ struct State
     std::vector<DecoderEntry> decoders;
     TransformId transform = TransformId::kNone;
     std::wstring output;
-    HFONT ui_font = nullptr;
     HFONT mono_font = nullptr;
-    appearance::DialogResizer resizer;
 };
 
 const std::vector<BYTE>& Bytes(const State& state)
 {
-    // no transform reads original bytes without making a copy
+    // no transform uses original bytes without copying
     return state.transform == TransformId::kNone ? state.request->data : state.transformed;
 }
 
@@ -98,12 +100,18 @@ void ShowOutput(HWND dialog, State* state, std::wstring text, const std::vector<
         ListView_InsertItem(list, &item);
         ListView_SetItemText(list, static_cast<int>(i), 1, const_cast<wchar_t*>((*fields)[i].value.c_str()));
     }
-    appearance::FitListColumn(list, 0);
-    ListView_SetColumnWidth(list, 1, LVSCW_AUTOSIZE_USEHEADER);
+    // keep user hidden columns hidden
+    if (ListView_GetColumnWidth(list, 0) > 0)
+    {
+        win32ui::FitListColumn(list, 0);
+    }
+    if (ListView_GetColumnWidth(list, 1) > 0)
+    {
+        ListView_SetColumnWidth(list, 1, LVSCW_AUTOSIZE_USEHEADER);
+    }
     SendMessageW(list, WM_SETREDRAW, TRUE, 0);
     ShowWindow(list, fields ? SW_SHOW : SW_HIDE);
     ShowWindow(GetDlgItem(dialog, IDC_EDIT), fields ? SW_HIDE : SW_SHOW);
-    appearance::LayoutListViews(dialog);
 }
 
 void RunDecoder(HWND dialog, State* state)
@@ -194,74 +202,41 @@ void ConfigureIdentity(HWND dialog, const DecodeRequest& request)
 INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam)
 {
     auto* state = reinterpret_cast<State*>(GetWindowLongPtrW(dialog, DWLP_USER));
+    if (message == WM_SETFONT && state)
+    {
+        dialog_support::FollowDialogFont(dialog, reinterpret_cast<HFONT>(wparam), &state->mono_font, {IDC_EDIT});
+        return FALSE;
+    }
     if (message == WM_INITDIALOG)
     {
         state = reinterpret_cast<State*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-        SetWindowTextW(dialog, util::Tr(L"Decode Value"));
-        SetDlgItemTextW(dialog, IDC_VALUE_NAME_LABEL, util::Tr(L"Name:"));
-        SetDlgItemTextW(dialog, IDC_LABEL, util::Tr(L"Encoding:"));
-        SetDlgItemTextW(dialog, IDC_NOTE, util::Tr(L"Interpret as:"));
         ConfigureIdentity(dialog, *state->request);
         SendDlgItemMessageW(dialog, IDC_EDIT, EM_SETREADONLY, TRUE, 0);
         state->transforms = value_decoder::AvailableTransforms(state->request->type, state->request->data);
         FillCombo(dialog, IDC_DECODE_ENCODING, state->transforms, 0);
-        dialog_support::Initialize(dialog, &state->ui_font, {IDC_VALUE_NAME, IDC_EDIT});
+        // type/size summary was set after fitting template text
+        win32ui::FitDialogText(dialog);
         state->mono_font = dialog_support::ApplyMonoFont(dialog, {IDC_EDIT});
-        dialog_support::SetupListView(GetDlgItem(dialog, IDC_DECODE_FIELDS), 0, {{util::Tr(L"Property"), 140}, {util::Tr(L"Value"), 200}});
-        using namespace appearance;
-        state->resizer.Attach(dialog, {
-                                          {IDC_VALUE_NAME, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                          {IDC_VALUE_BYTES, kAnchorTop | kAnchorRight},
-                                          {IDC_DECODE_ENCODING, kAnchorLeft | kAnchorTop},
-                                          {IDC_DECODE_FORMAT, kAnchorLeft | kAnchorTop},
-                                          {IDC_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                          {IDC_DECODE_FIELDS, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                                          {IDOK, kAnchorRight | kAnchorBottom},
-                                          {IDCANCEL, kAnchorRight | kAnchorBottom},
-                                      });
+        dialog_support::SetupListView(GetDlgItem(dialog, IDC_DECODE_FIELDS), nullptr, 0, {{util::Tr(L"Property"), 140}, {util::Tr(L"Value"), 200}});
+        win32ui::AnchorDialogControls(dialog, {
+                                                  {IDC_VALUE_NAME, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_VALUE_BYTES, win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_DECODE_ENCODING, win32ui::kAnchorLeft | win32ui::kAnchorTop},
+                                                  {IDC_DECODE_FORMAT, win32ui::kAnchorLeft | win32ui::kAnchorTop},
+                                                  {IDC_EDIT, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                  {IDC_DECODE_FIELDS, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                  {IDOK, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                  {IDCANCEL, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                              });
         RebuildDecoders(dialog, state);
         return TRUE;
     }
     if (message == WM_DESTROY)
     {
-        appearance::ReleaseListViews(dialog);
         if (state)
         {
             dialog_support::ReleaseFont(&state->mono_font);
-            dialog_support::ReleaseFont(&state->ui_font);
-        }
-        return TRUE;
-    }
-    if (message == WM_SIZE && state)
-    {
-        state->resizer.Apply(dialog);
-        appearance::LayoutListViews(dialog);
-        return TRUE;
-    }
-    INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed, state ? &state->resizer : nullptr))
-    {
-        return themed;
-    }
-    if (message == WM_NOTIFY)
-    {
-        INT_PTR result = 0;
-        return dialog_support::HandleListViewNotify(dialog, reinterpret_cast<NMHDR*>(lparam), &result) ? result : FALSE;
-    }
-    if (message == WM_CONTEXTMENU && reinterpret_cast<HWND>(wparam) == GetDlgItem(dialog, IDC_DECODE_FIELDS))
-    {
-        const HWND list = reinterpret_cast<HWND>(wparam);
-        POINT screen = {};
-        if (appearance::ContextMenuRow(list, lparam, &screen) < 0)
-        {
-            return TRUE;
-        }
-        HMENU menu = CreatePopupMenu();
-        AppendMenuW(menu, MF_STRING, 1, util::Tr(L"Copy Rows"));
-        if (appearance::TrackContextMenu(menu, screen, dialog) == 1)
-        {
-            ui::CopyTextToClipboard(dialog, appearance::SelectedRowsText(list));
         }
         return TRUE;
     }
@@ -270,10 +245,6 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         return FALSE;
     }
     const int id = LOWORD(wparam);
-    if (appearance::HandleListViewCommand(dialog, id))
-    {
-        return TRUE;
-    }
     if (HIWORD(wparam) == CBN_SELCHANGE)
     {
         if (id == IDC_DECODE_ENCODING)
@@ -291,10 +262,10 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     {
     case IDOK:
         // keep decoder open after copying so other interpretations can be tried
-        ui::CopyTextToClipboard(dialog, state->output);
+        win32ui::CopyTextToClipboard(dialog, state->output);
         return TRUE;
     case IDCANCEL:
-        EndDialog(dialog, IDCANCEL);
+        win32ui::EndDialogWindow(dialog, IDCANCEL);
         return TRUE;
     default:
         return FALSE;
@@ -307,7 +278,7 @@ void ShowValueDecoder(HWND owner, const DecodeRequest& request)
 {
     State state;
     state.request = &request;
-    dialog_support::Modal(owner, IDD_DECODE_VALUE, DialogProc, reinterpret_cast<LPARAM>(&state));
+    win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_DECODE_VALUE), DialogProc, reinterpret_cast<LPARAM>(&state));
 }
 
 } // namespace regkit::editors

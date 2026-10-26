@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "browse/browse_pane.h"
 
@@ -46,11 +46,6 @@ bool Pane::Create(const CreateRequest& request)
     {
         return false;
     }
-    if (request.values_proc &&
-        !SetWindowSubclass(values_.hwnd(), request.values_proc, request.values_subclass_id, request.callback_context))
-    {
-        return false;
-    }
     return true;
 }
 
@@ -75,7 +70,7 @@ const RegistryTree& Pane::tree() const noexcept
     return *tree_;
 }
 
-// every tab keeps its own tree, so switching tabs only swaps windows
+// each tab keeps its tree, switching only swaps windows
 RegistryTree* Pane::AddTree()
 {
     auto tree = std::make_unique<RegistryTree>();
@@ -273,51 +268,6 @@ void Pane::UpdateTypeBuffer(wchar_t ch, DWORD now, std::wstring* buffer, DWORD* 
     {
         buffer->push_back(ch);
     }
-}
-
-void Pane::TypeSelectValues(wchar_t ch, DWORD now)
-{
-    if (!values_.hwnd())
-    {
-        return;
-    }
-    UpdateTypeBuffer(ch, now, &value_type_buffer_, &value_type_tick_);
-    if (value_type_buffer_.empty() || values_.RowCount() == 0)
-    {
-        return;
-    }
-
-    int match = -1;
-    for (size_t index = 0; index < values_.RowCount(); ++index)
-    {
-        const ListRow* row = values_.RowAt(static_cast<int>(index));
-        if (row && util::StartsWithInsensitive(row->name, value_type_buffer_))
-        {
-            match = static_cast<int>(index);
-            break;
-        }
-    }
-    if (match < 0)
-    {
-        std::wstring nearest;
-        for (size_t index = 0; index < values_.RowCount(); ++index)
-        {
-            const ListRow* row = values_.RowAt(static_cast<int>(index));
-            if (row && util::CompareInsensitive(row->name, value_type_buffer_) >= 0 &&
-                (match < 0 || util::CompareInsensitive(row->name, nearest) < 0))
-            {
-                match = static_cast<int>(index);
-                nearest = row->name;
-            }
-        }
-    }
-    if (match < 0)
-    {
-        match = static_cast<int>(values_.RowCount() - 1);
-    }
-    ListView_SetItemState(values_.hwnd(), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-    ListView_SetItemState(values_.hwnd(), match, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-    ListView_EnsureVisible(values_.hwnd(), match, FALSE);
 }
 
 void Pane::TypeSelectTree(wchar_t ch, DWORD now)

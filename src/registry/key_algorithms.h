@@ -1,13 +1,14 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
 #include "registry/registry_path.h"
 #include "registry/registry_store.h"
-#include "win32/handle_owner.h"
 #include "win32/registry_native.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <algorithm>
 #include <string>
@@ -20,7 +21,7 @@ namespace regkit::registry_backend
 inline constexpr REGSAM kKeyReadAccess = KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS;
 inline constexpr size_t kMaxKeyNameLength = 255;
 inline constexpr size_t kMaxValueNameLength = 16383;
-// RegEnumValueW costs time per byte of the buffer it's handed, so values start with this much & only bigger ones retry
+// RegEnumValueW cost grows with buffer size, start small and retry only larger values
 inline constexpr DWORD kValueDataProbe = 64 * 1024;
 inline constexpr SECURITY_INFORMATION kKeySecurityInformation =
     OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
@@ -39,7 +40,7 @@ class RegistryKeyHandle
 {
   public:
     RegistryKeyHandle() = default;
-    explicit RegistryKeyHandle(util::UniqueHKey key)
+    explicit RegistryKeyHandle(win32ui::UniqueHKey key)
         : key_(std::move(key))
     {
     }
@@ -89,7 +90,7 @@ class RegistryKeyHandle
     }
 
   protected:
-    util::UniqueHKey key_;
+    win32ui::UniqueHKey key_;
 };
 
 inline bool SplitNode(const RegistryNode& node, RegistryNode* parent, std::wstring* name)
@@ -253,7 +254,7 @@ bool EnumerateKey(const Key& key, bool include_values, bool include_data, bool i
                 data_length = buffer ? static_cast<DWORD>(data.size()) : 0;
                 result = key.EnumValue(index, name.data(), &name_length, &type, buffer, &data_length);
             }
-            // a larger buffer lets the api write a terminator over the last byte of an odd sized string
+            // oversized buffers let API terminators overwrite the last byte of odd sized strings
             if (result == ERROR_SUCCESS && buffer && (data_length & 1) && data_length < data.size() && (type == REG_SZ || type == REG_EXPAND_SZ))
             {
                 name_length = static_cast<DWORD>(name.size());
@@ -312,7 +313,7 @@ struct KeyContents
 
 inline LONG ReadKeyContents(HKEY root, const std::wstring& subkey, REGSAM view, bool include_data, KeyContents* contents, bool* is_volatile = nullptr)
 {
-    util::UniqueHKey handle;
+    win32ui::UniqueHKey handle;
     const LONG status = util::OpenRegistryPath(root, subkey, kKeyReadAccess | view, false, &handle);
     if (status != ERROR_SUCCESS)
     {
@@ -421,13 +422,14 @@ bool RenameValue(const Key& key, const std::wstring& old_name, const std::wstrin
 }
 
 template <typename Key>
-bool ReadSecurity(const Key& key, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor)
+bool ReadSecurity(const Key& key, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor, LONG* error = nullptr)
 {
-    // fall back to owner, group and dacl when the label or sacl can't be read
+    // fall back to owner, group and DACL if label or SACL cannot be read
+    LONG result = ERROR_SUCCESS;
     for (const SECURITY_INFORMATION request : {*parts, kKeySecurityInformation})
     {
         DWORD size = 0;
-        LONG result = key.GetSecurity(request, nullptr, &size);
+        result = key.GetSecurity(request, nullptr, &size);
         if ((result == ERROR_INSUFFICIENT_BUFFER || result == ERROR_MORE_DATA) && size > 0)
         {
             descriptor->resize(size);
@@ -441,13 +443,17 @@ bool ReadSecurity(const Key& key, SECURITY_INFORMATION* parts, std::vector<BYTE>
         }
     }
     descriptor->clear();
+    if (error)
+    {
+        *error = result;
+    }
     return false;
 }
 
 template <typename Key>
 bool WriteSecurity(const Key& key, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor)
 {
-    // keep the dacl when this token can't set the owner, label or sacl
+    // keep DACL if the token cannot set owner, label or SACL
     if (descriptor.empty())
     {
         return false;

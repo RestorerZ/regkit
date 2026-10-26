@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "browse/key_tree.h"
 
@@ -63,7 +63,7 @@ void SetChildState(HWND tree, HTREEITEM item, RegistryNode* node, bool has_child
 
 void RegistryTree::Create(HWND parent, HINSTANCE instance, int control_id, bool show_border, bool allow_label_edit)
 {
-    // hidden until the owner places it, a visible one paints white at 0,0 first
+    // hide until positioned to avoid a white flash at 0,0
     DWORD style = WS_CHILD | WS_CLIPSIBLINGS | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | TVS_SHOWSELALWAYS;
     if (show_border)
     {
@@ -158,7 +158,7 @@ void RegistryTree::PopulateRoots(const std::vector<RegistryRootEntry>& roots)
     nodes_.reserve(roots.size() + 3);
 
     root_item_ = InsertFolderItem(hwnd_, TVI_ROOT, root_label_.c_str(), root_icon_);
-    // group root keys unless regedit layout needs a flat tree
+    // RegEdit layout uses a flat tree instead of root groups
     const auto has_group = [&](bool real) {
         return !regedit_layout_ && std::any_of(roots.begin(), roots.end(), [&](const RegistryRootEntry& entry) {
             return (entry.group == RegistryRootGroup::kReal) == real;
@@ -189,7 +189,6 @@ void RegistryTree::PopulateRoots(const std::vector<RegistryRootEntry>& roots)
             icon_index = icon_resolver_(*stored);
         }
 
-        // reuse REGISTRY group item as real registry root
         if (!regedit_layout_ && root_entry.group == RegistryRootGroup::kReal && real_group_item_ &&
             util::EqualsInsensitive(root_entry.display_name, kRealGroupLabel) && root_entry.subkey_prefix.empty())
         {
@@ -264,7 +263,6 @@ void RegistryTree::OnItemExpanding(const NMTREEVIEWW* info)
         return;
     }
 
-    // load children on demand when key is expanded
     node->children_loaded = AddChildren(info->itemNew.hItem, node);
 }
 
@@ -306,7 +304,7 @@ RegistryNode* RegistryTree::OnSelectionChanged(const NMTREEVIEWW* info)
 
 RegistryNode* RegistryTree::StoreNode(std::unique_ptr<RegistryNode> node)
 {
-    // keep node pointers valid as tree items store them in lParam
+    // tree lParam holds node pointers, keep them valid
     RegistryNode* stored = node.get();
     nodes_.emplace(stored, std::move(node));
     return stored;
@@ -334,7 +332,6 @@ HTREEITEM RegistryTree::InsertChild(HTREEITEM parent, const std::wstring& name)
     HTREEITEM after = TVI_FIRST;
     const std::wstring label = registry_path::DisplayName(name);
     wchar_t text[256] = {};
-    // find sorted position and reuse a matching item
     for (HTREEITEM sibling = TreeView_GetChild(hwnd_, parent); sibling;
          sibling = TreeView_GetNextSibling(hwnd_, sibling))
     {
@@ -433,7 +430,7 @@ bool RegistryTree::AddChildren(HTREEITEM parent, RegistryNode* node)
     }
     std::vector<RegistryNode*> released;
     HTREEITEM child = TreeView_GetChild(hwnd_, parent);
-    // inserting after a handle walks the siblings
+    // inserting after a handle walks sibling items
     const bool fresh = !child;
     for (auto it = entries.rbegin(); fresh && it != entries.rend(); ++it)
     {
@@ -496,7 +493,7 @@ void RegistryTree::OnGetDispInfo(NMTVDISPINFOW* info)
         return;
     }
     auto* node = reinterpret_cast<RegistryNode*>(info->item.lParam);
-    // resolve child state & icons only when the tree asks for them
+    // defer child state and icon lookup until requested by the tree
     if (info->item.mask & TVIF_CHILDREN)
     {
         if (!node)

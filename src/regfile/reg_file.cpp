@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "regfile/reg_file.h"
 #include "win32/text_transform.h"
@@ -232,7 +232,7 @@ std::wstring Writer::Finish() &&
 namespace
 {
 
-// depth first in export order, visit gets each readable key's display path and contents
+// depth first export order, visit receives display path and contents of each readable key
 template <typename Visit>
 LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring& display_path, REGSAM view, bool recurse, std::vector<std::wstring>* skipped, std::vector<std::wstring>* lost_volatility, Visit visit)
 {
@@ -285,7 +285,7 @@ LONG VisitRegistryTree(HKEY root, const std::wstring& subkey, const std::wstring
 
 void SkipNullNames(const std::wstring& display_path, std::vector<Value>* values, std::vector<std::wstring>* subkeys, std::vector<std::wstring>* skipped)
 {
-    // reg files and reg.exe can only address names without embedded nulls
+    // reg files and reg.exe cannot address names with embedded NULs
     const auto unaddressable = [&](const Operation& operation, const std::wstring& name) {
         if (name.find(L'\0') == std::wstring::npos)
         {
@@ -331,7 +331,7 @@ LONG ReadRegistryOperations(HKEY root, const std::wstring& subkey, const std::ws
 namespace
 {
 
-// regedit4 stores string hex data as ansi bytes
+// REGEDIT4 stores hex string data as ANSI bytes
 std::vector<BYTE> AnsiToUtf16(const std::vector<BYTE>& data)
 {
     const std::wstring text = util::NarrowToWide(std::string_view(reinterpret_cast<const char*>(data.data()), data.size()), CP_ACP);
@@ -541,7 +541,8 @@ bool ParseOperations(std::wstring_view content, std::vector<Operation>* output, 
                 }
             }
         }
-        // regedit & reg export write each LF inside a string as CRLF, other exporters wrap long strings with a backslash and a two space indent
+        // RegEdit and reg export expand string LF to CRLF
+        // other exporters wrap long strings with a backslash and two spaces
         if (quoted && has_newline)
         {
             if (!logical.empty() && logical.back() == L'\\' && content.substr(start, 2) == L"  ")
@@ -607,7 +608,7 @@ bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* 
                 current->recreated = current->removed;
                 continue;
             }
-            // a deletion drops everything the file wrote to the key & below it so far
+            // deletions drop all content written to that key and descendants so far
             current->values.clear();
             current->removed_values.clear();
             current->removed = true;
@@ -633,7 +634,7 @@ bool Parse(std::wstring_view content, Document* output, const std::atomic_bool* 
 
 bool ReadText(const std::wstring& path, std::wstring* content, std::wstring* error)
 {
-    // parsing peaks at 3-8x the file size, a 32 bit process runs out above about 600 MiB
+    // parsing peaks at 3 to 8 times file size, 32 bit processes run out above about 600 MiB
     constexpr uint64_t kMaxBytes = sizeof(void*) == 8 ? 1024ull << 20 : 256ull << 20;
     if (util::ReadTextFile(path, content, nullptr, kMaxBytes))
     {

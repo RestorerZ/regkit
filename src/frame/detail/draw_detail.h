@@ -1,9 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
 #include "win32/windows_config.h"
+
+#include <win32ui/gdi/fonts.h>
+#include <win32ui/gdi/gdi_cache.h>
+#include <win32ui/gdi/icon_loader.h>
 
 #include <windows.h>
 
@@ -31,10 +35,7 @@
 #include <windowsx.h>
 #include <winternl.h>
 
-#include "ui/default_font.h"
 #include "ui/feedback.h"
-#include "ui/gdi_cache.h"
-#include "ui/icon_loader.h"
 #include "defaults/default_loader.h"
 #include "dialogs/comment_editor.h"
 #include "dialogs/value_editor.h"
@@ -79,21 +80,16 @@ constexpr int kAddressGoId = 109;
 constexpr int kTreeHeaderCloseId = 110;
 constexpr int kStatusBarId = 111;
 constexpr int kSearchResultsListId = 112;
-constexpr int kSearchProgressId = 113;
 constexpr int kHistoryHeaderCloseId = 114;
 constexpr int kFilterEditId = 115;
-constexpr int kValueGridButtonId = 116;
-constexpr int kSearchGridButtonId = 117;
 constexpr int kFilterClearId = 118;
 constexpr int kRegEditCompatTreeId = 119;
-constexpr int kHistoryGridButtonId = 120;
-constexpr UINT_PTR kStatusMessageTimerId = 41;
+constexpr int kTreeSplitterId = 120;
+constexpr int kHistorySplitterId = 121;
 constexpr UINT_PTR kTreeStateTimerId = 42;
 constexpr UINT_PTR kCompatJumpTimerId = 43;
 constexpr UINT_PTR kAutoRefreshTimerId = 44;
 constexpr UINT kCompatJumpDelayMs = 40;
-constexpr int kToolbarIconSize = 16;
-constexpr int kToolbarGlyphSize = 16;
 using win32::kRestartAdminArg;
 using win32::kRestartSystemArg;
 using win32::kRestartTiArg;
@@ -126,10 +122,6 @@ using util::FormatWin32Error;
 using util::ToLower;
 using util::TrimWhitespace;
 
-constexpr int kToolbarSepGroup1 = 30001;
-constexpr int kToolbarSepGroup2 = 30002;
-constexpr int kToolbarSepGroup3 = 30003;
-
 constexpr int kFolderIconIndex = 0;
 constexpr int kSymlinkIconIndex = 1;
 constexpr int kDatabaseIconIndex = 2;
@@ -142,7 +134,6 @@ constexpr int kBinaryIconIndex = 8;
 constexpr int kTraceIconIndex = 9;
 constexpr int kLocalRegistryIconIndex = 9;
 constexpr int kHeaderTextPadding = 6;
-constexpr int kTabMinWidth = 90;
 constexpr int kSplitterWidth = 6;
 constexpr int kHistorySplitterHeight = 4;
 constexpr int kMinTreeWidth = 160;
@@ -189,13 +180,10 @@ struct ValueListPayload : work::MoveOnly
     std::vector<ListRow> rows;
     int key_count = 0;
     int value_count = 0;
+    LONG error = ERROR_SUCCESS; // reason key values could not be listed
 };
 
 bool GetChildRectInParent(HWND parent, HWND child, RECT* rect);
-
-int MappedSubItem(const std::vector<int>& map, int display_index);
-
-int GetListViewColumnSubItem(HWND list, int display_index);
 
 constexpr int kCellTextPadding = 6;
 constexpr int kLabelTextInset = 2;
@@ -207,9 +195,5 @@ constexpr int kPanelBorderOverlap = 1;
 void DrawSearchMatchOverlay(HDC hdc, const RECT& cell, std::wstring_view text, int start, int length);
 
 int SearchMatchSubItem(const search::Result& result);
-
-int FindListViewColumnBySubItem(HWND list, int subitem);
-
-int CalcListViewColumnFitWidth(HWND list, int column, int min_width);
 
 } // namespace regkit::window_detail

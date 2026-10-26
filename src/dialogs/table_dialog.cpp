@@ -1,18 +1,24 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/table_dialog.h"
 
 #include "ui/dialog_layout.h"
-#include "ui/dialog_metrics.h"
 #include "ui/dialog_support.h"
 #include "ui/feedback.h"
 #include "ui/list_view_support.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
-#include "win32/window_metrics.h"
 
 #include "resource.h"
+
+#include <win32ui/dialog/dialog_layout.h>
+#include <win32ui/dialog/dialog_metrics.h>
+#include <win32ui/dialog/dialog_window.h>
+#include <win32ui/dialog/message_dialog.h>
+#include <win32ui/list_view/sort.h>
+#include <win32ui/menu/popup_menu.h>
+#include <win32ui/window_metrics.h>
 
 #include <algorithm>
 #include <commctrl.h>
@@ -29,14 +35,17 @@ constexpr size_t kInitialRows = 10;
 struct State
 {
     const TablesRequest* request = nullptr;
-    HFONT font = nullptr;
-    appearance::DialogResizer resizer;
     std::vector<HWND> titles;
     std::vector<HWND> lists;
     std::vector<int> heights;
     std::vector<int> sort_columns;
     std::vector<bool> sort_ascending;
     int title_height = 0;
+    UINT layout_dpi = 0;
+    int right_margin_dip = 0;
+    int bottom_offset_dip = 0;
+    int min_width_dip = 0;
+    int min_height_dip = 0;
     bool ready = false;
 };
 
@@ -83,44 +92,47 @@ std::wstring TablesText(const TablesRequest& request)
     return text;
 }
 
-void CopySelectedRows(HWND dialog, HWND list)
+// check table menu toggles its row, other tables use the default list menu
+bool CheckRowMenu(void*, HWND list, int row, POINT screen)
 {
-    const std::wstring text = appearance::SelectedRowsText(list);
-    if (!text.empty())
+    const HWND dialog = GetParent(list);
+    const auto* state = reinterpret_cast<const State*>(GetWindowLongPtrW(dialog, DWLP_USER));
+    if (!state)
     {
-        ui::CopyTextToClipboard(dialog, text);
+        return false;
     }
-}
-
-void ShowRowMenu(HWND dialog, HWND list, bool checks, LPARAM lparam)
-{
-    POINT screen = {};
-    const int row = appearance::ContextMenuRow(list, lparam, &screen);
-    if (row < 0)
+    const auto found = std::find(state->lists.begin(), state->lists.end(), list);
+    if (found == state->lists.end() || found - state->lists.begin() != state->request->check_table)
     {
-        return;
+        return false;
     }
+    // empty space menus target the selected row
+    row = row >= 0 ? row : ListView_GetNextItem(list, -1, LVNI_SELECTED);
     constexpr int kMenuCheck = 1;
-    constexpr int kMenuCopy = 2;
     HMENU menu = CreatePopupMenu();
-    const bool checked = ListView_GetCheckState(list, row);
-    if (checks)
+    if (!menu)
+    {
+        return true;
+    }
+    const bool checked = row >= 0 && ListView_GetCheckState(list, row);
+    if (row >= 0)
     {
         std::wstring name;
         appearance::FetchListViewItemText(list, row, 0, &name);
-        appearance::AppendMenuItem(menu, MF_STRING | (checked ? MF_CHECKED : 0), kMenuCheck, name.c_str(), L"Space");
+        win32ui::AppendMenuItem(menu, MF_STRING | (checked ? MF_CHECKED : 0), kMenuCheck, name.c_str(), L"Space");
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     }
-    appearance::AppendMenuItem(menu, MF_STRING, kMenuCopy, util::Tr(L"Copy Rows"), L"Ctrl+C");
-    const int chosen = appearance::TrackContextMenu(menu, screen, dialog);
+    appearance::AppendRowMenuCommands(menu, list);
+    const int chosen = win32ui::TrackContextMenu(menu, screen, dialog);
     if (chosen == kMenuCheck)
     {
         ListView_SetCheckState(list, row, !checked);
     }
-    else if (chosen == kMenuCopy)
+    else
     {
-        CopySelectedRows(dialog, list);
+        appearance::RunRowMenuCommand(list, chosen);
     }
+    return true;
 }
 
 RECT ControlRect(HWND dialog, int id)
@@ -133,13 +145,32 @@ RECT ControlRect(HWND dialog, int id)
 
 int Gap(HWND dialog)
 {
-    return appearance::metrics::Scaled(appearance::metrics::kBlockGap, win32::DpiForWindow(dialog)) / 2;
+    return win32ui::Scale(win32ui::metrics::kBlockGap, win32ui::DpiForWindow(dialog)) / 2;
 }
 
 void Layout(HWND dialog, State* state)
 {
-    const RECT top = ControlRect(dialog, IDC_TABLES_IDENTIFIER);
-    const RECT bottom = ControlRect(dialog, IDOK);
+    if (!state->layout_dpi)
+    {
+        return;
+    }
+    const UINT dpi = win32ui::DpiForWindow(dialog);
+    if (state->layout_dpi != dpi)
+    {
+        state->title_height = MulDiv(state->title_height, static_cast<int>(dpi), static_cast<int>(state->layout_dpi));
+        for (int& height : state->heights)
+        {
+            height = MulDiv(height, static_cast<int>(dpi), static_cast<int>(state->layout_dpi));
+        }
+        state->layout_dpi = dpi;
+    }
+    RECT client = {};
+    GetClientRect(dialog, &client);
+    RECT top = ControlRect(dialog, IDC_TABLES_IDENTIFIER);
+    RECT bottom = ControlRect(dialog, IDOK);
+    // anchors apply after the procedure handles WM_SIZE
+    top.right = client.right - win32ui::Scale(state->right_margin_dip, dpi);
+    bottom.top = client.bottom - win32ui::Scale(state->bottom_offset_dip, dpi);
     const int gap = Gap(dialog);
     const size_t count = state->lists.size();
     int remaining = bottom.top - top.bottom - gap - static_cast<int>(count) * (state->title_height + gap);
@@ -157,25 +188,22 @@ void Layout(HWND dialog, State* state)
     int y = top.bottom + gap;
     for (size_t i = 0; i < count; ++i)
     {
-        appearance::Place(state->titles[i], top.left, y, width, state->title_height);
+        win32ui::Place(state->titles[i], top.left, y, width, state->title_height);
         y += state->title_height;
-        appearance::Place(state->lists[i], top.left, y, width, heights[i]);
+        win32ui::Place(state->lists[i], top.left, y, width, heights[i]);
         y += heights[i] + gap;
     }
-    appearance::LayoutListViews(dialog);
 }
 
 int FillList(HWND list, const records::Table& table)
 {
     int width = 0;
-    for (size_t column = 0; column < table.columns.size(); ++column)
+    std::vector<win32ui::ListColumn> columns;
+    for (const std::wstring& title : table.columns)
     {
-        LVCOLUMNW item = {};
-        item.mask = LVCF_TEXT | LVCF_SUBITEM;
-        item.pszText = const_cast<wchar_t*>(table.columns[column].c_str());
-        item.iSubItem = static_cast<int>(column);
-        ListView_InsertColumn(list, static_cast<int>(column), &item);
+        columns.push_back({title});
     }
+    win32ui::SetListColumns(list, columns);
     for (size_t row = 0; row < table.rows.size(); ++row)
     {
         LVITEMW item = {};
@@ -191,17 +219,25 @@ int FillList(HWND list, const records::Table& table)
     }
     for (size_t column = 0; column < table.columns.size(); ++column)
     {
-        width += appearance::FitListColumn(list, static_cast<int>(column));
+        width += win32ui::FitListColumn(list, static_cast<int>(column));
     }
-    const UINT dpi = win32::DpiForWindow(list);
-    return width + win32::SystemMetricForDpi(SM_CXVSCROLL, dpi) + 2 * win32::SystemMetricForDpi(SM_CXEDGE, dpi);
+    // Reset columns restores fitted widths
+    columns = win32ui::ListColumns(list);
+    for (win32ui::ListColumn& column : columns)
+    {
+        column.default_width_dip = column.width_dip;
+    }
+    win32ui::SetListColumns(list, columns);
+    const UINT dpi = win32ui::DpiForWindow(list);
+    return width + win32ui::SystemMetricForDpi(SM_CXVSCROLL, dpi) + 2 * win32ui::SystemMetricForDpi(SM_CXEDGE, dpi);
 }
 
 void CreateLists(HWND dialog, State* state)
 {
     TEXTMETRICW metrics = {};
     HDC dc = GetDC(dialog);
-    const HGDIOBJ previous = SelectObject(dc, state->font);
+    const HFONT font = reinterpret_cast<HFONT>(SendMessageW(dialog, WM_GETFONT, 0, 0));
+    const HGDIOBJ previous = SelectObject(dc, font);
     GetTextMetricsW(dc, &metrics);
     SelectObject(dc, previous);
     ReleaseDC(dialog, dc);
@@ -209,16 +245,17 @@ void CreateLists(HWND dialog, State* state)
     const RECT top = ControlRect(dialog, IDC_TABLES_IDENTIFIER);
     int content_width = 0;
     int content_height = 0;
+    static const win32ui::ListViewHooks hooks = appearance::DialogListHooks(CheckRowMenu);
     for (const records::Table& table : state->request->tables)
     {
-        HWND title = appearance::CreateControl(dialog, WC_STATICW, table.title.c_str(), SS_LEFT | SS_NOPREFIX, IDC_STATIC);
-        HWND list = appearance::CreateControl(dialog, WC_LISTVIEWW, L"", WS_TABSTOP | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SHOWSELALWAYS, 0);
+        HWND title = win32ui::CreateControl(dialog, WC_STATICW, table.title.c_str(), SS_LEFT | SS_NOPREFIX, IDC_STATIC);
+        HWND list = win32ui::CreateControl(dialog, WC_LISTVIEWW, L"", WS_TABSTOP | WS_CLIPSIBLINGS | LVS_REPORT | LVS_SHOWSELALWAYS, 0);
         for (HWND control : {title, list})
         {
-            SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(state->font), FALSE);
+            SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), FALSE);
         }
         const bool checks = static_cast<int>(state->lists.size()) == state->request->check_table;
-        dialog_support::SetupListView(list, checks ? LVS_EX_CHECKBOXES : 0, {});
+        dialog_support::SetupListView(list, &hooks, checks ? LVS_EX_CHECKBOXES : 0, {});
         SetWindowPos(list, nullptr, 0, 0, top.right - top.left, top.bottom - top.top, SWP_NOZORDER | SWP_NOACTIVATE);
         content_width = std::max(content_width, FillList(list, table));
         for (size_t row = 0; checks && row < state->request->checked.size(); ++row)
@@ -250,8 +287,21 @@ void CreateLists(HWND dialog, State* state)
     const int needed_height = content_height + Gap(dialog) * static_cast<int>(state->lists.size() + 1);
     const int extra_width = std::max(0, std::min(content_width - static_cast<int>(top.right - top.left), static_cast<int>(monitor.rcWork.right - monitor.rcWork.left) * 9 / 10 - static_cast<int>(window.right - window.left)));
     const int extra_height = std::max(0, std::min(needed_height - static_cast<int>(bottom.top - top.bottom), static_cast<int>(monitor.rcWork.bottom - monitor.rcWork.top) * 85 / 100 - static_cast<int>(window.bottom - window.top)));
+    // anchors are captured after WM_INITDIALOG, set opening positions at the grown size
+    for (const int id : {IDC_TABLES_IDENTIFIER, IDC_TABLES_ACTION, IDOK, IDCANCEL})
+    {
+        RECT rect = ControlRect(dialog, id);
+        if (id == IDC_TABLES_IDENTIFIER)
+        {
+            rect.right += extra_width;
+        }
+        else
+        {
+            OffsetRect(&rect, id == IDC_TABLES_ACTION ? 0 : extra_width, extra_height);
+        }
+        win32ui::Place(GetDlgItem(dialog, id), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+    }
     SetWindowPos(dialog, nullptr, 0, 0, window.right - window.left + extra_width, window.bottom - window.top + extra_height, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-    appearance::CenterWindow(dialog, GetWindow(dialog, GW_OWNER));
 }
 
 INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lparam)
@@ -267,14 +317,20 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         ShowWindow(GetDlgItem(dialog, IDC_TABLES_ACTION), state->request->action_label.empty() ? SW_HIDE : SW_SHOW);
         EnableWindow(GetDlgItem(dialog, IDC_TABLES_ACTION), static_cast<bool>(state->request->action));
         SendMessageW(dialog, DM_SETDEFID, IDCANCEL, 0);
-        dialog_support::Initialize(dialog, &state->font, {IDC_TABLES_IDENTIFIER});
-        using namespace appearance;
-        state->resizer.Attach(dialog, {
-                                          {IDC_TABLES_IDENTIFIER, kAnchorLeft | kAnchorTop | kAnchorRight},
-                                          {IDC_TABLES_ACTION, kAnchorLeft | kAnchorBottom},
-                                          {IDOK, kAnchorRight | kAnchorBottom},
-                                          {IDCANCEL, kAnchorRight | kAnchorBottom},
-                                      });
+        win32ui::FitDialogText(dialog);
+        win32ui::AnchorDialogControls(dialog, {
+                                                  {IDC_TABLES_IDENTIFIER, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                                                  {IDC_TABLES_ACTION, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                                                  {IDOK, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                                  {IDCANCEL, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                                              });
+        RECT client = {};
+        GetClientRect(dialog, &client);
+        state->layout_dpi = win32ui::DpiForWindow(dialog);
+        state->right_margin_dip = win32ui::Unscale(client.right - ControlRect(dialog, IDC_TABLES_IDENTIFIER).right, state->layout_dpi);
+        state->bottom_offset_dip = win32ui::Unscale(client.bottom - ControlRect(dialog, IDOK).top, state->layout_dpi);
+        state->min_width_dip = win32ui::Unscale(client.right, state->layout_dpi);
+        state->min_height_dip = win32ui::Unscale(client.bottom, state->layout_dpi);
         CreateLists(dialog, state);
         Layout(dialog, state);
         state->ready = true;
@@ -290,32 +346,31 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     }
     if (message == WM_SIZE)
     {
-        state->resizer.Apply(dialog);
         Layout(dialog, state);
-        return TRUE;
+        return FALSE;
     }
-    INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed, &state->resizer))
+    if (message == WM_GETMINMAXINFO && state->min_width_dip > 0)
     {
-        return themed;
+        const UINT dpi = win32ui::DpiForWindow(dialog);
+        RECT minimum = {0, 0, win32ui::Scale(state->min_width_dip, dpi), win32ui::Scale(state->min_height_dip, dpi)};
+        win32ui::AdjustWindowRectForDpi(&minimum, static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_STYLE)), static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_EXSTYLE)), dpi);
+        auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+        info->ptMinTrackSize.x = std::max<LONG>(info->ptMinTrackSize.x, minimum.right - minimum.left);
+        info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, minimum.bottom - minimum.top);
+        return TRUE;
     }
     switch (message)
     {
     case WM_NOTIFY:
         {
             const auto* header = reinterpret_cast<NMHDR*>(lparam);
-            INT_PTR result = 0;
-            if (dialog_support::HandleListViewNotify(dialog, header, &result))
-            {
-                return result;
-            }
             const auto list = std::find(state->lists.begin(), state->lists.end(), header->hwndFrom);
             const auto* change = reinterpret_cast<const NMLISTVIEW*>(lparam);
             const size_t index = static_cast<size_t>(list - state->lists.begin());
             if (list != state->lists.end() && header->code == LVN_COLUMNCLICK)
             {
                 bool ascending = state->sort_ascending[index];
-                appearance::SortListViewItems(*list, change->iSubItem, true, &state->sort_columns[index], &ascending, nullptr, CompareRows, const_cast<records::Table*>(&state->request->tables[index]));
+                win32ui::SortListViewItems(*list, change->iSubItem, true, &state->sort_columns[index], &ascending, nullptr, CompareRows, const_cast<records::Table*>(&state->request->tables[index]));
                 state->sort_ascending[index] = ascending;
                 return TRUE;
             }
@@ -330,45 +385,23 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
                     state->ready = true;
                 }
             }
-            if (list != state->lists.end() && header->code == LVN_KEYDOWN && reinterpret_cast<const NMLVKEYDOWN*>(lparam)->wVKey == 'C' && GetKeyState(VK_CONTROL) < 0)
-            {
-                CopySelectedRows(dialog, *list);
-            }
             return FALSE;
         }
-    case WM_CONTEXTMENU:
-        {
-            const auto list = std::find(state->lists.begin(), state->lists.end(), reinterpret_cast<HWND>(wparam));
-            if (list == state->lists.end())
-            {
-                return FALSE;
-            }
-            ShowRowMenu(dialog, *list, list - state->lists.begin() == state->request->check_table, lparam);
-            return TRUE;
-        }
     case WM_COMMAND:
-        if (appearance::HandleListViewCommand(dialog, LOWORD(wparam)))
-        {
-            return TRUE;
-        }
         switch (LOWORD(wparam))
         {
         case IDC_TABLES_ACTION:
             state->request->action(dialog);
             return TRUE;
         case IDOK:
-            ui::CopyTextToClipboard(dialog, TablesText(*state->request));
+            win32ui::CopyTextToClipboard(dialog, TablesText(*state->request));
             return TRUE;
         case IDCANCEL:
-            EndDialog(dialog, IDCANCEL);
+            win32ui::EndDialogWindow(dialog, IDCANCEL);
             return TRUE;
         default:
             return FALSE;
         }
-    case WM_DESTROY:
-        appearance::ReleaseListViews(dialog);
-        dialog_support::ReleaseFont(&state->font);
-        return TRUE;
     default:
         return FALSE;
     }
@@ -380,7 +413,7 @@ void ShowTables(HWND owner, const TablesRequest& request)
 {
     State state;
     state.request = &request;
-    dialog_support::Modal(owner, IDD_TABLES, DialogProc, reinterpret_cast<LPARAM>(&state));
+    win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_TABLES), DialogProc, reinterpret_cast<LPARAM>(&state));
 }
 
 } // namespace regkit::editors

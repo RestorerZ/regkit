@@ -1,14 +1,16 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "registry/key_access.h"
 
-#include "win32/handle_owner.h"
 #include "win32/process_rights.h"
 #include "win32/translation.h"
 
 #include <authz.h>
 #include <sddl.h>
+
+#include <win32ui/handle_owner.h>
+#include <win32ui/process_token.h>
 
 #include <initializer_list>
 
@@ -28,7 +30,7 @@ struct FreeContext
         AuthzFreeContext(context);
     }
 };
-using Context = util::UniqueResource<AUTHZ_CLIENT_CONTEXT_HANDLE, FreeContext>;
+using Context = win32ui::UniqueNullable<AUTHZ_CLIENT_CONTEXT_HANDLE, FreeContext>;
 
 AUTHZ_RESOURCE_MANAGER_HANDLE ResourceManager()
 {
@@ -40,7 +42,7 @@ AUTHZ_RESOURCE_MANAGER_HANDLE ResourceManager()
     return manager;
 }
 
-ACCESS_MASK Check(AUTHZ_CLIENT_CONTEXT_HANDLE context, PSECURITY_DESCRIPTOR descriptor)
+std::optional<ACCESS_MASK> Check(AUTHZ_CLIENT_CONTEXT_HANDLE context, PSECURITY_DESCRIPTOR descriptor)
 {
     AUTHZ_ACCESS_REQUEST request = {};
     request.DesiredAccess = MAXIMUM_ALLOWED;
@@ -50,10 +52,15 @@ ACCESS_MASK Check(AUTHZ_CLIENT_CONTEXT_HANDLE context, PSECURITY_DESCRIPTOR desc
     reply.ResultListLength = 1;
     reply.GrantedAccessMask = &granted;
     reply.Error = &error;
-    return context && AuthzAccessCheck(0, context, &request, nullptr, descriptor, nullptr, 0, &reply, nullptr) && error == ERROR_SUCCESS ? granted : 0;
+    if (!context || !AuthzAccessCheck(0, context, &request, nullptr, descriptor, nullptr, 0, &reply, nullptr) || (error != ERROR_SUCCESS && error != ERROR_ACCESS_DENIED))
+    {
+        return std::nullopt;
+    }
+    // checks granting no access complete with ERROR_ACCESS_DENIED
+    return error == ERROR_SUCCESS ? granted : 0;
 }
 
-// service sids have no account to expand, so their groups are listed explicitly
+// modeled run levels supply groups explicitly
 Context FromSid(PSID sid, std::initializer_list<const wchar_t*> groups)
 {
     const LUID none = {};
@@ -62,14 +69,15 @@ Context FromSid(PSID sid, std::initializer_list<const wchar_t*> groups)
     {
         return Context();
     }
-    std::vector<util::UniqueLocal<PSID>> owned;
+    std::vector<win32ui::UniqueLocal<PSID>> owned;
     std::vector<SID_AND_ATTRIBUTES> sids;
     for (const wchar_t* text : groups)
     {
-        util::UniqueLocal<PSID> group;
+        win32ui::UniqueLocal<PSID> group;
         if (ConvertStringSidToSidW(text, group.put()))
         {
-            sids.push_back({group.get(), SE_GROUP_ENABLED | SE_GROUP_MANDATORY});
+            // Windows 7 accepts only SE_GROUP_ENABLED and SE_GROUP_USE_FOR_DENY_ONLY here
+            sids.push_back({group.get(), SE_GROUP_ENABLED});
             owned.push_back(std::move(group));
         }
     }
@@ -81,7 +89,7 @@ Context FromSid(PSID sid, std::initializer_list<const wchar_t*> groups)
 
 Context FromSidText(const wchar_t* text, std::initializer_list<const wchar_t*> groups)
 {
-    util::UniqueLocal<PSID> sid;
+    win32ui::UniqueLocal<PSID> sid;
     return ConvertStringSidToSidW(text, sid.put()) ? FromSid(sid.get(), groups) : Context();
 }
 
@@ -94,28 +102,23 @@ Context FromToken(HANDLE token)
 
 } // namespace
 
-ACCESS_MASK ForSid(PSECURITY_DESCRIPTOR descriptor, PSID sid)
+std::optional<ACCESS_MASK> ForSid(PSECURITY_DESCRIPTOR descriptor, PSID sid)
 {
-    Context context = FromSid(sid, {});
-    if (!context)
-    {
-        context = FromSid(sid, kWellKnownGroups);
-    }
-    return Check(context.get(), descriptor);
+    return Check(FromSid(sid, {}).get(), descriptor);
 }
 
 std::vector<RunLevel> ForRunLevels(PSECURITY_DESCRIPTOR descriptor)
 {
     std::vector<RunLevel> levels;
-    util::UniqueHandle token;
+    win32ui::UniqueHandle token;
     if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, token.put()))
     {
         levels.push_back({util::TrNoop(L"Current user"), Check(FromToken(token.get()).get(), descriptor)});
         TOKEN_LINKED_TOKEN linked = {};
         DWORD size = 0;
-        if (!util::IsProcessElevated() && util::IsUacEnabled() && GetTokenInformation(token.get(), TokenLinkedToken, &linked, sizeof(linked), &size))
+        if (!win32ui::IsProcessElevated() && util::IsUacEnabled() && GetTokenInformation(token.get(), TokenLinkedToken, &linked, sizeof(linked), &size))
         {
-            const util::UniqueHandle admin(linked.LinkedToken);
+            const win32ui::UniqueHandle admin(linked.LinkedToken);
             levels.push_back({util::TrNoop(L"Administrator"), Check(FromToken(admin.get()).get(), descriptor)});
         }
     }
@@ -138,7 +141,7 @@ std::wstring Describe(ACCESS_MASK granted)
     const bool read = (granted & KEY_QUERY_VALUE) != 0;
     std::wstring text = CanWrite(granted) ? (read ? util::Tr(L"Read and write") : util::Tr(L"Write")) : read ? util::Tr(L"Read")
                                                                                                              : util::Tr(L"No access");
-    // an owner can always rewrite the dacl and so gain any access
+    // owners can rewrite the DACL to gain access
     if (!CanWrite(granted) && (granted & (WRITE_DAC | WRITE_OWNER)))
     {
         text.append(L", ").append(util::Tr(L"can change permissions"));

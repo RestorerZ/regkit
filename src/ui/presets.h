@@ -1,36 +1,27 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
-#include <string>
-#include <string_view>
-#include <vector>
+#include <win32ui/theme/theme_presets.h>
 
-#include "ui/theme.h"
+#include <string>
+#include <vector>
 
 namespace regkit
 {
 
-struct ThemePreset
-{
-    std::wstring name;
-    ThemeColors colors;
-    bool is_dark = true;
-};
+using win32ui::FindThemePreset;
+using win32ui::ThemePreset;
 
+// preset file in data folder, import/export errors are translated
 class ThemePresetStore
 {
   public:
-    static std::vector<ThemePreset> BuiltInPresets();
     static bool Load(std::vector<ThemePreset>* presets, std::wstring* error = nullptr);
     static bool Save(const std::vector<ThemePreset>& presets, std::wstring* error = nullptr);
     static bool ImportFromFile(const std::wstring& path, std::vector<ThemePreset>* presets, std::wstring* error = nullptr);
     static bool ExportToFile(const std::wstring& path, const std::vector<ThemePreset>& presets, std::wstring* error = nullptr);
 };
-
-const ThemePreset* FindThemePreset(const std::vector<ThemePreset>& presets, std::wstring_view name);
-std::wstring FormatColorHex(COLORREF color);
-bool ParseColorHex(const std::wstring& text, COLORREF* color);
 
 } // namespace regkit

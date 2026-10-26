@@ -1,9 +1,12 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/process_token.h>
+#include <win32ui/window_metrics.h>
 
 namespace regkit
 {
@@ -30,15 +33,15 @@ bool MainWindow::Impl::Create(HINSTANCE instance)
 
     std::wstring title = L"RegKit V";
     title.append(REGKIT_VERSION_STR_W);
-    if (util::IsProcessTrustedInstaller())
+    if (win32ui::IsProcessTrustedInstaller())
     {
         title.append(L" - [TrustedInstaller]");
     }
-    else if (util::IsProcessSystem())
+    else if (win32ui::IsProcessSystem())
     {
         title.append(L" - [SYSTEM]");
     }
-    else if (util::IsProcessElevated())
+    else if (win32ui::IsProcessElevated())
     {
         title.append(L" - [").append(util::Tr(L"Administrator")).append(L"]");
     }
@@ -68,7 +71,7 @@ void MainWindow::Impl::Show(int cmd_show)
         if (GetWindowRect(hwnd_, &rect))
         {
             RECT fitted = rect;
-            win32::ClampToWorkArea(&fitted);
+            win32ui::ClampToWorkArea(&fitted);
             if (!EqualRect(&fitted, &rect))
             {
                 SetWindowPos(hwnd_, nullptr, fitted.left, fitted.top, fitted.right - fitted.left, fitted.bottom - fitted.top, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -148,12 +151,14 @@ void MainWindow::Impl::FocusAddressBarForExternalJump(bool defer_if_needed)
 
 void MainWindow::Impl::CyclePaneFocus(bool forward)
 {
-    HWND panes[] = {toolbar_.hwnd(), browse_.address(), tab_, browse_.filter(), browse_.tree().hwnd(), browse_.values().hwnd(), search_results_list_, history_list_};
+    HWND panes[] = {toolbar_, browse_.address(), tab_, browse_.filter(), browse_.tree().hwnd(), tree_splitter_, browse_.values().hwnd(), search_results_list_, history_splitter_, history_list_};
     HWND visible[_countof(panes)] = {};
     int count = 0;
     for (HWND pane : panes)
     {
-        if (pane && IsWindowVisible(pane) && IsWindowEnabled(pane))
+        // panes without layout space have no usable content
+        RECT area = {};
+        if (pane && IsWindowVisible(pane) && IsWindowEnabled(pane) && GetClientRect(pane, &area) && !IsRectEmpty(&area))
         {
             visible[count++] = pane;
         }
@@ -173,6 +178,8 @@ void MainWindow::Impl::CyclePaneFocus(bool forward)
         }
     }
     const int next = current < 0 ? (forward ? 0 : count - 1) : (current + (forward ? 1 : count - 1)) % count;
+    // keyboard moves focus, panes show it
+    SendMessageW(hwnd_, WM_CHANGEUISTATE, MAKEWPARAM(UIS_CLEAR, UISF_HIDEFOCUS), 0);
     FocusPane(visible[next]);
 }
 
@@ -195,11 +202,69 @@ void MainWindow::Impl::FocusPane(HWND pane)
     SelectListRowAtIndex(pane, 0);
 }
 
-bool MainWindow::Impl::TranslateAccelerator(const MSG& msg)
+namespace
 {
-    if (key_handles_window_ && IsDialogMessageW(key_handles_window_, const_cast<MSG*>(&msg)))
+
+bool IsTextInput(HWND hwnd)
+{
+    if (!hwnd)
+    {
+        return false;
+    }
+    wchar_t cls[64] = {};
+    GetClassNameW(hwnd, cls, static_cast<int>(_countof(cls)));
+    if (util::EqualsInsensitive(cls, L"Edit"))
     {
         return true;
+    }
+    if (util::EqualsInsensitive(cls, L"RichEdit20W") || util::EqualsInsensitive(cls, L"RichEdit20A"))
+    {
+        return true;
+    }
+    if (util::EqualsInsensitive(cls, L"ComboBox") || util::EqualsInsensitive(cls, L"ComboBoxEx32"))
+    {
+        return true;
+    }
+    HWND parent = GetParent(hwnd);
+    if (parent)
+    {
+        GetClassNameW(parent, cls, static_cast<int>(_countof(cls)));
+        if (util::EqualsInsensitive(cls, L"ComboBox") || util::EqualsInsensitive(cls, L"ComboBoxEx32"))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// text box keys take priority over menu shortcuts
+bool KeepForTextInput(const MSG& msg)
+{
+    if ((msg.message != WM_KEYDOWN && msg.message != WM_SYSKEYDOWN) || !IsTextInput(GetFocus()))
+    {
+        return false;
+    }
+    if (msg.wParam == VK_DELETE || msg.wParam == VK_BACK || msg.wParam == VK_F2)
+    {
+        return true;
+    }
+    const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+    const bool alt = (GetKeyState(VK_MENU) & 0x8000) != 0;
+    return ctrl && !alt && (msg.wParam == 'C' || msg.wParam == 'V' || msg.wParam == 'X' || msg.wParam == 'Z' || msg.wParam == 'Y');
+}
+
+} // namespace
+
+bool MainWindow::Impl::TranslateAccelerator(const MSG& msg)
+{
+    if (IsWindow(key_handles_window_) && IsDialogMessageW(key_handles_window_, const_cast<MSG*>(&msg)))
+    {
+        return true;
+    }
+    // main shortcuts apply to the window and its children, other windows keep their own
+    if (GetAncestor(msg.hwnd, GA_ROOT) != hwnd_)
+    {
+        return false;
     }
     if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN)
     {
@@ -207,43 +272,14 @@ bool MainWindow::Impl::TranslateAccelerator(const MSG& msg)
         const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
         const bool alt = (GetKeyState(VK_MENU) & 0x8000) != 0;
         HWND focus = GetFocus();
-        auto is_text_input = [](HWND hwnd) -> bool {
-            if (!hwnd)
-            {
-                return false;
-            }
-            wchar_t cls[64] = {};
-            GetClassNameW(hwnd, cls, static_cast<int>(_countof(cls)));
-            if (util::EqualsInsensitive(cls, L"Edit"))
-            {
-                return true;
-            }
-            if (util::EqualsInsensitive(cls, L"RichEdit20W") || util::EqualsInsensitive(cls, L"RichEdit20A"))
-            {
-                return true;
-            }
-            if (util::EqualsInsensitive(cls, L"ComboBox") || util::EqualsInsensitive(cls, L"ComboBoxEx32"))
-            {
-                return true;
-            }
-            HWND parent = GetParent(hwnd);
-            if (parent)
-            {
-                GetClassNameW(parent, cls, static_cast<int>(_countof(cls)));
-                if (util::EqualsInsensitive(cls, L"ComboBox") || util::EqualsInsensitive(cls, L"ComboBoxEx32"))
-                {
-                    return true;
-                }
-            }
-            return false;
-        };
-        const bool focus_edit = is_text_input(focus);
+        const bool focus_edit = IsTextInput(focus);
         if (!ctrl && !shift && !alt && msg.wParam == VK_F7 && (HIWORD(msg.lParam) & KF_REPEAT) != 0)
         {
             return true;
         }
 
-        if ((alt && msg.wParam == 'D') || (ctrl && !alt && msg.wParam == 'L'))
+        // leave Alt+D for the menu bar, German File label is "&Datei"
+        if (ctrl && !alt && msg.wParam == 'L')
         {
             if (browse_.address())
             {
@@ -297,40 +333,15 @@ bool MainWindow::Impl::TranslateAccelerator(const MSG& msg)
                 CyclePaneFocus(!shift);
                 return true;
             }
-            if (msg.wParam == VK_BACK && !focus_edit)
+            // Backspace edits active search text
+            if (msg.wParam == VK_BACK && !focus_edit && !win32ui::ListTypeSearchActive(focus))
             {
                 HandleMenuCommand(cmd::kNavBack);
                 return true;
             }
         }
-
-        if (focus_edit)
-        {
-            if (msg.wParam == VK_DELETE || msg.wParam == VK_BACK || msg.wParam == VK_F2)
-            {
-                return false;
-            }
-            if (ctrl && !alt)
-            {
-                switch (msg.wParam)
-                {
-                case 'C':
-                case 'V':
-                case 'X':
-                case 'Z':
-                case 'Y':
-                    return false;
-                default:
-                    break;
-                }
-            }
-        }
     }
-    if (accelerators_)
-    {
-        return ::TranslateAcceleratorW(hwnd_, accelerators_, const_cast<MSG*>(&msg)) != 0;
-    }
-    return false;
+    return win32ui::TranslateShortcuts(hwnd_, shortcuts_, const_cast<MSG*>(&msg), KeepForTextInput);
 }
 
 LRESULT CALLBACK MainWindow::Impl::WndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
@@ -460,73 +471,34 @@ LRESULT CALLBACK MainWindow::Impl::ListViewProc(HWND hwnd, UINT message, WPARAM 
             SetFocus(self->browse_.values().hwnd());
             return 0;
         }
-    }
-    if (message == WM_PAINT && ListViewScrolledHorizontally(hwnd))
-    {
-        InvalidateListViewTail(hwnd);
+        // other programs type value names into the first list they find
+        if (message == WM_CHAR && hwnd != self->browse_.values().hwnd())
+        {
+            return SendMessageW(self->browse_.values().hwnd(), message, wparam, lparam);
+        }
     }
 
     if (message == WM_KEYDOWN && wparam == VK_RETURN && self && hwnd == self->browse_.values().hwnd())
     {
         self->value_activate_from_key_ = true;
     }
-
-    if (message == WM_NCDESTROY)
+    if (message == WM_SETFOCUS && self)
     {
-        RemovePropW(hwnd, kListScrollProp);
-    }
-
-    if (message == WM_MOUSEMOVE && self && self->value_tooltip_ &&
-        (hwnd == self->browse_.values().hwnd() || hwnd == self->search_results_list_ || hwnd == self->history_list_))
-    {
-        LVHITTESTINFO hit = {};
-        hit.pt.x = GET_X_LPARAM(lparam);
-        hit.pt.y = GET_Y_LPARAM(lparam);
-        const int item = ListView_SubItemHitTest(hwnd, &hit);
-        if (hwnd != self->value_tip_list_ || item != self->value_tip_item_ || hit.iSubItem != self->value_tip_subitem_)
-        {
-            self->value_tip_list_ = hwnd;
-            self->value_tip_item_ = item;
-            self->value_tip_subitem_ = hit.iSubItem;
-            SendMessageW(self->value_tooltip_, TTM_POP, 0, 0);
-        }
-    }
-    if (message == WM_CHAR && self && (hwnd == self->browse_.values().hwnd() || InSendMessage()))
-    {
-        wchar_t ch = static_cast<wchar_t>(wparam);
-        if (ch == L'\b' || (iswprint(ch) && ch != L'\r' && ch != L'\n' && ch != L'\t'))
-        {
-            self->HandleTypeToSelectList(ch);
-            return 0;
-        }
-    }
-    if (message == WM_SETFOCUS || message == WM_KILLFOCUS)
-    {
-        if (self && message == WM_SETFOCUS)
-        {
-            self->last_focus_ = hwnd;
-        }
-        SendMessageW(hwnd, WM_CHANGEUISTATE, MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS), 0);
-    }
-    if (message == WM_UPDATEUISTATE)
-    {
-        LRESULT result = DefSubclassProc(hwnd, message, wparam, lparam);
-        SendMessageW(hwnd, WM_CHANGEUISTATE, MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS), 0);
-        return result;
+        self->last_focus_ = hwnd;
     }
     if (message == WM_CTLCOLOREDIT)
     {
         HDC hdc = reinterpret_cast<HDC>(wparam);
-        SetTextColor(hdc, Theme::Current().TextColor());
-        SetBkColor(hdc, Theme::Current().PanelColor());
-        return reinterpret_cast<LRESULT>(Theme::Current().PanelBrush());
+        SetTextColor(hdc, win32ui::CurrentThemeColors().text);
+        SetBkColor(hdc, win32ui::CurrentThemeColors().panel);
+        return reinterpret_cast<LRESULT>(win32ui::ThemeBrush(win32ui::ThemeFill::panel));
     }
     if (message == WM_PRINTCLIENT)
     {
         HDC hdc = reinterpret_cast<HDC>(wparam);
         RECT rect = {};
         GetClientRect(hwnd, &rect);
-        FillRect(hdc, &rect, Theme::Current().PanelBrush());
+        FillRect(hdc, &rect, win32ui::ThemeBrush(win32ui::ThemeFill::panel));
     }
     if (message == WM_THEMECHANGED)
     {

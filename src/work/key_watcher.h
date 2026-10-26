@@ -1,9 +1,11 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
-#include "win32/handle_owner.h"
+#include "win32/windows_config.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <atomic>
 #include <cstdint>
@@ -41,9 +43,9 @@ class KeyWatcher
     std::wstring subkey_;
     REGSAM view_ = 0;
     std::atomic<uint64_t> generation_{0};
-    util::UniqueHandle stop_;
-    util::UniqueHandle retarget_;
-    util::UniqueHandle rearm_;
+    win32ui::UniqueHandle stop_;
+    win32ui::UniqueHandle retarget_;
+    win32ui::UniqueHandle rearm_;
 };
 
 } // namespace regkit::work

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -92,7 +92,7 @@ void MainWindow::Impl::CollectTraceChildren(const std::vector<ActiveTrace>& trac
         {
             continue;
         }
-        // a child shows only when the selection includes it, IncludesKey also keeps the ancestors of a selected key
+        // show selected trace children and ancestors retained by IncludesKey
         for (const auto& child : it->second)
         {
             if (child.second.empty() || existing_lower.find(child.first) != existing_lower.end() ||
@@ -377,7 +377,6 @@ bool MainWindow::Impl::LoadTraceFromPrompt()
         return false;
     }
     AddRecentTracePath(path);
-    BuildMenus();
     SaveSettings();
     return true;
 }

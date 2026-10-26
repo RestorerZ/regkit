@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -8,6 +8,8 @@
 #include "win32/text_transform.h"
 #include "win32/translation.h"
 #include "trace/trace_paths.h"
+
+#include <win32ui/gdi/buffered_paint.h>
 
 namespace regkit
 {
@@ -66,7 +68,7 @@ bool IsSiblingRegKitWindow(HWND sender)
     return !sender_image.empty() && !own_image.empty() && util::EqualsInsensitive(sender_image, own_image);
 }
 
-// entries the user added while the startup list loaded replace loaded ones with the same source
+// entries added during startup replace loaded entries for the same source
 template <typename Active>
 bool MergeAdded(std::vector<Active>* loaded, std::vector<Active>&& added)
 {
@@ -122,13 +124,13 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
     case WM_NCPAINT:
         {
             LRESULT result = DefWindowProcW(hwnd_, message, wparam, lparam);
-            PaintMenuBarSeparator();
+            menu_bar_.PaintSeparator();
             return result;
         }
     case WM_NCACTIVATE:
         {
             LRESULT result = DefWindowProcW(hwnd_, message, wparam, lparam);
-            PaintMenuBarSeparator();
+            menu_bar_.PaintSeparator();
             return result;
         }
     case WM_GETMINMAXINFO:
@@ -136,14 +138,15 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
             auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
             if (info)
             {
-                info->ptMinTrackSize.x = std::max<LONG>(info->ptMinTrackSize.x, 400);
-                info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, 200);
-                // room for everything above and below the panels + history minimum
+                const UINT dpi = win32ui::DpiForWindow(hwnd_);
+                info->ptMinTrackSize.x = std::max<LONG>(info->ptMinTrackSize.x, win32ui::ScaleForDpi(400, dpi));
+                info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, win32ui::ScaleForDpi(200, dpi));
+                // room above/below panels plus minimum history height
                 RECT window = {};
                 if (content_rect_.right > 0 && GetWindowRect(hwnd_, &window))
                 {
                     const int panels = TextRowHeight(kPanelHeaderHeight) +
-                                       (settings_.show_history && !settings_.simple_mode && !IsSearchTabSelected() ? kMinHistoryHeight + kHistoryGap + kHistorySplitterHeight : 0);
+                                       (settings_.show_history && !settings_.simple_mode && !IsSearchTabSelected() ? win32ui::ScaleForDpi(kMinHistoryHeight + kHistoryGap + kHistorySplitterHeight, dpi) : 0);
                     const int chrome = (window.bottom - window.top) - (content_rect_.bottom - content_rect_.top);
                     info->ptMinTrackSize.y = std::max<LONG>(info->ptMinTrackSize.y, chrome + panels);
                 }
@@ -160,13 +163,16 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
             {
                 SetWindowPos(hwnd_, nullptr, suggested->left, suggested->top, suggested->right - suggested->left, suggested->bottom - suggested->top, SWP_NOZORDER | SWP_NOACTIVATE);
             }
-            UpdateUIFont();
+            RescaleColumns();
+            // resize toolbar for new DPI before UpdateUIFont runs layout
             ReloadThemeIcons();
+            UpdateUIFont();
             return 0;
         }
     case WM_DPICHANGED_AFTERPARENT:
-        UpdateUIFont();
+        RescaleColumns();
         ReloadThemeIcons();
+        UpdateUIFont();
         return 0;
     case WM_ACTIVATE:
         if (LOWORD(wparam) == WA_ACTIVE && browse_.tree().hwnd())
@@ -185,7 +191,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
         break;
     case WM_CLOSE:
         {
-            // the save prompts need a running replace's changes committed
+            // commit running replace changes before save prompts
             if (replace_result_pending_ && replace_target_.lock() != local_session_)
             {
                 StopReplace();
@@ -201,7 +207,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
                     return 0;
                 }
             }
-            // services are stopped only once every tab agreed to close
+            // stop services only after all tabs agree to close
             for (TabEntry& entry : tabs_)
             {
                 if (entry.session)
@@ -235,7 +241,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleLifecycleMessage(UINT message, WP
             }
             else if (updates_.SetupPending())
             {
-                // regkit stays until the setup closes it (WM_ENDSESSION)
+                // keep RegKit running until setup sends WM_ENDSESSION
                 if (PrepareSessionHandover() && updates_.StartSetup())
                 {
                     EnableWindow(hwnd_, FALSE);
@@ -268,62 +274,8 @@ std::optional<LRESULT> MainWindow::Impl::HandleLayoutInputMessage(UINT message, 
     (void)wparam;
     switch (message)
     {
-    case WM_LBUTTONDOWN:
-        {
-            const POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-            const int width = content_rect_.right - content_rect_.left;
-            const int height = content_rect_.bottom - content_rect_.top;
-            if (tree_splitter_.Hit(pt))
-            {
-                tree_splitter_.Begin(hwnd_, pt, settings_.tree_width, kMinTreeWidth, width - kMinValueListWidth - kSplitterWidth);
-                return 0;
-            }
-            if (history_splitter_.Hit(pt))
-            {
-                history_splitter_.Begin(hwnd_, pt, settings_.history_height, kMinHistoryHeight, height - kHistoryMaxPadding);
-                return 0;
-            }
-            break;
-        }
-    case WM_LBUTTONUP:
-    case WM_CAPTURECHANGED:
-        if (tree_splitter_.End(hwnd_) || history_splitter_.End(hwnd_))
-        {
-            RECT rect = {};
-            GetClientRect(hwnd_, &rect);
-            LayoutControls(rect.right, rect.bottom);
-            return 0;
-        }
-        break;
-    case WM_MOUSEMOVE:
-        {
-            const POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
-            if (tree_splitter_.dragging())
-            {
-                DragSplitter(&tree_splitter_, &settings_.tree_width, pt);
-                return 0;
-            }
-            if (history_splitter_.dragging())
-            {
-                DragSplitter(&history_splitter_, &settings_.history_height, pt);
-                return 0;
-            }
-            break;
-        }
     case WM_SETCURSOR:
         {
-            POINT pt = {};
-            GetCursorPos(&pt);
-            ScreenToClient(hwnd_, &pt);
-            for (const ui::Splitter* splitter : {&tree_splitter_, &history_splitter_})
-            {
-                if (splitter->dragging() || splitter->Hit(pt))
-                {
-                    SetCursor(splitter->Cursor());
-                    return TRUE;
-                }
-            }
-            // compare runs in the background
             if (compare_session_.running() && LOWORD(lparam) == HTCLIENT)
             {
                 SetCursor(LoadCursorW(nullptr, IDC_APPSTARTING));
@@ -1082,6 +1034,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleValueWorkerMessage(UINT message, 
             }
             current_key_count_ = owned->key_count;
             current_value_count_ = owned->value_count;
+            value_list_error_ = owned->error;
             if (!merged && list_hwnd && !jump_ui_batch_active_)
             {
                 SendMessageW(list_hwnd, WM_SETREDRAW, TRUE, 0);
@@ -1199,18 +1152,6 @@ std::optional<LRESULT> MainWindow::Impl::HandleExternalMessage(UINT message, WPA
             ApplyAutoRefresh();
             return 0;
         }
-        if (wparam == kStatusMessageTimerId)
-        {
-            // compare message stays until its result replaces it
-            if (compare_session_.running())
-            {
-                return 0;
-            }
-            KillTimer(hwnd_, kStatusMessageTimerId);
-            status_message_.clear();
-            UpdateStatus();
-            return 0;
-        }
         if (wparam == kCompatJumpTimerId)
         {
             FlushExternalNavigation();
@@ -1313,95 +1254,57 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
             return 1;
         }
     case WM_PAINT:
-        PaintBuffered(hwnd_);
+        win32ui::PaintBuffered(hwnd_);
         return 0;
     case WM_PRINTCLIENT:
         OnPrintClient(reinterpret_cast<HDC>(wparam));
         return 0;
     case WM_SETTINGCHANGE:
-        {
-            if (applying_theme_ || theme_mode_ != ThemeMode::kSystem)
-            {
-                return 0;
-            }
-            if (!Theme::UpdateFromSystem())
-            {
-                return 0;
-            }
-            applying_theme_ = true;
-            Theme::Current().ApplyToWindow(hwnd_);
-            ApplyThemeToChildren();
-            ReloadThemeIcons();
-            if (hwnd_)
-            {
-                InvalidateRect(hwnd_, nullptr, TRUE);
-            }
-            applying_theme_ = false;
-            return 0;
-        }
+    case WM_SYSCOLORCHANGE:
     case WM_THEMECHANGED:
-        if (applying_theme_ || theme_mode_ != ThemeMode::kSystem)
+        // WM_THEMECHANGED from our own reapply needs no system reread
+        if (!applying_theme_ && win32ui::ThemeMessage(message, lparam))
         {
-            return 0;
+            ApplySystemTheme();
         }
-        if (!Theme::UpdateFromSystem())
+        // Windows text size and menu font changed
+        if (message == WM_SETTINGCHANGE && wparam == SPI_SETNONCLIENTMETRICS)
         {
-            return 0;
+            UpdateUIFont();
         }
-        applying_theme_ = true;
-        Theme::Current().ApplyToWindow(hwnd_);
-        ApplyThemeToChildren();
-        ReloadThemeIcons();
-        if (hwnd_)
-        {
-            InvalidateRect(hwnd_, nullptr, TRUE);
-        }
-        applying_theme_ = false;
         return 0;
     case WM_CTLCOLORSTATIC:
         {
             HDC hdc = reinterpret_cast<HDC>(wparam);
             HWND target = reinterpret_cast<HWND>(lparam);
-            const Theme& theme = Theme::Current();
-            COLORREF color = theme.TextColor();
-            COLORREF background = theme.PanelColor();
-            HBRUSH brush = theme.PanelBrush();
+            const win32ui::ThemeColors& colors = win32ui::CurrentThemeColors();
+            COLORREF background = colors.panel;
+            HBRUSH brush = win32ui::ThemeBrush(win32ui::ThemeFill::panel);
             if (target == history_label_ || target == tree_header_)
             {
-                background = theme.HeaderColor();
-                brush = theme.HeaderBrush();
+                background = colors.header;
+                brush = win32ui::ThemeBrush(win32ui::ThemeFill::header);
             }
-            SetTextColor(hdc, color);
+            SetTextColor(hdc, colors.text);
             SetBkColor(hdc, background);
             return reinterpret_cast<LRESULT>(brush);
         }
     case WM_INITMENUPOPUP:
-        UpdateMenuState(reinterpret_cast<HMENU>(wparam));
-        return 0;
-    case WM_MENUSELECT:
+        // Windows manages window menu state
+        if (!HIWORD(lparam))
         {
-            HMENU menu = reinterpret_cast<HMENU>(lparam);
-            const UINT flags = HIWORD(wparam);
-            const UINT position = LOWORD(wparam);
-            if ((flags & MF_POPUP) != 0 && menu && GetSubMenu(menu, static_cast<int>(position)) == regedit_favorites_menu_)
-            {
-                RefreshRegEditFavoritesMenu();
-            }
-            return 0;
+            UpdateMenuState(reinterpret_cast<HMENU>(wparam));
         }
+        return 0;
     case WM_CTLCOLOREDIT:
         {
-            HDC hdc = reinterpret_cast<HDC>(wparam);
-            SetTextColor(hdc, Theme::Current().TextColor());
-            SetBkColor(hdc, Theme::Current().FieldColor());
-            return reinterpret_cast<LRESULT>(Theme::Current().FieldBrush());
+            return reinterpret_cast<LRESULT>(win32ui::ThemeControlColor(message, reinterpret_cast<HDC>(wparam), reinterpret_cast<HWND>(lparam)));
         }
     case WM_DRAWITEM:
         {
             auto* draw = reinterpret_cast<DRAWITEMSTRUCT*>(lparam);
-            if (draw && draw->CtlType == ODT_MENU)
+            if (menu_bar_.Draw(draw))
             {
-                OnDrawMenuItem(draw);
                 return TRUE;
             }
             if (draw && draw->CtlType == ODT_BUTTON)
@@ -1411,11 +1314,10 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
             }
             if (draw && draw->CtlType == ODT_STATIC && (draw->CtlID == kTreeHeaderId || draw->CtlID == kHistoryLabelId))
             {
-                const Theme& theme = Theme::Current();
                 HDC hdc = draw->hDC;
                 RECT rect = draw->rcItem;
                 UINT format = DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS;
-                FillRect(hdc, &rect, theme.HeaderBrush());
+                FillRect(hdc, &rect, win32ui::ThemeBrush(win32ui::ThemeFill::header));
 
                 wchar_t text[128] = {};
                 GetWindowTextW(draw->hwndItem, text, static_cast<int>(_countof(text)));
@@ -1425,7 +1327,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
                     old_font = reinterpret_cast<HFONT>(SelectObject(hdc, ui_font_));
                 }
                 SetBkMode(hdc, TRANSPARENT);
-                SetTextColor(hdc, theme.TextColor());
+                SetTextColor(hdc, win32ui::CurrentThemeColors().text);
                 RECT text_rect = rect;
                 text_rect.left += kHeaderTextPadding;
                 text_rect.right -= kHeaderTextPadding;
@@ -1441,9 +1343,8 @@ std::optional<LRESULT> MainWindow::Impl::HandleAppearanceMessage(UINT message, W
     case WM_MEASUREITEM:
         {
             auto* measure = reinterpret_cast<MEASUREITEMSTRUCT*>(lparam);
-            if (measure && measure->CtlType == ODT_MENU)
+            if (menu_bar_.Measure(measure))
             {
-                OnMeasureMenuItem(measure);
                 return TRUE;
             }
             break;
@@ -1472,10 +1373,6 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message, WPARA
                 settings_.show_history = false;
                 SaveSettings();
                 ApplyViewVisibility();
-                return 0;
-            }
-            if (HIWORD(wparam) == 0 && appearance::HandleListViewCommand(hwnd_, LOWORD(wparam)))
-            {
                 return 0;
             }
             if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == kAddressGoId)
@@ -1552,7 +1449,13 @@ std::optional<LRESULT> MainWindow::Impl::HandleBrowseMessage(UINT message, WPARA
             {
                 break;
             }
-            const int row = appearance::ContextMenuRow(source, lparam, &screen_pt);
+            const int row = win32ui::ContextMenuRow(source, lparam, &screen_pt);
+            // right click outside selection selects one row, empty space keeps selection
+            if (row >= 0 && !ListView_GetItemState(source, row, LVIS_SELECTED))
+            {
+                ListView_SetItemState(source, -1, 0, LVIS_SELECTED);
+                ListView_SetItemState(source, row, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+            }
             if (source == browse_.values().hwnd())
             {
                 ShowValueContextMenu(row, screen_pt);

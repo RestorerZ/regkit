@@ -1,9 +1,11 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
 #include "win32/windows_config.h"
+
+#include <win32ui/list_view/sort.h>
 
 #include <windows.h>
 
@@ -11,7 +13,6 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 namespace regkit::util
@@ -34,24 +35,14 @@ std::wstring LocalTimeFormat();
 bool IsBlank(std::wstring_view text);
 std::wstring ExpandEnvironmentStringsDynamic(const std::wstring& text);
 std::wstring ToHex(std::span<const BYTE> data, wchar_t separator = L' ', bool uppercase = false, size_t max_bytes = 0);
-// 16 bytes per line for edit controls, which wrap one huge line very slowly
+// 16 bytes per line, edits wrap huge lines very slowly
 std::wstring ToHexLines(std::span<const BYTE> data);
 
 int CompareInsensitive(std::wstring_view left, std::wstring_view right);
 int CompareListText(std::wstring_view left, std::wstring_view right);
 
-// earlier sort columns newest first, rebuilt rows use them to order what the sort column ties
-using SortKeys = std::vector<std::pair<int, bool>>;
-template <typename Compare>
-int CompareSorted(int column, bool ascending, const SortKeys& earlier, Compare compare)
-{
-    int result = ascending ? compare(column) : -compare(column);
-    for (size_t i = 0; result == 0 && i < earlier.size(); ++i)
-    {
-        result = earlier[i].second ? compare(earlier[i].first) : -compare(earlier[i].first);
-    }
-    return result;
-}
+using win32ui::CompareSorted;
+using win32ui::SortKeys;
 
 bool EqualsInsensitive(std::wstring_view left, std::wstring_view right);
 bool StartsWithInsensitive(std::wstring_view text, std::wstring_view prefix);

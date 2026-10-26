@@ -1,10 +1,11 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/detail/control_detail.h"
 
 #include "frame/window_impl.h"
 #include "ui/list_view_support.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -27,8 +28,6 @@
 #include <windowsx.h>
 #include <winternl.h>
 #include "ui/feedback.h"
-#include "ui/gdi_cache.h"
-#include "ui/icon_loader.h"
 #include "frame/commands/command_ids.h"
 #include "registry/registry_store.h"
 #include "dialogs/security_dialog.h"
@@ -110,23 +109,6 @@ void SetEditVerticalRect(HWND hwnd, HFONT font, int min_pad, int left_pad, int r
     SendMessageW(hwnd, EM_SETRECT, 0, reinterpret_cast<LPARAM>(&rect));
 }
 
-void DrawToolbarButtonBackground(HDC hdc, const RECT& rect, COLORREF fill, COLORREF border)
-{
-    if (!hdc)
-    {
-        return;
-    }
-    RECT draw = rect;
-    InflateRect(&draw, -1, -1);
-    HBRUSH brush = appearance::CachedBrush(fill);
-    HPEN pen = appearance::CachedPen(border);
-    HGDIOBJ old_brush = SelectObject(hdc, brush);
-    HGDIOBJ old_pen = SelectObject(hdc, pen);
-    RoundRect(hdc, draw.left, draw.top, draw.right, draw.bottom, 4, 4);
-    SelectObject(hdc, old_pen);
-    SelectObject(hdc, old_brush);
-}
-
 std::wstring LeafName(const RegistryNode& node)
 {
     if (node.subkey.empty())
@@ -163,7 +145,7 @@ ListRow MakeValueListRow(const std::wstring& name, DWORD type, const BYTE* data,
     row.data_ready = data_size == 0 || data != nullptr;
     if (row.data_ready && data_size > 0)
     {
-        // a preview keeps what a cell shows, a filter reloads the whole data
+        // preview keeps displayed text, filters reload full data
         row.data_preview = preview && data_size > kValuePreviewBytes;
         row.data = value_format::DisplayData(type, data, row.data_preview ? kValuePreviewBytes : data_size);
         if (row.data_preview && row.data.size() > kValuePreviewLimit)
@@ -282,15 +264,6 @@ const std::wstring& ValueRowFieldText(const ListRow& row, int subitem)
     }
 }
 
-bool CellTextIsClipped(HWND list, const std::wstring& text, int available)
-{
-    if (text.size() > kCellTooltipMeasureLimit)
-    {
-        return true;
-    }
-    return ListView_GetStringWidth(list, text.c_str()) > available;
-}
-
 static int CompareValueRow(const ListRow& left, const ListRow& right, int column)
 {
     switch (column)
@@ -347,77 +320,6 @@ void SortValueRows(std::vector<ListRow>* rows, int column, bool ascending, const
         }
         return util::CompareSorted(column, ascending, earlier, [&](int key) { return CompareValueRow(left, right, key); }) < 0;
     });
-}
-
-void InvalidateListViewTail(HWND list, bool immediate)
-{
-    RECT tail = {};
-    if (!list || !GetClientRect(list, &tail))
-    {
-        return;
-    }
-    const int count = ListView_GetItemCount(list);
-    if (count > 0)
-    {
-        RECT last = {};
-        if (!ListView_GetItemRect(list, count - 1, &last, LVIR_BOUNDS))
-        {
-            return;
-        }
-        tail.top = last.bottom;
-    }
-    else if (HWND header = ListView_GetHeader(list))
-    {
-        RECT header_rect = {};
-        if (!GetWindowRect(header, &header_rect))
-        {
-            return;
-        }
-        MapWindowPoints(nullptr, list, reinterpret_cast<POINT*>(&header_rect), 2);
-        tail.top = header_rect.bottom;
-    }
-    if (tail.top < tail.bottom)
-    {
-        if (immediate)
-        {
-            RedrawWindow(list, &tail, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
-        }
-        else
-        {
-            InvalidateRect(list, &tail, TRUE);
-        }
-    }
-}
-
-void InvalidateListViewColumn(HWND list, int display_index)
-{
-    HWND header = list ? ListView_GetHeader(list) : nullptr;
-    if (!header || display_index < 0)
-    {
-        return;
-    }
-    RECT column = {};
-    RECT header_rect = {};
-    RECT client = {};
-    if (!Header_GetItemRect(header, display_index, &column) || !GetWindowRect(header, &header_rect) ||
-        !GetClientRect(list, &client))
-    {
-        return;
-    }
-    MapWindowPoints(nullptr, list, reinterpret_cast<POINT*>(&header_rect), 2);
-    RECT band = {header_rect.left + column.left, client.top, header_rect.left + column.right + 1, client.bottom};
-    RedrawWindow(list, &band, nullptr, RDW_INVALIDATE | RDW_ERASE);
-}
-
-bool ListViewScrolledHorizontally(HWND list)
-{
-    const INT_PTR position = GetScrollPos(list, SB_HORZ) + 1;
-    if (GetPropW(list, kListScrollProp) == reinterpret_cast<HANDLE>(position))
-    {
-        return false;
-    }
-    SetPropW(list, kListScrollProp, reinterpret_cast<HANDLE>(position));
-    return true;
 }
 
 HFONT CreateUIFont()

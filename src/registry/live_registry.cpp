@@ -1,11 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "registry/registry_backends.h"
 
 #include "registry/key_algorithms.h"
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
+
+#include <win32ui/handle_owner.h>
 
 namespace regkit::registry_backend::live
 {
@@ -19,17 +21,24 @@ class LiveKey : public RegistryKeyHandle
     {
         if (node.root)
         {
-            util::OpenRegistryPath(node.root, node.subkey, access | ViewOf(node), open_link, &key_);
+            error_ = util::OpenRegistryPath(node.root, node.subkey, access | ViewOf(node), open_link, &key_);
         }
     }
     LiveKey() = default;
     using RegistryKeyHandle::RegistryKeyHandle;
+    LONG error() const noexcept
+    {
+        return error_;
+    }
+
+  private:
+    LONG error_ = ERROR_INVALID_HANDLE;
 };
 LiveKey OpenChild(const RegistryNode& node, REGSAM parent_access, REGSAM child_access, bool open_link, std::wstring* name = nullptr)
 {
     RegistryNode parent_node;
     std::wstring leaf;
-    util::UniqueHKey child;
+    win32ui::UniqueHKey child;
     if (SplitNode(node, &parent_node, &leaf))
     {
         LiveKey parent(parent_node, parent_access);
@@ -50,13 +59,13 @@ bool KernelHandle(const RegistryNode& node)
     return util::IsLocalRoot(node.root) || util::EqualsInsensitive(node.root_name, L"REGISTRY");
 }
 
-// opens the key itself
+// opens the key itself, not a link target
 LiveKey OpenInspected(const RegistryNode& node, const std::wstring& native, LONG* error)
 {
     if (node.view || (native.empty() && node.root == HKEY_CLASSES_ROOT && !node.subkey.empty()))
     {
-        // hkcr has no native path and a 32-bit view is redirected, so these open through win32
-        util::UniqueHKey handle;
+        // HKCR has no native path and 32 bit views redirect, use Win32 opens
+        win32ui::UniqueHKey handle;
         *error = util::OpenRegistryPath(node.root, node.subkey, KEY_QUERY_VALUE | ViewOf(node), true, &handle);
         return LiveKey(std::move(handle));
     }
@@ -118,17 +127,17 @@ KeyInspection InspectKey(const RegistryNode& node, bool want_info, bool want_sou
 {
     KeyInspection result;
     LONG error = ERROR_SUCCESS;
-    // HARDWARE is never redirected, so the plain native path also answers the volatile hive check for 32-bit nodes
+    // HARDWARE never redirects, native paths also identify volatile hives for 32 bit nodes
     const std::wstring native = registry_path::BuildNative(node);
     const LiveKey key = OpenInspected(node, native, &error);
-    // the merged key tells which hive backs it
+    // merged keys report their backing hive
     if (want_source && key && node.root == HKEY_CLASSES_ROOT)
     {
         result.class_source = registry_path::ClassesSource(util::QueryKeyName(key.get()));
     }
     result.denied = error == ERROR_ACCESS_DENIED;
     std::wstring target;
-    // the flags spare the link value read for ordinary keys
+    // flags avoid reading link values for ordinary keys
     const std::optional<ULONG> flags = key ? util::QueryKeyFlags(key.get()) : std::nullopt;
     result.link = key && (!flags || (*flags & util::kKeyFlagLink)) && ReadLinkTarget(key, &target) && !target.empty();
     result.is_volatile = (flags.value_or(0) & util::kKeyFlagVolatile) || registry_path::InVolatileHive(native);
@@ -152,6 +161,10 @@ bool EnumKeyStreaming(const RegistryNode& node, bool include_values, bool includ
     {
         out_info->options.is_volatile = util::QueryKeyFlags(key.get()).value_or(0) & util::kKeyFlagVolatile;
     }
+    if (!key && out_info)
+    {
+        out_info->error = key.error();
+    }
     return key && EnumerateKey(key, include_values, include_data, include_subkeys, out_info, value_callback, subkey_callback, max_data_size, scratch);
 }
 
@@ -165,7 +178,7 @@ bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details, bool open_li
 {
     LiveKey key(node, kKeyReadAccess, open_link);
     const bool read = key && registry_backend::QueryKeyDetails(key, details) == ERROR_SUCCESS;
-    // native name needs no access, so a key that denies queries still has one
+    // native names require no access, available even for keys denying queries
     const LiveKey named = key ? LiveKey() : LiveKey(node, MAXIMUM_ALLOWED, open_link);
     if (KernelHandle(node) && (key || named))
     {
@@ -181,7 +194,7 @@ bool CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCrea
     {
         return false;
     }
-    util::UniqueHKey created;
+    win32ui::UniqueHKey created;
     DWORD disposition = 0;
     DWORD flags = options.is_volatile ? REG_OPTION_VOLATILE : REG_OPTION_NON_VOLATILE;
     LONG result = util::CreateRegistryKey(parent.get(), name, KEY_READ | KEY_WRITE, flags, &created, &disposition, options.class_name);
@@ -201,7 +214,7 @@ bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, cons
 {
     LONG result = ERROR_ACCESS_DENIED;
     LiveKey parent(node, KEY_WRITE);
-    util::UniqueHKey created;
+    win32ui::UniqueHKey created;
     DWORD disposition = 0;
     if (parent)
     {
@@ -246,16 +259,20 @@ bool ReadKeyLink(const RegistryNode& node, std::wstring* target)
     return true;
 }
 
-bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor)
+bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor, LONG* error)
 {
     descriptor->clear();
     const LiveKey key = OpenSecurity(node, READ_CONTROL, parts);
-    return key && ReadSecurity(key, parts, descriptor);
+    if (!key && error)
+    {
+        *error = key.error();
+    }
+    return key && ReadSecurity(key, parts, descriptor, error);
 }
 
 bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor, const FILETIME* last_write)
 {
-    // security writes bump the last write time, so it's put back through the same handle
+    // security writes change last write time, restore it through the same handle
     const SECURITY_INFORMATION requested = parts;
     LiveKey key = OpenSecurity(node, WRITE_DAC | WRITE_OWNER | (last_write ? KEY_SET_VALUE : 0), &parts);
     if (!key && last_write)

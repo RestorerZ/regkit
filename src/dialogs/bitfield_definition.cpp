@@ -1,14 +1,17 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/bitfield_definition.h"
 
 #include "records/json.h"
 #include "win32/file_text.h"
-#include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
+
+#include <win32ui/handle_owner.h>
+#include <win32ui/json/reader.h>
+#include <win32ui/json/writer.h>
 
 #include <algorithm>
 #include <unordered_set>
@@ -43,7 +46,7 @@ enum Member : unsigned
 };
 
 template <typename Read>
-bool ReadMembers(json::Reader& reader, unsigned* seen, Read&& read)
+bool ReadMembers(win32ui::JsonReader& reader, unsigned* seen, Read&& read)
 {
     *seen = 0;
     return reader.Object([&](const std::wstring& name) {
@@ -65,12 +68,12 @@ bool ReadMembers(json::Reader& reader, unsigned* seen, Read&& read)
     });
 }
 
-bool Require(json::Reader& reader, unsigned seen, unsigned required, const wchar_t* message)
+bool Require(win32ui::JsonReader& reader, unsigned seen, unsigned required, const wchar_t* message)
 {
     return (seen & required) == required || reader.Fail(message);
 }
 
-bool ReadState(json::Reader& reader, State* state)
+bool ReadState(win32ui::JsonReader& reader, State* state)
 {
     unsigned seen = 0;
     return ReadMembers(reader, &seen, [&](const std::wstring& name, unsigned* flag) {
@@ -94,7 +97,7 @@ bool ReadState(json::Reader& reader, State* state)
            Require(reader, seen, kValueMember | kNameMember, util::Tr(L"A state is missing its value or name."));
 }
 
-bool ReadField(json::Reader& reader, Field* field)
+bool ReadField(win32ui::JsonReader& reader, Field* field)
 {
     unsigned seen = 0;
     return ReadMembers(reader, &seen, [&](const std::wstring& name, unsigned* flag) {
@@ -143,7 +146,7 @@ bool ReadField(json::Reader& reader, Field* field)
            Require(reader, seen, kNameMember | kBitsMember, util::Tr(L"A field is missing its name or bits."));
 }
 
-bool ReadDefinition(json::Reader& reader, Definition* definition)
+bool ReadDefinition(win32ui::JsonReader& reader, Definition* definition)
 {
     unsigned seen = 0;
     return ReadMembers(reader, &seen, [&](const std::wstring& name, unsigned* flag) {
@@ -202,7 +205,7 @@ bool ReadDefinition(json::Reader& reader, Definition* definition)
            Require(reader, seen, kValueNameMember | kBitWidthMember, util::Tr(L"A definition is missing its value name or bit width."));
 }
 
-bool ReadFile(json::Reader& reader, DefinitionFile* file)
+bool ReadFile(win32ui::JsonReader& reader, DefinitionFile* file)
 {
     unsigned seen = 0;
     return ReadMembers(
@@ -242,7 +245,7 @@ bool ReadFile(json::Reader& reader, DefinitionFile* file)
 void AppendMember(std::wstring* out, const wchar_t* indent, const wchar_t* name, const std::wstring& text)
 {
     out->append(indent).append(L"\"").append(name).append(L"\": ");
-    json::AppendString(out, text);
+    win32ui::AppendJsonString(out, text);
 }
 
 std::wstring BundleDirectory()
@@ -267,14 +270,14 @@ std::vector<DefinitionFile> LoadBundledFiles()
     for (const wchar_t* pattern : {L"*.regkit-bitfield.jsonc", L"*.regkit-bitfield.json"})
     {
         WIN32_FIND_DATAW found = {};
-        const util::UniqueFind search(FindFirstFileW(util::JoinPath(directory, pattern).c_str(), &found));
+        const win32ui::UniqueFind search(FindFirstFileW(util::JoinPath(directory, pattern).c_str(), &found));
         if (!search)
         {
             continue;
         }
         do
         {
-            // the same file can match both patterns through its short name
+            // short names can make one file match both patterns
             if ((found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || !seen.insert(util::ToLower(found.cFileName)).second)
             {
                 continue;
@@ -360,7 +363,7 @@ const Field* Definition::FieldForBit(unsigned bit) const
 
 bool Definition::MatchesPath(const std::wstring& key_path) const
 {
-    // no path filters means definition applies to every matching value name
+    // no path filters means every matching value name applies
     if (key_paths.empty())
     {
         return true;
@@ -582,7 +585,7 @@ bool Parse(const std::vector<BYTE>& utf8, DefinitionFile* file, std::wstring* er
     }
     const BYTE* data = utf8.data();
     size_t size = utf8.size();
-    // accept an optional UTF8 byte order mark
+    // accept optional UTF-8 BOM
     if (size >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF)
     {
         data += 3;
@@ -599,7 +602,7 @@ bool Parse(const std::vector<BYTE>& utf8, DefinitionFile* file, std::wstring* er
     }
     DefinitionFile parsed;
     std::wstring message;
-    json::Reader reader(text, &message, kMaxDepth);
+    win32ui::JsonReader reader(text, json::Errors(&message), kMaxDepth);
     if (!ReadFile(reader, &parsed))
     {
         if (error)
@@ -666,7 +669,7 @@ std::wstring Serialize(const DefinitionFile& file)
             for (size_t i = 0; i < definition.key_paths.size(); ++i)
             {
                 out.append(L"        ");
-                json::AppendString(&out, definition.key_paths[i]);
+                win32ui::AppendJsonString(&out, definition.key_paths[i]);
                 out.append(i + 1 < definition.key_paths.size() ? L",\n" : L"\n");
             }
             out.append(L"      ]");
@@ -741,7 +744,7 @@ bool Save(const std::wstring& path, const DefinitionFile& file, std::wstring* er
     {
         return false;
     }
-    // formatting can push a valid file past what Load accepts
+    // formatting can exceed the Load size limit for otherwise valid data
     const std::wstring text = Serialize(copy);
     if (util::WideToUtf8(text).size() > kMaxFileBytes)
     {

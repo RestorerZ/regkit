@@ -1,14 +1,17 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.30)
 project(RegKit LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT ProgramDatabase)
 
-option(REGKIT_REPORT_COMPILE_TIME "Print MSVC front-end and back-end timing" OFF)
-
-message(STATUS "RegKit platform: '${CMAKE_GENERATOR_PLATFORM}' pointer size: ${CMAKE_SIZEOF_VOID_P}")
+include(FetchContent)
+FetchContent_Declare(win32ui
+    GIT_REPOSITORY https://github.com/nohuto/win32-ui.git
+    GIT_TAG 203cefc72df4571dbb260fdfc0e2cbeae445e184
+    EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(win32ui)
 
 add_library(regkit_compile_settings INTERFACE)
 target_compile_features(regkit_compile_settings INTERFACE cxx_std_20)
@@ -21,22 +24,19 @@ target_compile_definitions(regkit_compile_settings INTERFACE
 )
 if (MSVC)
     target_compile_options(regkit_compile_settings INTERFACE
-        /EHsc
-        /FS
         /W4
-        /permissive-
         /sdl
         /guard:cf
+        /utf-8
     )
     target_link_options(regkit_compile_settings INTERFACE
         /GUARD:CF
-        /DYNAMICBASE
-        /NXCOMPAT
+        /DEBUG
         $<$<CONFIG:Release>:/CETCOMPAT>
+        $<$<CONFIG:Release>:/OPT:REF>
+        $<$<CONFIG:Release>:/OPT:ICF>
+        $<$<CONFIG:Release>:/PDBALTPATH:%_PDB%>
     )
-    if (REGKIT_REPORT_COMPILE_TIME)
-        target_compile_options(regkit_compile_settings INTERFACE /Bt+)
-    endif()
 endif()
 
 include(cmake/RegKitTarget.cmake)
@@ -59,17 +59,11 @@ target_link_libraries(RegKit PRIVATE
     regkit_dialogs
     regkit_ui
     regkit_win32
-    advapi32
     comctl32
-    shell32
 )
 set_target_properties(RegKit PROPERTIES OUTPUT_NAME "regkit")
 
-include(CheckIPOSupported)
-check_ipo_supported(RESULT REGKIT_IPO_SUPPORTED OUTPUT REGKIT_IPO_ERROR)
-if (REGKIT_IPO_SUPPORTED)
-    set_property(TARGET RegKit PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-endif()
+set_property(TARGET RegKit PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
 
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "^([Aa][Rr][Mm]64|aarch64)$")
     set(REGKIT_OFFREG_ARCH arm64)

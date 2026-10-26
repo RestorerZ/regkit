@@ -1,9 +1,12 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
 #include "win32/windows_config.h"
+
+#include <win32ui/gdi/gdi_cache.h>
+#include <win32ui/gdi/icon_loader.h>
 
 #include <windows.h>
 
@@ -48,8 +51,6 @@
 #include "trace/trace_loader.h"
 #include "trace/trace_parser.h"
 #include "ui/feedback.h"
-#include "ui/gdi_cache.h"
-#include "ui/icon_loader.h"
 #include "win32/file_text.h"
 #include "win32/process_rights.h"
 #include "win32/registry_native.h"

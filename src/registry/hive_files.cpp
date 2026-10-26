@@ -1,12 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "registry/hive_files.h"
 
 #include "registry/registry_path.h"
-#include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <cwchar>
 #include <unordered_set>
@@ -52,10 +53,10 @@ std::wstring ResolveDevicePath(const std::wstring& path)
     return path;
 }
 
-// hive file starts with regf, other files in the folder are skipped instead of failing the load
+// hives start with regf, skip other folder files without failing the load
 bool HasHiveSignature(const std::wstring& path)
 {
-    const util::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+    const win32ui::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
     char signature[4] = {};
     DWORD read = 0;
     return file && ReadFile(file.get(), signature, sizeof(signature), &read, nullptr) && read == sizeof(signature) && memcmp(signature, "regf", sizeof(signature)) == 0;
@@ -121,7 +122,7 @@ void CollectUserHivesRecursive(const std::wstring& folder, const std::wstring& b
 {
     WIN32_FIND_DATAW data = {};
     std::wstring search = util::JoinPath(folder, L"*");
-    const util::UniqueFind find(FindFirstFileW(search.c_str(), &data));
+    const win32ui::UniqueFind find(FindFirstFileW(search.c_str(), &data));
     if (!find)
     {
         return;
@@ -153,7 +154,7 @@ bool ShouldIncludeOfflineHiveFile(const std::wstring& name)
     {
         return true;
     }
-    // old .log files also start with regf, so only hive extensions get the signature check
+    // old .log files also start with regf, check signatures only for hive extensions
     const std::wstring ext = name.substr(dot);
     for (const wchar_t* hive_ext : {L".dat", L".hiv", L".hve", L".hive", L".sav"})
     {
@@ -169,7 +170,7 @@ void CollectLooseHivesInFolder(const std::wstring& folder, std::vector<OfflineHi
 {
     WIN32_FIND_DATAW data = {};
     std::wstring search = util::JoinPath(folder, L"*");
-    const util::UniqueFind find(FindFirstFileW(search.c_str(), &data));
+    const win32ui::UniqueFind find(FindFirstFileW(search.c_str(), &data));
     if (!find)
     {
         return;

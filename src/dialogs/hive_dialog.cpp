@@ -1,14 +1,17 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/hive_dialog.h"
 
+#include "ui/autocomplete.h"
 #include "ui/dialog_support.h"
 #include "ui/feedback.h"
 #include "win32/file_dialog.h"
 #include "win32/translation.h"
 
 #include "resource.h"
+
+#include <win32ui/dialog/dialog_window.h>
 
 #include <utility>
 
@@ -21,7 +24,6 @@ namespace
 struct State
 {
     LoadHiveResult value;
-    HFONT font = nullptr;
     bool accepted = false;
 };
 
@@ -59,21 +61,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         const bool users = state->value.root == HKEY_USERS;
         CheckDlgButton(dialog, IDC_LOAD_HIVE_HKLM, users ? BST_UNCHECKED : BST_CHECKED);
         CheckDlgButton(dialog, IDC_LOAD_HIVE_HKU, users ? BST_CHECKED : BST_UNCHECKED);
-        dialog_support::Initialize(dialog, &state->font, {IDC_LOAD_HIVE_PATH, IDC_LOAD_HIVE_NAME});
         return TRUE;
-    }
-    if (message == WM_DESTROY)
-    {
-        if (state)
-        {
-            dialog_support::ReleaseFont(&state->font);
-        }
-        return TRUE;
-    }
-    INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed))
-    {
-        return themed;
     }
     if (message != WM_COMMAND || !state)
     {
@@ -115,12 +103,12 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         state->value.root =
             IsDlgButtonChecked(dialog, IDC_LOAD_HIVE_HKU) == BST_CHECKED ? HKEY_USERS : HKEY_LOCAL_MACHINE;
         state->accepted = true;
-        EndDialog(dialog, IDOK);
+        win32ui::EndDialogWindow(dialog, IDOK);
         return TRUE;
     }
     if (id == IDCANCEL)
     {
-        EndDialog(dialog, IDCANCEL);
+        win32ui::EndDialogWindow(dialog, IDCANCEL);
         return TRUE;
     }
     return FALSE;
@@ -136,7 +124,7 @@ bool ChooseHiveToLoad(HWND owner, LoadHiveResult* result)
     }
     State state;
     state.value = *result;
-    const INT_PTR dialog_result = dialog_support::Modal(owner, IDD_LOAD_HIVE, DialogProc, reinterpret_cast<LPARAM>(&state));
+    const INT_PTR dialog_result = win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_LOAD_HIVE), DialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;
@@ -152,19 +140,12 @@ struct SymbolicLinkDialogState
 {
     SymbolicLinkResult* result = nullptr;
     const BrowseKeyCallback* browse = nullptr;
-    HFONT font = nullptr;
 };
 
 INT_PTR CALLBACK SymbolicLinkDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     auto* dialog = reinterpret_cast<SymbolicLinkDialogState*>(GetWindowLongPtrW(dlg, DWLP_USER));
     SymbolicLinkResult* state = dialog ? dialog->result : nullptr;
-    INT_PTR themed = 0;
-    if (msg != WM_INITDIALOG && msg != WM_DESTROY &&
-        dialog_support::HandleThemeMessage(dlg, msg, wparam, lparam, &themed))
-    {
-        return themed;
-    }
     switch (msg)
     {
     case WM_INITDIALOG:
@@ -177,15 +158,7 @@ INT_PTR CALLBACK SymbolicLinkDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARA
                 SetDlgItemTextW(dlg, IDC_SYMLINK_NAME, state->name.c_str());
                 SetDlgItemTextW(dlg, IDC_SYMLINK_TARGET, state->target.c_str());
             }
-            dialog_support::Initialize(dlg, dialog ? &dialog->font : nullptr, {IDC_SYMLINK_NAME, IDC_SYMLINK_TARGET});
-            return TRUE;
-        }
-    case WM_DESTROY:
-        {
-            if (dialog)
-            {
-                dialog_support::ReleaseFont(&dialog->font);
-            }
+            appearance::AttachAutoComplete(GetDlgItem(dlg, IDC_SYMLINK_TARGET), appearance::SuggestKeys);
             return TRUE;
         }
     case WM_COMMAND:
@@ -208,7 +181,7 @@ INT_PTR CALLBACK SymbolicLinkDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARA
                         return TRUE;
                     }
                 }
-                EndDialog(dlg, IDOK);
+                win32ui::EndDialogWindow(dlg, IDOK);
                 return TRUE;
             }
         case IDC_SYMLINK_BROWSE:
@@ -221,7 +194,7 @@ INT_PTR CALLBACK SymbolicLinkDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARA
                 return TRUE;
             }
         case IDCANCEL:
-            EndDialog(dlg, IDCANCEL);
+            win32ui::EndDialogWindow(dlg, IDCANCEL);
             return TRUE;
         default:
             break;
@@ -245,7 +218,7 @@ bool PromptSymbolicLink(HWND owner, const std::wstring& suggested_name, const Br
     SymbolicLinkDialogState dialog;
     dialog.result = result;
     dialog.browse = &browse;
-    return dialog_support::Modal(owner, IDD_NEW_SYMLINK, SymbolicLinkDialogProc, reinterpret_cast<LPARAM>(&dialog)) == IDOK;
+    return win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_NEW_SYMLINK), SymbolicLinkDialogProc, reinterpret_cast<LPARAM>(&dialog)) == IDOK;
 }
 
 } // namespace regkit::editors

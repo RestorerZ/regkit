@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -22,7 +22,7 @@ struct ColumnInfo
     int fmt = LVCFMT_LEFT;
 };
 
-// the columns a list view can show, by logical index, with their current widths and visibility
+// list columns by logical index, with current width and visibility
 struct ColumnSet
 {
     std::vector<ColumnInfo> items;

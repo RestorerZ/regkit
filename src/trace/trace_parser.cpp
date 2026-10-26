@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "trace/trace_parser.h"
 
@@ -88,7 +88,7 @@ bool ParseEntries(std::string_view buffer, const Normalizers& normalizers, const
         {
             line.pop_back();
         }
-        // only the key is trimmed, a queried value name keeps its spaces, the bundled traces hold names like "DssCounter "
+        // trim keys only, preserve value name spaces such as bundled trace name "DssCounter "
         if (util::IsBlank(line))
         {
             continue;

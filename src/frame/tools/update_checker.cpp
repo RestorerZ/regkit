@@ -1,20 +1,21 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/tools/update_checker.h"
 
 #include "frame/window/message_ids.h"
-#include "records/json.h"
 #include "win32/file_dialog.h"
 #include "win32/file_text.h"
-#include "win32/handle_owner.h"
 #include "win32/shell_paths.h"
-#include "win32/system_api.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
 #include "ui/feedback.h"
 #include "win32/translation.h"
 #include "resource.h"
+
+#include <win32ui/handle_owner.h>
+#include <win32ui/json/reader.h>
+#include <win32ui/system_api.h>
 
 #include <bcrypt.h>
 #include <shlobj.h>
@@ -155,7 +156,7 @@ std::wstring HttpGet(const std::wstring& url, const std::atomic_bool& cancel, st
 bool ReadRelease(const std::string& body, UpdateCheckPayload* release, std::wstring* digest)
 {
     const std::wstring text = util::Utf8ToWide(body);
-    json::Reader reader(text, nullptr);
+    win32ui::JsonReader reader(text);
     const std::wstring_view prefix = release->installed ? L"RegKit-Setup-" : L"RegKit-Portable-";
     const std::wstring_view suffix = release->installed ? kSetupSuffix : kPortableSuffix;
     return reader.Object([&](const std::wstring& member) {
@@ -231,13 +232,13 @@ std::string Sha256(const std::string& data)
 
 std::wstring RandomName(const wchar_t* prefix)
 {
-    // RandomFileSuffix returns a dotted suffix, which a name doesn't want
+    // RandomFileSuffix includes a leading dot, omit it from the name
     return prefix + util::RandomFileSuffix(L"").substr(1);
 }
 
 std::wstring PrivateTempDirectory(std::wstring* directory)
 {
-    static const auto temp_path2 = win32::ImportProc<DWORD(WINAPI*)(DWORD, LPWSTR)>(L"kernel32.dll", "GetTempPath2W");
+    static const auto temp_path2 = win32ui::ImportProc<DWORD(WINAPI*)(DWORD, LPWSTR)>(L"kernel32.dll", "GetTempPath2W");
     wchar_t temp[MAX_PATH + 1] = {};
     const DWORD length = temp_path2 ? temp_path2(static_cast<DWORD>(_countof(temp)), temp)
                                     : GetTempPathW(static_cast<DWORD>(_countof(temp)), temp);
@@ -263,7 +264,7 @@ std::wstring PrivateTempDirectory(std::wstring* directory)
 
 std::wstring DownloadsDirectory(std::wstring* directory)
 {
-    util::UniqueCoTask<PWSTR> path;
+    win32ui::UniqueCoTask<PWSTR> path;
     const HRESULT hr = SHGetKnownFolderPath(FOLDERID_Downloads, 0, nullptr, path.put());
     if (FAILED(hr) || !path)
     {
@@ -279,7 +280,7 @@ void DeleteSetup(const std::wstring& path)
     RemoveDirectoryW(path.substr(0, path.find_last_of(L'\\')).c_str());
 }
 
-// setup waits in a private folder, portable zip goes to downloads
+// setup uses a private folder, portable ZIP goes to Downloads
 std::wstring SaveDownload(const std::wstring& url, const std::string& sha256, const std::wstring& file_name, bool installed, const std::atomic_bool& cancel, std::wstring* path)
 {
     if (sha256.size() != 64 || sha256.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
@@ -302,7 +303,7 @@ std::wstring SaveDownload(const std::wstring& url, const std::string& sha256, co
     {
         return directory_error;
     }
-    util::UniqueHandle file;
+    win32ui::UniqueHandle file;
     for (int copy = 0; copy < 100 && !file; ++copy)
     {
         std::wstring name = installed ? RandomName(L"RegKit-Setup-") + L".exe" : file_name;
@@ -339,9 +340,9 @@ std::wstring SaveDownload(const std::wstring& url, const std::string& sha256, co
     return {};
 }
 
-util::UniqueHandle OpenVerifiedSetup(const std::wstring& path, const std::string& sha256)
+win32ui::UniqueHandle OpenVerifiedSetup(const std::wstring& path, const std::string& sha256)
 {
-    util::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+    win32ui::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
     LARGE_INTEGER size = {};
     if (!file || !GetFileSizeEx(file.get(), &size) || size.QuadPart <= 0 ||
         static_cast<uint64_t>(size.QuadPart) > kMaxSetupBytes)
@@ -387,7 +388,7 @@ void UpdateChecker::Check(bool silent)
         payload->silent = silent;
         payload->installed = InstallScope() != nullptr;
         std::wstring error;
-        // a failure still posts a payload, so the error is shown
+        // failures still post a payload so the UI shows the error
         try
         {
             std::string json;
@@ -482,7 +483,7 @@ void UpdateChecker::Apply(UpdateCheckPayload* payload)
     {
         if (!payload->installed)
         {
-            win32::RevealInExplorer(payload->download_path);
+            ui::RevealFile(owner_, payload->download_path);
             return;
         }
         DropSetup();
@@ -524,7 +525,7 @@ bool UpdateChecker::StartSetup()
     const std::wstring path = std::exchange(setup_path_, {});
     const std::string sha256 = std::exchange(setup_sha256_, {});
     const wchar_t* scope = InstallScope();
-    // silent setups reuse the previous choices and relaunch regkit with the saved session
+    // silent setup reuses prior choices and relaunches RegKit with saved session
     const std::wstring arguments = std::wstring(kSetupArguments) + (scope ? scope : L"");
     SHELLEXECUTEINFOW info = {sizeof(info)};
     info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
@@ -534,7 +535,7 @@ bool UpdateChecker::StartSetup()
     info.nShow = SW_SHOWNORMAL;
     bool started = false;
     {
-        const util::UniqueHandle verified = OpenVerifiedSetup(path, sha256);
+        const win32ui::UniqueHandle verified = OpenVerifiedSetup(path, sha256);
         if (!verified)
         {
             ui::ShowError(owner_, util::Tr(L"The downloaded setup changed after RegKit verified it and wasn't started."));
@@ -555,7 +556,7 @@ bool UpdateChecker::StartSetup()
     }
     setup_running_ = true;
     session_.Start(L"UpdateSetupThread", [owner = owner_, process = info.hProcess](uint64_t, std::atomic_bool& cancel) {
-        const util::UniqueHandle owned(process);
+        const win32ui::UniqueHandle owned(process);
         while (WaitForSingleObject(process, 200) == WAIT_TIMEOUT)
         {
             if (cancel.load())

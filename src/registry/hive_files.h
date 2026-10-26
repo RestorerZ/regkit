@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -17,9 +17,9 @@ struct OfflineHiveCandidate
     std::wstring label;
 };
 
-// a hive path from hivelist or a trace, as a path the file system can open
+// file system path from hivelist or a trace hive path
 std::wstring NormalizeHiveFilePath(const std::wstring& raw_path);
-// the machine hives, user hives and loose .dat files of a Windows or profile folder
+// machine hives, user hives and loose .dat files in Windows/profile folders
 void CollectOfflineHivesInFolder(const std::wstring& folder, std::vector<OfflineHiveCandidate>* out);
 std::wstring ResolveOfflineRootName(const std::wstring& path, bool is_dir, const RegistryNode* current_node);
 

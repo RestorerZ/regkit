@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window/message_dispatch.h"
 
@@ -58,21 +58,17 @@ MessageArea ClassifyMessage(UINT message) noexcept
     case WM_CLOSE:
     case WM_ENDSESSION:
         return MessageArea::kLifecycle;
-    case WM_LBUTTONDOWN:
-    case WM_LBUTTONUP:
-    case WM_MOUSEMOVE:
-    case WM_CAPTURECHANGED:
     case WM_SETCURSOR:
         return MessageArea::kLayoutInput;
     case WM_ERASEBKGND:
     case WM_PAINT:
     case WM_PRINTCLIENT:
     case WM_SETTINGCHANGE:
+    case WM_SYSCOLORCHANGE:
     case WM_THEMECHANGED:
     case WM_CTLCOLORSTATIC:
     case WM_CTLCOLOREDIT:
     case WM_INITMENUPOPUP:
-    case WM_MENUSELECT:
     case WM_DRAWITEM:
     case WM_MEASUREITEM:
         return MessageArea::kAppearance;

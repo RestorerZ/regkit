@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -14,7 +14,7 @@ namespace regkit::cli
 {
 
 bool Execute(const std::vector<std::wstring>& args, int* exit_code);
-// false when regkit wasnt started from a terminal
+// false when RegKit was not started from a terminal
 bool PrintErrorToTerminal(const std::wstring& text);
 
 } // namespace regkit::cli

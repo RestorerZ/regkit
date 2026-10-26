@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/commands/command_detail.h"
 #include "frame/window_impl.h"
@@ -7,6 +7,8 @@
 #include "ui/autocomplete.h"
 #include "win32/shell_integration.h"
 #include "win32/translation.h"
+
+#include <win32ui/process_token.h>
 
 namespace regkit
 {
@@ -108,25 +110,22 @@ bool MainWindow::Impl::HandleWindowAppearanceCommand(int command_id)
         SaveSettings();
         return true;
     case cmd::kOptionsThemeSystem:
-        theme_mode_ = ThemeMode::kSystem;
-        Theme::SetMode(theme_mode_);
+        theme_mode_ = win32ui::ThemeMode::system;
+        win32ui::SetThemeMode(theme_mode_);
         ApplySystemTheme();
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kOptionsThemeLight:
-        theme_mode_ = ThemeMode::kLight;
-        Theme::SetMode(theme_mode_);
+        theme_mode_ = win32ui::ThemeMode::light;
+        win32ui::SetThemeMode(theme_mode_);
         ApplySystemTheme();
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kOptionsThemeDark:
-        theme_mode_ = ThemeMode::kDark;
-        Theme::SetMode(theme_mode_);
+        theme_mode_ = win32ui::ThemeMode::dark;
+        win32ui::SetThemeMode(theme_mode_);
         ApplySystemTheme();
         SaveSettings();
-        BuildMenus();
         return true;
     case cmd::kOptionsThemeCustom:
         ApplyThemePresetByName(settings_.theme_preset, true);
@@ -172,7 +171,7 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
             settings_.always_run_as_trustedinstaller = false;
         }
         SaveSettings();
-        if (settings_.always_run_as_admin && !util::IsProcessElevated())
+        if (settings_.always_run_as_admin && !win32ui::IsProcessElevated())
         {
             RestartAsAdmin();
         }
@@ -188,7 +187,7 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
             settings_.always_run_as_trustedinstaller = false;
         }
         SaveSettings();
-        if (settings_.always_run_as_system && !util::IsProcessSystem())
+        if (settings_.always_run_as_system && !win32ui::IsProcessSystem())
         {
             RestartAsSystem();
         }
@@ -204,7 +203,7 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
             settings_.always_run_as_system = false;
         }
         SaveSettings();
-        if (settings_.always_run_as_trustedinstaller && !util::IsProcessTrustedInstaller())
+        if (settings_.always_run_as_trustedinstaller && !win32ui::IsProcessTrustedInstaller())
         {
             RestartAsTrustedInstaller();
         }
@@ -227,7 +226,7 @@ bool MainWindow::Impl::HandleLaunchHelpCommand(int command_id)
         UpdateStatus();
         return true;
     case cmd::kOptionsBackupRestore:
-        // the privileges stay enabled only while the mode is on, and the mode is never saved
+        // privileges stay enabled only while this mode is on, never save the mode
         if (backup_privileges_)
         {
             backup_privileges_.reset();

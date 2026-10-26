@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "cli/reg_command.h"
 
@@ -11,13 +11,14 @@
 #include "registry/registry_path.h"
 #include "registry/value_format.h"
 #include "win32/file_text.h"
-#include "win32/handle_owner.h"
 #include "win32/process_rights.h"
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
 #include "win32/shell_paths.h"
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -39,7 +40,7 @@ bool g_console_ready = false;
 HANDLE g_out = nullptr;
 HANDLE g_err = nullptr;
 
-// W7 hands a GUI child the parents console pseudo handles, they stay invalid until it attaches
+// Windows 7 passes parent console pseudo handles to GUI children, invalid until attach
 bool Usable(HANDLE handle)
 {
     return handle && handle != INVALID_HANDLE_VALUE && GetFileType(handle) != FILE_TYPE_UNKNOWN;
@@ -116,13 +117,14 @@ struct KeyRef
     std::wstring subkey;
     std::wstring path;
     std::wstring display;
-    std::shared_ptr<util::UniqueHKey> connection;
+    std::shared_ptr<win32ui::UniqueHKey> connection;
     // root becomes the connection on a remote key
     HKEY hive = nullptr;
     std::wstring machine;
 };
 
-// [\\machine\]ROOT\subkey, remote machines expose HKLM and HKU only, reg.exe save, restore, load, unload and flags take local keys only
+// [\\machine\]ROOT\subkey, remote roots expose HKLM and HKU only
+// reg.exe save, restore, load, unload and flags accept local keys only
 bool ParseKey(const std::wstring& text, KeyRef* key, bool local_only = false)
 {
     std::wstring_view view = text;
@@ -168,7 +170,7 @@ bool ParseKey(const std::wstring& text, KeyRef* key, bool local_only = false)
             PrintError(L"A remote machine was specified, the root key must be HKLM or HKU.");
             return false;
         }
-        key->connection = std::make_shared<util::UniqueHKey>();
+        key->connection = std::make_shared<win32ui::UniqueHKey>();
         const LONG status = RegConnectRegistryW((L"\\\\" + machine).c_str(), root, key->connection->put());
         if (status != ERROR_SUCCESS)
         {
@@ -184,13 +186,13 @@ bool ParseKey(const std::wstring& text, KeyRef* key, bool local_only = false)
 using reg_exe::IsSwitch;
 using reg_exe::Options;
 
-// reg.exe shows the types it has no name for as REG_NONE
+// reg.exe displays unknown types as REG_NONE
 std::wstring TypeName(DWORD type)
 {
     return type > REG_QWORD || type == REG_RESOURCE_REQUIREMENTS_LIST ? L"REG_NONE" : reg_exe::TypeName(type);
 }
 
-// switches outside the verb's reg.exe syntax are rejected, not ignored
+// reject switches outside reg.exe syntax for this verb
 bool ParseOptions(const std::vector<std::wstring>& args, size_t first, Options* options, std::vector<std::wstring>* positional, std::initializer_list<std::wstring_view> allowed, reg_exe::Verb verb = reg_exe::Verb::kOther)
 {
     std::wstring error;
@@ -242,7 +244,7 @@ std::wstring FormatData(DWORD type, const BYTE* data, DWORD size, const std::wst
     case REG_QWORD:
         {
             wchar_t buffer[32] = {};
-            // reg.exe shows REG_DWORD_BIG_ENDIAN little-endian like a REG_DWORD
+            // reg.exe displays REG_DWORD_BIG_ENDIAN as little endian, like REG_DWORD
             swprintf_s(buffer, L"0x%llx", value_format::ReadUnsigned({data, size}, type == REG_QWORD ? 8 : 4));
             return buffer;
         }
@@ -281,7 +283,7 @@ void SelectValue(const Options& options, std::vector<RegistryValue>* values)
     }
 }
 
-// * & ? wildcards, the way reg query /f matches
+// * and ? wildcards match reg query /f
 bool WildcardMatch(std::wstring_view text, std::wstring_view pattern, bool case_sensitive)
 {
     auto same = [case_sensitive](wchar_t a, wchar_t b) { return case_sensitive ? a == b : towupper(a) == towupper(b); };
@@ -425,7 +427,7 @@ LONG QueryKey(const KeyRef& key, Query& query, bool name_matched)
             }
             continue;
         }
-        // reg.exe skips unreadable subkeys silently, the skip is reported & fails the exit code here
+        // reg.exe silently skips unreadable subkeys, report skips and fail the exit code here
         const LONG child_status = QueryKey(child_key, query, child_matched);
         if (child_status != ERROR_SUCCESS)
         {
@@ -493,7 +495,7 @@ int CmdQuery(const std::vector<std::wstring>& args)
         Print(L"End of search: " + std::to_wstring(query.matches) + L" match(es) found.");
         return query.matches && !query.skipped ? kOk : kFailed;
     }
-    // key can exist even when the value requested with /v or /ve doesn't
+    // key may exist even if /v or /ve value is missing
     if (options.has_value && !query.found_value)
     {
         Print(L"");
@@ -548,7 +550,7 @@ int CmdAdd(const std::vector<std::wstring>& args)
         }
     }
 
-    util::UniqueHKey handle;
+    win32ui::UniqueHKey handle;
     LONG status = RegCreateKeyExW(key.root, key.subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_QUERY_VALUE | options.view, nullptr, handle.put(), nullptr);
     if (status != ERROR_SUCCESS)
     {
@@ -607,7 +609,7 @@ int CmdDelete(const std::vector<std::wstring>& args)
     {
         KeyContents contents;
         LONG status = options.all_values ? ReadKey(key, options.view, false, &contents) : ERROR_SUCCESS;
-        util::UniqueHKey handle;
+        win32ui::UniqueHKey handle;
         if (status == ERROR_SUCCESS)
         {
             status = RegOpenKeyExW(key.root, key.subkey.c_str(), 0, KEY_SET_VALUE | options.view, handle.put());
@@ -634,7 +636,7 @@ int CmdDelete(const std::vector<std::wstring>& args)
         PrintError(L"Refusing to delete a registry root.");
         return kFailed;
     }
-    util::UniqueHKey target;
+    win32ui::UniqueHKey target;
     LONG status = util::OpenRegistryPath(
         key.root,
         key.subkey,
@@ -654,12 +656,11 @@ int CmdDelete(const std::vector<std::wstring>& args)
     return kOk;
 }
 
-// children are created under their parents handle
 LONG CopyTree(const KeyRef& from, HKEY to_parent, const std::wstring& to_name, REGSAM view, bool recurse)
 {
     KeyContents contents;
     LONG status = ReadKey(from, view, true, &contents);
-    util::UniqueHKey created;
+    win32ui::UniqueHKey created;
     if (status == ERROR_SUCCESS)
     {
         status = util::CreateRegistryKey(to_parent, to_name, KEY_WRITE | view, REG_OPTION_NON_VOLATILE, &created, nullptr);
@@ -696,7 +697,7 @@ int CmdCopy(const std::vector<std::wstring>& args)
     {
         return kFailed;
     }
-    // a recursive copy into its own subtree would keep copying what it just wrote
+    // recursive copies into their own subtree would copy newly written keys forever
     if (from.hive == to.hive && util::EqualsInsensitive(from.machine, to.machine) && (util::EqualsInsensitive(from.subkey, to.subkey) || (options.recurse && (from.subkey.empty() || registry_path::HasComponentPrefix(to.subkey, from.subkey)))))
     {
         PrintError(L"The registry entry cannot be copied onto itself or into its own subkey.");
@@ -711,7 +712,7 @@ int CmdCopy(const std::vector<std::wstring>& args)
     return kOk;
 }
 
-// the readable part is still written when subkeys were skipped, the exit code reports the gap
+// write readable subkeys even after skips, exit code reports incomplete output
 int ExportKeyToFile(const KeyRef& key, const std::wstring& path, REGSAM view)
 {
     regfile::Writer writer;
@@ -908,7 +909,8 @@ struct Compare
     const Options& options;
     bool differs = false;
 
-    // = equal, < only or different on the left, > on the right, /oa /od /os /on pick which lines print
+    // = equal, < left only or different, > right only or different
+    // /oa /od /os /on select printed lines
     void Line(wchar_t mark, const KeyRef& key, const RegistryValue* value)
     {
         const bool equal = mark == L'=';
@@ -1007,7 +1009,7 @@ int CompareKeys(const KeyRef& left, const KeyRef& right, Compare& compare, bool 
     const auto key_name = [](const std::wstring& name) -> const std::wstring& { return name; };
     const NameIndex left_keys(left_contents.subkeys, key_name);
     const NameIndex right_keys(right_contents.subkeys, key_name);
-    // keys on both sides first, then keys found on one side only, which aren't descended into
+    // compare shared keys first, then one sided keys without descending into them
     for (const std::wstring& child : left_contents.subkeys)
     {
         if (right_keys.Find(child))
@@ -1051,7 +1053,7 @@ int CmdCompare(const std::vector<std::wstring>& args)
     }
     KeyRef left;
     KeyRef right;
-    // a bare \\machine as the second key means the first key's path on that machine
+    // bare \\machine as second key uses the first key path on that machine
     std::wstring second = positional[1];
     if (second.starts_with(L"\\\\") && second.find(L'\\', 2) == std::wstring::npos && ParseKey(positional[0], &left))
     {
@@ -1074,7 +1076,7 @@ int CmdCompare(const std::vector<std::wstring>& args)
     Print(L"");
     Print(compare.differs ? L"Result Compared:  Different" : L"Result Compared:  Identical");
     PrintSuccess();
-    // reg.exe exit code 2 = keys are different
+    // reg.exe exit code 2 means different keys
     return compare.differs ? 2 : kOk;
 }
 
@@ -1092,7 +1094,7 @@ constexpr ControlFlag kControlFlags[] = {
 
 LONG ApplyFlags(const KeyRef& key, const Options& options, std::optional<ULONG> set)
 {
-    util::UniqueHKey handle;
+    win32ui::UniqueHKey handle;
     LONG status = util::OpenRegistryPath(key.root, key.subkey, KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS | (set ? KEY_SET_VALUE : 0) | options.view, false, &handle);
     if (status != ERROR_SUCCESS)
     {
@@ -1337,7 +1339,7 @@ bool Execute(const std::vector<std::wstring>& args, int* exit_code)
         }
     }
 
-    // accept older RegEdit import/export
+    // accept legacy RegEdit import/export syntax
     for (size_t i = 0; i < args.size(); ++i)
     {
         if (IsSwitch(args[i], L"s") && i + 1 < args.size())

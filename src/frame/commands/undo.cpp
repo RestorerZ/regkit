@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -9,15 +9,6 @@ namespace regkit
 {
 
 using namespace window_detail;
-
-void MainWindow::Impl::UpdateUndoButtons()
-{
-    if (toolbar_.hwnd())
-    {
-        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditUndo, !settings_.read_only && session_->undo.CanUndo() ? TBSTATE_ENABLED : 0);
-        SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditRedo, !settings_.read_only && session_->undo.CanRedo() ? TBSTATE_ENABLED : 0);
-    }
-}
 
 void MainWindow::Impl::PushUndo(changes::UndoOperation operation)
 {
@@ -33,13 +24,13 @@ void MainWindow::Impl::PushUndo(std::vector<changes::UndoOperation> steps)
         return;
     }
     session_->undo.Push(std::move(steps));
-    UpdateUndoButtons();
+    UpdateToolbarStates();
 }
 
 void MainWindow::Impl::ClearRedo()
 {
     session_->undo.ClearRedo();
-    UpdateUndoButtons();
+    UpdateToolbarStates();
 }
 
 namespace
@@ -53,7 +44,7 @@ bool TouchesKeys(const changes::UndoOperation& operation)
            std::any_of(operation.steps.begin(), operation.steps.end(), TouchesKeys);
 }
 
-// the registry side of one step, the caller refreshes the view once
+// registry part of one step, caller refreshes the view once
 bool ReplayStep(const changes::UndoOperation& operation, bool redo, bool* rename_left_both_names, size_t* replayed = nullptr)
 {
     switch (operation.type)
@@ -85,7 +76,7 @@ bool ReplayStep(const changes::UndoOperation& operation, bool redo, bool* rename
         return RegistryStore::RenameValue(operation.node, redo ? operation.name : operation.new_name, redo ? operation.new_name : operation.name, rename_left_both_names);
     case Type::kGroup:
         {
-            // undo walks the steps backwards and stops at a failing one, a later step may depend on it
+            // undo stops at the first failed step, earlier steps may depend on it
             const size_t count = operation.steps.size();
             size_t index = 0;
             while (index < count && ReplayStep(operation.steps[redo ? index : count - 1 - index], redo, rename_left_both_names))
@@ -124,7 +115,7 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(const change
     const bool changed_some = operation.type == Type::kGroup && steps > 0;
     if (TouchesKeys(operation) && (ok || changed_some))
     {
-        // a group's keys can be anywhere in the tree, not only at the selection
+        // group keys can lie anywhere in the tree, not just under selection
         if (operation.type == Type::kGroup)
         {
             RefreshWholeTree();
@@ -184,8 +175,8 @@ MainWindow::Impl::ReplayResult MainWindow::Impl::ApplyUndoOperation(const change
         ui::ShowError(hwnd_, util::Tr(L"The value was copied to the new name but the old name "
                                       L"couldn't be removed. Both names now exist."));
     }
-    UpdateUndoButtons();
-    // a group that partly replayed is split by the caller, one that changed nothing stays as it was
+    UpdateToolbarStates();
+    // caller splits partly replayed groups, unchanged groups stay intact
     if (rename_left_both_names || (changed_some && !ok))
     {
         if (!rename_left_both_names)
@@ -328,7 +319,7 @@ bool MainWindow::Impl::ResolvePathInRoots(const std::vector<RegistryRootEntry>& 
         node->view = root_entry.view;
         node->root_name = root_entry.path_name;
         node->subkey = subkey(registry_path::RawName(tail));
-        // U+2400 shows an embedded nul but is also a legal character, existing literal name > missing nul one
+        // U+2400 displays embedded NUL but is also valid in names, prefer existing literal names over missing NUL names
         if (tail.find(L'\x2400') != std::wstring_view::npos && !RegistryStore::KeyExists(*node))
         {
             RegistryNode literal = *node;

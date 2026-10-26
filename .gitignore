@@ -1,5 +1,4 @@
 /build/
-/build32/
-/installer/dist/
+/CMakeUserPresets.json
 /todo/
 /stress/

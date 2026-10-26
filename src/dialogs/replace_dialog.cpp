@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/replace_dialog.h"
 
@@ -10,6 +10,8 @@
 #include "ui/feedback.h"
 #include "win32/translation.h"
 #include "workspace/dialog_state.h"
+
+#include <win32ui/dialog/dialog_window.h>
 
 namespace regkit
 {
@@ -22,7 +24,6 @@ namespace dialog_support = editors::dialog_support;
 struct State
 {
     ReplaceDialogResult* out = nullptr;
-    HFONT font = nullptr;
 };
 
 constexpr struct
@@ -101,21 +102,7 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
                      L"Replace with: $1 or ${1} for a group, $<name> or ${name} for a named group, $& for the whole match, $$ "
                      L"for a dollar.")
         );
-        dialog_support::Initialize(dialog, &state->font, {IDC_REPLACE_FIND, IDC_REPLACE_WITH, IDC_REPLACE_KEY});
         return TRUE;
-    }
-    if (message == WM_DESTROY)
-    {
-        if (state)
-        {
-            dialog_support::ReleaseFont(&state->font);
-        }
-        return TRUE;
-    }
-    INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed))
-    {
-        return themed;
     }
     if (message != WM_COMMAND || !state)
     {
@@ -138,11 +125,11 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     case IDOK:
         if (Accept(dialog, state))
         {
-            EndDialog(dialog, IDOK);
+            win32ui::EndDialogWindow(dialog, IDOK);
         }
         return TRUE;
     case IDCANCEL:
-        EndDialog(dialog, IDCANCEL);
+        win32ui::EndDialogWindow(dialog, IDCANCEL);
         return TRUE;
     default:
         return FALSE;
@@ -155,7 +142,7 @@ bool ShowReplaceDialog(HWND owner, ReplaceDialogResult* result)
 {
     State state;
     state.out = result;
-    return result && dialog_support::Modal(owner, IDD_REPLACE, DialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
+    return result && win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_REPLACE), DialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
 }
 
 void ReplaceDialogFields(workspace::DialogFields& fields, ReplaceDialogResult* result)

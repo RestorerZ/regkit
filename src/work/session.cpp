@@ -1,9 +1,9 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "work/session.h"
 
-#include "win32/system_api.h"
+#include <win32ui/system_api.h>
 
 #include <system_error>
 
@@ -15,14 +15,14 @@ namespace regkit::work
 namespace
 {
 
-// shared by all sessions, so a session made again for the same source never reuses an old completions generation
+// shared generation prevents recreated sessions from accepting old completions for the same source
 std::atomic<uint64_t> g_generation{0};
 
 } // namespace
 
 void NameThread(std::thread& thread, const wchar_t* name) noexcept
 {
-    static const auto set_description = win32::ImportProc<HRESULT(WINAPI*)(HANDLE, PCWSTR)>(L"kernel32.dll", "SetThreadDescription");
+    static const auto set_description = win32ui::ImportProc<HRESULT(WINAPI*)(HANDLE, PCWSTR)>(L"kernel32.dll", "SetThreadDescription");
     if (set_description && thread.joinable())
     {
         set_description(thread.native_handle(), name);

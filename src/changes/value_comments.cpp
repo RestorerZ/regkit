@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "changes/value_comments.h"
 
@@ -8,6 +8,9 @@
 #include "win32/file_text.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
+
+#include <win32ui/json/reader.h>
+#include <win32ui/json/writer.h>
 
 #include <algorithm>
 #include <tuple>
@@ -69,7 +72,7 @@ auto Specificity(const CommentRule& rule)
     return std::tuple(scope, depth, static_cast<int>(rule.type.has_value()) + static_cast<int>(rule.data_size.has_value()));
 }
 
-bool ReadType(json::Reader& reader, std::optional<DWORD>* type)
+bool ReadType(win32ui::JsonReader& reader, std::optional<DWORD>* type)
 {
     if (reader.Next() == L'"')
     {
@@ -101,7 +104,7 @@ bool ReadType(json::Reader& reader, std::optional<DWORD>* type)
     return true;
 }
 
-bool ReadRule(json::Reader& reader, CommentRule* rule)
+bool ReadRule(win32ui::JsonReader& reader, CommentRule* rule)
 {
     unsigned seen = 0;
     const auto claim = [&](unsigned bit) {
@@ -150,7 +153,7 @@ void AppendMember(std::wstring* out, const wchar_t* name, std::wstring_view valu
     out->append(out->back() == L'{' ? L"\n      \"" : L",\n      \"").append(name).append(L"\": ");
     if (quote)
     {
-        json::AppendString(out, value);
+        win32ui::AppendJsonString(out, value);
     }
     else
     {
@@ -262,7 +265,7 @@ void ValueComments::Reindex()
 bool ParseComments(const std::wstring& content, std::vector<CommentRule>* out, std::wstring* error)
 {
     std::vector<CommentRule> rules;
-    json::Reader reader(content, error, 4);
+    win32ui::JsonReader reader(content, json::Errors(error), 4);
     bool format = false;
     const bool read = reader.Object([&](const std::wstring& member) {
         if (member == L"format")

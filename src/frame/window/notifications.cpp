@@ -1,13 +1,14 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 #include "frame/window/shortcut_bindings.h"
 
 #include "ui/dialog_layout.h"
-#include "ui/list_header.h"
 #include "win32/translation.h"
+
+#include <win32ui/dialog/single_line_edit.h>
 
 namespace regkit
 {
@@ -52,18 +53,18 @@ LRESULT MainWindow::Impl::HandleNotification(LPARAM lparam)
     {
         return 0;
     }
-    if (header->code == TTN_GETDISPINFOW || header->code == TTN_NEEDTEXTW || header->code == TTN_SHOW)
+    // toolbar Delete follows focused pane
+    if (header->code == NM_SETFOCUS)
     {
-        return HandleTooltipNotification(header, lparam);
+        UpdateToolbarStates();
     }
-    LRESULT list_result = 0;
-    if (appearance::HandleListViewNotify(hwnd_, header, &list_result))
+    if (LRESULT toolbar_result = 0; win32ui::ToolbarNotify(header, &toolbar_result))
     {
-        return list_result;
+        return toolbar_result;
     }
-    if (header->hwndFrom == toolbar_.hwnd())
+    if (header->code == TTN_SHOW)
     {
-        return HandleToolbarNotification(header, lparam);
+        return HandleTooltipNotification(header);
     }
     if (header->hwndFrom == tab_)
     {
@@ -85,12 +86,6 @@ LRESULT MainWindow::Impl::HandleNotification(LPARAM lparam)
     {
         return HandleSearchNotification(header, lparam);
     }
-    if (header->hwndFrom == ListView_GetHeader(browse_.values().hwnd()) ||
-        header->hwndFrom == ListView_GetHeader(history_list_) ||
-        header->hwndFrom == ListView_GetHeader(search_results_list_))
-    {
-        return HandleHeaderNotification(header, lparam);
-    }
     return 0;
 }
 
@@ -110,21 +105,22 @@ std::wstring MainWindow::Impl::SearchCellFieldText(const search::Result& result,
         return search::IsKeyRow(result) || result.kind == search::ResultKind::kTraceValue
                    ? std::wstring()
                    : std::to_wstring(result.data_size);
+    case 5:
+        return FormatFileTime(result.modified);
     default:
         return std::wstring();
     }
 }
 
-std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item, int display_subitem)
+std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item, int subitem)
 {
     if (list == browse_.values().hwnd())
     {
         const ListRow* row = browse_.values().RowAt(item);
-        return row ? ValueRowFieldText(*row, MappedSubItem(value_column_subitems_, display_subitem)) : std::wstring();
+        return row ? ValueRowFieldText(*row, subitem) : std::wstring();
     }
     if (list == search_results_list_)
     {
-        const int subitem = MappedSubItem(search_column_subitems_, display_subitem);
         const int tab_index = SearchIndexFromTab(TabCtrl_GetCurSel(tab_));
         const SearchTab* tab = tab_index >= 0 && static_cast<size_t>(tab_index) < search_tabs_.size()
                                    ? &search_tabs_[static_cast<size_t>(tab_index)]
@@ -153,8 +149,12 @@ std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item, int displa
                 return std::wstring();
             }
         }
-        const search::Result* result = SearchResultAt(item);
-        return result ? SearchCellFieldText(*result, subitem) : std::wstring();
+        if (!tab || item < 0 || static_cast<size_t>(item) >= tab->results.size())
+        {
+            return std::wstring();
+        }
+        const search::Result& result = tab->results[static_cast<size_t>(item)];
+        return subitem == 6 ? search::SourceText(result, tab->sources) : SearchCellFieldText(result, subitem);
     }
     if (list == history_list_)
     {
@@ -164,7 +164,7 @@ std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item, int displa
             return std::wstring();
         }
         const HistoryEntry& entry = entries[static_cast<size_t>(item)];
-        switch (MappedSubItem(history_column_subitems_, display_subitem))
+        switch (subitem)
         {
         case 0:
             return entry.time_text;
@@ -181,57 +181,7 @@ std::wstring MainWindow::Impl::ListCellFieldText(HWND list, int item, int displa
     return std::wstring();
 }
 
-bool MainWindow::Impl::ListCellTooltipText(std::wstring* out)
-{
-    POINT pt = {};
-    if (!out || !GetCursorPos(&pt))
-    {
-        return false;
-    }
-    HWND list = WindowFromPoint(pt);
-    if (list != browse_.values().hwnd() && list != search_results_list_ && list != history_list_)
-    {
-        return false;
-    }
-    ScreenToClient(list, &pt);
-    LVHITTESTINFO hit = {};
-    hit.pt = pt;
-    const int item = ListView_SubItemHitTest(list, &hit);
-    if (item < 0)
-    {
-        return false;
-    }
-    const std::wstring text = ListCellFieldText(list, item, hit.iSubItem);
-    RECT cell = {};
-    const bool measured = hit.iSubItem == 0
-                              ? ListView_GetItemRect(list, item, &cell, LVIR_LABEL) != FALSE
-                              : ListView_GetSubItemRect(list, item, hit.iSubItem, LVIR_BOUNDS, &cell) != FALSE;
-    const int padding = hit.iSubItem == 0 ? kCellTooltipPadding : kCellTextInset;
-    const int available = static_cast<int>(cell.right - cell.left) - padding;
-    if (!measured || text.empty() || available <= 0 || !CellTextIsClipped(list, text, available))
-    {
-        return false;
-    }
-    // limit tooltip text so large registry data doesnt create huge windows
-    size_t limit = std::min(text.size(), kValueTooltipTextLimit);
-    size_t lines = 0;
-    for (size_t i = 0; i < limit; ++i)
-    {
-        if (text[i] == L'\n' && ++lines == kValueTooltipLineLimit)
-        {
-            limit = i;
-            break;
-        }
-    }
-    out->assign(text, 0, limit);
-    if (limit < text.size())
-    {
-        out->append(L"...");
-    }
-    return true;
-}
-
-LRESULT MainWindow::Impl::HandleTooltipNotification(NMHDR* header, LPARAM lparam)
+LRESULT MainWindow::Impl::HandleTooltipNotification(NMHDR* header)
 {
     if (header->code == TTN_SHOW && header->hwndFrom == value_tooltip_)
     {
@@ -258,124 +208,6 @@ LRESULT MainWindow::Impl::HandleTooltipNotification(NMHDR* header, LPARAM lparam
         }
         SetWindowPos(value_tooltip_, HWND_TOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
         return TRUE;
-    }
-    if (header->code == TTN_GETDISPINFOW || header->code == TTN_NEEDTEXTW)
-    {
-        auto* info = reinterpret_cast<LPTOOLTIPTEXTW>(lparam);
-        if (info && header->hwndFrom == value_tooltip_)
-        {
-            value_tooltip_text_.clear();
-            if (ListCellTooltipText(&value_tooltip_text_))
-            {
-                info->lpszText = value_tooltip_text_.data();
-            }
-            else
-            {
-                info->lpszText = const_cast<wchar_t*>(L"");
-            }
-            return 0;
-        }
-        if (info)
-        {
-            int command_id = static_cast<int>(info->hdr.idFrom);
-            std::wstring tip = CommandTooltipText(command_id);
-            if (!tip.empty())
-            {
-                if (const wchar_t* shortcut = frame::ShortcutText(command_id))
-                {
-                    tip.append(L" (");
-                    tip.append(shortcut);
-                    tip.append(L")");
-                }
-                static std::wstring tip_storage;
-                tip_storage = tip;
-                info->lpszText = const_cast<wchar_t*>(tip_storage.c_str());
-                return 0;
-            }
-        }
-    }
-    return 0;
-}
-
-LRESULT MainWindow::Impl::HandleToolbarNotification(NMHDR* header, LPARAM lparam)
-{
-    if (header->hwndFrom == toolbar_.hwnd() && header->code == NM_CUSTOMDRAW)
-    {
-        auto* draw = reinterpret_cast<NMTBCUSTOMDRAW*>(lparam);
-        if (!draw)
-        {
-            return CDRF_DODEFAULT;
-        }
-        const Theme& theme = Theme::Current();
-        if (draw->nmcd.dwDrawStage == CDDS_PREPAINT)
-        {
-            FillRect(draw->nmcd.hdc, &draw->nmcd.rc, theme.BackgroundBrush());
-        }
-        if (!Theme::UseDarkMode())
-        {
-            return CDRF_DODEFAULT;
-        }
-        HWND bar = header->hwndFrom;
-        switch (draw->nmcd.dwDrawStage)
-        {
-        case CDDS_PREPAINT:
-            return CDRF_NOTIFYITEMDRAW;
-        case CDDS_ITEMPREPAINT:
-            {
-                bool is_separator = false;
-                int command_id = static_cast<int>(draw->nmcd.dwItemSpec);
-                int index = static_cast<int>(SendMessageW(bar, TB_COMMANDTOINDEX, command_id, 0));
-                if (index >= 0)
-                {
-                    TBBUTTON button = {};
-                    if (SendMessageW(bar, TB_GETBUTTON, index, reinterpret_cast<LPARAM>(&button)))
-                    {
-                        is_separator = (button.fsStyle & BTNS_SEP) != 0;
-                    }
-                }
-                if (is_separator)
-                {
-                    return CDRF_DODEFAULT;
-                }
-
-                POINT cursor = {};
-                GetCursorPos(&cursor);
-                ScreenToClient(bar, &cursor);
-                bool is_hovered = ((draw->nmcd.uItemState & CDIS_HOT) == CDIS_HOT) || PtInRect(&draw->nmcd.rc, cursor);
-
-                draw->hbrMonoDither = theme.BackgroundBrush();
-                draw->hbrLines = theme.BackgroundBrush();
-                draw->hpenLines = appearance::CachedPen(theme.BorderColor(), 1);
-                draw->clrText = theme.TextColor();
-                draw->clrTextHighlight = theme.TextColor();
-                draw->clrBtnFace = theme.BackgroundColor();
-                draw->clrBtnHighlight = theme.SurfaceColor();
-                draw->clrHighlightHotTrack = theme.HoverColor();
-                draw->nStringBkMode = TRANSPARENT;
-                draw->nHLStringBkMode = TRANSPARENT;
-
-                if (is_hovered)
-                {
-                    DrawToolbarButtonBackground(draw->nmcd.hdc, draw->nmcd.rc, theme.HoverColor(), theme.BorderColor());
-                    draw->nmcd.uItemState &= ~(CDIS_HOT | CDIS_CHECKED);
-                }
-                else if ((draw->nmcd.uItemState & CDIS_CHECKED) == CDIS_CHECKED)
-                {
-                    DrawToolbarButtonBackground(draw->nmcd.hdc, draw->nmcd.rc, theme.SurfaceColor(), theme.BorderColor());
-                    draw->nmcd.uItemState &= ~CDIS_CHECKED;
-                }
-
-                LRESULT lr = TBCDRF_USECDCOLORS;
-                if ((draw->nmcd.uItemState & CDIS_SELECTED) == CDIS_SELECTED)
-                {
-                    lr |= TBCDRF_NOBACKGROUND;
-                }
-                return lr;
-            }
-        default:
-            break;
-        }
-        return CDRF_DODEFAULT;
     }
     return 0;
 }
@@ -485,7 +317,7 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
     {
         if (header->code == TVN_ITEMEXPANDINGW)
         {
-            // explorer themed trees slide the rows below an expanding key
+            // Explorer tree style animates rows below expanding keys
             SuspendTreeRedraw();
             browse_.tree().OnItemExpanding(reinterpret_cast<NMTREEVIEWW*>(lparam));
             return 0;
@@ -522,8 +354,8 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
             HWND edit = TreeView_GetEditControl(browse_.tree().hwnd());
             if (edit)
             {
-                Theme::Current().ApplyToWindow(edit);
-                Theme::Current().ApplyToChildren(edit);
+                win32ui::ApplyThemeToWindow(edit);
+                win32ui::AddSelectAllShortcut(edit);
             }
             return FALSE;
         }
@@ -601,66 +433,11 @@ LRESULT MainWindow::Impl::HandleTreeNotification(NMHDR* header, LPARAM lparam)
         }
         if (header->code == NM_CUSTOMDRAW)
         {
-            if (!Theme::UseDarkMode())
-            {
-                return CDRF_DODEFAULT;
-            }
-            auto* draw = reinterpret_cast<NMTVCUSTOMDRAW*>(lparam);
-            if (!draw)
-            {
-                return CDRF_DODEFAULT;
-            }
-            switch (draw->nmcd.dwDrawStage)
-            {
-            case CDDS_PREPAINT:
-                return CDRF_NOTIFYITEMDRAW;
-            case CDDS_ITEMPREPAINT:
-                {
-                    if (draw->nmcd.uItemState & CDIS_SELECTED)
-                    {
-                        return CDRF_DODEFAULT;
-                    }
-                    const Theme& theme = Theme::Current();
-                    bool hot = (draw->nmcd.uItemState & CDIS_HOT) != 0;
-                    if (hot)
-                    {
-                        draw->clrText = theme.TextColor();
-                        draw->clrTextBk = theme.HoverColor();
-                    }
-                    else
-                    {
-                        draw->clrText = theme.TextColor();
-                        draw->clrTextBk = theme.PanelColor();
-                    }
-                    return CDRF_NEWFONT;
-                }
-            default:
-                break;
-            }
+            // hovered item in dark trees
+            LRESULT result = CDRF_DODEFAULT;
+            win32ui::ThemeCustomDraw(header, &result);
+            return result;
         }
-    }
-    return 0;
-}
-
-LRESULT MainWindow::Impl::HandleHeaderNotification(NMHDR* header, LPARAM lparam)
-{
-    const bool width_change = header->code == HDN_ENDTRACKW || header->code == HDN_ENDTRACKA || header->code == HDN_ITEMCHANGEDW || header->code == HDN_ITEMCHANGEDA;
-    HWND list = GetParent(header->hwndFrom);
-    ui::ColumnSet* set = width_change ? ColumnSetFor(list) : nullptr;
-    auto* info = reinterpret_cast<NMHEADERW*>(lparam);
-    if (set && info->iItem >= 0 && info->pitem && (info->pitem->mask & HDI_WIDTH))
-    {
-        const int subitem = GetListViewColumnSubItem(list, info->iItem);
-        if (subitem >= 0 && static_cast<size_t>(subitem) < set->widths.size())
-        {
-            set->widths[static_cast<size_t>(subitem)] = info->pitem->cxy;
-            if (list == browse_.values().hwnd() && (header->code == HDN_ENDTRACKW || header->code == HDN_ENDTRACKA))
-            {
-                SaveSettings();
-            }
-        }
-        InvalidateListViewColumn(list, info->iItem);
-        InvalidateListViewTail(list);
     }
     return 0;
 }
@@ -698,7 +475,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
         }
         if (disp->item.mask & LVIF_TEXT)
         {
-            const int subitem = MappedSubItem(value_column_subitems_, disp->item.iSubItem);
+            const int subitem = disp->item.iSubItem;
             if (subitem == kValueColData && mutable_row && !mutable_row->data_ready && !value_preview_request_posted_)
             {
                 value_preview_request_posted_ = true;
@@ -742,8 +519,8 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
         HWND edit = ListView_GetEditControl(browse_.values().hwnd());
         if (edit)
         {
-            Theme::Current().ApplyToWindow(edit);
-            Theme::Current().ApplyToChildren(edit);
+            win32ui::ApplyThemeToWindow(edit);
+            win32ui::AddSelectAllShortcut(edit);
         }
         return FALSE;
     }
@@ -805,7 +582,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
         {
             if (both_names_left)
             {
-                // value rename is a copy followed by delete and can fail in between
+                // value rename copies then deletes, either step can fail
                 MarkOfflineDirty();
                 UpdateValueListForNode(browse_.current_node());
                 ui::ShowError(hwnd_, util::Tr(L"The value was copied to the new name but the old name "
@@ -848,7 +625,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
     if (header->hwndFrom == browse_.values().hwnd() && header->code == LVN_ITEMCHANGED)
     {
         auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
-        // one status update for a burst of selection changes
+        // coalesce selection changes into one status update
         if (!updating_value_list_ && info && ((info->uOldState ^ info->uNewState) & LVIS_SELECTED) != 0 && !status_update_pending_ &&
             PostMessageW(hwnd_, frame::message_id::kStatusUpdate, 0, 0))
         {
@@ -861,7 +638,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
         auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
         if (info)
         {
-            SortValueList(MappedSubItem(value_column_subitems_, info->iSubItem), true);
+            SortValueList(info->iSubItem, true);
         }
         return 0;
     }
@@ -901,7 +678,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
             }
             if (row && row->kind == rowkind::kValue)
             {
-                if (MappedSubItem(value_column_subitems_, activate->iSubItem) == kValueColComment)
+                if (activate->iSubItem == kValueColComment)
                 {
                     HandleMenuCommand(cmd::kEditModifyComment);
                 }
@@ -934,7 +711,7 @@ LRESULT MainWindow::Impl::HandleValueNotification(NMHDR* header, LPARAM lparam)
         default:
             break;
         }
-        return appearance::HandleListGridCustomDraw(browse_.values().hwnd(), draw, result);
+        return win32ui::DrawListGrid(browse_.values().hwnd(), draw, result);
     }
     return 0;
 }
@@ -989,7 +766,7 @@ LRESULT MainWindow::Impl::HandleSearchListCustomDraw(NMLVCUSTOMDRAW* draw)
     switch (draw->nmcd.dwDrawStage)
     {
     case CDDS_PREPAINT:
-        return appearance::HandleListGridCustomDraw(search_results_list_, draw, CDRF_NOTIFYITEMDRAW);
+        return win32ui::DrawListGrid(search_results_list_, draw, CDRF_NOTIFYITEMDRAW);
     case CDDS_ITEMPREPAINT:
         {
             draw->nmcd.uItemState &= ~CDIS_FOCUS;
@@ -999,16 +776,16 @@ LRESULT MainWindow::Impl::HandleSearchListCustomDraw(NMLVCUSTOMDRAW* draw)
             {
                 stage |= CDRF_NOTIFYSUBITEMDRAW;
             }
-            return appearance::HandleListGridCustomDraw(search_results_list_, draw, stage);
+            return win32ui::DrawListGrid(search_results_list_, draw, stage);
         }
     case CDDS_ITEMPOSTPAINT:
-        return appearance::HandleListGridCustomDraw(search_results_list_, draw, CDRF_DODEFAULT);
+        return win32ui::DrawListGrid(search_results_list_, draw, CDRF_DODEFAULT);
     case CDDS_POSTPAINT:
-        return appearance::HandleListGridCustomDraw(search_results_list_, draw, CDRF_DODEFAULT);
+        return win32ui::DrawListGrid(search_results_list_, draw, CDRF_DODEFAULT);
     case CDDS_ITEMPREPAINT | CDDS_SUBITEM:
         {
             search::Result* result = SearchResultAt(item);
-            if (!result || SearchMatchSubItem(*result) != MappedSubItem(search_column_subitems_, draw->iSubItem))
+            if (!result || SearchMatchSubItem(*result) != draw->iSubItem)
             {
                 return CDRF_DODEFAULT;
             }
@@ -1017,7 +794,7 @@ LRESULT MainWindow::Impl::HandleSearchListCustomDraw(NMLVCUSTOMDRAW* draw)
     case CDDS_ITEMPOSTPAINT | CDDS_SUBITEM:
         {
             const search::Result* result = SearchResultAt(item);
-            const int subitem = MappedSubItem(search_column_subitems_, draw->iSubItem);
+            const int subitem = draw->iSubItem;
             if (!result || SearchMatchSubItem(*result) != subitem)
             {
                 return CDRF_DODEFAULT;
@@ -1100,7 +877,7 @@ LRESULT MainWindow::Impl::HandleHistoryNotification(NMHDR* header, LPARAM lparam
             const auto& entry = entries[static_cast<size_t>(disp->item.iItem)];
             const std::wstring* text = &entry.time_text;
             std::wstring marked;
-            switch (MappedSubItem(history_column_subitems_, disp->item.iSubItem))
+            switch (disp->item.iSubItem)
             {
             case 1:
                 if (entry.backup_mode)
@@ -1139,7 +916,7 @@ LRESULT MainWindow::Impl::HandleHistoryNotification(NMHDR* header, LPARAM lparam
         auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
         if (info)
         {
-            SortHistoryList(MappedSubItem(history_column_subitems_, info->iSubItem), true);
+            SortHistoryList(info->iSubItem, true);
         }
         return 0;
     }
@@ -1159,7 +936,7 @@ LRESULT MainWindow::Impl::HandleHistoryNotification(NMHDR* header, LPARAM lparam
         {
             draw->nmcd.uItemState &= ~CDIS_FOCUS;
         }
-        return appearance::HandleListGridCustomDraw(history_list_, draw, result);
+        return win32ui::DrawListGrid(history_list_, draw, result);
     }
     return 0;
 }
@@ -1198,7 +975,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
             return 0;
         }
         const size_t row_index = static_cast<size_t>(disp->item.iItem);
-        const int subitem = MappedSubItem(search_column_subitems_, disp->item.iSubItem);
+        const int subitem = disp->item.iSubItem;
 
         if (tab->is_compare)
         {
@@ -1381,7 +1158,7 @@ LRESULT MainWindow::Impl::HandleSearchNotification(NMHDR* header, LPARAM lparam)
         auto* info = reinterpret_cast<NMLISTVIEW*>(lparam);
         if (info)
         {
-            SortSearchResults(MappedSubItem(search_column_subitems_, info->iSubItem), true);
+            SortSearchResults(info->iSubItem, true);
         }
         return 0;
     }

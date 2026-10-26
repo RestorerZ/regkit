@@ -1,9 +1,8 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "win32/file_dialog.h"
 
-#include "win32/handle_owner.h"
 #include "win32/process_rights.h"
 #include "win32/system_error.h"
 #include "win32/translation.h"
@@ -12,6 +11,9 @@
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
+
+#include <win32ui/handle_owner.h>
+#include <win32ui/process_token.h>
 
 #include <memory>
 #include <string_view>
@@ -124,9 +126,9 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
             dialog->SetDefaultExtension(std::wstring(spec.substr(2, spec.find(L';') - 2)).c_str());
         }
     }
-    if (util::IsProcessSystem())
+    if (win32ui::IsProcessSystem())
     {
-        util::UniqueCoTask<PWSTR> own_desktop;
+        win32ui::UniqueCoTask<PWSTR> own_desktop;
         if (g_missing_desktop_prompt && SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, KF_FLAG_DONT_VERIFY, nullptr, own_desktop.put())) &&
             GetFileAttributesW(own_desktop.get()) == INVALID_FILE_ATTRIBUTES && std::exchange(g_missing_desktop_prompt, nullptr)(owner, own_desktop.get()))
         {
@@ -191,7 +193,7 @@ HRESULT ShowDialog(HWND owner, REFCLSID clsid, const wchar_t* filter, FILEOPENDI
     {
         return hr;
     }
-    util::UniqueCoTask<PWSTR> text;
+    win32ui::UniqueCoTask<PWSTR> text;
     hr = item->GetDisplayName(SIGDN_FILESYSPATH, text.put());
     if (FAILED(hr))
     {

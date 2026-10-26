@@ -1,11 +1,14 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
 #include "ui/autocomplete.h"
 #include "win32/translation.h"
+
+#include <win32ui/gdi/fonts.h>
+#include <win32ui/process_token.h>
 
 namespace regkit
 {
@@ -324,7 +327,7 @@ bool MainWindow::Impl::RevertHistoryEntry(const HistoryEntry& entry)
 
 bool MainWindow::Impl::HistoryStaysInMemory() const
 {
-    return util::IsProcessSystem() || util::IsProcessTrustedInstaller();
+    return win32ui::IsProcessSystem() || win32ui::IsProcessTrustedInstaller();
 }
 
 bool MainWindow::Impl::AppendHistoryCache(const std::vector<HistoryEntry>& entries)
@@ -582,7 +585,7 @@ void MainWindow::Impl::LoadTabs()
     {
         loaded = workspace::LoadTabs(TabsCachePath(), &state);
     }
-    // a restart hands the whole session over, a normal start restores tree state only when it's saved
+    // restarts transfer the full session, normal startup restores tree state only if saved
     auto restore_tree_state = [keep_tree_state](TabEntry* entry, workspace::PersistedTab* saved) {
         if (!keep_tree_state)
         {
@@ -909,7 +912,7 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds)
         saved_active_index = 0;
     }
     state.active_index = saved_active_index;
-    // the old metadata still references the old caches when it can't be replaced
+    // failed metadata replacement leaves references to old caches
     if (!workspace::SaveTabs(path, state))
     {
         return false;
@@ -980,7 +983,7 @@ bool MainWindow::Impl::SaveComments() const
     {
         return !comments_unreadable_ && value_comments_.Save(CommentsPath());
     }
-    // the startup load hasn't merged the file yet, so add to it instead of replacing it
+    // startup has not merged the file yet, append instead of replacing it
     const std::wstring path = CommentsPath();
     changes::ValueComments merged;
     if (!merged.Load(path) && !util::IsMissing(path))
@@ -1180,7 +1183,8 @@ void MainWindow::Impl::LoadSettings()
     util::SetCurrentUserFollowsShell(settings_.hkcu_follows_shell_user);
     appearance::SetAutoCompleteEnabled(settings_.autocomplete);
     window_placement_loaded_ = settings_.window_placement_present;
-    theme_mode_ = ParseThemeMode(settings_.theme_mode);
+    theme_mode_ = win32ui::ThemeMode::system;
+    win32ui::ParseThemeMode(settings_.theme_mode, &theme_mode_);
     if (!IsKnownIconSetName(settings_.icon_set))
     {
         settings_.icon_set = kIconSetPhosphor;
@@ -1191,7 +1195,7 @@ void MainWindow::Impl::LoadSettings()
     }
     if (settings_.font_size > 0)
     {
-        custom_font_.lfHeight = appearance::FontHeight(settings_.font_size);
+        custom_font_.lfHeight = win32ui::FontHeight(settings_.font_size);
     }
     custom_font_.lfWeight = settings_.font_weight;
     custom_font_.lfItalic = settings_.font_italic ? TRUE : FALSE;
@@ -1219,9 +1223,9 @@ workspace::Settings MainWindow::Impl::CurrentSettings() const
         }
         settings.window_maximized = placement.showCmd == SW_SHOWMAXIMIZED;
     }
-    settings.theme_mode = ThemeModeName(theme_mode_);
+    settings.theme_mode = win32ui::ThemeModeName(theme_mode_);
     settings.font_face = custom_font_.lfFaceName;
-    settings.font_size = appearance::FontPointSize(custom_font_, 9);
+    settings.font_size = win32ui::FontPointSize(custom_font_, 9);
     settings.font_weight = custom_font_.lfWeight;
     settings.font_italic = custom_font_.lfItalic != FALSE;
     settings.recent_traces = recent_trace_paths_.items();

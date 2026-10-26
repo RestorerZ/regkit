@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -7,6 +7,10 @@
 #include "frame/detail/draw_detail.h"
 #include "frame/search/compare_dialog.h"
 #include "frame/window_impl.h"
+
+#include <win32ui/gdi/fonts.h>
+#include <win32ui/gdi/gdi_cache.h>
+#include <win32ui/window_metrics.h>
 
 #include <algorithm>
 #include <commctrl.h>
@@ -31,18 +35,15 @@
 #include "resource.h"
 #include "search/compare.h"
 #include "search/search.h"
-#include "ui/default_font.h"
 #include "ui/dialog_layout.h"
 #include "ui/feedback.h"
 #include "ui/font_picker.h"
-#include "ui/gdi_cache.h"
 #include "ui/theme.h"
 #include "win32/file_dialog.h"
 #include "win32/process_rights.h"
 #include "win32/shell_paths.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
-#include "win32/window_metrics.h"
 #include "workspace/favorites.h"
 
 namespace regkit::command_detail
@@ -80,34 +81,35 @@ constexpr PaneToggle kPaneToggles[] = {
 
 using util::ToLower;
 using util::TrimWhitespace;
+using win32ui::MenuName;
 
 inline HMENU BuildCopyKeyPathMenu()
 {
     HMENU menu = CreatePopupMenu();
-    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathAbbrev, util::Tr(L"Abbreviated (HKLM)"));
-    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathRegEdit, util::Tr(L"RegEdit Address Bar"));
-    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathRegFile, util::Tr(L".reg File Header"));
-    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathPowerShell, util::Tr(L"PowerShell Drive"));
-    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathPowerShellProvider, util::Tr(L"PowerShell Provider"));
-    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathEscaped, util::Tr(L"Escaped Backslashes"));
-    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathNative, util::Tr(L"Native"));
-    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathNativeResolved, util::Tr(L"Native (Resolved)"));
+    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathAbbrev, util::Tr(L"&Abbreviated (HKLM)"));
+    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathRegEdit, util::Tr(L"RegEdit Address &Bar"));
+    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathRegFile, util::Tr(L".reg &File Header"));
+    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathPowerShell, util::Tr(L"PowerShell &Drive"));
+    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathPowerShellProvider, util::Tr(L"&PowerShell Provider"));
+    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathEscaped, util::Tr(L"&Escaped Backslashes"));
+    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathNative, util::Tr(L"&Native"));
+    AppendMenuW(menu, MF_STRING, cmd::kEditCopyKeyPathNativeResolved, util::Tr(L"Native (&Resolved)"));
     return menu;
 }
 inline HMENU BuildNewMenu()
 {
     HMENU menu = CreatePopupMenu();
-    frame::AppendCommand(menu, MF_STRING, cmd::kNewKey, util::Tr(L"Key"));
-    AppendMenuW(menu, MF_STRING, cmd::kNewVolatileKey, util::Tr(L"Volatile Key"));
+    frame::AppendCommand(menu, MF_STRING, cmd::kNewKey, util::Tr(L"&Key"));
+    AppendMenuW(menu, MF_STRING, cmd::kNewVolatileKey, util::Tr(L"&Volatile Key"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, cmd::kNewString, util::Tr(L"String Value"));
-    AppendMenuW(menu, MF_STRING, cmd::kNewBinary, util::Tr(L"Binary Value"));
-    AppendMenuW(menu, MF_STRING, cmd::kNewDword, util::Tr(L"DWORD (32-bit) Value"));
-    AppendMenuW(menu, MF_STRING, cmd::kNewQword, util::Tr(L"QWORD (64-bit) Value"));
-    AppendMenuW(menu, MF_STRING, cmd::kNewMultiString, util::Tr(L"Multi-String Value"));
-    AppendMenuW(menu, MF_STRING, cmd::kNewExpandString, util::Tr(L"Expandable String Value"));
+    AppendMenuW(menu, MF_STRING, cmd::kNewString, util::Tr(L"&String Value"));
+    AppendMenuW(menu, MF_STRING, cmd::kNewBinary, util::Tr(L"&Binary Value"));
+    AppendMenuW(menu, MF_STRING, cmd::kNewDword, util::Tr(L"&DWORD (32-bit) Value"));
+    AppendMenuW(menu, MF_STRING, cmd::kNewQword, util::Tr(L"&QWORD (64-bit) Value"));
+    AppendMenuW(menu, MF_STRING, cmd::kNewMultiString, util::Tr(L"&Multi-String Value"));
+    AppendMenuW(menu, MF_STRING, cmd::kNewExpandString, util::Tr(L"&Expandable String Value"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, cmd::kNewSymbolicLink, util::Tr(L"Symbolic Link"));
+    AppendMenuW(menu, MF_STRING, cmd::kNewSymbolicLink, util::Tr(L"Symbolic &Link"));
     return menu;
 }
 

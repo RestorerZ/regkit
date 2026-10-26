@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -10,13 +10,13 @@
 namespace regkit::trace
 {
 
-// a trace key as a registry path, with the current control set and the current user mapped
+// trace key mapped to current control set and user
 std::wstring NormalizeKeyPathBasic(const std::wstring& text);
-// as above, with symbolic links followed to their targets
+// also follows symbolic links
 std::wstring NormalizeKeyPath(const std::wstring& text);
 std::wstring NormalizeSelectionPath(const std::wstring& text);
 Normalizers PathNormalizers();
-// HKLM\SYSTEM\ControlSetNNN mapped to the control set in use, empty when nothing changes
+// maps HKLM\SYSTEM\ControlSetNNN to current control set, empty if unchanged
 std::wstring MapControlSetToCurrent(const std::wstring& path);
 
 } // namespace regkit::trace

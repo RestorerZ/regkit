@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/tools/convert_dialog.h"
 
@@ -12,6 +12,9 @@
 #include "workspace/dialog_state.h"
 
 #include "resource.h"
+
+#include <win32ui/dialog/dialog_layout.h>
+#include <win32ui/dialog/dialog_window.h>
 
 #include <algorithm>
 #include <initializer_list>
@@ -34,7 +37,6 @@ struct State
 {
     ConvertSettings* settings = nullptr;
     std::wstring confirmed_output;
-    HFONT font = nullptr;
 };
 
 int Selection(HWND dialog, int id)
@@ -234,22 +236,8 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         appearance::AttachAutoComplete(key, [dialog, key](const std::wstring& text) {
             return SourceAt(dialog) == ConvertSource::kRegistry ? appearance::SuggestKeys(text) : appearance::SuggestComboPaths(key, text);
         });
-        dialog_support::Initialize(dialog, &state->font, {IDC_CONVERT_INPUT, IDC_CONVERT_OUTPUT});
-        dialog_support::MatchComboHeights(dialog, IDC_CONVERT_INPUT, {IDC_CONVERT_SOURCE, IDC_CONVERT_KEY, IDC_CONVERT_FORMAT});
+        win32ui::MatchComboHeights(GetDlgItem(dialog, IDC_CONVERT_INPUT), {GetDlgItem(dialog, IDC_CONVERT_SOURCE), GetDlgItem(dialog, IDC_CONVERT_KEY), GetDlgItem(dialog, IDC_CONVERT_FORMAT)});
         return TRUE;
-    }
-    if (message == WM_DESTROY)
-    {
-        if (state)
-        {
-            dialog_support::ReleaseFont(&state->font);
-        }
-        return TRUE;
-    }
-    INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed))
-    {
-        return themed;
     }
     if (message != WM_COMMAND || !state)
     {
@@ -279,12 +267,12 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
     {
         if (Convert(dialog, state))
         {
-            EndDialog(dialog, IDOK);
+            win32ui::EndDialogWindow(dialog, IDOK);
         }
     }
     else if (id == IDCANCEL)
     {
-        EndDialog(dialog, IDCANCEL);
+        win32ui::EndDialogWindow(dialog, IDCANCEL);
     }
     else
     {
@@ -299,7 +287,7 @@ void ShowConvertDialog(HWND owner, ConvertSettings* settings)
 {
     State state;
     state.settings = settings;
-    editors::dialog_support::Modal(owner, IDD_CONVERT, DialogProc, reinterpret_cast<LPARAM>(&state));
+    win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_CONVERT), DialogProc, reinterpret_cast<LPARAM>(&state));
 }
 
 void ConvertDialogFields(workspace::DialogFields& fields, ConvertSettings* settings)

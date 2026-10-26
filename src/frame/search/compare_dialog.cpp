@@ -1,9 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/search/compare_dialog.h"
 
 #include "frame/window_detail.h"
+
+#include <win32ui/dialog/combo_box.h>
+#include <win32ui/dialog/dialog_layout.h>
+#include <win32ui/dialog/dialog_window.h>
 
 #include <commctrl.h>
 #include <shellapi.h>
@@ -12,7 +16,6 @@
 #include "registry/registry_path.h"
 #include "resource.h"
 #include "ui/autocomplete.h"
-#include "ui/dialog_support.h"
 #include "ui/feedback.h"
 #include "win32/file_dialog.h"
 #include "win32/translation.h"
@@ -58,7 +61,6 @@ CompareSourceType CompareSourceFromIndex(int index)
 struct CompareDialogState
 {
     CompareDialogDefaults data;
-    HFONT ui_font = nullptr;
 };
 
 std::vector<std::wstring> ExtractRegFileKeys(const regfile::Document& data)
@@ -122,7 +124,7 @@ void PopulateFileKeys(HWND dlg, bool left)
     std::vector<std::wstring> keys = ExtractRegFileKeys(data);
     HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
     std::wstring current = util::WindowText(combo);
-    editors::dialog_support::SetComboItems(combo, keys);
+    win32ui::SetComboItems(combo, keys);
     if (!current.empty())
     {
         SetComboSelection(combo, current);
@@ -149,7 +151,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
             }
             for (const int id : {IDC_COMPARE_LEFT_SOURCE, IDC_COMPARE_RIGHT_SOURCE})
             {
-                editors::dialog_support::SetComboItems(GetDlgItem(dlg, id), {CompareSourceLabel(CompareSourceType::kRegistry), CompareSourceLabel(CompareSourceType::kRegFile), CompareSourceLabel(CompareSourceType::kOfflineHive), CompareSourceLabel(CompareSourceType::kNetwork)});
+                win32ui::SetComboItems(GetDlgItem(dlg, id), {CompareSourceLabel(CompareSourceType::kRegistry), CompareSourceLabel(CompareSourceType::kRegFile), CompareSourceLabel(CompareSourceType::kOfflineHive), CompareSourceLabel(CompareSourceType::kNetwork)});
             }
 
             SetComboSelection(GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), CompareSourceLabel(state->data.left.type));
@@ -192,16 +194,11 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
 
             ToggleCompareControls(dlg, true, state->data.left.type);
             ToggleCompareControls(dlg, false, state->data.right.type);
-            editors::dialog_support::Initialize(dlg, &state->ui_font, {IDC_COMPARE_LEFT_FILE, IDC_COMPARE_RIGHT_FILE});
-            editors::dialog_support::MatchComboHeights(dlg, IDC_COMPARE_LEFT_FILE, {IDC_COMPARE_LEFT_SOURCE, IDC_COMPARE_LEFT_KEY, IDC_COMPARE_RIGHT_SOURCE, IDC_COMPARE_RIGHT_KEY});
+            // restored network source sets Computer label after template fitting
+            win32ui::FitDialogText(dlg);
+            win32ui::MatchComboHeights(GetDlgItem(dlg, IDC_COMPARE_LEFT_FILE), {GetDlgItem(dlg, IDC_COMPARE_LEFT_SOURCE), GetDlgItem(dlg, IDC_COMPARE_LEFT_KEY), GetDlgItem(dlg, IDC_COMPARE_RIGHT_SOURCE), GetDlgItem(dlg, IDC_COMPARE_RIGHT_KEY)});
             return TRUE;
         }
-    case WM_DESTROY:
-        if (state)
-        {
-            editors::dialog_support::ReleaseFont(&state->ui_font);
-        }
-        return TRUE;
     case WM_COMMAND:
         {
             if (!state)
@@ -268,7 +265,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                         return TRUE;
                     }
                     HWND combo = GetDlgItem(dlg, left ? IDC_COMPARE_LEFT_KEY : IDC_COMPARE_RIGHT_KEY);
-                    editors::dialog_support::SetComboItems(combo, keys);
+                    win32ui::SetComboItems(combo, keys);
                     if (!keys.empty())
                     {
                         SendMessageW(combo, CB_SETCURSEL, 0, 0);
@@ -381,12 +378,12 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
                 state->data.left = result.left;
                 state->data.right = result.right;
                 state->data.filter = result.filter;
-                EndDialog(dlg, IDOK);
+                win32ui::EndDialogWindow(dlg, IDOK);
                 return TRUE;
             }
             if (id == IDCANCEL)
             {
-                EndDialog(dlg, IDCANCEL);
+                win32ui::EndDialogWindow(dlg, IDCANCEL);
                 return TRUE;
             }
             break;
@@ -394,8 +391,7 @@ INT_PTR CALLBACK CompareDialogProc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lpa
     default:
         break;
     }
-    INT_PTR themed = 0;
-    return editors::dialog_support::HandleThemeMessage(dlg, msg, wparam, lparam, &themed) ? themed : FALSE;
+    return FALSE;
 }
 } // namespace
 
@@ -407,7 +403,7 @@ bool ShowCompareDialog(HWND owner, const CompareDialogDefaults& defaults, Compar
     }
     CompareDialogState state;
     state.data = defaults;
-    INT_PTR result = editors::dialog_support::Modal(owner, IDD_COMPARE, CompareDialogProc, reinterpret_cast<LPARAM>(&state));
+    INT_PTR result = win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_COMPARE), CompareDialogProc, reinterpret_cast<LPARAM>(&state));
     if (result != IDOK)
     {
         return false;

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -35,7 +35,7 @@ struct UndoOperation
     RegistryValue new_value;
     KeySnapshot key_snapshot;
     KeySnapshot new_key_snapshot;
-    // kGroup, one undo step for a mass change, in the order it was made
+    // kGroup stores a mass change as one undo step, in original order
     std::vector<UndoOperation> steps;
 };
 

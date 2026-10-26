@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/comment_editor.h"
 
@@ -9,6 +9,9 @@
 #include "win32/translation.h"
 
 #include "resource.h"
+
+#include <win32ui/dialog/dialog_window.h>
+#include <win32ui/dialog/single_line_edit.h>
 
 #include <utility>
 
@@ -22,8 +25,6 @@ struct State
 {
     const CommentRequest* request = nullptr;
     CommentResult value;
-    HFONT font = nullptr;
-    appearance::DialogResizer resizer;
     bool accepted = false;
 };
 
@@ -100,45 +101,31 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         state = reinterpret_cast<State*>(lparam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
         InitControls(dialog, state);
-        dialog_support::Initialize(dialog, &state->font, {IDC_EDIT, IDC_COMMENT_KEY_PATH});
+        win32ui::FitDialogText(dialog);
         appearance::AttachAutoComplete(GetDlgItem(dialog, IDC_COMMENT_KEY_PATH), appearance::SuggestKeys);
-        dialog_support::AllowNewlines(dialog, IDC_EDIT);
-        using namespace appearance;
-        state->resizer.Attach(
+        win32ui::AllowLineBreaks(GetDlgItem(dialog, IDC_EDIT));
+        win32ui::AnchorDialogControls(
             dialog,
             {
-                {IDC_LABEL, kAnchorLeft | kAnchorTop | kAnchorRight},
-                {IDC_EDIT, kAnchorLeft | kAnchorTop | kAnchorRight | kAnchorBottom},
-                {IDC_COMMENT_APPLY_GROUP, kAnchorLeft | kAnchorRight | kAnchorBottom},
-                {IDC_COMMENT_VALUE, kAnchorLeft | kAnchorBottom},
-                {IDC_COMMENT_RULE, kAnchorLeft | kAnchorRight | kAnchorBottom},
-                {IDC_COMMENT_MATCH_GROUP, kAnchorLeft | kAnchorRight | kAnchorBottom},
-                {IDC_COMMENT_TYPE, kAnchorLeft | kAnchorBottom},
-                {IDC_COMMENT_TYPE_TEXT, kAnchorLeft | kAnchorRight | kAnchorBottom},
-                {IDC_COMMENT_SIZE, kAnchorLeft | kAnchorBottom},
-                {IDC_COMMENT_SIZE_TEXT, kAnchorLeft | kAnchorRight | kAnchorBottom},
-                {IDC_COMMENT_KEY, kAnchorLeft | kAnchorBottom},
-                {IDC_COMMENT_KEY_PATH, kAnchorLeft | kAnchorRight | (state->request->key ? kAnchorTop : kAnchorBottom)},
-                {IDC_COMMENT_SUBKEYS, kAnchorLeft | kAnchorBottom},
-                {IDC_COMMENT_RESTORE, kAnchorLeft | kAnchorBottom},
-                {IDOK, kAnchorRight | kAnchorBottom},
-                {IDCANCEL, kAnchorRight | kAnchorBottom},
+                {IDC_LABEL, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight},
+                {IDC_EDIT, win32ui::kAnchorLeft | win32ui::kAnchorTop | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                {IDC_COMMENT_APPLY_GROUP, win32ui::kAnchorLeft | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                {IDC_COMMENT_VALUE, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                {IDC_COMMENT_RULE, win32ui::kAnchorLeft | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                {IDC_COMMENT_MATCH_GROUP, win32ui::kAnchorLeft | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                {IDC_COMMENT_TYPE, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                {IDC_COMMENT_TYPE_TEXT, win32ui::kAnchorLeft | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                {IDC_COMMENT_SIZE, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                {IDC_COMMENT_SIZE_TEXT, win32ui::kAnchorLeft | win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                {IDC_COMMENT_KEY, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                {IDC_COMMENT_KEY_PATH, win32ui::kAnchorLeft | win32ui::kAnchorRight | (state->request->key ? win32ui::kAnchorTop : win32ui::kAnchorBottom)},
+                {IDC_COMMENT_SUBKEYS, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                {IDC_COMMENT_RESTORE, win32ui::kAnchorLeft | win32ui::kAnchorBottom},
+                {IDOK, win32ui::kAnchorRight | win32ui::kAnchorBottom},
+                {IDCANCEL, win32ui::kAnchorRight | win32ui::kAnchorBottom},
             }
         );
         return TRUE;
-    }
-    if (message == WM_DESTROY)
-    {
-        if (state)
-        {
-            dialog_support::ReleaseFont(&state->font);
-        }
-        return TRUE;
-    }
-    INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(dialog, message, wparam, lparam, &themed, state ? &state->resizer : nullptr))
-    {
-        return themed;
     }
     if (message != WM_COMMAND || !state)
     {
@@ -153,10 +140,10 @@ INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
         state->value.scope = ReadScope(dialog);
         state->value.restore_default = LOWORD(wparam) == IDC_COMMENT_RESTORE;
         state->accepted = true;
-        EndDialog(dialog, IDOK);
+        win32ui::EndDialogWindow(dialog, IDOK);
         return TRUE;
     case IDCANCEL:
-        EndDialog(dialog, IDCANCEL);
+        win32ui::EndDialogWindow(dialog, IDCANCEL);
         return TRUE;
     case IDC_COMMENT_VALUE:
     case IDC_COMMENT_RULE:
@@ -177,7 +164,7 @@ bool EditComment(HWND owner, const CommentRequest& request, CommentResult* resul
     State state;
     state.request = &request;
     const INT_PTR dialog_result =
-        dialog_support::Modal(owner, request.key ? IDD_KEY_COMMENT : IDD_COMMENT, DialogProc, reinterpret_cast<LPARAM>(&state));
+        win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(request.key ? IDD_KEY_COMMENT : IDD_COMMENT), DialogProc, reinterpret_cast<LPARAM>(&state));
     if (dialog_result != IDOK || !state.accepted)
     {
         return false;

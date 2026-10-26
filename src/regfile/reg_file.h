@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -82,7 +82,7 @@ struct VirtualRoot
     std::shared_ptr<VirtualRegistryData> data;
 };
 
-// a .reg file as one virtual registry per root key it writes to
+// .reg file represented by one virtual registry per written root
 bool LoadVirtualRoots(const std::wstring& path, std::vector<VirtualRoot>* roots, std::wstring* error, const std::atomic_bool* cancel, bool* cancelled);
 
 } // namespace regkit::regfile

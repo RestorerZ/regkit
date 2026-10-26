@@ -1,9 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
 #include "win32/windows_config.h"
+
+#include <win32ui/gdi/fonts.h>
+#include <win32ui/gdi/gdi_cache.h>
+#include <win32ui/gdi/icon_loader.h>
 
 #include <windows.h>
 
@@ -48,8 +52,6 @@
 #include "trace/trace_loader.h"
 #include "trace/trace_parser.h"
 #include "ui/feedback.h"
-#include "ui/gdi_cache.h"
-#include "ui/icon_loader.h"
 #include "win32/file_text.h"
 #include "win32/process_rights.h"
 #include "win32/registry_native.h"
@@ -58,7 +60,6 @@
 #include "workspace/settings.h"
 #include "workspace/tab_state.h"
 #include "registry/hive_files.h"
-#include "ui/font_metrics.h"
 #include "ui/list_view_support.h"
 
 #include <algorithm>
@@ -85,8 +86,6 @@
 #include <winternl.h>
 
 #include "ui/feedback.h"
-#include "ui/gdi_cache.h"
-#include "ui/icon_loader.h"
 #include "frame/commands/command_ids.h"
 #include "browse/browse_pane.h"
 #include "browse/value_table.h"
@@ -120,8 +119,6 @@ void SetEditMargins(HWND hwnd, int left, int right);
 
 void SetEditVerticalRect(HWND hwnd, HFONT font, int min_pad, int left_pad, int right_pad);
 
-void DrawToolbarButtonBackground(HDC hdc, const RECT& rect, COLORREF fill, COLORREF border);
-
 using registry_path::ChildNode;
 
 std::wstring LeafName(const RegistryNode& node);
@@ -138,26 +135,13 @@ std::wstring FormatCommentDisplay(const std::wstring& text);
 
 uint64_t FileTimeToUint64(const FILETIME& filetime);
 
-constexpr int kCellTooltipPadding = 8;
-constexpr int kCellTextInset = 16;
-constexpr size_t kCellTooltipMeasureLimit = 512;
 constexpr size_t kCellTextDrawLimit = 512;
 constexpr size_t kValuePreviewLimit = 4096;
 constexpr DWORD kValuePreviewBytes = 4096;
 
 const std::wstring& ValueRowFieldText(const ListRow& row, int subitem);
 
-bool CellTextIsClipped(HWND list, const std::wstring& text, int available);
-
 void SortValueRows(std::vector<ListRow>* rows, int column, bool ascending, const util::SortKeys& earlier);
-
-constexpr wchar_t kListScrollProp[] = L"RegKitListScrollX";
-
-void InvalidateListViewTail(HWND list, bool immediate = false);
-
-void InvalidateListViewColumn(HWND list, int display_index);
-
-bool ListViewScrolledHorizontally(HWND list);
 
 HFONT CreateUIFont();
 

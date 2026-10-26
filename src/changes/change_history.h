@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -33,7 +33,7 @@ struct HistoryEntry
     RevertKind revert_kind = RevertKind::kNone;
     RegistryValue revert_value;
     bool backup_mode = false;
-    // search::Source of the tab that made the change, kind -1 when unknown
+    // source tab search::Source, kind -1 if unknown
     int source_kind = -1;
     std::wstring source_name;
     REGSAM source_view = 0;
@@ -55,7 +55,7 @@ using PathExists = std::function<bool(const std::wstring&)>;
 class ChangeHistory
 {
   public:
-    // returns the entries as stamped, for the cache file
+    // returns stamped entries for the cache file
     std::vector<HistoryEntry> Append(std::vector<HistoryEntry> entries, size_t maximum);
     void Replace(std::vector<HistoryEntry> entries, size_t maximum);
     void Clear();

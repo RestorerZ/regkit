@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "regfile/reg_exe_syntax.h"
 
@@ -191,7 +191,7 @@ bool ParseType(std::wstring_view text, DWORD* type)
             return true;
         }
     }
-    // reg.exe also takes a signed 32-bit decimal type number
+    // reg.exe also accepts signed 32 bit decimal type numbers
     const bool negative = text.starts_with(L'-');
     const std::wstring_view digits = text.substr(negative || text.starts_with(L'+') ? 1 : 0);
     long long number = 0;
@@ -227,7 +227,7 @@ bool BuildData(DWORD type, std::wstring_view text, std::wstring_view separator, 
     data->clear();
     switch (type)
     {
-    default: // REG_NONE & unknown types take text, as in reg.exe
+    default: // REG_NONE and unknown types use text, like reg.exe
         *data = value_format::StringData(text);
         return true;
     case REG_MULTI_SZ:
@@ -275,7 +275,7 @@ bool BuildData(DWORD type, std::wstring_view text, std::wstring_view separator, 
             {
                 return Fail(error, util::TrLabel(L"Numeric data out of range for a DWORD", text));
             }
-            // reg.exe stores REG_DWORD_BIG_ENDIAN little-endian like a REG_DWORD
+            // reg.exe stores REG_DWORD_BIG_ENDIAN as little endian, like REG_DWORD
             *data = value_format::UnsignedBytes(value, type == REG_QWORD ? sizeof(ULONGLONG) : sizeof(DWORD));
             return true;
         }

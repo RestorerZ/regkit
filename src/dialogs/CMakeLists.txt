@@ -17,9 +17,6 @@ regkit_add_library(regkit_dialogs
     transfer_dialogs.cpp
     value_editor.cpp
 )
-target_include_directories(regkit_dialogs PUBLIC
-    "${PROJECT_SOURCE_DIR}/src"
-)
 target_include_directories(regkit_dialogs PRIVATE
     "${PROJECT_SOURCE_DIR}/resources"
 )
@@ -33,8 +30,6 @@ target_link_libraries(regkit_dialogs PRIVATE
     regkit_ui
     regkit_win32
     aclui
-    advapi32
     comctl32
-    shell32
     uxtheme
 )

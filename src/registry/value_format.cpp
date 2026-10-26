@@ -1,11 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "registry/value_format.h"
 
 #include "win32/process_rights.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <shlobj.h>
 #include <shlwapi.h>
@@ -149,7 +151,7 @@ bool IsTrustedResourcePath(const wchar_t* full)
         std::vector<std::wstring> list;
         for (const KNOWNFOLDERID& folder : {FOLDERID_Windows, FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86})
         {
-            util::UniqueCoTask<PWSTR> root;
+            win32ui::UniqueCoTask<PWSTR> root;
             if (SUCCEEDED(SHGetKnownFolderPath(folder, 0, nullptr, root.put())))
             {
                 list.emplace_back(root.get());

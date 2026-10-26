@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "changes/key_snapshot.h"
 
@@ -109,7 +109,7 @@ bool Fill(const RegistryNode& node, const KeySnapshot& snapshot)
 
 bool WriteAttributes(const RegistryNode& node, const KeySnapshot& snapshot)
 {
-    // security goes last so a restrictive dacl can't block the rest of the restore
+    // restore security last so a restrictive DACL cannot block other changes
     const bool timed = snapshot.last_write.dwLowDateTime || snapshot.last_write.dwHighDateTime;
     return (snapshot.security.empty() && !timed) ||
            RegistryStore::WriteKeySecurity(node, snapshot.security_parts, snapshot.security, timed ? &snapshot.last_write : nullptr);
@@ -188,7 +188,7 @@ KeySnapshot CaptureKey(const RegistryNode& node, bool exact)
 
 bool RestoreKey(const RegistryNode& parent, const KeySnapshot& snapshot)
 {
-    // partial capture would restore as if it were whole
+    // partial snapshots would be restored as complete keys
     if (!snapshot.complete)
     {
         return false;

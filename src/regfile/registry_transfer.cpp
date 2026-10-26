@@ -1,11 +1,10 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "regfile/registry_transfer.h"
 
 #include "registry/registry_path.h"
 #include "win32/file_text.h"
-#include "win32/handle_owner.h"
 #include "win32/process_rights.h"
 #include "win32/registry_native.h"
 #include "win32/registry_view.h"
@@ -13,6 +12,8 @@
 #include "win32/system_error.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <cstring>
 #include <cwchar>
@@ -41,9 +42,9 @@ bool RunRegCommand(const std::wstring& args, std::wstring* error)
     std::wstring command_line = L"\"" + reg + L"\" " + args;
 
     SECURITY_ATTRIBUTES security = {sizeof(security), nullptr, TRUE};
-    util::UniqueHandle read_pipe;
-    util::UniqueHandle write_pipe;
-    util::UniqueHandle null_input(
+    win32ui::UniqueHandle read_pipe;
+    win32ui::UniqueHandle write_pipe;
+    win32ui::UniqueHandle null_input(
         CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &security, OPEN_EXISTING, 0, nullptr)
     );
     SIZE_T attribute_size = 0;
@@ -86,7 +87,7 @@ bool RunRegCommand(const std::wstring& args, std::wstring* error)
         }
         return false;
     }
-    util::UniqueHandle process_handle(process.hProcess);
+    win32ui::UniqueHandle process_handle(process.hProcess);
     CloseHandle(process.hThread);
     std::string output;
     char buffer[4096] = {};
@@ -142,12 +143,12 @@ bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error, REGSAM
     {
         return false;
     }
-    // HKEY_CURRENT_USER keys go to the hive shown as HKEY_CURRENT_USER, reg.exe alone would use its own tokens
+    // map HKCU to the displayed user hive, reg.exe would use its own token
     std::wstring text;
     std::wstring mapped;
     if (!current_user_sid.empty())
     {
-        // unmapped import would write to another hive than the one shown
+        // unmapped imports would write to a different hive than displayed
         if (!util::ReadTextFile(path, &text))
         {
             if (error)
@@ -202,7 +203,7 @@ bool ImportRegFileFromPath(const std::wstring& path, std::wstring* error, REGSAM
 
 bool IsHiveFile(const std::wstring& path)
 {
-    util::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+    win32ui::UniqueHandle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
     char signature[4] = {};
     DWORD read = 0;
     return file.get() != INVALID_HANDLE_VALUE && ReadFile(file.get(), signature, sizeof(signature), &read, nullptr) && read == sizeof(signature) &&
@@ -216,13 +217,13 @@ LONG SaveKeyToHive(HKEY root, const std::wstring& subkey, REGSAM view, const std
     {
         return ERROR_PRIVILEGE_NOT_HELD;
     }
-    util::UniqueHKey handle;
+    win32ui::UniqueHKey handle;
     LONG status = util::OpenRegistryPath(root, subkey, KEY_READ | view, false, &handle);
     if (status != ERROR_SUCCESS)
     {
         return status;
     }
-    // RegSaveKeyEx can't overwrite a file, so stage the save before replacing it
+    // RegSaveKeyEx cannot overwrite files, stage before replacing the destination
     std::wstring staged = path;
     const bool existed = GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
     for (int attempt = 0; attempt < 16; ++attempt)
@@ -261,7 +262,7 @@ LONG RestoreKeyFromHive(HKEY root, const std::wstring& subkey, REGSAM view, cons
     {
         return ERROR_PRIVILEGE_NOT_HELD;
     }
-    util::UniqueHKey handle;
+    win32ui::UniqueHKey handle;
     const LONG status = util::OpenRegistryPath(root, subkey, KEY_WRITE | view, false, &handle);
     return status == ERROR_SUCCESS ? RegRestoreKeyW(handle.get(), path.c_str(), REG_FORCE_RESTORE) : status;
 }

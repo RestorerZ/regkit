@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "registry/registry_path.h"
 
@@ -129,6 +129,27 @@ bool HasComponentPrefix(std::wstring_view path, std::wstring_view prefix)
     return util::StartsWithInsensitive(path, prefix) && (path.size() == prefix.size() || path[prefix.size()] == L'\\');
 }
 
+bool LinkLeavesUserHives(std::wstring_view source_native, std::wstring_view target_native)
+{
+    const auto user = [](std::wstring_view path) {
+        constexpr std::wstring_view kUsers = L"\\REGISTRY\\USER\\";
+        constexpr std::wstring_view kClasses = L"_Classes";
+        if (!util::StartsWithInsensitive(path, kUsers))
+        {
+            return std::wstring_view();
+        }
+        std::wstring_view hive = path.substr(kUsers.size());
+        hive = hive.substr(0, hive.find(L'\\'));
+        if (hive.size() > kClasses.size() && util::EndsWithInsensitive(hive, kClasses))
+        {
+            hive.remove_suffix(kClasses.size());
+        }
+        return hive;
+    };
+    const std::wstring_view source_user = user(source_native);
+    return !source_user.empty() && !util::EqualsInsensitive(source_user, user(target_native));
+}
+
 std::wstring DisplayName(std::wstring_view name)
 {
     // show embedded nulls without truncating text in the UI
@@ -175,7 +196,7 @@ std::wstring Build(const RegistryNode& node)
 
 bool InVolatileHive(std::wstring_view native_path)
 {
-    // HARDWARE is the only volatile hive windows mounts, keys in it carry no volatile flag
+    // HARDWARE is the only volatile hive Windows mounts, its keys carry no volatile flag
     return HasComponentPrefix(native_path, L"\\REGISTRY\\MACHINE\\HARDWARE");
 }
 
@@ -202,7 +223,7 @@ std::wstring VirtualStorePath(std::wstring_view native_path)
     {
         return {};
     }
-    // windows never virtualizes these subtrees
+    // Windows never virtualizes these subtrees
     for (const std::wstring_view software : {L"\\REGISTRY\\MACHINE\\SOFTWARE\\", L"\\REGISTRY\\MACHINE\\SOFTWARE\\WOW6432Node\\"})
     {
         for (const std::wstring_view excluded : {L"Classes", L"Microsoft\\Windows", L"Microsoft\\Windows NT"})
@@ -262,7 +283,7 @@ std::wstring BuildNative(const RegistryNode& node)
     }
     else if (node.root == HKEY_CURRENT_USER)
     {
-        // HKCU is stored below the current users SID in native namespace
+        // native HKCU lives under the current user SID
         const std::wstring sid = util::GetCurrentUserSidString();
         if (sid.empty())
         {
@@ -272,7 +293,7 @@ std::wstring BuildNative(const RegistryNode& node)
     }
     else if (node.root == HKEY_CURRENT_CONFIG)
     {
-        // HKCC points to active hardware profile
+        // HKCC points to the active hardware profile
         root = L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Hardware Profiles\\Current";
     }
     else
@@ -510,7 +531,7 @@ bool ParseRoot(std::wstring_view input, RegistryNode* node)
     node->root_name = root;
     const RootNames* entry = FindRoot(root, kBrowsableRoots);
     node->root = entry ? entry->root : nullptr;
-    // native REGISTRY paths intentionally have no win32 root handle
+    // native REGISTRY paths intentionally have no Win32 root handle
     return entry || util::EqualsInsensitive(root, L"REGISTRY");
 }
 

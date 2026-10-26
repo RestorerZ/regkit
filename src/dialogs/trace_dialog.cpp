@@ -1,7 +1,9 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "dialogs/trace_dialog.h"
+
+#include <win32ui/dialog/dialog_window.h>
 
 #include <algorithm>
 #include <cwchar>
@@ -15,7 +17,6 @@
 
 #include "registry/registry_path.h"
 #include "resource.h"
-#include "ui/dialog_support.h"
 #include "ui/feedback.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
@@ -38,8 +39,6 @@ namespace regkit
 namespace
 {
 
-namespace dialog_support = editors::dialog_support;
-
 constexpr UINT kDialogAddEntriesMessage = WM_APP + 1;
 constexpr UINT kDialogDoneMessage = WM_APP + 2;
 constexpr UINT kDialogProcessEntriesMessage = WM_APP + 3;
@@ -58,7 +57,6 @@ struct TraceDialogState
     HWND dialog = nullptr;
     HWND status = nullptr;
     HWND tree = nullptr;
-    HFONT font = nullptr;
     std::wstring title;
     trace::Selection* out = nullptr;
     bool loading_done = false;
@@ -416,7 +414,7 @@ void AcceptSelection(HWND hwnd, TraceDialogState* state, bool select_all)
         state->out->recursive = recursive;
         state->out->key_paths.clear();
         state->out->values_by_key.clear();
-        EndDialog(hwnd, IDOK);
+        win32ui::EndDialogWindow(hwnd, IDOK);
         return;
     }
 
@@ -435,7 +433,7 @@ void AcceptSelection(HWND hwnd, TraceDialogState* state, bool select_all)
         return;
     }
     *state->out = std::move(selection);
-    EndDialog(hwnd, IDOK);
+    win32ui::EndDialogWindow(hwnd, IDOK);
 }
 
 INT_PTR CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -448,11 +446,10 @@ INT_PTR CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
         state->dialog = hwnd;
         state->status = GetDlgItem(hwnd, IDC_TRACE_STATUS);
         state->tree = GetDlgItem(hwnd, IDC_TRACE_TREE);
-        // set after creation so the tree builds its checkbox state images before the first item is added
+        // set after creation so the tree builds check box state images before adding items
         SetWindowLongPtrW(state->tree, GWL_STYLE, GetWindowLongPtrW(state->tree, GWL_STYLE) | TVS_CHECKBOXES);
         SendMessageW(state->tree, TVM_SETEXTENDEDSTYLE, TVS_EX_DOUBLEBUFFER, TVS_EX_DOUBLEBUFFER);
         CheckDlgButton(hwnd, IDC_TRACE_RECURSIVE, BST_CHECKED);
-        dialog_support::Initialize(hwnd, &state->font, {});
         if (!state->title.empty())
         {
             SetWindowTextW(hwnd, state->title.c_str());
@@ -469,11 +466,6 @@ INT_PTR CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
     {
         return FALSE;
     }
-    INT_PTR themed = 0;
-    if (dialog_support::HandleThemeMessage(hwnd, msg, wparam, lparam, &themed))
-    {
-        return themed;
-    }
     switch (msg)
     {
     case WM_DESTROY:
@@ -487,7 +479,6 @@ INT_PTR CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
             {
                 ImageList_Destroy(checks);
             }
-            dialog_support::ReleaseFont(&state->font);
             return TRUE;
         }
     case WM_COMMAND:
@@ -498,7 +489,7 @@ INT_PTR CALLBACK TraceDialogProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpar
             AcceptSelection(hwnd, state, LOWORD(wparam) == IDC_TRACE_SELECT_ALL);
             return TRUE;
         case IDCANCEL:
-            EndDialog(hwnd, IDCANCEL);
+            win32ui::EndDialogWindow(hwnd, IDCANCEL);
             return TRUE;
         default:
             break;
@@ -574,7 +565,7 @@ bool ShowTraceDialog(HWND owner, const TraceDialogOptions& options, trace::Selec
     state.show_values = options.show_values;
     state.on_ready = on_ready;
     state.on_ready_context = context;
-    return selection && dialog_support::Modal(owner, IDD_TRACE_SELECT, TraceDialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
+    return selection && win32ui::RunProcDialog(owner, MAKEINTRESOURCEW(IDD_TRACE_SELECT), TraceDialogProc, reinterpret_cast<LPARAM>(&state)) == IDOK;
 }
 void TraceDialogPostEntries(HWND dialog, std::vector<KeyValueDialogEntry>* entries)
 {

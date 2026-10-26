@@ -1,5 +1,8 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+#include <win32ui/gdi/icon_loader.h>
+#include <win32ui/window_metrics.h>
 
 #include <functional>
 
@@ -25,10 +28,9 @@ void MainWindow::Impl::BuildImageLists()
         list_images_ = nullptr;
     }
 
-    UINT dpi = win32::DpiForWindow(hwnd_);
+    UINT dpi = win32ui::DpiForWindow(hwnd_);
 
-    const int base_icon_size = kToolbarIconSize;
-    const int icon_size = appearance::ScaleForDpi(base_icon_size, dpi);
+    const int icon_size = win32ui::ScaleForDpi(win32ui::kIconDip, dpi);
     tree_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 12, 2);
     list_images_ = ImageList_Create(icon_size, icon_size, ILC_COLOR32, 10, 2);
     ImageList_SetBkColor(tree_images_, CLR_NONE);
@@ -37,10 +39,10 @@ void MainWindow::Impl::BuildImageLists()
     auto add_icons = [&](std::initializer_list<HIMAGELIST> lists, std::initializer_list<int> resource_ids) {
         for (const int resource_id : resource_ids)
         {
-            HICON icon = appearance::LoadIconResource(resource_id, base_icon_size, dpi);
+            HICON icon = win32ui::LoadIconResource(resource_id, dpi);
             for (HIMAGELIST list : lists)
             {
-                appearance::ImageListAddOrBlank(list, icon, icon_size);
+                win32ui::ImageListAddOrBlank(list, icon, icon_size);
             }
             if (icon)
             {
@@ -123,7 +125,6 @@ void MainWindow::Impl::CreateValueColumns()
             if (i < browse_.columns().saved_widths.size() && browse_.columns().saved_widths[i] > 0)
             {
                 browse_.columns().widths[i] = browse_.columns().saved_widths[i];
-                browse_.columns().items[i].width = browse_.columns().saved_widths[i];
             }
             if (i < browse_.columns().saved_visible.size())
             {
@@ -148,46 +149,29 @@ void MainWindow::Impl::CreateHistoryColumns()
 namespace
 {
 
-void RebuildListColumns(HWND list, const ui::ColumnSet& set, std::vector<int>* subitems, const std::function<bool(size_t)>& skip = nullptr)
+// hidden and unavailable columns keep subitems at width 0
+// unavailable columns also stay out of the header menu
+void ApplyListColumns(HWND list, const ui::ColumnSet& set, const std::function<bool(size_t)>& unavailable = nullptr)
 {
+    std::vector<win32ui::ListColumn> columns(set.items.size());
+    for (size_t i = 0; i < set.items.size(); ++i)
+    {
+        // saved widths use DIPs, 0 restores factory width used by Reset columns
+        columns[i].title = set.items[i].title;
+        columns[i].format = set.items[i].fmt;
+        columns[i].width_dip = i < set.widths.size() && set.widths[i] > 0 ? set.widths[i] : set.items[i].width;
+        columns[i].default_width_dip = set.items[i].width;
+        columns[i].visible = i >= set.visible.size() || set.visible[i];
+        columns[i].available = !unavailable || !unavailable(i);
+    }
     HWND header = ListView_GetHeader(list);
     SendMessageW(list, WM_SETREDRAW, FALSE, 0);
     if (header)
     {
         SendMessageW(header, WM_SETREDRAW, FALSE, 0);
     }
-    for (int i = (header ? Header_GetItemCount(header) : 0) - 1; i >= 0; --i)
-    {
-        ListView_DeleteColumn(list, i);
-    }
-    if (subitems)
-    {
-        subitems->clear();
-    }
-    int insert_index = 0;
-    for (size_t i = 0; i < set.items.size(); ++i)
-    {
-        if ((i < set.visible.size() && !set.visible[i]) || (skip && skip(i)))
-        {
-            continue;
-        }
-        LVCOLUMNW col = {};
-        col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_FMT | LVCF_SUBITEM;
-        col.pszText = const_cast<wchar_t*>(set.items[i].title.c_str());
-        col.cx = i < set.widths.size() && set.widths[i] > 0 ? set.widths[i] : set.items[i].width;
-        col.fmt = set.items[i].fmt;
-        col.iSubItem = static_cast<int>(i);
-        ListView_InsertColumn(list, insert_index++, &col);
-        if (subitems)
-        {
-            subitems->push_back(static_cast<int>(i));
-        }
-    }
-}
-
-void FinishListColumns(HWND list)
-{
-    if (HWND header = ListView_GetHeader(list))
+    win32ui::SetListColumns(list, columns);
+    if (header)
     {
         SendMessageW(header, WM_SETREDRAW, TRUE, 0);
     }
@@ -204,26 +188,8 @@ void MainWindow::Impl::ApplyValueColumns()
     {
         return;
     }
-    RebuildListColumns(list, browse_.columns(), &value_column_subitems_, [this](size_t index) { return settings_.simple_mode && index > kValueColData; });
-
-    HWND header = ListView_GetHeader(list);
-    if (header)
-    {
-        int size_display = FindListViewColumnBySubItem(list, kValueColSize);
-        if (size_display >= 0)
-        {
-            HDITEMW item = {};
-            item.mask = HDI_FORMAT;
-            if (Header_GetItem(header, size_display, &item))
-            {
-                item.fmt |= HDF_RIGHT;
-                Header_SetItem(header, size_display, &item);
-            }
-        }
-    }
-    appearance::UpdateListViewSort(list, browse_.columns().sort_column, browse_.columns().sort_ascending);
-    AttachHeader(ListView_GetHeader(list));
-    FinishListColumns(list);
+    ApplyListColumns(list, browse_.columns(), [this](size_t index) { return settings_.simple_mode && index > kValueColData; });
+    win32ui::UpdateListViewSort(list, browse_.columns().sort_column, browse_.columns().sort_ascending);
 }
 
 void MainWindow::Impl::ApplyHistoryColumns()
@@ -232,10 +198,8 @@ void MainWindow::Impl::ApplyHistoryColumns()
     {
         return;
     }
-    RebuildListColumns(history_list_, history_columns_, &history_column_subitems_);
-    appearance::UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
-    AttachHeader(ListView_GetHeader(history_list_));
-    FinishListColumns(history_list_);
+    ApplyListColumns(history_list_, history_columns_);
+    win32ui::UpdateListViewSort(history_list_, history_sort_column_, history_sort_ascending_);
 }
 
 void MainWindow::Impl::CreateSearchColumns()
@@ -262,8 +226,6 @@ void MainWindow::Impl::CreateSearchColumns()
     });
     compare_column_titles_ = {compare_columns_.items[2].title, compare_columns_.items[3].title};
     ApplySearchColumns(false);
-    HWND header = ListView_GetHeader(search_results_list_);
-    AttachHeader(header);
 }
 
 void MainWindow::Impl::RefreshCompareColumnTitles()
@@ -285,22 +247,6 @@ void MainWindow::Impl::RefreshCompareColumnTitles()
         }
         compare_columns_.items[side + 2].title = std::move(title);
     }
-    if (!compare_columns_active_ || !search_results_list_)
-    {
-        return;
-    }
-    for (size_t display = 0; display < search_column_subitems_.size(); ++display)
-    {
-        const int logical = search_column_subitems_[display];
-        if (logical < 2 || logical > 3)
-        {
-            continue;
-        }
-        LVCOLUMNW column = {};
-        column.mask = LVCF_TEXT;
-        column.pszText = const_cast<wchar_t*>(compare_columns_.items[static_cast<size_t>(logical)].title.c_str());
-        ListView_SetColumn(search_results_list_, static_cast<int>(display), &column);
-    }
 }
 
 void MainWindow::Impl::ApplySearchColumns(bool compare)
@@ -314,9 +260,7 @@ void MainWindow::Impl::ApplySearchColumns(bool compare)
         RefreshCompareColumnTitles();
     }
     const bool result_available = compare && IsCompareResultColumnAvailable();
-    RebuildListColumns(search_results_list_, compare ? compare_columns_ : search_columns_, &search_column_subitems_, [&](size_t index) { return compare && index == 4 && !result_available; });
-    AttachHeader(ListView_GetHeader(search_results_list_));
-    FinishListColumns(search_results_list_);
+    ApplyListColumns(search_results_list_, compare ? compare_columns_ : search_columns_, [&](size_t index) { return compare && index == 4 && !result_available; });
     compare_columns_active_ = compare;
     compare_result_column_active_ = result_available;
 }
@@ -353,7 +297,7 @@ void MainWindow::Impl::ApplyAutoRefresh()
     }
     key_watcher_.Rearm();
     auto_refresh_tick_ = GetTickCount64();
-    // rebuilding the tree item collapses its children, so only do it when subkey names changed
+    // rebuilding tree items collapses children, rebuild only when subkey names change
     HTREEITEM item = TreeView_GetSelection(tree);
     if (item && (TreeView_GetItemState(tree, item, TVIS_EXPANDED) & TVIS_EXPANDED))
     {
@@ -474,6 +418,7 @@ void MainWindow::Impl::UpdateValueListForNode(RegistryNode* node)
             SendMessageW(list_hwnd, WM_SETREDRAW, TRUE, 0);
             RedrawWindow(list_hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
         }
+        value_list_error_ = ERROR_SUCCESS;
         UpdateStatus();
     }
     updating_value_list_ = false;
@@ -550,39 +495,6 @@ void MainWindow::Impl::StartPendingValueListRename()
     }
     pending_value_list_kind_ = 0;
     pending_value_list_name_.clear();
-}
-
-void MainWindow::Impl::AttachHeader(HWND header)
-{
-    if (!header)
-    {
-        return;
-    }
-    HWND list = GetParent(header);
-    int command = 0;
-    if (list == browse_.values().hwnd())
-    {
-        command = kValueGridButtonId;
-    }
-    else if (list == search_results_list_)
-    {
-        command = kSearchGridButtonId;
-    }
-    else if (list == history_list_)
-    {
-        command = kHistoryGridButtonId;
-    }
-    else
-    {
-        return;
-    }
-    appearance::RegisterListView(
-        hwnd_,
-        list,
-        command,
-        [](HWND target, POINT screen, void* context) { static_cast<MainWindow::Impl*>(context)->ShowHeaderMenu(target, screen); },
-        this
-    );
 }
 
 void MainWindow::Impl::ResetValueFilter()

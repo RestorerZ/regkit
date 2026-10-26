@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "regfile/script_convert.h"
 #include "registry/value_format.h"
@@ -1158,7 +1158,7 @@ class Interpreter
         return paths;
     }
 
-    // keys of -LiteralPath, -Path or the first positional argument, shift is 1 for a named one
+    // keys from -LiteralPath, -Path or first positional argument, shift 1 for named arguments
     std::vector<std::wstring> TargetKeys(const std::vector<Argument>& arguments, bool wildcards_literal, size_t* shift) const
     {
         const Item* literal = Find(arguments, {L"literalpath", L"lp", L"pspath"}, SIZE_MAX);
@@ -1278,7 +1278,7 @@ class Interpreter
         }
     }
 
-    // a named argument, or the positional one at that index
+    // named argument or positional argument at this index
     static const Item* Find(const std::vector<Argument>& arguments, std::initializer_list<std::wstring_view> names, size_t position)
     {
         size_t positional = 0;
@@ -1309,7 +1309,7 @@ std::wstring Hex(unsigned long long value, int width)
     return text;
 }
 
-// single quotes when possible, otherwise double quotes with backtick escapes
+// prefer single quotes, otherwise double quotes with backtick escapes
 bool Literal(std::wstring_view text, std::wstring* output)
 {
     const bool plain = std::none_of(text.begin(), text.end(), [](wchar_t character) { return character < 0x20; });

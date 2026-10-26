@@ -1,11 +1,11 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
 #include "win32/windows_config.h"
 
-#include "win32/handle_owner.h"
+#include <win32ui/handle_owner.h>
 
 #include <windows.h>
 
@@ -32,12 +32,12 @@ class PrivilegeScope
     }
 
   private:
-    UniqueHandle token_;
+    win32ui::UniqueHandle token_;
     std::vector<LUID> enabled_;
     bool held_ = false;
 };
 
-// the user HKEY_CURRENT_USER belongs to the signed in user while following it
+// HKEY_CURRENT_USER follows the signed in user while enabled
 std::wstring GetCurrentUserSidString();
 std::wstring GetClassesUserSidString();
 std::wstring GetShellUserSidString();
@@ -48,13 +48,12 @@ HKEY MapCurrentUserRoot(HKEY root);
 std::wstring AccountName(const std::wstring& sid);
 std::wstring GetShellUserDocuments();
 std::wstring GetProcessImagePath(DWORD process_id);
-bool IsProcessElevated();
 bool IsProcessPrivileged();
 bool IsWritableByNonAdmins(const std::wstring& file_path);
-bool IsProcessSystem();
 bool IsUacEnabled();
-bool IsProcessTrustedInstaller();
-UniqueHandle OpenShellToken(DWORD access);
+win32ui::UniqueHandle OpenShellToken(DWORD access);
+// also false if shell window is absent or its account cannot be read
+bool ShellUserMatchesProcess();
 struct ServiceState
 {
     DWORD state = 0;

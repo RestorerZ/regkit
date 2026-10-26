@@ -1,12 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "registry/value_decoder.h"
 #include "registry/value_format.h"
 #include "win32/file_text.h"
-#include "win32/handle_owner.h"
 #include "win32/text_transform.h"
 #include "win32/translation.h"
+
+#include <win32ui/handle_owner.h>
 
 #include <objbase.h>
 #include <sddl.h>
@@ -25,7 +26,7 @@ namespace regkit::value_decoder
 namespace
 {
 
-// file times use 100ns ticks & start before unix epoch
+// FILETIME uses 100 ns ticks with an epoch before Unix
 constexpr uint64_t kUnixEpochTicks = 116444736000000000ull;
 constexpr uint64_t kMaxFileTime = 0x8000000000000000ull;
 
@@ -506,7 +507,7 @@ Decoded DecodeSystemTime(const BYTE* data, size_t size)
     SYSTEMTIME time = {};
     std::memcpy(&time, data, sizeof(time));
     FILETIME probe = {};
-    // let windows reject invalid dates
+    // let Windows reject invalid dates
     if (time.wMonth < 1 || time.wMonth > 12 || time.wDay < 1 || time.wDay > 31 || time.wHour > 23 ||
         time.wMinute > 59 || time.wSecond > 59 || time.wMilliseconds > 999 || time.wDayOfWeek > 6 ||
         !SystemTimeToFileTime(&time, &probe))
@@ -535,7 +536,7 @@ Decoded DecodeUnix(const BYTE* data, size_t size, bool milliseconds)
     }
     const uint64_t value = value_format::ReadUnsigned({data, size}, size);
     const uint64_t scale = milliseconds ? 10000ull : 10000000ull;
-    // check scaling & epoch addition before converting to FILETIME
+    // check scaling and epoch addition before FILETIME conversion
     if (value > (0xFFFFFFFFFFFFFFFFull - kUnixEpochTicks) / scale)
     {
         return Failure(util::Tr(L"Unix time is out of range."));
@@ -591,7 +592,7 @@ Decoded DecodeSid(const BYTE* data, size_t size)
     {
         return Failure(util::Tr(L"Invalid SID."));
     }
-    util::UniqueLocal<LPWSTR> text;
+    win32ui::UniqueLocal<LPWSTR> text;
     if (!ConvertSidToStringSidW(sid, text.put()) || !text)
     {
         return Failure(util::Tr(L"Invalid SID."));
@@ -671,7 +672,7 @@ Decoded DecodeSecurityDescriptor(const BYTE* data, size_t size)
     const bool sacl = (header.Control & SE_SACL_PRESENT) != 0;
     const SECURITY_INFORMATION information = (header.Owner ? OWNER_SECURITY_INFORMATION : 0) | (header.Group ? GROUP_SECURITY_INFORMATION : 0) |
                                              (dacl ? DACL_SECURITY_INFORMATION : 0) | (sacl ? SACL_SECURITY_INFORMATION : 0);
-    util::UniqueLocal<LPWSTR> sddl;
+    win32ui::UniqueLocal<LPWSTR> sddl;
     if (!ConvertSecurityDescriptorToStringSecurityDescriptorW(descriptor, SDDL_REVISION_1, information, sddl.put(), nullptr) ||
         !sddl)
     {

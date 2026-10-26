@@ -38,7 +38,6 @@ regkit_add_library(regkit_frame
     window/layout.cpp
     window/lifetime.cpp
     window/menu_bar.cpp
-    window/menu_rendering.cpp
     window/message_dispatch.cpp
     window/message_routes.cpp
     window/notifications.cpp
@@ -50,9 +49,6 @@ target_precompile_headers(regkit_frame PRIVATE
 )
 target_include_directories(regkit_frame PRIVATE
     "${PROJECT_SOURCE_DIR}/resources"
-)
-target_include_directories(regkit_frame PUBLIC
-    "${PROJECT_SOURCE_DIR}/src"
 )
 target_link_libraries(regkit_frame PRIVATE
     regkit_browse
@@ -67,11 +63,8 @@ target_link_libraries(regkit_frame PRIVATE
     regkit_records
     regkit_registry
     regkit_win32
-    advapi32
     bcrypt
     comctl32
-    ole32
-    shell32
     shlwapi
     uxtheme
     winhttp

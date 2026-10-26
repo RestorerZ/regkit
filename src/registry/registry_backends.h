@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -23,7 +23,7 @@ bool QueryValue(const RegistryNode& node, const std::wstring& value_name, Regist
 bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details, bool open_link = false);
 bool CreateRegistryLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target, DWORD* error, const KeyCreateOptions& options = {});
 bool ReadKeyLink(const RegistryNode& node, std::wstring* target);
-bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor);
+bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor, LONG* error = nullptr);
 bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor, const FILETIME* last_write);
 bool CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCreateOptions& options, bool* created_volatile);
 bool DeleteKey(const RegistryNode& node);
@@ -58,7 +58,7 @@ bool RenameKey(const RegistryNode& node, const std::wstring& new_name);
 bool DeleteValue(const RegistryNode& node, const std::wstring& value_name);
 bool SetValue(const RegistryNode& node, const std::wstring& value_name, DWORD type, const std::vector<BYTE>& data);
 bool RenameValue(const RegistryNode& node, const std::wstring& old_name, const std::wstring& new_name, bool* both_names_left);
-bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor);
+bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor, LONG* error = nullptr);
 bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor);
 
 } // namespace offline

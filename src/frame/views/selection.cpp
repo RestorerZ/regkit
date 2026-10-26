@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -186,11 +186,6 @@ void MainWindow::Impl::SelectListRowAtIndex(HWND list, int index)
     ListView_SetItemState(list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
     ListView_SetItemState(list, index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
     ListView_EnsureVisible(list, index, FALSE);
-}
-
-void MainWindow::Impl::HandleTypeToSelectList(wchar_t ch)
-{
-    browse_.TypeSelectValues(ch, GetTickCount());
 }
 
 void MainWindow::Impl::HandleTypeToSelectTree(wchar_t ch)

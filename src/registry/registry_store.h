@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -48,7 +48,7 @@ struct RegistryRootEntry
     REGSAM view = 0;
 };
 
-// 0 keeps the native view; local 32-bit tabs set KEY_WOW64_32KEY on their roots and every child inherits it
+// 0 uses native view, local 32 bit roots set KEY_WOW64_32KEY inherited by all children
 inline REGSAM ViewOf(const RegistryNode& node)
 {
     return node.view ? node.view : win32::kDefaultRegistryView;
@@ -114,7 +114,7 @@ class RegistryStore
   public:
     static std::vector<RegistryRootEntry> DefaultRoots(bool include_extra = false);
     static bool HasSubKeys(const RegistryNode& node);
-    // counts key creates, deletes, renames & access changes, so other views know they're stale
+    // counts key creates, deletes, renames and access changes so other views can detect stale data
     static uint64_t KeyRevision() noexcept;
     static void NoteKeyChange() noexcept;
     static std::vector<std::wstring> EnumSubKeyNames(const RegistryNode& node, bool sorted = true);
@@ -132,7 +132,7 @@ class RegistryStore
     static bool IsOfflineRoot(HKEY root);
     static bool QueryValue(const RegistryNode& node, const std::wstring& value_name, RegistryValue* out);
     static bool QueryKeyInfo(const RegistryNode& node, KeyInfo* info);
-    // also true for a key whose information can't be read but which its parent lists
+    // also true if parent lists the key but its information cannot be read
     static bool KeyExists(const RegistryNode& node);
     static KeyInspection InspectKey(const RegistryNode& node, bool want_info, bool want_source = false);
     static bool QuerySymbolicLinkTarget(const RegistryNode& node, std::wstring* target, bool* denied = nullptr);
@@ -144,18 +144,18 @@ class RegistryStore
     static void RemoveOfflineRoot(HKEY root);
     static HKEY RegisterVirtualRoot(const std::wstring& root_name, const std::shared_ptr<VirtualRegistryData>& data);
     static void UnregisterVirtualRoot(HKEY root);
-    // a second registration of the same data, it stays valid when the first one is released
+    // independent registration of the same data, remains valid after releasing the first
     static HKEY DuplicateVirtualRoot(HKEY root);
     static bool IsVirtualRoot(HKEY root);
     static bool GetVirtualRootName(HKEY root, std::wstring* root_name);
     static bool QueryKeyDetails(const RegistryNode& node, KeyDetails* details, bool open_link = false);
     static std::wstring OfflineControlSet(const RegistryNode& node);
-    // live keys only, the uac virtualization flags reg flags sets
+    // live keys only, UAC virtualization flags used by reg flags
     static LONG SetKeyControlFlags(const RegistryNode& node, ULONG flags);
     static bool CreateKey(const RegistryNode& node, const std::wstring& name, const KeyCreateOptions& options = {}, bool* created_volatile = nullptr);
     static bool CreateKeyLink(const RegistryNode& node, const std::wstring& name, const std::wstring& nt_target, const KeyCreateOptions& options = {});
     static bool ReadKeyLink(const RegistryNode& node, std::wstring* target);
-    static bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor);
+    static bool ReadKeySecurity(const RegistryNode& node, SECURITY_INFORMATION* parts, std::vector<BYTE>* descriptor, LONG* error = nullptr);
     static bool WriteKeySecurity(const RegistryNode& node, SECURITY_INFORMATION parts, const std::vector<BYTE>& descriptor, const FILETIME* last_write = nullptr);
     static bool DeleteKey(const RegistryNode& node);
     static bool RenameKey(const RegistryNode& node, const std::wstring& new_name);

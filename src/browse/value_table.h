@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -18,8 +18,6 @@ namespace regkit
 
 inline constexpr int kValueTooltipMaxWidth = 900;
 inline constexpr int kValueTooltipCursorGap = 18;
-inline constexpr size_t kValueTooltipTextLimit = 2000;
-inline constexpr size_t kValueTooltipLineLimit = 60;
 
 namespace rowkind
 {
@@ -53,7 +51,7 @@ struct ListRow
     bool data_ready = false;
     bool data_preview = false;
     bool simulated = false;
-    // a value the registry doesn't have (trace, or unset default)
+    // missing registry value, from a trace or unset default
     bool missing = false;
     int image_index = 0;
     LPARAM kind = 0;

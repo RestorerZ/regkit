@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
@@ -164,7 +164,7 @@ void MainWindow::Impl::ReleaseRegFileRoots(TabEntry* entry)
         root.data.reset();
     }
     entry->reg_file_roots.clear();
-    // its undo & hidden tree point at the released roots, a released root would reach the live registry
+    // clear undo and hidden tree references, released roots would reach the live registry
     entry->session.reset();
     if (entry->tree && entry->tree != &browse_.tree())
     {

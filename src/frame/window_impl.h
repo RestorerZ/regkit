@@ -1,11 +1,22 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
 #include "frame/main_window.h"
 #include "frame/tools/update_checker.h"
 #include "win32/windows_config.h"
+
+#include <win32ui/handle_owner.h>
+#include <win32ui/list_view/list_view.h>
+#include <win32ui/list_view/sort.h>
+#include <win32ui/menu/menu_bar.h>
+#include <win32ui/menu/popup_menu.h>
+#include <win32ui/menu/shortcuts.h>
+#include <win32ui/splitter/splitter.h>
+#include <win32ui/status_bar/status_bar.h>
+#include <win32ui/tab_strip/tab_strip.h>
+#include <win32ui/toolbar/toolbar.h>
 
 #include <windows.h>
 
@@ -40,12 +51,8 @@
 #include "search/search.h"
 #include "trace/trace_data.h"
 #include "ui/presets.h"
-#include "ui/splitter.h"
-#include "ui/tab_strip.h"
 #include "ui/theme.h"
-#include "ui/toolbar.h"
 #include "win32/file_dialog.h"
-#include "win32/handle_owner.h"
 #include "win32/process_rights.h"
 #include "win32/translation.h"
 #include "work/key_watcher.h"
@@ -81,7 +88,8 @@ class MainWindow::Impl
         kOffline,
     };
 
-    // the local registry, one remote machine or a set of offline hives; local tabs share one, the others own theirs
+    // session for local registry, remote machine or offline hive set
+    // local tabs share one, remote/offline tabs own theirs
     struct RegistrySession
     {
         RegistrySession() = default;
@@ -142,7 +150,7 @@ class MainWindow::Impl
         };
 
         uint64_t generation = 0;
-        // the tab session the replace ran in, its undo goes there even after a tab switch
+        // replace undo belongs to its original session even after tab switches
         std::weak_ptr<RegistrySession> session;
         std::optional<search::Source> source;
         std::vector<Change> changes;
@@ -181,14 +189,12 @@ class MainWindow::Impl
     std::optional<LRESULT> HandleAppearanceMessage(UINT message, WPARAM wparam, LPARAM lparam);
     std::optional<LRESULT> HandleBrowseMessage(UINT message, WPARAM wparam, LPARAM lparam);
     LRESULT HandleNotification(LPARAM lparam);
-    LRESULT HandleTooltipNotification(NMHDR* header, LPARAM lparam);
-    std::wstring ListCellFieldText(HWND list, int item, int display_subitem);
-    bool ListCellTooltipText(std::wstring* out);
+    LRESULT HandleTooltipNotification(NMHDR* header);
+    // model cell text for copy, text search, fitting and tooltips
+    std::wstring ListCellFieldText(HWND list, int item, int subitem);
     std::wstring SearchCellFieldText(const search::Result& result, int subitem) const;
-    LRESULT HandleToolbarNotification(NMHDR* header, LPARAM lparam);
     LRESULT HandleTabNotification(NMHDR* header, LPARAM lparam);
     LRESULT HandleTreeNotification(NMHDR* header, LPARAM lparam);
-    LRESULT HandleHeaderNotification(NMHDR* header, LPARAM lparam);
     LRESULT HandleValueNotification(NMHDR* header, LPARAM lparam);
     LRESULT HandleHistoryNotification(NMHDR* header, LPARAM lparam);
     LRESULT HandleSearchNotification(NMHDR* header, LPARAM lparam);
@@ -215,26 +221,26 @@ class MainWindow::Impl
     void LayoutControls(int width, int height);
     void LayoutContent(bool dragging);
     int TextRowHeight(int nominal, int padding = 6) const;
-    void DragSplitter(ui::Splitter* splitter, int* size, POINT point);
+    void ResizePane(HWND splitter, int size, bool done);
     void BuildImageLists();
     void ReloadThemeIcons();
-    bool ShouldUseLightIcons() const;
     std::wstring ResolveIconDir(bool use_light) const;
     std::wstring ResolveIconPath(const wchar_t* filename) const;
     void ApplyGridToolbarIcons();
-    void LayoutValueGridToolbar();
     void SetValueGridEnabled(bool enabled, bool persist);
-    ToolbarIcon MakeToolbarIcon(const wchar_t* filename, int resource_id) const;
+    // toolbar icon from selected set, falls back to resources
+    HICON ToolbarIconFor(int command, UINT dpi) const;
     void CreateValueColumns();
     void CreateHistoryColumns();
     void CreateSearchColumns();
     void ApplyValueColumns();
     void ApplyHistoryColumns();
     void ApplySearchColumns(bool compare);
+    void RescaleColumns();
     void RefreshCompareColumnTitles();
     bool IsCompareResultColumnAvailable() const;
     void UpdateValueListForNode(RegistryNode* node);
-    void AttachHeader(HWND header);
+    void AttachMainList(HWND list);
     void ResetValueFilter();
     void FocusFirstValue();
     void EnsureValueRowData(ListRow* row);
@@ -270,7 +276,8 @@ class MainWindow::Impl
     void EnableAddressAutoComplete();
     std::vector<std::wstring> BuildAddressSuggestions(const std::wstring& input) const;
     void UpdateStatus();
-    void SetStatusMessage(const std::wstring& text);
+    // show for ms milliseconds, 0 keeps until next message
+    void SetStatusMessage(const std::wstring& text, UINT ms = 8000);
     void SortValueList(int column, bool toggle);
     void SortHistoryList(int column, bool toggle);
     void SortSearchResults(int column, bool toggle);
@@ -317,6 +324,7 @@ class MainWindow::Impl
     void UpdateTabText(const std::wstring& text);
     void UpdateTabWidth();
     void CloseTab(int tab_index);
+    bool CanCloseTab(int tab_index) const;
     void ActivateTabIndex(int index);
     bool HandleTabCommand(int command_id);
     bool ConfirmCloseTab(int tab_index);
@@ -347,7 +355,7 @@ class MainWindow::Impl
     bool OpenSelectedSearchResult(bool new_tab);
     RegistrySession* CurrentTabSession();
     void ShowSession(const std::shared_ptr<RegistrySession>& session);
-    void UpdateUndoButtons();
+    void UpdateToolbarStates();
     void NavigateToAddress();
     void PromptMissingPath(const std::wstring& path);
     void PromptMissingValue(const std::wstring& value_name);
@@ -379,11 +387,13 @@ class MainWindow::Impl
     bool LoadDefaultFromPrompt();
     void ClearDefaults();
     void RefreshFavoritesCache();
-    void RefreshRegEditFavoritesMenu();
+    void FillMenuLists(HMENU menu);
     void RefreshBundledDefaultsCache();
     void BuildMenus();
     void UpdateMenuState(HMENU menu);
-    void RefreshStorageMenuState(HMENU menu);
+    struct CommandState;
+    bool CommandEnabled(int command, CommandState* state);
+    bool CommandChecked(int command) const;
     void FillBitfieldMenu(HMENU menu);
     void BuildAccelerators();
     std::wstring CommandTooltipText(int command_id) const;
@@ -409,17 +419,12 @@ class MainWindow::Impl
     bool HandleDeleteCommand(int command_id);
     bool EnsureWritable();
     bool ShowsRegFile() const;
-    void PrepareMenusForOwnerDraw(HMENU menu);
     void ApplySimpleMode(HMENU menu) const;
-    void OnMeasureMenuItem(MEASUREITEMSTRUCT* info);
-    void OnDrawMenuItem(const DRAWITEMSTRUCT* info);
-    void PaintMenuBarSeparator();
-    void ShowHeaderMenu(HWND list, POINT screen_pt);
     ui::ColumnSet* ColumnSetFor(HWND list);
-    void ApplyColumns(HWND list);
+    void OnListColumnsChanged(HWND list);
     void AppendHistoryEntry(const std::wstring& action, const std::wstring& old_data, const std::wstring& new_data);
     void AppendHistoryEntry(HistoryEntry entry);
-    // one cache write, sort & list update for a whole mass change
+    // one cache write, sort and list update per mass change
     void AppendHistoryEntries(std::vector<HistoryEntry> entries);
     void AppendHistoryEntries(std::vector<HistoryEntry> entries, const std::optional<search::Source>& source);
     std::optional<search::Source> HistorySource() const;
@@ -452,7 +457,6 @@ class MainWindow::Impl
     void NavigateBack();
     void NavigateForward();
     void NavigateUp();
-    void UpdateNavigationButtons();
     void ApplyViewVisibility();
     void SelectTabIndex(int index);
     void ApplyTabSelection(int index);
@@ -469,9 +473,8 @@ class MainWindow::Impl
     void ReloadLocalRoots();
     std::shared_ptr<RegistrySession> LocalViewSession(REGSAM view) const;
     void HandleTypeToSelectTree(wchar_t ch);
-    void HandleTypeToSelectList(wchar_t ch);
     std::wstring NormalizeRegistryPath(const std::wstring& path) const;
-    // the tree labels NormalizeRegistryPath strips, so a worker can normalize without the UI state
+    // root labels stripped by NormalizeRegistryPath, lets workers normalize without UI state
     std::vector<std::wstring> RegistryPathContexts() const;
     static std::wstring NormalizeRegistryPath(const std::wstring& path, const std::wstring& sid, const std::vector<std::wstring>& contexts);
     std::wstring FormatRegistryPath(const std::wstring& path, registry_path::Style style) const;
@@ -513,6 +516,8 @@ class MainWindow::Impl
     std::wstring CommentsPath() const;
     std::wstring CommentKeyPath(const RegistryNode& node) const;
     bool EditComments(const std::vector<changes::CommentTarget>& targets);
+    // Modify Comment target, empty if selection cannot have a comment
+    std::vector<changes::CommentTarget> CommentTargets();
     bool RestartAsAdmin();
     bool RestartAsUser();
     bool RestartCurrentInstance();
@@ -555,7 +560,7 @@ class MainWindow::Impl
     bool HandleResetDefaultCommand(int command_id);
     std::vector<DefaultValueChoice> SelectedValueDefaultChoices() const;
     HMENU BuildResetDefaultMenu(const std::vector<DefaultValueChoice>& choices) const;
-    void RefreshResetDefaultMenu(HMENU menu);
+    void RefreshResetDefaultMenu(HMENU menu, CommandState* state);
     std::wstring TreeStatePath() const;
     void StartTreeStateWorker();
     void StopTreeStateWorker();
@@ -573,7 +578,6 @@ class MainWindow::Impl
     void RefreshMatchingTreeNodes(HTREEITEM selected = nullptr);
     void UpdateSimulatedChain(HTREEITEM item);
     void ApplySavedWindowPlacement();
-    LOGFONTW DefaultLogFont() const;
     void AddRecentTracePath(const std::wstring& path);
     void NormalizeRecentTraceList();
     void AddRecentDefaultPath(const std::wstring& path);
@@ -623,8 +627,12 @@ class MainWindow::Impl
     bool ui_font_owned_ = false;
     LOGFONTW custom_font_ = {};
     workspace::Settings settings_;
-    HACCEL accelerators_ = nullptr;
-    Toolbar toolbar_;
+    win32ui::ShortcutTable shortcuts_;
+    win32ui::MenuBar menu_bar_;
+    // library retains a pointer to these hooks
+    win32ui::ToolbarHooks toolbar_hooks_;
+    HWND toolbar_ = nullptr;
+    win32ui::TabStripHooks tab_hooks_;
     HWND tab_ = nullptr;
     HWND tree_header_ = nullptr;
     HWND tree_close_btn_ = nullptr;
@@ -633,15 +641,14 @@ class MainWindow::Impl
     HWND history_close_btn_ = nullptr;
     HWND history_list_ = nullptr;
     HWND key_handles_window_ = nullptr;
+    win32ui::StatusBarHooks status_hooks_;
     HWND status_bar_ = nullptr;
-    HWND search_progress_ = nullptr;
     browse::Pane browse_;
     RegistryTree regedit_compat_tree_;
     HIMAGELIST tree_images_ = nullptr;
     HIMAGELIST list_images_ = nullptr;
-    std::vector<int> value_column_subitems_;
-    std::vector<int> search_column_subitems_;
-    std::vector<int> history_column_subitems_;
+    // shared by three main lists, library retains a pointer
+    win32ui::ListViewHooks main_list_hooks_;
     ui::ColumnSet history_columns_;
     ui::ColumnSet search_columns_;
     ui::ColumnSet compare_columns_;
@@ -657,17 +664,19 @@ class MainWindow::Impl
     std::shared_ptr<RegistrySession> session_ = local_session_;
     int current_key_count_ = 0;
     int current_value_count_ = 0;
+    LONG value_list_error_ = ERROR_SUCCESS;
     int tab_height_ = 22;
     bool suppress_tab_change_ = false;
     RECT content_rect_ = {};
-    ui::Splitter tree_splitter_{true, false};
-    ui::Splitter history_splitter_{false, true};
+    win32ui::SplitterHooks splitter_hooks_;
+    HWND tree_splitter_ = nullptr;
+    HWND history_splitter_ = nullptr;
+    // last shown pane sizes, used as drag starting sizes
+    int tree_shown_width_ = 0;
+    int history_shown_height_ = 0;
+    bool splitter_dragging_ = false;
     HICON address_go_icon_ = nullptr;
     HWND value_tooltip_ = nullptr;
-    HWND value_tip_list_ = nullptr;
-    int value_tip_item_ = -1;
-    int value_tip_subitem_ = -1;
-    std::wstring value_tooltip_text_;
     std::unique_ptr<util::PrivilegeScope> backup_privileges_;
     std::wstring status_account_sid_;
     std::wstring status_classes_sid_;
@@ -675,7 +684,7 @@ class MainWindow::Impl
     work::KeyWatcher key_watcher_;
     bool show_value_ = true;
     work::DebouncedTask<workspace::TreeState> tree_state_saver_;
-    ThemeMode theme_mode_ = ThemeMode::kSystem;
+    win32ui::ThemeMode theme_mode_ = win32ui::ThemeMode::system;
     std::vector<util::LanguagePack> language_packs_;
     std::wstring icon_dir_;
     bool updating_value_list_ = false;
@@ -690,7 +699,6 @@ class MainWindow::Impl
     std::optional<CacheKind> cache_clear_on_close_;
     bool history_loaded_ = false;
     bool history_cache_failed_ = false;
-    std::wstring status_message_;
     bool is_replaying_ = false;
     bool hive_list_loaded_ = false;
     std::vector<ThemePreset> theme_presets_;
@@ -711,7 +719,7 @@ class MainWindow::Impl
     bool flushing_external_navigation_ = false;
     bool jump_ui_batch_active_ = false;
     bool tree_redraw_pending_ = false;
-    // set when the tree state cache is cleared for a restart, saved tabs then carry none
+    // restart cleared tree cache, omit tree state from saved tabs
     bool drop_tree_state_ = false;
     bool status_update_pending_ = false;
     bool tree_painted_ = false;
@@ -800,7 +808,7 @@ class MainWindow::Impl
         int value_top_index = 0;
         std::vector<std::wstring> expanded_paths;
         std::shared_ptr<RegistrySession> session;
-        // owned by browse_, created the first time the tab is shown
+        // owned by browse_, created on first tab display
         RegistryTree* tree = nullptr;
         std::wstring reg_file_path;
         std::wstring reg_file_label;
@@ -832,7 +840,6 @@ class MainWindow::Impl
     work::Session compare_session_;
     int active_search_tab_index_ = -1;
     int search_results_view_tab_index_ = -1;
-    ui::TabStrip tab_strip_;
     bool value_activate_from_key_ = false;
     bool address_autocomplete_ = false;
     struct ActiveTrace
@@ -1037,11 +1044,12 @@ class MainWindow::Impl
     changes::ValueComments default_comments_;
     bool comments_unreadable_ = false;
     bool comments_loaded_ = false;
-    util::UniqueHKey registry_root_;
+    win32ui::UniqueHKey registry_root_;
     std::vector<std::wstring> favorites_cache_;
     std::vector<workspace::NamedFavorite> regedit_favorites_;
-    HMENU regedit_favorites_menu_ = nullptr;
-    int regedit_favorites_static_count_ = 0;
+    HMENU favorites_menu_ = nullptr;
+    HMENU trace_menu_ = nullptr;
+    HMENU default_menu_ = nullptr;
     bool favorites_loaded_ = false;
 
     struct BundledDefault
@@ -1052,14 +1060,6 @@ class MainWindow::Impl
     };
 
     bool bundled_defaults_loaded_ = false;
-    struct MenuItemData
-    {
-        std::wstring text;
-        bool separator = false;
-        int width = 0;
-        int height = 0;
-    };
-    std::vector<std::unique_ptr<MenuItemData>> menu_items_;
     std::vector<BundledDefault> bundled_defaults_;
 };
 

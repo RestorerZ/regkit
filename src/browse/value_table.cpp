@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "browse/value_table.h"
 
@@ -90,7 +90,7 @@ bool ValueList::MergeRows(std::vector<ListRow> rows)
     auto same = [](const ListRow& left, const ListRow& right) { return left.kind == right.kind && left.extra == right.extra; };
     if (HasFilter() || !std::equal(rows.begin(), rows.end(), rows_.begin(), rows_.end(), same))
     {
-        // rows moved, so selection and focus follow their names instead of their positions
+        // rows moved, preserve selection and focus by name
         using Identity = std::pair<LPARAM, std::wstring>;
         std::set<Identity> selected;
         for (int i = -1; (i = ListView_GetNextItem(hwnd_, i, LVNI_SELECTED)) >= 0;)
@@ -184,7 +184,7 @@ void ValueList::SetFilter(const std::wstring& text)
 
 void ValueList::RebuildFilter()
 {
-    // selection follows its rows, with native calls only when their positions change
+    // selection follows rows, call native selection APIs only when positions change
     const std::vector<int> previous = std::move(visible_indices_);
     const int count = static_cast<int>(previous.size());
     std::vector<int> selected;

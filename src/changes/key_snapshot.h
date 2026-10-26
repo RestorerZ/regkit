@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -25,10 +25,10 @@ struct KeySnapshot
     bool complete = true;
 };
 
-// exact snapshots also keep security and timestamps, copies inherit them at the destination
+// exact snapshots keep security and timestamps, copies inherit destination metadata
 KeySnapshot CaptureKey(const RegistryNode& node, bool exact = true);
 bool RestoreKey(const RegistryNode& parent, const KeySnapshot& snapshot);
-// replaces the contents of an existing key, for keys that can't be deleted and recreated
+// replaces existing key contents when the key cannot be deleted and recreated
 bool ReplaceKey(const RegistryNode& node, const KeySnapshot& snapshot);
 
 } // namespace regkit::changes

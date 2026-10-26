@@ -1,11 +1,13 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
 
 #include "ui/autocomplete.h"
-#include "ui/dialog_layout.h"
+
+#include <win32ui/gdi/fonts.h>
+#include <win32ui/window_metrics.h>
 
 namespace regkit
 {
@@ -18,91 +20,24 @@ void MainWindow::Impl::OnSize(int width, int height)
 
 void MainWindow::Impl::OnPrintClient(HDC mem_dc)
 {
-    const Theme& theme = Theme::Current();
     RECT client = {};
     GetClientRect(hwnd_, &client);
-    FillRect(mem_dc, &client, theme.BackgroundBrush());
-
-    HPEN pen = appearance::CachedPen(theme.BorderColor(), 1);
-    HPEN old_pen = reinterpret_cast<HPEN>(SelectObject(mem_dc, pen));
-    HBRUSH old_brush = reinterpret_cast<HBRUSH>(SelectObject(mem_dc, GetStockObject(NULL_BRUSH)));
-
-    if (show_value_)
-    {
-        tree_splitter_.Paint(mem_dc, theme.PanelBrush());
-    }
-    history_splitter_.Paint(mem_dc, theme.PanelBrush());
-
-    SelectObject(mem_dc, old_brush);
-    SelectObject(mem_dc, old_pen);
-}
-
-void MainWindow::Impl::PaintMenuBarSeparator()
-{
-    if (!hwnd_ || !GetMenu(hwnd_))
-    {
-        return;
-    }
-
-    MENUBARINFO menu_info = {};
-    menu_info.cbSize = sizeof(menu_info);
-    if (!GetMenuBarInfo(hwnd_, OBJID_MENU, 0, &menu_info))
-    {
-        return;
-    }
-
-    RECT window_rect = {};
-    if (!GetWindowRect(hwnd_, &window_rect))
-    {
-        return;
-    }
-
-    RECT separator = menu_info.rcBar;
-    OffsetRect(&separator, -window_rect.left, -window_rect.top);
-    separator.top = separator.bottom - 1;
-    separator.bottom += 1;
-    if (separator.bottom <= separator.top)
-    {
-        return;
-    }
-
-    HDC hdc = GetWindowDC(hwnd_);
-    if (!hdc)
-    {
-        return;
-    }
-    FillRect(hdc, &separator, Theme::Current().BackgroundBrush());
-    ReleaseDC(hwnd_, hdc);
+    FillRect(mem_dc, &client, win32ui::ThemeBrush(win32ui::ThemeFill::background));
 }
 
 void MainWindow::Impl::ApplyThemeToChildren()
 {
-    const Theme& theme = Theme::Current();
-
-    theme.ApplyToToolbar(toolbar_.hwnd());
-    for (const auto& tree : browse_.trees())
-    {
-        theme.ApplyToTreeView(tree->hwnd());
-    }
-    appearance::RefreshListView(browse_.values().hwnd());
-    appearance::RefreshListView(history_list_);
-    appearance::RefreshListView(search_results_list_);
-    theme.ApplyToTabControl(tab_);
-    theme.ApplyToStatusBar(status_bar_);
-    if (IsWindow(key_handles_window_))
-    {
-        appearance::ApplyDialogTheme(key_handles_window_);
-    }
+    menu_bar_.ApplyTheme();
+    // themes descendants, library controls, owned tooltips and open dialogs
+    win32ui::ReapplyTheme(hwnd_);
 
     if (browse_.address())
     {
-        SetDarkWindowTheme(browse_.address(), Theme::UseDarkMode());
         SetEditMargins(browse_.address(), 6, 6);
         SetEditVerticalRect(browse_.address(), ui_font_, 2, 6, 6);
     }
     if (browse_.filter())
     {
-        SetDarkWindowTheme(browse_.filter(), Theme::UseDarkMode());
         SetEditMargins(browse_.filter(), 6, 6);
         SetEditVerticalRect(browse_.filter(), ui_font_, 2, 6, 6);
     }
@@ -121,8 +56,6 @@ void MainWindow::Impl::ApplySystemTheme()
         return;
     }
     applying_theme_ = true;
-    Theme::UpdateFromSystem();
-    Theme::Current().ApplyToWindow(hwnd_);
     ApplyThemeToChildren();
     ReloadThemeIcons();
     if (hwnd_)
@@ -144,27 +77,11 @@ void MainWindow::Impl::LoadThemePresets()
     bool updated_builtins = false;
     if (!loaded || presets.empty())
     {
-        presets = ThemePresetStore::BuiltInPresets();
+        presets = win32ui::BuiltInThemePresets();
     }
     else
     {
-        std::vector<ThemePreset> builtins = ThemePresetStore::BuiltInPresets();
-        for (const auto& builtin : builtins)
-        {
-            auto it = std::find_if(presets.begin(), presets.end(), [&](const ThemePreset& existing) {
-                return EqualsInsensitive(existing.name, builtin.name);
-            });
-            if (it == presets.end())
-            {
-                presets.push_back(builtin);
-                updated_builtins = true;
-            }
-            else if (it->is_dark != builtin.is_dark || it->colors != builtin.colors)
-            {
-                *it = builtin;
-                updated_builtins = true;
-            }
-        }
+        updated_builtins = win32ui::MergeBuiltInThemePresets(&presets, settings_.theme_preset);
     }
     theme_presets_ = std::move(presets);
     if (theme_presets_.empty())
@@ -191,15 +108,13 @@ bool MainWindow::Impl::ApplyThemePresetByName(const std::wstring& name, bool per
         return false;
     }
     const ThemePreset* it = FindThemePreset(theme_presets_, name);
-    Theme::SetCustomColors(it->colors, it->is_dark);
-    theme_mode_ = ThemeMode::kCustom;
+    theme_mode_ = win32ui::ThemeMode::custom;
     settings_.theme_preset = it->name;
-    Theme::SetMode(theme_mode_);
+    win32ui::SetThemeMode(theme_mode_, &it->colors);
     ApplySystemTheme();
     if (persist)
     {
         SaveSettings();
-        BuildMenus();
     }
     return true;
 }
@@ -216,7 +131,6 @@ void MainWindow::Impl::UpdateThemePresets(const std::vector<ThemePreset>& preset
     else
     {
         SaveSettings();
-        BuildMenus();
     }
 }
 
@@ -231,8 +145,8 @@ void MainWindow::Impl::ApplyAlwaysOnTop()
 
 void MainWindow::Impl::UpdateUIFont()
 {
-    ui::SetCustomFont(settings_.use_custom_font ? &custom_font_ : nullptr);
-    const LOGFONTW lf = ui::DefaultUIFontLogFont(win32::DpiForWindow(hwnd_));
+    win32ui::SetCustomFont(settings_.use_custom_font ? &custom_font_ : nullptr);
+    const LOGFONTW lf = win32ui::UIFontLogFont(win32ui::DpiForWindow(hwnd_));
     HFONT next_font = CreateFontIndirectW(&lf);
     bool next_owned = next_font != nullptr;
     if (!next_font)
@@ -255,7 +169,7 @@ void MainWindow::Impl::ApplyUIFontToControls()
     {
         return;
     }
-    ApplyFont(toolbar_.hwnd(), ui_font_);
+    ApplyFont(toolbar_, ui_font_);
     ApplyFont(browse_.address(), ui_font_);
     ApplyFont(browse_.go_button(), ui_font_);
     ApplyFont(browse_.filter(), ui_font_);
@@ -274,17 +188,11 @@ void MainWindow::Impl::ApplyUIFontToControls()
     ApplyFont(search_results_list_, ui_font_);
     if (tab_)
     {
-        tab_height_ = tab_strip_.Refit(kTabMinWidth);
+        win32ui::RefreshTabStrip(tab_);
+        tab_height_ = win32ui::TabStripRowHeight(tab_);
     }
-    if (status_bar_)
-    {
-        SendMessageW(status_bar_, SB_SETMINHEIGHT, TextRowHeight(0, 0), 0);
-        SendMessageW(status_bar_, WM_SIZE, 0, 0);
-    }
-    if (hwnd_)
-    {
-        DrawMenuBar(hwnd_);
-    }
+    win32ui::RefreshStatusBar(status_bar_);
+    menu_bar_.ApplyTheme();
     InvalidateRect(hwnd_, nullptr, TRUE);
     if (hwnd_)
     {

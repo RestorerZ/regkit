@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "defaults/default_loader.h"
 
@@ -65,7 +65,7 @@ bool Load(const std::wstring& path, const NormalizePath& normalize, Data* data, 
         }
         if (entries)
         {
-            // include key only row so empty keys are selectable
+            // include empty keys so they remain selectable
             Entry key_entry;
             key_entry.source_path = source_path;
             key_entry.key_path = key_path;

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
 
@@ -13,40 +13,24 @@
 
 #include "win32/text_transform.h"
 
+#include <win32ui/list_view/list_view.h>
+
 namespace regkit::appearance
 {
 
-using ListHeaderMenuCallback = void (*)(HWND list, POINT screen, void* context);
 using ListGridChangedCallback = void (*)(void* context, bool enabled);
-using ListItemCompareCallback = int(CALLBACK*)(LPARAM left, LPARAM right, int column, void* context);
 
-void ConfigureListView(HWND list, DWORD extra_styles = 0);
-void RegisterListView(HWND owner, HWND list, int grid_command, ListHeaderMenuCallback header_menu = nullptr, void* context = nullptr);
-void ReleaseListViews(HWND owner);
-void LayoutListViews(HWND owner);
-void RefreshListView(HWND list);
-// widest of the cells and the header text, which LVSCW_AUTOSIZE_USEHEADER cuts short
-int FitListColumn(HWND list, int column);
-
-void SetListGridEnabled(bool enabled);
-void ReloadListGridIcons();
 void SetListGridChangedCallback(ListGridChangedCallback callback, void* context);
 
-bool HandleListViewCommand(HWND owner, int command);
-bool HandleListViewNotify(HWND owner, const NMHDR* header, LRESULT* result);
-LRESULT HandleListGridCustomDraw(HWND list, NMLVCUSTOMDRAW* draw, LRESULT result);
-
-bool ShowListColumnMenu(HWND list, POINT screen);
-int ContextMenuRow(HWND list, LPARAM lparam, POINT* screen);
-void AppendMenuItem(HMENU menu, UINT flags, UINT_PTR id, const wchar_t* text, const wchar_t* shortcut = nullptr);
-int TrackContextMenu(HMENU menu, POINT screen, HWND owner);
-void UpdateListViewSort(HWND list, int column, bool ascending);
-void UpdateListSortState(int column, bool toggle, int* sort_column, bool* ascending, util::SortKeys* earlier);
-void SortListViewItems(HWND list, int column, bool toggle, int* sort_column, bool* ascending, util::SortKeys* earlier, ListItemCompareCallback compare, void* context);
-int ListViewItemData(HWND list, int row, LPARAM* data);
 int FetchListViewItemText(HWND list, int index, int column, std::wstring* buffer);
-std::wstring SelectedRowsText(HWND list);
-int SelectedListViewData(HWND list);
-int FindListViewItemByData(HWND list, LPARAM data);
+// selected item data as an index, -1 without selection
+int SelectedItemIndex(HWND list);
+
+// dialog list theme, translated labels, grid icon and shared grid setting
+// row_menu replaces Copy and Select All with a dialog menu
+win32ui::ListViewHooks DialogListHooks(bool (*row_menu)(void* context, HWND list, int row, POINT screen) = nullptr);
+// appends Copy and Select All to dialog menus, RunRowMenuCommand handles them
+void AppendRowMenuCommands(HMENU menu, HWND list);
+bool RunRowMenuCommand(HWND list, int command);
 
 } // namespace regkit::appearance

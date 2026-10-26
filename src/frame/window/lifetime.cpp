@@ -1,11 +1,11 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "frame/window_detail.h"
 #include "frame/window_impl.h"
+#include "frame/window/shortcut_bindings.h"
 
 #include "ui/dialog_layout.h"
-#include "ui/list_header.h"
 #include "win32/translation.h"
 
 #include <dwmapi.h>
@@ -25,43 +25,34 @@ bool MainWindow::Impl::OnCreate()
         return ui::PromptKeyChoice(owner, util::Tr(L"SYSTEM has no Desktop folder, so Windows reports \"Location is not available\" in file dialogs. Create this folder to prevent the error?"), path, util::Tr(L"Create Folder"), util::Tr(L"Create"), L"", util::Tr(L"Cancel")) == IDYES;
     });
     ui_font_ = CreateUIFont();
-    custom_font_ = DefaultLogFont();
+    custom_font_ = win32ui::MessageFontLogFont(0);
     LoadSettings();
-    if (theme_mode_ == ThemeMode::kCustom)
+    if (theme_mode_ == win32ui::ThemeMode::custom)
     {
         LoadThemePresets();
     }
     ApplySavedWindowPlacement();
-    if (theme_mode_ != ThemeMode::kCustom || !ApplyThemePresetByName(settings_.theme_preset, false))
+    if (theme_mode_ != win32ui::ThemeMode::custom || !ApplyThemePresetByName(settings_.theme_preset, false))
     {
-        Theme::SetMode(theme_mode_);
+        win32ui::SetThemeMode(theme_mode_);
         ApplySystemTheme();
     }
     UpdateUIFont();
     BuildMenus();
     BuildAccelerators();
 
-    toolbar_.Create(hwnd_, instance_, kToolbarId);
-
-    std::vector<TBBUTTON> buttons;
-    buttons.push_back({0, cmd::kRegistryLocal, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({1, cmd::kRegistryNetwork, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({2, cmd::kRegistryOffline, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({6, kToolbarSepGroup1, TBSTATE_ENABLED, BTNS_SEP, {0}, 0, 0});
-    buttons.push_back({3, cmd::kEditFind, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({4, cmd::kEditReplace, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({6, kToolbarSepGroup2, TBSTATE_ENABLED, BTNS_SEP, {0}, 0, 0});
-    buttons.push_back({5, cmd::kEditUndo, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({6, cmd::kEditRedo, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({7, cmd::kEditCopy, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({8, cmd::kEditPaste, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({9, cmd::kEditDelete, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({10, cmd::kViewRefresh, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({6, kToolbarSepGroup3, TBSTATE_ENABLED, BTNS_SEP, {0}, 0, 0});
-    buttons.push_back({11, cmd::kNavBack, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({12, cmd::kNavForward, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    buttons.push_back({13, cmd::kNavUp, TBSTATE_ENABLED, BTNS_BUTTON, {0}, 0, 0});
-    toolbar_.AddButtons(buttons);
+    toolbar_hooks_.frame = appearance::DialogThemeHooks();
+    toolbar_hooks_.icon = [](void* context, int command, UINT dpi) { return static_cast<const MainWindow::Impl*>(context)->ToolbarIconFor(command, dpi); };
+    toolbar_hooks_.tip = [](void* context, int command) { return static_cast<const MainWindow::Impl*>(context)->CommandTooltipText(command); };
+    toolbar_hooks_.shortcut = [](int command) { return frame::ShortcutText(command); };
+    toolbar_hooks_.context = this;
+    std::vector<win32ui::ToolbarButton> buttons;
+    for (const int command : {cmd::kRegistryLocal, cmd::kRegistryNetwork, cmd::kRegistryOffline, 0, cmd::kEditFind, cmd::kEditReplace, 0, cmd::kEditUndo, cmd::kEditRedo, cmd::kEditCopy, cmd::kEditPaste, cmd::kEditDelete, cmd::kViewRefresh, 0, cmd::kNavBack, cmd::kNavForward, cmd::kNavUp})
+    {
+        // tooltip also supplies the accessible button name
+        buttons.push_back({command, command ? CommandTooltipText(command) : std::wstring()});
+    }
+    toolbar_ = win32ui::CreateToolbar(hwnd_, kToolbarId, util::Tr(L"Toolbar"), &toolbar_hooks_, buttons);
 
     browse::CreateRequest browse_request;
     browse_request.parent = hwnd_;
@@ -77,15 +68,13 @@ bool MainWindow::Impl::OnCreate()
     browse_request.filter_subclass_id = kFilterSubclassId;
     browse_request.tree_proc = TreeViewProc;
     browse_request.tree_subclass_id = kTreeViewSubclassId;
-    browse_request.values_proc = ListViewProc;
-    browse_request.values_subclass_id = kListViewSubclassId;
     browse_request.callback_context = reinterpret_cast<DWORD_PTR>(this);
     if (!browse_.Create(browse_request))
     {
         return false;
     }
-    appearance::ConfigureListView(browse_.values().hwnd());
-    // keep a hidden regedit tree for tools that navigate it through tree messages
+    AttachMainList(browse_.values().hwnd());
+    // hidden RegEdit tree supports tools navigating through tree messages
     regedit_compat_tree_.Create(hwnd_, instance_, kRegEditCompatTreeId, false, false);
     if (!regedit_compat_tree_.hwnd())
     {
@@ -110,20 +99,20 @@ bool MainWindow::Impl::OnCreate()
         info.cbSize = sizeof(info);
         info.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
         info.hwnd = hwnd_;
-        info.uId = reinterpret_cast<UINT_PTR>(browse_.values().hwnd());
-        info.lpszText = LPSTR_TEXTCALLBACKW;
-        SendMessageW(value_tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&info));
         info.uId = reinterpret_cast<UINT_PTR>(browse_.go_button());
         info.lpszText = const_cast<wchar_t*>(util::Tr(L"Go"));
         SendMessageW(value_tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&info));
         SendMessageW(value_tooltip_, TTM_SETMAXTIPWIDTH, 0, kValueTooltipMaxWidth);
-        SetDarkWindowTheme(value_tooltip_, Theme::UseDarkMode());
+        win32ui::ApplyThemeToWindow(value_tooltip_);
     }
 
-    tab_ =
-        CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_BUTTONS | TCS_MULTILINE | TCS_RAGGEDRIGHT | TCS_FOCUSNEVER, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTabId)), instance_, nullptr);
+    tab_hooks_ = appearance::TabStripThemeHooks();
+    tab_hooks_.closable = [](void* context, int index) { return static_cast<MainWindow::Impl*>(context)->CanCloseTab(index); };
+    tab_hooks_.close = [](void* context, int index) { static_cast<MainWindow::Impl*>(context)->CloseTab(index); };
+    tab_hooks_.close_name = util::Tr(L"Close Tab");
+    tab_hooks_.context = this;
+    tab_ = win32ui::CreateTabStrip(hwnd_, kTabId, util::Tr(L"Tabs"), &tab_hooks_);
     ApplyFont(tab_, ui_font_);
-    tab_strip_.Attach(tab_, [](void* context, int index) { static_cast<MainWindow::Impl*>(context)->CloseTab(index); }, this);
 
     tree_header_ = CreateWindowExW(0, L"STATIC", util::Tr(L"Key Tree"), WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | SS_LEFT | SS_OWNERDRAW, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kTreeHeaderId)), instance_, nullptr);
     tree_close_btn_ =
@@ -166,20 +155,18 @@ bool MainWindow::Impl::OnCreate()
     history_close_btn_ =
         CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_OWNERDRAW, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kHistoryHeaderCloseId)), instance_, nullptr);
     SetWindowPos(history_close_btn_, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-    status_bar_ = CreateWindowExW(0, STATUSCLASSNAMEW, L"", WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP, 0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kStatusBarId)), instance_, nullptr);
-    if (status_bar_)
-    {
-        int parts[4] = {0, 0, 0, 0};
-        SendMessageW(status_bar_, SB_SETPARTS, 4, reinterpret_cast<LPARAM>(parts));
-    }
-    search_progress_ =
-        CreateWindowExW(0, PROGRESS_CLASSW, L"", WS_CHILD | PBS_MARQUEE, 0, 0, 0, 0, status_bar_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kSearchProgressId)), instance_, nullptr);
-    if (search_progress_)
-    {
-        SendMessageW(search_progress_, PBM_SETMARQUEE, TRUE, 30);
-        SendMessageW(search_progress_, PBM_SETRANGE32, 0, 1);
-        ShowWindow(search_progress_, SW_HIDE);
-    }
+    splitter_hooks_.size = [](void* context, HWND splitter) {
+        const auto* impl = static_cast<MainWindow::Impl*>(context);
+        return splitter == impl->tree_splitter_ ? impl->tree_shown_width_ : impl->history_shown_height_;
+    };
+    splitter_hooks_.resize = [](void* context, HWND splitter, int size, bool done) { static_cast<MainWindow::Impl*>(context)->ResizePane(splitter, size, done); };
+    splitter_hooks_.context = this;
+    tree_splitter_ = win32ui::CreateSplitter(hwnd_, kTreeSplitterId, util::Tr(L"Key Tree Splitter"), &splitter_hooks_, true);
+    history_splitter_ = win32ui::CreateSplitter(hwnd_, kHistorySplitterId, util::Tr(L"History Splitter"), &splitter_hooks_, false, true);
+    status_hooks_ = appearance::StatusBarThemeHooks();
+    status_hooks_.message_ended = [](void* context) { static_cast<MainWindow::Impl*>(context)->UpdateStatus(); };
+    status_hooks_.context = this;
+    status_bar_ = win32ui::CreateStatusBar(hwnd_, kStatusBarId, util::Tr(L"Status Bar"), &status_hooks_);
     history_list_ = CreateWindowExW(
         0,
         WC_LISTVIEWW,
@@ -195,31 +182,20 @@ bool MainWindow::Impl::OnCreate()
         nullptr
     );
 
-    appearance::ConfigureListView(history_list_);
-    appearance::ConfigureListView(search_results_list_);
-    if (value_tooltip_)
+    AttachMainList(history_list_);
+    AttachMainList(search_results_list_);
+    // install after library subclass to run first, update external navigation before text search
+    for (HWND list : {browse_.values().hwnd(), history_list_, search_results_list_})
     {
-        TOOLINFOW tip = {};
-        tip.cbSize = sizeof(tip);
-        tip.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
-        tip.hwnd = hwnd_;
-        tip.lpszText = LPSTR_TEXTCALLBACKW;
-        tip.uId = reinterpret_cast<UINT_PTR>(search_results_list_);
-        SendMessageW(value_tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tip));
-        tip.uId = reinterpret_cast<UINT_PTR>(history_list_);
-        SendMessageW(value_tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tip));
+        SetWindowSubclass(list, ListViewProc, kListViewSubclassId, reinterpret_cast<DWORD_PTR>(this));
     }
-    SendMessageW(search_results_list_, WM_CHANGEUISTATE, MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS), 0);
-    SendMessageW(history_list_, WM_CHANGEUISTATE, MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS), 0);
-    SetWindowSubclass(history_list_, ListViewProc, kListViewSubclassId, reinterpret_cast<DWORD_PTR>(this));
-    SetWindowSubclass(search_results_list_, ListViewProc, kListViewSubclassId, reinterpret_cast<DWORD_PTR>(this));
 
-    appearance::AttachThemedBorder(tree_header_);
-    appearance::AttachThemedBorder(history_label_);
-    appearance::AttachThemedBorder(browse_.address());
-    appearance::AttachThemedBorder(browse_.go_button());
+    win32ui::AttachThemedBorder(tree_header_);
+    win32ui::AttachThemedBorder(history_label_);
+    win32ui::AttachThemedBorder(browse_.address());
+    win32ui::AttachThemedBorder(browse_.go_button());
     UpdateGoButtonState();
-    appearance::AttachThemedBorder(browse_.filter());
+    win32ui::AttachThemedBorder(browse_.filter());
 
     ApplyUIFontToControls();
 
@@ -228,15 +204,7 @@ bool MainWindow::Impl::OnCreate()
     CreateSearchColumns();
     ApplyThemeToChildren();
     SetValueGridEnabled(settings_.show_value_grid, false);
-    if (toolbar_.hwnd())
-    {
-        UpdateUndoButtons();
-        if (settings_.read_only)
-        {
-            SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditPaste, 0);
-            SendMessageW(toolbar_.hwnd(), TB_SETSTATE, cmd::kEditDelete, 0);
-        }
-    }
+    UpdateToolbarStates();
 
     browse_.roots() = LocalRoots(0);
     browse_.tree().SetRegEditLayout(false);
@@ -281,8 +249,8 @@ void MainWindow::Impl::ConfigureTree(RegistryTree& tree)
     tree.SetVirtualChildProvider(
         [this](const RegistryNode& node, const std::unordered_set<std::wstring>& existing_lower, std::vector<std::wstring>* out) { AppendTraceChildren(node, existing_lower, out); }
     );
-    appearance::AttachThemedBorder(tree.hwnd());
-    Theme::Current().ApplyToTreeView(tree.hwnd());
+    win32ui::AttachThemedBorder(tree.hwnd());
+    win32ui::ApplyThemeToWindow(tree.hwnd());
     if (tree_images_)
     {
         tree.SetImageList(tree_images_);
@@ -301,13 +269,13 @@ void MainWindow::Impl::RunDeferredStartup()
     }
     deferred_startup_complete_ = true;
     const bool has_external_jump = !queued_external_jump_target_.empty();
-    // external jumps & saved tab state take priority over the global tree state
+    // external jumps and saved tabs override global tree state
     startup_tree_restore_pending_ = !has_external_jump && settings_.save_tree_state;
 
     EnableAddressAutoComplete();
     ReloadThemeIcons();
     FlushTreeRedraw();
-    // shown cloaked until every child has painted, the first frame would show unpainted panes white
+    // cloak until all children paint to avoid a first frame with white panes
     BOOL cloak = TRUE;
     DwmSetWindowAttribute(hwnd_, DWMWA_CLOAK, &cloak, sizeof(cloak));
     ShowWindow(hwnd_, pending_show_cmd_);
@@ -421,7 +389,7 @@ void MainWindow::Impl::ApplyStartupCachePayload(std::unique_ptr<StartupCachePayl
         default_comments_.Merge(owned->default_comments);
         changes::ValueComments loaded;
         loaded.Merge(owned->user_comments);
-        // comments added during startup override older copies loaded from disk
+        // comments added during startup override older disk copies
         loaded.Merge(value_comments_.rules());
         value_comments_ = std::move(loaded);
         comments_unreadable_ = owned->comments_unreadable;
@@ -477,13 +445,12 @@ void MainWindow::Impl::OnDestroy()
     }
     key_handles_window_ = nullptr;
     appearance::SetListGridChangedCallback(nullptr, nullptr);
-    appearance::ReleaseListViews(hwnd_);
     if (hwnd_)
     {
         RemovePropW(hwnd_, kRegKitWindowProperty);
     }
     EndJumpUiBatch();
-    // stop workers before releasing controls & resources they may still reference
+    // stop workers before releasing controls and resources they may reference
     StopStartupCacheLoad();
     StopReplace();
     compare_session_.CancelAndJoin();
@@ -520,7 +487,7 @@ void MainWindow::Impl::OnDestroy()
             ui::ShowError(hwnd_, util::Tr(L"The open tabs couldn't be saved for the next session."));
         }
     }
-    // after the save, releasing clears the hidden .reg trees it captures from
+    // release after saving, it clears hidden .reg trees used by capture
     for (auto& entry : tabs_)
     {
         if (entry.kind == TabEntry::Kind::kRegFile)
@@ -563,12 +530,6 @@ void MainWindow::Impl::OnDestroy()
         DestroyIcon(address_go_icon_);
         address_go_icon_ = nullptr;
     }
-    if (accelerators_)
-    {
-        DestroyAcceleratorTable(accelerators_);
-        accelerators_ = nullptr;
-    }
-    menu_items_.clear();
 }
 
 void MainWindow::Impl::DiscardWorkerMessages()

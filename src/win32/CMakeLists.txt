@@ -10,15 +10,10 @@ regkit_add_library(regkit_win32
     system_error.cpp
     text_transform.cpp
     translation.cpp
-    window_metrics.cpp
 )
-target_include_directories(regkit_win32 PUBLIC
-    "${PROJECT_SOURCE_DIR}/src"
-)
+target_link_libraries(regkit_win32 PUBLIC win32ui::win32ui)
+
 target_link_libraries(regkit_win32 PRIVATE
-    advapi32
-    ole32
-    shell32
     userenv
     wtsapi32
 )

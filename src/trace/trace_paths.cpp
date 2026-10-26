@@ -1,5 +1,5 @@
 // Copyright (C) 2026 nohuto
-// SPDX License Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "trace/trace_paths.h"
 
@@ -51,7 +51,7 @@ bool IsNumberedControlSet(const std::wstring& text)
            std::all_of(text.begin() + kPrefix.size(), text.end(), [](wchar_t ch) { return iswdigit(ch) != 0; });
 }
 
-// the first control set under HKLM\SYSTEM replaced by the current one, empty when there is none to replace
+// maps first HKLM\SYSTEM control set to the current one, empty if none
 std::wstring WithCurrentControlSet(const std::wstring& path, bool numbered)
 {
     const std::wstring& current = CurrentControlSet();
@@ -110,7 +110,7 @@ bool LinkTarget(const std::wstring& path, const RegistryNode& node, std::wstring
     std::wstring key = util::ToLower(path);
     {
         std::lock_guard<std::mutex> lock(mutex);
-        // any key change or refresh can add, remove, retarget a link
+        // key changes and refreshes may add, remove or retarget links
         if (const uint64_t current = RegistryStore::KeyRevision(); current != revision)
         {
             targets.clear();
