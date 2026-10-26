@@ -32,7 +32,7 @@ bool MainWindow::Impl::Create(HINSTANCE instance)
     RegisterClassExW(&wc);
 
     std::wstring title = L"RegKit V";
-    title.append(REGKIT_VERSION_STR_W);
+    title.append(REGKIT_VERSION_TEXT);
     if (win32ui::IsProcessTrustedInstaller())
     {
         title.append(L" - [TrustedInstaller]");

@@ -20,12 +20,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName", "nohuto\0"
       VALUE "FileDescription", "RegKit\0"
-      VALUE "FileVersion", REGKIT_VERSION_STR "\0"
+      VALUE "FileVersion", REGKIT_VERSION_STRING "\0"
       VALUE "InternalName", "regkit\0"
       VALUE "LegalCopyright", "(C) 2026 nohuto\0"
       VALUE "OriginalFilename", "regkit.exe\0"
       VALUE "ProductName", "RegKit\0"
-      VALUE "ProductVersion", REGKIT_VERSION_STR "\0"
+      VALUE "ProductVersion", REGKIT_VERSION_STRING "\0"
     END
   END
   BLOCK "VarFileInfo"

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.30)
-project(RegKit LANGUAGES C CXX)
+project(RegKit VERSION 1.1.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -21,6 +21,7 @@ target_compile_definitions(regkit_compile_settings INTERFACE
     NOMINMAX
     WIN32_LEAN_AND_MEAN
     _WIN32_IE=0x0600
+    REGKIT_VERSION_TEXT=L"${PROJECT_VERSION}"
 )
 if (MSVC)
     target_compile_options(regkit_compile_settings INTERFACE

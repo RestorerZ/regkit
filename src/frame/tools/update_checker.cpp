@@ -11,7 +11,6 @@
 #include "win32/text_transform.h"
 #include "ui/feedback.h"
 #include "win32/translation.h"
-#include "resource.h"
 
 #include <win32ui/handle_owner.h>
 #include <win32ui/json/reader.h>
@@ -492,7 +491,7 @@ void UpdateChecker::Apply(UpdateCheckPayload* payload)
         PostMessageW(owner_, WM_CLOSE, 0, 0);
         return;
     }
-    if (VersionParts(payload->version) <= VersionParts(REGKIT_VERSION_STR_W))
+    if (VersionParts(payload->version) <= VersionParts(REGKIT_VERSION_TEXT))
     {
         if (!payload->silent)
         {
@@ -502,7 +501,7 @@ void UpdateChecker::Apply(UpdateCheckPayload* payload)
     }
     const bool found = !payload->download_url.empty();
     const std::wstring message =
-        L"RegKit " + payload->version + L" (" + util::TrLabel(L"installed", REGKIT_VERSION_STR_W) + L")\n\n" +
+        L"RegKit " + payload->version + L" (" + util::TrLabel(L"installed", REGKIT_VERSION_TEXT) + L")\n\n" +
         (!found               ? util::Tr(L"No download was found for this build. Open the release page?")
          : payload->installed ? util::Tr(L"Download and install it now? RegKit restarts once the update is installed.")
                               : util::Tr(L"Download the new portable version?"));
