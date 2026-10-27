@@ -80,7 +80,8 @@ std::wstring NormalizeMachineName(const std::wstring& text);
 
 std::wstring StripMachinePrefix(const std::wstring& machine);
 
-bool ReadActiveEntries(const std::wstring& path, std::wstring_view prefix, std::vector<std::wstring>* entries);
+// false for a missing or empty list, false with the reason for one that cant be read
+bool ReadActiveEntries(const std::wstring& path, std::vector<std::wstring>* entries, std::wstring* error);
 bool ResolveActiveSource(const std::wstring& entry, const std::function<std::wstring(const std::wstring&)>& resolve_bundled, const wchar_t* fallback_label, std::wstring* source, std::wstring* label);
 
 using util::EqualsInsensitive;

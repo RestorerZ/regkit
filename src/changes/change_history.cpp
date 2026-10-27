@@ -12,10 +12,6 @@
 #include <win32ui/handle_owner.h>
 
 #include <algorithm>
-#include <cerrno>
-#include <cwchar>
-#include <cwctype>
-#include <limits>
 
 namespace regkit::changes
 {
@@ -108,7 +104,7 @@ void DecodeRevert(const std::vector<std::wstring>& fields, HistoryEntry* entry)
     uint64_t kind = 0;
     uint64_t type = 0;
     RegistryValue value;
-    if (!entry || fields.size() < 11 ||
+    if (!entry ||
         !record_fields::ParseUnsigned(fields[7], static_cast<uint64_t>(HistoryEntry::RevertKind::kDeleteKey), &kind) ||
         !record_fields::ParseUnsigned(fields[9], MAXDWORD, &type) || !value_format::ParseHex(fields[10], &value.data))
     {
@@ -161,39 +157,38 @@ std::vector<HistoryEntry>& ChangeHistory::entries() noexcept
     return entries_;
 }
 
-HistoryDocument ParseHistory(const std::wstring& content)
+HistoryDocument ParseHistory(const std::wstring& content, std::wstring* error)
 {
     HistoryDocument document;
+    size_t line_number = 0;
     for (const std::wstring_view line : record_fields::Lines(content))
     {
+        ++line_number;
         if (line.empty())
         {
             continue;
         }
         auto fields = record_fields::DecodeRecord(line);
         HistoryEntry entry;
-        if (fields.size() < 5 || !record_fields::ParseUnsigned(fields[0], UINT64_MAX, &entry.timestamp))
+        if (fields.size() != 15 || !record_fields::ParseUnsigned(fields[0], UINT64_MAX, &entry.timestamp))
         {
-            continue;
+            if (error)
+            {
+                *error = util::BadLineReason(line_number);
+            }
+            return {};
         }
         entry.time_text = std::move(fields[1]);
         entry.action = std::move(fields[2]);
         entry.old_data = std::move(fields[3]);
         entry.new_data = std::move(fields[4]);
-        if (fields.size() >= 7)
-        {
-            entry.key_path = std::move(fields[5]);
-            entry.value_name = std::move(fields[6]);
-        }
-        if (fields.size() >= 11)
-        {
-            document.source_version = HistoryDocument::kCurrentVersion;
-            DecodeRevert(fields, &entry);
-        }
-        entry.backup_mode = fields.size() >= 12 && fields[11] == L"1";
+        entry.key_path = std::move(fields[5]);
+        entry.value_name = std::move(fields[6]);
+        DecodeRevert(fields, &entry);
+        entry.backup_mode = fields[11] == L"1";
         uint64_t kind = 0;
         uint64_t view = 0;
-        if (fields.size() >= 15 && record_fields::ParseUnsigned(fields[12], 3, &kind) && record_fields::ParseUnsigned(fields[14], MAXDWORD, &view))
+        if (record_fields::ParseUnsigned(fields[12], 3, &kind) && record_fields::ParseUnsigned(fields[14], MAXDWORD, &view))
         {
             entry.source_kind = static_cast<int>(kind);
             entry.source_name = std::move(fields[13]);
@@ -243,81 +238,13 @@ bool AppendHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>
            WriteFile(file.get(), bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) &&
            written == bytes.size();
 }
-bool PrepareRevert(const HistoryEntry& entry, const QueryValue& query_value, HistoryEntry* prepared)
+bool PrepareRevert(const HistoryEntry& entry, HistoryEntry* prepared)
 {
-    if (!prepared || entry.key_path.empty())
+    if (!prepared || entry.key_path.empty() || entry.revert_kind == HistoryEntry::RevertKind::kNone)
     {
         return false;
     }
     *prepared = entry;
-    if (prepared->revert_kind != HistoryEntry::RevertKind::kNone)
-    {
-        return true;
-    }
-
-    auto suffix = [&](std::wstring_view prefix, std::wstring* value_name) {
-        if (!util::StartsWithInsensitive(entry.action, prefix))
-        {
-            return false;
-        }
-        *value_name = entry.action.substr(prefix.size());
-        if (*value_name == L"(Default)")
-        {
-            value_name->clear();
-        }
-        return true;
-    };
-
-    std::wstring value_name;
-    RegistryValue current;
-    if (suffix(L"Create value ", &value_name))
-    {
-        prepared->value_name = std::move(value_name);
-        prepared->revert_kind = HistoryEntry::RevertKind::kDeleteValue;
-        return true;
-    }
-    if (!suffix(L"Modify value ", &value_name) || entry.old_data.empty() || !query_value ||
-        !query_value(entry.key_path, value_name, &current))
-    {
-        return false;
-    }
-
-    const DWORD type = value_format::NormalizeType(current.type);
-    if (type != REG_DWORD && type != REG_DWORD_BIG_ENDIAN && type != REG_QWORD)
-    {
-        return false;
-    }
-    const wchar_t* start = entry.old_data.c_str();
-    while (*start && iswspace(*start))
-    {
-        ++start;
-    }
-    if (start[0] != L'0' || (start[1] != L'x' && start[1] != L'X'))
-    {
-        return false;
-    }
-    errno = 0;
-    wchar_t* end = nullptr;
-    unsigned long long value = wcstoull(start + 2, &end, 16);
-    if (end == start + 2 || errno == ERANGE)
-    {
-        return false;
-    }
-    while (*end && iswspace(*end))
-    {
-        ++end;
-    }
-    if ((*end != L'\0' && *end != L'(') ||
-        ((type == REG_DWORD || type == REG_DWORD_BIG_ENDIAN) && value > std::numeric_limits<DWORD>::max()))
-    {
-        return false;
-    }
-
-    current.name = value_name;
-    current.data = value_format::UnsignedBytes(value, type == REG_QWORD ? sizeof(ULONGLONG) : sizeof(DWORD), type == REG_DWORD_BIG_ENDIAN);
-    prepared->value_name = value_name;
-    prepared->revert_value = std::move(current);
-    prepared->revert_kind = HistoryEntry::RevertKind::kSetValue;
     return true;
 }
 

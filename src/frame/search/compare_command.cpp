@@ -70,7 +70,7 @@ void MainWindow::Impl::StartCompareRegistries()
     right.key_path = left.key_path;
     defaults.left = left;
     defaults.right = right;
-    workspace::DialogState state = workspace::LoadDialogState();
+    workspace::DialogState state = LoadDialogState();
     workspace::DialogFields last(&state, false);
     CompareDialogFields(last, &defaults);
     for (CompareDialogSelection* side : {&defaults.left, &defaults.right})

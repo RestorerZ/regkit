@@ -41,7 +41,7 @@ inline constexpr win32ui::Shortcut kShortcutBindings[] = {
     {cmd::kEditRename, 0, VK_F2, L"F2"},
     {cmd::kViewRefresh, 0, VK_F5, L"F5"},
     {cmd::kNewKey, 0, VK_F7, L"F7"},
-    {cmd::kEditPermissions, FALT, VK_RETURN, L"Alt+Enter"},
+    {cmd::kEditKeyInfo, FALT, VK_RETURN, L"Alt+Enter"},
     {cmd::kNavBack, FALT, VK_LEFT, L"Alt+Left"},
     {cmd::kNavForward, FALT, VK_RIGHT, L"Alt+Right"},
     {cmd::kNavUp, FALT, VK_UP, L"Alt+Up"},

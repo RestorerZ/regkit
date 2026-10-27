@@ -34,6 +34,7 @@ MessageArea ClassifyMessage(UINT message) noexcept
     case message_id::kStartupCacheReady:
     case message_id::kReplaceReady:
     case message_id::kCompareReady:
+    case message_id::kShowFileErrors:
         return MessageArea::kWorker;
     case message_id::kAddressEnter:
     case message_id::kFocusAddressBar:

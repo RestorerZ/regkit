@@ -131,31 +131,6 @@ std::vector<std::wstring> MainWindow::Impl::BuildVisibleTreePathParts(const std:
         parts.erase(parts.begin());
     }
 
-    auto is_standard_root = [](const std::wstring& name) -> bool {
-        if (StartsWithInsensitive(name, L"HKEY_"))
-        {
-            return true;
-        }
-        return EqualsInsensitive(name, L"HKLM") || EqualsInsensitive(name, L"HKCU") ||
-               EqualsInsensitive(name, L"HKCR") || EqualsInsensitive(name, L"HKU") || EqualsInsensitive(name, L"HKCC");
-    };
-    if (!parts.empty() && EqualsInsensitive(parts.front(), L"Registry"))
-    {
-        parts.front() = (parts.size() > 1 && is_standard_root(parts[1])) ? kRootKeysGroupLabel : kRealGroupLabel;
-    }
-    else if (!parts.empty() && EqualsInsensitive(parts.front(), L"Real Registry"))
-    {
-        parts.front() = kRealGroupLabel;
-        if (parts.size() > 1 && EqualsInsensitive(parts[1], kRealGroupLabel))
-        {
-            parts.erase(parts.begin() + 1);
-        }
-    }
-    else if (!parts.empty() && EqualsInsensitive(parts.front(), L"Standard Hives"))
-    {
-        parts.front() = kRootKeysGroupLabel;
-    }
-
     if (session_->mode == RegistryMode::kRemote && !session_->remote_machine.empty())
     {
         std::wstring machine = StripMachinePrefix(session_->remote_machine);
@@ -301,7 +276,6 @@ void MainWindow::Impl::CaptureRegistryTabState(int index, bool tree_state)
     {
         return;
     }
-    entry.selected_value.clear();
     entry.selected_values.clear();
     entry.value_top_index = 0;
     HWND list = browse_.values().hwnd();
@@ -316,10 +290,6 @@ void MainWindow::Impl::CaptureRegistryTabState(int index, bool tree_state)
         const ListRow* row = browse_.values().RowAt(item);
         if (row && row->kind == rowkind::kValue)
         {
-            if (entry.selected_value.empty())
-            {
-                entry.selected_value = row->extra;
-            }
             entry.selected_values.push_back(row->extra);
         }
         item = ListView_GetNextItem(list, item, LVNI_SELECTED);
@@ -411,10 +381,6 @@ void MainWindow::Impl::RestoreRegistryTabState(int index)
 void MainWindow::Impl::RestoreValueSelection(const TabEntry& entry)
 {
     pending_value_selection_ = entry.selected_values;
-    if (pending_value_selection_.empty() && !entry.selected_value.empty())
-    {
-        pending_value_selection_.push_back(entry.selected_value);
-    }
     pending_value_top_index_ = entry.value_top_index;
     pending_value_selection_key_ =
         pending_value_selection_.empty() && pending_value_top_index_ == 0 ? std::wstring() : entry.selected_path;

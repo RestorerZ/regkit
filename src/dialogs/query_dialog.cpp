@@ -72,12 +72,17 @@ std::wstring SearchHistoryPath()
     return util::JoinPath(folder, L"search_history.txt");
 }
 
-std::vector<std::wstring> LoadSearchHistory()
+std::vector<std::wstring> LoadSearchHistory(HWND owner)
 {
     std::vector<std::wstring> items;
     std::wstring content;
+    std::wstring error;
     const std::wstring path = SearchHistoryPath();
-    if (!path.empty() && util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes))
+    if (!path.empty() && !util::ReadStateFile(path, &content, &error))
+    {
+        ui::ShowError(owner, std::wstring(util::Tr(L"RegKit couldn't read this file and didn't use it.")) + L"\n" + path + L"\n" + error);
+    }
+    else if (!path.empty())
     {
         for (const std::wstring_view line : record_fields::Lines(content))
         {
@@ -382,7 +387,7 @@ void UpdateDialogEnableState(SearchDialogState* state)
 
 void LoadInitialState(SearchDialogState* state)
 {
-    state->history = LoadSearchHistory();
+    state->history = LoadSearchHistory(state->dialog);
     win32ui::SetComboItems(Item(state, IDC_FIND_WHAT), state->history);
     if (state->out && (!state->out->criteria.query.empty() || state->out->criteria.anomalies))
     {

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-26 13:22+0100\n"
+"POT-Creation-Date: 2026-10-27 11:28+0100\n"
 "PO-Revision-Date: 2026-10-11 22:09+0300\n"
 "Last-Translator: Restorer, restorer@mail2k.ru\n"
 "Language-Team: Russian\n"
@@ -2108,6 +2108,10 @@ msgstr "Различающиеся размеры"
 msgid "The comment couldn't be saved."
 msgstr "Не удалось сохранить комментарий"
 
+#: frame/views/history_workspace.cpp
+msgid "RegKit couldn't read this file and didn't use it."
+msgstr ""
+
 #: frame/views/registry_sessions.cpp search/search.cpp
 msgid "Local Registry (32-bit)"
 msgstr "Локальный реестр (32-bit)"
@@ -2217,7 +2221,7 @@ msgid "Value Not Found"
 msgstr "Параметр не найден"
 
 #: frame/views/registry_sessions.cpp frame/window/appearance.cpp
-#: frame/window/lifetime.cpp frame/window/notifications.cpp ui/feedback.cpp
+#: frame/window/notifications.cpp ui/feedback.cpp
 msgid "OK"
 msgstr "ОК"
 
@@ -2472,10 +2476,6 @@ msgstr "Разделитель журнала"
 #: frame/window/lifetime.cpp
 msgid "The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."
 msgstr "Недоступно сохранение комментариев из‐за сбоя при считывании файла комментариев. Требуется исправить или удалить файл"
-
-#: frame/window/lifetime.cpp
-msgid "Comments"
-msgstr "Комментарии"
 
 #: frame/window/lifetime.cpp
 msgid "The open tabs couldn't be saved for the next session."
@@ -3188,6 +3188,15 @@ msgstr "Поддерживаются только целые числа без �
 msgid "The file contains trailing content."
 msgstr "В конце файла обнаружены посторонние данные"
 
+#: records/json.cpp regfile/batch_script.cpp regfile/powershell_script.cpp
+#: win32/file_text.cpp
+msgid "Line"
+msgstr "Строка"
+
+#: records/json.cpp
+msgid "Column"
+msgstr ""
+
 #: regfile/batch_script.cpp
 msgid "Unsupported reg command"
 msgstr "Неподдерживаемая команда программы reg.exe"
@@ -3219,10 +3228,6 @@ msgstr "Не удалось определить аргументы пакетн
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Variable can't be resolved"
 msgstr "Не удалось определить переменную"
-
-#: regfile/batch_script.cpp regfile/powershell_script.cpp
-msgid "Line"
-msgstr "Строка"
 
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Unsupported command"
@@ -4253,6 +4258,16 @@ msgstr "Открыть после сохранения:"
 msgid "The file dialog failed."
 msgstr "Ошибка диалога работы с файлами"
 
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file is too large."
+msgstr "Слишком большая вложенности объектов"
+
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file isn't valid text."
+msgstr "Файл содержит недопустимые данные JSON"
+
 #: win32/system_error.cpp
 msgid "Unknown error."
 msgstr "Нераспознанная ошибка"
@@ -4877,6 +4892,9 @@ msgstr "Командные файлы реестра (*.reg;*.bat;*.cmd;*.ps1)"
 #: ui/feedback.h
 msgid "Hive Files (*.*)"
 msgstr "Файлы кустов (*.*)"
+
+#~ msgid "Comments"
+#~ msgstr "Комментарии"
 
 #~ msgid "New"
 #~ msgstr "Создать"

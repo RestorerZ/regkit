@@ -42,19 +42,26 @@ void TreeState::Normalize()
     expanded_paths.swap(normalized);
 }
 
-TreeState ParseTreeState(const std::wstring& content)
+TreeState ParseTreeState(const std::wstring& content, std::wstring* error)
 {
     TreeState state;
+    size_t line_number = 0;
     for (const std::wstring_view line : record_fields::Lines(content))
     {
-        if (line.empty() || line.front() == L'#')
+        ++line_number;
+        if (line.empty())
         {
             continue;
         }
         const size_t separator = line.find(L'=');
-        if (separator == std::wstring::npos)
+        const std::wstring_view name = separator == std::wstring::npos ? std::wstring_view() : line.substr(0, separator);
+        if (name != L"selected" && name != L"expanded")
         {
-            continue;
+            if (error)
+            {
+                *error = util::BadLineReason(line_number);
+            }
+            return {};
         }
         const std::wstring key = util::TrimWhitespace(line.substr(0, separator));
         const std::wstring value = record_fields::Unescape(line.substr(separator + 1));
@@ -91,7 +98,7 @@ std::wstring SerializeTreeState(const TreeState& state)
     return content;
 }
 
-bool LoadTreeState(const std::wstring& path, TreeState* state)
+bool LoadTreeState(const std::wstring& path, TreeState* state, std::wstring* error)
 {
     if (!state)
     {
@@ -99,12 +106,21 @@ bool LoadTreeState(const std::wstring& path, TreeState* state)
     }
     state->Clear();
     std::wstring content;
-    if (!util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes))
+    std::wstring reason;
+    if (util::ReadStateFile(path, &content, &reason) && !content.empty())
     {
-        return false;
+        TreeState parsed = ParseTreeState(content, &reason);
+        if (reason.empty())
+        {
+            *state = std::move(parsed);
+            return true;
+        }
     }
-    *state = ParseTreeState(content);
-    return true;
+    if (error)
+    {
+        *error = std::move(reason);
+    }
+    return false;
 }
 
 bool SaveTreeState(const std::wstring& path, const TreeState& state)

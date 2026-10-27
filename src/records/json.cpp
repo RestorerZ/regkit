@@ -5,6 +5,7 @@
 
 #include "win32/translation.h"
 
+#include <string>
 #include <string_view>
 
 namespace regkit::json
@@ -69,6 +70,11 @@ void ReportError(void* context, const win32ui::JsonDiagnostic& diagnostic, std::
         *destination = custom_text;
         break;
     }
+    destination->append(L" (")
+        .append(util::TrLabel(L"Line", std::to_wstring(diagnostic.position.line)))
+        .append(L", ")
+        .append(util::TrLabel(L"Column", std::to_wstring(diagnostic.position.column)))
+        .append(L")");
 }
 
 } // namespace

@@ -66,6 +66,11 @@ bool WritePresetFile(const std::wstring& path, const std::vector<ThemePreset>& p
 
 } // namespace
 
+std::wstring ThemePresetStore::Path()
+{
+    return PresetsPath();
+}
+
 bool ThemePresetStore::Load(std::vector<ThemePreset>* presets, std::wstring* error)
 {
     if (error)
@@ -73,8 +78,7 @@ bool ThemePresetStore::Load(std::vector<ThemePreset>* presets, std::wstring* err
         error->clear();
     }
     std::wstring content;
-    return util::ReadTextFile(PresetsPath(), &content, nullptr, util::kMaxStateFileBytes) &&
-           ParsePresets(content, presets, error);
+    return util::ReadStateFile(PresetsPath(), &content, error) && !content.empty() && ParsePresets(content, presets, error);
 }
 
 bool ThemePresetStore::Save(const std::vector<ThemePreset>& presets, std::wstring* error)

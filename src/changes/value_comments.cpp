@@ -167,7 +167,7 @@ bool ValueComments::Load(const std::wstring& path)
 {
     std::wstring content;
     std::vector<CommentRule> rules;
-    if (!util::ReadTextFile(path, &content, nullptr, util::kMaxCommentFileBytes) || !ParseComments(content, &rules))
+    if (!util::ReadStateFile(path, &content, nullptr, util::kMaxCommentFileBytes) || (!content.empty() && !ParseComments(content, &rules)))
     {
         return false;
     }

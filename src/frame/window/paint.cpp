@@ -72,7 +72,7 @@ void MainWindow::Impl::LoadThemePresets()
     bool loaded = ThemePresetStore::Load(&presets, &load_error);
     if (!loaded && !load_error.empty())
     {
-        ui::ShowError(hwnd_, load_error);
+        ReportFileError(ThemePresetStore::Path(), load_error);
     }
     bool updated_builtins = false;
     if (!loaded || presets.empty())

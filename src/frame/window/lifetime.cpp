@@ -282,6 +282,10 @@ void MainWindow::Impl::RunDeferredStartup()
     RedrawWindow(hwnd_, nullptr, nullptr, RDW_UPDATENOW | RDW_ALLCHILDREN);
     cloak = FALSE;
     DwmSetWindowAttribute(hwnd_, DWMWA_CLOAK, &cloak, sizeof(cloak));
+    if (!file_errors_.empty() && !file_errors_posted_)
+    {
+        file_errors_posted_ = PostMessageW(hwnd_, frame::message_id::kShowFileErrors, 0, 0) != FALSE;
+    }
 
     UpdateSearchResultsView();
     StartStartupCacheLoad(startup_tree_restore_pending_);
@@ -309,19 +313,25 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
         payload->generation = generation;
 
         std::wstring comments_content;
+        std::wstring reason;
         const std::wstring defaults_path =
             util::JoinPath(util::GetModuleDirectory(), L"assets\\comments\\default-comments.jsonc");
-        if (util::ReadTextFile(defaults_path, &comments_content, nullptr, util::kMaxCommentFileBytes) &&
-            (!changes::ParseComments(comments_content, &payload->default_comments) ||
-             !changes::ValidateCatalog(payload->default_comments)))
+        if (!util::ReadStateFile(defaults_path, &comments_content, &reason, util::kMaxCommentFileBytes) ||
+            (!comments_content.empty() && !changes::ParseComments(comments_content, &payload->default_comments, &reason)))
+        {
+            payload->default_comments.clear();
+            payload->file_errors.emplace_back(defaults_path, std::move(reason));
+        }
+        else if (!changes::ValidateCatalog(payload->default_comments))
         {
             payload->default_comments.clear();
         }
         const std::wstring comments_path = CommentsPath();
-        if (!comments_path.empty() && !util::IsMissing(comments_path))
+        if (!comments_path.empty() &&
+            (!util::ReadStateFile(comments_path, &comments_content, &payload->comments_error, util::kMaxCommentFileBytes) ||
+             (!comments_content.empty() && !changes::ParseComments(comments_content, &payload->user_comments, &payload->comments_error))))
         {
-            payload->comments_unreadable = !util::ReadTextFile(comments_path, &comments_content, nullptr, util::kMaxCommentFileBytes) ||
-                                           !changes::ParseComments(comments_content, &payload->user_comments);
+            payload->comments_unreadable = true;
         }
         payload->comments_loaded = true;
         if (cancel.load())
@@ -331,18 +341,21 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
 
         std::wstring history_path = HistoryCachePath();
         std::wstring history_content;
-        if (!history_path.empty() && util::ReadTextFile(history_path, &history_content))
+        std::wstring history_error;
+        if (!history_path.empty() && util::ReadStateFile(history_path, &history_content, &history_error, util::kMaxHistoryFileBytes))
         {
+            changes::HistoryDocument document = changes::ParseHistory(history_content, &history_error);
             changes::ChangeHistory history;
-            history.Replace(std::move(changes::ParseHistory(history_content).entries), static_cast<size_t>(history_max_rows));
+            history.Replace(std::move(document.entries), static_cast<size_t>(history_max_rows));
             history.Sort(history_sort_column, history_sort_ascending);
             payload->history_entries = std::move(history.entries());
-            payload->history_loaded = true;
         }
-        else
+        if (!history_error.empty())
         {
-            payload->history_loaded = true;
+            payload->history_unreadable = true;
+            payload->file_errors.emplace_back(history_path, std::move(history_error));
         }
+        payload->history_loaded = true;
         if (cancel.load())
         {
             return;
@@ -350,7 +363,11 @@ void MainWindow::Impl::StartStartupCacheLoad(bool include_tree_state)
 
         if (include_tree_state)
         {
-            workspace::LoadTreeState(TreeStatePath(), &payload->tree_state);
+            std::wstring tree_error;
+            if (!workspace::LoadTreeState(TreeStatePath(), &payload->tree_state, &tree_error) && !tree_error.empty())
+            {
+                payload->file_errors.emplace_back(TreeStatePath(), std::move(tree_error));
+            }
             payload->tree_state_loaded = true;
         }
 
@@ -396,20 +413,17 @@ void MainWindow::Impl::ApplyStartupCachePayload(std::unique_ptr<StartupCachePayl
         comments_loaded_ = true;
         if (comments_unreadable_)
         {
-            ui::PromptKeyChoice(
-                hwnd_,
-                util::Tr(L"The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."),
-                CommentsPath(),
-                util::Tr(L"Comments"),
-                util::Tr(L"OK"),
-                L"",
-                L""
-            );
+            ReportFileError(CommentsPath(), owned->comments_error, util::Tr(L"The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."));
         }
         RefreshValueListComments();
         UpdateSearchResultsView();
     }
 
+    for (const auto& [path, reason] : owned->file_errors)
+    {
+        ReportFileError(path, reason);
+    }
+    history_unreadable_ = history_unreadable_ || owned->history_unreadable;
     if (owned->history_loaded)
     {
         std::vector<HistoryEntry> pending_session_entries;

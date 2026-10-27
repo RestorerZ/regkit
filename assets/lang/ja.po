@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-26 13:22+0100\n"
+"POT-Creation-Date: 2026-10-27 11:28+0100\n"
 "PO-Revision-Date: 2026-10-09 20:51+0200\n"
 "Last-Translator: nohuto contact@noverse.dev\n"
 "Language-Team: none\n"
@@ -2103,6 +2103,10 @@ msgstr "長さが異なります"
 msgid "The comment couldn't be saved."
 msgstr "コメントを保存できませんでした。"
 
+#: frame/views/history_workspace.cpp
+msgid "RegKit couldn't read this file and didn't use it."
+msgstr ""
+
 #: frame/views/registry_sessions.cpp search/search.cpp
 msgid "Local Registry (32-bit)"
 msgstr "ローカル レジストリ (32 ビット)"
@@ -2212,7 +2216,7 @@ msgid "Value Not Found"
 msgstr "値が見つかりません"
 
 #: frame/views/registry_sessions.cpp frame/window/appearance.cpp
-#: frame/window/lifetime.cpp frame/window/notifications.cpp ui/feedback.cpp
+#: frame/window/notifications.cpp ui/feedback.cpp
 msgid "OK"
 msgstr "OK"
 
@@ -2467,10 +2471,6 @@ msgstr "履歴の分割バー"
 #: frame/window/lifetime.cpp
 msgid "The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."
 msgstr "コメント ファイルを読み取れなかったため、修正または削除するまでコメントの変更は保存されません。"
-
-#: frame/window/lifetime.cpp
-msgid "Comments"
-msgstr "コメント"
 
 #: frame/window/lifetime.cpp
 msgid "The open tabs couldn't be saved for the next session."
@@ -3182,6 +3182,15 @@ msgstr "符号なし整数のみサポートしています。"
 msgid "The file contains trailing content."
 msgstr "ファイルの末尾に余分な内容があります。"
 
+#: records/json.cpp regfile/batch_script.cpp regfile/powershell_script.cpp
+#: win32/file_text.cpp
+msgid "Line"
+msgstr "行"
+
+#: records/json.cpp
+msgid "Column"
+msgstr ""
+
 #: regfile/batch_script.cpp
 msgid "Unsupported reg command"
 msgstr "サポートされていない reg コマンド"
@@ -3213,10 +3222,6 @@ msgstr "バッチ引数を解決できません。"
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Variable can't be resolved"
 msgstr "変数を解決できません"
-
-#: regfile/batch_script.cpp regfile/powershell_script.cpp
-msgid "Line"
-msgstr "行"
 
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Unsupported command"
@@ -4247,6 +4252,16 @@ msgstr "保存後に開く:"
 msgid "The file dialog failed."
 msgstr "ファイル ダイアログでエラーが発生しました。"
 
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file is too large."
+msgstr "ファイルの入れ子が深すぎます。"
+
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file isn't valid text."
+msgstr "ファイルが有効な JSON ではありません。"
+
 #: win32/system_error.cpp
 msgid "Unknown error."
 msgstr "不明なエラーです。"
@@ -4871,6 +4886,9 @@ msgstr "レジストリ スクリプト (*.reg;*.bat;*.cmd;*.ps1)"
 #: ui/feedback.h
 msgid "Hive Files (*.*)"
 msgstr "ハイブ ファイル (*.*)"
+
+#~ msgid "Comments"
+#~ msgstr "コメント"
 
 #~ msgid "New"
 #~ msgstr "新規"

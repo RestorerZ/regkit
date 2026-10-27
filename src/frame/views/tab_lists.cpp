@@ -302,9 +302,9 @@ void MainWindow::Impl::ClearHistoryItems(bool delete_cache)
     if (delete_cache)
     {
         std::wstring path = HistoryCachePath();
-        if (!path.empty())
+        if (!path.empty() && (DeleteFileW(path.c_str()) || util::IsMissing(path)))
         {
-            DeleteFileW(path.c_str());
+            history_unreadable_ = false;
         }
     }
 }
@@ -335,7 +335,7 @@ void MainWindow::Impl::RemoveSelectedHistoryItems()
     }
     ListView_SetItemState(history_list_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
     RebuildHistoryList();
-    if (HistoryStaysInMemory())
+    if (HistoryStaysInMemory() || history_unreadable_)
     {
         return;
     }
@@ -358,12 +358,22 @@ void MainWindow::Impl::RefreshHistory()
     // other instances append to the same cache
     const std::wstring path = HistoryCachePath();
     std::wstring content;
-    if (history_loaded_ && !history_cache_failed_ && !HistoryStaysInMemory() && !path.empty() &&
-        (util::ReadTextFile(path, &content) || util::IsMissing(path)))
+    std::wstring error;
+    if (history_loaded_ && !history_cache_failed_ && !history_unreadable_ && !HistoryStaysInMemory() && !path.empty() &&
+        util::ReadStateFile(path, &content, &error, util::kMaxHistoryFileBytes))
     {
-        change_history_.Replace(std::move(changes::ParseHistory(content).entries), static_cast<size_t>(history_max_rows_));
-        change_history_.Sort(history_sort_column_, history_sort_ascending_, history_sort_earlier_);
-        ListView_SetItemState(history_list_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+        changes::HistoryDocument document = changes::ParseHistory(content, &error);
+        if (error.empty())
+        {
+            change_history_.Replace(std::move(document.entries), static_cast<size_t>(history_max_rows_));
+            change_history_.Sort(history_sort_column_, history_sort_ascending_, history_sort_earlier_);
+            ListView_SetItemState(history_list_, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+        }
+    }
+    if (!error.empty())
+    {
+        history_unreadable_ = true;
+        ReportFileError(path, error);
     }
     RebuildHistoryList();
 }

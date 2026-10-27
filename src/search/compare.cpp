@@ -401,7 +401,7 @@ std::vector<Row> BuildRows(const Snapshot& first, const Snapshot& second, RowFil
 
 std::wstring SerializeRows(const std::vector<Row>& rows)
 {
-    std::wstring content = L"version=2\n";
+    std::wstring content;
     for (const Row& row : rows)
     {
         record_fields::AppendRecord(&content, {row.key_path, row.first_key_path, row.second_key_path, row.value_name, row.first_text, row.second_text, row.is_key ? L"1" : L"0", row.matches ? L"1" : L"0"});
@@ -409,24 +409,29 @@ std::wstring SerializeRows(const std::vector<Row>& rows)
     return content;
 }
 
-bool ParseRows(const std::wstring& content, std::vector<Row>* rows)
+bool ParseRows(const std::wstring& content, std::vector<Row>* rows, std::wstring* error)
 {
     if (!rows)
     {
         return false;
     }
     std::vector<Row> parsed;
+    size_t line_number = 0;
     for (const std::wstring_view line : record_fields::Lines(content))
     {
-        if (line.empty() || line.starts_with(L"version="))
+        ++line_number;
+        if (line.empty())
         {
             continue;
         }
         auto fields = record_fields::DecodeRecord(line);
-        // keep usable cache rows when one line is incomplete
-        if (fields.size() < 7)
+        if (fields.size() != 8)
         {
-            continue;
+            if (error)
+            {
+                *error = util::BadLineReason(line_number);
+            }
+            return false;
         }
         Row row;
         row.key_path = std::move(fields[0]);
@@ -436,7 +441,7 @@ bool ParseRows(const std::wstring& content, std::vector<Row>* rows)
         row.first_text = std::move(fields[4]);
         row.second_text = std::move(fields[5]);
         row.is_key = fields[6] == L"1";
-        row.matches = fields.size() >= 8 && fields[7] == L"1";
+        row.matches = fields[7] == L"1";
         parsed.push_back(std::move(row));
     }
     *rows = std::move(parsed);
@@ -448,18 +453,10 @@ bool SaveRows(const std::wstring& path, const std::vector<Row>& rows)
     return !path.empty() && util::WriteTextFile(path, SerializeRows(rows), false);
 }
 
-bool LoadRows(const std::wstring& path, std::vector<Row>* rows)
+bool LoadRows(const std::wstring& path, std::vector<Row>* rows, std::wstring* error)
 {
-    if (!rows || path.empty())
-    {
-        return false;
-    }
     std::wstring content;
-    if (!util::ReadTextFile(path, &content))
-    {
-        return false;
-    }
-    return ParseRows(content, rows);
+    return rows && !path.empty() && util::ReadStateFile(path, &content, error, 64ull * 1024ull * 1024ull) && !content.empty() && ParseRows(content, rows, error);
 }
 
 } // namespace regkit::search::compare

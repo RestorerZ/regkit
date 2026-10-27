@@ -18,6 +18,8 @@ using win32ui::ThemePreset;
 class ThemePresetStore
 {
   public:
+    static std::wstring Path();
+    // false for a missing file, false with the reason for one that cant be read
     static bool Load(std::vector<ThemePreset>* presets, std::wstring* error = nullptr);
     static bool Save(const std::vector<ThemePreset>& presets, std::wstring* error = nullptr);
     static bool ImportFromFile(const std::wstring& path, std::vector<ThemePreset>* presets, std::wstring* error = nullptr);

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-26 13:22+0100\n"
+"POT-Creation-Date: 2026-10-27 11:28+0100\n"
 "PO-Revision-Date: 2026-10-09 20:51+0200\n"
 "Last-Translator: nohuto contact@noverse.dev\n"
 "Language-Team: none\n"
@@ -2103,6 +2103,10 @@ msgstr "Comprimentos diferentes"
 msgid "The comment couldn't be saved."
 msgstr "Não foi possível salvar o comentário."
 
+#: frame/views/history_workspace.cpp
+msgid "RegKit couldn't read this file and didn't use it."
+msgstr ""
+
 #: frame/views/registry_sessions.cpp search/search.cpp
 msgid "Local Registry (32-bit)"
 msgstr "Registro local (32 bits)"
@@ -2212,7 +2216,7 @@ msgid "Value Not Found"
 msgstr "Valor não encontrado"
 
 #: frame/views/registry_sessions.cpp frame/window/appearance.cpp
-#: frame/window/lifetime.cpp frame/window/notifications.cpp ui/feedback.cpp
+#: frame/window/notifications.cpp ui/feedback.cpp
 msgid "OK"
 msgstr "OK"
 
@@ -2467,10 +2471,6 @@ msgstr "Divisor do histórico"
 #: frame/window/lifetime.cpp
 msgid "The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."
 msgstr "Não foi possível ler o arquivo de comentários, portanto as alterações nos comentários não serão salvas até que ele seja corrigido ou removido."
-
-#: frame/window/lifetime.cpp
-msgid "Comments"
-msgstr "Comentários"
 
 #: frame/window/lifetime.cpp
 msgid "The open tabs couldn't be saved for the next session."
@@ -3182,6 +3182,15 @@ msgstr "Só há suporte para números inteiros sem sinal."
 msgid "The file contains trailing content."
 msgstr "O arquivo contém conteúdo excedente no final."
 
+#: records/json.cpp regfile/batch_script.cpp regfile/powershell_script.cpp
+#: win32/file_text.cpp
+msgid "Line"
+msgstr "Linha"
+
+#: records/json.cpp
+msgid "Column"
+msgstr ""
+
 #: regfile/batch_script.cpp
 msgid "Unsupported reg command"
 msgstr "Comando reg não suportado"
@@ -3213,10 +3222,6 @@ msgstr "Não é possível resolver argumentos de arquivos em lotes."
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Variable can't be resolved"
 msgstr "Não é possível resolver a variável"
-
-#: regfile/batch_script.cpp regfile/powershell_script.cpp
-msgid "Line"
-msgstr "Linha"
 
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Unsupported command"
@@ -4247,6 +4252,16 @@ msgstr "Abrir após salvar:"
 msgid "The file dialog failed."
 msgstr "Falha na caixa de diálogo de arquivo."
 
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file is too large."
+msgstr "O arquivo tem níveis de aninhamento demais."
+
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file isn't valid text."
+msgstr "O arquivo não é JSON válido."
+
 #: win32/system_error.cpp
 msgid "Unknown error."
 msgstr "Erro desconhecido."
@@ -4871,6 +4886,9 @@ msgstr "Scripts do Registro (*.reg;*.bat;*.cmd;*.ps1)"
 #: ui/feedback.h
 msgid "Hive Files (*.*)"
 msgstr "Arquivos de hive (*.*)"
+
+#~ msgid "Comments"
+#~ msgstr "Comentários"
 
 #~ msgid "New"
 #~ msgstr "Novo"

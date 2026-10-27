@@ -151,10 +151,10 @@ std::wstring StripMachinePrefix(const std::wstring& machine)
     return machine;
 }
 
-bool ReadActiveEntries(const std::wstring& path, std::wstring_view prefix, std::vector<std::wstring>* entries)
+bool ReadActiveEntries(const std::wstring& path, std::vector<std::wstring>* entries, std::wstring* error)
 {
     std::wstring content;
-    if (!util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes))
+    if (!util::ReadStateFile(path, &content, error) || content.empty())
     {
         return false;
     }
@@ -165,14 +165,7 @@ bool ReadActiveEntries(const std::wstring& path, std::wstring_view prefix, std::
         {
             continue;
         }
-        if (StartsWithInsensitive(line, prefix))
-        {
-            line = util::TrimWhitespace(std::wstring_view(line).substr(prefix.size()));
-        }
-        if (!line.empty())
-        {
-            entries->push_back(std::move(line));
-        }
+        entries->push_back(std::move(line));
     }
     return true;
 }

@@ -5,6 +5,9 @@
 
 #include "win32/file_text.h"
 
+#include "win32/system_error.h"
+#include "win32/translation.h"
+
 #include <win32ui/handle_owner.h>
 
 #include <cstdlib>
@@ -131,6 +134,56 @@ bool ReadTextFile(const std::wstring& path, std::wstring* output, bool* utf16, u
         *output = NarrowToWide(narrow, CP_ACP);
     }
     return !output->empty();
+}
+
+bool ReadStateFile(const std::wstring& path, std::wstring* output, std::wstring* error, uint64_t max_bytes)
+{
+    std::wstring reason;
+    output->clear();
+    WIN32_FILE_ATTRIBUTE_DATA data = {};
+    if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data))
+    {
+        const DWORD code = GetLastError();
+        if (code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND)
+        {
+            return true;
+        }
+        reason = FormatWin32Error(code);
+    }
+    else if (const uint64_t size = (static_cast<uint64_t>(data.nFileSizeHigh) << 32) | data.nFileSizeLow; size == 0)
+    {
+        return true;
+    }
+    else if (size > max_bytes)
+    {
+        reason = Tr(L"The file is too large.");
+    }
+    else
+    {
+        SetLastError(ERROR_SUCCESS);
+        if (ReadTextFile(path, output, nullptr, max_bytes))
+        {
+            return true;
+        }
+        const DWORD code = GetLastError();
+        // a byte order mark alone is an empty file
+        if (code == ERROR_SUCCESS && output->empty() && size <= 3)
+        {
+            return true;
+        }
+        reason = code != ERROR_SUCCESS ? FormatWin32Error(code) : std::wstring();
+        reason = reason.empty() ? std::wstring(Tr(L"The file isn't valid text.")) : reason;
+    }
+    if (error)
+    {
+        *error = std::move(reason);
+    }
+    return false;
+}
+
+std::wstring BadLineReason(size_t line)
+{
+    return TrLabel(L"Line", std::to_wstring(line));
 }
 
 namespace

@@ -36,7 +36,7 @@ bool MainWindow::Impl::HandleToolsCommand(int command_id)
     case cmd::kToolsConvertFile:
         {
             ConvertSettings settings;
-            workspace::DialogState state = workspace::LoadDialogState();
+            workspace::DialogState state = LoadDialogState();
             workspace::DialogFields last(&state, false);
             ConvertDialogFields(last, &settings);
             if (settings.source == ConvertSource::kRegistry && browse_.current_node())

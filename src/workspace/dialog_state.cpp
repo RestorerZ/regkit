@@ -10,29 +10,34 @@
 
 namespace regkit::workspace
 {
-namespace
-{
-
 std::wstring DialogStatePath()
 {
     const std::wstring folder = util::GetCacheFolder();
     return folder.empty() ? std::wstring() : util::JoinPath(folder, L"dialog_state.ini");
 }
 
-} // namespace
-
-DialogState LoadDialogState()
+DialogState LoadDialogState(std::wstring* error)
 {
     DialogState state;
     std::wstring content;
     const std::wstring path = DialogStatePath();
-    if (path.empty() || !util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes))
+    if (path.empty() || !util::ReadStateFile(path, &content, error))
     {
         return state;
     }
+    size_t line_number = 0;
     for (const std::wstring_view line : record_fields::Lines(content))
     {
+        ++line_number;
         const size_t separator = line.find(L'=');
+        if (separator == std::wstring_view::npos && !line.empty())
+        {
+            if (error)
+            {
+                *error = util::BadLineReason(line_number);
+            }
+            return {};
+        }
         if (separator != std::wstring_view::npos)
         {
             state.insert_or_assign(util::ToLower(util::TrimWhitespace(line.substr(0, separator))), std::wstring(line.substr(separator + 1)));

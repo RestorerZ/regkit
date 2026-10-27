@@ -485,8 +485,14 @@ std::optional<int> RunSettingCommand(const std::vector<std::wstring>& args)
     }
     const std::wstring path = util::JoinPath(folder, L"settings.ini");
     workspace::Settings settings;
-    workspace::LoadSettings(path, &settings);
-    return workspace::SaveSettings(path, workspace::ParseSettings(lines, settings)) ? 0 : 1;
+    std::wstring error;
+    // an unreadable settings file stays as it is
+    if (!workspace::LoadSettings(path, &settings, &error) && !error.empty())
+    {
+        return 1;
+    }
+    const workspace::Settings changed = workspace::ParseSettings(lines, settings, &error);
+    return error.empty() && workspace::SaveSettings(path, changed) ? 0 : 1;
 }
 
 int MergeRegFiles(const std::vector<std::wstring>& reg_files)

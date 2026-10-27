@@ -11,8 +11,6 @@ namespace regkit::workspace
 
 struct TreeState
 {
-    static constexpr int kCurrentVersion = 1;
-    int source_version = 1;
     std::wstring selected_path;
     std::vector<std::wstring> expanded_paths;
 
@@ -20,9 +18,11 @@ struct TreeState
     void Normalize();
 };
 
-TreeState ParseTreeState(const std::wstring& content);
+// empty state and the reason in error when a line isnt a tree state line
+TreeState ParseTreeState(const std::wstring& content, std::wstring* error = nullptr);
 std::wstring SerializeTreeState(const TreeState& state);
-bool LoadTreeState(const std::wstring& path, TreeState* state);
+// false for a missing file, false with the reason for one that cant be read
+bool LoadTreeState(const std::wstring& path, TreeState* state, std::wstring* error = nullptr);
 bool SaveTreeState(const std::wstring& path, const TreeState& state);
 
 } // namespace regkit::workspace

@@ -17,17 +17,22 @@ void MainWindow::Impl::StartTraceLoadWorker()
     }
     LoadTraceSettings();
     std::unordered_map<std::wstring, trace::Selection> selection_cache = trace_selection_cache_;
-    std::wstring active_path = ActiveTracesPath();
+    const std::wstring active_path = ActiveTracesPath();
+    std::vector<std::wstring> entries;
+    std::wstring error;
+    if (!ReadActiveEntries(active_path, &entries, &error))
+    {
+        if (!error.empty())
+        {
+            ReportFileError(active_path, error);
+        }
+        return;
+    }
     const HWND hwnd = hwnd_;
-    trace_load_session_.StartIfIdle(L"TraceLoadThread", [this, selection_cache = std::move(selection_cache), active_path, hwnd](uint64_t generation, const std::atomic_bool& cancel) mutable {
+    trace_load_session_.StartIfIdle(L"TraceLoadThread", [this, selection_cache = std::move(selection_cache), entries = std::move(entries), hwnd](uint64_t generation, const std::atomic_bool& cancel) mutable {
         auto payload = std::make_unique<TraceLoadPayload>();
         payload->generation = generation;
         payload->selection_cache = std::move(selection_cache);
-        std::vector<std::wstring> entries;
-        if (!ReadActiveEntries(active_path, L"trace=", &entries))
-        {
-            return;
-        }
         std::unordered_set<std::wstring> loaded;
         for (const auto& entry : entries)
         {

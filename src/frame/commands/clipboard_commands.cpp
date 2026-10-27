@@ -398,7 +398,7 @@ bool MainWindow::Impl::HandleEditToolsCommand(int command_id)
         {
             SearchDialogResult options;
             options.criteria.search_keys = false;
-            workspace::DialogState state = workspace::LoadDialogState();
+            workspace::DialogState state = LoadDialogState();
             workspace::DialogFields last(&state, false);
             SearchDialogFields(last, &options);
             SearchSources sources;
@@ -520,7 +520,7 @@ bool MainWindow::Impl::HandleChangeHistoryCommand(int command_id)
                 return true;
             }
             ReplaceDialogResult options;
-            workspace::DialogState state = workspace::LoadDialogState();
+            workspace::DialogState state = LoadDialogState();
             workspace::DialogFields last(&state, false);
             ReplaceDialogFields(last, &options);
             if (options.start_key.empty() && browse_.current_node())

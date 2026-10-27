@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-26 13:22+0100\n"
+"POT-Creation-Date: 2026-10-27 11:28+0100\n"
 "PO-Revision-Date: 2026-10-09 20:51+0200\n"
 "Last-Translator: nohuto contact@noverse.dev\n"
 "Language-Team: none\n"
@@ -2103,6 +2103,10 @@ msgstr "长度不同"
 msgid "The comment couldn't be saved."
 msgstr "无法保存注释。"
 
+#: frame/views/history_workspace.cpp
+msgid "RegKit couldn't read this file and didn't use it."
+msgstr ""
+
 #: frame/views/registry_sessions.cpp search/search.cpp
 msgid "Local Registry (32-bit)"
 msgstr "本地注册表 (32 位)"
@@ -2212,7 +2216,7 @@ msgid "Value Not Found"
 msgstr "找不到值"
 
 #: frame/views/registry_sessions.cpp frame/window/appearance.cpp
-#: frame/window/lifetime.cpp frame/window/notifications.cpp ui/feedback.cpp
+#: frame/window/notifications.cpp ui/feedback.cpp
 msgid "OK"
 msgstr "确定"
 
@@ -2467,10 +2471,6 @@ msgstr "历史记录拆分条"
 #: frame/window/lifetime.cpp
 msgid "The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."
 msgstr "无法读取注释文件，在修复或移除该文件之前，注释更改不会保存。"
-
-#: frame/window/lifetime.cpp
-msgid "Comments"
-msgstr "注释"
 
 #: frame/window/lifetime.cpp
 msgid "The open tabs couldn't be saved for the next session."
@@ -3182,6 +3182,15 @@ msgstr "仅支持无符号整数。"
 msgid "The file contains trailing content."
 msgstr "文件中有多余的尾随内容。"
 
+#: records/json.cpp regfile/batch_script.cpp regfile/powershell_script.cpp
+#: win32/file_text.cpp
+msgid "Line"
+msgstr "行"
+
+#: records/json.cpp
+msgid "Column"
+msgstr ""
+
 #: regfile/batch_script.cpp
 msgid "Unsupported reg command"
 msgstr "不支持的 reg 命令"
@@ -3213,10 +3222,6 @@ msgstr "无法解析批处理参数。"
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Variable can't be resolved"
 msgstr "无法解析变量"
-
-#: regfile/batch_script.cpp regfile/powershell_script.cpp
-msgid "Line"
-msgstr "行"
 
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Unsupported command"
@@ -4247,6 +4252,16 @@ msgstr "保存后打开:"
 msgid "The file dialog failed."
 msgstr "文件对话框失败。"
 
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file is too large."
+msgstr "文件嵌套过深。"
+
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file isn't valid text."
+msgstr "此文件不是有效的 JSON。"
+
 #: win32/system_error.cpp
 msgid "Unknown error."
 msgstr "未知错误。"
@@ -4871,6 +4886,9 @@ msgstr "注册表脚本 (*.reg;*.bat;*.cmd;*.ps1)"
 #: ui/feedback.h
 msgid "Hive Files (*.*)"
 msgstr "配置单元文件 (*.*)"
+
+#~ msgid "Comments"
+#~ msgstr "注释"
 
 #~ msgid "New"
 #~ msgstr "新建"

@@ -73,31 +73,7 @@ int Number(std::wstring_view text)
     return record_fields::ParseUnsigned(text, INT_MAX, &value) ? static_cast<int>(value) : 0;
 }
 
-void ParseLegacyRegistryTab(const std::vector<std::wstring>& fields, int source_version, PersistedTab* tab)
-{
-    if (fields.size() >= 4)
-    {
-        tab->selected_path = fields[3];
-    }
-    size_t first_expanded = 4;
-    if (source_version >= 2)
-    {
-        if (fields.size() >= 5)
-        {
-            tab->selected_value = fields[4];
-        }
-        first_expanded = 5;
-    }
-    for (size_t index = first_expanded; index < fields.size(); ++index)
-    {
-        if (!fields[index].empty())
-        {
-            tab->expanded_paths.push_back(fields[index]);
-        }
-    }
-}
-
-void ParseTaggedFields(const std::vector<std::wstring>& fields, PersistedTab* tab)
+bool ParseTaggedFields(const std::vector<std::wstring>& fields, PersistedTab* tab)
 {
     for (size_t index = 3; index < fields.size(); ++index)
     {
@@ -105,17 +81,13 @@ void ParseTaggedFields(const std::vector<std::wstring>& fields, PersistedTab* ta
         const size_t separator = field.find(L'=');
         if (separator == std::wstring_view::npos)
         {
-            continue;
+            return false;
         }
         const std::wstring_view key = field.substr(0, separator);
         const std::wstring value(field.substr(separator + 1));
         if (key == L"path")
         {
             tab->selected_path = value;
-        }
-        else if (key == L"val")
-        {
-            tab->selected_value = value;
         }
         else if (key == L"sel")
         {
@@ -161,22 +133,6 @@ void ParseTaggedFields(const std::vector<std::wstring>& fields, PersistedTab* ta
         {
             tab->compare_filter = Number(value);
         }
-        else if (key == L"s1k")
-        {
-            tab->first_source_kind = Number(value);
-        }
-        else if (key == L"s1f")
-        {
-            tab->first_source_file = value;
-        }
-        else if (key == L"s2k")
-        {
-            tab->second_source_kind = Number(value);
-        }
-        else if (key == L"s2f")
-        {
-            tab->second_source_file = value;
-        }
         else if (key == L"srck")
         {
             tab->source_kinds.push_back(Number(value));
@@ -189,23 +145,25 @@ void ParseTaggedFields(const std::vector<std::wstring>& fields, PersistedTab* ta
         {
             tab->source_views.push_back(Number(value));
         }
+        else
+        {
+            return false;
+        }
     }
+    return true;
 }
 
 } // namespace
 
-TabState ParseTabs(const std::wstring& content)
+TabState ParseTabs(const std::wstring& content, std::wstring* error)
 {
     TabState state;
+    size_t line_number = 0;
     for (const std::wstring_view line : record_fields::Lines(content))
     {
+        ++line_number;
         if (line.empty())
         {
-            continue;
-        }
-        if (line.starts_with(L"version="))
-        {
-            state.source_version = Number(line.substr(8));
             continue;
         }
         if (line.starts_with(L"active="))
@@ -216,29 +174,17 @@ TabState ParseTabs(const std::wstring& content)
         const auto fields = record_fields::DecodeRecord(line);
         const KindName* kind =
             fields.size() >= 3 && util::EqualsInsensitive(fields[0], L"tab") ? FindKind(fields[1]) : nullptr;
-        if (!kind)
-        {
-            continue;
-        }
         PersistedTab tab;
+        if (!kind || !ParseTaggedFields(fields, &tab))
+        {
+            if (error)
+            {
+                *error = util::BadLineReason(line_number);
+            }
+            return {};
+        }
         tab.kind = kind->kind;
         tab.label = fields[2];
-        if (state.source_version >= 3)
-        {
-            ParseTaggedFields(fields, &tab);
-        }
-        else if (tab.kind == PersistedTab::Kind::kSearch)
-        {
-            if (fields.size() < 4)
-            {
-                continue;
-            }
-            tab.search_cache_file = fields[3];
-        }
-        else
-        {
-            ParseLegacyRegistryTab(fields, state.source_version, &tab);
-        }
         if (tab.kind == PersistedTab::Kind::kRegFile && tab.source_path.empty())
         {
             continue;
@@ -250,13 +196,11 @@ TabState ParseTabs(const std::wstring& content)
 
 std::wstring SerializeTabs(const TabState& state)
 {
-    std::wstring content = L"version=" + std::to_wstring(TabState::kCurrentVersion) + L"\nactive=" +
-                           std::to_wstring(state.active_index) + L"\n";
+    std::wstring content = L"active=" + std::to_wstring(state.active_index) + L"\n";
     for (const PersistedTab& tab : state.tabs)
     {
         std::vector<std::wstring> fields = {L"tab", KindTag(tab.kind), tab.label};
         AppendField(&fields, L"path=", tab.selected_path);
-        AppendField(&fields, L"val=", tab.selected_value);
         for (const std::wstring& value : tab.selected_values)
         {
             fields.push_back(L"sel=" + value);
@@ -274,10 +218,6 @@ std::wstring SerializeTabs(const TabState& state)
         AppendNumber(&fields, L"top=", tab.value_top_index);
         AppendNumber(&fields, L"cmp=", tab.is_compare ? 1 : 0);
         AppendNumber(&fields, L"cmpf=", tab.compare_filter);
-        AppendNumber(&fields, L"s1k=", tab.first_source_kind);
-        AppendField(&fields, L"s1f=", tab.first_source_file);
-        AppendNumber(&fields, L"s2k=", tab.second_source_kind);
-        AppendField(&fields, L"s2f=", tab.second_source_file);
         for (size_t i = 0; i < tab.source_kinds.size(); ++i)
         {
             fields.push_back(L"srck=" + std::to_wstring(tab.source_kinds[i]));
@@ -289,19 +229,24 @@ std::wstring SerializeTabs(const TabState& state)
     return content;
 }
 
-bool LoadTabs(const std::wstring& path, TabState* state)
+bool LoadTabs(const std::wstring& path, TabState* state, std::wstring* error)
 {
-    if (!state)
-    {
-        return false;
-    }
     std::wstring content;
-    if (!util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes))
+    std::wstring reason;
+    if (state && util::ReadStateFile(path, &content, &reason) && !content.empty())
     {
-        return false;
+        TabState parsed = ParseTabs(content, &reason);
+        if (reason.empty())
+        {
+            *state = std::move(parsed);
+            return true;
+        }
     }
-    *state = ParseTabs(content);
-    return true;
+    if (error)
+    {
+        *error = std::move(reason);
+    }
+    return false;
 }
 
 bool SaveTabs(const std::wstring& path, const TabState& state)

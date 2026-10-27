@@ -796,7 +796,8 @@ void MainWindow::Impl::StartSearchTabLoadWorker()
         payload->tab_index = task->tab_index;
         payload->sort_revision = task->sort_revision;
 
-        payload->ok = search::LoadResults(task->path, &payload->rows);
+        payload->path = task->path;
+        payload->ok = search::LoadResults(task->path, &payload->rows, &payload->error);
         if (payload->ok && task->sort_column >= 0)
         {
             search::SortResults(&payload->rows, task->sort_column, task->sort_ascending, task->sort_earlier, task->sources);

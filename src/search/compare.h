@@ -63,8 +63,9 @@ void SortRows(std::vector<Row>* rows, int column, bool ascending, const util::So
 std::vector<Row> BuildRows(const Snapshot& first, const Snapshot& second, RowFilter filter = RowFilter::kDifferences, std::atomic_bool* cancel = nullptr);
 
 std::wstring SerializeRows(const std::vector<Row>& rows);
-bool ParseRows(const std::wstring& content, std::vector<Row>* rows);
+bool ParseRows(const std::wstring& content, std::vector<Row>* rows, std::wstring* error = nullptr);
 bool SaveRows(const std::wstring& path, const std::vector<Row>& rows);
-bool LoadRows(const std::wstring& path, std::vector<Row>* rows);
+// false for a missing file, false with the reason for one that cant be read
+bool LoadRows(const std::wstring& path, std::vector<Row>* rows, std::wstring* error = nullptr);
 
 } // namespace regkit::search::compare

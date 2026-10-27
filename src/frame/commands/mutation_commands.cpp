@@ -79,6 +79,7 @@ bool MainWindow::Impl::HandleMutationCommand(int command_id)
                 ui::ShowWarning(hwnd_, util::Tr(L"Symbolic links can only be created in the local registry."));
                 return true;
             }
+            const bool from_list = GetFocus() == browse_.values().hwnd();
             editors::SymbolicLinkResult link;
             if (!editors::PromptSymbolicLink(
                     hwnd_,
@@ -118,8 +119,17 @@ bool MainWindow::Impl::HandleMutationCommand(int command_id)
             }
             AppendHistoryEntry(L"Create symbolic link " + link.name, L"", native);
             MarkOfflineDirty();
+            const std::wstring link_path = registry_path::Build(*browse_.current_node()) + L"\\" + link.name;
             RefreshTreeSelection();
-            UpdateValueListForNode(browse_.current_node());
+            // like a new key, the tree selects the link unless it was made from the value list
+            if (!from_list && SelectTreePath(link_path))
+            {
+                SetFocus(browse_.tree().hwnd());
+            }
+            else
+            {
+                UpdateValueListForNode(browse_.current_node());
+            }
             return true;
         }
     case cmd::kCreateSimulatedKey:

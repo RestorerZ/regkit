@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-26 13:22+0100\n"
+"POT-Creation-Date: 2026-10-27 11:28+0100\n"
 "PO-Revision-Date: 2026-10-09 20:51+0200\n"
 "Last-Translator: nohuto contact@noverse.dev\n"
 "Language-Team: none\n"
@@ -2103,6 +2103,10 @@ msgstr "Longueurs différentes"
 msgid "The comment couldn't be saved."
 msgstr "Impossible d'enregistrer le commentaire."
 
+#: frame/views/history_workspace.cpp
+msgid "RegKit couldn't read this file and didn't use it."
+msgstr ""
+
 #: frame/views/registry_sessions.cpp search/search.cpp
 msgid "Local Registry (32-bit)"
 msgstr "Registre local (32 bits)"
@@ -2212,7 +2216,7 @@ msgid "Value Not Found"
 msgstr "Valeur introuvable"
 
 #: frame/views/registry_sessions.cpp frame/window/appearance.cpp
-#: frame/window/lifetime.cpp frame/window/notifications.cpp ui/feedback.cpp
+#: frame/window/notifications.cpp ui/feedback.cpp
 msgid "OK"
 msgstr "OK"
 
@@ -2467,10 +2471,6 @@ msgstr "Séparateur de l'historique"
 #: frame/window/lifetime.cpp
 msgid "The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."
 msgstr "Impossible de lire le fichier de commentaires, les modifications des commentaires ne seront donc pas enregistrées tant qu'il n'aura pas été corrigé ou supprimé."
-
-#: frame/window/lifetime.cpp
-msgid "Comments"
-msgstr "Commentaires"
 
 #: frame/window/lifetime.cpp
 msgid "The open tabs couldn't be saved for the next session."
@@ -3182,6 +3182,15 @@ msgstr "Seuls les entiers non signés sont pris en charge."
 msgid "The file contains trailing content."
 msgstr "Le fichier contient du contenu superflu à la fin."
 
+#: records/json.cpp regfile/batch_script.cpp regfile/powershell_script.cpp
+#: win32/file_text.cpp
+msgid "Line"
+msgstr "Ligne"
+
+#: records/json.cpp
+msgid "Column"
+msgstr ""
+
 #: regfile/batch_script.cpp
 msgid "Unsupported reg command"
 msgstr "Commande reg non prise en charge"
@@ -3213,10 +3222,6 @@ msgstr "Impossible de résoudre les arguments du fichier de commandes."
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Variable can't be resolved"
 msgstr "Impossible de résoudre la variable"
-
-#: regfile/batch_script.cpp regfile/powershell_script.cpp
-msgid "Line"
-msgstr "Ligne"
 
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Unsupported command"
@@ -4247,6 +4252,16 @@ msgstr "Ouvrir après l'enregistrement :"
 msgid "The file dialog failed."
 msgstr "Échec de la boîte de dialogue de fichiers."
 
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file is too large."
+msgstr "Le fichier comporte trop de niveaux d'imbrication."
+
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file isn't valid text."
+msgstr "Le fichier n'est pas un fichier JSON valide."
+
 #: win32/system_error.cpp
 msgid "Unknown error."
 msgstr "Erreur inconnue."
@@ -4871,6 +4886,9 @@ msgstr "Scripts de Registre (*.reg;*.bat;*.cmd;*.ps1)"
 #: ui/feedback.h
 msgid "Hive Files (*.*)"
 msgstr "Fichiers de ruche (*.*)"
+
+#~ msgid "Comments"
+#~ msgstr "Commentaires"
 
 #~ msgid "New"
 #~ msgstr "Nouveau"

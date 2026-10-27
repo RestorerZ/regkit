@@ -44,12 +44,9 @@ namespace changes
 
 struct HistoryDocument
 {
-    static constexpr int kCurrentVersion = 2;
-    int source_version = 1;
     std::vector<HistoryEntry> entries;
 };
 
-using QueryValue = std::function<bool(const std::wstring&, const std::wstring&, RegistryValue*)>;
 using PathExists = std::function<bool(const std::wstring&)>;
 
 class ChangeHistory
@@ -68,11 +65,12 @@ class ChangeHistory
     std::vector<HistoryEntry> entries_;
 };
 
-HistoryDocument ParseHistory(const std::wstring& content);
+// empty document and the reason in error when a line isnt a history row
+HistoryDocument ParseHistory(const std::wstring& content, std::wstring* error = nullptr);
 std::wstring SerializeHistoryEntry(const HistoryEntry& entry);
 bool AppendHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>& entries);
 bool WriteHistoryFile(const std::wstring& path, const std::vector<HistoryEntry>& entries);
-bool PrepareRevert(const HistoryEntry& entry, const QueryValue& query_value, HistoryEntry* prepared);
+bool PrepareRevert(const HistoryEntry& entry, HistoryEntry* prepared);
 bool FindNearestExistingPath(const std::wstring& path, const PathExists& path_exists, std::wstring* nearest_path);
 
 } // namespace changes

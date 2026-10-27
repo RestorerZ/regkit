@@ -14,7 +14,6 @@
 #include <win32ui/json/writer.h>
 
 #include <algorithm>
-#include <unordered_set>
 #include <cstdio>
 #include <cstring>
 
@@ -266,19 +265,13 @@ std::vector<DefinitionFile> LoadBundledFiles()
     {
         return files;
     }
-    std::unordered_set<std::wstring> seen;
-    for (const wchar_t* pattern : {L"*.regkit-bitfield.jsonc", L"*.regkit-bitfield.json"})
+    WIN32_FIND_DATAW found = {};
+    const win32ui::UniqueFind search(FindFirstFileW(util::JoinPath(directory, L"*.regkit-bitfield.jsonc").c_str(), &found));
+    if (search)
     {
-        WIN32_FIND_DATAW found = {};
-        const win32ui::UniqueFind search(FindFirstFileW(util::JoinPath(directory, pattern).c_str(), &found));
-        if (!search)
-        {
-            continue;
-        }
         do
         {
-            // short names can make one file match both patterns
-            if ((found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || !seen.insert(util::ToLower(found.cFileName)).second)
+            if (found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             {
                 continue;
             }
@@ -807,7 +800,7 @@ std::wstring SuggestedFileName(const std::wstring& value_name)
 
 const wchar_t* FileFilter()
 {
-    return L"RegKit bitfield definitions (*.regkit-bitfield.jsonc)\0*.regkit-bitfield.jsonc;*.regkit-bitfield.json\0JSON files "
+    return L"RegKit bitfield definitions (*.regkit-bitfield.jsonc)\0*.regkit-bitfield.jsonc\0JSON files "
            L"(*.jsonc;*.json)\0*.jsonc;*.json\0";
 }
 

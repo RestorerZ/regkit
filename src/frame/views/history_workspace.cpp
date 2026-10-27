@@ -23,19 +23,6 @@ search::Source::Kind ToSourceKind(int value)
                : static_cast<search::Source::Kind>(value);
 }
 
-search::Source::Kind LegacyCompareKind(int value)
-{
-    switch (value)
-    {
-    case 1:
-        return search::Source::Kind::kRegFile;
-    case 2:
-        return search::Source::Kind::kOffline;
-    default:
-        return search::Source::Kind::kLocal;
-    }
-}
-
 bool DeleteCacheFile(const std::wstring& path)
 {
     if (path.empty() || DeleteFileW(path.c_str()) != 0)
@@ -169,7 +156,7 @@ bool MainWindow::Impl::PrepareHistoryRevert(const HistoryEntry& entry, HistoryEn
         RegistryNode node;
         return ResolvePathToNode(path, &node) && RegistryStore::QueryValue(node, name, value);
     };
-    if (!changes::PrepareRevert(entry, query_value, prepared))
+    if (!changes::PrepareRevert(entry, prepared))
     {
         return false;
     }
@@ -332,7 +319,7 @@ bool MainWindow::Impl::HistoryStaysInMemory() const
 
 bool MainWindow::Impl::AppendHistoryCache(const std::vector<HistoryEntry>& entries)
 {
-    if (HistoryStaysInMemory() || entries.empty())
+    if (HistoryStaysInMemory() || history_unreadable_ || entries.empty())
     {
         return true;
     }
@@ -416,7 +403,12 @@ bool MainWindow::Impl::EnsureSearchTabResultsLoaded(int search_index)
         tab.results_loaded = true;
         if (!tab.compare_cache_file.empty())
         {
-            search::compare::LoadRows(SearchTabCachePath(tab.compare_cache_file), &tab.compare_rows);
+            std::wstring error;
+            const std::wstring path = SearchTabCachePath(tab.compare_cache_file);
+            if (!search::compare::LoadRows(path, &tab.compare_rows, &error) && !error.empty())
+            {
+                ReportFileError(path, error);
+            }
         }
         return true;
     }
@@ -471,6 +463,10 @@ void MainWindow::Impl::ApplySearchTabLoad(std::unique_ptr<SearchTabLoadPayload> 
     SearchTab& tab = *found;
     owned->tab_index = static_cast<int>(found - search_tabs_.data());
     tab.load_pending = false;
+    if (!owned->error.empty())
+    {
+        ReportFileError(owned->path, owned->error);
+    }
     tab.results = std::move(owned->rows);
     for (auto& row : tab.results)
     {
@@ -526,7 +522,9 @@ bool MainWindow::Impl::ClearCache(CacheKind kind, bool resume_tree_worker)
     {
         ClearHistoryItems(false);
         history_cache_failed_ = false;
-        cleared = DeleteCacheFile(HistoryCachePath()) && cleared;
+        const bool deleted = DeleteCacheFile(HistoryCachePath());
+        history_unreadable_ = history_unreadable_ && !deleted;
+        cleared = deleted && cleared;
     }
     if (all || kind == CacheKind::kSearchHistory)
     {
@@ -575,15 +573,28 @@ void MainWindow::Impl::LoadTabs()
     const std::wstring session_path = SessionCachePath();
     workspace::TabState state;
     bool keep_tree_state = settings_.save_tree_state;
-    if (restore_session && workspace::LoadTabs(session_path, &state))
+    std::wstring error;
+    if (restore_session && workspace::LoadTabs(session_path, &state, &error))
     {
         loaded = true;
         keep_tree_state = true;
         DeleteFileW(session_path.c_str());
     }
-    else if (settings_.save_tab_kinds != 0)
+    else
     {
-        loaded = workspace::LoadTabs(TabsCachePath(), &state);
+        if (!error.empty())
+        {
+            ReportFileError(session_path, error);
+            error.clear();
+        }
+        if (settings_.save_tab_kinds != 0)
+        {
+            loaded = workspace::LoadTabs(TabsCachePath(), &state, &error);
+            if (!error.empty())
+            {
+                ReportFileError(TabsCachePath(), error);
+            }
+        }
     }
     // restarts transfer the full session, normal startup restores tree state only if saved
     auto restore_tree_state = [keep_tree_state](TabEntry* entry, workspace::PersistedTab* saved) {
@@ -592,7 +603,6 @@ void MainWindow::Impl::LoadTabs()
             return;
         }
         entry->selected_path = std::move(saved->selected_path);
-        entry->selected_value = std::move(saved->selected_value);
         entry->selected_values = std::move(saved->selected_values);
         entry->value_top_index = saved->value_top_index;
         entry->expanded_paths = std::move(saved->expanded_paths);
@@ -609,7 +619,7 @@ void MainWindow::Impl::LoadTabs()
                 search_tab.label = label.empty() ? util::Tr(L"Find") : std::move(label);
                 search_tab.cache_file = std::move(saved.search_cache_file);
                 search_tab.compare_cache_file = std::move(saved.compare_cache_file);
-                search_tab.is_compare = saved.is_compare || StartsWithInsensitive(search_tab.label, L"Compare:");
+                search_tab.is_compare = saved.is_compare;
                 if (saved.compare_filter >= 0 &&
                     saved.compare_filter <= static_cast<int>(search::compare::RowFilter::kAll))
                 {
@@ -617,26 +627,17 @@ void MainWindow::Impl::LoadTabs()
                 }
                 search_tab.results_loaded =
                     search_tab.is_compare ? search_tab.compare_cache_file.empty() : search_tab.cache_file.empty();
-                for (size_t s = 0; s < saved.source_kinds.size(); ++s)
+                const size_t sources = saved.source_kinds.size();
+                for (size_t s = 0; sources == saved.source_names.size() && sources == saved.source_views.size() && s < sources; ++s)
                 {
                     search::Source source;
                     source.kind = ToSourceKind(saved.source_kinds[s]);
-                    if (s < saved.source_names.size())
-                    {
-                        source.name = std::move(saved.source_names[s]);
-                    }
-                    if (s < saved.source_views.size() && win32::HasAlternateView())
+                    source.name = std::move(saved.source_names[s]);
+                    if (win32::HasAlternateView())
                     {
                         source.view = static_cast<REGSAM>(saved.source_views[s]) & win32::kAlternateRegistryView;
                     }
                     search_tab.sources.push_back(std::move(source));
-                }
-                if (search_tab.sources.empty() && search_tab.is_compare)
-                {
-                    search_tab.sources = {
-                        {LegacyCompareKind(saved.first_source_kind), std::move(saved.first_source_file)},
-                        {LegacyCompareKind(saved.second_source_kind), std::move(saved.second_source_file)}
-                    };
                 }
                 search_tabs_.push_back(std::move(search_tab));
                 const int search_index = static_cast<int>(search_tabs_.size() - 1);
@@ -871,7 +872,6 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds)
             saved.label = label.empty() ? entry.reg_file_label : std::move(label);
             saved.source_path = entry.reg_file_path;
             saved.selected_path = entry.selected_path;
-            saved.selected_value = entry.selected_value;
             saved.selected_values = entry.selected_values;
             saved.value_top_index = entry.value_top_index;
             saved.expanded_paths = entry.expanded_paths;
@@ -895,7 +895,6 @@ bool MainWindow::Impl::SaveTabState(const std::wstring& path, int kinds)
             saved.kind = workspace::PersistedTab::Kind::kRegistry;
             saved.label = std::move(label);
             saved.selected_path = registry_entry.selected_path;
-            saved.selected_value = registry_entry.selected_value;
             saved.selected_values = registry_entry.selected_values;
             saved.value_top_index = registry_entry.value_top_index;
             saved.expanded_paths = registry_entry.expanded_paths;
@@ -963,10 +962,7 @@ std::wstring MainWindow::Impl::CommentsPath() const
     {
         return L"";
     }
-    const std::wstring path = util::JoinPath(folder, L"comments.jsonc");
-    // keep using the previous file until the next save renames it
-    const std::wstring legacy = util::JoinPath(folder, L"comments.json");
-    return util::IsFile(path) || !util::IsFile(legacy) ? path : legacy;
+    return util::JoinPath(folder, L"comments.jsonc");
 }
 
 std::wstring MainWindow::Impl::CommentKeyPath(const RegistryNode& node) const
@@ -994,12 +990,12 @@ bool MainWindow::Impl::SaveComments() const
     return merged.Save(path);
 }
 
-bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path, size_t* imported)
+bool MainWindow::Impl::ImportCommentsFromFile(const std::wstring& path, size_t* imported, std::wstring* error)
 {
     std::wstring content;
     std::vector<changes::CommentRule> rules;
     if (!util::ReadTextFile(path, &content, nullptr, util::kMaxCommentFileBytes) ||
-        !changes::ParseComments(content, &rules))
+        !changes::ParseComments(content, &rules, error))
     {
         return false;
     }
@@ -1174,10 +1170,54 @@ bool MainWindow::Impl::EditComments(const std::vector<changes::CommentTarget>& t
     return true;
 }
 
+void MainWindow::Impl::ReportFileError(const std::wstring& path, const std::wstring& reason, const wchar_t* headline)
+{
+    std::wstring text = headline ? headline : util::Tr(L"RegKit couldn't read this file and didn't use it.");
+    text.append(L"\n").append(path);
+    if (!reason.empty())
+    {
+        text.append(L"\n").append(reason);
+    }
+    file_errors_.push_back(std::move(text));
+    // startup errors wait for RunDeferredStartup to show the window
+    if (!file_errors_posted_ && hwnd_ && deferred_startup_complete_)
+    {
+        file_errors_posted_ = PostMessageW(hwnd_, frame::message_id::kShowFileErrors, 0, 0) != FALSE;
+    }
+}
+
+void MainWindow::Impl::ShowFileErrors()
+{
+    // errors reported while a message is open are shown after it
+    while (!file_errors_.empty())
+    {
+        const std::wstring error = std::move(file_errors_.front());
+        file_errors_.erase(file_errors_.begin());
+        ui::ShowError(hwnd_, error);
+    }
+    file_errors_posted_ = false;
+}
+
+workspace::DialogState MainWindow::Impl::LoadDialogState()
+{
+    std::wstring error;
+    workspace::DialogState state = workspace::LoadDialogState(&error);
+    if (!error.empty())
+    {
+        ReportFileError(workspace::DialogStatePath(), error);
+    }
+    return state;
+}
+
 void MainWindow::Impl::LoadSettings()
 {
-    if (!workspace::LoadSettings(SettingsPath(), &settings_))
+    std::wstring error;
+    if (!workspace::LoadSettings(SettingsPath(), &settings_, &error))
     {
+        if (!error.empty())
+        {
+            ReportFileError(SettingsPath(), error);
+        }
         return;
     }
     util::SetCurrentUserFollowsShell(settings_.hkcu_follows_shell_user);

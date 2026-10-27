@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: RegKit\n"
 "Report-Msgid-Bugs-To: https://github.com/nohuto/regkit/issues\n"
-"POT-Creation-Date: 2026-10-26 13:22+0100\n"
+"POT-Creation-Date: 2026-10-27 11:28+0100\n"
 "PO-Revision-Date: 2026-10-09 20:51+0200\n"
 "Last-Translator: nohuto contact@noverse.dev\n"
 "Language-Team: none\n"
@@ -2103,6 +2103,10 @@ msgstr "다른 길이"
 msgid "The comment couldn't be saved."
 msgstr "메모를 저장하지 못했습니다."
 
+#: frame/views/history_workspace.cpp
+msgid "RegKit couldn't read this file and didn't use it."
+msgstr ""
+
 #: frame/views/registry_sessions.cpp search/search.cpp
 msgid "Local Registry (32-bit)"
 msgstr "로컬 레지스트리 (32비트)"
@@ -2212,7 +2216,7 @@ msgid "Value Not Found"
 msgstr "값을 찾을 수 없음"
 
 #: frame/views/registry_sessions.cpp frame/window/appearance.cpp
-#: frame/window/lifetime.cpp frame/window/notifications.cpp ui/feedback.cpp
+#: frame/window/notifications.cpp ui/feedback.cpp
 msgid "OK"
 msgstr "확인"
 
@@ -2467,10 +2471,6 @@ msgstr "기록 분할 막대"
 #: frame/window/lifetime.cpp
 msgid "The comments file couldn't be read, so comment changes won't be saved until it is fixed or removed."
 msgstr "메모 파일을 읽지 못했으므로 파일을 수정하거나 제거할 때까지 메모 변경 내용이 저장되지 않습니다."
-
-#: frame/window/lifetime.cpp
-msgid "Comments"
-msgstr "메모"
 
 #: frame/window/lifetime.cpp
 msgid "The open tabs couldn't be saved for the next session."
@@ -3182,6 +3182,15 @@ msgstr "부호 없는 정수만 지원됩니다."
 msgid "The file contains trailing content."
 msgstr "파일 끝에 불필요한 내용이 있습니다."
 
+#: records/json.cpp regfile/batch_script.cpp regfile/powershell_script.cpp
+#: win32/file_text.cpp
+msgid "Line"
+msgstr "줄"
+
+#: records/json.cpp
+msgid "Column"
+msgstr ""
+
 #: regfile/batch_script.cpp
 msgid "Unsupported reg command"
 msgstr "지원되지 않는 reg 명령"
@@ -3213,10 +3222,6 @@ msgstr "배치 인수를 해석할 수 없습니다."
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Variable can't be resolved"
 msgstr "변수를 해석할 수 없음"
-
-#: regfile/batch_script.cpp regfile/powershell_script.cpp
-msgid "Line"
-msgstr "줄"
 
 #: regfile/batch_script.cpp regfile/powershell_script.cpp
 msgid "Unsupported command"
@@ -4247,6 +4252,16 @@ msgstr "저장 후 열기:"
 msgid "The file dialog failed."
 msgstr "파일 대화 상자가 실패했습니다."
 
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file is too large."
+msgstr "파일의 중첩 수준이 너무 깊습니다."
+
+#: win32/file_text.cpp
+#, fuzzy
+msgid "The file isn't valid text."
+msgstr "파일이 올바른 JSON이 아닙니다."
+
 #: win32/system_error.cpp
 msgid "Unknown error."
 msgstr "알 수 없는 오류입니다."
@@ -4871,6 +4886,9 @@ msgstr "레지스트리 스크립트 (*.reg;*.bat;*.cmd;*.ps1)"
 #: ui/feedback.h
 msgid "Hive Files (*.*)"
 msgstr "하이브 파일 (*.*)"
+
+#~ msgid "Comments"
+#~ msgstr "메모"
 
 #~ msgid "New"
 #~ msgstr "새로 만들기"

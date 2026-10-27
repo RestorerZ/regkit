@@ -310,6 +310,7 @@ std::optional<LRESULT> MainWindow::Impl::HandleWorkerMessage(UINT message, WPARA
     case frame::message_id::kDeferredStartup:
     case frame::message_id::kStartupCacheReady:
     case frame::message_id::kUpdateCheckReady:
+    case frame::message_id::kShowFileErrors:
         return HandleLoadWorkerMessage(message, wparam, lparam);
     case frame::message_id::kRegFileLoadReady:
         return HandleRegFileWorkerMessage(message, wparam, lparam);
@@ -617,6 +618,9 @@ std::optional<LRESULT> MainWindow::Impl::HandleLoadWorkerMessage(UINT message, W
         return 0;
     case frame::message_id::kStartupCacheReady:
         ApplyStartupCachePayload(work::TakePayload<StartupCachePayload>(lparam));
+        return 0;
+    case frame::message_id::kShowFileErrors:
+        ShowFileErrors();
         return 0;
     case frame::message_id::kUpdateCheckReady:
         {

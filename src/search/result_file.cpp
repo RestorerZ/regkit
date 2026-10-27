@@ -16,39 +16,7 @@ namespace regkit::search
 namespace
 {
 
-constexpr wchar_t kRecordVersionTag[] = L"#regkit-search-2";
 constexpr uint64_t kMaxResultFileBytes = 256ull * 1024 * 1024;
-
-MatchField ToMatchField(int value)
-{
-    return value < 0 || value > static_cast<int>(MatchField::kDefault) ? MatchField::kNone
-                                                                       : static_cast<MatchField>(value);
-}
-
-Result ParseLegacyRecord(const std::vector<std::wstring>& fields)
-{
-    Result result;
-    result.key_path = fields[0];
-    result.value_name = fields[2];
-    result.type = static_cast<DWORD>(_wtoi(fields[5].c_str()));
-    result.data_text = fields[6];
-    result.data_size = static_cast<DWORD>(_wtoi(fields[7].c_str()));
-    const size_t base = fields.size() >= 14 ? 10 : 9;
-    result.kind = _wtoi(fields[base].c_str()) != 0 ? ResultKind::kKey : ResultKind::kValue;
-    result.match_field = ToMatchField(_wtoi(fields[base + 1].c_str()));
-    const int start = _wtoi(fields[base + 2].c_str());
-    result.match_start = start < 0 ? 0u : static_cast<uint32_t>(start);
-    result.match_length = static_cast<uint32_t>(_wtoi(fields[base + 3].c_str()));
-    bool loaded = true;
-    if (fields.size() > base + 4)
-    {
-        loaded = _wtoi(fields[base + 4].c_str()) != 0;
-    }
-    result.data_state = result.kind == ResultKind::kKey ? DataState::kNotApplicable
-                        : loaded                        ? DataState::kLoaded
-                                                        : DataState::kNotLoaded;
-    return result;
-}
 
 bool ParseVersionedRecord(std::vector<std::wstring>&& fields, Result* out)
 {
@@ -69,7 +37,7 @@ bool ParseVersionedRecord(std::vector<std::wstring>&& fields, Result* out)
         !record_fields::ParseUnsigned(fields[8], UINT32_MAX, &match_length) ||
         !record_fields::ParseUnsigned(fields[9], static_cast<uint64_t>(ResultKind::kTraceValue), &kind) ||
         !record_fields::ParseUnsigned(fields[10], static_cast<uint64_t>(DataState::kLoaded), &state) ||
-        (fields.size() > 11 && !record_fields::ParseUnsigned(fields[11], UINT16_MAX, &source)))
+        !record_fields::ParseUnsigned(fields[11], UINT16_MAX, &source))
     {
         return false;
     }
@@ -93,41 +61,32 @@ bool ParseVersionedRecord(std::vector<std::wstring>&& fields, Result* out)
 
 } // namespace
 
-bool ParseResults(const std::wstring& content, std::vector<Result>* out)
+bool ParseResults(const std::wstring& content, std::vector<Result>* out, std::wstring* error)
 {
     if (!out)
     {
         return false;
     }
     std::vector<Result> results;
-    bool versioned = false;
+    size_t line_number = 0;
     for (const std::wstring_view line : record_fields::Lines(content))
     {
+        ++line_number;
         if (line.empty())
         {
             continue;
         }
-        if (line == kRecordVersionTag)
-        {
-            versioned = true;
-            continue;
-        }
         auto fields = record_fields::DecodeRecord(line);
-        if (versioned)
+        Result record;
+        if (fields.size() != 12 || !ParseVersionedRecord(std::move(fields), &record))
         {
-            Result record;
-            if (fields.size() < 11 || fields.size() > 12 || !ParseVersionedRecord(std::move(fields), &record))
+            if (error)
             {
-                return false;
+                *error = util::BadLineReason(line_number);
             }
-            results.push_back(std::move(record));
-            continue;
+            return false;
         }
-        if (fields.size() < 13)
-        {
-            continue;
-        }
-        results.push_back(ParseLegacyRecord(fields));
+        results.push_back(std::move(record));
     }
     *out = std::move(results);
     return true;
@@ -135,8 +94,7 @@ bool ParseResults(const std::wstring& content, std::vector<Result>* out)
 
 std::wstring SerializeResults(const std::vector<Result>& results)
 {
-    std::wstring content = kRecordVersionTag;
-    content += L'\n';
+    std::wstring content;
     for (const Result& result : results)
     {
         const uint64_t modified =
@@ -149,14 +107,10 @@ std::wstring SerializeResults(const std::vector<Result>& results)
     return content;
 }
 
-bool LoadResults(const std::wstring& path, std::vector<Result>* results)
+bool LoadResults(const std::wstring& path, std::vector<Result>* results, std::wstring* error)
 {
-    if (!results || path.empty())
-    {
-        return false;
-    }
     std::wstring content;
-    return util::ReadTextFile(path, &content, nullptr, kMaxResultFileBytes) && ParseResults(content, results);
+    return results && !path.empty() && util::ReadStateFile(path, &content, error, kMaxResultFileBytes) && !content.empty() && ParseResults(content, results, error);
 }
 
 bool SaveResults(const std::wstring& path, const std::vector<Result>& results)

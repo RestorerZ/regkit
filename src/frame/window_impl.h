@@ -136,6 +136,10 @@ class MainWindow::Impl
         std::vector<changes::CommentRule> user_comments;
         std::vector<changes::CommentRule> default_comments;
         bool comments_unreadable = false;
+        std::wstring comments_error;
+        // files that exist but couldnt be read, path and reason
+        std::vector<std::pair<std::wstring, std::wstring>> file_errors;
+        bool history_unreadable = false;
         workspace::TreeState tree_state;
         bool history_loaded = false;
         bool comments_loaded = false;
@@ -508,7 +512,7 @@ class MainWindow::Impl
     void StopStartupCacheLoad();
     void ApplyStartupCachePayload(std::unique_ptr<StartupCachePayload> owned);
     bool SaveComments() const;
-    bool ImportCommentsFromFile(const std::wstring& path, size_t* imported);
+    bool ImportCommentsFromFile(const std::wstring& path, size_t* imported, std::wstring* error);
     void ShowFavoritesImported(size_t imported);
     bool ExportCommentsToFile(const std::wstring& path) const;
     void RefreshValueListComments();
@@ -529,6 +533,11 @@ class MainWindow::Impl
     bool RestartAsSystem();
     bool RestartAsTrustedInstaller();
     void LoadSettings();
+    // a file that exists but cant be read, shown once the window runs, headline is translated text
+    void ReportFileError(const std::wstring& path, const std::wstring& reason, const wchar_t* headline = nullptr);
+    void ShowFileErrors();
+    // the last dialog fields, an unreadable file is reported
+    workspace::DialogState LoadDialogState();
     workspace::Settings CurrentSettings() const;
     void SaveSettings() const;
     std::wstring SettingsPath() const;
@@ -699,6 +708,10 @@ class MainWindow::Impl
     std::optional<CacheKind> cache_clear_on_close_;
     bool history_loaded_ = false;
     bool history_cache_failed_ = false;
+    // the history file couldnt be read, history stays in memory until the cache is cleared
+    bool history_unreadable_ = false;
+    std::vector<std::wstring> file_errors_;
+    bool file_errors_posted_ = false;
     bool is_replaying_ = false;
     bool hive_list_loaded_ = false;
     std::vector<ThemePreset> theme_presets_;
@@ -803,7 +816,6 @@ class MainWindow::Impl
         std::wstring offline_path;
         std::wstring remote_machine;
         std::wstring selected_path;
-        std::wstring selected_value;
         std::vector<std::wstring> selected_values;
         int value_top_index = 0;
         std::vector<std::wstring> expanded_paths;
@@ -1022,6 +1034,8 @@ class MainWindow::Impl
         bool ok = false;
         uint64_t sort_revision = 0;
         std::vector<search::Result> rows;
+        std::wstring path;
+        std::wstring error;
     };
     work::LatestTask<SearchTabLoadTask> search_tab_loader_;
     uint64_t search_tab_load_generation_ = 0;

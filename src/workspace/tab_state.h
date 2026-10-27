@@ -21,7 +21,6 @@ struct PersistedTab
     Kind kind = Kind::kRegistry;
     std::wstring label;
     std::wstring selected_path;
-    std::wstring selected_value;
     std::vector<std::wstring> selected_values;
     std::vector<std::wstring> expanded_paths;
     std::wstring search_cache_file;
@@ -33,10 +32,6 @@ struct PersistedTab
     int value_top_index = 0;
     bool is_compare = false;
     int compare_filter = 0;
-    int first_source_kind = 0;
-    std::wstring first_source_file;
-    int second_source_kind = 0;
-    std::wstring second_source_file;
     std::vector<int> source_kinds;
     std::vector<std::wstring> source_names;
     std::vector<int> source_views;
@@ -44,15 +39,15 @@ struct PersistedTab
 
 struct TabState
 {
-    static constexpr int kCurrentVersion = 3;
-    int source_version = 1;
     int active_index = 0;
     std::vector<PersistedTab> tabs;
 };
 
-TabState ParseTabs(const std::wstring& content);
+// empty state and the reason in error when a line isnt a tab record
+TabState ParseTabs(const std::wstring& content, std::wstring* error = nullptr);
 std::wstring SerializeTabs(const TabState& state);
-bool LoadTabs(const std::wstring& path, TabState* state);
+// false for a missing file, false with the reason for one that cant be read
+bool LoadTabs(const std::wstring& path, TabState* state, std::wstring* error = nullptr);
 bool SaveTabs(const std::wstring& path, const TabState& state);
 
 } // namespace regkit::workspace

@@ -38,16 +38,21 @@ void MainWindow::Impl::StartDefaultLoadWorker()
     {
         return;
     }
-    std::wstring active_path = ActiveDefaultsPath();
+    const std::wstring active_path = ActiveDefaultsPath();
+    std::vector<std::wstring> entries;
+    std::wstring error;
+    if (!ReadActiveEntries(active_path, &entries, &error))
+    {
+        if (!error.empty())
+        {
+            ReportFileError(active_path, error);
+        }
+        return;
+    }
     const HWND hwnd = hwnd_;
-    default_load_session_.StartIfIdle(L"DefaultsLoadThread", [this, active_path, hwnd](uint64_t generation, const std::atomic_bool& cancel) {
+    default_load_session_.StartIfIdle(L"DefaultsLoadThread", [this, entries = std::move(entries), hwnd](uint64_t generation, const std::atomic_bool& cancel) {
         auto payload = std::make_unique<DefaultLoadPayload>();
         payload->generation = generation;
-        std::vector<std::wstring> entries;
-        if (!ReadActiveEntries(active_path, L"default=", &entries))
-        {
-            return;
-        }
         std::unordered_set<std::wstring> loaded;
         for (const auto& entry : entries)
         {
@@ -168,10 +173,17 @@ void MainWindow::Impl::LoadTraceSettings()
         return;
     }
     std::wstring content;
-    if (!util::ReadTextFile(path, &content, nullptr, util::kMaxStateFileBytes))
+    std::wstring error;
+    if (!util::ReadStateFile(path, &content, &error))
     {
+        ReportFileError(path, error);
         return;
     }
+    size_t line_number = 0;
+    const auto unreadable = [&] {
+        trace_selection_cache_.clear();
+        ReportFileError(path, util::BadLineReason(line_number));
+    };
 
     trace::Selection selection = {};
     selection.select_all = true;
@@ -242,18 +254,21 @@ void MainWindow::Impl::LoadTraceSettings()
 
     for (const std::wstring_view raw : record_fields::Lines(content))
     {
+        ++line_number;
         if (raw.starts_with(L"pair="))
         {
             const std::vector<std::wstring> fields = record_fields::DecodeRecord(raw.substr(5));
-            if (!fields.empty() && !fields[0].empty() && fields.size() <= 2)
+            if (fields.empty() || fields[0].empty() || fields.size() > 2)
             {
-                auto& values = selection.values_by_key[fields[0]];
-                if (fields.size() == 2)
-                {
-                    values.insert(fields[1]);
-                }
-                has_entry = true;
+                unreadable();
+                return;
             }
+            auto& values = selection.values_by_key[fields[0]];
+            if (fields.size() == 2)
+            {
+                values.insert(fields[1]);
+            }
+            has_entry = true;
             continue;
         }
         const std::wstring line = TrimWhitespace(raw);
@@ -272,16 +287,13 @@ void MainWindow::Impl::LoadTraceSettings()
             continue;
         }
         size_t sep = line.find(L'=');
-        if (sep == std::wstring::npos)
-        {
-            continue;
-        }
-        std::wstring key = TrimWhitespace(line.substr(0, sep));
-        std::wstring value = line.substr(sep + 1);
+        std::wstring key = sep == std::wstring::npos ? std::wstring() : TrimWhitespace(line.substr(0, sep));
         if (key.empty())
         {
-            continue;
+            unreadable();
+            return;
         }
+        std::wstring value = line.substr(sep + 1);
         has_entry = true;
         if (EqualsInsensitive(key, L"path"))
         {
@@ -299,38 +311,14 @@ void MainWindow::Impl::LoadTraceSettings()
         {
             selection.recursive = util::ParseBool(value);
         }
-        else if (EqualsInsensitive(key, L"key_path") || EqualsInsensitive(key, L"key"))
+        else if (EqualsInsensitive(key, L"key"))
         {
             selection.key_paths.push_back(value);
         }
-        else if (EqualsInsensitive(key, L"values"))
+        else
         {
-            std::wstring key_part = TrimWhitespace(value);
-            if (!key_part.empty())
-            {
-                selection.values_by_key[ToLower(key_part)];
-            }
-        }
-        else if (EqualsInsensitive(key, L"value"))
-        {
-            size_t bar = value.find(L'|');
-            if (bar == std::wstring::npos)
-            {
-                continue;
-            }
-            std::wstring key_part = TrimWhitespace(value.substr(0, bar));
-            std::wstring value_part = TrimWhitespace(value.substr(bar + 1));
-            if (key_part.empty())
-            {
-                continue;
-            }
-            if (value_part == L"@")
-            {
-                value_part.clear();
-            }
-            std::wstring key_lower = ToLower(key_part);
-            std::wstring value_lower = ToLower(value_part);
-            selection.values_by_key[key_lower].insert(value_lower);
+            unreadable();
+            return;
         }
     }
     flush_entry();
