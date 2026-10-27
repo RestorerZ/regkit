@@ -1,16 +1,16 @@
 {
-    "version": "1.0.2.0",
+    "version": "1.1.2",
     "description": "Performant registry editor including several new features & improvements",
     "homepage": "https://github.com/nohuto/regkit",
     "license": "AGPL-3.0-or-later",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/nohuto/regkit/releases/download/V1.0.2.0/RegKit-Portable-1.0.2.0-x64.zip",
-            "hash": "a0dff8f4dada6c312d1366b1b3a67691e9ab3b9b438c43b07581574c84c96b4c"
+            "url": "https://github.com/nohuto/regkit/releases/download/V1.1.2/RegKit-Portable-1.1.2-x64.zip",
+            "hash": "826644684fb13b7170da03364080eb0d5d7efd5b10c788aef34110f3ddf951a4"
         },
         "32bit": {
-            "url": "https://github.com/nohuto/regkit/releases/download/V1.0.2.0/RegKit-Portable-1.0.2.0-x86.zip",
-            "hash": "b0f6d49c1e5eec4c826834b69fc6e222aaf16d64ed3f3171c5846e67e5dd9e26"
+            "url": "https://github.com/nohuto/regkit/releases/download/V1.1.2/RegKit-Portable-1.1.2-x86.zip",
+            "hash": "8c37ded96f42bac84c02c7edc24d88f615e7623bd155786689e2d93491aaaf88"
         }
     },
     "bin": "regkit.exe",
